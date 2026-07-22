@@ -18,7 +18,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$WorkspaceRoot = Split-Path -Parent $PSScriptRoot
+$WorkspaceRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Sc2Root = Split-Path -Parent $WorkspaceRoot
 $LegacyRoot = Join-Path $Sc2Root "合作指挥官-起义狂潮"
 $ProjectRoot = Join-Path $WorkspaceRoot "projects\cmre-porting"

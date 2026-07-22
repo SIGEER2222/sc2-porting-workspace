@@ -11,7 +11,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$WorkspaceRoot = Split-Path $PSScriptRoot -Parent
+$WorkspaceRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $Sc2WorkspaceRoot = Split-Path $WorkspaceRoot -Parent
 $LegacyRoot = Join-Path $Sc2WorkspaceRoot "合作指挥官-起义狂潮"
 $SourceRoot = "C:\Users\22448\Downloads\CMRE开发包"

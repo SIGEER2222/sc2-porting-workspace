@@ -4,7 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(scriptDir, "..");
+const repoRoot = resolve(scriptDir, "..", "..");
 const configPath = join(repoRoot, "src", "config", "workspace.json");
 const localSourcesPath = join(repoRoot, "src", "config", "local.sources.json");
 

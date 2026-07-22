@@ -5,7 +5,7 @@ import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(scriptDir, "..");
+const repoRoot = resolve(scriptDir, "..", "..");
 
 async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));

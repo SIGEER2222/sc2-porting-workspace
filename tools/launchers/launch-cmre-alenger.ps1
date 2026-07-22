@@ -1,7 +1,7 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch)
 $ErrorActionPreference = "Stop"
-$WorkspaceRoot = Split-Path -Parent $PSScriptRoot
+$WorkspaceRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Sc2WorkspaceRoot = Split-Path -Parent $WorkspaceRoot
 $LegacyRoot = Join-Path $Sc2WorkspaceRoot "合作指挥官-起义狂潮"
 $AlengerPackagesRoot = Join-Path $WorkspaceRoot "projects\cmre-porting\packages"

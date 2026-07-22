@@ -31,6 +31,6 @@ Committed manifests refer to external inputs by source ID. Machine-specific abso
 the ignored `src/config/local.sources.json` file and are created through the workspace command:
 
 ```powershell
-node tools/workspace.mjs bind-source <source-id> <local-path>
-node tools/workspace.mjs resolve <source-id>
+node tools/utils/workspace.mjs bind-source <source-id> <local-path>
+node tools/utils/workspace.mjs resolve <source-id>
 ```

@@ -9,8 +9,8 @@ adapters, run static and dynamic analysis, and execute repeatable AI-assisted po
 Start with:
 
 ```powershell
-node tools/workspace.mjs validate
-node tools/workspace.mjs status
+node tools/utils/workspace.mjs validate
+node tools/utils/workspace.mjs status
 ```
 
 Project-local skills live under `tools/.codex/skills`. New development projects will be created under

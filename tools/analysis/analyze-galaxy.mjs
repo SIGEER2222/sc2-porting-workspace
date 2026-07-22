@@ -4,7 +4,7 @@ import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(scriptDir, "..");
+const repoRoot = resolve(scriptDir, "..", "..");
 
 // SC2 built-in trigger libraries. Calls into these are never flagged as
 // unresolved because they are provided by the engine regardless of which
