@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "static-diagnostics.schema.json",
+  "title": "Static Diagnostics Output",
+  "description": "Galaxy 脚本静态诊断结果（syntax + type），由 tools/analysis/galaxy-lint.mjs 产生",
+  "type": "object",
+  "required": ["schemaVersion", "generatedAt", "tool", "analyzer", "files", "diagnostics", "summary"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 时间戳"
+    },
+    "tool": {
+      "type": "string",
+      "pattern": "^galaxy-lint@"
+    },
+    "analyzer": {
+      "type": "string",
+      "pattern": "^sc2-galaxy-lang@",
+      "description": "底层分析器名称及版本"
+    },
+    "files": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "分析的 .galaxy 文件总数"
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "line", "column", "severity", "code", "message", "source"],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "相对仓库根的文件路径（使用 / 分隔符）"
+          },
+          "line": { "type": "integer", "minimum": 1 },
+          "column": { "type": "integer", "minimum": 1 },
+          "severity": {
+            "type": "string",
+            "enum": ["error", "warning", "suggestion", "info"]
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^G\\d{3}$",
+            "description": "诊断代码（G001-G999）"
+          },
+          "message": { "type": "string" },
+          "source": {
+            "type": "string",
+            "description": "诊断来源（sc2-galaxy-lang.parser / sc2-galaxy-lang.checker / galaxy-lint.binder 等）"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["errors", "warnings", "suggestions", "total"],
+      "properties": {
+        "errors": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "integer", "minimum": 0 },
+        "suggestions": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

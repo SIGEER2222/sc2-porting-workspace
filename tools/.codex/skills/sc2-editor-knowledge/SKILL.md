@@ -33,6 +33,8 @@ attribution. The sources are versioned and editable through normal Git workflows
    - **Semantic retrieval** via `tools/kb/kb-query.py "<question>"`. This hits
      the local Qdrant embedded index built by `tools/kb/kb-build.py`. If the
      index is missing or out of date, the script prints a rebuild hint.
+     也可以通过 workspace.mjs 统一入口调用：
+     `node tools/utils/workspace.mjs search "<question>" [--top-k <n>]`
    - **Direct read** via `Read` on a specific file listed in `topic-index.md`
      when the query is structural (e.g. "what files are inside a SC2Map").
 3. For Galaxy native function lookup, also consult `galaxy/natives-reference.md`

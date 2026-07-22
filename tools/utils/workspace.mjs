@@ -2,6 +2,7 @@ import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawn } from "node:child_process";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "..", "..");
@@ -179,6 +180,81 @@ async function initProject(id) {
   console.log(projectDir);
 }
 
+// 包装 spawn 为 Promise，stdout/stderr 透传到当前进程
+function runTool(cmd, args, options = {}) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(cmd, args, { stdio: "inherit", shell: false, ...options });
+    child.on("error", rejectPromise);
+    child.on("close", (code) => {
+      if (code === 0) resolvePromise(0);
+      else rejectPromise(new Error(`${cmd} exited with code ${code}`));
+    });
+  });
+}
+
+// galaxy-lint 子命令：调用 sc2-galaxy-lang 做语法/类型诊断
+async function lintCommand(path, options) {
+  if (!path) throw new Error("lint 需要目标路径。用法: workspace.mjs lint <path> [--out <file>] [--format json|text] [--no-type-check]");
+  const lintScript = join(scriptDir, "..", "analysis", "galaxy-lint.mjs");
+  if (!existsSync(lintScript)) throw new Error("galaxy-lint.mjs 不存在: " + lintScript);
+  const args = [lintScript, path];
+  if (options.out) args.push("--out", options.out);
+  if (options.format) args.push("--format", options.format);
+  if (options.noTypeCheck) args.push("--no-type-check");
+  try {
+    await runTool("node", args);
+  } catch (e) {
+    // galaxy-lint 发现 error 时退出码 1，这是正常诊断结果，不是工具故障
+    if (/exited with code 1$/.test(e.message)) {
+      process.exitCode = 1;
+    } else {
+      throw e;
+    }
+  }
+}
+
+// observe 子命令：启动 SC2 运行时观察器
+async function observeCommand(options) {
+  if (!options.port) throw new Error("observe 需要 --port。用法: workspace.mjs observe --port <n> [--duration <s>] [--scenario <file>] [--out-dir <dir>]");
+  const observerScript = join(scriptDir, "..", "runtime-bridge", "sc2-observer.py");
+  if (!existsSync(observerScript)) throw new Error("sc2-observer.py 不存在: " + observerScript);
+  const args = [observerScript, "--port", String(options.port)];
+  if (options.duration != null) args.push("--duration", String(options.duration));
+  if (options.scenario) args.push("--scenario", options.scenario);
+  if (options.outDir) args.push("--out-dir", options.outDir);
+  await runTool("python", args);
+}
+
+// search 子命令：查询 SC2 编辑器知识库
+async function searchCommand(query, options) {
+  if (!query) throw new Error("search 需要查询语句。用法: workspace.mjs search \"<question>\" [--top-k <n>]");
+  const kbScript = join(scriptDir, "..", "kb", "kb-query.py");
+  if (!existsSync(kbScript)) throw new Error("kb-query.py 不存在: " + kbScript);
+  const args = [kbScript];
+  if (options.topK) args.push("--top-k", String(options.topK));
+  args.push(query);
+  await runTool("python", args);
+}
+
+// 解析 --key value 形式的选项
+function parseOptions(argv) {
+  const opts = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a.startsWith("--")) {
+      const key = a.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+      const next = argv[i + 1];
+      if (next && !next.startsWith("--")) {
+        opts[key] = next;
+        i++;
+      } else {
+        opts[key] = true;
+      }
+    }
+  }
+  return opts;
+}
+
 const [command = "validate", argument, value] = process.argv.slice(2);
 if (command === "validate") {
   const result = await validate();
@@ -192,6 +268,18 @@ if (command === "validate") {
   await bindSource(argument, value);
 } else if (command === "init-project") {
   await initProject(argument);
+} else if (command === "lint") {
+  // workspace.mjs lint <path> [--out <file>] [--format json|text] [--no-type-check]
+  const opts = parseOptions(process.argv.slice(3));
+  await lintCommand(argument, opts);
+} else if (command === "observe") {
+  // workspace.mjs observe --port <n> [--duration <s>] [--scenario <file>] [--out-dir <dir>]
+  const opts = parseOptions(process.argv.slice(3));
+  await observeCommand(opts);
+} else if (command === "search") {
+  // workspace.mjs search "<question>" [--top-k <n>]
+  const opts = parseOptions(process.argv.slice(3));
+  await searchCommand(argument, opts);
 } else {
   throw new Error("Unknown command: " + command);
 }

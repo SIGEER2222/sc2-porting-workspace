@@ -40,3 +40,31 @@ Collect real game evidence. Neuro and Gary are optional backends, not required a
 Never use mock-only evidence when the stage requires a real service or game process.
 
 Read [runtime-contract.md](references/runtime-contract.md) before launching.
+
+## SC2 API observer
+
+For passive runtime observation (human plays, AI reads game state), use the
+SC2 API websocket observer. This complements Bank/log-based observation with
+live game state:
+
+```powershell
+# 启动观察（默认 120 秒，事件输出到 artifacts/runtime/）
+node tools/utils/workspace.mjs observe --port 5000
+
+# 指定时长 + scenario 断言
+node tools/utils/workspace.mjs observe --port 5000 --duration 60 --scenario evidence/runtime/scenario.json
+
+# 自定义输出目录
+node tools/utils/workspace.mjs observe --port 5000 --out-dir evidence/runtime/run-001
+```
+
+输出：
+- `events.ndjson` — 逐帧事件流（资源/单位快照/游戏错误/alert/游戏结束）
+- `verdict.json` — scenario 断言结果（仅当指定 `--scenario` 时）
+
+底层调用 `tools/runtime-bridge/sc2-observer.py`，复用
+`reference/SC2-Neuro-API-Integration/s2clientprotocol/` 的 vendored protobuf 包。
+依赖 `aiohttp`（`pip install aiohttp`）。
+
+SC2 启动时需加 `-listenPort 5000` 参数开放 API 端口。observer 只读不写，
+不会影响游戏进程。

@@ -37,3 +37,26 @@ Build the dependency model before proposing edits.
 - Never claim runtime execution from source analysis.
 
 Read [output-contract.md](references/output-contract.md) before writing the graph.
+
+## Syntax and type diagnostics
+
+In addition to the dependency graph, run syntax/type diagnostics to catch
+Galaxy script errors before runtime:
+
+```powershell
+# 诊断整个目录
+node tools/utils/workspace.mjs lint src/projects/<project-id>
+
+# 诊断单个文件，输出到 artifacts
+node tools/utils/workspace.mjs lint path/to/file.galaxy --out evidence/static/diagnostics.json
+
+# 仅语法诊断（不做 type checking，更快）
+node tools/utils/workspace.mjs lint <path> --no-type-check --format text
+```
+
+输出格式见 `docs/schemas/static-diagnostics.schema.json`。底层调用
+`reference/sc2-galaxy-toolkit/packages/sc2-galaxy-lang` 的 parser + binder +
+checker。首次使用前需在 submodule 内 `pnpm install && pnpm -r run build`。
+
+与 `analyze-galaxy.mjs`（dependency graph）互补：lint 专注诊断"写错什么"，
+analyze 专注"调用了什么"。两者可同时运行。
