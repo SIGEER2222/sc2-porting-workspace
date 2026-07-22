@@ -60,3 +60,19 @@ checker。首次使用前需在 submodule 内 `pnpm install && pnpm -r run build
 
 与 `analyze-galaxy.mjs`（dependency graph）互补：lint 专注诊断"写错什么"，
 analyze 专注"调用了什么"。两者可同时运行。
+
+## 已知限制：type check 需多文件 host
+
+galaxy-lint 分三阶段：parser（语法）→ binder（符号表）→ checker（类型）。其中
+binder / checker 依赖一个完整的 host，需要把所有相关 `.galaxy` 文件一次性传入
+documents map 才能正确解析跨文件引用。
+
+- **单文件分析**（`workspace.mjs lint path/to/single.galaxy`）：parser 诊断可信，
+  但 binder / checker 会因 host 不完整报 `G900` / `G901` 警告，类型诊断不可靠。
+  单文件场景请加 `--no-type-check` 只跑语法诊断。
+- **多文件分析**（`workspace.mjs lint src/projects/<project-id>` 或一个目录）：
+  所有相关文件一起 parse 进同一 documents map，binder / checker 才能解析跨文件
+  include / call / 类型引用，类型诊断可信。
+- **跨 mod / 跨项目分析**：当前 host 不支持注入外部 `TriggerLibs/` 头文件，若被
+  分析文件依赖外部库的符号声明，相关 unresolved 诊断会标记为 `inference`，需要
+  人工核对。analyze-galaxy.mjs 的 dependency graph 可作为补充证据。

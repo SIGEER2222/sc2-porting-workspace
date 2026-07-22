@@ -42,8 +42,18 @@ except ImportError:
 
 # ---------- 事件提取 ----------
 
-def extract_events_from_observation(obs: Any, frame: int, t: float) -> list[dict]:
-    """从 Observation protobuf 提取事件。每帧可能有 0 到 N 个事件。"""
+def extract_events_from_observation(
+    obs: Any,
+    frame: int,
+    t: float,
+    prev_unit_tags: set[int],
+    prev_unit_types: dict[int, int],
+) -> list[dict]:
+    """从 Observation protobuf 提取事件。每帧可能有 0 到 N 个事件。
+
+    单位事件通过前后帧 tag 对比识别真正的创建/消失，避免每帧都误报 unit_created。
+    prev_unit_tags / prev_unit_types 会被本函数更新（引用修改）。
+    """
     events = []
 
     # 1. 资源状态
@@ -62,18 +72,44 @@ def extract_events_from_observation(obs: Any, frame: int, t: float) -> list[dict
     except Exception:
         pass
 
-    # 2. 单位创建/死亡事件（通过 observation.raw.units 对比，简化版）
+    # 2. 单位创建/死亡事件：对比前后帧 tag 集合
     try:
         units = list(obs.observation.raw.units)
-        # 只记录当前帧新出现/消失的单位（完整实现需要前后帧对比）
-        # 简化版：每帧记录单位总数，遇到 ScriptError 才详细记录
-        if units:
+        current_tags: set[int] = set()
+        current_types: dict[int, int] = {}
+        new_units: list[Any] = []
+        for u in units:
+            current_tags.add(u.tag)
+            current_types[u.tag] = u.unit_type
+            if u.tag not in prev_unit_tags:
+                new_units.append(u)
+
+        # 新出现的单位 → unit_created 事件（含 unit_type 和 owner，方便按类型/玩家过滤）
+        for u in new_units:
             events.append({
                 "t": round(t, 3),
                 "frame": frame,
-                "type": "unit_snapshot",
-                "count": len(units),
+                "type": "unit_created",
+                "unit_type": u.unit_type,
+                "tag": u.tag,
+                "owner": u.owner,
             })
+
+        # 消失的单位 → unit_lost 事件
+        for tag in prev_unit_tags - current_tags:
+            events.append({
+                "t": round(t, 3),
+                "frame": frame,
+                "type": "unit_lost",
+                "unit_type": prev_unit_types.get(tag, 0),
+                "tag": tag,
+            })
+
+        # 更新 prev 状态供下一帧使用
+        prev_unit_tags.clear()
+        prev_unit_tags.update(current_tags)
+        prev_unit_types.clear()
+        prev_unit_types.update(current_types)
     except Exception:
         pass
 
@@ -149,18 +185,26 @@ def evaluate_verdict(events: list[dict], scenario: dict) -> dict:
                 all_passed = False
 
         elif exp_type == "unit_created":
-            unit_type = exp.get("unit_type", "")
+            # 字段约定：unit_type（int，UnitTypeID）；from_player（int，玩家 ID）；within（frame 上限）
+            expected_unit_type = exp.get("unit_type")
             within = exp.get("within", 9999)
             from_player = exp.get("from_player")
-            # 在 events 里找 unit_snapshot 数量增长，简化版只检查是否出现
-            # 完整实现需要前后帧对比单位列表
-            found = False
+            matching = []
             for e in events:
-                if e.get("type") == "unit_snapshot" and e.get("frame", 0) <= within:
-                    found = True
-                    break
-            result["passed"] = found
-            result["evidence"] = [{"frame": e.get("frame")} for e in events if e.get("type") == "unit_snapshot"][:3]
+                if e.get("type") != "unit_created":
+                    continue
+                if e.get("frame", 0) > within:
+                    continue
+                if expected_unit_type is not None and e.get("unit_type") != expected_unit_type:
+                    continue
+                if from_player is not None and e.get("owner") != from_player:
+                    continue
+                matching.append(e)
+            result["passed"] = len(matching) > 0
+            result["evidence"] = [
+                {"frame": e.get("frame"), "unit_type": e.get("unit_type"), "tag": e.get("tag"), "owner": e.get("owner")}
+                for e in matching[:3]
+            ]
             if not result["passed"]:
                 all_passed = False
 
@@ -214,6 +258,10 @@ async def observe_game(port: int, duration: float, out_dir: Path, scenario: dict
     all_events = []
     start_time = time.time()
     frame = 0
+    # 前一帧的单位 tag 集合与 tag→unit_type 映射，用于识别真正的 unit_created / unit_lost。
+    # 首帧 prev 为空，所有单位都会被记为 unit_created（这是预期行为：表示初始场上单位）。
+    prev_unit_tags: set[int] = set()
+    prev_unit_types: dict[int, int] = {}
 
     try:
         async with aiohttp.ClientSession() as session:
@@ -271,9 +319,11 @@ async def observe_game(port: int, duration: float, out_dir: Path, scenario: dict
                             print("响应无 observation 字段", file=sys.stderr)
                             continue
 
-                        # 提取事件
+                        # 提取事件（extract_events_from_observation 会就地更新 prev_unit_* ）
                         t = elapsed
-                        frame_events = extract_events_from_observation(resp.observation, frame, t)
+                        frame_events = extract_events_from_observation(
+                            resp.observation, frame, t, prev_unit_tags, prev_unit_types
+                        )
                         for evt in frame_events:
                             all_events.append(evt)
                             f.write(json.dumps(evt, ensure_ascii=False) + "\n")
@@ -291,16 +341,16 @@ async def observe_game(port: int, duration: float, out_dir: Path, scenario: dict
         print(f"观察过程异常: {e}", file=sys.stderr)
         return 2
 
-    # 写入 verdict（如果指定了 scenario）
-    if scenario:
-        verdict = evaluate_verdict(all_events, scenario)
+    # 计算 verdict 一次，避免重复 evaluate_verdict 调用造成的不一致
+    verdict = evaluate_verdict(all_events, scenario) if scenario else None
+    if verdict is not None:
         with open(verdict_path, "w", encoding="utf-8") as f:
             json.dump(verdict, f, ensure_ascii=False, indent=2)
             f.write("\n")
         print(f"断言结果: {verdict_path} (overall_passed={verdict['overall_passed']})", file=sys.stderr)
 
     print(f"共收集 {len(all_events)} 个事件，{frame} 帧", file=sys.stderr)
-    return 0 if (not scenario or evaluate_verdict(all_events, scenario)["overall_passed"]) else 1
+    return 0 if (verdict is None or verdict["overall_passed"]) else 1
 
 
 def main():

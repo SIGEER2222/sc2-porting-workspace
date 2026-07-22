@@ -6,7 +6,8 @@ Record completed work in chronological order.
 
 ## Evidence
 
-Record each claim as static, runtime, or inference with its source path or command.
+Record each claim as `static`, `runtime`, or `inference` with its source path, command, and artifact
+path. Do not record runtime success from process startup alone.
 
 ## Changes
 

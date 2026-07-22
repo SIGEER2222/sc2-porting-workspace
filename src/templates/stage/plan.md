@@ -14,7 +14,9 @@ State one verifiable stage outcome.
 
 ## Tasks
 
-1. List bounded tasks in dependency order.
+1. Run knowledge retrieval for the SC2 editor/Galaxy/Catalog/runtime area touched by this stage.
+2. List bounded implementation or analysis tasks in dependency order.
+3. Convert any static failure into a narrower fix before runtime launch.
 
 ## Outputs
 
@@ -22,7 +24,11 @@ State one verifiable stage outcome.
 
 ## Validation
 
-- List exact commands and expected exit conditions.
+- Knowledge retrieval command and cited source paths.
+- Static validation command(s), including Galaxy/Catalog/dependency checks when applicable.
+- Runtime validation command(s), including observer/API evidence when behavior is user-facing or
+  game-start dependent.
+- Expected exit conditions and evidence artifact paths.
 
 ## Stop conditions
 

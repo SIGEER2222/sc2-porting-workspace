@@ -103,7 +103,15 @@ async function validate() {
   }
 
   const skillRoot = join(repoRoot, "tools", ".codex", "skills");
-  for (const skill of ["sc2-static-analysis", "sc2-runtime-analysis", "sc2-adapter-design", "sc2-ai-development-loop"]) {
+  const requiredSkills = [
+    "sc2-static-analysis",
+    "sc2-runtime-analysis",
+    "sc2-adapter-design",
+    "sc2-ai-development-loop",
+    "sc2-editor-knowledge",
+    "sc2-blizzard-tutorials"
+  ];
+  for (const skill of requiredSkills) {
     const skillPath = join(skillRoot, skill, "SKILL.md");
     if (!existsSync(skillPath)) {
       errors.push("Required skill is missing: " + skill);

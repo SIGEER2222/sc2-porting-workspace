@@ -235,6 +235,9 @@ def build_index(config: dict, force: bool) -> int:
             ],
         )
 
+    # Flush Qdrant local SQLite store to disk before exiting.
+    client.close()
+
     manifest = {
         "schemaVersion": 1,
         "source_hash": source_hash,
