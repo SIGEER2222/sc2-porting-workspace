@@ -4,8 +4,8 @@ Flat map of common topics to their authoritative files. Use this for direct
 `Read` access when you know the topic but not the file path.
 
 Paths starting with `docs/kb-sources/` are committed to Git. Paths starting with
-`reference/SC2GameData/` live in the Blizzard data mirror submodule (~1.1 GB;
-run `git submodule update --init reference/SC2GameData` after cloning). Querying
+`reference/sc2mapster/SC2GameData/` live in the Blizzard data mirror submodule (~1.1 GB;
+run `git submodule update --init reference/sc2mapster/SC2GameData` after cloning). Querying
 the vector index is the recommended discovery mechanism — this file is a
 fallback for direct reads.
 
@@ -16,10 +16,10 @@ fallback for direct reads.
 | Language syntax, types, control flow | `docs/kb-sources/galaxy/syntax.md` |
 | Native function index (curated) | `docs/kb-sources/galaxy/natives-reference.md` |
 | Native function index (per-category, ~1500 natives) | `docs/kb-sources/galaxy/native-index.md` |
-| Full native declarations (all ~1500 natives) | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/natives.galaxy` |
-| NativeLib source (high-level wrappers) | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/NativeLib.galaxy` |
+| Full native declarations (all ~1500 natives) | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/natives.galaxy` |
+| NativeLib source (high-level wrappers) | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/NativeLib.galaxy` |
 | Natives missing from editor autocomplete | `docs/kb-sources/galaxy/natives-missing.galaxy` |
-| Per-catalog-scope natives (49 files: Abil/Actor/Behavior/Effect/Unit/...) | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/*.galaxy` |
+| Per-catalog-scope natives (49 files: Abil/Actor/Behavior/Effect/Unit/...) | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/*.galaxy` |
 | ScriptError codes | `docs/kb-sources/galaxy/script-error-codes.md` |
 | Campaign library declarations | `docs/kb-sources/galaxy/CampaignLib_h.galaxy` |
 | Generated MapScript sample | `docs/kb-sources/galaxy/MapScript-sample.galaxy` |
@@ -35,17 +35,17 @@ fallback for direct reads.
 | CEffect deep dive: chain pattern, Subject model, 32 subclasses | `docs/kb-sources/catalog/effects.md` |
 | CValidator deep dive: 80+ subclasses, combine/compare/filter patterns | `docs/kb-sources/catalog/validators.md` |
 | CTargetFind / CTargetSort targeting system, sort chaining | `docs/kb-sources/catalog/targeting.md` |
-| Official CUnit catalog (Blizzard) | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/UnitData.xml` |
-| Official CAbil catalog (Blizzard) | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/AbilData.xml` |
-| Official CWeapon catalog (Blizzard) | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/WeaponData.xml` |
-| Official CEffect catalog (Blizzard) | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/EffectData.xml` |
-| Official CBehavior catalog (Blizzard) | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/BehaviorData.xml` |
-| Official CActor catalog (Blizzard) | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/ActorData.xml` |
-| Official CUpgrade catalog (Blizzard) | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/UpgradeData.xml` |
-| Official CRequirement catalog (Blizzard) | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/RequirementData.xml` |
-| Other reference XMLs (Button/Validator/Mover/TargetFind/TargetSort/Turret/Footprint/Talent) | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/*.xml` |
-| Race-specific overrides (Terran/Zerg/Protoss) | `reference/SC2GameData/mods/{liberty,swarm,void}.sc2mod/base.sc2data/GameData/*.xml` |
-| Co-op commander libraries (LibCOMI/LibCOMU/LibCOOC/LibCOUI) | `reference/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/Lib*.galaxy` |
+| Official CUnit catalog (Blizzard) | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/UnitData.xml` |
+| Official CAbil catalog (Blizzard) | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/AbilData.xml` |
+| Official CWeapon catalog (Blizzard) | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/WeaponData.xml` |
+| Official CEffect catalog (Blizzard) | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/EffectData.xml` |
+| Official CBehavior catalog (Blizzard) | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/BehaviorData.xml` |
+| Official CActor catalog (Blizzard) | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/ActorData.xml` |
+| Official CUpgrade catalog (Blizzard) | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/UpgradeData.xml` |
+| Official CRequirement catalog (Blizzard) | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/RequirementData.xml` |
+| Other reference XMLs (Button/Validator/Mover/TargetFind/TargetSort/Turret/Footprint/Talent) | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/*.xml` |
+| Race-specific overrides (Terran/Zerg/Protoss) | `reference/sc2mapster/SC2GameData/mods/{liberty,swarm,void}.sc2mod/base.sc2data/GameData/*.xml` |
+| Co-op commander libraries (LibCOMI/LibCOMU/LibCOOC/LibCOUI) | `reference/sc2mapster/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/Lib*.galaxy` |
 | Data space mode (modular layout) | `docs/kb-sources/data-spaces/usage-guide.md` |
 
 ## Editor
@@ -98,8 +98,8 @@ fallback for direct reads.
 |-------|------|
 | Actor kinds, events, message chain | `docs/kb-sources/actor/system.md` |
 | Actor messages (ActorSend/SendTo/ScopeSend, msg names, refNames, LookAt, TextureGroup) | `docs/kb-sources/actor/messages.md` |
-| Actor native declarations | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/Actor.galaxy` |
-| Official CActor catalog (Blizzard) | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/ActorData.xml` |
+| Actor native declarations | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/Actor.galaxy` |
+| Official CActor catalog (Blizzard) | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/ActorData.xml` |
 
 ## Unit (runtime state)
 
@@ -115,24 +115,24 @@ fallback for direct reads.
 | Topic | File |
 |-------|------|
 | Requirement nodes, tech-tree gating, multi-level upgrades | `docs/kb-sources/requirement/system.md` |
-| Requirement native declarations | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/Requirement.galaxy` |
-| Upgrade native declarations | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/Upgrade.galaxy` |
-| Official CRequirement catalog | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/RequirementData.xml` |
-| Official CUpgrade catalog | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/UpgradeData.xml` |
+| Requirement native declarations | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/Requirement.galaxy` |
+| Upgrade native declarations | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/Upgrade.galaxy` |
+| Official CRequirement catalog | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/RequirementData.xml` |
+| Official CUpgrade catalog | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/UpgradeData.xml` |
 
 ## AI
 
 | Topic | File |
 |-------|------|
 | AI-assisted modding guide | `docs/kb-sources/editor/ai-development-guide.md` |
-| AI framework entry (natives) | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/AI.galaxy` |
-| High-level AI base | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/BaseAI.galaxy` |
-| Build order execution | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/BuildAI.galaxy` |
-| Melee AI | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/MeleeAI.galaxy` |
-| Shared AI utilities | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/SharedAI.galaxy` |
-| Computer player setup | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/Computer.galaxy` |
-| AI debug helpers | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/DebugAI.galaxy` |
-| Co-op commander AI (LibCOMI/LibCOMU/LibCOOC/LibCOUI) | `reference/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/Lib*.galaxy` |
+| AI framework entry (natives) | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/AI.galaxy` |
+| High-level AI base | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/BaseAI.galaxy` |
+| Build order execution | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/BuildAI.galaxy` |
+| Melee AI | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/MeleeAI.galaxy` |
+| Shared AI utilities | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/SharedAI.galaxy` |
+| Computer player setup | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/Computer.galaxy` |
+| AI debug helpers | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/DebugAI.galaxy` |
+| Co-op commander AI (LibCOMI/LibCOMU/LibCOOC/LibCOUI) | `reference/sc2mapster/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/Lib*.galaxy` |
 
 ## Mutators
 
@@ -143,9 +143,9 @@ fallback for direct reads.
 | LibCOMU registration (RegisterMutator/EnableDisable) | `docs/kb-sources/mutator/system.md`, `docs/kb-sources/coop/commander-framework.md` |
 | Per-mutator hook functions (CT_Apply*) | `docs/kb-sources/mutator/system.md` |
 | Combo mutator pattern | `docs/kb-sources/mutator/system.md` |
-| Mutator catalog (~100 mutators total, Blizzard mirror) | `reference/SC2GameData/mods/mutators/` |
-| Single mutator example: Blizzard | `reference/SC2GameData/mods/mutators/mutatorblizzard.sc2mod/base.sc2data/Lib9B7202B2.galaxy` |
-| Mutator quick-list preset constants | `reference/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/LibCOMU_h.galaxy` |
+| Mutator catalog (~100 mutators total, Blizzard mirror) | `reference/sc2mapster/SC2GameData/mods/mutators/` |
+| Single mutator example: Blizzard | `reference/sc2mapster/SC2GameData/mods/mutators/mutatorblizzard.sc2mod/base.sc2data/Lib9B7202B2.galaxy` |
+| Mutator quick-list preset constants | `reference/sc2mapster/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/LibCOMU_h.galaxy` |
 
 ## Co-op commander framework
 
@@ -157,9 +157,9 @@ fallback for direct reads.
 | Mastery system (levels, save/load) | `docs/kb-sources/coop/commander-framework.md` |
 | Mission lifecycle (LibCOMI phases) | `docs/kb-sources/coop/commander-framework.md` |
 | `libCOOC_gf_CC_CommanderIsDeveloping` does not exist | `docs/kb-sources/coop/commander-framework.md` |
-| Commander library source (Blizzard) | `reference/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/Lib*.galaxy` |
-| Commander catalog (CCommander entries) | `reference/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/GameData/CommanderData.xml` |
-| Mastery preset constants | `reference/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/LibCOOC_h.galaxy` |
+| Commander library source (Blizzard) | `reference/sc2mapster/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/Lib*.galaxy` |
+| Commander catalog (CCommander entries) | `reference/sc2mapster/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/GameData/CommanderData.xml` |
+| Mastery preset constants | `reference/sc2mapster/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/LibCOOC_h.galaxy` |
 
 ## Cutscene / Transmission / Conversation
 
@@ -171,7 +171,7 @@ fallback for direct reads.
 | Conversation data-driven state model | `docs/kb-sources/cutscene/system.md` |
 | Conversation UI (Create/Reply/Show) | `docs/kb-sources/cutscene/system.md` |
 | Cutscene bookmark events | `docs/kb-sources/cutscene/system.md` |
-| Co-op transmission helpers (libCOMI_gf_MissionTransmission) | `reference/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/LibCOMI_h.galaxy` |
+| Co-op transmission helpers (libCOMI_gf_MissionTransmission) | `reference/sc2mapster/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/LibCOMI_h.galaxy` |
 
 ## Sound / Soundtrack / VoiceOver
 
@@ -183,7 +183,7 @@ fallback for direct reads.
 | Sound length sync (multiplayer) | `docs/kb-sources/sound/system.md`, `docs/kb-sources/multiplayer/sync.md` |
 | Reverb / 3D sound factors | `docs/kb-sources/sound/system.md` |
 | VoiceOver (CVoiceOver) data entries | `docs/kb-sources/sound/system.md` |
-| Sound category preset constants | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/Sound.galaxy` |
+| Sound category preset constants | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/Sound.galaxy` |
 
 ## Hero / Talent
 
@@ -194,10 +194,10 @@ fallback for direct reads.
 | CTalent modification types | `docs/kb-sources/hero-talent/system.md` |
 | CHeroAbil variant swap | `docs/kb-sources/hero-talent/system.md` |
 | CHeroStat stat tracks | `docs/kb-sources/hero-talent/system.md` |
-| Hero native declarations | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/Hero.galaxy` |
-| Talent native declarations | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/Talent.galaxy` |
-| Official CHero catalog | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/HeroData.xml` |
-| Official CTalent catalog | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/TalentData.xml` |
+| Hero native declarations | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/Hero.galaxy` |
+| Talent native declarations | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/Talent.galaxy` |
+| Official CHero catalog | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/HeroData.xml` |
+| Official CTalent catalog | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/GameData/TalentData.xml` |
 
 ## Campaign
 
@@ -208,8 +208,8 @@ fallback for direct reads.
 | Campaign progress natives (Blizzard-only) | `docs/kb-sources/campaign/system.md` |
 | Campaign AI vs Melee AI | `docs/kb-sources/campaign/system.md`, `docs/kb-sources/editor/ai-development-guide.md` |
 | LibCOMI Co-op campaign lifecycle | `docs/kb-sources/campaign/system.md`, `docs/kb-sources/coop/commander-framework.md` |
-| Campaign native declarations | `reference/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/Campaign.galaxy` |
-| Official CCampaign catalog | `reference/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/GameData/CampaignData.xml` |
+| Campaign native declarations | `reference/sc2mapster/SC2GameData/mods/core.sc2mod/base.sc2data/TriggerLibs/GameData/Campaign.galaxy` |
+| Official CCampaign catalog | `reference/sc2mapster/SC2GameData/mods/alliedcommanders.sc2mod/base.sc2data/GameData/CampaignData.xml` |
 
 ## Multiplayer & Sync
 

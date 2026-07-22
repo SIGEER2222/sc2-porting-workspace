@@ -28,11 +28,11 @@ pip install -r tools/kb/requirements.txt
 #    HuggingFace on first run.
 $env:KB_EMBEDDING_MODEL = "C:\path\to\bge-small-zh-v1.5"
 
-# 3. The official SC2 data mirror lives under reference/SC2GameData/ (git
+# 3. The official SC2 data mirror lives under reference/sc2mapster/SC2GameData/ (git
 #    submodule, ~1.1 GB). It provides the full Blizzard Galaxy natives, AI
 #    framework, GameData XML and TriggerLibs catalog headers as additional
 #    indexed sources (alias: `sc2-official`). Run `git submodule update --init
-#    reference/SC2GameData` after cloning to populate it. If absent,
+#    reference/sc2mapster/SC2GameData` after cloning to populate it. If absent,
 #    `kb-build.py` prints a warning and continues without those chunks.
 #    See docs/kb-sources/SOURCES.md for what is covered by this mirror.
 
