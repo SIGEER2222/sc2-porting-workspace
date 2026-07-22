@@ -1,0 +1,2195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CBehaviorBuff id="2riyanzhuangjiaBuff">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="9999"/>
+        <MaxStackCountPerCaster value="9999"/>
+        <Duration value="0.7"/>
+        <Modification>
+            <LifeArmorBonus value="0.5"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.96">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3ECMlichangCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie1"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="3ECMlichangSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3GardenofAvalon">
+        <InfoIcon value="Assets\Textures\btn-ability-stetmann-stetzonegenerator-health.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3GardenofAvalonModify"/>
+        <Modification>
+            <RateMultiplierArray index="Charge" value="1.3"/>
+            <RateMultiplierArray index="Cooldown" value="1.3"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3aogusigeledejiaoaoPlacement">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <FinalEffect value="SuicideRemove"/>
+        <ExpireEffect value="SuicideRemove"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="DisableWeapons" value="1"/>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="NoDraw" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3baixinghaoCreate">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="NotUnderConstruction"/>
+        <Duration value="0.1"/>
+        <Requirements value="3zhinengyouyigebaixinghao"/>
+        <ExpireEffect value="3baixinghaoCreate"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3dandaochongdingxiangsuanfaMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.75"/>
+        <Period value="1.5"/>
+        <PeriodicEffect value="3dandaochongdingxiangsuanfaApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3dandaochongdingxiangsuanfa">
+        <InfoIcon value="Assets\Textures\btn-upgrade-swann-targetingoptics.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <MaxStackCount value="8"/>
+        <MaxStackCountPerCaster value="8"/>
+        <Duration value="6"/>
+        <Modification RangedWeaponRange="0.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3chongfengduizheyueWarp">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification SightMaximum="0">
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="DisableWeapons" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Cloak" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCollision" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3duanchengzheyue">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.9"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="DisableWeapons" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Cloak" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCollision" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shiyanxingganraojuzhen">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="0.45"/>
+        <PeriodicEffect value="3shiyanxingganraojuzhenSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3fangkonghudun">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-shieldbattery-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse ModifyFraction="0.5" TargetFilters="Air;-">
+            <Chance value="1"/>
+        </DamageResponse>
+        <Requirements value="3fangkonghudun"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3gangyihudun">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-hardenedshields-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="CasterShieldsGE1"/>
+        <DamageResponse ClampMaximum="25" Minimum="25">
+            <Kind index="Spell" value="0"/>
+            <Chance value="1"/>
+        </DamageResponse>
+        <Requirements value="3gangyihudun"/>
+    </CBehaviorBuff>
+    <CBehaviorVeterancy id="3baixinghao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray/>
+        <VeterancyLevelArray MinVeterancyXP="30000" LevelGainEffect="3junjie1Apply">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="60000" LevelGainEffect="3junjie2Apply">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="90000" LevelGainEffect="3junjie3Apply">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorBuff id="3gaokongguidao">
+        <InfoIcon value="Assets\Textures\btn-top-hornerhan-fleetcalldown.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie1"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3kuanghuanjie">
+        <InfoIcon value="Assets\Textures\lunarnewyearfirework_coop.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="3shifazhezhengzaiyidong"/>
+        <DisableValidatorArray value="3shifazheyouyuyanchongfnegwuqi"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="3kuanghuanjiePersistent"/>
+        <Requirements value="3kuanghuanjie"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3lingnengfangdaqi">
+        <InfoIcon value="Assets\Textures\btn-ability-nova-domination.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Player Value="Caster"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3micaituceng">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-medivac-permanentcloak.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shiyanxingganraolichangCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie3"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3shiyanxingganraolichangSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shiyanxingganraolichang">
+        <InfoIcon value="Assets\Textures\btn-building-terran-sigmaprojector.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1"/>
+        <Modification MoveSpeedMultiplier="0.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3fangyutaxieyi">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-terrandefendermodestructureattack.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3fangyutaxieyi"/>
+        <DamageResponse ModifyFraction="0.3">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3fangyutaxieyiCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3fangyutaxieyi"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="3fangyutaxieyiSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3fangyutaxieyiMarker">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.7"/>
+        <Modification>
+            <BehaviorLinkDisableArray value="3fangyutaxieyi"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3jihuachuanke">
+        <InfoIcon value="Assets\Textures\3 jihuachuanke.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie3"/>
+        <Modification>
+            <VitalMaxAdditiveMultiplierArray index="Life" value="0.45"/>
+            <VitalMaxAdditiveMultiplierArray index="Shields" value="0.45"/>
+            <VitalRegenMultiplier index="Shields" value="0.45"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.75">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3kangchongjizujian">
+        <InfoIcon value="Assets\Textures\btn-upgrade-mengsk-engineeringbay-neosteelfortifiedarmor.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3kangchongjizujian"/>
+        <DisableValidatorArray value="CasterLifeGT50Percent"/>
+        <DisableValidatorArray value="NotUnderConstruction"/>
+        <DamageResponse ClampMaximum="20" Minimum="20">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3huangjiaweiduikongtouGroundLargeA">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="0.2"/>
+        <InitialEffect value="3huangjiaweiduikongtouGroundLargeApplyB"/>
+        <ExpireEffect value="3xinshoudalibaoGroundLargeSearch"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="Daze" value="1"/>
+            <StateFlags index="SuppressDetection" value="1"/>
+            <StateFlags index="NoDraw" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3huangjiaweiduikongtouGroundLargeB">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.1"/>
+        <InitialEffect value="3huangjiaweiduikongtouGroundLargeApplyC"/>
+        <Modification Height="20">
+            <HeightTime index="Stop" value="0.3"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3huangjiaweiduikongtouGroundLargeC">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.4"/>
+        <InitialEffect value="3xinshoudalibaoApply"/>
+        <ExpireEffect value="3huangjiaweiduikongtouGroundLargeSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3paohuowendingqi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="500"/>
+        <MaxStackCountPerCaster value="500"/>
+        <Modification RangedWeaponRange="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shanbijidong">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-viking-doabarrelrolll.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shanbijidongCaster">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3shanbijidong"/>
+        <DamageResponse Handled="3shanbijidongApply" ModifyFraction="0">
+            <Chance value="1"/>
+            <Cost>
+                <Cooldown TimeUse="4.5"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shiyanxingzhongxinghudunlichang">
+        <InfoIcon value="Assets\Textures\btn-ability-spearofadun-shieldovercharge.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie3"/>
+        <Modification ShieldArmorBonus="6">
+            <VitalMaxArray index="Shields" value="3000"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3suxiaozhiliaoji">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-medivac-doublehealbeam.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <Period value="0.1"/>
+        <PeriodicEffect value="3suxiaozhiliaojiModify"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3wanhuozifen">
+        <InfoIcon value="Assets\Textures\ui_tipicon_campaign_zerus03-yagdrafireball.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3wanhuozifen"/>
+        <DamageResponse Handled="0dianranApply">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorVeterancy id="3xiang">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="4000" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="8000" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="12000" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorBuff id="3aidajingyan">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Period value="0.2"/>
+        <PeriodicEffect value="3jingyanModify"/>
+        <PeriodicEffectRateMultiplier value="3">
+            <AccumulatorArray value="3weiduishujulian"/>
+        </PeriodicEffectRateMultiplier>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3aiguozhemoshiCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3aiguozhemoshiSearch"/>
+        <Modification Height="1.25" SightBonus="4" DetectBonus="2">
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <HeightTime index="Start" value="1"/>
+            <HeightTime index="Stop" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3aiguozhemoshi">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-blimp-propagandamode.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+        <Modification RangedWeaponRange="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3bianxingweizhanjimoshi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="2.5"/>
+        <InitialEffect value="3bianxingweizhanjimoshigaoduModify"/>
+        <ExpireEffect value="3bianxingweizhanjimoshiMorph"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3bileichang">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-thor-bigboycover.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+        <Modification>
+            <LifeArmorBonus value="3"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.85">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3bileichangCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie1"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3bileichangSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3chaojiqudonghexin">
+        <InfoIcon value="Assets\Textures\btn-upgrade-mengsk-armory-smartservos.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie3"/>
+        <Modification TimeScale="1.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shiyichoushaling">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-stimpack-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="30"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3chongfengduixunhangjianTimedLife">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="180"/>
+        <Period value="3"/>
+        <PeriodicEffect value="3chongfengduixunhangjianSearch"/>
+        <ExpireEffect value="3chongfengduixunhangjianWarpOutPersistent"/>
+        <Modification>
+            <StateFlags index="SuppressFoodUsed" value="1"/>
+            <StateFlags index="SuppressArmySelect" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3lingnengfensuihexin">
+        <InfoIcon value="Assets\Textures\ui_tipicon_campaign_korhal02-psidestroyer.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3lingnengfensuihexinDamage"/>
+        <Modification MoveSpeedMultiplier="0.3" AttackSpeedMultiplier="0.3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3lingnengfensuihexinCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3lingnengfensuihexinSearch"/>
+        <Modification MoveSpeedMultiplier="0.5">
+            <LifeArmorBonus value="2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3chongshengxieyi">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-viking-freshperspective.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <Period value="0.1"/>
+        <PeriodicEffect value="3chongshengxieyiModify"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3dengliziqudongqi">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-advanceballistics.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie3"/>
+        <Modification AttackSpeedMultiplier="1.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3diancizhenbao">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-ghost-staticempblast.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Modification>
+            <StateFlags index="Stun" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorVeterancy id="3RAAPhuopao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="2000" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="4000" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="6000" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3shenkongzhenliepingtai">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="3000" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="6000" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="9000" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3huangjiayaosai">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="1200" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="2400" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="3600" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3tiankongzhidun">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="8000" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="16000" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="24000" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorBuff id="3xinengzhuangjia">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="CasterShieldsLT1"/>
+        <DamageResponse Handled="3xinengzhuangjiaModify">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3xinshoudalibao">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-spearofadun-shieldovercharge.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="10000"/>
+        <MaxStackCountPerCaster value="10000"/>
+        <DamageResponse ModifyFraction="0" ModifyLimit="100">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3xushuyinqing">
+        <InfoIcon value="Assets\Textures\btn-ability-stetmann-stetelliteoverloadspeed.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMinimum="4.25"/>
+        <Requirements value="3xushuyinqing"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yalifanyingdui1">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="CasterLifeNotFull"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yalifanyingdui2">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="3shifazheshengmingzhidiyu085"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yalifanyingdui3">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="3shifazheshengmingzhidiyu070"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yalifanyingdui4">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="3shifazheshengmingzhidiyu055"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yalifanyingdui5">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="3shifazheshengmingzhidiyu040"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yalifanyingdui6">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="3shifazheshengmingzhidiyu025"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yalifanyingdui7">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="3shifazheshengmingzhidiyu010"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yantilichang">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-forcefield-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.7"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+            <StateFlags index="Undetectable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yantilichangCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="3yantilichangSearch"/>
+        <Requirements value="3yantilichang"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3hudunchongnengqi">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-shieldbattery-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+        <Period value="0.25"/>
+        <PeriodicEffect value="3hudunchongnengqiModify"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3hudunchongnengqiCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-shieldbattery-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3hudunchongnengqi"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3hudunchongnengqiSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3zhanlanghedan">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="3junjie3"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="3zhanlanghedanDamageSet"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3zhendangdan">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-emp-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Modification RangedWeaponRange="-2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3huangjiaweiduizheyueWarp">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification SightMaximum="0">
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="DisableWeapons" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Cloak" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCollision" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorVeterancy id="3zhifazhe">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="1200" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="2400" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="3600" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3jindiao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="800" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="1600" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="2400" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorBuff id="3qiangxiuxiaozu">
+        <InfoIcon value="Assets\Textures\btn-upgrade-swann-scvdoublerepair.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie1"/>
+        <Modification>
+            <VitalRegenArray index="Life" value="15"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3suijiadan">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-explosiveshrapnelshells.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie3"/>
+        <Modification>
+            <DamageDealtAttributeMultiplier index="Armored" value="0.5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yinghuajuzhen">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-viking-cheatdeath.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse ModifyFraction="0.3">
+            <Chance value="1"/>
+        </DamageResponse>
+        <Requirements value="3youjunjie1"/>
+        <DisableValidatorArray value="CasterShieldsGE1"/>
+    </CBehaviorBuff>
+    <CBehaviorVeterancy id="3huangjiawuweijizhanliejian">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="12000" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="24000" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="36000" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3huangjiafangkongta">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="400" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="800" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="1200" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3junwangjichaozhongxinggongchengtanke">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="1600" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="3200" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="4800" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3huguozhanjiang">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="1200" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="2400" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="3600" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3yuanlaobaolei">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="2400" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="4800" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="7200" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3liequanbudui">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="600" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="1200" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="1800" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3diguozhijian">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="400" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="800" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="1200" LevelGainEffect="3junjie3Apply">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3diguotianshi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="600" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="1200" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="1800" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorBuff id="3donglijiasuqi">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-superstimppack.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Modification AttackSpeedMultiplier="3"/>
+    </CBehaviorBuff>
+    <CBehaviorVeterancy id="3gongtingmoshushi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="1600" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="3200" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="4800" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorBuff id="3yinxingmicai">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-ghost-supercloak.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="3yinxingmicaiModify"/>
+        <Modification>
+            <ModifyFlags index="DisableWeapons" value="1"/>
+            <StateFlags index="Cloak" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="Undetectable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorVeterancy id="3pozhenbiaoqi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="800" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="1600" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="2400" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3aogusigeledejiaoao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="3600" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="7200" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="10800" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3kehajinjun">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="2400" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="4800" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="7200" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3yuqianxianfeng">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="800" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="1600" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="2400" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorVeterancy id="3jinweijijia">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="1200" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="2400" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="3600" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorBuff id="3huangjiaweiduijingyan">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="1"/>
+        <PeriodicEffect value="3jingyanModify"/>
+        <PeriodicEffectRateMultiplier value="3">
+            <AccumulatorArray value="3weiduishujulian"/>
+        </PeriodicEffectRateMultiplier>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3jinggangzhuangjia">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-siegetank-flyingtankarmament.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie1"/>
+        <Modification>
+            <LifeArmorBonus value="3"/>
+            <VitalMaxAdditiveMultiplierArray index="Life" value="0.5"/>
+            <VitalMaxAdditiveMultiplierArray index="Shields" value="0.5"/>
+            <VitalRegenMultiplier index="Shields" value="0.5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3junjie2">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification AttackSpeedMultiplier="1.1" ShieldArmorBonus="1">
+            <StateFlags index="UnitAttrOnHeroic" value="1"/>
+            <LifeArmorBonus value="1"/>
+            <VitalMaxFractionArray index="Life" value="0.25"/>
+            <VitalMaxFractionArray index="Shields" value="0.25"/>
+            <VitalRegenMultiplier index="Shields" value="0.25"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.9">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3junjie3">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification HealDealtMultiplier="1.5" AttackSpeedMultiplier="1.1" ShieldArmorBonus="1">
+            <StateFlags index="UnitAttrOnHeroic" value="1"/>
+            <LifeArmorBonus value="1"/>
+            <VitalMaxFractionArray index="Life" value="0.35"/>
+            <VitalMaxFractionArray index="Shields" value="0.35"/>
+            <VitalRegenMultiplier index="Shields" value="0.35"/>
+        </Modification>
+        <Period value="1"/>
+        <PeriodicEffect value="3laobingSearch"/>
+        <DamageResponse ModifyFraction="0.9">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3huangjiaweiduikongtouAirLarge">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.45"/>
+        <Period value="0.15"/>
+        <PeriodCount value="1"/>
+        <InitialEffect value="3huangjiaweiduikongtouAirLargeSearch"/>
+        <PeriodicEffect value="3xinshoudalibaoAirLargeSearch"/>
+        <ExpireEffect value="3xinshoudalibaoApply"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="Daze" value="1"/>
+            <StateFlags index="SuppressDetection" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3laobingjingyan">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Period value="0.6"/>
+        <PeriodicEffect value="3jingyanModify"/>
+        <PeriodicEffectRateMultiplier value="3">
+            <AccumulatorArray value="3weiduishujulian"/>
+        </PeriodicEffectRateMultiplier>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3darenshanghaixiangying">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse Handled="3darenjingyanApply" Location="Attacker" TargetFilters="-;Player,Ally,Neutral,Structure,Stasis,Dead,Invulnerable,Summoned">
+            <Kind index="Spell" value="0"/>
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3darenjingyan">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Period value="0.2"/>
+        <PeriodicEffect value="3jingyanModify"/>
+        <PeriodicEffectRateMultiplier value="3">
+            <AccumulatorArray value="3weiduishujulian"/>
+        </PeriodicEffectRateMultiplier>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3aidashanghaixiangying">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse Handled="3aidajingyanApply" TargetFilters="-;Player,Ally,Neutral,Structure,Stasis,Dead,Invulnerable,Summoned">
+            <Kind index="Spell" value="0"/>
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3diaoqiangTimedLife">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="300"/>
+        <FinalEffect value="Suicide"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3fushe">
+        <InfoIcon value="Assets\Textures\btn-progression-mengsk-04-contaminatedstrike.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <PeriodicEffect value="3fusheSearch"/>
+        <Period value="0.3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3jinjunpaolu">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <ExpireEffect value="3zhaohuanjinjunTimedLifeDropOut"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3kongtouchongfengduiTimedLife">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="30"/>
+        <FinalEffect value="Suicide"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3fangbaodunpai">
+        <InfoIcon value="Assets\Textures\3 btn-upgrade-mengsk-marineshield.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie1"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="6fangbaodunpaiModify"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3gaojijiaozhunqi">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-hisecautotracking.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="3"/>
+        <MaxStackCountPerCaster value="3"/>
+        <Modification>
+            <AbilLinkDisableArray value="3gaojijiaozhunqi"/>
+            <WeaponEnableArray value="3zhuixingdaodan2"/>
+            <WeaponDisableArray value="3zhuixingdaodan"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3renengpingzhang">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-alarak-stalkerphasingarmor.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie2"/>
+        <DisableValidatorArray value="3shifazhezhengzaiyidong"/>
+        <DamageResponse ModifyFraction="0.7">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3renengpingzhangShieldBuff">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="50000"/>
+        <MaxStackCountPerCaster value="50000"/>
+        <Duration value="0.7"/>
+        <Modification>
+            <VitalMaxArray index="Shields" value="15"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3huangjiaweiduikongtouAirSmall">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.45"/>
+        <Period value="0.15"/>
+        <PeriodCount value="1"/>
+        <InitialEffect value="3huangjiaweiduikongtouAirSmallSearch"/>
+        <PeriodicEffect value="3xinshoudalibaoAirSmallSearch"/>
+        <ExpireEffect value="3xinshoudalibaoApply"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="Daze" value="1"/>
+            <StateFlags index="SuppressDetection" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3kongtouBuildingC">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.4"/>
+        <ExpireEffect value="3kongtouBuildingSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3kongtoujinjunGround">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="0.35"/>
+        <InitialEffect value="3kuaisushengxingPersistent"/>
+        <FinalEffect value="3zhaohuanjinjunTimedLifeApply"/>
+        <ExpireEffect value="3kongtouBuildingSearch"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="Daze" value="1"/>
+            <StateFlags index="SuppressDetection" value="1"/>
+            <StateFlags index="NoDraw" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3kongtouxiang">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.9"/>
+        <ExpireEffect value="3kongtouBuildingSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yuyanxunyouwuqi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <WeaponDisableArray value="3qiangyan"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3micaihudun">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-medivac-permanentcloak.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="ShieldGZero"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3paohuowendingqiCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="3paohuowendingqiApply"/>
+        <FinalEffect value="3paohuowendingqiRemove"/>
+        <ExpireEffect value="3paohuowendingqiRemove"/>
+        <Requirements value="3paohuowendingqi"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3pohuaizhedantou">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-ignorearmor.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Modification>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shenkongguangboCaster1">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <RemoveValidatorArray value="CasterLifeGT30Percent"/>
+        <Duration value="120"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3shenkongguangboSearch"/>
+        <ExpireEffect value="3shenkongguangboPersistent1"/>
+        <Modification AttackTargetPriority="5" SightBonus="2" Detect="6">
+            <VitalMaxFractionArray index="Shields" value="-1"/>
+            <VitalMaxAdditiveMultiplierArray index="Shields" value="-1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shenkongguangboCaster4">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <RemoveValidatorArray value="CasterLifeGT30Percent"/>
+        <Duration value="120"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3shenkongguangboSearch"/>
+        <ExpireEffect value="3shenkongguangboPersistent4"/>
+        <Modification AttackTargetPriority="5" SightBonus="2" Detect="6">
+            <VitalMaxFractionArray index="Shields" value="-1"/>
+            <VitalMaxAdditiveMultiplierArray index="Shields" value="-1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shenkongguangboCaster5">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <RemoveValidatorArray value="CasterLifeGT30Percent"/>
+        <Duration value="120"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3shenkongguangboSearch"/>
+        <ExpireEffect value="3shenkongguangboPersistent5"/>
+        <Modification AttackTargetPriority="5" SightBonus="2" Detect="6">
+            <VitalMaxFractionArray index="Shields" value="-1"/>
+            <VitalMaxAdditiveMultiplierArray index="Shields" value="-1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3sishouxitong">
+        <InfoIcon value="Assets\Textures\btn-progression-hornerhan-14-nukefortelefrag.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse Handled="3zhanshudaodanDropPersistent" TargetFilters="-;Player,Ally">
+            <Chance value="1"/>
+            <Cost>
+                <Cooldown Link="3 死手系统 相" TimeUse="7.5"/>
+            </Cost>
+        </DamageResponse>
+        <Requirements value="3sishouxitong"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3daxingdianciganraomaichong">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-electricfield.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <Modification>
+            <StateFlags index="Stun" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3duochongpaozu">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie3"/>
+        <Modification>
+            <WeaponEnableArray value="3yanhuafangkongpaozu"/>
+            <WeaponEnableArray value="3tianhuofangkongpaozu"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3weiduishujulian">
+        <InfoIcon value="Assets\Textures\btn-progression-mengsk-14-advancedroyalguardupgradecache.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3weiduishujulianCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3weiduishujulianSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3xiniuzhuangjia">
+        <InfoIcon value="Assets\Textures\btn-research-zerg-fortifiedbunker.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMultiplier="0.5">
+            <LifeArmorBonus value="6"/>
+            <VitalMaxFractionArray index="Life" value="0.5"/>
+            <VitalMaxFractionArray index="Shields" value="0.5"/>
+            <VitalRegenMultiplier index="Shields" value="0.5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yizhiyuanlaobaolei1">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <BehaviorLinkDisableArray value="3yuanlaobaolei1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yizhiyuanlaobaolei2">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <BehaviorLinkDisableArray value="3yuanlaobaolei2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yuanlaobaolei2">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="16"/>
+        <MaxStackCountPerCaster value="16"/>
+        <Modification AttackSpeedMultiplier="1.05"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yuanlaobaolei1">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="16"/>
+        <MaxStackCountPerCaster value="16"/>
+        <Period value="0.25"/>
+        <PeriodicEffect value="3chongfengduijinzhuModify"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3fuzhumiaozhunqi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie1"/>
+        <Modification>
+            <WeaponEnableArray value="3shouliezhediancishouqiang2"/>
+            <WeaponDisableArray value="3shouliezhediancishouqiang"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3jingongzhiling">
+        <InfoIcon value="Assets\Textures\btn-command-attack.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+        <Modification AttackSpeedMultiplier="1.15">
+            <DamageDealtUnscaled index="Melee" value="2"/>
+            <DamageDealtUnscaled index="Ranged" value="2"/>
+            <DamageDealtUnscaled index="Splash" value="2"/>
+            <DamageDealtUnscaled index="NoProc" value="2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3fangyuzhiling">
+        <InfoIcon value="Assets\Textures\ui_btn_aicommand_commandcard_defend.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+        <Modification>
+            <LifeArmorBonus value="3"/>
+            <VitalRegenArray index="Life" value="6"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3leida">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification Radar="32" RadarFilters="-;Player,Ally,Missile,Cloaked,Dead,Hidden"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yuyanxunyou">
+        <InfoIcon value="Assets\Textures\btn-tips-walloffire.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="3shifazhezhengzaiyidong"/>
+        <DisableValidatorArray value="3shifazheyouyuyanchongfnegwuqi"/>
+        <Period value="0.15"/>
+        <PeriodicEffect value="3yuyanxunyouPersistent"/>
+        <Modification MoveSpeedMultiplier="1.7">
+            <WeaponDisableArray value="3qiangyan"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.7"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3nengliangjizhong">
+        <InfoIcon value="Assets\Textures\3_nengliangjizhong1.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="8"/>
+        <MaxStackCountPerCaster value="8"/>
+        <Modification MoveSpeedBonus="0.5" RangedWeaponRange="0.5">
+            <DamageDealtFraction index="Ranged" value="0.1"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.92">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3tingzhijiance">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="NotMoving"/>
+        <Period value="0.15"/>
+        <PeriodicEffect value="3tingzhiyidongApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3tingzhiyidong">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="3shifazhemeiyouzhengzaiyidong"/>
+        <Duration value="2"/>
+        <Period value="3"/>
+        <PeriodicEffect value="3nengliangjizhongRemove"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3xiaofangxitong">
+        <InfoIcon value="Assets\Textures\btn-upgrade-swann-firesuppressionsystem.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3xiaofangxitong"/>
+        <DisableValidatorArray value="NotDeadOrConstruction"/>
+        <DisableValidatorArray value="CasterLifeNotFull"/>
+        <Modification>
+            <VitalRegenArray index="Life" value="12"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yidongjiance">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="3shifazhezhengzaiyidong"/>
+        <Period value="0.15"/>
+        <PeriodicEffect value="3zhengzaiyidongApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3junjie1">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification AttackSpeedMultiplier="1.1" ShieldArmorBonus="1">
+            <LifeArmorBonus value="1"/>
+            <VitalMaxFractionArray index="Life" value="0.15"/>
+            <VitalMaxFractionArray index="Shields" value="0.15"/>
+            <VitalRegenMultiplier index="Shields" value="0.15"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.9">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3huishou">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="6"/>
+        <FinalEffect value="Suicide"/>
+        <ExpireEffect value="3huishouPlayer"/>
+        <Modification>
+            <AbilLinkDisableArray value="3huishou"/>
+            <AbilLinkDisableArray value="3bujidibaoTransport"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yuwenCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie1"/>
+        <DisableValidatorArray value="3shifazhezhengzaiyidong"/>
+        <Period value="0.15"/>
+        <PeriodicEffect value="3yuwenPersistent"/>
+    </CBehaviorBuff>
+    <CBehaviorVeterancy id="3yuqianweishi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="CombineXP" value="0"/>
+        <XPFraction index="Kills" value="0"/>
+        <VeterancyLevelArray RankNameSchema="Behavior/Name/3junjie1"/>
+        <VeterancyLevelArray MinVeterancyXP="800" LevelGainEffect="3junjie1Apply" RankNameSchema="Behavior/Name/3junjie1">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="1600" LevelGainEffect="3junjie2Apply" RankNameSchema="Behavior/Name/3junjie2">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <VeterancyLevelArray MinVeterancyXP="2400" LevelGainEffect="3junjie3Apply" RankNameSchema="Behavior/Name/3junjie3">
+            <Modification>
+                <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+                <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            </Modification>
+        </VeterancyLevelArray>
+        <Levels value="4"/>
+    </CBehaviorVeterancy>
+    <CBehaviorBuff id="3zhandijianxiu">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel3.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie3"/>
+        <Period value="0.1"/>
+        <PeriodicEffect value="3zhandijianxiuModify"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3daxingguangbozhenlie">
+        <InfoIcon value="Assets\Textures\btn-upgrade-mengsk-blimp-propagandaamplification.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie3"/>
+        <Modification AttackSpeedMultiplier="1.3" WeaponRange="6"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3zhaohuanjinjunTimedLife">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="15"/>
+        <ExpireEffect value="3zhaohuanjinjunTimedLifeDropOut"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3zhengzaiyidong">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Period value="12"/>
+        <PeriodicEffect value="3nengliangjizhongApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3zhengzhaoxukeSmall">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="NotUnderConstruction"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3zhengzhaoSmallSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3qianghuazhiliaoyi">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-heal-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yidonghuifuzhan">
+        <InfoIcon value="Assets\Textures\btn-ability-tychus-medic-restorativeburst.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1"/>
+        <Period value="0.25"/>
+        <PeriodicEffect value="3yidonghuifuzhanModify"/>
+        <TimeScaleSource Value="Global"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3jiaodaoguangboCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3jiaodaoguangboSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shiyanxingganraojuzhen1">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-invulnerabilityshield.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+        <Modification AttackSpeedMultiplier="0.65" RangedWeaponRange="-2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3jiaodaoguangbo">
+        <InfoIcon value="Assets\Textures\btn-upgrade-mengsk-blimp-propagandaamplification.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+        <Modification>
+            <DamageDealtScaled index="Melee" value="4"/>
+            <DamageDealtScaled index="Ranged" value="4"/>
+            <DamageDealtScaled index="Splash" value="4"/>
+            <DamageDealtScaled index="NoProc" value="4"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3kongtouBuildingB">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.1"/>
+        <InitialEffect value="3kongtouBuildingApplyC"/>
+        <Modification Height="20">
+            <HeightTime index="Stop" value="0.3"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3huangjiaweiduikongtouGroundSmall">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="0.35"/>
+        <DurationRandomMin value="0.5"/>
+        <Period value="0.3"/>
+        <PeriodCount value="1"/>
+        <InitialEffect value="3xinshoudalibaoApply"/>
+        <PeriodicEffect value="3xinshoudalibaoGroundSmallSearch"/>
+        <ExpireEffect value="3huangjiaweiduikongtouGroundSmallSearch"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="Daze" value="1"/>
+            <StateFlags index="SuppressDetection" value="1"/>
+            <StateFlags index="NoDraw" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3kongtouBuilding">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="0.2"/>
+        <InitialEffect value="3kongtouBuildingApplyB"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="Daze" value="1"/>
+            <StateFlags index="SuppressDetection" value="1"/>
+            <StateFlags index="NoDraw" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shaoshiranliao">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-ghost-pyrokineticimmolation_orange.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Modification LifeArmorMultiplier="0"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3riyanzhuangjia">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-yagdra-firewave.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie3"/>
+        <DisableValidatorArray value="CasterIsNotHidden"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="3riyanzhuangjiaSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3tajinzhuyi">
+        <Face value="3tajinzhuyi"/>
+        <InfoIcon value="Assets\Textures\btn-commander-mengsk.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie1"/>
+        <Modification>
+            <VitalMaxFractionArray index="Life" value="1"/>
+            <VitalMaxFractionArray index="Shields" value="1"/>
+            <VitalRegenMultiplier index="Shields" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3wendingqianghuaji">
+        <Name value="Behavior/Name/3稳定强化剂"/>
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-marauder-royalstimpack.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie3"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <Duration value="6"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3zhengzhaoxukeMedium">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3zhengzhaoMediumSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3zhengzhaoxukeLarge">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3zhengzhaoLargeSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3zhengzhaoxuke">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3danbingyingjihudunCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="CasterLifeLT50Percent"/>
+        <DamageResponse Handled="3danbingyingjihudunApply" ModifyFraction="0">
+            <Cost>
+                <Cooldown TimeUse="30"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3danbingyingjihudun">
+        <InfoIcon value="Assets\Textures\btn-upgrade-tychus-medic-matrixgenerator.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="3danbingyingjihudunModify"/>
+        <Modification>
+            <VitalMaxArray index="Shields" value="200"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorAttribute id="3zhongjijinsheng">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxPoints value="99999"/>
+        <Modification>
+            <VitalMaxAdditiveMultiplierArray index="Life" value="0.02"/>
+            <VitalMaxAdditiveMultiplierArray index="Shields" value="0.02"/>
+            <VitalRegenMultiplier index="Shields" value="0.02"/>
+        </Modification>
+    </CBehaviorAttribute>
+    <CBehaviorBuff id="3zhongjijinshengCaster">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie3"/>
+        <Period value="45"/>
+        <PeriodicEffect value="3zhongjijinshengSearch"/>
+        <InfoFlags index="Hidden" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3zhongxingdenglizipaozu">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMultiplier="0.5">
+            <WeaponEnableArray value="3wuweijianzuoxianzhongxingdenglizipaozu"/>
+            <WeaponEnableArray value="3wuweijianyouxianzhongxingdenglizipaozu"/>
+            <WeaponDisableArray value="3wuweijianyouxiandenglizipaozu1"/>
+            <WeaponDisableArray value="3wuweijianyouxiandenglizipaozu2"/>
+            <WeaponDisableArray value="3wuweijianyouxiandenglizipaozu3"/>
+            <WeaponDisableArray value="3wuweijianyouxiandenglizipaozu4"/>
+            <WeaponDisableArray value="3wuweijianyouxiandenglizipaozu5"/>
+            <WeaponDisableArray value="3wuweijianyouxiandenglizipaozu6"/>
+            <WeaponDisableArray value="3wuweijianzuoxiandenglizipaozu1"/>
+            <WeaponDisableArray value="3wuweijianzuoxiandenglizipaozu2"/>
+            <WeaponDisableArray value="3wuweijianzuoxiandenglizipaozu3"/>
+            <WeaponDisableArray value="3wuweijianzuoxiandenglizipaozu4"/>
+            <WeaponDisableArray value="3wuweijianzuoxiandenglizipaozu5"/>
+            <WeaponDisableArray value="3wuweijianzuoxiandenglizipaozu6"/>
+            <WeaponDisableArray value="3wuweijianzuoxiandenglizipaozuS"/>
+            <WeaponDisableArray value="3wuweijianyouxiandenglizipaozuS"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3zhongxingfangbaohudun">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-marauder-selfabsorbshield.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie1"/>
+        <Modification ShieldArmorBonus="6">
+            <VitalMaxArray index="Shields" value="750"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3zhongzituceng">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-shieldrecharge.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification LifeArmorMultiplier="2"/>
+        <DamageResponse ModifyFraction="0.5">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shenkongguangbo">
+        <InfoIcon value="Assets\Textures\3_shenkongguangbo.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1"/>
+        <Modification MoveSpeedMultiplier="1.3" AttackSpeedMultiplier="1.3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shuangduilie">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Modification QueueCount="1" QueueSize="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3fangyupingzhang">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-invulnerabilityshield.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse ModifyFraction="0" ModifyLimit="200">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3zidongcaijigaonengwasi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="AutoHarvesterFinish"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Period value="2.1"/>
+        <PeriodicEffect value="3zidongcaijigaonengwasiModify"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3wasibutie">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Period value="4"/>
+        <PeriodicEffect value="3wasibutiePlayer"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3yidonghuifuzhanCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-tychus-medic-restorativeburst.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie3"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="3yidonghuifuzhanSearch"/>
+        <TimeScaleSource Value="Global"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3fuzhushejikong">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Modification WeaponRange="2">
+            <AbilLinkEnableArray value="stop"/>
+            <AbilLinkEnableArray value="HoldFire"/>
+            <WeaponDisableArray value="FusionCutter"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3chongfengduiyunbingcheTransport">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Modification WeaponRange="1.5">
+            <AbilClassEnableArray index="CAbilAttack" value="1"/>
+            <WeaponDisableArray value="FusionCutter"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorJump id="3liequanbuduiJump">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TriggerHeightDeltaMin value="1.5"/>
+        <TriggerHeightDeltaMax value="4.5"/>
+        <InitiateRangeUp value="2"/>
+        <InitiateRangeDown value="2"/>
+        <JumpRangeMax value="12"/>
+        <Mover value="CliffJumper"/>
+        <MoverUp value="ReaperJumpDown"/>
+        <MoverDown value="ReaperJumpDown"/>
+        <DurationPreLaunch value="0.05"/>
+        <DurationPostLand value="0.05"/>
+        <DurationMoveOut value="0.05"/>
+        <Placeholder value="3liequanbuduiPlaceholder"/>
+        <LandAdjustmentDown value="1"/>
+        <LandArrivalRange value="0.05"/>
+        <LandCheckRadius value="5"/>
+    </CBehaviorJump>
+    <CBehaviorBuff id="3hourantuijinqi">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-jotunboosters.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.7" AccelerationBonus="500" DecelerationBonus="500"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3zhuangzailejunwangtanke">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="0.25"/>
+        <Modification MoveSpeedMultiplier="0.7">
+            <StateFlags index="SuppressCloak" value="1"/>
+            <VitalMaxAdditiveMultiplierArray index="Shields" value="-1"/>
+            <VitalRegenMultiplier index="Shields" value="-1"/>
+            <AbilLinkDisableArray value="3hourantuijinqi"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3beizhuangzai">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="3shifazheshiyincangde"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.15"/>
+        <PeriodicEffect value="3zhuangzailejunwangtankeApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3ziwoxiubuzhuangjia">
+        <InfoIcon value="Assets\Textures\btn-upgrade-swann-nanorepair.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="3ziwoxiubuzhuangjiaModify"/>
+        <Requirements value="3ziwoxiubuzhuangjia"/>
+        <DisableValidatorArray value="CasterLifeLT100Percent"/>
+        <DisableValidatorArray value="3shifazhetuolizhandou10miao"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4qiangxiaoxiufu">
+        <InfoIcon value="Assets\Textures\btn-progression-hornerhan-11-mechhealing.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification HealDealtMultiplier="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3bianxingjiyun">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.0625"/>
+        <Modification>
+            <StateFlags index="Stun" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3lieyanchongzhuang">
+        <BehaviorCategories index="Stun" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Modification>
+            <StateFlags index="Stun" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3diguojianzhengzhe" parent="Detector">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-status-detector.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification Detect="12"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3jingshenkongzhi">
+        <InfoIcon value="Assets\Textures\btn-ability-nova-domination.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="LifeGEOneQuarter"/>
+        <Duration value="15"/>
+        <Player Value="Caster"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shikongsuiliezhuangzhi">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\BTN-Ability-Protoss-TimeBomb.dds"/>
+        <BehaviorCategories index="Slow" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="0.25"/>
+        <Modification TimeScale="0.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3baixinghaozenceqi12" parent="Detector">
+        <Alignment value="Positive"/>
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-status-detector.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification Detect="15"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3shiyanxingzhongxinghudunlichang2">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="3youjunjie3"/>
+        <DisableValidatorArray value="CasterShieldsGE1"/>
+        <DamageResponse ClampMaximum="25" Minimum="25">
+            <Kind index="Spell" value="0"/>
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3fangyujuzhen">
+        <InfoIcon value="Assets\Textures\btn-upgrade-swann-defensivematrix.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <RemoveValidatorArray value="hasShields"/>
+        <Duration value="15"/>
+        <Modification>
+            <VitalMaxArray index="Shields" value="200"/>
+        </Modification>
+        <DamageResponse ModifyMinimumDamage="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="3fangyujuzhenStart">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <VitalMaxArray index="Shields" value="200"/>
+        </Modification>
+    </CBehaviorBuff>
+</Catalog>

@@ -1,0 +1,195 @@
+{
+  "$schema": "../../../docs/schemas/package-manifest.schema.json",
+  "schemaVersion": 1,
+  "packages": [
+    {
+      "id": "official.void-campaign",
+      "kind": "campaign",
+      "ownership": "external",
+      "source": { "sourceId": "official-data", "path": "campaigns/void.sc2campaign", "containerType": "native" },
+      "metadata": { "resolution": "resolved-from-registered-official-data" }
+    },
+    {
+      "id": "external.alenger3-mad-empire",
+      "kind": "commander",
+      "ownership": "external",
+      "source": { "sourceId": "alenger-heart", "path": "Mods/Alenger/3疯批帝国.SC2Mod", "containerType": "mpq" },
+      "metadata": { "runtimeCommanderId": "TerranAlenger3", "displayName": "疯批帝国", "onDemandPackages": ["AlengerCommon", "Alenger3", "Alenger3Adapter"] }
+    },
+    {
+      "id": "cmre.port.alenger-effects",
+      "kind": "shared-runtime",
+      "ownership": "shared",
+      "source": { "sourceId": "alenger3-workspace-source", "path": "Mods/7vs1/AlengerCommon.SC2Mod", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "official.void-campaign", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.port.alenger3-mad-empire",
+      "kind": "commander",
+      "ownership": "commander",
+      "source": { "sourceId": "alenger3-workspace-source", "path": "Mods/7vs1/Alenger3.SC2Mod", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.port.alenger-effects", "relation": "declared", "required": true }],
+      "metadata": { "runtimeCommanderId": "TerranAlenger3", "displayName": "疯批帝国" }
+    },
+    {
+      "id": "cmre.port.alenger3-dead-of-night-adapter",
+      "kind": "commander-map-adapter",
+      "ownership": "pairing",
+      "source": { "sourceId": "alenger3-workspace-source", "path": "Mods/7vs1/Alenger3Adapter.SC2Mod", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.port.alenger3-mad-empire", "relation": "adapter", "required": true }]
+    },
+    {
+      "id": "cmre.source.artpack",
+      "kind": "mod",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Mods/CM_ArtPack/CM_ArtPack_Base.SC2Mod", "containerType": "mpq" }
+    },
+    {
+      "id": "cmre.source.base",
+      "kind": "mod",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Mods/CMRE/CMRE_Core_Base.SC2Mod", "containerType": "unpacked" },
+      "dependencies": [
+        { "packageId": "cmre.source.artpack", "relation": "declared", "required": true },
+        { "packageId": "official.void-campaign", "relation": "declared", "required": true }
+      ]
+    },
+    {
+      "id": "cmre.source.commander.mengsk",
+      "kind": "commander",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Mods/CMRE/CMRE_Core_Mengsk.SC2Mod", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.base", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.source.commander.stetmann",
+      "kind": "commander",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Mods/CMRE/CMRE_Core_Stetmann.SC2Mod", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.base", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.source.triggers",
+      "kind": "mod",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Mods/CMRE/CMRE_Core_Triggers.SC2Mod", "containerType": "unpacked" },
+      "dependencies": [
+        { "packageId": "cmre.source.base", "relation": "declared", "required": true },
+        { "packageId": "cmre.source.commander.mengsk", "relation": "declared", "required": true },
+        { "packageId": "cmre.source.commander.stetmann", "relation": "declared", "required": true }
+      ]
+    },
+    {
+      "id": "cmre.source.launcher",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Mods/CMRE/启动器改版.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.dark-killing-star",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/黑暗杀星.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.mist-opportunity",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/机会渺茫.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.malwarfare",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/净网行动.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.part-and-parcel",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/聚铁成兵.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.rifts-to-korhal",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/克哈裂痕.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.vermilion-problem",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/熔火危机.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.chain-of-ascension",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/升格之链.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.cradle-of-death",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/死亡摇篮.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.lock-and-load",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/天界封锁.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.dead-of-night",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/亡者之夜.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.temple-of-the-past",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/往日神庙.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.void-launch",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/虚空降临.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.void-rifts",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/虚空撕裂.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.oblivion-express",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/湮灭快车.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    },
+    {
+      "id": "cmre.map.miner-evacuation",
+      "kind": "map",
+      "ownership": "source",
+      "source": { "sourceId": "cmre-dev-package", "path": "Maps/营救矿工.SC2Map", "containerType": "unpacked" },
+      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+    }
+  ]
+}

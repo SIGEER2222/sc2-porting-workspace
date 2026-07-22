@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "compositionId": "cmre.dead-of-night.mengsk-source",
+  "map": {
+    "packageId": "cmre.map.dead-of-night",
+    "script": "Maps/亡者之夜.SC2Map/MapScript.galaxy",
+    "ast": {
+      "files": 1,
+      "bytes": 356346,
+      "parseErrors": 0,
+      "functions": 340,
+      "calls": 3543,
+      "triggerApiCalls": 265,
+      "objectiveCalls": 31,
+      "bankCalls": 0,
+      "initializerCalls": 115
+    },
+    "externalIncludes": [
+      "TriggerLibs/NativeLib",
+      "TriggerLibs/LibertyLib",
+      "TriggerLibs/SwarmLib",
+      "LibCOOC",
+      "LibCOMI",
+      "LibCOUI"
+    ]
+  },
+  "ownership": [
+    { "behavior": "Night cycle, mission objectives, victory, defeat, and local trigger orchestration", "owner": "cmre.map.dead-of-night", "evidence": "dead-of-night-galaxy-graph.json" },
+    { "behavior": "Co-op mission framework, transmissions, shared objective helpers, and AI integration", "owner": "cmre.shared.mission-runtime", "evidence": "trigger-galaxy-graph.json" },
+    { "behavior": "Commander Catalog and commander tactical behavior", "owner": "cmre.commander.mengsk", "evidence": "catalog-ownership.json and mengsk-residual-selector.json" },
+    { "behavior": "Bank-backed customization and nonessential console controls", "owner": "cmre.optional.ui or cmre.optional.debug-console", "evidence": "trigger-galaxy-graph.json" }
+  ],
+  "runtimeAcceptance": [
+    "Map and commander initialization complete once without ScriptError.",
+    "Selection, resource targets, issued worker orders, production, and objective transitions are observed.",
+    "Night cycle, bonus objective, victory, and defeat behavior remain map-owned and active."
+  ]
+}

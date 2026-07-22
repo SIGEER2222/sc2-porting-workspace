@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "compositionId": "reborn.zexpedition03.raynor-mvp",
+  "issues": [
+    { "id": "DEP-001", "severity": "warning", "status": "open", "summary": "SwarmStoryUtil.SC2Mod is unresolved.", "evidence": ["dependency-graph.json"], "nextAction": "Confirm the native campaign package or add an explicit alias." },
+    { "id": "DEP-002", "severity": "warning", "status": "open", "summary": "VoidMulti.SC2Mod and StarCoop.SC2Mod are unresolved in the effective inherited chain.", "evidence": ["dependency-graph.json"], "nextAction": "Trace whether these are required runtime parents or stale launcher declarations." },
+    { "id": "DEP-003", "severity": "warning", "status": "open", "summary": "The target retains stale unscoped Reborn adapter paths.", "evidence": ["source-port-diff.json", "dependency-graph.json"], "nextAction": "Generate a clean MVP map dependency list with only scoped adapter paths." },
+    { "id": "COMP-001", "severity": "warning", "status": "open", "summary": "The target map includes unselected commander packages despite a Raynor-only MVP.", "evidence": ["dependency-graph.json"], "nextAction": "Move commander selection into launcher/composition generation and remove stale injected packages from the generated target." },
+    { "id": "GAL-001", "severity": "warning", "status": "open", "summary": "Galaxy checker reports two undeclared trigger event functions and 42 non-blocking catalog diagnostics.", "evidence": ["analyzer-commands.json"], "nextAction": "Classify native-library coverage versus actual missing definitions before editing Galaxy." }
+  ]
+}

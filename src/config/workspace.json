@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "name": "sc2-porting-workspace",
+  "purpose": "Port, decompose, adapt, and validate StarCraft II maps and mods",
+  "workspaceRoot": "../..",
+  "artifactRoot": "artifacts",
+  "projectRoot": "src/projects",
+  "tools": [
+    {
+      "id": "galaxy-toolkit",
+      "path": "reference/sc2-galaxy-toolkit",
+      "kind": "external-repository",
+      "capabilities": ["galaxy-parse", "catalog-trace", "dependency-inspect", "static-validation"],
+      "writePolicy": "read-only"
+    },
+    {
+      "id": "sc2-neuro-api",
+      "path": "reference/SC2-Neuro-API-Integration",
+      "kind": "external-repository",
+      "capabilities": ["runtime-events", "bank-observation", "action-bridge"],
+      "writePolicy": "read-only"
+    },
+    {
+      "id": "sc2-neuro-wol",
+      "path": "reference/SC2-Neuro-WoL-Integration",
+      "kind": "external-repository",
+      "capabilities": ["sc2-runtime-integration", "runtime-event-source"],
+      "writePolicy": "read-only"
+    },
+    {
+      "id": "gary",
+      "path": "../tools/gary",
+      "kind": "external-repository",
+      "capabilities": ["neuro-compatible-backend", "manual-actions", "test-engine"],
+      "writePolicy": "read-only"
+    },
+    {
+      "id": "legacy-sc2-toolkit",
+      "path": "../合作指挥官-起义狂潮/scripts/sc2-editor-toolkit",
+      "kind": "legacy-tool",
+      "capabilities": ["dependency-inspect", "catalog-trace", "composition-check"],
+      "writePolicy": "read-only"
+    },
+    {
+      "id": "mpq-tooling",
+      "path": "../合作指挥官-起义狂潮/scripts",
+      "kind": "legacy-tool",
+      "capabilities": ["map-unpack", "map-pack", "live-sync"],
+      "writePolicy": "read-only"
+    },
+    {
+      "id": "kb-tool",
+      "path": "tools/kb",
+      "kind": "local-tool",
+      "capabilities": ["kb-build", "kb-query", "kb-hash"],
+      "writePolicy": "read-only"
+    }
+  ],
+  "sources": [
+    { "id": "cmre-dev-package", "localBinding": true, "kind": "development-package", "writePolicy": "read-only" },
+    { "id": "cmre-generated-mengsk", "localBinding": true, "kind": "generated-working-composition", "writePolicy": "generated" },
+    { "id": "alenger-heart", "localBinding": true, "kind": "external-commander-package", "writePolicy": "read-only" },
+    { "id": "alenger3-extraction", "path": "artifacts/projects/cmre-porting/alenger3-extraction", "kind": "extracted-package", "writePolicy": "read-only" },
+    { "id": "alenger-effects-extraction", "path": "artifacts/projects/cmre-porting/alenger-effects-extraction", "kind": "extracted-package", "writePolicy": "read-only" },
+    { "id": "cmre-owned-project", "path": "src/projects/cmre-porting", "kind": "owned-porting-project", "writePolicy": "stage-scoped" },
+    { "id": "alenger3-workspace-source", "path": "src/projects/cmre-porting/packages", "kind": "owned-porting-project", "writePolicy": "stage-scoped" },
+    { "id": "reborn-hots-071", "localBinding": true, "kind": "campaign-package", "writePolicy": "read-only" },
+    { "id": "legacy-project", "path": "../合作指挥官-起义狂潮", "kind": "mixed-assets", "writePolicy": "stage-scoped" },
+    { "id": "unpacked-data", "path": "../解包数据", "kind": "imports", "writePolicy": "read-only" },
+    { "id": "community-mods", "path": "../其他mod", "kind": "imports", "writePolicy": "read-only" },
+    { "id": "external-resources", "path": "../外部资源", "kind": "imports", "writePolicy": "read-only" },
+    { "id": "official-data", "path": "reference/SC2GameData", "kind": "game-data", "writePolicy": "read-only" },
+    { "id": "kb-sources", "path": "docs/kb-sources", "kind": "knowledge-base", "writePolicy": "submodule" }
+  ]
+}

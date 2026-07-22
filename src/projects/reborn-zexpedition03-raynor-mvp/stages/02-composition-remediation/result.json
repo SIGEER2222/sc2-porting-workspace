@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "stage": "02-composition-remediation",
+  "status": "failed",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "The launcher can select TerranRaynor and emit a bounded generated plan without launching SC2.",
+      "evidence": ["evidence/static/generated-plan-summary.json"]
+    },
+    {
+      "type": "static",
+      "claim": "The generated composition is not valid for runtime acceptance because its plan schema, dependency closure, and document roundtrip checks fail.",
+      "evidence": ["evidence/static/generated-plan-summary.json", "evidence/static/composer-verification-summary.json"]
+    },
+    {
+      "type": "inference",
+      "claim": "A real launch before plan remediation would produce ambiguous evidence and risk live-content races.",
+      "evidence": ["runtime-eligibility.json", "self-assessment.md"]
+    }
+  ],
+  "outputs": [
+    "stages/02-composition-remediation/evidence/static/generated-plan-summary.json",
+    "stages/02-composition-remediation/evidence/static/composer-verification-summary.json",
+    "stages/02-composition-remediation/runtime-eligibility.json",
+    "stages/02-composition-remediation/self-assessment.md"
+  ],
+  "validation": [
+    { "command": "launch-reborn-commander.ps1 -CheckOnly", "exitCode": 0, "summary": "Launcher configs passed and the Raynor plan was generated." },
+    { "command": "validate launcher-plan.schema.json", "exitCode": 1, "summary": "Four null transitive package paths violate the schema." },
+    { "command": "validate-commander-package TerranRaynor.json", "exitCode": 0, "summary": "Raynor commander package passed." },
+    { "command": "sc2-composer verify", "exitCode": 1, "summary": "DataCenter, dependency closure, and document roundtrip failed; Galaxy was partial." }
+  ],
+  "nextStage": "03-composition-fix"
+}

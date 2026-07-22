@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "id": "reborn-zexpedition03-raynor-mvp",
+  "goal": "Produce an auditable MVP composition that runs Reborn zexpedition03 with TerranRaynor while preserving mission-owned behavior and the read-only source package.",
+  "sources": [
+    {
+      "sourceId": "reborn-hots-071",
+      "path": "zexpedition03.SC2Map",
+      "role": "source-map"
+    },
+    {
+      "sourceId": "reborn-hots-071",
+      "path": "crys_the_swarm_reborn.SC2Mod",
+      "role": "source-mod"
+    },
+    {
+      "sourceId": "legacy-project",
+      "path": "Maps/zexpedition03_reborn_port.SC2Map",
+      "role": "existing-port-target"
+    },
+    {
+      "sourceId": "legacy-project",
+      "path": "Mods/Reborn",
+      "role": "adapter-packages"
+    }
+  ],
+  "target": {
+    "map": "reborn.zexpedition03.port",
+    "commander": "TerranRaynor",
+    "series": "RebornHotS"
+  },
+  "currentStage": "04-mvp-feasible",
+  "writeScope": [
+    "src/projects/reborn-zexpedition03-raynor-mvp/project.json",
+    "src/projects/reborn-zexpedition03-raynor-mvp/manifests/",
+    "src/projects/reborn-zexpedition03-raynor-mvp/stages/03-composition-fix/",
+    "src/projects/reborn-zexpedition03-raynor-mvp/stages/04-mvp-feasible/",
+    "legacy-project:Maps/zexpedition03_reborn_port.SC2Map/",
+    "legacy-project:Mods/Reborn/RebornMapAdapter.SC2Mod/DocumentInfo",
+    "legacy-project:scripts/sc2-launcher/launcher-plan.ps1",
+    "legacy-project:scripts/sc2-launcher/schema/launcher-plan.schema.json",
+    "legacy-project:scripts/sc2-launcher/validate-config.mjs",
+    "legacy-project:scripts/sc2-launcher/tests/",
+    "legacy-project:scripts/sc2-composer/cli.mjs",
+    "legacy-project:scripts/sc2-composer/src/",
+    "legacy-project:scripts/sc2-composer/tests/",
+    "legacy-project:scripts/galaxy-checker/",
+    "legacy-project:scripts/reborn/launch-reborn-commander.ps1",
+    "legacy-project:scripts/runtime-probe/normalize_probe.py",
+    "legacy-project:scripts/wait-for-game-ready.ps1",
+    "legacy-project:Shared/Launcher/reborn-dependencies.json",
+    "legacy-project:Mods/Reborn/MapProfiles/zexpedition03.json",
+    "legacy-project:Mods/7vs1/CoreRuntime.SC2Mod/DataCenter.json"
+  ],
+  "acceptance": [
+    "The effective dependency and adapter composition passes static validation.",
+    "The map reaches the ready state with no new ScriptError.",
+    "Raynor production controls are usable and the build panel is coherent.",
+    "Mission initialization, objectives, victory, and defeat hooks remain active."
+  ]
+}

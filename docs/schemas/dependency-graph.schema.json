@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dependency-graph.schema.json",
+  "type": "object",
+  "required": ["schemaVersion", "composition", "nodes", "edges", "unresolved"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "composition": { "type": "string" },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "path"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "enum": ["map", "mod", "campaign", "galaxy-library", "catalog-entry", "trigger", "initializer", "objective", "reward", "bank", "external"] },
+          "path": { "type": "string" },
+          "metadata": { "type": "object" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "relation", "evidence"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "relation": { "enum": ["depends-on", "includes", "calls", "defines", "overrides", "registers", "initializes", "reads", "writes", "activates", "rewards"] },
+          "evidence": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": false
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["description", "requiredEvidence"],
+        "properties": {
+          "description": { "type": "string" },
+          "requiredEvidence": { "enum": ["static", "runtime", "manual"] }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

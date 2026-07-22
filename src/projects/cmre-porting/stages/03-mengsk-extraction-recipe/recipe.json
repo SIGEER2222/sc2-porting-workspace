@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../docs/schemas/catalog-extraction-recipe.schema.json",
+  "schemaVersion": 1,
+  "id": "cmre.extract-base-mengsk-residual",
+  "source": {
+    "sourceId": "cmre-dev-package",
+    "baseMod": "Mods/CMRE/CMRE_Core_Base.SC2Mod",
+    "targetMod": "Mods/CMRE/CMRE_Core_Mengsk.SC2Mod",
+    "gameDataRoot": "Base.SC2Data/GameData"
+  },
+  "output": {
+    "artifactRoot": "artifacts/projects/cmre-porting/mengsk-extraction",
+    "report": "src/projects/cmre-porting/stages/03-mengsk-extraction-recipe/evidence/static/extraction-report.json"
+  },
+  "copyPaths": [
+    "Mods/CM_ArtPack/CM_ArtPack_Base.SC2Mod",
+    "Mods/CMRE/CMRE_Core_Base.SC2Mod",
+    "Mods/CMRE/CMRE_Core_Mengsk.SC2Mod",
+    "Mods/CMRE/CMRE_Core_Stetmann.SC2Mod",
+    "Mods/CMRE/CMRE_Core_Triggers.SC2Mod",
+    "Mods/CMRE/启动器改版.SC2Map",
+    "Maps/亡者之夜.SC2Map"
+  ],
+  "wholeEntries": {
+    "idOrParentPattern": "Mengsk",
+    "flags": "i",
+    "excludeIds": ["DummyUnit", "DummyArmored", "DummyLight", "DummyStructure"],
+    "includeIds": ["AresClassWeaponsSystem"],
+    "expectedCount": 240,
+    "targetCollisionPolicy": "merge-base-before-target"
+  },
+  "fieldMoves": [
+    { "entryId": "HellionAttackLaunchSound", "childTag": "On", "attribute": "Terms", "pattern": "ACMengskHellionInfernalFlameThrowerCP", "flags": "i" },
+    { "entryId": "HellionMercACAttackBeamImpactSite", "childTag": "On", "attribute": "Terms", "pattern": "ACMengskHellionInfernalFlameThrowerSearch", "flags": "i" },
+    { "entryId": "RaynorTalentedTerranInfantryArmorLevel1", "childTag": "EffectArray", "attribute": "Reference", "pattern": "Mengsk", "flags": "i" },
+    { "entryId": "RaynorTalentedTerranInfantryArmorLevel2", "childTag": "EffectArray", "attribute": "Reference", "pattern": "Mengsk", "flags": "i" },
+    { "entryId": "RaynorTalentedTerranInfantryArmorLevel3", "childTag": "EffectArray", "attribute": "Reference", "pattern": "Mengsk", "flags": "i" },
+    { "entryId": "TerranInfantryArmorsLevel4", "childTag": "EffectArray", "attribute": "Reference", "pattern": "Mengsk", "flags": "i" },
+    { "entryId": "TerranInfantryWeaponsLevel4", "childTag": "EffectArray", "attribute": "Reference", "pattern": "Mengsk", "flags": "i" },
+    { "entryId": "TerranInfantryWeaponsLevel4", "childTag": "AffectedUnitArray", "attribute": "value", "pattern": "Mengsk", "flags": "i" }
+  ]
+}

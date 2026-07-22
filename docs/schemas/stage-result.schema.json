@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stage-result.schema.json",
+  "type": "object",
+  "required": ["schemaVersion", "stage", "status", "claims", "outputs", "validation"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "stage": { "type": "string" },
+    "status": { "enum": ["passed", "failed", "blocked"] },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "claim", "evidence"],
+        "properties": {
+          "type": { "enum": ["static", "runtime", "inference"] },
+          "claim": { "type": "string" },
+          "evidence": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": false
+      }
+    },
+    "outputs": { "type": "array", "items": { "type": "string" } },
+    "validation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["command", "exitCode"],
+        "properties": {
+          "command": { "type": "string" },
+          "exitCode": { "type": "integer" },
+          "summary": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "nextStage": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

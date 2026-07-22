@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "sourcesRoot": "docs/kb-sources",
+  "indexRoot": "artifacts/kb-index",
+  "qdrantPath": "artifacts/kb-index/qdrant",
+  "manifestPath": "artifacts/kb-index/manifest.json",
+  "collectionName": "sc2_kb",
+  "embeddingModel": "BAAI/bge-small-zh-v1.5",
+  "embeddingDim": 512,
+  "chunkSize": 1200,
+  "chunkOverlap": 200,
+  "topK": 5,
+  "fileExtensions": [".md", ".txt", ".galaxy", ".xml"],
+  "excludePaths": [],
+  "excludeNote": "Set excludePaths to [] to index everything; previously excluded legacy/ to keep noise low, now included for completeness.",
+  "includeLegacy": true,
+  "extraScanRoots": [
+    {
+      "path": "reference/SC2GameData",
+      "alias": "sc2-official",
+      "description": "Official SC2 5.0.16.97364 data mirror: TriggerLibs Galaxy files, GameData XML, AI scripts, campaign libraries, mutators, allied commanders libs.",
+      "fileExtensions": [".galaxy", ".xml", ".txt"],
+      "excludeSubpaths": [
+        "campaigns/"
+      ],
+      "excludeNote": "campaigns/ (94.5 MB) is excluded as map-specific story data; can be included by removing this entry if needed."
+    }
+  ]
+}

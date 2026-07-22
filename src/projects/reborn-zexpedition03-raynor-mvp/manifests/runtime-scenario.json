@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../docs/schemas/runtime-scenario.schema.json",
+  "schemaVersion": 1,
+  "id": "reborn.zexpedition03.raynor-smoke",
+  "compositionId": "reborn.zexpedition03.raynor-mvp",
+  "launcher": {
+    "toolId": "legacy-project.reborn-launcher",
+    "command": "scripts/reborn/launch-reborn-commander.ps1",
+    "arguments": ["-Commander", "TerranRaynor", "-MapName", "zexpedition03_reborn_port.SC2Map", "-EnableRuntimeProbe", "-ProbeDuration", "300"]
+  },
+  "readiness": { "strategy": "alerts-and-script-error-grace", "timeoutSeconds": 180 },
+  "steps": [
+    { "id": "ready", "action": "Wait for the complete readiness gate.", "expected": "SC2 remains alive and no new ScriptError is observed." },
+    { "id": "production", "action": "Capture Raynor units, producer wiring, build abilities, and GP panel state.", "expected": "All Raynor runtime assertions pass and production activity changes the observed unit set." },
+    { "id": "mission", "action": "Observe the in_mission phase for 300 seconds and run final ScriptError and process-response gates.", "expected": "The mission remains active, SC2 remains responsive, and no ScriptError is created." }
+  ],
+  "evidenceRoot": "stages/04-mvp-feasible/evidence/runtime/reborn-zexpedition03-raynor-smoke"
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../docs/schemas/static-analysis-request.schema.json",
+  "schemaVersion": 1,
+  "compositionId": "cmre.dead-of-night.mengsk-source",
+  "analyzers": [
+    { "toolId": "legacy-sc2-toolkit", "capability": "dependency-inspect" },
+    { "toolId": "legacy-sc2-toolkit", "capability": "catalog-trace" },
+    { "toolId": "galaxy-toolkit", "capability": "galaxy-parse" }
+  ],
+  "coverage": ["dependencies", "catalog", "galaxy", "initializers", "triggers", "banks", "objectives", "rewards"],
+  "output": {
+    "dependencyGraph": "stages/02-static-boundaries/evidence/static/dependency-graph.json",
+    "unresolved": "stages/02-static-boundaries/evidence/static/unresolved.json"
+  }
+}

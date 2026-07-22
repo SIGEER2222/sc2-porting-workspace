@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    { "id": "PLAN-001", "summary": "Launcher plan schema rejects null paths for transitive synced Reborn packages.", "evidence": ["evidence/static/generated-plan-summary.json"], "impact": "The generated plan cannot pass its own persistent schema gate.", "nextAction": "Align the schema and generator representation with a focused regression test." },
+    { "id": "PLAN-002", "summary": "Composition and launcher dependency/include sets disagree.", "evidence": ["evidence/static/composer-verification-summary.json"], "impact": "The effective load closure cannot be proven.", "nextAction": "Define direct document dependencies separately from transitive synced packages and compatibility includes." },
+    { "id": "DOC-001", "summary": "DocumentHeader and DocumentInfo roundtrip fails with scoped/unscoped Reborn paths.", "evidence": ["evidence/static/composer-verification-summary.json"], "impact": "Static and launcher views of the target are inconsistent.", "nextAction": "Normalize canonical engine paths and regenerate both documents from one list." },
+    { "id": "QA-001", "summary": "RuntimeProbe assertions cannot verify the selected commander or production panel.", "evidence": ["runtime-eligibility.json"], "impact": "A green heartbeat report would not satisfy MVP acceptance.", "nextAction": "Add explicit commander identity, loaded-mod, and production assertions before runtime testing." }
+  ]
+}

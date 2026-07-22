@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "stage": "01-manifest-design",
+  "status": "passed",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "The workspace can describe the Reborn zexpedition03 plus TerranRaynor MVP without committing machine-specific absolute paths.",
+      "evidence": [
+        "stages/01-manifest-design/evidence/pilot/packages.json",
+        "stages/01-manifest-design/evidence/pilot/composition.json",
+        "src/config/workspace.json",
+        "src/config/local.sources.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "Package, composition, static-analysis, runtime-scenario, runtime-verdict, and dependency-graph examples validate against their schemas.",
+      "evidence": ["stages/01-manifest-design/log.md"]
+    },
+    {
+      "type": "inference",
+      "claim": "The existing Reborn adapter chain is the narrowest initial ownership layer for this MVP; runtime validation must confirm it.",
+      "evidence": ["stages/01-manifest-design/evidence/pilot/composition.json", "stages/01-manifest-design/issues.json"]
+    }
+  ],
+  "outputs": [
+    "docs/schemas/package-manifest.schema.json",
+    "docs/schemas/composition-manifest.schema.json",
+    "docs/schemas/static-analysis-request.schema.json",
+    "docs/schemas/runtime-scenario.schema.json",
+    "docs/schemas/runtime-verdict.schema.json",
+    "stages/01-manifest-design/evidence/pilot/packages.json",
+    "stages/01-manifest-design/evidence/pilot/composition.json",
+    "stages/01-manifest-design/evidence/pilot/static-analysis-request.json",
+    "stages/01-manifest-design/evidence/pilot/runtime-scenario.json",
+    "stages/01-manifest-design/evidence/pilot/dependency-graph.example.json",
+    "stages/01-manifest-design/evidence/pilot/runtime-verdict.example.json"
+  ],
+  "validation": [
+    { "command": "node tools/workspace.mjs validate", "exitCode": 0, "summary": "Workspace files and local source binding are valid." },
+    { "command": "Draft202012Validator over all six pilot examples", "exitCode": 0, "summary": "All examples validate against their declared contracts." },
+    { "command": "Source/path and composition-reference validation", "exitCode": 0, "summary": "All non-native paths and package references resolve." }
+  ],
+  "nextStage": "02-pilot-onboarding"
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "stage": "03-composition-fix",
+  "status": "passed",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "Launcher and composer plans agree on 10 ordered document dependencies and 35 Galaxy injections.",
+      "evidence": ["runtime-eligibility.json"]
+    },
+    {
+      "type": "static",
+      "claim": "The effective six-Mod DataCenter closure has zero errors and zero warnings.",
+      "evidence": ["runtime-eligibility.json"]
+    }
+  ],
+  "outputs": [
+    "stages/03-composition-fix/runtime-eligibility.json"
+  ],
+  "validation": [
+    { "command": "npm test --prefix scripts/sc2-composer", "exitCode": 0, "summary": "128 tests passed." },
+    { "command": "launcher-plan.test.ps1", "exitCode": 0, "summary": "Sync-only delivery, selected dependencies, campaign order, and schema validation passed." },
+    { "command": "sc2-composer verify", "exitCode": 0, "summary": "Schema, DataCenter, dependency closure, and document roundtrip passed; Galaxy retained only non-blocking diagnostics." }
+  ],
+  "nextStage": "04-mvp-feasible"
+}

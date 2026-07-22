@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "stage": "01-discovery",
+  "status": "passed",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "The CMRE source contains 15 mission maps, one launcher map, and five core or art Mod packages.",
+      "evidence": ["evidence/static/package-inventory.json"]
+    },
+    {
+      "type": "static",
+      "claim": "All mission maps and the launcher compose through CMRE_Core_Triggers, which loads CMRE_Core_Base plus Mengsk and Stetmann commander Mods.",
+      "evidence": ["evidence/static/dependency-graph.json"]
+    },
+    {
+      "type": "inference",
+      "claim": "Base Catalog data and trigger runtime require further commander/shared/UI/AI decomposition before extraction.",
+      "evidence": ["evidence/static/split-candidates.json"]
+    }
+  ],
+  "outputs": [
+    "evidence/static/package-inventory.json",
+    "evidence/static/dependency-graph.json",
+    "evidence/static/split-candidates.json",
+    "evidence/static/analyzer-commands.json",
+    "evidence/static/unresolved.json",
+    "../../manifests/source-packages.json",
+    "../../manifests/planned-packages.json",
+    "../../manifests/compositions/dead-of-night-mengsk-source.json",
+    "../../manifests/runtime-scenarios/dead-of-night-mengsk-baseline.json"
+  ],
+  "validation": [
+    {
+      "command": "node tools/workspace.mjs validate",
+      "exitCode": 0,
+      "summary": "Workspace validation passed with the local CMRE source bound; an unrelated Reborn source binding remains optional on this machine."
+    },
+    {
+      "command": "legacy-sc2-toolkit inspect <each map/mod> --project-root <cmre-source>",
+      "exitCode": 0,
+      "summary": "All sibling CMRE dependencies resolved; only the external Void campaign remains unresolved."
+    }
+  ],
+  "nextStage": "02-static-boundaries"
+}

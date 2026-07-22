@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../../../../docs/schemas/runtime-verdict.schema.json",
+  "schemaVersion": 1,
+  "scenarioId": "reborn.zexpedition03.raynor-smoke",
+  "runId": "run-20260718-072850",
+  "status": "passed",
+  "criteria": [
+    {
+      "id": "ready",
+      "status": "passed",
+      "evidence": ["launcher exit 0", "all 10 effective local mods synchronized from source", "DocumentHeader/DocumentInfo roundtrip passed"]
+    },
+    {
+      "id": "raynor-production",
+      "status": "passed",
+      "evidence": ["legacy-project:scripts/runtime-probe/reports/report-20260718-072850.json#probe_assertions", "six critical assertions passed", "replacement status SUCCESS with zero player-1 Zerg units"]
+    },
+    {
+      "id": "mission-runtime",
+      "status": "passed",
+      "evidence": ["phase=in_mission", "300-second observer window completed", "post-probe SC2 process gate passed with PID 26104"]
+    },
+    {
+      "id": "script-error-free",
+      "status": "passed",
+      "evidence": ["post-probe launcher ScriptError gate passed", "no ScriptError was created during the locked run"]
+    }
+  ],
+  "evidence": [
+    "legacy-project:scripts/runtime-probe/reports/report-20260718-072850.json",
+    "legacy-project:out/verification/reborn.zexpedition03_reborn_port__p1-TerranRaynor/2026-07-16T145.verification.json",
+    "legacy-project:out/compositions/reborn.zexpedition03_reborn_port__p1-TerranRaynor.launcher-plan.json"
+  ],
+  "notes": [
+    "Victory and defeat terminal paths were not played to completion in this smoke window.",
+    "The six runtime assertions use the initial in_mission snapshot; long-window stability is proven separately by the 300-second process and ScriptError gates.",
+    "Galaxy static diagnostics remain partial but contain zero blocking issues."
+  ]
+}

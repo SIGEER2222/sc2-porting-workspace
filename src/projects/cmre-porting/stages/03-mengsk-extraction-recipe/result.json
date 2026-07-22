@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "stage": "03-mengsk-extraction-recipe",
+  "status": "blocked",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "The Mengsk extraction recipe generated a working composition with 240 whole Catalog entries moved and the source package left unchanged.",
+      "evidence": ["evidence/static/extraction-report.json"]
+    },
+    {
+      "type": "static",
+      "claim": "Source and generated Base-to-Mengsk chains differ only by the seven planned field-move entries.",
+      "evidence": ["evidence/static/comparison-report.json"]
+    }
+  ],
+  "outputs": [
+    "recipe.json",
+    "evidence/static/extraction-report.json",
+    "evidence/static/catalog-equivalence.json",
+    "evidence/static/comparison-report.json"
+  ],
+  "validation": [
+    {
+      "command": "node scripts/extract-catalog-boundary.mjs src/projects/cmre-porting/stages/03-mengsk-extraction-recipe/recipe.json",
+      "exitCode": 0,
+      "summary": "Generated the working Mengsk extraction tree under artifacts/."
+    },
+    {
+      "command": "node scripts/compare-catalog-chains.mjs src/projects/cmre-porting/stages/03-mengsk-extraction-recipe/recipe.json cmre-generated-mengsk src/projects/cmre-porting/stages/03-mengsk-extraction-recipe/evidence/static/catalog-equivalence.json",
+      "exitCode": 1,
+      "summary": "The raw comparison reports seven planned entry changes and no unexpected differences."
+    }
+  ],
+  "nextStage": "04-runtime-baseline"
+}

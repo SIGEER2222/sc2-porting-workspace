@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "status": "candidates-not-approved-boundaries",
+  "catalog": {
+    "existingCommanderMods": ["cmre-core-mengsk", "cmre-core-stetmann"],
+    "baseHotspots": [
+      { "path": "Mods/CMRE/CMRE_Core_Base.SC2Mod/Base.SC2Data/GameData/Commanders/CommanderTychus.xml", "bytes": 1077536, "candidateOwner": "commander-tychus" },
+      { "path": "Mods/CMRE/CMRE_Core_Base.SC2Mod/Base.SC2Data/GameData/Commanders/FutureCommanders.xml", "bytes": 1047451, "candidateOwner": "multiple-commanders-unresolved" },
+      { "path": "Mods/CMRE/CMRE_Core_Base.SC2Mod/Base.SC2Data/GameData/ActorData.xml", "bytes": 3357265, "candidateOwner": "mixed" },
+      { "path": "Mods/CMRE/CMRE_Core_Base.SC2Mod/Base.SC2Data/GameData/SoundData.xml", "bytes": 3269130, "candidateOwner": "mixed" },
+      { "path": "Mods/CMRE/CMRE_Core_Base.SC2Mod/Base.SC2Data/GameData/UnitData.xml", "bytes": 1823764, "candidateOwner": "mixed" }
+    ],
+    "requiredNextEvidence": ["Catalog ID ownership", "parent and reference closure", "same-ID override history", "localized text and asset closure"]
+  },
+  "galaxy": {
+    "files": 47,
+    "hotspots": [
+      { "path": "Mods/CMRE/CMRE_Core_Triggers.SC2Mod/Base.SC2Data/LibCOMI.galaxy", "bytes": 3216339, "candidateOwner": "mission-runtime-and-ai-mixed" },
+      { "path": "Mods/CMRE/CMRE_Core_Triggers.SC2Mod/Base.SC2Data/LibCOMU.galaxy", "bytes": 1053669, "candidateOwner": "shared-runtime-unresolved" },
+      { "path": "Mods/CMRE/CMRE_Core_Triggers.SC2Mod/Base.SC2Data/scripts/cmui_customization.galaxy", "bytes": 1081362, "candidateOwner": "optional-ui" },
+      { "path": "Mods/CMRE/CMRE_Core_Triggers.SC2Mod/Base.SC2Data/scripts/cmui_console_commands.galaxy", "bytes": 401241, "candidateOwner": "optional-debug-console" },
+      { "path": "Mods/CMRE/CMRE_Core_Triggers.SC2Mod/Base.SC2Data/TriggerLibs/tactical/Mengsktactai.galaxy", "bytes": 39629, "candidateOwner": "commander-mengsk-ai" },
+      { "path": "Mods/CMRE/CMRE_Core_Triggers.SC2Mod/Base.SC2Data/TriggerLibs/tactical/Tychustactai.galaxy", "bytes": 27474, "candidateOwner": "commander-tychus-ai" }
+    ],
+    "candidatePackages": ["shared-mission-runtime", "optional-ui", "debug-console", "shared-ai", "commander-tactical-ai", "scoring"],
+    "requiredNextEvidence": ["include graph", "InitLib and InitMap order", "cross-library symbol calls", "TriggerCreate and event registration", "objective/reward ownership", "Bank reads and writes"]
+  },
+  "constraint": "No package is extracted until its dependency closure and runtime acceptance scenarios are recorded."
+}

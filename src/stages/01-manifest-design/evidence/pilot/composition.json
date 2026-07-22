@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../../docs/schemas/composition-manifest.schema.json",
+  "schemaVersion": 1,
+  "id": "reborn.zexpedition03.raynor-mvp",
+  "mapPackage": "reborn.zexpedition03.port",
+  "commanderPackage": "commander.terran-raynor",
+  "loadOrder": [
+    "official.swarm-story",
+    "official.swarm-story-util",
+    "reborn.assets",
+    "reborn.sundries",
+    "reborn.starhooks-common",
+    "reborn.starhooks-story",
+    "reborn.core",
+    "runtime.core",
+    "runtime.commander-bridge",
+    "reborn.bridge",
+    "reborn.map-adapter",
+    "commander.terran-raynor",
+    "reborn.zexpedition03.port"
+  ],
+  "adapters": ["reborn.bridge", "reborn.map-adapter"],
+  "runtime": {
+    "launcherId": "legacy-project.reborn-launcher",
+    "mapPath": "Maps/zexpedition03_reborn_port.SC2Map",
+    "commanderId": "TerranRaynor"
+  },
+  "acceptance": [
+    { "id": "static-composition", "criterion": "The effective dependency and adapter composition passes static validation.", "evidenceType": "static" },
+    { "id": "runtime-ready", "criterion": "The map reaches the ready state with no new ScriptError.", "evidenceType": "runtime" },
+    { "id": "raynor-production", "criterion": "Raynor production controls are usable and the build panel is coherent.", "evidenceType": "manual" },
+    { "id": "mission-flow", "criterion": "Mission initialization, objectives, victory, and defeat hooks remain active.", "evidenceType": "runtime" }
+  ]
+}

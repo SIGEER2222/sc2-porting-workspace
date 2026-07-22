@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "sourceId": "cmre-dev-package",
+  "commands": [
+    {
+      "toolId": "legacy-sc2-toolkit",
+      "capability": "dependency-inspect",
+      "command": "inspect <source-package> --project-root <cmre-dev-package> --format json",
+      "targets": [
+        "Mods/CM_ArtPack/CM_ArtPack_Base.SC2Mod",
+        "Mods/CMRE/CMRE_Core_Base.SC2Mod",
+        "Mods/CMRE/CMRE_Core_Mengsk.SC2Mod",
+        "Mods/CMRE/CMRE_Core_Stetmann.SC2Mod",
+        "Mods/CMRE/CMRE_Core_Triggers.SC2Mod",
+        "Mods/CMRE/启动器改版.SC2Map",
+        "Maps/*.SC2Map"
+      ],
+      "status": "completed"
+    },
+    {
+      "toolId": "galaxy-toolkit",
+      "capability": "galaxy-parse",
+      "command": "symbol-level analysis requested by manifests/static-analysis-request.json",
+      "targets": ["Mods/CMRE/CMRE_Core_Triggers.SC2Mod", "Maps/*.SC2Map"],
+      "status": "pending-stage-02"
+    }
+  ]
+}

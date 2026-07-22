@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "CMRE-RUNTIME-001",
+      "status": "partially-resolved",
+      "summary": "The NeuroIntegration do_action/chat_message link is runtime-verified on blank_test_neuro test map (bank chat_message flag cleared 1->0 by UIDisplayMessage branch, proving end-to-end action execution inside SC2). The remaining gap is the external-driver path: Gary/Integration writes to NeuroIntegration.SC2Bank from a separate Python process, but SC2 BankLoad caches the in-memory image and does not re-read the disk file, so externally written do_action flags are never observed by the periodic NeuroActionPoller.",
+      "impact": "The end-to-end action link itself works inside SC2. Real Gary-driven actions cannot yet drive SC2 without an additional IPC mechanism or a bank-refresh hook on the SC2 side.",
+      "evidence": [
+        "artifacts/runtime/cmre/blank_test_neuro.SC2Map/MapScript.galaxy (gt_Initialization_Func lines 64-78: write do_action.chat_message=true -> BankSave -> BankLoad -> if flag true -> UIDisplayMessage -> clear flag -> BankSave)",
+        "C:/Users/22448/Documents/StarCraft II/Banks/NeuroIntegration.SC2Bank (mtime 2026-07-19 21:13:22, do_action.chat_message flag=0 cleared, chat_message_arg_1='blank_test_neuro e2e verified')",
+        "C:/Users/22448/Documents/StarCraft II/GameLogs/2026-07-19 21.05.12 ScriptError.txt (only libKPVP/libKCOR CreepModify error, no NeuroIntegration error)",
+        "scripts/direct_write_do_action.py (external Python write attempt: 6s poll showed chat_message flag stays 1, confirming BankLoad cache)"
+      ],
+      "nextAction": "Either (a) add a periodic BankLoad refresh hook on the SC2 side that re-reads the disk bank file, (b) switch the external-driver path to a different IPC channel (e.g. in-game trigger event + UI input via send_input), or (c) have Gary/Integration write do_action before SC2 launch and let SC2 pick it up on first BankLoad, then signal completion via a different bank section."
+    },
+    {
+      "id": "CMRE-RUNTIME-003",
+      "summary": "SC2 BankLoad caches the bank file in memory; external process writes to NeuroIntegration.SC2Bank are not visible to the running SC2 instance until SC2 itself re-BankLoads from disk. Observed via direct_write_do_action.py: writing do_action.chat_message=true externally left the flag at 1 for 6+ seconds while the NeuroActionPoller (0.5s period) ran.",
+      "impact": "Gary/Integration cannot drive SC2 actions purely by writing to the bank file. An additional mechanism is required to either invalidate SC2's bank cache or use a different IPC channel.",
+      "evidence": [
+        "scripts/direct_write_do_action.py output: 6s poll, chat_message flag stays 1, active stays at bumped value",
+        "scripts/watch_bank_do_action.py: bank mtime updates only on external write, SC2 does not BankSave in response"
+      ],
+      "nextAction": "Prototype a bank-refresh hook on the SC2 side (e.g. a periodic trigger that BankLoads from disk by changing player or using BankOptionSet), or evaluate using send_input SC2 API to inject chat directly as a player key event."
+    },
+    {
+      "id": "CMRE-ALENGER3-001",
+      "status": "resolved",
+      "summary": "Dead of Night plus TerranAlenger3 previously failed to compile cmui_customization.galaxy at line 1890 (libCOOC_gf_CC_CommanderIsDeveloping not a boolean expression).",
+      "resolution": "The 2026-07-21 11.39.56 ScriptError.txt no longer contains any cmui_customization.galaxy compile error. The libCOOC_gf_CC_CommanderIsDeveloping symbol is declared at LibCOOC_h.galaxy:349 and defined at LibCOOC.galaxy:1826 with matching bool(string) signature; cmui_customization.galaxy:1889 calls it as `if (libCOOC_gf_CC_CommanderIsDeveloping(lp_commander) == true)` which is a valid boolean expression. The original 2026-07-19 error was a transient state from an older staged map; the current 5-dep composition (CMRE_Core_Base + CMRE_Core_Triggers + AlengerCommon + Alenger3 + Alenger3Adapter) compiles cmui_customization.galaxy cleanly.",
+      "evidence": [
+        "evidence/runtime/ScriptError.20260721-113956.txt (no cmui_customization.galaxy entry; only LibCOTF/LibCOMI runtime errors)",
+        "LibCOOC_h.galaxy:349: bool libCOOC_gf_CC_CommanderIsDeveloping (string lp_commander);",
+        "LibCOOC.galaxy:1826: bool libCOOC_gf_CC_CommanderIsDeveloping (string lp_commander) { ... }",
+        "cmui_customization.galaxy:1889: if (libCOOC_gf_CC_CommanderIsDeveloping(lp_commander) == true)"
+      ]
+    },
+    {
+      "id": "CMRE-ALENGER3-RUNTIME-002",
+      "status": "resolved",
+      "summary": "Dead of Night x TerranAlenger3 (5-dep composition) previously emitted 6 classes of non-fatal runtime errors from CMRE core libraries (LibCOTF/LibCOUI/LibCOMI). Root cause: Alenger3Adapter only unlocks the tech tree and creates starting units; it does not define CA - Decal / HeroUnitFirstReviveBehavior / HeroUnitNormalReviveBehavior fields, so several CatalogFieldValueGet / DialogSetVisible / DialogControlSetProperty calls received empty/zero handles.",
+      "resolution": "Added Patch-CmreCoreRuntimeErrors function to launch-cmre-alenger.ps1 that applies 10 defensive guard/fallback patches to the map-level copies of LibCOTF.galaxy, LibCOUI.galaxy and LibCOMI.galaxy (CMRE source mods are untouched). Patches: (1) LibCOTF:176 EventPlayerEffectUsedUnitOwner guarded with default player=1; (2) LibCOTF:7828 PlayerHandle-based GameSetSeed commented out; (3) LibCOTF:7829 DateTimeToString-based GameSetSeed commented out; (4) LibCOTF:7959 DialogSetVisible guarded with c_invalidDialogId check; (5) LibCOUI:3306 SetDialogItemUnitGroup guarded with c_invalidDialogControlId check; (6) LibCOMI:23813/23851 CatalogFieldValueGet guarded with empty decal string check; (7) LibCOMI:18204 CatalogFieldValueGet guarded with empty NormalRevive behavior check + 60.0s fallback; (8) LibCOMI:18244 same for FirstRevive behavior; (9) LibCOMI:18259 divide-by-zero guarded with lv_reviveDuration > 0.0 check. Key insight: fallback-after cannot suppress ScriptError; the guard must be added BEFORE the CatalogFieldValueGet call. The Patch function is idempotent and only modifies map copies.",
+      "impact": "All 6 error classes eliminated. SC2 now launches with exit code 0 and produces 0-byte ScriptError.txt (previously 8041 bytes). All probe data remains intact: commander_p1=TerranAlenger3, structure_count=2, worker_count=11, train_completed=true, ability_count=8, valid_count=4. The patches are no-ops for commanders that DO define these fields, so other commanders are unaffected.",
+      "evidence": [
+        "evidence/runtime/ScriptError.20260721-1624.NONE.txt (no ScriptError.txt generated in 16:24 run)",
+        "evidence/runtime/ScriptError.20260721-164454.txt (0 bytes, 16:43 post-cleanup re-verification)",
+        "evidence/runtime/NeuroIntegration.SC2Bank.20260721-164349 (all probe data intact after patches applied)",
+        "evidence/runtime/NeuroIntegration.SC2Bank.20260721-1624 (first clean run with patches)",
+        "scripts/launch-cmre-alenger.ps1:451 Patch-CmreCoreRuntimeErrors function definition"
+      ]
+    }
+  ]
+}
+

@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "method": {
+    "scope": ["cmre.source.base", "cmre.source.commander.mengsk", "cmre.source.commander.stetmann"],
+    "classification": "Commander keyword and member aliases in Catalog ID, then parent ownership; unresolved names remain unknown.",
+    "limitations": [
+      "Unknown does not mean unused or safely shared.",
+      "Composite Actor reference strings can add edges beyond exact attribute-value matches.",
+      "Parents from ArtPack and Void campaign remain outside this three-Mod scan."
+    ]
+  },
+  "packages": [
+    {
+      "packageId": "cmre.source.base",
+      "gameDataXml": 109,
+      "bytes": 19257668,
+      "idNodes": 38531,
+      "uniqueClassAndId": 38528,
+      "catalogClasses": 231,
+      "ownership": {
+        "shared": 584,
+        "unknown": 20359,
+        "mengsk": 242,
+        "stetmann": 444,
+        "tychus": 2173,
+        "zeratul": 1962,
+        "dehaka": 2615,
+        "fenix": 1566,
+        "nova": 1340,
+        "stukov": 1214,
+        "alarak": 871,
+        "zagara": 781,
+        "kerrigan": 752,
+        "abathur": 662,
+        "artanis": 571,
+        "raynor": 561,
+        "vorazun": 544,
+        "swann": 516,
+        "karax": 419,
+        "horner": 355
+      }
+    },
+    {
+      "packageId": "cmre.source.commander.mengsk",
+      "gameDataXml": 104,
+      "bytes": 1374375,
+      "idNodes": 2027,
+      "uniqueClassAndId": 2027,
+      "catalogClasses": 91,
+      "ownership": { "mengskNamed": 1976, "mengskPackageLocalGeneric": 46, "nova": 4, "horner": 1 }
+    },
+    {
+      "packageId": "cmre.source.commander.stetmann",
+      "gameDataXml": 25,
+      "bytes": 1362879,
+      "idNodes": 2071,
+      "uniqueClassAndId": 2071,
+      "catalogClasses": 104,
+      "ownership": { "stetmannNamed": 1924, "stetmannPackageLocalGeneric": 147 }
+    }
+  ],
+  "caseCollisionRisks": [
+    "ResearchStabilizerMedpacks / ResearchStabilizerMedPacks",
+    "CountUpgradeNovaGadgetFlashBang / CountUpgradeNovaGadgetFlashbang",
+    "NeoSteelFrame / NeosteelFrame"
+  ],
+  "candidateBoundaries": [
+    {
+      "priority": 1,
+      "id": "base-mengsk-residual",
+      "confidence": "high",
+      "entities": 242,
+      "targetPackage": "cmre.commander.mengsk",
+      "reason": "An existing commander Mod can own the residuals and only one clear non-Mengsk reverse-reference entry was found.",
+      "risk": "TerranInfantryWeaponsLevel4 modifies four Mengsk units and must move or be adapted with them.",
+      "evidence": ["Mods/CMRE/CMRE_Core_Base.SC2Mod/Base.SC2Data/GameData/UpgradeData.xml:8233"]
+    },
+    {
+      "priority": 2,
+      "id": "commander-tychus",
+      "confidence": "high",
+      "entities": 2101,
+      "identifiedCommanderEntities": 2016,
+      "targetPackage": "cmre.commander.tychus",
+      "reason": "CommanderTychus.xml is a strong existing file boundary with approximately 96 percent Tychus ownership.",
+      "risk": "At least 75 entities across 13 Base files reference 45 IDs in this file; shared helpers such as SuicideRemove and OdinAntiAir cannot move blindly.",
+      "evidence": ["Mods/CMRE/CMRE_Core_Base.SC2Mod/Base.SC2Data/GameData/Commanders/CommanderTychus.xml:3"]
+    },
+    {
+      "priority": 3,
+      "id": "commander-zeratul",
+      "confidence": "high",
+      "entities": 1754,
+      "identifiedCommanderEntities": 1618,
+      "targetPackage": "cmre.commander.zeratul",
+      "reason": "FutureCommanders.xml is predominantly Zeratul despite its generic filename.",
+      "risk": "At least 47 entities across 13 Base files reference 68 IDs in this file.",
+      "evidence": ["Mods/CMRE/CMRE_Core_Base.SC2Mod/Base.SC2Data/GameData/Commanders/FutureCommanders.xml"]
+    },
+    {
+      "priority": 4,
+      "id": "base-stetmann-residual",
+      "confidence": "low-for-early-extraction",
+      "entities": 444,
+      "targetPackage": "cmre.commander.stetmann",
+      "reason": "Ownership is identifiable but mission voice and Tychus Actor reverse references make it a poor first extraction.",
+      "risk": "StetmannPortraitCoop is used by mission characters and voices; a Tychus Actor references a Gary death model."
+    }
+  ],
+  "loadOrderSensitiveOverrides": {
+    "mengskOverridesBaseIds": 21,
+    "stetmannOverridesBaseIds": 10,
+    "examples": ["TerranConstruction", "SYSTEM_ActorConfig", "ZergConstruction", "AllUnitBehaviorControllerSubset1"]
+  }
+}

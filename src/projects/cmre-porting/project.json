@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "cmre-porting",
+  "goal": "Decompose the CMRE development package into maintainable commander, shared runtime, map-series, map, and commander-map packages without changing source behavior.",
+  "sources": [
+    {
+      "sourceId": "cmre-dev-package",
+      "path": ".",
+      "role": "read-only-source-package"
+    }
+  ],
+  "target": {
+    "map": "all-cmre-mission-maps",
+    "commander": "all-cmre-commanders",
+    "series": "cmre-coop-missions"
+  },
+  "currentStage": "04-runtime-baseline",
+  "writeScope": [
+    "src/projects/cmre-porting/**"
+  ],
+  "acceptance": [
+    "Every source map and mod has a stable logical owner and declared dependency chain.",
+    "Commander-specific Catalog and Galaxy content is separated from reusable runtime behavior.",
+    "Mission-owned initialization, objectives, rewards, and scripting remain map-owned.",
+    "Every extracted composition passes static validation and required in-game runtime validation."
+  ]
+}

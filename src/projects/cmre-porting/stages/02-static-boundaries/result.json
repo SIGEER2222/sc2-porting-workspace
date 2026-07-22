@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "stage": "02-static-boundaries",
+  "status": "passed",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "All CMRE trigger Mod and Dead of Night Galaxy files parsed without AST syntax errors.",
+      "evidence": ["evidence/static/trigger-galaxy-graph.json", "evidence/static/dead-of-night-galaxy-graph.json"]
+    },
+    {
+      "type": "static",
+      "claim": "Base contains exactly 242 Catalog entries whose id or parent matches Mengsk, with 14 non-selected reverse-reference owners.",
+      "evidence": ["evidence/static/mengsk-residual-selector.json"]
+    },
+    {
+      "type": "static",
+      "claim": "The first extraction boundary is 240 whole Catalog entries plus seven field-level moves into the Mengsk commander package.",
+      "evidence": ["boundary-decision.json"]
+    }
+  ],
+  "outputs": [
+    "evidence/static/trigger-galaxy-graph.json",
+    "evidence/static/dead-of-night-galaxy-graph.json",
+    "evidence/static/catalog-ownership.json",
+    "evidence/static/mengsk-residual-selector.json",
+    "evidence/static/mission-contracts.json",
+    "boundary-decision.json"
+  ],
+  "validation": [
+    { "command": "node scripts/analyze-galaxy.mjs cmre-dev-package Mods/CMRE/CMRE_Core_Triggers.SC2Mod <output>", "exitCode": 0, "summary": "47 files parsed with zero AST errors." },
+    { "command": "node scripts/analyze-catalog.mjs cmre-dev-package Mods/CMRE/CMRE_Core_Base.SC2Mod/Base.SC2Data/GameData Mengsk <output>", "exitCode": 0, "summary": "109 XML documents parsed; 242 entries selected; 14 reverse-reference owners found." }
+  ],
+  "nextStage": "03-mengsk-extraction-recipe"
+}

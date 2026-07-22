@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "stage": "04-mvp-feasible",
+  "status": "passed",
+  "claims": [
+    {
+      "type": "runtime",
+      "claim": "The Reborn zexpedition03 map runs with TerranRaynor for the complete 300-second smoke window, remains responsive, and creates no ScriptError.",
+      "evidence": ["evidence/runtime/reborn-zexpedition03-raynor-smoke/runtime-verdict.json"]
+    },
+    {
+      "type": "runtime",
+      "claim": "Raynor replacement, units, production wiring, commander upgrade, and GP panel visibility are proven by six passing critical assertions.",
+      "evidence": ["evidence/runtime/reborn-zexpedition03-raynor-smoke/runtime-verdict.json"]
+    },
+    {
+      "type": "inference",
+      "claim": "The composition is feasible as an MVP pilot, not yet a complete campaign-wide port.",
+      "evidence": ["self-assessment.md"]
+    }
+  ],
+  "outputs": [
+    "stages/04-mvp-feasible/evidence/runtime/reborn-zexpedition03-raynor-smoke/runtime-verdict.json",
+    "stages/04-mvp-feasible/self-assessment.md"
+  ],
+  "validation": [
+    { "command": "npm test --prefix scripts/galaxy-checker", "exitCode": 0, "summary": "178 tests passed and both changed Galaxy roots reported zero errors and warnings." },
+    { "command": "npm test --prefix scripts/sc2-composer", "exitCode": 0, "summary": "128 tests passed." },
+    { "command": "launch-reborn-commander.ps1 -Plan <composition-plan> -EnableRuntimeProbe -ProbeDuration 300", "exitCode": 0, "summary": "Ten source mods synchronized; readiness, six assertions, final ScriptError gate, and post-probe process gate passed." },
+    { "command": "workspace.mjs validate", "exitCode": 0, "summary": "Workspace manifests and stage artifacts passed schema validation." }
+  ],
+  "nextStage": null
+}

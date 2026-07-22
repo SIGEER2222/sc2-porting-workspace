@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../docs/schemas/runtime-scenario.schema.json",
+  "schemaVersion": 1,
+  "id": "reborn.zexpedition03.raynor-smoke",
+  "compositionId": "reborn.zexpedition03.raynor-mvp",
+  "launcher": {
+    "toolId": "legacy-project.reborn-launcher",
+    "command": "scripts/reborn/launch-reborn-commander.ps1",
+    "arguments": ["-Commander", "TerranRaynor", "-MapName", "zexpedition03_reborn_port.SC2Map"]
+  },
+  "readiness": { "strategy": "alerts-and-script-error-grace", "timeoutSeconds": 180 },
+  "steps": [
+    { "id": "ready", "action": "Wait for the launcher readiness gate to complete.", "expected": "SC2 remains alive and no new ScriptError is observed." },
+    { "id": "production", "action": "Inspect the Raynor command card and train one basic combat unit.", "expected": "The build panel is coherent and the unit enters production." },
+    { "id": "mission", "action": "Observe mission initialization and the first objective.", "expected": "The mission objective is active and no adapter error is reported." }
+  ],
+  "evidenceRoot": "evidence/runtime/reborn-zexpedition03-raynor-smoke"
+}

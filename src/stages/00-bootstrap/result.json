@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "stage": "00-bootstrap",
+  "status": "passed",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "The workspace defines explicit tool, source, package, evidence, and AI write-scope boundaries.",
+      "evidence": ["AGENTS.md", "src/config/workspace.json", "docs/architecture.md", "docs/workflow.md"]
+    },
+    {
+      "type": "runtime",
+      "claim": "The workspace and all project-local Skills pass their validators.",
+      "evidence": ["stages/00-bootstrap/log.md"]
+    }
+  ],
+  "outputs": [
+    "src/config/workspace.json",
+    "docs/schemas/project.schema.json",
+    "docs/schemas/stage-result.schema.json",
+    "docs/schemas/dependency-graph.schema.json",
+    ".codex/skills/sc2-static-analysis/SKILL.md",
+    ".codex/skills/sc2-runtime-analysis/SKILL.md",
+    ".codex/skills/sc2-adapter-design/SKILL.md",
+    ".codex/skills/sc2-ai-development-loop/SKILL.md",
+    "tools/workspace.mjs"
+  ],
+  "validation": [
+    {
+      "command": "node tools/workspace.mjs validate",
+      "exitCode": 0,
+      "summary": "Workspace valid with no errors or warnings."
+    },
+    {
+      "command": "quick_validate.py for four project-local Skills",
+      "exitCode": 0,
+      "summary": "All Skills valid."
+    },
+    {
+      "command": "node tools/workspace.mjs init-project workspace-smoke",
+      "exitCode": 0,
+      "summary": "Project and stage template generation succeeded; smoke output removed."
+    }
+  ],
+  "nextStage": "01-manifest-design"
+}

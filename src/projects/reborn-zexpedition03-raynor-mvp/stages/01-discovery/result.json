@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "stage": "01-discovery",
+  "status": "passed",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "The Reborn source map depends on SwarmStory and the Reborn core; four local Reborn child packages resolve while SwarmStoryUtil remains unresolved.",
+      "evidence": ["stages/01-discovery/evidence/static/dependency-graph.json", "stages/01-discovery/evidence/static/unresolved.json"]
+    },
+    {
+      "type": "static",
+      "claim": "The existing port changes five paths and delegates reusable compatibility behavior to Reborn series and map adapters.",
+      "evidence": ["stages/01-discovery/evidence/static/source-port-diff.json", "stages/01-discovery/adapter-proposal.md"]
+    },
+    {
+      "type": "static",
+      "claim": "The checked target template is broader than a Raynor-only MVP because it includes 17 unselected commander packages and stale adapter paths.",
+      "evidence": ["stages/01-discovery/evidence/static/dependency-graph.json", "stages/01-discovery/issues.json"]
+    },
+    {
+      "type": "inference",
+      "claim": "Runtime validation is eligible only if the launcher-generated composition removes stale and unselected dependencies before launch.",
+      "evidence": ["stages/01-discovery/adapter-proposal.md"]
+    }
+  ],
+  "outputs": [
+    "manifests/packages.json",
+    "manifests/composition.json",
+    "manifests/runtime-scenario.json",
+    "stages/01-discovery/evidence/static/dependency-graph.json",
+    "stages/01-discovery/evidence/static/analyzer-commands.json",
+    "stages/01-discovery/evidence/static/unresolved.json",
+    "stages/01-discovery/evidence/static/source-port-diff.json",
+    "stages/01-discovery/adapter-proposal.md"
+  ],
+  "validation": [
+    { "command": "legacy toolkit inspect source map and core mod", "exitCode": 0, "summary": "Declared dependency evidence captured with one unresolved native utility." },
+    { "command": "legacy toolkit inspect effective target --commander TerranRaynor", "exitCode": 0, "summary": "Effective graph captured; stale paths and unselected commander packages recorded." },
+    { "command": "galaxy-checker --ci", "exitCode": 0, "summary": "Zero blocking diagnostics; two non-blocking errors and 42 warnings remain." },
+    { "command": "Draft202012Validator over project manifests and dependency graph", "exitCode": 0, "summary": "All project JSON contracts validated." },
+    { "command": "node tools/workspace.mjs validate", "exitCode": 0, "summary": "Workspace and registered sources are valid." }
+  ],
+  "nextStage": "02-composition-remediation"
+}

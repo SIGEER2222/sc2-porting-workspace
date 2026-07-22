@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../docs/schemas/composition-manifest.schema.json",
+  "schemaVersion": 1,
+  "id": "cmre.dead-of-night.mengsk-source",
+  "mapPackage": "cmre.map.dead-of-night",
+  "commanderPackage": "cmre.source.commander.mengsk",
+  "loadOrder": [
+    "official.void-campaign",
+    "cmre.source.artpack",
+    "cmre.source.base",
+    "cmre.source.commander.mengsk",
+    "cmre.source.commander.stetmann",
+    "cmre.source.triggers",
+    "cmre.map.dead-of-night"
+  ],
+  "adapters": [],
+  "runtime": {
+    "launcherId": "cmre.source.launcher",
+    "mapPath": "Maps/亡者之夜.SC2Map",
+    "commanderId": "Mengsk"
+  },
+  "acceptance": [
+    { "id": "static-composition", "criterion": "The declared dependency and Catalog composition is complete.", "evidenceType": "static" },
+    { "id": "runtime-ready", "criterion": "The source map reaches ready state without a new ScriptError.", "evidenceType": "runtime" },
+    { "id": "mengsk-control", "criterion": "Mengsk workers, production, abilities, and unit commands remain usable.", "evidenceType": "runtime" },
+    { "id": "mission-flow", "criterion": "Night cycle, objectives, bonus objective, victory, and defeat hooks remain active.", "evidenceType": "runtime" },
+    { "id": "dynamic-events", "criterion": "The runtime observer captures selection, resource, issued-order, objective, and mission state events.", "evidenceType": "runtime" }
+  ]
+}

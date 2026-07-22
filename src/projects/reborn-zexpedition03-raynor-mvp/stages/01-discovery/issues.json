@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    { "id": "DEP-001", "summary": "SwarmStoryUtil.SC2Mod is unresolved.", "evidence": ["stages/01-discovery/evidence/static/unresolved.json"], "impact": "The native campaign utility boundary is not proven.", "nextAction": "Resolve the native package or register an explicit alias." },
+    { "id": "DEP-002", "summary": "VoidMulti.SC2Mod and StarCoop.SC2Mod are unresolved inherited references.", "evidence": ["stages/01-discovery/evidence/static/unresolved.json"], "impact": "The effective dependency closure may include stale or required parents.", "nextAction": "Trace their ownership before runtime acceptance." },
+    { "id": "COMP-001", "summary": "The target map includes unselected commander packages.", "evidence": ["stages/01-discovery/evidence/static/dependency-graph.json"], "impact": "The generated composition is not a narrow Raynor MVP.", "nextAction": "Regenerate the map dependency document from the selected commander." },
+    { "id": "GAL-001", "summary": "Galaxy checker reports non-blocking errors and catalog diagnostics.", "evidence": ["stages/01-discovery/evidence/static/analyzer-commands.json"], "impact": "Static completeness is not yet established.", "nextAction": "Classify native-library false positives versus missing definitions." }
+  ]
+}

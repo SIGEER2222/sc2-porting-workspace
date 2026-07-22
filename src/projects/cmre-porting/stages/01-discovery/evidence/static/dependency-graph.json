@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "composition": "cmre-development-package",
+  "nodes": [
+    { "id": "cm-artpack-base", "kind": "mod", "path": "Mods/CM_ArtPack/CM_ArtPack_Base.SC2Mod" },
+    { "id": "void-campaign", "kind": "campaign", "path": "Campaigns/Void.SC2Campaign" },
+    { "id": "cmre-core-base", "kind": "mod", "path": "Mods/CMRE/CMRE_Core_Base.SC2Mod" },
+    { "id": "cmre-core-mengsk", "kind": "mod", "path": "Mods/CMRE/CMRE_Core_Mengsk.SC2Mod" },
+    { "id": "cmre-core-stetmann", "kind": "mod", "path": "Mods/CMRE/CMRE_Core_Stetmann.SC2Mod" },
+    { "id": "cmre-core-triggers", "kind": "mod", "path": "Mods/CMRE/CMRE_Core_Triggers.SC2Mod" },
+    { "id": "cmre-launcher", "kind": "map", "path": "Mods/CMRE/启动器改版.SC2Map" },
+    { "id": "cmre-mission-maps", "kind": "external", "path": "Maps/*.SC2Map", "metadata": { "count": 15 } }
+  ],
+  "edges": [
+    { "from": "cmre-core-base", "to": "cm-artpack-base", "relation": "depends-on", "evidence": ["Mods/CMRE/CMRE_Core_Base.SC2Mod/DocumentInfo:4"] },
+    { "from": "cmre-core-base", "to": "void-campaign", "relation": "depends-on", "evidence": ["Mods/CMRE/CMRE_Core_Base.SC2Mod/DocumentInfo:5"] },
+    { "from": "cmre-core-mengsk", "to": "cmre-core-base", "relation": "depends-on", "evidence": ["Mods/CMRE/CMRE_Core_Mengsk.SC2Mod/DocumentInfo:4"] },
+    { "from": "cmre-core-stetmann", "to": "cmre-core-base", "relation": "depends-on", "evidence": ["Mods/CMRE/CMRE_Core_Stetmann.SC2Mod/DocumentInfo:4"] },
+    { "from": "cmre-core-triggers", "to": "cmre-core-base", "relation": "depends-on", "evidence": ["Mods/CMRE/CMRE_Core_Triggers.SC2Mod/DocumentInfo:4"] },
+    { "from": "cmre-core-triggers", "to": "cmre-core-mengsk", "relation": "depends-on", "evidence": ["Mods/CMRE/CMRE_Core_Triggers.SC2Mod/DocumentInfo:5"] },
+    { "from": "cmre-core-triggers", "to": "cmre-core-stetmann", "relation": "depends-on", "evidence": ["Mods/CMRE/CMRE_Core_Triggers.SC2Mod/DocumentInfo:6"] },
+    { "from": "cmre-launcher", "to": "cmre-core-triggers", "relation": "depends-on", "evidence": ["Mods/CMRE/启动器改版.SC2Map/DocumentInfo"] },
+    { "from": "cmre-mission-maps", "to": "cmre-core-triggers", "relation": "depends-on", "evidence": ["15/15 Maps/*/DocumentInfo inspected by legacy-sc2-toolkit"] }
+  ],
+  "unresolved": [
+    { "description": "Void.SC2Campaign is not present in the registered CMRE source package.", "requiredEvidence": "static" },
+    { "description": "Declared dependency edges do not prove runtime initialization or behavior coverage.", "requiredEvidence": "runtime" }
+  ]
+}

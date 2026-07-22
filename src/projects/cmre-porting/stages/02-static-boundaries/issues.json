@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "CMRE-STATIC-001",
+      "summary": "Twenty-five Galaxy includes are supplied by official/native dependencies outside CMRE_Core_Triggers.",
+      "impact": "Trigger-only parsing is complete, but standalone composition validation must supply the official include roots.",
+      "evidence": ["evidence/static/trigger-galaxy-graph.json"],
+      "nextAction": "Resolve include roots through the registered official data during generated composition validation."
+    },
+    {
+      "id": "CMRE-STATIC-002",
+      "summary": "No real source runtime baseline has been captured for the Dead of Night Mengsk composition.",
+      "impact": "Generated output cannot be accepted from static equivalence alone.",
+      "evidence": ["../../manifests/runtime-scenarios/dead-of-night-mengsk-baseline.json"],
+      "nextAction": "Run the source composition with the real observer before accepting extraction output."
+    }
+  ]
+}

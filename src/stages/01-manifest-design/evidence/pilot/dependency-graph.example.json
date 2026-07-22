@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../docs/schemas/dependency-graph.schema.json",
+  "schemaVersion": 1,
+  "composition": "reborn.zexpedition03.raynor-mvp",
+  "nodes": [
+    {
+      "id": "reborn.zexpedition03.source",
+      "kind": "map",
+      "path": "reborn-hots-071:zexpedition03.SC2Map",
+      "metadata": { "containerType": "unpacked" }
+    },
+    {
+      "id": "reborn.core",
+      "kind": "mod",
+      "path": "reborn-hots-071:crys_the_swarm_reborn.SC2Mod"
+    },
+    {
+      "id": "official.swarm-story-util",
+      "kind": "external",
+      "path": "official-data:Campaigns/SwarmStoryUtil.SC2Mod"
+    }
+  ],
+  "edges": [
+    {
+      "from": "reborn.zexpedition03.source",
+      "to": "reborn.core",
+      "relation": "depends-on",
+      "evidence": ["DocumentInfo:Dependencies"]
+    },
+    {
+      "from": "reborn.core",
+      "to": "official.swarm-story-util",
+      "relation": "depends-on",
+      "evidence": ["crys_the_swarm_reborn.SC2Mod/DocumentInfo:Dependencies"]
+    }
+  ],
+  "unresolved": [
+    {
+      "description": "Resolve the authoritative SwarmStoryUtil.SC2Mod package supplied by the native campaign environment.",
+      "requiredEvidence": "static"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "stage": "02-pilot-onboarding",
+  "status": "failed",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "The Reborn zexpedition03 plus TerranRaynor pilot is fully represented by registered-source manifests and an evidence-backed dependency graph.",
+      "evidence": ["src/projects/reborn-zexpedition03-raynor-mvp/stages/01-discovery/result.json"]
+    },
+    {
+      "type": "static",
+      "claim": "Runtime validation is blocked because the generated composition fails persistent static gates.",
+      "evidence": ["src/projects/reborn-zexpedition03-raynor-mvp/stages/02-composition-remediation/result.json", "src/projects/reborn-zexpedition03-raynor-mvp/stages/02-composition-remediation/runtime-eligibility.json"]
+    }
+  ],
+  "outputs": [
+    "src/projects/reborn-zexpedition03-raynor-mvp/project.json",
+    "src/projects/reborn-zexpedition03-raynor-mvp/manifests/",
+    "src/projects/reborn-zexpedition03-raynor-mvp/stages/01-discovery/",
+    "src/projects/reborn-zexpedition03-raynor-mvp/stages/02-composition-remediation/",
+    "src/projects/reborn-zexpedition03-raynor-mvp/stages/03-composition-fix/plan.md"
+  ],
+  "validation": [
+    { "command": "node tools/workspace.mjs validate", "exitCode": 0, "summary": "Workspace and registered sources are valid." },
+    { "command": "Draft202012Validator over project contracts", "exitCode": 0, "summary": "Project manifests and stage results validate." },
+    { "command": "launch-reborn-commander.ps1 -CheckOnly", "exitCode": 0, "summary": "Raynor plan generated without launching SC2." },
+    { "command": "validate launcher plan", "exitCode": 1, "summary": "Four transitive null paths violate the schema." },
+    { "command": "sc2-composer verify", "exitCode": 1, "summary": "Static composition verification failed and runtime remained pending." }
+  ],
+  "nextStage": "03-composition-fix"
+}

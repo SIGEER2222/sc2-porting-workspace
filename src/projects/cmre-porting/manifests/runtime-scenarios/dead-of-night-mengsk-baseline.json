@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../docs/schemas/runtime-scenario.schema.json",
+  "schemaVersion": 1,
+  "id": "cmre.dead-of-night.mengsk-baseline",
+  "compositionId": "cmre.dead-of-night.mengsk-source",
+  "launcher": {
+    "toolId": "mpq-tooling",
+    "command": "cmre-launcher-pending",
+    "arguments": ["--map", "Maps/亡者之夜.SC2Map", "--commander", "Mengsk"]
+  },
+  "readiness": { "strategy": "observer-event", "timeoutSeconds": 180 },
+  "steps": [
+    { "id": "ready", "action": "Wait for map initialization and commander replacement.", "expected": "One ready event and no new ScriptError." },
+    { "id": "economy", "action": "Select minerals and gas, then order workers to gather.", "expected": "Resource remaining and issued-order events identify the selected target and worker command." },
+    { "id": "production", "action": "Build Mengsk production and train a combat unit.", "expected": "Catalog, command-card, resource, construction, and training events remain coherent." },
+    { "id": "mission", "action": "Observe the first night transition and objective updates.", "expected": "Mission phase and objective events are captured without changing mission behavior." }
+  ],
+  "evidenceRoot": "artifacts/runtime/cmre/dead-of-night/mengsk-baseline"
+}

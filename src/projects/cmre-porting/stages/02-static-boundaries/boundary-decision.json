@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "id": "cmre.extract-base-mengsk-residual",
+  "status": "approved-for-recipe-generation",
+  "sourcePackage": "cmre.source.base",
+  "targetPackage": "cmre.commander.mengsk",
+  "evidence": [
+    "evidence/static/catalog-ownership.json",
+    "evidence/static/mengsk-residual-selector.json",
+    "evidence/static/trigger-galaxy-graph.json",
+    "evidence/static/mission-contracts.json"
+  ],
+  "catalogPlan": {
+    "initialSelector": "id or parent matches /Mengsk/i",
+    "initialCount": 242,
+    "wholeEntryMoves": {
+      "selectedMinusExceptions": 238,
+      "additionalIds": ["AresClassWeaponsSystem"],
+      "finalCount": 240
+    },
+    "sharedExceptions": [
+      { "family": "Actor", "id": "DummyUnit", "reason": "Generic shared ID referenced by shared Dummy units and actor." },
+      { "family": "Actor", "id": "DummyArmored", "reason": "Generic shared ID referenced by shared Dummy unit." },
+      { "family": "Actor", "id": "DummyLight", "reason": "Generic shared ID referenced by shared Dummy unit." },
+      { "family": "Actor", "id": "DummyStructure", "reason": "Generic shared ID referenced by shared Dummy unit." }
+    ],
+    "fieldMoves": [
+      { "family": "Actor", "id": "HellionAttackLaunchSound", "selector": "On entries whose Terms reference ACMengskHellionInfernalFlameThrowerCP" },
+      { "family": "Actor", "id": "HellionMercACAttackBeamImpactSite", "selector": "On entries whose Terms reference ACMengskHellionInfernalFlameThrowerSearch" },
+      { "family": "Upgrade", "id": "RaynorTalentedTerranInfantryArmorLevel1", "selector": "EffectArray entries whose Reference targets Mengsk Catalog IDs" },
+      { "family": "Upgrade", "id": "RaynorTalentedTerranInfantryArmorLevel2", "selector": "EffectArray entries whose Reference targets Mengsk Catalog IDs" },
+      { "family": "Upgrade", "id": "RaynorTalentedTerranInfantryArmorLevel3", "selector": "EffectArray entries whose Reference targets Mengsk Catalog IDs" },
+      { "family": "Upgrade", "id": "TerranInfantryArmorsLevel4", "selector": "EffectArray entries whose Reference targets Mengsk Catalog IDs" },
+      { "family": "Upgrade", "id": "TerranInfantryWeaponsLevel4", "selector": "EffectArray and AffectedUnitArray entries that target Mengsk Catalog IDs" }
+    ],
+    "falsePositive": {
+      "family": "Model",
+      "id": "CommanderPrestigeStukovBansheesDeployImpact",
+      "reason": "Mengsk appears only in an asset path and is not a Catalog reference."
+    }
+  },
+  "dependencyDirection": [
+    "official.void-campaign",
+    "cmre.source.artpack",
+    "cmre.shared.catalog",
+    "cmre.commander.mengsk",
+    "cmre.shared.mission-runtime",
+    "cmre.series.coop-adapter",
+    "cmre.map.dead-of-night.port"
+  ],
+  "rejectedFirstBoundaries": [
+    { "id": "commander-tychus", "reason": "45 file-local IDs have at least 75 reverse references and several are shared utility IDs." },
+    { "id": "commander-zeratul", "reason": "68 IDs have at least 47 reverse-reference owners outside FutureCommanders.xml." },
+    { "id": "base-stetmann-residual", "reason": "Mission voices and a Tychus Actor depend on Stetmann assets." },
+    { "id": "optional-ui", "reason": "The UI script contains 173 Bank calls and broad COOC coupling; its interface must be isolated first." }
+  ],
+  "validation": {
+    "static": [
+      "The generated commander package contains exactly 240 whole entries plus seven field-level overrides.",
+      "The generated shared Base no longer contains moved whole entries or Mengsk-only field rows.",
+      "Source and generated Mengsk compositions compare equal for moved Catalog fields.",
+      "A non-Mengsk composition has no dangling references to moved IDs."
+    ],
+    "runtime": [
+      "Run cmre.dead-of-night.mengsk-source before extraction.",
+      "Run the generated dead-of-night Mengsk composition after extraction.",
+      "Compare readiness, ScriptError, worker orders, production, objectives, and night-cycle events."
+    ]
+  }
+}

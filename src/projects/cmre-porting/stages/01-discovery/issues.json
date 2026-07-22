@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "CMRE-DISC-001",
+      "summary": "Void.SC2Campaign is declared but not present in the CMRE development package.",
+      "evidence": ["evidence/static/dependency-graph.json"],
+      "impact": "Catalog provenance and standalone composition cannot be considered complete.",
+      "nextAction": "Bind an installed or mirrored Void campaign source during static boundary analysis."
+    },
+    {
+      "id": "CMRE-DISC-002",
+      "summary": "Commander content remains mixed into CMRE_Core_Base.",
+      "evidence": ["evidence/static/split-candidates.json"],
+      "impact": "Copying Base as shared runtime would preserve the current monolith and hidden cross-commander dependencies.",
+      "nextAction": "Build Catalog ID ownership and cross-reference closure for commander clusters."
+    },
+    {
+      "id": "CMRE-DISC-003",
+      "summary": "Trigger libraries mix mission runtime, UI, console, AI, scoring, and commander behavior.",
+      "evidence": ["evidence/static/split-candidates.json"],
+      "impact": "Splitting by filename alone would break include and initializer closure.",
+      "nextAction": "Build include, initializer, trigger-registration, and cross-library symbol graphs."
+    }
+  ]
+}
