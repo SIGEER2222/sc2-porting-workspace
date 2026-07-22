@@ -32,8 +32,7 @@
 
 | 仓库 | 类型 | 功能 | 参考价值 |
 |---|---|---|---|
-| [sc2-galaxy-toolkit](sc2-galaxy-toolkit) | LSP 工具 | VS Code 扩展，为 SC2 Galaxy 脚本提供语言支持（plaxtony 后继，活跃维护） | 中 — Galaxy 脚本 LSP 实现，monorepo（pnpm + TypeScript + vitest），对自建辅助工具链有参考 |
-| [plaxtony](plaxtony) | 解析库（已归档） | Galaxy 脚本解析/静态分析/LSP、Triggers XML 解析、GameData catalogs 解析 | 中 — 已归档快照，提供 Galaxy 解析/类型检查实现思路；新版见 sc2-galaxy-toolkit |
+| [sc2-galaxy-toolkit](sc2-galaxy-toolkit) | LSP 工具 | VS Code 扩展，为 SC2 Galaxy 脚本提供语言支持（Talv/plaxtony 后继，活跃维护） | 中 — Galaxy 脚本 LSP 实现，monorepo（pnpm + TypeScript + vitest），对自建辅助工具链有参考 |
 | [sc2layout-schema](sc2mapster/sc2layout-schema) | 布局模式 | SC2Layout 文档 XML Schema 定义，用于校验与编辑器扩展（已弃用，迁至 sc2-galaxy-toolkit） | 中 — 若涉及自定义 UI（SC2Layout）可作语法校验参考 |
 | [sc2mapster-docs-generator](sc2mapster/sc2mapster-docs-generator) | 文档生成器 | 为 Galaxy 脚本与 SC2Layout 生成 API 文档站点的静态生成器 | 中 — 若需自建 Galaxy API 参考文档站可复用 |
 
@@ -92,8 +91,7 @@
 - **[Night-of-the-Dead](Night-of-the-Dead)** — 大型 Mod+Map 工程组织范例
 - **[SC2-Neuro-API-Integration](SC2-Neuro-API-Integration)** — mod 内外部通信链路（Banks/websocket）
 - **[SC2-Neuro-WoL-Integration](SC2-Neuro-WoL-Integration)** — 战役类 mod 能力体系设计
-- **[sc2-galaxy-toolkit](sc2-galaxy-toolkit)** — Galaxy 脚本 LSP（活跃维护）
-- **[plaxtony](plaxtony)** — Galaxy 解析库（归档快照，新版见上）
+- **[sc2-galaxy-toolkit](sc2-galaxy-toolkit)** — Galaxy 脚本 LSP（活跃维护，plaxtony 的后继版本）
 - **[Starcraft-2-Data-Wizards](Starcraft-2-Data-Wizards)** — BlizWiz 批量数据生成向导
 - **[sc2layout-schema](sc2mapster/sc2layout-schema)** / **[sc2mapster-docs-generator](sc2mapster/sc2mapster-docs-generator)** — UI 校验与文档生成
 - **[blizzard-tutorials](sc2mapster/blizzard-tutorials)** / **[mkdocs-sc2](sc2mapster/mkdocs-sc2)** / **[sc2mapster-github-io](sc2mapster/sc2mapster-github-io)** — 编辑器与工程化教程
