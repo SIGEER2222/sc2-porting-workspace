@@ -94,12 +94,14 @@ function normalizePath(root, path) {
 }
 
 // 将 sc2-galaxy-lang 的 Diagnostic 转为统一输出格式
+// DiagnosticCategory: Error=1, Warning=2, Message=3, Hint=4
 function toOutputDiagnostic(d, file, source) {
-  const line = typeof d.line === "number" ? d.line + 1 : (d.start != null && d.file ? 1 : 1);
+  const line = typeof d.line === "number" ? d.line + 1 : 1;
   const column = typeof d.col === "number" ? d.col + 1 : 1;
-  const severity = d.category === 0 ? "error" :
-                   d.category === 1 ? "warning" :
-                   d.category === 2 ? "suggestion" : "info";
+  const severity = d.category === 1 ? "error" :
+                   d.category === 2 ? "warning" :
+                   d.category === 3 ? "info" :
+                   d.category === 4 ? "suggestion" : "info";
   return {
     file,
     line,

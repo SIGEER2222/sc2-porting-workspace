@@ -232,6 +232,7 @@ async function searchCommand(query, options) {
   if (!existsSync(kbScript)) throw new Error("kb-query.py 不存在: " + kbScript);
   const args = [kbScript];
   if (options.topK) args.push("--top-k", String(options.topK));
+  if (options.allowStale) args.push("--allow-stale");
   args.push(query);
   await runTool("python", args);
 }
