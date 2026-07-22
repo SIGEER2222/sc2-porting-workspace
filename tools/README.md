@@ -9,6 +9,7 @@ tools/
 ├── launchers/        # 启动 SC2 游戏测试的 PowerShell 脚本
 ├── runtime-bridge/   # 与运行中 SC2 实例交互（bank 读写、输入注入、OCR）
 ├── analysis/         # 静态分析（catalog XML、galaxy AST、边界提取、链对比）
+├── mpq/              # MPQ 打包/解包工具（MPQEditor.exe + 自研脚本，见 mpq/README.md）
 ├── utils/            # 工作区管理（workspace.mjs）与通用小工具
 ├── kb/               # 知识库向量索引（独立模块，见 kb/README.md）
 ├── tooling/          # 工具边界文档
@@ -22,8 +23,10 @@ tools/
    - `launchers/`：启动游戏、选择 composition、运行测试基线
    - `runtime-bridge/`：通过 bank / 输入 / OCR 与运行中游戏交互
    - `analysis/`：对 mod / map 做静态分析（catalog XML、galaxy AST）
+   - `mpq/`：MPQ 打包/解包工具（含 `MPQEditor.exe` 二进制 + 自研 Python/PS1 脚本，自包含路径推算，不依赖 `$WorkspaceRoot`）
    - `utils/`：工作区管理（`workspace.mjs`）和通用小工具（如 `add-bom.ps1`）
 3. 跨域脚本不得互相直接引用；如需复用，提取到 `utils/` 或通过 workspace 命令组合。
+4. `mpq/` 是自包含工具集，脚本用 `$scriptDir`/`$skillDir` 推算同目录 exe 与 py，不遵循上文的 `$WorkspaceRoot` 推算约定。
 
 ## 路径引用约定（硬约束）
 
