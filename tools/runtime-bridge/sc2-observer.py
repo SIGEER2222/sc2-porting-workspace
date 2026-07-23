@@ -279,11 +279,12 @@ async def observe_game(port: int, duration: float, out_dir: Path, scenario: dict
                         "t": round(time.time() - start_time, 3),
                         "frame": 0,
                         "type": "ping",
-                        "server_version": ping_resp.ping.base_version,
+                        "game_version": ping_resp.ping.game_version,
                         "data_version": ping_resp.ping.data_version,
+                        "base_build": ping_resp.ping.base_build,
                     }
                     all_events.append(ping_event)
-                    print(f"  服务器版本: {ping_resp.ping.base_version}", file=sys.stderr)
+                    print(f"  服务器版本: {ping_resp.ping.game_version} (base_build={ping_resp.ping.base_build})", file=sys.stderr)
 
                 # 2. 循环拉取 Observation
                 with open(events_path, "w", encoding="utf-8") as f:

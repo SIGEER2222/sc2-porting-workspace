@@ -1,10 +1,14 @@
 [CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch)
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "")
 $ErrorActionPreference = "Stop"
 $WorkspaceRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Sc2WorkspaceRoot = Split-Path -Parent $WorkspaceRoot
-$LegacyRoot = Join-Path $Sc2WorkspaceRoot "合作指挥官-起义狂潮"
-$AlengerPackagesRoot = Join-Path $WorkspaceRoot "projects\cmre-porting\packages"
+if ($LegacyRootOverride) {
+    $LegacyRoot = $LegacyRootOverride
+} else {
+    $LegacyRoot = Join-Path $Sc2WorkspaceRoot "合作指挥官-起义狂潮"
+}
+$AlengerPackagesRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\packages"
 $Sc2Root = "E:\SC2\SC2new\StarCraft II"
 $script:LauncherScriptsRoot = Join-Path $LegacyRoot "scripts\sc2-launcher"
 . (Join-Path $script:LauncherScriptsRoot "common.ps1")
@@ -19,8 +23,8 @@ function Convert-TestCommanderToCommanderPowerKey {
     param([string]$Commander)
     return (Convert-CommanderPowerCommanderToBankKey -Commander $Commander -WorkspaceRoot $LegacyRoot)
 }
-$cmre = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "config\cmre-alenger-dependencies.json") -Raw | ConvertFrom-Json
-$alenger = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "config\alenger-mods.json") -Raw | ConvertFrom-Json
+$cmre = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\cmre-alenger-dependencies.json") -Raw | ConvertFrom-Json
+$alenger = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\alenger-mods.json") -Raw | ConvertFrom-Json
 if ($Commander -notmatch '^(Terran|Zerg|Protoss)(Alenger\d+)$') { throw "Commander must be a configured Alenger runtime ID: $Commander" }
 $alengerId = $Matches[2]
 if ($alenger.commanderToAlenger.PSObject.Properties.Name -notcontains $alengerId) { throw "No on-demand package mapping for $Commander" }
@@ -146,9 +150,9 @@ function Install-CmreGalaxyHostOverlay {
 function Install-CmreDynamicObserver {
     param([Parameter(Mandatory = $true)][string]$MapPath)
 
-    $neuroRoot = Join-Path $Sc2WorkspaceRoot "tools\SC2-Neuro-API-Integration"
-    $observerRoot = Join-Path $WorkspaceRoot "projects\cmre-porting\runtime"
-    $adapterRoot = Join-Path $WorkspaceRoot "projects\cmre-porting\adapters\dead-of-night"
+    $neuroRoot = Join-Path $WorkspaceRoot "reference\SC2-Neuro-API-Integration"
+    $observerRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\runtime"
+    $adapterRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\adapters\dead-of-night"
     $baseData = Join-Path $MapPath "Base.SC2Data"
     $files = @(
         @{ Source = Join-Path $neuroRoot "Mod\NeuroIntegration.SC2Mod\Base.SC2Data\LibEFA54406_h.galaxy"; Name = "LibEFA54406_h.galaxy" },
@@ -641,7 +645,12 @@ try {
     Write-CmreLaunchProfile
     if ($NoLaunch) { Write-Host "CMRE Alenger composition staged: $liveMap"; exit 0 }
     $switcher = Join-Path $Sc2Root "Support64\SC2Switcher_x64.exe"
-    Start-Process -FilePath $switcher -ArgumentList "`"$liveMap`""
+    $args = @("`"$liveMap`"")
+    if ($ListenPort -gt 0) {
+        $args += "-listenPort", "$ListenPort"
+        Write-Host "SC2 API will listen on port $ListenPort (for sc2-observer.py)"
+    }
+    Start-Process -FilePath $switcher -ArgumentList $args
     $exitCode = Wait-GameReady -ScriptsRoot (Join-Path $LegacyRoot "scripts")
     if ($exitCode -ne 0) { throw "SC2 readiness check failed with exit code $exitCode" }
 } finally { Release-TestLock -LockContext $lock }

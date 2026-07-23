@@ -20,9 +20,10 @@
       "impact": "Gary/Integration cannot drive SC2 actions purely by writing to the bank file. An additional mechanism is required to either invalidate SC2's bank cache or use a different IPC channel.",
       "evidence": [
         "scripts/direct_write_do_action.py output: 6s poll, chat_message flag stays 1, active stays at bumped value",
-        "scripts/watch_bank_do_action.py: bank mtime updates only on external write, SC2 does not BankSave in response"
+        "scripts/watch_bank_do_action.py: bank mtime updates only on external write, SC2 does not BankSave in response",
+        "tools/runtime-bridge/neuro_external_driver.py: formal bank-chat driver that writes do_action through file-ops and returns success only if running SC2 clears chat_message to flag=0"
       ],
-      "nextAction": "Prototype a bank-refresh hook on the SC2 side (e.g. a periodic trigger that BankLoads from disk by changing player or using BankOptionSet), or evaluate using send_input SC2 API to inject chat directly as a player key event."
+      "nextAction": "Run `python tools/runtime-bridge/neuro_external_driver.py bank-chat --message \"external driver probe\" --poll-seconds 6` against a live NeuroIntegration.SC2Bank session to produce the next runtime verdict. If it still returns 1, stop treating external bank writes as a live IPC path and prototype either an SC2-side refresh hook or an input/API-driven replacement channel."
     },
     {
       "id": "CMRE-ALENGER3-001",
@@ -52,4 +53,3 @@
     }
   ]
 }
-
