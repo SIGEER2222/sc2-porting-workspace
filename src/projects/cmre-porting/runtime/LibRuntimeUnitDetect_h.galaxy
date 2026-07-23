@@ -1,0 +1,23 @@
+include "TriggerLibs/natives"
+
+// LibRuntimeUnitDetect — pure runtime unit-detection query helpers.
+// All functions use only the engine UnitGroup / UnitFilter / UnitGetType API
+// documented in the galaxy-units-and-groups skill. No CMRE-specific knowledge
+// embedded here; this lib is a reusable detection surface for any observer.
+
+// Count of a specific unit type owned by `player` (use c_playerAny for anyone).
+int libRuntimeUnitDetect_gf_CountByType(int player, string typeId);
+
+// True if at least one unit of `typeId` exists for `player`.
+bool libRuntimeUnitDetect_gf_HasUnit(int player, string typeId);
+
+// Human-readable "type=count; ..." inventory for a player (excludes dead/hidden).
+string libRuntimeUnitDetect_gf_InventoryForPlayer(int player);
+
+// Fill `typeIds` (size `maxCount`) with unique type ids present for `player`.
+// Returns the number of unique types written (capped at `maxCount`).
+int libRuntimeUnitDetect_gf_ListTypesForPlayer(int player, string[64] typeIds, int maxCount);
+
+// Integration hook: push per-player inventory through the observer protocol so
+// Gary/Neuro receive runtime unit-detection results.
+void libRuntimeUnitDetect_gf_ReportAllPlayers();

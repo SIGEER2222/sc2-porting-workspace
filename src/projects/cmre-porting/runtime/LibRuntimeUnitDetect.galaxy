@@ -1,0 +1,115 @@
+include "TriggerLibs/natives"
+include "LibPortingObserver_h"
+include "LibRuntimeUnitDetect_h"
+
+// Exclusion mask: skip dead + hidden units (bits live in the high word of the
+// UnitFilter exclude-type field, hence the (const - 32) shift). Mirrors the
+// pattern used throughout LibPortingObserver.
+const int libRuntimeUnitDetect_cv_excludeDeadHidden =
+    (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32));
+
+// ---------------------------------------------------------------------------
+// CountByType — how many units of `typeId` does `player` currently own?
+// ---------------------------------------------------------------------------
+int libRuntimeUnitDetect_gf_CountByType(int player, string typeId) {
+    unitgroup lv_group = UnitGroup(typeId, player, RegionEntireMap(),
+        UnitFilter(0, 0, 0, libRuntimeUnitDetect_cv_excludeDeadHidden), 0);
+    return UnitGroupCount(lv_group, c_unitCountAll);
+}
+
+// ---------------------------------------------------------------------------
+// HasUnit — convenience boolean wrapper around CountByType.
+// ---------------------------------------------------------------------------
+bool libRuntimeUnitDetect_gf_HasUnit(int player, string typeId) {
+    return libRuntimeUnitDetect_gf_CountByType(player, typeId) > 0;
+}
+
+// ---------------------------------------------------------------------------
+// InventoryForPlayer — enumerate every living unit a player owns and collapse
+// it into a "type=count; ..." string. Core of runtime unit detection.
+// ---------------------------------------------------------------------------
+string libRuntimeUnitDetect_gf_InventoryForPlayer(int player) {
+    unitgroup lv_units = UnitGroup("", player, RegionEntireMap(),
+        UnitFilter(0, 0, 0, libRuntimeUnitDetect_cv_excludeDeadHidden), 0);
+    int lv_total = UnitGroupCount(lv_units, c_unitCountAll);
+    int lv_idx = 0;
+    unit lv_u = null;
+    string lv_type = "";
+    string[64] lv_seenTypes;
+    int[64] lv_seenCounts;
+    int lv_seen = 0;
+    int lv_j = 0;
+    bool lv_found = false;
+    string lv_out = "player_" + IntToString(player) + ":";
+
+    for (lv_idx = 1; lv_idx <= lv_total; lv_idx += 1) {
+        lv_u = UnitGroupUnit(lv_units, lv_idx);
+        if (lv_u == null) { break; }
+        lv_type = UnitGetType(lv_u);
+        lv_found = false;
+        for (lv_j = 0; lv_j < lv_seen; lv_j += 1) {
+            if (lv_seenTypes[lv_j] == lv_type) {
+                lv_seenCounts[lv_j] = lv_seenCounts[lv_j] + 1;
+                lv_found = true;
+                break;
+            }
+        }
+        if (!lv_found) {
+            if (lv_seen < 64) {
+                lv_seenTypes[lv_seen] = lv_type;
+                lv_seenCounts[lv_seen] = 1;
+                lv_seen = lv_seen + 1;
+            }
+        }
+    }
+
+    for (lv_j = 0; lv_j < lv_seen; lv_j += 1) {
+        lv_out = lv_out + " " + lv_seenTypes[lv_j] + "=" + IntToString(lv_seenCounts[lv_j]) + ";";
+    }
+    return lv_out;
+}
+
+// ---------------------------------------------------------------------------
+// ListTypesForPlayer — fill `typeIds` with the unique type ids present and
+// return how many were written (caller passes maxCount = array size).
+// ---------------------------------------------------------------------------
+int libRuntimeUnitDetect_gf_ListTypesForPlayer(int player, string[64] typeIds, int maxCount) {
+    unitgroup lv_units = UnitGroup("", player, RegionEntireMap(),
+        UnitFilter(0, 0, 0, libRuntimeUnitDetect_cv_excludeDeadHidden), 0);
+    int lv_total = UnitGroupCount(lv_units, c_unitCountAll);
+    int lv_idx = 0;
+    unit lv_u = null;
+    string lv_type = "";
+    int lv_seen = 0;
+    int lv_j = 0;
+    bool lv_found = false;
+
+    for (lv_idx = 1; lv_idx <= lv_total; lv_idx += 1) {
+        lv_u = UnitGroupUnit(lv_units, lv_idx);
+        if (lv_u == null) { break; }
+        lv_type = UnitGetType(lv_u);
+        lv_found = false;
+        for (lv_j = 0; lv_j < lv_seen; lv_j += 1) {
+            if (typeIds[lv_j] == lv_type) { lv_found = true; break; }
+        }
+        if (!lv_found) {
+            if (lv_seen < maxCount) {
+                typeIds[lv_seen] = lv_type;
+                lv_seen = lv_seen + 1;
+            }
+        }
+    }
+    return lv_seen;
+}
+
+// ---------------------------------------------------------------------------
+// ReportAllPlayers — integration point. Reuses the observer publish channel so
+// the detected inventories reach the Gary/Neuro external driver.
+// ---------------------------------------------------------------------------
+void libRuntimeUnitDetect_gf_ReportAllPlayers() {
+    int lv_p = 1;
+    for (lv_p = 1; lv_p <= 2; lv_p += 1) {
+        libPortingObserver_gf_Publish("runtime_unit_detect",
+            libRuntimeUnitDetect_gf_InventoryForPlayer(lv_p), false);
+    }
+}
