@@ -64,6 +64,30 @@ async function loadToolkit() {
   return await import(pathToFileURL(galaxyModule));
 }
 
+// 查找 SC2GameData 的 natives.galaxy 和 natives_missing.galaxy
+// 这两个文件声明了所有引擎内置 native 函数，加载后可避免误报 "Undeclared symbol"
+async function findNativesFiles(repoRootPath) {
+  const candidates = [];
+  try {
+    const config = await readJson(join(repoRootPath, "src", "config", "workspace.json"));
+    const localPath = join(repoRootPath, "src", "config", "local.sources.json");
+    const local = existsSync(localPath) ? await readJson(localPath) : { bindings: {} };
+    // SC2GameData 在 workspace.json 注册为 "official-data"
+    const entry = [...(config.tools ?? []), ...(config.sources ?? [])].find((item) => item.id === "official-data");
+    if (entry) {
+      const resolvedPath = entry.path ? resolve(repoRootPath, entry.path) : local.bindings?.["official-data"];
+      if (resolvedPath && existsSync(resolvedPath)) {
+        const triggerLibs = join(resolvedPath, "mods", "core.sc2mod", "base.sc2data", "TriggerLibs");
+        for (const name of ["natives.galaxy", "natives_missing.galaxy"]) {
+          const file = join(triggerLibs, name);
+          if (existsSync(file)) candidates.push(file);
+        }
+      }
+    }
+  } catch { /* 忽略配置读取失败，返回空列表 */ }
+  return candidates;
+}
+
 async function listGalaxyFiles(target) {
   const abs = resolve(target);
   if (!existsSync(abs)) {
@@ -118,17 +142,22 @@ async function lintFiles(files, repoRootPath) {
 
   const diagnostics = [];
   const documents = new Map();
-  const parseDiagnosticsByFile = new Map();
 
-  // 1. parse 阶段：所有文件先 parse，建立 documents map
-  for (const absFile of files) {
+  // 1. parse 阶段：先加载 SC2 引擎 native 函数声明，再 parse 目标文件
+  // natives.galaxy 声明了所有引擎内置函数（AICreateOrder、UnitOrder 等），
+  // 加载后可避免 native 函数被误报为 "Undeclared symbol"
+  const nativesFiles = await findNativesFiles(repoRootPath);
+  const allFiles = [...nativesFiles, ...files];
+
+  for (const absFile of allFiles) {
     const relFile = normalizePath(repoRootPath, absFile);
     const text = await readFile(absFile, "utf8");
     const parser = new Parser();
     const sourceFile = parser.parseFile(relFile, text);
     documents.set(relFile, sourceFile);
 
-    // 收集 parser 产生的语法诊断
+    // 只收集目标文件的 parser 诊断，不收集 natives 文件的诊断
+    if (nativesFiles.includes(absFile)) continue;
     const parseDiags = [
       ...(sourceFile.parseDiagnostics ?? []),
       ...(sourceFile.additionalSyntacticDiagnostics ?? [])
@@ -138,15 +167,35 @@ async function lintFiles(files, repoRootPath) {
     }
   }
 
-  // 2. bind 阶段：为每个文件建立符号表
+  // 2. bind 阶段：用共享 store 为所有文件建立符号表
+  // store 提供 resolveGlobalSymbol，让跨文件符号解析生效
+  // 必须先 bind natives.galaxy，让 native 函数进入 globalSymbols
   if (typeCheck) {
-    for (const [fileName, sourceFile] of documents) {
+    const globalSymbols = new Map();
+    const store = {
+      resolveGlobalSymbol: (name) => globalSymbols.get(name) ?? null
+    };
+    // 先 bind natives 文件，让 native 函数先进入 globalSymbols
+    const bindOrder = [...nativesFiles, ...files];
+    for (const absFile of bindOrder) {
+      const relFile = normalizePath(repoRootPath, absFile);
+      const sourceFile = documents.get(relFile);
+      if (!sourceFile) continue;
       try {
-        bindSourceFile(sourceFile);
+        bindSourceFile(sourceFile, store);
+        // 收集全局符号到 globalSymbols，供后续文件解析
+        if (sourceFile.symbol?.members) {
+          for (const [name, sym] of sourceFile.symbol.members) {
+            if (!globalSymbols.has(name)) {
+              globalSymbols.set(name, sym);
+            }
+          }
+        }
       } catch (e) {
-        // bind 失败不致命，记录后继续
+        // 只对目标文件报告 bind 失败，natives 文件失败静默
+        if (nativesFiles.includes(absFile)) continue;
         diagnostics.push({
-          file: fileName,
+          file: relFile,
           line: 1,
           column: 1,
           severity: "warning",
@@ -158,12 +207,61 @@ async function lintFiles(files, repoRootPath) {
     }
 
     // 3. type check 阶段
-    // TypeChecker 需要 host 提供 documents Map
-    const host = { documents };
+    // 构建 qualifiedDocuments：按去后缀小写文件名索引，供 checker 解析 include
+    // checkIncludeStatement 用 path.toLowerCase().replace(/\.galaxy$/, '') 查找
+    const qualifiedDocuments = new Map();
+    for (const [fileName, sourceFile] of documents) {
+      const base = fileName.split("/").pop().toLowerCase().replace(/\.galaxy$/, "");
+      if (!qualifiedDocuments.has(base)) {
+        qualifiedDocuments.set(base, new Map());
+      }
+      qualifiedDocuments.get(base).set(fileName, sourceFile);
+    }
+
+    // 构造 s2workspace，让 checkSourceFileRecursively 自动加载 natives
+    // checkSourceFileRecursively 用 URI.file(fpath).toString() 作为 key 查 documents
+    // 因此需要把 natives 文件也以 URI 格式 key 存入 documents
+    let s2workspace = null;
+    if (nativesFiles.length > 0) {
+      const config = await readJson(join(repoRootPath, "src", "config", "workspace.json"));
+      const officialEntry = [...(config.tools ?? []), ...(config.sources ?? [])]
+        .find((item) => item.id === "official-data");
+      if (officialEntry) {
+        const officialRoot = resolve(repoRootPath, officialEntry.path);
+        const coreDir = join(officialRoot, "mods", "core.sc2mod");
+        s2workspace = {
+          allArchives: [
+            { name: "mods/core.sc2mod", directory: coreDir }
+          ]
+        };
+        // 补充 URI 格式的 key，让 checker 能查到 natives 文件
+        for (const absFile of nativesFiles) {
+          const relFile = normalizePath(repoRootPath, absFile);
+          const sourceFile = documents.get(relFile);
+          if (sourceFile) {
+            // URI.file 需要正斜杠路径
+            const uriKey = "file:///" + absFile.replace(/\\/g, "/").replace(/^\//, "");
+            documents.set(uriKey, sourceFile);
+          }
+        }
+      }
+    }
+
+    const host = { documents, qualifiedDocuments, s2workspace };
     const checker = new TypeChecker(host);
     for (const [fileName, sourceFile] of documents) {
+      const absFile = join(repoRootPath, fileName.split("/").join(sep));
+      if (nativesFiles.includes(absFile)) continue;
       try {
-        checker.checkSourceFile(sourceFile, false);
+        const result = checker.checkSourceFileRecursively(sourceFile);
+        const checkerDiags = result.diagnostics;
+        if (checkerDiags instanceof Map) {
+          for (const [diagFile, diags] of checkerDiags) {
+            for (const d of diags) {
+              diagnostics.push(toOutputDiagnostic(d, diagFile, "sc2-galaxy-lang.checker"));
+            }
+          }
+        }
       } catch (e) {
         diagnostics.push({
           file: fileName,
@@ -174,16 +272,6 @@ async function lintFiles(files, repoRootPath) {
           message: `checker 失败: ${e.message}`,
           source: "galaxy-lint.checker"
         });
-      }
-    }
-
-    // 从 checker 私有 diagnostics map 收集（编译后字段可访问）
-    const checkerDiags = checker.diagnostics;
-    if (checkerDiags instanceof Map) {
-      for (const [fileName, diags] of checkerDiags) {
-        for (const d of diags) {
-          diagnostics.push(toOutputDiagnostic(d, fileName, "sc2-galaxy-lang.checker"));
-        }
       }
     }
   }
