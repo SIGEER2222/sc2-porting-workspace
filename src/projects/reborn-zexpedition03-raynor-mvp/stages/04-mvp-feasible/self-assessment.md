@@ -21,7 +21,7 @@ mission completion and low for other Reborn maps or commanders.
   remains formally incomplete because the local toolkit cannot resolve several official SC2
   packages, so runtime evidence remains the deciding proof.
 - Mission coverage: 7/10. Mission initialization and a sustained live process are proven, but the
-  victory and defeat terminal paths were not exercised. RuntimeProbe currently supplies one
+  victory and defeat terminal paths were not exercised. The SC2 API observer currently supplies one
   complete `in_mission` snapshot rather than periodic state deltas.
 - Port breadth: 6/10. Evidence applies only to zexpedition03 + TerranRaynor.
 

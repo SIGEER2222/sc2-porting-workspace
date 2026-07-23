@@ -218,7 +218,6 @@ bool libA3ADAPTER_gt_MapInit_Func (bool testConds, bool runActions) {
     string lv_upgradeId;
     int lv_upgradeLevel;
     playergroup autoA3ADAPTER_g;
-    bank lv_diagBank;
 
     lp_player = 1;
 
@@ -230,13 +229,6 @@ bool libA3ADAPTER_gt_MapInit_Func (bool testConds, bool runActions) {
     // Actions
     if (!runActions) {
         return true;
-    }
-
-    // Diagnostic: log adapter start to RuntimeProbe Bank
-    lv_diagBank = BankLoad("RuntimeProbe", 1);
-    if (lv_diagBank != null) {
-        BankValueSetFromString(lv_diagBank, "alenger3_diag", "adapter_step", "0_adapter_started");
-        BankSave(lv_diagBank);
     }
 
     // -------- 1. 为玩家1升级全部科技（超标强制强度，数据驱动）--------
@@ -269,10 +261,6 @@ bool libA3ADAPTER_gt_MapInit_Func (bool testConds, bool runActions) {
             libA3ADAPTER_gf_UnlockAllAbilities(lv_player);
         }
     }
-    if (lv_diagBank != null) {
-        BankValueSetFromString(lv_diagBank, "alenger3_diag", "adapter_step", "1_first_unlock_done");
-        BankSave(lv_diagBank);
-    }
 
     // -------- 4. 周期性重解锁，覆盖 CMRE DevStartupFinish 的封锁 --------
     // 7vs1 框架的封锁在 MapInit 早期发生，3 秒 Wait 已够；
@@ -292,16 +280,6 @@ bool libA3ADAPTER_gt_MapInit_Func (bool testConds, bool runActions) {
                 libA3ADAPTER_gf_UnlockAllAbilities(lv_player);
             }
         }
-        if (lv_diagBank != null) {
-            BankValueSetFromString(lv_diagBank, "alenger3_diag", "adapter_step",
-                "2_retry_" + IntToString(lv_retry + 1) + "_done");
-            BankSave(lv_diagBank);
-        }
-    }
-
-    if (lv_diagBank != null) {
-        BankValueSetFromString(lv_diagBank, "alenger3_diag", "adapter_step", "3_all_retries_done");
-        BankSave(lv_diagBank);
     }
 
     return true;

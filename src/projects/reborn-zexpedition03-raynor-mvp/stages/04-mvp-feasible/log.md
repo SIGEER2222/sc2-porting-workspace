@@ -23,7 +23,7 @@ next launch.
 ## Final observation
 
 - SC2 remained alive and responsive through the complete 300-second observer window.
-- RuntimeProbe reported `in_mission` and all six critical assertions passed.
+- The SC2 API observer reported `in_mission` and all six critical assertions passed.
 - Raynor replacement reported `SUCCESS` with 16 Terran units and no player-1 Zerg/Protoss units.
 - Raynor units, build abilities, commander upgrade, producer wiring, and GP panels were observed.
 - The post-probe ScriptError scan and process-response gate both passed.

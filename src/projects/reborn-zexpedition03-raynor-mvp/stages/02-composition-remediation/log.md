@@ -25,7 +25,7 @@ Mod, launcher, or shared configuration source was edited.
 - Launcher plan schema and generator disagree about null paths for transitive synced packages.
 - Composition and launcher dependency/include sets disagree.
 - DocumentHeader and DocumentInfo contain normalized and stale adapter paths simultaneously.
-- Existing RuntimeProbe results have empty assertions and unknown commander/map identity.
+- Existing runtime reports have empty assertions and unknown commander/map identity. (RuntimeProbe is deprecated, see `docs/deprecated-runtime-probe.md`.)
 
 ## Handoff
 

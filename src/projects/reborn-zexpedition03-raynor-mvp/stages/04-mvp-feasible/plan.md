@@ -9,7 +9,7 @@ while producing machine-readable commander, production, panel, and mission evide
 
 1. Acquire the repository test lock before all live SC2 changes.
 2. Launch through the Reborn commander launcher and complete the readiness wait.
-3. Observe RuntimeProbe for 90 seconds.
+3. Observe via the SC2 API bridge for 90 seconds.
 4. Fail if any ScriptError exists after the probe window.
 5. Record process, mission, Raynor, production, GP panel, and log evidence.
 

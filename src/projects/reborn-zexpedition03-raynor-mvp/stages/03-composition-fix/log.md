@@ -24,4 +24,4 @@ No static blocker remains. Proceed to the locked runtime scenario.
 
 ## Handoff
 
-Run stage 04 with the full readiness wait and 90-second RuntimeProbe window.
+Run stage 04 with the full readiness wait and a 90-second SC2 API observation window.

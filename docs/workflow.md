@@ -8,6 +8,7 @@ AI-assisted SC2Map/SC2Mod changes must run through three evidence gates before a
    unresolved-call, dependency, and Catalog mistakes are caught outside the game.
 3. `runtime-validation`: launch SC2 with an observer/API bridge and collect runtime evidence for the
    feature claim. Process startup alone is not evidence.
+   - **RuntimeProbe 已禁用**：禁止使用 `RuntimeProbe.SC2Mod` / `LibRuntimeProbe.galaxy` / `-EnableRuntimeProbe` / `BankLoad("RuntimeProbe", ...)` 等机制作为 runtime 证据；详见 [deprecated-runtime-probe.md](./deprecated-runtime-probe.md) 与 [2026-07-23-runtime-evidence-enforcement-design.md](./superpowers/specs/2026-07-23-runtime-evidence-enforcement-design.md)。runtime 证据必须通过 `sc2-observer.py` + SC2 API websocket 收集。
 
 The standard entry points are:
 
@@ -29,6 +30,9 @@ Every project advances through explicit stages:
 4. `adapter-design`: choose the smallest ownership layer and define the write scope.
 5. `implementation`: make bounded map, mod, or adapter changes.
 6. `static-validation`: validate Galaxy, Catalog, dependencies, and packaging.
+   - Run: `node tools/utils/workspace.mjs static-validate <project-id>`
+   - Outputs: `evidence/static/diagnostics.json`, `evidence/static/dependency-graph.json`,
+              `evidence/static/packaging-report.json`, `evidence/static/stage-verdict.json`
 7. `runtime-validation`: launch SC2 and collect dynamic evidence.
 8. `acceptance`: compare observed behavior with project acceptance criteria.
 

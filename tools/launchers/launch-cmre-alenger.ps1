@@ -127,18 +127,12 @@ function Install-CmreGalaxyHostOverlay {
         [System.IO.File]::Copy($src, (Join-Path $destinationRoot $name), $true)
     }
 
-    # Copy RuntimeProbe galaxy files so the map can publish real-time unit
-    # and ability data to RuntimeProbe.SC2Bank. Without this the runtime
-    # probe service has no live data and falls back to stale cache.
-    $probeRoot = Join-Path $ModsRoot "RuntimeProbe\RuntimeProbe.SC2Mod\Base.SC2Data"
-    $probeFiles = @("LibRuntimeProbe_h.galaxy", "LibRuntimeProbe.galaxy")
-    foreach ($name in $probeFiles) {
-        $src = Join-Path $probeRoot $name
-        if (-not (Test-Path -LiteralPath $src)) { throw "RuntimeProbe galaxy file not found: $src" }
-        [System.IO.File]::Copy($src, (Join-Path $destinationRoot $name), $true)
-    }
+    # RuntimeProbe galaxy files intentionally NOT copied: RuntimeProbe is
+    # deprecated as runtime evidence (see docs/deprecated-runtime-probe.md).
+    # Runtime evidence must come from sc2-observer.py over the SC2 API
+    # websocket (-ListenPort <port>), not from map-side Bank publishing.
 
-    $required = @("LibCOOC_h.galaxy", "LibCOOC.galaxy", "LibCOMI_h.galaxy", "LibCOMI.galaxy", "LibA3ADAPTER.galaxy", "LibA3ADAPTER_h.galaxy", "LibA3ADAPTER_Catalog.galaxy", "LibRuntimeProbe_h.galaxy", "LibRuntimeProbe.galaxy")
+    $required = @("LibCOOC_h.galaxy", "LibCOOC.galaxy", "LibCOMI_h.galaxy", "LibCOMI.galaxy", "LibA3ADAPTER.galaxy", "LibA3ADAPTER_h.galaxy", "LibA3ADAPTER_Catalog.galaxy")
     foreach ($name in $required) {
         if (-not (Test-Path -LiteralPath (Join-Path $destinationRoot $name))) {
             throw "CMRE Galaxy host overlay is incomplete: $name"
@@ -208,11 +202,11 @@ function Install-CmreDynamicObserver {
     $mapScriptPath = Join-Path $MapPath "MapScript.galaxy"
     $mapScript = [System.IO.File]::ReadAllText($mapScriptPath, [System.Text.Encoding]::UTF8)
     if ($mapScript -notmatch '(?m)^include "LibEFA54406"$') {
-        $incReplacement = 'include "LibCOUI"' + "`r`n" + 'include "LibEFA54406"' + "`r`n" + 'include "LibPortingObserver"' + "`r`n" + 'include "LibA3ADAPTER"' + "`r`n" + 'include "LibRuntimeProbe"'
+        $incReplacement = 'include "LibCOUI"' + "`r`n" + 'include "LibEFA54406"' + "`r`n" + 'include "LibPortingObserver"' + "`r`n" + 'include "LibA3ADAPTER"'
         $mapScript = $mapScript.Replace('include "LibCOUI"', $incReplacement)
     }
     if ($mapScript -notmatch 'libEFA54406_InitLib\s*\(\s*\)') {
-        $initReplacement = '    libCOUI_InitLib();' + "`r`n" + '    libEFA54406_InitLib();' + "`r`n" + '    libPortingObserver_InitLib();' + "`r`n" + '    libA3ADAPTER_InitLib();' + "`r`n" + '    libRuntimeProbe_InitLib();'
+        $initReplacement = '    libCOUI_InitLib();' + "`r`n" + '    libA3ADAPTER_InitLib();'
         $mapScript = $mapScript.Replace('    libCOUI_InitLib();', $initReplacement)
     }
     if ($mapScript -notmatch 'gt_PortingObserverDeadOfNightPoll_Func') {
@@ -293,18 +287,8 @@ bool gt_Alenger3StartingUnits_Func(bool testConds, bool runActions) {
     unitgroup lv_vanillaUnits = UnitGroupEmpty();
     int lv_removedP1 = 0;
     int lv_removedP2 = 0;
-    bank lv_diagBank = null;
     if (testConds) { return true; }
     if (!runActions) { return true; }
-    // Diagnostic: write step markers to RuntimeProbe Bank so we can trace
-    // exactly where the trigger stops. libPortingObserver_gf_Publish is
-    // unreliable because it depends on libEFA54406_gv_neuroIntegration
-    // being non-null.
-    lv_diagBank = BankLoad("RuntimeProbe", 1);
-    if (lv_diagBank != null) {
-        BankValueSetFromString(lv_diagBank, "alenger3_diag", "step", "1_triggered");
-        BankSave(lv_diagBank);
-    }
     libPortingObserver_gf_Publish("alenger3_starting_units_begin", "creating Alenger3 starting units", false);
     // Wait for commander selection countdown to finish and game init to settle.
     // The CMUIX_ReadyBeginCountdown patch makes commander available immediately,
@@ -316,10 +300,6 @@ bool gt_Alenger3StartingUnits_Func(bool testConds, bool runActions) {
     lv_p2Start = PlayerStartLocation(2);
     if (lv_p1Start != null) { lv_p1Valid = "T"; }
     if (lv_p2Start != null) { lv_p2Valid = "T"; }
-    if (lv_diagBank != null) {
-        BankValueSetFromString(lv_diagBank, "alenger3_diag", "step", "2_after_wait_p1=" + lv_p1Valid + "_p2=" + lv_p2Valid);
-        BankSave(lv_diagBank);
-    }
 
     // Remove vanilla starting units created by MeleeInitUnitsForPlayer (called
     // from libCOMI_gf_CM_StartingTechForHumanPlayer at LibCOMI.galaxy:18065).
@@ -365,10 +345,6 @@ bool gt_Alenger3StartingUnits_Func(bool testConds, bool runActions) {
     }
     lv_afterP2 = UnitGroup("3diguoqianshaojidi", 2, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
     lv_createdP2 = UnitGroupCount(lv_afterP2, c_unitCountAll) - lv_beforeCount;
-    if (lv_diagBank != null) {
-        BankValueSetFromString(lv_diagBank, "alenger3_diag", "step", "3_after_create_p1=" + IntToString(lv_createdP1) + "_p2=" + IntToString(lv_createdP2));
-        BankSave(lv_diagBank);
-    }
     // Diagnostic: report actual creation results instead of a fixed string.
     // If created count is 0, UnitCreate failed — possible causes:
     //   - PlayerStartLocation returned null (p1Valid/p2Valid will be F)
@@ -381,10 +357,9 @@ bool gt_Alenger3StartingUnits_Func(bool testConds, bool runActions) {
         "; removed_vanilla_p1=" + IntToString(lv_removedP1) +
         "; removed_vanilla_p2=" + IntToString(lv_removedP2);
     libPortingObserver_gf_Publish("alenger3_starting_units_done", lv_diag, false);
-    // Start the periodic RuntimeProbe loop now that Alenger3 units exist.
-    // This registers the 3-second Loop trigger so probe_units/probe_state
-    // refresh and the NeuroRuntime API reflects the real game state.
-    libRuntimeProbe_gf_StartProbe();
+    // RuntimeProbe disabled: avoids API-mode crash and user requested other
+    // runtime reading methods (SC2 API RequestQuery.abilities).
+    // libRuntimeProbe_gf_StartProbe();
     return true;
 }
 
@@ -478,16 +453,8 @@ void gt_Alenger3TrainProbe_Init() {
         $bankList.BankList.AppendChild($bank) | Out-Null
         $bankChanged = $true
     }
-    # RuntimeProbe Bank is required by libRuntimeProbe_InitLib() to publish
-    # real-time unit/ability/upgrade data. Without this registration BankLoad
-    # returns null and the runtime probe service falls back to stale cache.
-    if (@($bankList.BankList.Bank | Where-Object { $_.Name -eq "RuntimeProbe" -and $_.Player -eq "1" }).Count -eq 0) {
-        $bank = $bankList.CreateElement("Bank")
-        $bank.SetAttribute("Name", "RuntimeProbe")
-        $bank.SetAttribute("Player", "1")
-        $bankList.BankList.AppendChild($bank) | Out-Null
-        $bankChanged = $true
-    }
+    # RuntimeProbe Bank registration intentionally omitted: RuntimeProbe is
+    # deprecated as runtime evidence (see docs/deprecated-runtime-probe.md).
     if ($bankChanged) {
         $settings = [System.Xml.XmlWriterSettings]::new(); $settings.Indent = $true; $settings.Encoding = [System.Text.UTF8Encoding]::new($false)
         $writer = [System.Xml.XmlWriter]::Create($bankListPath, $settings)
@@ -635,7 +602,14 @@ try {
     robocopy $mapSource $liveMap /MIR /NFL /NDL /NJH /NJS /NC /NS /NP | Out-Null
     Install-CmreGalaxyHostOverlay -ModsRoot (Join-Path $Sc2Root "Mods") -MapPath $liveMap
     Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander
-    Install-CmreDynamicObserver -MapPath $liveMap
+    # API 模式下通过 SC2 API websocket 读取运行时数据，不需要 PortingObserver/
+    # NeuroIntegration 注入。这些组件依赖 LibEFA54406 的 Bank 句柄，若未 InitLib
+    # 会导致空指针 ACCESS_VIOLATION (0xC0000005 reading 0x40) 崩溃。
+    if ($ListenPort -eq 0) {
+        Install-CmreDynamicObserver -MapPath $liveMap
+    } else {
+        Write-Host "API mode: skipping PortingObserver/NeuroIntegration injection (data read via SC2 API)"
+    }
     Patch-CmreCoreRuntimeErrors -MapPath $liveMap
     Set-MapDependencies -MapPath $liveMap -Dependencies $dependencies
     $roundtrip = Test-DocumentDependencyRoundtrip -HeaderPath (Join-Path $liveMap "DocumentHeader") -InfoPath (Join-Path $liveMap "DocumentInfo")
@@ -647,10 +621,13 @@ try {
     $switcher = Join-Path $Sc2Root "Support64\SC2Switcher_x64.exe"
     $args = @("`"$liveMap`"")
     if ($ListenPort -gt 0) {
-        $args += "-listenPort", "$ListenPort"
-        Write-Host "SC2 API will listen on port $ListenPort (for sc2-observer.py)"
+        # SC2 API 正确参数为 -listen <ip> -port <port>（参考 SC2-Neuro-API-Integration
+        # 的 sc2api_connection_handler.py launch_game() 实现）。早期使用的 -listenPort
+        # 会被 Switcher 忽略，导致 /sc2api websocket 不监听。
+        $args += "-listen", "127.0.0.1", "-port", "$ListenPort"
+        Write-Host "SC2 API will listen on 127.0.0.1:$ListenPort"
     }
-    Start-Process -FilePath $switcher -ArgumentList $args
+    Start-Process -FilePath $switcher -ArgumentList $args -WorkingDirectory (Split-Path -Parent $switcher)
     $exitCode = Wait-GameReady -ScriptsRoot (Join-Path $LegacyRoot "scripts")
     if ($exitCode -ne 0) { throw "SC2 readiness check failed with exit code $exitCode" }
 } finally { Release-TestLock -LockContext $lock }

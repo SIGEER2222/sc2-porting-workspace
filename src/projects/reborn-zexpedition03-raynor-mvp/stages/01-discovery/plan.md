@@ -47,4 +47,4 @@ record the existing adapter ownership, and decide whether the composition is eli
 - Do not modify the downloaded source or legacy-project content.
 - Stop before runtime if a required non-native package is missing.
 - Record native campaign packages as unresolved when ownership cannot be proven statically.
-- Do not treat existing heartbeat-only RuntimeProbe reports as commander acceptance evidence.
+- Do not treat existing heartbeat-only runtime reports as commander acceptance evidence. (RuntimeProbe is deprecated, see `docs/deprecated-runtime-probe.md`.)
