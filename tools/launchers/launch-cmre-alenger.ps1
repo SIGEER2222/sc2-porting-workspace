@@ -647,12 +647,20 @@ function Write-CmreLaunchProfile {
     $banksRoot = "C:\Users\22448\Documents\StarCraft II\Banks"
     [System.IO.Directory]::CreateDirectory($banksRoot) | Out-Null
     $doc = [xml]'<Bank version="1"><Section name="CMUI|LaunchProfile" /></Bank>'
+    # ModeInstance 必须与 Mode 一致，否则 CMRE 在读取侧会用 ModeInstance 推导模式
+    # （CMUIX_LaunchProfileModeIndex）。1=Standard / 2=MutatorChallenges / 3=CustomMutators，
+    # 与 CMUIX_LaunchProfileModeInstance 的映射完全对应。
+    $modeInstance = switch ($Mode) {
+        2 { "MutatorChallenges" }
+        3 { "CustomMutators" }
+        default { "Standard" }
+    }
     $values = [ordered]@{
         Valid = @("int", "1"); Version = @("int", "1");
         CreatedAt = @("int", [string][int][DateTimeOffset]::UtcNow.ToUnixTimeSeconds());
         TimeoutSeconds = @("int", "600");
         Mode = @("int", [string]$Mode);
-        ModeInstance = @("string", "Standard");
+        ModeInstance = @("string", $modeInstance);
         DifficultyBase = @("int", [string]$DifficultyBase);
         DifficultyPlus = @("int", [string]$DifficultyPlus);
         TargetMission = @("string", "AC_MeinhoffDayNight");
@@ -725,19 +733,17 @@ try {
     if ($NoLaunch) { Write-Host "CMRE Alenger composition staged: $liveMap"; exit 0 }
     $switcher = Join-Path $Sc2Root "Support64\SC2Switcher_x64.exe"
     if ($ListenPort -gt 0) {
-        # API 模式：SC2Switcher 仅传 -listen/-port，不传地图路径。
-        # SC2 启动后停留在主菜单（status=launched），由 Python 脚本通过
-        # RequestCreateGame{local_map: {map_path}} 加载地图，然后 RequestJoinGame 加入。
-        # 注意：同时传地图路径和 -listen/-port 会触发引擎层 0xC0000005 崩溃
-        # （地图加载完成后初始化 API 监听时崩溃，已多次验证）。
-        # 注意：Start-Process -ArgumentList 必须用字符串形式（非数组），
-        # 否则 SC2Switcher 会忽略 -listen/-port 参数（已验证）。
-        # 参考 SC2-Neuro sc2api_connection_handler.py:43-46 的 subprocess.Popen list 方式。
-        $argString = "-listen 127.0.0.1 -port $ListenPort"
-        Write-Host "SC2 API mode: launching Switcher WITHOUT map path (will be loaded via RequestCreateGame)"
+        # API 模式：必须用 SC2_x64.exe 直接带 -listenPort 启动——
+        # SC2Switcher 的 "-listen <host> -port <port>" 形式不会打开 API 端口
+        # （2026-07-25 实机验证：SC2 静默回退到默认 6119，客户端在 $ListenPort 永远连不上）。
+        # SC2_x64 直接带 -listenPort 启动，停留在主菜单并监听 API 端口，不传地图路径
+        # （地图由 Python/客户端通过 RequestCreateGame{local_map:{map_path}} 加载）。
+        $sc2x64 = Join-Path $Sc2Root "Versions\Base97425\SC2_x64.exe"
+        $argString = "-listenPort $ListenPort"
+        Write-Host "SC2 API mode: launching SC2_x64 WITHOUT map path (will be loaded via RequestCreateGame)"
         Write-Host "SC2 API will listen on 127.0.0.1:$ListenPort"
         Write-Host "Live map for RequestCreateGame: $liveMap"
-        Start-Process -FilePath $switcher -ArgumentList $argString -WorkingDirectory (Split-Path -Parent $switcher)
+        Start-Process -FilePath $sc2x64 -ArgumentList $argString -WorkingDirectory (Split-Path -Parent $sc2x64)
         # API 模式下不调用 Wait-GameReady（依赖地图加载的 Alerts.txt 信号，
         # 而 API 模式不自动加载地图，信号不会产生）。
         # Python 脚本会通过 RequestPing/RequestObservation 轮询 status 直到 launched。
