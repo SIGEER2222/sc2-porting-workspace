@@ -1,0 +1,224 @@
+include "TriggerLibs/NativeLib"
+
+include "LibA6ADAPTER_h"
+include "LibA6ADAPTER_Catalog"
+
+//--------------------------------------------------------------------------------------------------
+// Library: Alenger6Adapter
+// 专门对接地图的 adapter 层，独立于 7v1 框架（不依赖 CoopZeroPop）。
+// 在 MapInit 时执行：
+//   1. 为玩家1升级全部科技（数据驱动）
+//   2. 为所有人类玩家解锁全部自定义能力（变异/训练/研究/效果/运输等）
+//   3. 为所有人类玩家解锁全部自定义单位（确保建筑可出兵、单位可使用）
+//   4. 周期性重解锁（5 秒×8 次，覆盖 40 秒）以覆盖 CMRE DevStartupFinish 时机
+// 这样避免 ApplyOriginal7V1OpenerTech 没有 Alenger6 分支导致的建造选项不完整问题。
+//
+// 7v1 地图：封锁在 MapInit 早期发生，3 秒 Wait 已够；
+// 亡者之夜（CMRE 框架）：封锁在 CMUIX_ReadyBeginCountdown 倒计时结束后触发
+// （通常 10-15 秒），3 秒 Wait 不足，需要周期性重解锁覆盖。
+//
+// Alenger6 是虫族：建筑/单位通过 Morph 变异，不是 CAbilBuild 建造，
+// 所以没有 BuildAllow 列表（对比 Alenger3 的 3jianzao1/3jianzao2）。
+//--------------------------------------------------------------------------------------------------
+
+//--------------------------------------------------------------------------------------------------
+// 提取解锁逻辑为独立函数，便于延时重新调用。
+// 7vs1 框架可能在 MapInit 后重新禁用能力，需在 Wait 后再次解锁。
+//--------------------------------------------------------------------------------------------------
+void libA6ADAPTER_gf_UnlockAllAbilities (int lp_player) {
+    int lv_i;
+
+    // 1. 解锁所有 Alenger6 自定义能力（变异/训练/研究/效果/运输等）
+    //    对每个能力的 cmd 0-31 全部解锁，TechTreeAbilityAllow 是幂等操作。
+    for (lv_i = 0; lv_i <= 31; lv_i += 1) {
+        // 变异/建造
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6jianzhubianyi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6fuhuajuduzhongliu", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6juduzhongliumaidi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6bianyiweizhuchao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6bianyiweichongxue", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6mangshouchudi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6mangshouqiandi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6zhanglangqiandi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6zhanglangchudi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6huozhanglangqiandi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6huozhanglangchudi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6wangshouqiandi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6wangshouchudi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6buyuchonghouqiandi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6buyuchonghouchudi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6chongqunsuzhuqiandi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6chongqunsuzhuchudi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6xiechongchudi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6xiechongqiandi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6jinhuaweijunwangliweitam", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6jizhenpachongzhanqi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6jizhenpachongzhagen", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6baozipachongzhanqi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6baozipachongzhagen", lv_i), true);
+        // 训练
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6fuhualiweitan", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6danweibianyi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6fuhuawangshou", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6fuhuachangjijie", lv_i), true);
+        // 研究/进化
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6jinhua", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6jinhua2", lv_i), true);
+        // 效果/技能
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6baoranbaozi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6fuhuachongqun", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6shengwuzhifuji", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6shijuegongshengti", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6huoyanpenyong", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6huoyanpenyongLong", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6gongsheng", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6guanbibaozha", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6xueroufanghu", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6yuhe", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6suxiaobuye", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6juduzhongliubaozha", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6daxingshencaochongdao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6meijunzengsheng", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6shengwudenglizipao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6paifangjuntan", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6fuhuahuangchong", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6shencaochongdao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6daxinghuotizheyue", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6jishengqinxi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6jiqu", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6choumiyunwu", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6jishengdan", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6zhebiyunwu", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6chongquntidao", lv_i), true);
+        // 运输
+        TechTreeAbilityAllow(lp_player, AbilityCommand("6zhuangzai2", lv_i), true);
+    }
+
+    // 2. 允许所有 Alenger6 单位（确保建筑可出兵、单位可使用）
+    TechTreeUnitAllow(lp_player, "6junwangliweitan", true);
+    TechTreeUnitAllow(lp_player, "6fuhuachang", true);
+    TechTreeUnitAllow(lp_player, "6youchong", true);
+    TechTreeUnitAllow(lp_player, "6chongluan", true);
+    TechTreeUnitAllow(lp_player, "6gongfeng", true);
+    TechTreeUnitAllow(lp_player, "6zidongcuiqufang", true);
+    TechTreeUnitAllow(lp_player, "6huozhanglang", true);
+    TechTreeUnitAllow(lp_player, "6zhanglang", true);
+    TechTreeUnitAllow(lp_player, "6mangshou", true);
+    TechTreeUnitAllow(lp_player, "6buyuchonghou", true);
+    TechTreeUnitAllow(lp_player, "6chongxue", true);
+    TechTreeUnitAllow(lp_player, "6jizhenpachong", true);
+    TechTreeUnitAllow(lp_player, "6jizhenpachongUprooted", true);
+    TechTreeUnitAllow(lp_player, "6baozipachong", true);
+    TechTreeUnitAllow(lp_player, "6baozipachongUprooted", true);
+    TechTreeUnitAllow(lp_player, "6guanchazhe", true);
+    TechTreeUnitAllow(lp_player, "6zhuchao", true);
+    TechTreeUnitAllow(lp_player, "6juduzhongliu", true);
+    TechTreeUnitAllow(lp_player, "6juduzhongliuBurrowed", true);
+    TechTreeUnitAllow(lp_player, "6jinhuaqiang", true);
+    TechTreeUnitAllow(lp_player, "6tunshizhe", true);
+    TechTreeUnitAllow(lp_player, "6liweitan", true);
+    TechTreeUnitAllow(lp_player, "6shouhuzhe", true);
+    TechTreeUnitAllow(lp_player, "6xiechong", true);
+    TechTreeUnitAllow(lp_player, "6xiechongBurrowed", true);
+    TechTreeUnitAllow(lp_player, "6huangchong", true);
+    TechTreeUnitAllow(lp_player, "6feixinghuangchong", true);
+    TechTreeUnitAllow(lp_player, "6danzhipensheti", true);
+    TechTreeUnitAllow(lp_player, "6yilong", true);
+    TechTreeUnitAllow(lp_player, "6wangshou", true);
+    TechTreeUnitAllow(lp_player, "6wangshouBurrowed", true);
+    TechTreeUnitAllow(lp_player, "6fuhuawangchong", true);
+    TechTreeUnitAllow(lp_player, "6chongqunsuzhu", true);
+    TechTreeUnitAllow(lp_player, "6chongqunsuzhuBurrowed", true);
+    TechTreeUnitAllow(lp_player, "6feishe", true);
+    TechTreeUnitAllow(lp_player, "6baowenchaoxue", true);
+    TechTreeUnitAllow(lp_player, "6jishengdan", true);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: MapInit - 执行 Alenger6 解锁逻辑
+//--------------------------------------------------------------------------------------------------
+bool libA6ADAPTER_gt_MapInit_Func (bool testConds, bool runActions) {
+    int lp_player;
+    int lv_player;
+    int lv_i;
+    int lv_retry;
+    string lv_upgradeId;
+    int lv_upgradeLevel;
+    playergroup autoA6ADAPTER_g;
+
+    lp_player = 1;
+
+    // Conditions
+    if (testConds) {
+        return true;
+    }
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    // -------- 1. 为玩家1升级全部科技（数据驱动）--------
+    lv_i = 1;
+    for ( ; ( lv_i <= libA6ADAPTER_gv_upgradeCount ) ; lv_i += 1 ) {
+        lv_upgradeId = libA6ADAPTER_gf_UpgradeId(lv_i);
+        lv_upgradeLevel = libA6ADAPTER_gf_UpgradeLevel(lv_i);
+        if ((lv_upgradeId != "")) {
+            TechTreeUpgradeAddLevel(lp_player, lv_upgradeId, lv_upgradeLevel);
+        }
+    }
+
+    // -------- 2. 第一次解锁所有能力和单位 --------
+    autoA6ADAPTER_g = PlayerGroupAll();
+    lv_player = -1;
+    while (true) {
+        lv_player = PlayerGroupNextPlayer(autoA6ADAPTER_g, lv_player);
+        if (lv_player < 0) { break; }
+        if ((PlayerType(lv_player) == c_playerTypeUser)) {
+            libA6ADAPTER_gf_UnlockAllAbilities(lv_player);
+        }
+    }
+
+    // -------- 3. 周期性重解锁，覆盖 CMRE DevStartupFinish 的封锁 --------
+    // 7vs1 框架的封锁在 MapInit 早期发生，3 秒 Wait 已够；
+    // 亡者之夜（CMRE 框架）的封锁在 CMUIX_ReadyBeginCountdown 倒计时结束后
+    // 触发（通常 10-15 秒），3 秒 Wait 不足以覆盖。改为 5 秒一次，共 8 次
+    // （覆盖 40 秒），确保 CMRE 封锁后能再次解锁。
+    // TechTreeAbilityAllow 是幂等操作，重复调用 true 无副作用，对 7v1 地图安全。
+    // 注意：galaxy 的 Wait 是协程式的，不会阻塞其他触发器。
+    for (lv_retry = 0; lv_retry < 8; lv_retry += 1) {
+        Wait(5.0, c_timeReal);
+        autoA6ADAPTER_g = PlayerGroupAll();
+        lv_player = -1;
+        while (true) {
+            lv_player = PlayerGroupNextPlayer(autoA6ADAPTER_g, lv_player);
+            if (lv_player < 0) { break; }
+            if ((PlayerType(lv_player) == c_playerTypeUser)) {
+                libA6ADAPTER_gf_UnlockAllAbilities(lv_player);
+            }
+        }
+    }
+
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libA6ADAPTER_InitTriggers () {
+    libA6ADAPTER_gt_MapInit = TriggerCreate("libA6ADAPTER_gt_MapInit_Func");
+    TriggerAddEventMapInit(libA6ADAPTER_gt_MapInit);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool libA6ADAPTER_InitLib_completed = false;
+
+void libA6ADAPTER_InitLib () {
+    if (libA6ADAPTER_InitLib_completed) {
+        return;
+    }
+
+    libA6ADAPTER_InitLib_completed = true;
+
+    libA6ADAPTER_InitTriggers();
+}
