@@ -1,5 +1,5 @@
-﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "")
+[CmdletBinding()]
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "")
 $ErrorActionPreference = "Stop"
 $WorkspaceRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Sc2WorkspaceRoot = Split-Path -Parent $WorkspaceRoot
@@ -61,6 +61,10 @@ function Enable-CmreSavedProfileStartup {
     if ((CMUIX_CoreReady == false)) { CMUIX_CoreInit(); }
     CMUIX_StartupLoadPersistentProfiles();
     CMUIX_HistoryPrunePendingRecordsAll();
+    CMUIX_LaunchProfileOpenBank(1);
+    if ((BankLastCreated() != null) && (CMUIX_LaunchProfileValidForStartup(BankLastCreated()) == true)) {
+        CMUIX_LaunchProfileApply(BankLastCreated());
+    }
     libCOTF_gv_sELECTED_Commander[1] = "$Commander";
     libCOTF_gv_sELECTED_Commander_Random[1] = false;
     libCOOC_gf_CC_PlayerCommanderSet(1, "$Commander");
@@ -206,7 +210,7 @@ function Install-CmreDynamicObserver {
         $mapScript = $mapScript.Replace('include "LibCOUI"', $incReplacement)
     }
     if ($mapScript -notmatch 'libEFA54406_InitLib\s*\(\s*\)') {
-        $initReplacement = '    libCOUI_InitLib();' + "`r`n" + '    libA3ADAPTER_InitLib();'
+        $initReplacement = '    libCOUI_InitLib();' + "`r`n" + '    libEFA54406_InitLib();' + "`r`n" + '    libA3ADAPTER_InitLib();'
         $mapScript = $mapScript.Replace('    libCOUI_InitLib();', $initReplacement)
     }
     if ($mapScript -notmatch 'gt_PortingObserverDeadOfNightPoll_Func') {
@@ -581,11 +585,42 @@ function Write-CmreLaunchProfile {
     $banksRoot = "C:\Users\22448\Documents\StarCraft II\Banks"
     [System.IO.Directory]::CreateDirectory($banksRoot) | Out-Null
     $doc = [xml]'<Bank version="1"><Section name="CMUI|LaunchProfile" /></Bank>'
-    $values = [ordered]@{ Valid = @("int", "1"); Version = @("int", "1"); CreatedAt = @("int", [string][int][DateTimeOffset]::UtcNow.ToUnixTimeSeconds()); TimeoutSeconds = @("int", "600"); Mode = @("int", "1"); ModeInstance = @("string", "Standard"); DifficultyBase = @("int", "0"); DifficultyPlus = @("int", "0"); TargetMission = @("string", "AC_MeinhoffDayNight"); TargetMap = @("string", "AC_MeinhoffDayNight"); 'Player|1|Commander' = @("string", $Commander); 'Player|2|Commander' = @("string", $Commander) }
-    foreach ($entry in $values.GetEnumerator()) { $key = $doc.CreateElement("Key"); $key.SetAttribute("name", $entry.Key); $value = $doc.CreateElement("Value"); $value.SetAttribute($entry.Value[0], $entry.Value[1]); $key.AppendChild($value) | Out-Null; $doc.Bank.Section.AppendChild($key) | Out-Null }
+    $values = [ordered]@{
+        Valid = @("int", "1"); Version = @("int", "1");
+        CreatedAt = @("int", [string][int][DateTimeOffset]::UtcNow.ToUnixTimeSeconds());
+        TimeoutSeconds = @("int", "600");
+        Mode = @("int", [string]$Mode);
+        ModeInstance = @("string", "Standard");
+        DifficultyBase = @("int", [string]$DifficultyBase);
+        DifficultyPlus = @("int", [string]$DifficultyPlus);
+        TargetMission = @("string", "AC_MeinhoffDayNight");
+        TargetMap = @("string", "AC_MeinhoffDayNight");
+        'Player|1|Commander' = @("string", $Commander);
+        'Player|2|Commander' = @("string", $Commander)
+    }
+    if ($Enemy -ne "") { $values['Enemy'] = @("string", $Enemy) }
+    # 解析 Mutators 参数：逗号分隔的 id 列表，可选 ":enhanced" 后缀
+    # 示例: "Avenger,Barrier:enhanced,Blizzard"
+    if ($Mutators -ne "") {
+        $mutatorList = $Mutators -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+        $values['MutatorCount'] = @("int", [string]$mutatorList.Count)
+        for ($i = 0; $i -lt $mutatorList.Count; $i++) {
+            $parts = $mutatorList[$i] -split ':'
+            $mutId = $parts[0].Trim()
+            $enhanced = if ($parts.Length -gt 1 -and $parts[1].Trim() -eq "enhanced") { "1" } else { "0" }
+            $values["Mutator|$($i + 1)|Id"] = @("string", $mutId)
+            $values["Mutator|$($i + 1)|Enhanced"] = @("int", $enhanced)
+        }
+    }
+    foreach ($entry in $values.GetEnumerator()) {
+        $key = $doc.CreateElement("Key"); $key.SetAttribute("name", $entry.Key)
+        $value = $doc.CreateElement("Value"); $value.SetAttribute($entry.Value[0], $entry.Value[1])
+        $key.AppendChild($value) | Out-Null; $doc.Bank.Section.AppendChild($key) | Out-Null
+    }
     $settings = [System.Xml.XmlWriterSettings]::new(); $settings.Indent = $true; $settings.Encoding = [System.Text.UTF8Encoding]::new($false)
     $writer = [System.Xml.XmlWriter]::Create((Join-Path $banksRoot "CMCoopLaunchProfile.SC2Bank"), $settings)
     try { $doc.Save($writer) } finally { $writer.Dispose() }
+    Write-Host "CMCoopLaunchProfile 银行已写入: Mode=$Mode, DifficultyBase=$DifficultyBase, DifficultyPlus=$DifficultyPlus, Enemy='$Enemy', Mutators='$Mutators'"
 }
 
 $lock = Acquire-TestLock -TestType "cmre_alenger" -MapName $MapName -Commander $Commander
@@ -602,14 +637,14 @@ try {
     robocopy $mapSource $liveMap /MIR /NFL /NDL /NJH /NJS /NC /NS /NP | Out-Null
     Install-CmreGalaxyHostOverlay -ModsRoot (Join-Path $Sc2Root "Mods") -MapPath $liveMap
     Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander
-    # API 模式下通过 SC2 API websocket 读取运行时数据，不需要 PortingObserver/
-    # NeuroIntegration 注入。这些组件依赖 LibEFA54406 的 Bank 句柄，若未 InitLib
-    # 会导致空指针 ACCESS_VIOLATION (0xC0000005 reading 0x40) 崩溃。
-    if ($ListenPort -eq 0) {
-        Install-CmreDynamicObserver -MapPath $liveMap
-    } else {
-        Write-Host "API mode: skipping PortingObserver/NeuroIntegration injection (data read via SC2 API)"
-    }
+    # Install-CmreDynamicObserver 必须始终调用：
+    #   - 注入 gt_Alenger3StartingUnits_Init（创建 5 个 3diguolaogong 工人 + 前哨基地）
+    #   - 注入 libA3ADAPTER_InitLib（科技树解锁）
+    #   - 移除 vanilla 单位（CommandCenterRaynor/SCVRaynor 等）
+    # API 模式下 NeuroIntegration Bank 不会被读取（数据通过 SC2 API 读取），
+    # 但 libEFA54406_gf_Publish 已有 null guard（LibPortingObserver.galaxy:5），
+    # 且实际崩溃根因是 -listen 与地图路径互斥，与 NeuroIntegration 注入无关。
+    Install-CmreDynamicObserver -MapPath $liveMap
     Patch-CmreCoreRuntimeErrors -MapPath $liveMap
     Set-MapDependencies -MapPath $liveMap -Dependencies $dependencies
     $roundtrip = Test-DocumentDependencyRoundtrip -HeaderPath (Join-Path $liveMap "DocumentHeader") -InfoPath (Join-Path $liveMap "DocumentInfo")
@@ -619,15 +654,29 @@ try {
     Write-CmreLaunchProfile
     if ($NoLaunch) { Write-Host "CMRE Alenger composition staged: $liveMap"; exit 0 }
     $switcher = Join-Path $Sc2Root "Support64\SC2Switcher_x64.exe"
-    $args = @("`"$liveMap`"")
     if ($ListenPort -gt 0) {
-        # SC2 API 正确参数为 -listen <ip> -port <port>（参考 SC2-Neuro-API-Integration
-        # 的 sc2api_connection_handler.py launch_game() 实现）。早期使用的 -listenPort
-        # 会被 Switcher 忽略，导致 /sc2api websocket 不监听。
-        $args += "-listen", "127.0.0.1", "-port", "$ListenPort"
+        # API 模式：SC2Switcher 仅传 -listen/-port，不传地图路径。
+        # SC2 启动后停留在主菜单（status=launched），由 Python 脚本通过
+        # RequestCreateGame{local_map: {map_path}} 加载地图，然后 RequestJoinGame 加入。
+        # 注意：同时传地图路径和 -listen/-port 会触发引擎层 0xC0000005 崩溃
+        # （地图加载完成后初始化 API 监听时崩溃，已多次验证）。
+        # 注意：Start-Process -ArgumentList 必须用字符串形式（非数组），
+        # 否则 SC2Switcher 会忽略 -listen/-port 参数（已验证）。
+        # 参考 SC2-Neuro sc2api_connection_handler.py:43-46 的 subprocess.Popen list 方式。
+        $argString = "-listen 127.0.0.1 -port $ListenPort"
+        Write-Host "SC2 API mode: launching Switcher WITHOUT map path (will be loaded via RequestCreateGame)"
         Write-Host "SC2 API will listen on 127.0.0.1:$ListenPort"
+        Write-Host "Live map for RequestCreateGame: $liveMap"
+        Start-Process -FilePath $switcher -ArgumentList $argString -WorkingDirectory (Split-Path -Parent $switcher)
+        # API 模式下不调用 Wait-GameReady（依赖地图加载的 Alerts.txt 信号，
+        # 而 API 模式不自动加载地图，信号不会产生）。
+        # Python 脚本会通过 RequestPing/RequestObservation 轮询 status 直到 launched。
+        Write-Host "SC2 API mode: skipping Wait-GameReady (map loaded by Python script via RequestCreateGame)"
+    } else {
+        # 普通模式：地图路径作为位置参数传给 Switcher，SC2 启动后自动加载地图
+        $args = @("`"$liveMap`"")
+        Start-Process -FilePath $switcher -ArgumentList $args -WorkingDirectory (Split-Path -Parent $switcher)
+        $exitCode = Wait-GameReady -ScriptsRoot (Join-Path $LegacyRoot "scripts")
+        if ($exitCode -ne 0) { throw "SC2 readiness check failed with exit code $exitCode" }
     }
-    Start-Process -FilePath $switcher -ArgumentList $args -WorkingDirectory (Split-Path -Parent $switcher)
-    $exitCode = Wait-GameReady -ScriptsRoot (Join-Path $LegacyRoot "scripts")
-    if ($exitCode -ne 0) { throw "SC2 readiness check failed with exit code $exitCode" }
 } finally { Release-TestLock -LockContext $lock }

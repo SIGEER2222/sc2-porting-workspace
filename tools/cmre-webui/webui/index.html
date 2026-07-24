@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CMRE 亡者之夜 - 因子选择</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>CMRE 亡者之夜</h1>
+      <p class="subtitle">合作指挥官-起义狂潮 · 因子选择与启动</p>
+    </div>
+    <div class="status" id="status" hidden></div>
+  </header>
+
+  <main class="layout">
+    <form id="launch-form">
+      <section class="card">
+        <h2 class="card-title">基础配置</h2>
+
+        <div class="field">
+          <label for="commander">指挥官</label>
+          <select id="commander"></select>
+        </div>
+
+        <div class="field">
+          <label for="mode">模式</label>
+          <select id="mode"></select>
+          <p class="hint" id="mode-hint"></p>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="difficultyBase">基础难度</label>
+            <span class="value-badge" id="difficultyBase-value">0</span>
+          </div>
+          <input type="range" id="difficultyBase" min="0" max="5" value="0" step="1">
+          <p class="hint" id="difficultyBase-hint"></p>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="difficultyPlus">残酷+等级</label>
+            <span class="value-badge" id="difficultyPlus-value">0</span>
+          </div>
+          <input type="range" id="difficultyPlus" min="0" max="12" value="0" step="1">
+          <p class="hint" id="difficultyPlus-hint"></p>
+        </div>
+
+        <div class="field">
+          <label for="enemy">敌方阵营</label>
+          <select id="enemy"></select>
+          <p class="hint" id="enemy-hint"></p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">
+          突变因子
+          <span class="counter">已选 <b id="mutator-count">0</b> 个</span>
+        </h2>
+
+        <div class="field">
+          <input type="search" id="mutator-search" placeholder="搜索突变因子（名称或描述）..." autocomplete="off">
+        </div>
+
+        <div class="mutator-list" id="mutator-list" role="list">
+          <p class="hint" id="mutator-loading">加载中...</p>
+        </div>
+      </section>
+
+      <section class="actions">
+        <button type="submit" id="launch-btn" class="btn-primary">启动游戏</button>
+        <button type="button" id="reset-btn" class="btn-secondary">重置</button>
+      </section>
+    </form>
+
+    <section class="output-card" id="output" hidden>
+      <div class="output-head">
+        <h3 id="output-title">启动结果</h3>
+        <button type="button" class="btn-icon" id="output-close" aria-label="关闭">×</button>
+      </div>
+      <pre class="output-body" id="output-body"></pre>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
