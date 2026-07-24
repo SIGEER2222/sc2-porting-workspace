@@ -28,6 +28,31 @@ $alenger = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\alenge
 if ($Commander -notmatch '^(Terran|Zerg|Protoss)(Alenger\d+)$') { throw "Commander must be a configured Alenger runtime ID: $Commander" }
 $alengerId = $Matches[2]
 if ($alenger.commanderToAlenger.PSObject.Properties.Name -notcontains $alengerId) { throw "No on-demand package mapping for $Commander" }
+# 读取指挥官 profile（如果存在）：用于参数化 adapter galaxy 文件、起始单位、vanilla 移除列表
+$profile = $null
+if ($alenger.PSObject.Properties.Name -contains 'commanderProfiles' -and
+    $alenger.commanderProfiles.PSObject.Properties.Name -contains $alengerId) {
+    $profile = $alenger.commanderProfiles.$alengerId
+    Write-Host "Loaded commander profile for ${alengerId}: startingStructure=$($profile.startingStructure), startingWorker=$($profile.startingWorker)"
+}
+# 默认值（Alenger3 兼容路径）：保留旧的硬编码行为
+$adapterLibPrefix = 'A3ADAPTER'
+$adapterFiles = @("LibA3ADAPTER_h.galaxy", "LibA3ADAPTER.galaxy", "LibA3ADAPTER_Catalog.galaxy")
+$adapterModName = 'Alenger3Adapter'
+$startingStructure = '3diguoqianshaojidi'
+$startingWorker = '3diguolaogong'
+$workerCount = 5
+$vanillaRemovals = @('CommandCenterRaynor', 'SCVRaynor', 'MarineRaynor', 'RaynorCommando', 'CoopCasterRaynor', 'CommandCenter', 'SCV')
+if ($profile) {
+    # 注意：PowerShell if(@()) 返回 $false，所以空数组需要用 null 检查
+    if ($null -ne $profile.adapterLibPrefix -and $profile.adapterLibPrefix -ne '') { $adapterLibPrefix = $profile.adapterLibPrefix }
+    if ($null -ne $profile.adapterFiles) { $adapterFiles = @($profile.adapterFiles) }
+    if ($null -ne $profile.adapterModName -and $profile.adapterModName -ne '') { $adapterModName = $profile.adapterModName }
+    if ($null -ne $profile.startingStructure -and $profile.startingStructure -ne '') { $startingStructure = $profile.startingStructure }
+    if ($null -ne $profile.startingWorker -and $profile.startingWorker -ne '') { $startingWorker = $profile.startingWorker }
+    if ($null -ne $profile.workerCount) { $workerCount = [int]$profile.workerCount }
+    if ($null -ne $profile.vanillaRemovals) { $vanillaRemovals = @($profile.vanillaRemovals) }
+}
 $mapSource = Join-Path $LegacyRoot "Maps\CMRE\$MapName"
 if (-not (Test-Path -LiteralPath $mapSource)) { throw "CMRE map source not found: $mapSource" }
 if ($MapName -ne "亡者之夜.SC2Map") { throw "No CMRE auto-launch profile is registered for $MapName" }
@@ -62,8 +87,14 @@ function Enable-CmreSavedProfileStartup {
     CMUIX_StartupLoadPersistentProfiles();
     CMUIX_HistoryPrunePendingRecordsAll();
     CMUIX_LaunchProfileOpenBank(1);
-    if ((BankLastCreated() != null) && (CMUIX_LaunchProfileValidForStartup(BankLastCreated()) == true)) {
-        CMUIX_LaunchProfileApply(BankLastCreated());
+    if (BankLastCreated() != null) {
+        BankValueSetFromInt(BankLastCreated(), CMUIX_LAUNCH_PROFILE_SECTION, "CreatedAt", DateTimeToInt(CurrentDateTimeGet()));
+        BankValueSetFromString(BankLastCreated(), CMUIX_LAUNCH_PROFILE_SECTION, "TargetMission", CMUIX_MapSelectionCurrentMapInstance());
+        BankValueSetFromString(BankLastCreated(), CMUIX_LAUNCH_PROFILE_SECTION, "TargetMap", CMUIX_MapSelectionCurrentMapInstance());
+        BankSave(BankLastCreated());
+        if (CMUIX_LaunchProfileValidForStartup(BankLastCreated()) == true) {
+            CMUIX_LaunchProfileApply(BankLastCreated());
+        }
     }
     libCOTF_gv_sELECTED_Commander[1] = "$Commander";
     libCOTF_gv_sELECTED_Commander_Random[1] = false;
@@ -119,16 +150,18 @@ function Install-CmreGalaxyHostOverlay {
         [System.IO.File]::Copy($library.FullName, (Join-Path $destinationRoot $library.Name), $true)
     }
 
-    # Also copy Alenger3Adapter galaxy files so the map can call
-    # libA3ADAPTER_InitLib() to register TechTree unlock triggers. Without
+    # Also copy adapter galaxy files so the map can call
+    # lib<Prefix>_InitLib() to register TechTree unlock triggers. Without
     # this the adapter's Build/Train/Unit allow lists never execute, leaving
     # Suppressed build options (barracks/factory/starport) invisible.
-    $adapterRoot = Join-Path $ModsRoot "7vs1\Alenger3Adapter.SC2Mod\Base.SC2Data"
-    $adapterFiles = @("LibA3ADAPTER_h.galaxy", "LibA3ADAPTER.galaxy", "LibA3ADAPTER_Catalog.galaxy")
-    foreach ($name in $adapterFiles) {
-        $src = Join-Path $adapterRoot $name
-        if (-not (Test-Path -LiteralPath $src)) { throw "Alenger3Adapter galaxy file not found: $src" }
-        [System.IO.File]::Copy($src, (Join-Path $destinationRoot $name), $true)
+    # 支持无 galaxy 触发器库的 adapter（如 Alenger6Adapter）：当 $adapterFiles 为空时跳过复制
+    if ($adapterFiles.Count -gt 0) {
+        $adapterRoot = Join-Path $ModsRoot "7vs1\$adapterModName.SC2Mod\Base.SC2Data"
+        foreach ($name in $adapterFiles) {
+            $src = Join-Path $adapterRoot $name
+            if (-not (Test-Path -LiteralPath $src)) { throw "$adapterModName galaxy file not found: $src" }
+            [System.IO.File]::Copy($src, (Join-Path $destinationRoot $name), $true)
+        }
     }
 
     # RuntimeProbe galaxy files intentionally NOT copied: RuntimeProbe is
@@ -136,13 +169,14 @@ function Install-CmreGalaxyHostOverlay {
     # Runtime evidence must come from sc2-observer.py over the SC2 API
     # websocket (-ListenPort <port>), not from map-side Bank publishing.
 
-    $required = @("LibCOOC_h.galaxy", "LibCOOC.galaxy", "LibCOMI_h.galaxy", "LibCOMI.galaxy", "LibA3ADAPTER.galaxy", "LibA3ADAPTER_h.galaxy", "LibA3ADAPTER_Catalog.galaxy")
+    $required = @("LibCOOC_h.galaxy", "LibCOOC.galaxy", "LibCOMI_h.galaxy", "LibCOMI.galaxy")
+    $required += $adapterFiles
     foreach ($name in $required) {
         if (-not (Test-Path -LiteralPath (Join-Path $destinationRoot $name))) {
             throw "CMRE Galaxy host overlay is incomplete: $name"
         }
     }
-    Write-Host "CMRE Galaxy host overlay: $($libraries.Count) CMRE + $($adapterFiles.Count) Alenger3Adapter files"
+    Write-Host "CMRE Galaxy host overlay: $($libraries.Count) CMRE + $($adapterFiles.Count) $adapterModName files"
 }
 
 function Install-CmreDynamicObserver {
@@ -205,12 +239,19 @@ function Install-CmreDynamicObserver {
 
     $mapScriptPath = Join-Path $MapPath "MapScript.galaxy"
     $mapScript = [System.IO.File]::ReadAllText($mapScriptPath, [System.Text.Encoding]::UTF8)
+    # 参数化 include 和 InitLib：当 adapterFiles 为空时不注入 adapter 库引用
+    $adapterInclude = ''
+    $adapterInitLib = ''
+    if ($adapterFiles.Count -gt 0 -and $adapterLibPrefix) {
+        $adapterInclude = "`r`n" + 'include "Lib' + $adapterLibPrefix + '"'
+        $adapterInitLib = "`r`n" + '    lib' + $adapterLibPrefix + '_InitLib();'
+    }
     if ($mapScript -notmatch '(?m)^include "LibEFA54406"$') {
-        $incReplacement = 'include "LibCOUI"' + "`r`n" + 'include "LibEFA54406"' + "`r`n" + 'include "LibPortingObserver"' + "`r`n" + 'include "LibA3ADAPTER"'
+        $incReplacement = 'include "LibCOUI"' + "`r`n" + 'include "LibEFA54406"' + "`r`n" + 'include "LibPortingObserver"' + $adapterInclude
         $mapScript = $mapScript.Replace('include "LibCOUI"', $incReplacement)
     }
     if ($mapScript -notmatch 'libEFA54406_InitLib\s*\(\s*\)') {
-        $initReplacement = '    libCOUI_InitLib();' + "`r`n" + '    libEFA54406_InitLib();' + "`r`n" + '    libA3ADAPTER_InitLib();'
+        $initReplacement = '    libCOUI_InitLib();' + "`r`n" + '    libEFA54406_InitLib();' + $adapterInitLib
         $mapScript = $mapScript.Replace('    libCOUI_InitLib();', $initReplacement)
     }
     if ($mapScript -notmatch 'gt_PortingObserverDeadOfNightPoll_Func') {
@@ -437,12 +478,33 @@ void gt_Alenger3TrainProbe_Init() {
 }
 
 "@
+        # 参数化 pollGlue：根据 $alengerId/$startingStructure/$startingWorker/$workerCount/$vanillaRemovals 替换硬编码的 Alenger3 字面量
+        $pollGlue = $pollGlue.Replace('gt_Alenger3StartingUnits', "gt_$alengerId" + 'StartingUnits').Replace('gt_Alenger3TrainProbe', "gt_$alengerId" + 'TrainProbe')
+        $pollGlue = $pollGlue.Replace('"3diguoqianshaojidi"', "`"$startingStructure`"")
+        $pollGlue = $pollGlue.Replace('"3diguolaogong"', "`"$startingWorker`"")
+        $pollGlue = $pollGlue.Replace('"3xunlian1"', "`"$($startingWorker)Train`"")  # 训练能力名（占位，Alenger6 暂不需要）
+        $pollGlue = $pollGlue.Replace('alenger3_', "$($alengerId.ToLower())_")
+        $pollGlue = $pollGlue.Replace('Alenger3', $alengerId)
+        # 动态生成 vanilla 单位移除代码：替换原硬编码的 7 行 gf_RemoveAllUnitsOfType
+        $vanillaRemoveBlock = ""
+        foreach ($u in $vanillaRemovals) {
+            $vanillaRemoveBlock += "    lv_removedP1 += gf_RemoveAllUnitsOfType(1, `"$u`");`r`n"
+        }
+        foreach ($u in $vanillaRemovals) {
+            $vanillaRemoveBlock += "    lv_removedP2 += gf_RemoveAllUnitsOfType(2, `"$u`");`r`n"
+        }
+        $vanillaRemoveBlock = $vanillaRemoveBlock.TrimEnd("`r", "`n")
+        # 替换原硬编码的 lv_removedP1 += ... 块（连续 7 行 + 7 行 P2）
+        $origRemovePattern = '(?ms)    lv_removedP1 = gf_RemoveAllUnitsOfType\(1, "CommandCenterRaynor"\);.*?lv_removedP2 \+= gf_RemoveAllUnitsOfType\(2, "SCV"\);'
+        $pollGlue = [regex]::Replace($pollGlue, $origRemovePattern, $vanillaRemoveBlock)
+        # 参数化 workerCount（原硬编码 for (lv_i = 0; lv_i < 5; ...)）
+        $pollGlue = $pollGlue.Replace('lv_i < 5', "lv_i < $workerCount")
         $mapScript = $mapScript.Replace($mapInitAnchor, $pollGlue.Replace("`n", "`r`n") + $mapInitAnchor)
     }
     if ($mapScript -notmatch 'libDeadOfNightObserver_InitLib\s*\(\s*\)') {
         $initAnchor = "    InitGlobals();`r`n    InitTriggers();"
         if (-not $mapScript.Contains($initAnchor)) { throw "InitMap anchor not found in MapScript" }
-        $initMapReplacement = "    InitGlobals();`r`n    libDeadOfNightObserver_InitLib();`r`n    gt_PortingObserverDeadOfNightPoll_Init();`r`n    gt_Alenger3StartingUnits_Init();`r`n    gt_Alenger3TrainProbe_Init();`r`n    InitTriggers();"
+        $initMapReplacement = "    InitGlobals();`r`n    libDeadOfNightObserver_InitLib();`r`n    gt_PortingObserverDeadOfNightPoll_Init();`r`n    gt_$alengerId" + "StartingUnits_Init();`r`n    gt_$alengerId" + "TrainProbe_Init();`r`n    InitTriggers();"
         $mapScript = $mapScript.Replace($initAnchor, $initMapReplacement)
     }
     [System.IO.File]::WriteAllText($mapScriptPath, $mapScript, [System.Text.UTF8Encoding]::new($false))
@@ -627,7 +689,13 @@ function Write-CmreLaunchProfile {
 
 $lock = Acquire-TestLock -TestType "cmre_alenger" -MapName $MapName -Commander $Commander
 try {
-    Stop-RunningSc2; Clear-GameLogs
+    Stop-RunningSc2
+    # Stop-RunningSc2 only targets SC2_x64/SC2Switcher_x64, but the live process
+    # is often named "SC2". Stop it as well so Clear-GameLogs does not hit locked
+    # SystemInfo.txt (which causes the launcher to abort with IOException).
+    Get-Process -Name "SC2","StarCraft II" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep 2
+    Clear-GameLogs
     Sync-ModSet -ModRelPaths $cmre.baseMods -ProjRoot $LegacyRoot -Sc2Root $Sc2Root
     if (@($cmre.commanderBaseMods).Count -gt 0) {
         Sync-ModSet -ModRelPaths $cmre.commanderBaseMods -ProjRoot $LegacyRoot -Sc2Root $Sc2Root

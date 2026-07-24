@@ -1,0 +1,835 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CBehaviorBuff id="6chaojushijie">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="6shengwuzhidayudengyu100"/>
+        <Modification Detect="9" Radar="36" RadarFilters="-;Player,Ally,Missile,Cloaked,Dead,Hidden"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6baoranbaoziMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6chiyijiasu">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification MoveSpeedBonus="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6chongquntidaoMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="0.3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6huangchongTimedLife120" parent="TimedLife">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="120"/>
+        <PeriodicEffect value="6fuhuachongqunSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jishengdan">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="6jishengdanPersistent"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jishengdanDamage">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.45"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="6jishengdanDamage"/>
+        <InitialEffect value="0suanxingApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jishengdanTimedLife">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <FinalEffect value="TimedLifeFate"/>
+        <KillCredit Value="Caster"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jishengdanMarker">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <TimeScaleSource Value="Global"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jishengqinxi">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-abduct.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="6"/>
+        <Period value="1.5"/>
+        <PeriodicEffect value="6jishengqinxiPersistent"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jishengqinxi2">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Modification>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jishengqinxiMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <TimeScaleSource Value="Global"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6junwangliweitan">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <PeriodicEffect value="6junwangliweitanshengwuzhiCasterApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shengwuzhi100Marker">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <InfoFlags index="Hidden" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shengwuzhiA">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="9999"/>
+        <MaxStackCountPerCaster value="9999"/>
+        <Modification>
+            <AttributeChangeArray Attribute="6shengwuzhijishu" Points="1"/>
+            <DeathResponse Chance="1" Effect="6shengwuzhisiwangdiaoluoPersistentA"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shengwuzhiaidashanghaixiangying">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse Handled="6shengwuzhihuoquSearch" TargetFilters="-;Player,Ally,Neutral,Structure,Dead,Invulnerable,Summoned">
+            <Chance value="1"/>
+            <Cost>
+                <Cooldown Link="生物质获取" Location="Unit" TimeUse="1"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shengwuzhifuji">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="6mubiaoshengwuzhiweiman"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shengwuzhidarenshanghaixiangying">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse Handled="6shengwuzhihuoquSearch" Location="Attacker" TargetFilters="-;Player,Ally,Neutral,Structure,Dead,Invulnerable,Summoned">
+            <Chance value="1"/>
+            <Cost>
+                <Cooldown Link="生物质获取" Location="Unit" TimeUse="1"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6xueroufanghuStart">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.15"/>
+        <InitialEffect value="6xueroufanghuApply"/>
+        <Modification>
+            <VitalMaxArray index="Shields" value="300"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6meijunzengshengMarker">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <TimeScaleSource Value="Global"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shengzhangcuihuaji">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <StateFlags index="Undetectable" value="1"/>
+        </Modification>
+        <Requirements value="6youshengzhangcuihuaji"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6xueroufanghu">
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-adaptivecarapace.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="30"/>
+        <Modification>
+            <VitalMaxArray index="Shields" value="300"/>
+        </Modification>
+        <RemoveValidatorArray value="ShieldGZero"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6wasixiaoneng">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Period value="7"/>
+        <PeriodicEffect value="6wasixiaonengPlayer"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shijuegongshengti">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-overlord-oversight.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="30"/>
+        <Modification RangedWeaponRange="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6daxinghuotizheyue">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Modification>
+            <StateFlags index="Stun" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6wangshouPlacementRemove">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.3"/>
+        <FinalEffect value="SuicideRemove"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="DisableWeapons" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="NoDraw" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6chushoukeyongRight1">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6chushoukeyongRight2">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6huoyanpenyongMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="2"/>
+        <TimeScaleSource Value="Global"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6fanyingzhifangceng">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="6shengwuzhidayudengyu100"/>
+        <DamageResponse ClampMaximum="25" Minimum="25">
+            <Kind index="Spell" value="0"/>
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6genxilianjie">
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-adaptivetalons.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="9999"/>
+        <MaxStackCountPerCaster value="1"/>
+        <Duration value="1.5"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="6genxilianjieModify"/>
+        <DamageResponse ModifyFraction="0.96">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6genxilianjieCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="1"/>
+        <PeriodicEffect value="6genxlianjieSearch"/>
+        <Requirements value="6yougenxilianjie"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6gongshengTarget">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="15"/>
+        <InitialEffect value="gongshengCasterApply"/>
+        <PeriodicEffect value="6gongshengjiaqiaoPersistent"/>
+        <FinalEffect value="6gongshengCasterRemove"/>
+        <Modification>
+            <StateFlags index="UnitAttrOnHeroic" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6gongshengCaster">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="0.45"/>
+        <PeriodicEffect value="6gongshengCase"/>
+        <Modification RangedWeaponRange="2">
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressArmySelect" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <AbilLinkDisableArray value="6gongsheng"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6gongshengjiaqiao">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="ShieldGZero"/>
+        <Duration value="15"/>
+        <Modification>
+            <VitalMaxArray index="Shields" value="10"/>
+        </Modification>
+        <MaxStackCount value="9999"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6gongshengjiaqiaoStart">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <VitalMaxArray index="Shields" value="10"/>
+        </Modification>
+        <MaxStackCount value="9999"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6huangchongTimedLife6" parent="TimedLife">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jianzhusiwangLarge">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="6jianzhusiwangPersistentLarge">
+                <Type index="Remove" value="0"/>
+            </DeathResponse>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jianzhusiwangMedium">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="6jianzhusiwangPersistentMedium">
+                <Type index="Remove" value="0"/>
+            </DeathResponse>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jianzhusiwangSmall">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="6jianzhusiwangPersistentSmall">
+                <Type index="Remove" value="0"/>
+            </DeathResponse>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jiayaxianti1">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jiayaxianti2">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jiayaxianti3">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jiayaxianti4">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="4"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jiayaxiantiStart">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.15"/>
+        <ExpireEffect value="6jiayaxiantiPersistent"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6daxingshencaochongdao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Modification>
+            <StateFlags index="Stun" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shengwudenglizipaoMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="2.25"/>
+        <TimeScaleSource Value="Global"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shenjingjiaoyuanchongzu">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="OnCreep"/>
+        <Modification MoveSpeedBonus="2"/>
+    </CBehaviorBuff>
+    <CBehaviorAttribute id="6xiantibianyi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxPoints value="100"/>
+        <Modification RangedWeaponRange="0.04"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-airattacks-level3.dds"/>
+    </CBehaviorAttribute>
+    <CBehaviorAttribute id="6jiroubianyi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxPoints value="100"/>
+        <Modification>
+            <DamageDealtUnscaled index="Melee" value="0.04"/>
+            <DamageDealtUnscaled index="Ranged" value="0.04"/>
+            <DamageDealtUnscaled index="Splash" value="0.04"/>
+            <DamageDealtUnscaled index="NoProc" value="0.04"/>
+        </Modification>
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-missileattacks-level3.dds"/>
+    </CBehaviorAttribute>
+    <CBehaviorAttribute id="6ganguanbianyi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxPoints value="100"/>
+        <Modification SightBonus="0.04" DetectBonus="0.02"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-tunnelingjaws.dds"/>
+    </CBehaviorAttribute>
+    <CBehaviorBuff id="6feixingjiaqiao">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="2"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.85">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6fushinianye">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMultiplier="0.85" AttackSpeedMultiplier="0.85"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-visciousdischarge.dds"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <MaxStackCount value="8"/>
+        <MaxStackCountPerCaster value="8"/>
+        <Duration value="6"/>
+        <InitialEffect value="0acid"/>
+        <ExpireEffect value="0acid"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6gujiejuntan">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="OnCreep"/>
+        <Modification>
+            <LifeArmorBonus value="2"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.85">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorSpawn id="6fuhuayouchong1">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray Unit="6youchong" MaxCount="4" Delay="8"/>
+        <Center value="0,-3"/>
+        <Offset value="0,-3"/>
+        <Offset value="1,-3"/>
+        <Offset value="2,-3"/>
+        <Offset value="3,-3"/>
+        <Offset value="3,-2"/>
+        <Offset value="3,-1"/>
+        <Offset value="3,0"/>
+        <Offset value="3,1"/>
+        <Offset value="3,2"/>
+        <Offset value="3,3"/>
+        <Offset value="2,3"/>
+        <Offset value="1,3"/>
+        <Offset value="0,3"/>
+        <Offset value="-1,3"/>
+        <Offset value="-2,3"/>
+        <Offset value="-3,3"/>
+        <Offset value="-3,2"/>
+        <Offset value="-3,1"/>
+        <Offset value="-3,0"/>
+        <Offset value="-3,-1"/>
+        <Offset value="-3,-2"/>
+        <Offset value="-3,-3"/>
+        <Offset value="-2,-3"/>
+        <Offset value="-1,-3"/>
+        <Slop value="1"/>
+        <Range value="1"/>
+        <Limit value="4"/>
+        <ConjoinedLink value="SpawnLarvaConjoined"/>
+    </CBehaviorSpawn>
+    <CBehaviorSpawn id="6fuhuayouchong2">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray Unit="6youchong" MaxCount="8" Delay="4"/>
+        <Center value="0,-3"/>
+        <Offset value="0,-3"/>
+        <Offset value="1,-3"/>
+        <Offset value="2,-3"/>
+        <Offset value="3,-3"/>
+        <Offset value="3,-2"/>
+        <Offset value="3,-1"/>
+        <Offset value="3,0"/>
+        <Offset value="3,1"/>
+        <Offset value="3,2"/>
+        <Offset value="3,3"/>
+        <Offset value="2,3"/>
+        <Offset value="1,3"/>
+        <Offset value="0,3"/>
+        <Offset value="-1,3"/>
+        <Offset value="-2,3"/>
+        <Offset value="-3,3"/>
+        <Offset value="-3,2"/>
+        <Offset value="-3,1"/>
+        <Offset value="-3,0"/>
+        <Offset value="-3,-1"/>
+        <Offset value="-3,-2"/>
+        <Offset value="-3,-3"/>
+        <Offset value="-2,-3"/>
+        <Offset value="-1,-3"/>
+        <Slop value="1"/>
+        <Range value="1"/>
+        <Limit value="8"/>
+        <ConjoinedLink value="SpawnLarvaConjoined"/>
+    </CBehaviorSpawn>
+    <CBehaviorSpawn id="6fuhuayouchong3">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray Unit="6youchong" MaxCount="16" Delay="2"/>
+        <Center value="0,-3"/>
+        <Offset value="0,-3"/>
+        <Offset value="1,-3"/>
+        <Offset value="2,-3"/>
+        <Offset value="3,-3"/>
+        <Offset value="3,-2"/>
+        <Offset value="3,-1"/>
+        <Offset value="3,0"/>
+        <Offset value="3,1"/>
+        <Offset value="3,2"/>
+        <Offset value="3,3"/>
+        <Offset value="2,3"/>
+        <Offset value="1,3"/>
+        <Offset value="0,3"/>
+        <Offset value="-1,3"/>
+        <Offset value="-2,3"/>
+        <Offset value="-3,3"/>
+        <Offset value="-3,2"/>
+        <Offset value="-3,1"/>
+        <Offset value="-3,0"/>
+        <Offset value="-3,-1"/>
+        <Offset value="-3,-2"/>
+        <Offset value="-3,-3"/>
+        <Offset value="-2,-3"/>
+        <Offset value="-1,-3"/>
+        <Slop value="1"/>
+        <Range value="1"/>
+        <Limit value="16"/>
+        <ConjoinedLink value="SpawnLarvaConjoined"/>
+    </CBehaviorSpawn>
+    <CBehaviorBuff id="6gaihuajiaqiao">
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-organiccarapace.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="6shengwuzhidayudengyu100"/>
+        <DisableValidatorArray value="CasterLifeGT50Percent"/>
+        <Modification>
+            <StateFlags index="UnitAttrOffArmored" value="1"/>
+            <StateFlags index="UnitAttrOffBiological" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorAttribute id="6jiaqiaobianyi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxPoints value="100"/>
+        <Modification>
+            <LifeArmorBonus value="0.04"/>
+        </Modification>
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level3.dds"/>
+    </CBehaviorAttribute>
+    <CBehaviorBuff id="6guanbijuduzhongliu">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <AbilLinkDisableArray value="6juduzhongliubaozha"/>
+            <BehaviorLinkDisableArray value="6shengzhangcuihuaji"/>
+            <WeaponDisableArray value="6baozha"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6jisuzaisheng">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="CasterLifeNotFull"/>
+        <Modification>
+            <VitalRegenArray index="Life" value="12"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6juduzhongliusiwangxiangying">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="6juduzhongliusiwangPersistent"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shencaojici">
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-groovedspines.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="6shengwuzhidayudengyu100"/>
+        <DisableValidatorArray value="CasterLifeGT50Percent"/>
+        <Modification RangedWeaponRange="1">
+            <DamageDealtAttributeMultiplier index="Armored" value="0.5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shengwuzhi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="9999"/>
+        <MaxStackCountPerCaster value="9999"/>
+        <Modification>
+            <AttributeChangeArray Attribute="6shengwuzhijishu" Points="1"/>
+            <DeathResponse Chance="1" Effect="6shengwuzhisiwangdiaoluoPersistent"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shengwuzhi25">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="6shengwuzhidayudengyu25"/>
+        <Modification RadiusMultiplier="1.1" AttackSpeedMultiplier="1.25">
+            <RateMultiplierArray index="Charge" value="1.5"/>
+            <RateMultiplierArray index="Cooldown" value="1.5"/>
+            <RateMultiplierArray index="Creep" value="1.5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shengwuzhi50">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="6shengwuzhidayudengyu50"/>
+        <Modification RadiusMultiplier="1.1" AttackSpeedMultiplier="1.2">
+            <RateMultiplierArray index="Charge" value="1.3332"/>
+            <RateMultiplierArray index="Cooldown" value="1.3332"/>
+            <RateMultiplierArray index="Creep" value="1.3332"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shengwuzhi75">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="6shengwuzhidayudengyu75"/>
+        <Modification RadiusMultiplier="1.1" AttackSpeedMultiplier="1.16">
+            <RateMultiplierArray index="Charge" value="1.25"/>
+            <RateMultiplierArray index="Cooldown" value="1.25"/>
+            <RateMultiplierArray index="Creep" value="1.25"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6shengwuzhi100">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="6shengwuzhidayudengyu100"/>
+        <Modification RadiusMultiplier="1.1" AttackSpeedMultiplier="1.1428">
+            <RateMultiplierArray index="Charge" value="1.2"/>
+            <RateMultiplierArray index="Cooldown" value="1.2"/>
+            <RateMultiplierArray index="Creep" value="1.2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorAttribute id="6shengwuzhijishu">
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-abathur-biomass.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxPoints value="100"/>
+        <Modification>
+            <VitalMaxAdditiveMultiplierArray index="Life" value="0.03"/>
+            <VitalDamageLeechArray index="Life">
+                <KindArray index="Spell" value="0.01"/>
+                <KindArray index="Melee" value="0.01"/>
+                <KindArray index="Ranged" value="0.01"/>
+                <KindArray index="Splash" value="0.01"/>
+                <KindArray index="NoProc" value="0.01"/>
+            </VitalDamageLeechArray>
+            <AttributeChangeArray Attribute="6jiaqiaobianyi" Points="1"/>
+            <AttributeChangeArray Attribute="6jiroubianyi" Points="1"/>
+            <AttributeChangeArray Attribute="6xiantibianyi" Points="1"/>
+            <AttributeChangeArray Attribute="6zuzhibianyi" Points="1"/>
+            <AttributeChangeArray Attribute="6ganguanbianyi" Points="1"/>
+            <AttributeChangeArray Attribute="6xibaobianyi" Points="1"/>
+        </Modification>
+        <PointGainEffect value="6shengwuzhi100MarkerApply"/>
+    </CBehaviorAttribute>
+    <CBehaviorBuff id="6tunshi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <VitalDamageLeechArray index="Life">
+                <KindArray index="Spell" value="0.5"/>
+                <KindArray index="Melee" value="0.5"/>
+                <KindArray index="Ranged" value="0.5"/>
+                <KindArray index="Splash" value="0.5"/>
+                <KindArray index="NoProc" value="0.5"/>
+            </VitalDamageLeechArray>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6zhongji">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <Modification>
+            <StateFlags index="Stun" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6ziyang">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.75"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="6ziyangModify"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6ziyangCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="0.45"/>
+        <PeriodicEffect value="6ziyangSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorAttribute id="6zuzhibianyi">
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-flyercarapace-level3.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxPoints value="100"/>
+        <Modification>
+            <VitalMaxArray index="Life" value="0.5"/>
+        </Modification>
+    </CBehaviorAttribute>
+    <CBehaviorBuff id="6yinghuawaike">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="3"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.85">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6yuhe">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-transfusion-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <PeriodicEffect value="6yuheModify2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6zhangliejuwei">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="6shengwuzhidayudengyu100"/>
+        <Modification RangedWeaponRange="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6zhongxingguban">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse ModifyFraction="0.6">
+            <Chance value="1"/>
+        </DamageResponse>
+        <InfoFlags index="Hidden" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6zidongcaijigaonengwasi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="AutoHarvesterFinish"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Period value="2.1"/>
+        <PeriodicEffect value="AutoHarvestVespene5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6yingjigupian">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-adaptivecarapace.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="LifeLTHalf"/>
+        <DamageResponse ModifyFraction="0.6">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6suxiaobuye">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-transfusion-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="6suxiaobuyeModify2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6huangchongTimedLife15" parent="TimedLife">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+    </CBehaviorBuff>
+    <CBehaviorAttribute id="6xibaobianyi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxPoints value="100"/>
+        <Modification>
+            <VitalRegenArray index="Life" value="0.0585"/>
+        </Modification>
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-stukov-queenenergyregen.dds"/>
+    </CBehaviorAttribute>
+    <CBehaviorBuff id="6meijunzengsheng">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-fungalgrowth.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="6meijunzengshengDamage"/>
+        <Modification>
+            <StateFlags index="SuppressCloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6meijunzengshengMovement">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-fungalgrowth.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <StateFlags index="SuppressPassenger" value="1"/>
+            <AbilClassDisableArray index="CAbilMove" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6chushoukeyongLeft1">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6chushoukeyongLeft2">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6zheyue">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="DisableWeapons" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Cloak" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCollision" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6chongqunsuzhuPlacementRemove">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.15"/>
+        <FinalEffect value="SuicideRemove"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6choumiyunwu">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-darkswarm.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.45"/>
+        <DamageResponse ModifyFraction="0.6">
+            <Chance value="1"/>
+        </DamageResponse>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+        <TimeScaleSource Value="Global"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="6zhebiyunwu">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-blindingcloud.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.45"/>
+        <Modification MoveSpeedMultiplier="0.5">
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="DisableWeapons" value="1"/>
+            <ModifyFlags index="EnableMove" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="SuppressDetection" value="1"/>
+            <AbilClassEnableArray index="CAbilProgress" value="1"/>
+            <AbilClassEnableArray index="CAbilBehavior" value="1"/>
+            <AbilClassEnableArray index="CAbilMorph" value="1"/>
+            <AbilClassEnableArray index="CAbilMove" value="1"/>
+            <AbilClassEnableArray index="CAbilQueue" value="1"/>
+            <AbilClassEnableArray index="CAbilRally" value="1"/>
+            <AbilClassEnableArray index="CAbilResearch" value="1"/>
+            <AbilClassEnableArray index="CAbilStop" value="1"/>
+            <AbilClassEnableArray index="CAbilTrain" value="1"/>
+            <AbilClassEnableArray index="CAbilTransport" value="1"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+        </Modification>
+        <InitialEffect value="0suanxingApply"/>
+    </CBehaviorBuff>
+</Catalog>

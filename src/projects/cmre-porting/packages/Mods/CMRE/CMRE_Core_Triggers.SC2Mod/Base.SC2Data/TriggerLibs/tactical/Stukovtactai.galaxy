@@ -1,0 +1,592 @@
+//--------------------------------------------------------------------------------------------------
+//  Stukov tactical AI
+//--------------------------------------------------------------------------------------------------
+
+const string c_CMStukov_TU_Apocalisk = "StukovApocalisk";
+const string c_CMStukov_TU_Aleksander = "StukovAleksander";
+const string c_CMStukov_TU_DiamondBack = "StukovInfestedDiamondBack";
+const string c_CMStukov_TU_SiegeTankUprooted = "StukovInfestedSiegeTankUprooted";
+const string c_CMStukov_TU_SiegeTankRooted = "StukovInfestedSiegeTank";
+const string c_CMStukov_TU_Banshee = "StukovInfestedBanshee";
+const string c_CMStukov_TU_BansheeBurrowed = "StukovInfestedBansheeBurrowed";
+const string c_CMStukov_AB_ApocaliskCharge = "ApocaliskBurrowCharge";
+const string c_CMStukov_AB_TankRoot = "StukovInfestedSiegeTankRoot";
+const string c_CMStukov_AB_TankUproot = "StukovInfestedSiegeTankUproot";
+const string c_CMStukov_AB_TankDeepTunnel = "StukovInfestedSiegeTankDeepTunnel";
+const string c_CMStukov_AB_BansheeBurrowDown = "BurrowStukovInfestedBansheeDown";
+const string c_CMStukov_AB_BansheeBurrowUp = "BurrowStukovInfestedBansheeUp";
+const string c_CMStukov_EF_ApocaliskChargeSearch = "ApocaliskBurrowChargeTargetSearch";
+const string c_CMStukov_WE_DiamondBack = "StukovInfestedDiamondBack";
+const string c_CMStukov_WE_AleksanderAir = "StukovAleksanderTentacleDisplayWeapon";
+const fixed c_CMStukov_MoveRefreshDistance = 1.0;
+const fixed c_CMStukov_ApocaliskChargeRange = 13.0;
+const fixed c_CMStukov_AleksanderAirSeekRange = 22.0;
+const fixed c_CMStukov_AleksanderAirHoldRange = 7.0;
+const fixed c_CMStukov_DiamondBackRangeFallback = 8.0;
+const fixed c_CMStukov_DiamondBackKiteRange = 7.5;
+const fixed c_CMStukov_TankRootRange = 18.0;
+const fixed c_CMStukov_TankCloseRange = 4.5;
+const fixed c_CMStukov_TankDeepTunnelFar = 16.0;
+const fixed c_CMStukov_TankDeepTunnelMid = 12.0;
+const fixed c_CMStukov_TankDeepTunnelNear = 8.0;
+const fixed c_CMStukov_BansheeDangerRange = 8.0;
+const fixed c_CMStukov_BansheeRetreatVitality = 45.0;
+const fixed c_CMStukov_BansheeBurrowVitality = 35.0;
+const fixed c_CMStukov_BansheeCriticalVitality = 20.0;
+const fixed c_CMStukov_BansheeUnburrowVitality = 95.0;
+
+//--------------------------------------------------------------------------------------------------
+bool CMStukovAbilityExists (unit aiUnit, string abilityLink) {
+    if (UnitAbilityExists(aiUnit, abilityLink) == false) {
+        return false;
+    }
+
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+fixed CMStukovAbilityRange (int player, string abilityLink, fixed defaultRange) {
+    fixed range;
+
+    range = AIAbilityFixed(player, abilityLink, c_fieldRange0);
+    if (range <= 0.0) {
+        range = AIAbilityFixed(player, abilityLink, c_fieldRange);
+    }
+    if (range <= 0.0) {
+        range = defaultRange;
+    }
+
+    return range;
+}
+
+//--------------------------------------------------------------------------------------------------
+fixed CMStukovEffectRadius (int player, string effectLink, fixed defaultRadius) {
+    fixed radius;
+
+    radius = AIEffectFixed(player, effectLink, c_fieldAreaRadius0);
+    if (radius <= 0.0) {
+        radius = defaultRadius;
+    }
+
+    return radius;
+}
+
+//--------------------------------------------------------------------------------------------------
+unitgroup CMStukovEnemyGroup (int player, unitgroup scanGroup) {
+    if (scanGroup == null) {
+        return null;
+    }
+
+    return UnitGroupFilterAlliance(scanGroup, player, c_unitAllianceEnemy, 0);
+}
+
+//--------------------------------------------------------------------------------------------------
+unitgroup CMStukovEnemyPlaneGroup (int player, unitgroup scanGroup, int plane) {
+    unitgroup enemyGroup;
+
+    enemyGroup = CMStukovEnemyGroup(player, scanGroup);
+    if (enemyGroup == null) {
+        return null;
+    }
+
+    return UnitGroupFilterPlane(enemyGroup, plane, 0);
+}
+
+//--------------------------------------------------------------------------------------------------
+int CMStukovEnemyPlaneCountInRange (int player, unit aiUnit, unitgroup scanGroup, int plane, fixed range) {
+    unitgroup enemyGroup;
+    unitgroup rangeGroup;
+
+    enemyGroup = CMStukovEnemyPlaneGroup(player, scanGroup, plane);
+    if (enemyGroup == null) {
+        return 0;
+    }
+
+    rangeGroup = UnitGroupFilterRegion(enemyGroup, RegionCircle(UnitGetPosition(aiUnit), range), 0);
+    return UnitGroupCount(rangeGroup, c_unitCountAlive);
+}
+
+//--------------------------------------------------------------------------------------------------
+unit CMStukovClosestEnemy (int player, unit aiUnit, unitgroup scanGroup, int plane, fixed maxRange) {
+    fixed distance;
+    fixed bestDistance;
+    int enemyCount;
+    unit enemyUnit;
+    unit bestEnemy;
+    unitgroup enemyGroup;
+    unitgroup rangeGroup;
+    point here;
+
+    bestDistance = 99999.0;
+    bestEnemy = null;
+    here = UnitGetPosition(aiUnit);
+    enemyGroup = CMStukovEnemyPlaneGroup(player, scanGroup, plane);
+    if (enemyGroup == null) {
+        return null;
+    }
+
+    rangeGroup = UnitGroupFilterRegion(enemyGroup, RegionCircle(here, maxRange), 0);
+    enemyCount = UnitGroupCount(rangeGroup, c_unitCountAlive);
+    while (enemyCount > 0) {
+        enemyUnit = UnitGroupUnit(rangeGroup, enemyCount);
+        enemyCount = enemyCount - 1;
+        distance = DistanceBetweenPoints(here, UnitGetPosition(enemyUnit));
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestEnemy = enemyUnit;
+        }
+    }
+
+    return bestEnemy;
+}
+
+//--------------------------------------------------------------------------------------------------
+unit CMStukovHighestVitalEnemy (int player, unit aiUnit, unitgroup scanGroup, int plane, fixed maxRange) {
+    fixed score;
+    fixed bestScore;
+    int enemyCount;
+    unit enemyUnit;
+    unit bestEnemy;
+    unitgroup enemyGroup;
+    unitgroup rangeGroup;
+
+    bestScore = 0.0;
+    bestEnemy = null;
+    enemyGroup = CMStukovEnemyPlaneGroup(player, scanGroup, plane);
+    if (enemyGroup == null) {
+        return null;
+    }
+
+    rangeGroup = UnitGroupFilterRegion(enemyGroup, RegionCircle(UnitGetPosition(aiUnit), maxRange), 0);
+    enemyCount = UnitGroupCount(rangeGroup, c_unitCountAlive);
+    while (enemyCount > 0) {
+        enemyUnit = UnitGroupUnit(rangeGroup, enemyCount);
+        enemyCount = enemyCount - 1;
+        score = UnitGetPropertyFixed(enemyUnit, c_unitPropVitality, c_unitPropCurrent);
+        if (score > bestScore) {
+            bestScore = score;
+            bestEnemy = enemyUnit;
+        }
+    }
+
+    return bestEnemy;
+}
+
+//--------------------------------------------------------------------------------------------------
+order CMStukovPointOrderAt (int player, unit aiUnit, string abilityLink, point targetPoint) {
+    order ord;
+
+    if (CMStukovAbilityExists(aiUnit, abilityLink) == false) {
+        return null;
+    }
+
+    ord = AICreateOrder(player, abilityLink, 0);
+    OrderSetTargetPoint(ord, targetPoint);
+    if (UnitOrderIsValid(aiUnit, ord) == false) {
+        return null;
+    }
+
+    return ord;
+}
+
+//--------------------------------------------------------------------------------------------------
+order CMStukovInstantOrder (int player, unit aiUnit, string abilityLink) {
+    order ord;
+
+    if (CMStukovAbilityExists(aiUnit, abilityLink) == false) {
+        return null;
+    }
+
+    ord = AICreateOrder(player, abilityLink, 0);
+    if (UnitOrderIsValid(aiUnit, ord) == false) {
+        return null;
+    }
+
+    return ord;
+}
+
+//--------------------------------------------------------------------------------------------------
+bool CMStukovMoveOrderIsFresh (unit aiUnit) {
+    fixed distance;
+    order curOrder;
+
+    curOrder = UnitOrder(aiUnit, 0);
+    if (curOrder == null) {
+        return false;
+    }
+
+    if (AIIsMoveOrder(curOrder) == false) {
+        return false;
+    }
+
+    distance = DistanceBetweenPoints(UnitGetPosition(aiUnit), OrderGetTargetPosition(curOrder));
+    if (distance <= c_CMStukov_MoveRefreshDistance) {
+        return false;
+    }
+
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+bool CMStukovIssueMove (unit aiUnit, point movePoint) {
+    order ord;
+
+    if (movePoint == null) {
+        return false;
+    }
+    if (CMStukovMoveOrderIsFresh(aiUnit) == true) {
+        return false;
+    }
+
+    ord = OrderTargetingPoint(AbilityCommand(c_AB_Move, 0), movePoint);
+    if (UnitOrderIsValid(aiUnit, ord) == false) {
+        return false;
+    }
+
+    UnitIssueOrder(aiUnit, ord, c_orderQueueReplace);
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+int CMStukovWeaponIndex (unit aiUnit, string weaponLink) {
+    int index;
+    int count;
+
+    index = 0;
+    count = UnitWeaponCount(aiUnit);
+    while (index < count) {
+        if ((UnitWeaponIsEnabled(aiUnit, index) == true) && (StringEqual(UnitWeaponGet(aiUnit, index), weaponLink, true) == true)) {
+            return index;
+        }
+        index = index + 1;
+    }
+
+    return -1;
+}
+
+//--------------------------------------------------------------------------------------------------
+fixed CMStukovWeaponRange (unit aiUnit, string weaponLink, fixed defaultRange) {
+    int weaponIndex;
+
+    weaponIndex = CMStukovWeaponIndex(aiUnit, weaponLink);
+    if (weaponIndex < 0) {
+        return defaultRange;
+    }
+
+    return UnitWeaponRange(aiUnit, weaponIndex);
+}
+
+//--------------------------------------------------------------------------------------------------
+order CMStukovBestPointOrder (int player, unit aiUnit, unitgroup scanGroup, string abilityLink, string effectLink, fixed defaultRange, fixed defaultRadius, int minHits, int damageBase, fixed minScore) {
+    string filters;
+    fixed range;
+    fixed radius;
+    point targetPoint;
+    unitgroup targetGroup;
+    order ord;
+    aifilter filter;
+
+    if (scanGroup == null) {
+        return null;
+    }
+    if (CMStukovAbilityExists(aiUnit, abilityLink) == false) {
+        return null;
+    }
+
+    range = CMStukovAbilityRange(player, abilityLink, defaultRange);
+    radius = CMStukovEffectRadius(player, effectLink, defaultRadius);
+    filters = AIEffectStr(player, effectLink, c_fieldFilters);
+    filter = AIFilter(player);
+    AISetFilterAlliance(filter, c_playerGroupEnemy);
+    AISetFilterRange(filter, aiUnit, range + radius + 1.0);
+    if (StringEqual(filters, "", true) == false) {
+        AISetFilterBits(filter, UnitFilterStr(filters));
+    }
+
+    targetGroup = AIGetFilterGroup(filter, scanGroup);
+    if (targetGroup == null) {
+        return null;
+    }
+
+    targetPoint = AIBestTargetPoint(targetGroup, minHits, damageBase, minScore, radius, UnitGetPosition(aiUnit), range, c_unitAttributeNone);
+    if (targetPoint == null) {
+        return null;
+    }
+
+    ord = AICreateOrder(player, abilityLink, 0);
+    OrderSetTargetPoint(ord, targetPoint);
+    if (UnitOrderIsValid(aiUnit, ord) == false) {
+        return null;
+    }
+
+    return ord;
+}
+
+//--------------------------------------------------------------------------------------------------
+point CMStukovKitePoint (unit aiUnit, unit targetUnit, fixed desiredDistance) {
+    fixed distance;
+    fixed angle;
+    point here;
+    point targetPoint;
+
+    here = UnitGetPosition(aiUnit);
+    targetPoint = UnitGetPosition(targetUnit);
+    distance = DistanceBetweenPoints(here, targetPoint);
+    angle = AngleBetweenPoints(targetPoint, here);
+    if (desiredDistance > distance + 3.0) {
+        desiredDistance = distance + 3.0;
+    }
+    if (desiredDistance < 3.0) {
+        desiredDistance = 3.0;
+    }
+
+    return PointWithOffsetPolar(targetPoint, desiredDistance, angle + 35.0);
+}
+
+//--------------------------------------------------------------------------------------------------
+order CMStukovDeepTunnelAwayOrder (int player, unit aiUnit, unit enemyUnit) {
+    fixed angle;
+    fixed targetDistance;
+    point targetPoint;
+    order ord;
+
+    if (enemyUnit == null) {
+        return null;
+    }
+
+    angle = AngleBetweenPoints(UnitGetPosition(enemyUnit), UnitGetPosition(aiUnit));
+    targetDistance = c_CMStukov_TankDeepTunnelFar;
+    while (targetDistance >= c_CMStukov_TankDeepTunnelNear) {
+        targetPoint = PointWithOffsetPolar(UnitGetPosition(enemyUnit), targetDistance, angle);
+        ord = CMStukovPointOrderAt(player, aiUnit, c_CMStukov_AB_TankDeepTunnel, targetPoint);
+        if (ord != null) {
+            return ord;
+        }
+        if (targetDistance == c_CMStukov_TankDeepTunnelFar) {
+            targetDistance = c_CMStukov_TankDeepTunnelMid;
+        }
+        else {
+            if (targetDistance == c_CMStukov_TankDeepTunnelMid) {
+                targetDistance = c_CMStukov_TankDeepTunnelNear;
+            }
+            else {
+                targetDistance = c_CMStukov_TankDeepTunnelNear - 1.0;
+            }
+        }
+    }
+
+    return null;
+}
+
+//--------------------------------------------------------------------------------------------------
+bool CMStukovCastDeepTunnelAway (int player, unit aiUnit, unitgroup scanGroup) {
+    unit enemyUnit;
+    order ord;
+
+    if (UnitOrderHasAbil(aiUnit, c_CMStukov_AB_TankDeepTunnel) == true) {
+        return true;
+    }
+
+    enemyUnit = CMStukovClosestEnemy(player, aiUnit, scanGroup, c_planeGround, c_CMStukov_TankCloseRange);
+    if (enemyUnit == null) {
+        return false;
+    }
+
+    ord = CMStukovDeepTunnelAwayOrder(player, aiUnit, enemyUnit);
+    if (ord == null) {
+        return false;
+    }
+
+    AICast(aiUnit, ord, c_noMarker, c_castRetreat);
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+bool CMStukovCastMorph (int player, unit aiUnit, string abilityLink) {
+    order ord;
+
+    if (UnitOrderHasAbil(aiUnit, abilityLink) == true) {
+        return true;
+    }
+
+    ord = CMStukovInstantOrder(player, aiUnit, abilityLink);
+    if (ord == null) {
+        return false;
+    }
+
+    AICast(aiUnit, ord, c_noMarker, c_castHold);
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+bool CMStukovBansheeRetreatMove (int player, unit aiUnit, unitgroup scanGroup) {
+    fixed angle;
+    unit enemyUnit;
+    point movePoint;
+
+    enemyUnit = CMStukovClosestEnemy(player, aiUnit, scanGroup, c_planeGround, c_CMStukov_BansheeDangerRange);
+    if (enemyUnit == null) {
+        enemyUnit = CMStukovClosestEnemy(player, aiUnit, scanGroup, c_planeAir, c_CMStukov_BansheeDangerRange);
+    }
+    if (enemyUnit == null) {
+        return false;
+    }
+
+    angle = AngleBetweenPoints(UnitGetPosition(enemyUnit), UnitGetPosition(aiUnit));
+    movePoint = PointWithOffsetPolar(UnitGetPosition(aiUnit), 5.0, angle);
+    return CMStukovIssueMove(aiUnit, movePoint);
+}
+
+//--------------------------------------------------------------------------------------------------
+void AIThinkStukovApocalisk (int player, unit aiUnit, unitgroup scanGroup) {
+    order ord;
+
+    if (UnitOrderHasAbil(aiUnit, c_CMStukov_AB_ApocaliskCharge) == true) {
+        return;
+    }
+
+    ord = CMStukovBestPointOrder(player, aiUnit, scanGroup, c_CMStukov_AB_ApocaliskCharge, c_CMStukov_EF_ApocaliskChargeSearch, c_CMStukov_ApocaliskChargeRange, 2.0, 1, 50, 20.0);
+    if (ord != null) {
+        AICast(aiUnit, ord, c_noMarker, c_castHold);
+        return;
+    }
+
+    if (AIEvalTacticalData(aiUnit, null) == true) {
+        return;
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void AIThinkStukovAleksander (int player, unit aiUnit, unitgroup scanGroup) {
+    fixed distance;
+    fixed weaponRange;
+    fixed angle;
+    unit targetUnit;
+    point movePoint;
+
+    weaponRange = CMStukovWeaponRange(aiUnit, c_CMStukov_WE_AleksanderAir, c_CMStukov_AleksanderAirHoldRange);
+    targetUnit = CMStukovHighestVitalEnemy(player, aiUnit, scanGroup, c_planeAir, c_CMStukov_AleksanderAirSeekRange);
+    if (targetUnit != null) {
+        distance = DistanceBetweenPoints(UnitGetPosition(aiUnit), UnitGetPosition(targetUnit));
+        if (distance > weaponRange - 1.0) {
+            angle = AngleBetweenPoints(UnitGetPosition(targetUnit), UnitGetPosition(aiUnit));
+            movePoint = PointWithOffsetPolar(UnitGetPosition(targetUnit), c_CMStukov_AleksanderAirHoldRange, angle);
+            if (CMStukovMoveOrderIsFresh(aiUnit) == true) {
+                return;
+            }
+            if (CMStukovIssueMove(aiUnit, movePoint) == true) {
+                return;
+            }
+        }
+    }
+
+    if (AIEvalTacticalData(aiUnit, null) == true) {
+        return;
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void AIThinkStukovInfestedDiamondBack (int player, unit aiUnit, unitgroup scanGroup) {
+    fixed weaponRange;
+    fixed distance;
+    unit targetUnit;
+    point movePoint;
+
+    weaponRange = CMStukovWeaponRange(aiUnit, c_CMStukov_WE_DiamondBack, c_CMStukov_DiamondBackRangeFallback);
+    targetUnit = CMStukovClosestEnemy(player, aiUnit, scanGroup, c_planeGround, weaponRange + 1.0);
+    if (targetUnit != null) {
+        distance = DistanceBetweenPoints(UnitGetPosition(aiUnit), UnitGetPosition(targetUnit));
+        if (distance <= weaponRange + 0.5) {
+            movePoint = CMStukovKitePoint(aiUnit, targetUnit, c_CMStukov_DiamondBackKiteRange);
+            if (CMStukovMoveOrderIsFresh(aiUnit) == true) {
+                return;
+            }
+            if (CMStukovIssueMove(aiUnit, movePoint) == true) {
+                return;
+            }
+        }
+    }
+
+    if (AIEvalTacticalData(aiUnit, null) == true) {
+        return;
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void AIThinkStukovInfestedSiegeTankUprooted (int player, unit aiUnit, unitgroup scanGroup) {
+    int groundCount;
+
+    if (CMStukovCastDeepTunnelAway(player, aiUnit, scanGroup) == true) {
+        return;
+    }
+
+    groundCount = CMStukovEnemyPlaneCountInRange(player, aiUnit, scanGroup, c_planeGround, c_CMStukov_TankRootRange);
+    if (groundCount > 0) {
+        if (CMStukovCastMorph(player, aiUnit, c_CMStukov_AB_TankRoot) == true) {
+            return;
+        }
+    }
+
+    if (AIEvalTacticalData(aiUnit, null) == true) {
+        return;
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void AIThinkStukovInfestedSiegeTank (int player, unit aiUnit, unitgroup scanGroup) {
+    int groundCount;
+
+    if (CMStukovCastDeepTunnelAway(player, aiUnit, scanGroup) == true) {
+        return;
+    }
+
+    groundCount = CMStukovEnemyPlaneCountInRange(player, aiUnit, scanGroup, c_planeGround, c_CMStukov_TankRootRange + 2.0);
+    if (groundCount == 0) {
+        if (CMStukovCastMorph(player, aiUnit, c_CMStukov_AB_TankUproot) == true) {
+            return;
+        }
+    }
+
+    if (AIEvalTacticalData(aiUnit, null) == true) {
+        return;
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void AIThinkStukovInfestedBanshee (int player, unit aiUnit, unitgroup scanGroup) {
+    fixed vitality;
+    order ord;
+
+    vitality = UnitGetPropertyFixed(aiUnit, c_unitPropVitalityPercent, c_unitPropCurrent);
+    if (vitality <= c_CMStukov_BansheeRetreatVitality) {
+        if ((vitality > c_CMStukov_BansheeCriticalVitality) && (CMStukovBansheeRetreatMove(player, aiUnit, scanGroup) == true)) {
+            return;
+        }
+        if (vitality <= c_CMStukov_BansheeBurrowVitality) {
+            ord = CMStukovInstantOrder(player, aiUnit, c_CMStukov_AB_BansheeBurrowDown);
+            if (ord != null) {
+                AICast(aiUnit, ord, c_noMarker, c_castRetreat);
+                return;
+            }
+        }
+    }
+
+    if (AIEvalTacticalData(aiUnit, null) == true) {
+        return;
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void AIThinkStukovInfestedBansheeBurrowed (int player, unit aiUnit, unitgroup scanGroup) {
+    fixed vitality;
+    order ord;
+
+    vitality = UnitGetPropertyFixed(aiUnit, c_unitPropVitalityPercent, c_unitPropCurrent);
+    if (vitality >= c_CMStukov_BansheeUnburrowVitality) {
+        ord = CMStukovInstantOrder(player, aiUnit, c_CMStukov_AB_BansheeBurrowUp);
+        if (ord != null) {
+            AICast(aiUnit, ord, c_noMarker, c_castHold);
+            return;
+        }
+    }
+}

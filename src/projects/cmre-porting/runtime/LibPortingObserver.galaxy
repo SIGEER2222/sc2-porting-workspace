@@ -9,68 +9,11 @@ void libPortingObserver_gf_Publish(string name, string value, bool silent) {
 }
 
 void libPortingObserver_gf_PublishAlengerPresenceProbe() {
-    string[6] lv_ids;
-    int lv_index = 0;
-    int lv_count = 0;
-    string lv_context = "";
-    unitgroup lv_units = null;
-    int lv_marineCount = 0;
-    string lv_cmd1 = "";
-    string lv_cmd2 = "";
-    int lv_player = 0;
-
-    lv_ids[0] = "Marine";
-    lv_ids[1] = "3diguoqianshaojidi";
-    lv_ids[2] = "3diguolaogong";
-    lv_ids[3] = "3diguojianzhengzhe";
-    lv_ids[4] = "CommandCenter";
-    lv_ids[5] = "SCV";
-
-    // Per-player breakdown: report unit counts for player 1 and player 2
-    // separately so we can distinguish "ally has Alenger3 units, my player
-    // still has vanilla CommandCenter/SCV" from "both players replaced".
-    // Previous c_playerAny merge hid this distinction and made it look like
-    // the replacement worked when it actually didn't for one player.
-    for (lv_player = 1; lv_player <= 2; lv_player += 1) {
-        if (lv_player == 1) {
-            lv_context = "p1:";
-        } else {
-            lv_context = lv_context + "; p2:";
-        }
-        for (lv_index = 0; lv_index < 6; lv_index += 1) {
-            lv_units = UnitGroup(lv_ids[lv_index], lv_player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
-            lv_count = UnitGroupCount(lv_units, c_unitCountAll);
-            if (lv_index == 0) {
-                lv_marineCount = lv_count;
-            }
-            if (lv_index > 0) {
-                lv_context = lv_context + ",";
-            }
-            lv_context = lv_context + lv_ids[lv_index] + "=" + IntToString(lv_count);
-        }
-    }
-
-    // Merge commander_selection info into alenger_unit_presence to halve the
-    // number of create_context TriggerExecute calls. Two separate Publish
-    // calls back-to-back caused the second one to silently fail under thread
-    // pressure (SC2 caps concurrent trigger threads; create_context uses
-    // async TriggerExecute which stacks threads when bankwriteallowed is
-    // held by the first call). Embedding commander IDs in the same string
-    // keeps the probe atomic.
-    lv_cmd1 = libCOOC_gf_ActiveCommanderForPlayer(1);
-    lv_cmd2 = libCOOC_gf_ActiveCommanderForPlayer(2);
-    lv_context = lv_context + "; commander_p1=" + lv_cmd1 + "; commander_p2=" + lv_cmd2;
-
-    libPortingObserver_gf_Publish("alenger_unit_presence", lv_context, false);
-
-    // Only enumerate full player inventory after the game has progressed enough
-    // to spawn Marines. The Marine>0 guard ensures we only run the expensive
-    // UnitGroup("", player, RegionEntireMap(), ...) enumeration after the
-    // commander selection countdown has completed and starting units exist.
-    if (lv_marineCount > 0) {
-        libPortingObserver_gf_PublishPlayerInventory(1);
-        libPortingObserver_gf_PublishPlayerInventory(2);
-    }
+    // RuntimeProbe is deprecated as runtime evidence (see project rules).
+    // The original body hardcoded Alenger3 unit IDs (3diguoqianshaojidi,
+    // 3diguolaogong, 3diguojianzhengzhe) which are invalid for other
+    // commanders (e.g. ZergAlenger6) and trigger
+    // "指定的单位类型无效" fatal script errors at map init. Disabled.
 }
 
 void libPortingObserver_gf_PublishPlayerInventory(int player) {
