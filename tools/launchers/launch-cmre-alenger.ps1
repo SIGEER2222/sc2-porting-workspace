@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "")
 $ErrorActionPreference = "Stop"
 $WorkspaceRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
@@ -602,7 +602,9 @@ function Write-CmreLaunchProfile {
     # 解析 Mutators 参数：逗号分隔的 id 列表，可选 ":enhanced" 后缀
     # 示例: "Avenger,Barrier:enhanced,Blizzard"
     if ($Mutators -ne "") {
-        $mutatorList = $Mutators -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+        # 注意：管道在单元素时会展平为标量，必须用 @() 强制为数组，
+        # 否则 $mutatorList[0] 会变成字符串索引返回首个字符（如 "L" 而非 "LazyWorkers"）。
+        $mutatorList = @($Mutators -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" })
         $values['MutatorCount'] = @("int", [string]$mutatorList.Count)
         for ($i = 0; $i -lt $mutatorList.Count; $i++) {
             $parts = $mutatorList[$i] -split ':'

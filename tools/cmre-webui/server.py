@@ -23,6 +23,14 @@ DATA_DIR = SCRIPT_DIR / "data"
 MUTATORS_JSON = DATA_DIR / "mutators.json"
 LAUNCH_SCRIPT = Path(__file__).resolve().parents[1] / "launchers" / "launch-cmre-alenger.ps1"
 
+# CMRE Legacy Root：合作指挥官-起义狂潮 仓库根目录。
+# launch-cmre-alenger.ps1 默认从 $PSScriptRoot 推导，但本机目录结构是
+# SC2VibeTools/sc2-porting-workspace 与 SC2/合作指挥官-起义狂潮 平级（都在 MyMod 下），
+# 默认推导会指向不存在的 SC2VibeTools/合作指挥官-起义狂潮，因此必须显式覆盖。
+# 可通过环境变量 CMRE_LEGACY_ROOT 覆盖默认值。
+DEFAULT_LEGACY_ROOT = r"e:\Code\MyMod\SC2\合作指挥官-起义狂潮"
+LEGACY_ROOT = os.environ.get("CMRE_LEGACY_ROOT", DEFAULT_LEGACY_ROOT)
+
 # 因子元数据
 FACTORS_DATA = {
     "modes": [
@@ -125,6 +133,8 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             map_name,
             "-Commander",
             commander,
+            "-LegacyRootOverride",
+            LEGACY_ROOT,
             "-Mode",
             str(mode),
             "-DifficultyBase",
