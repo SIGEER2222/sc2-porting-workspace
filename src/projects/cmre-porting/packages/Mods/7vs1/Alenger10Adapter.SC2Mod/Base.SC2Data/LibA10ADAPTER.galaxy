@@ -1,0 +1,115 @@
+include "TriggerLibs/NativeLib"
+
+include "LibA10ADAPTER_h"
+
+//--------------------------------------------------------------------------------------------------
+// Library: Alenger10Adapter
+// 通用 Alenger adapter（完整模式）：
+//   1. 为玩家1升级全部科技（数据驱动，来自源 mod UpgradeData.xml）
+//   2. 为所有人类玩家解锁全部自定义能力（cmd 0-31 全解锁）
+//   3. 为所有人类玩家解锁全部自定义单位（TechTreeUnitAllow）
+//   4. 周期性重解锁（5 秒×8 次，覆盖 40 秒）以覆盖 7v1/CMRE 框架 MapInit 后的重新禁用
+// 这样避免 ApplyOriginal7V1OpenerTech 没有 Alenger 分支导致的建造选项不完整问题。
+//--------------------------------------------------------------------------------------------------
+
+void libA10ADAPTER_gf_UnlockAllAbilities (int lp_player) {
+    int lv_i;
+
+    // 1. 解锁所有自定义能力（cmd 0-31 全解锁，TechTreeAbilityAllow 幂等）
+    for (lv_i = 0; lv_i <= 31; lv_i += 1) {
+        TechTreeAbilityAllow(lp_player, AbilityCommand("10miejuechongji", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("10pingyijianglin", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("10shangshu", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("10xionglinghuweiMedium", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("10xionglinghuweiLarge", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("10diaolingfengbao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("10houcheshanxian", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("10xionglinghuweiSmall", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("10qidiantansuo", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("10xukongliexi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("10zhongxinglingnengdanmu", lv_i), true);
+    }
+
+    // 2. 允许所有自定义单位（确保建筑可出兵、单位可使用）
+    TechTreeUnitAllow(lp_player, "10hunhetiliulangzhe", true);
+    TechTreeUnitAllow(lp_player, "10hunhetihuimiezhe", true);
+    TechTreeUnitAllow(lp_player, "10hunhetichengfazhe", true);
+    TechTreeUnitAllow(lp_player, "10hunhetizhongjiezhe", true);
+    TechTreeUnitAllow(lp_player, "10hunhetidiaolingzhe", true);
+    TechTreeUnitAllow(lp_player, "10hunhetifuchouzhe", true);
+    TechTreeUnitAllow(lp_player, "10zhongxinglingnengchongjiMissile", true);
+    TechTreeUnitAllow(lp_player, "10xukongliexi", true);
+    TechTreeUnitAllow(lp_player, "10hunhetisiliezhe", true);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: MapInit - 执行解锁逻辑
+//--------------------------------------------------------------------------------------------------
+bool libA10ADAPTER_gt_MapInit_Func (bool testConds, bool runActions) {
+    int lp_player;
+    int lv_player;
+    int lv_i;
+    int lv_retry;
+    playergroup autolibA10ADAPTER_g;
+
+    lp_player = 1;
+
+    // Conditions
+    if (testConds) {
+        return true;
+    }
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    // -------- 1. 第一次解锁所有能力和单位 --------
+    autolibA10ADAPTER_g = PlayerGroupAll();
+    lv_player = -1;
+    while (true) {
+        lv_player = PlayerGroupNextPlayer(autolibA10ADAPTER_g, lv_player);
+        if (lv_player < 0) { break; }
+        if ((PlayerType(lv_player) == c_playerTypeUser)) {
+            libA10ADAPTER_gf_UnlockAllAbilities(lv_player);
+        }
+    }
+
+    // -------- 3. 周期性重解锁，覆盖 7v1/CMRE 框架 MapInit 后的重新禁用 --------
+    // TechTreeAbilityAllow/UnitAllow 幂等，重复调用 true 无副作用，对 7v1 地图安全。
+    for (lv_retry = 0; lv_retry < 8; lv_retry += 1) {
+        Wait(5.0, c_timeReal);
+        autolibA10ADAPTER_g = PlayerGroupAll();
+        lv_player = -1;
+        while (true) {
+            lv_player = PlayerGroupNextPlayer(autolibA10ADAPTER_g, lv_player);
+            if (lv_player < 0) { break; }
+            if ((PlayerType(lv_player) == c_playerTypeUser)) {
+                libA10ADAPTER_gf_UnlockAllAbilities(lp_player);
+            }
+        }
+    }
+
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libA10ADAPTER_InitTriggers () {
+    libA10ADAPTER_gt_MapInit = TriggerCreate("libA10ADAPTER_gt_MapInit_Func");
+    TriggerAddEventMapInit(libA10ADAPTER_gt_MapInit);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool libA10ADAPTER_InitLib_completed = false;
+
+void libA10ADAPTER_InitLib () {
+    if (libA10ADAPTER_InitLib_completed) {
+        return;
+    }
+
+    libA10ADAPTER_InitLib_completed = true;
+
+    libA10ADAPTER_InitTriggers();
+}

@@ -1,0 +1,178 @@
+include "TriggerLibs/NativeLib"
+
+include "LibA2ADAPTER_h"
+include "LibA2ADAPTER_Catalog"
+
+//--------------------------------------------------------------------------------------------------
+// Library: Alenger2Adapter
+// 通用 Alenger adapter（完整模式）：
+//   1. 为玩家1升级全部科技（数据驱动，来自源 mod UpgradeData.xml）
+//   2. 为所有人类玩家解锁全部自定义能力（cmd 0-31 全解锁）
+//   3. 为所有人类玩家解锁全部自定义单位（TechTreeUnitAllow）
+//   4. 周期性重解锁（5 秒×8 次，覆盖 40 秒）以覆盖 7v1/CMRE 框架 MapInit 后的重新禁用
+// 这样避免 ApplyOriginal7V1OpenerTech 没有 Alenger 分支导致的建造选项不完整问题。
+//--------------------------------------------------------------------------------------------------
+
+void libA2ADAPTER_gf_UnlockAllAbilities (int lp_player) {
+    int lv_i;
+
+    // 1. 解锁所有自定义能力（cmd 0-31 全解锁，TechTreeAbilityAllow 幂等）
+    for (lv_i = 0; lv_i <= 31; lv_i += 1) {
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2bushi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2chongdong", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2guanghewasi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2kengdaochong", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2lingnengtubian", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2paoxiao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2pusha", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2judupenshe", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2aibianjiaqiao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2chongfeng", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2fuhuapenshe", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2jiaqiaozengsheng", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2lingnengbaolie2", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2fushichongji", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2suanxingfeichongzhadan", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2tunshi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2fuhuabahamute", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2zhaohuanbahamute", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2zhaohuantiyamate", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2zihui", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2zihuimuchaoyanchong", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2zihuiGround", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2lingnengbaolie", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2lingnengfensui", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2zhebiyunwu", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2wohaiyoujiangshi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2zhongliuzuzhi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2youchongbianyi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2gongchongbianyi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2bianyiweichaoxue", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2bianyiweidaxingchaoxue", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2jinhuachaoxue", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2zhenhanpaoxiao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2chaoxuejijie", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2fuhuajuntanzhongliu", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2zihuiAir", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2paifangjuntan", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2zhuangzai", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2tianjiangchonghai", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("2fuhuachongqun", lv_i), true);
+    }
+
+    // 2. 允许所有自定义单位（确保建筑可出兵、单位可使用）
+    TechTreeUnitAllow(lp_player, "2yihualieshou", true);
+    TechTreeUnitAllow(lp_player, "2edutanglang", true);
+    TechTreeUnitAllow(lp_player, "2yehuodubao", true);
+    TechTreeUnitAllow(lp_player, "2fuhuafeichong", true);
+    TechTreeUnitAllow(lp_player, "2lingnengjiachong", true);
+    TechTreeUnitAllow(lp_player, "2haichong", true);
+    TechTreeUnitAllow(lp_player, "2zhebiyunwu", true);
+    TechTreeUnitAllow(lp_player, "2wanglingjushou", true);
+    TechTreeUnitAllow(lp_player, "2muchaoyanchong", true);
+    TechTreeUnitAllow(lp_player, "2jizhenyichong", true);
+    TechTreeUnitAllow(lp_player, "2suanshipachong", true);
+    TechTreeUnitAllow(lp_player, "2bahamute", true);
+    TechTreeUnitAllow(lp_player, "2tiyamate", true);
+    TechTreeUnitAllow(lp_player, "2chonghou", true);
+    TechTreeUnitAllow(lp_player, "2chongdong", true);
+    TechTreeUnitAllow(lp_player, "2canbaolongshou", true);
+    TechTreeUnitAllow(lp_player, "2chujichaoxue", true);
+    TechTreeUnitAllow(lp_player, "2youchong", true);
+    TechTreeUnitAllow(lp_player, "2gongchong", true);
+    TechTreeUnitAllow(lp_player, "2chongluan", true);
+    TechTreeUnitAllow(lp_player, "2daxingchaoxue", true);
+    TechTreeUnitAllow(lp_player, "2chaoxue", true);
+    TechTreeUnitAllow(lp_player, "2bianyifeishe", true);
+    TechTreeUnitAllow(lp_player, "2yihualieshouPlaceholder", true);
+    TechTreeUnitAllow(lp_player, "2zidongcuiqufang", true);
+    TechTreeUnitAllow(lp_player, "2fuhuawangchong", true);
+    TechTreeUnitAllow(lp_player, "2chaochong", true);
+    TechTreeUnitAllow(lp_player, "2fushilongwang", true);
+    TechTreeUnitAllow(lp_player, "2fushiyilong", true);
+    TechTreeUnitAllow(lp_player, "2kengdaochong", true);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: MapInit - 执行解锁逻辑
+//--------------------------------------------------------------------------------------------------
+bool libA2ADAPTER_gt_MapInit_Func (bool testConds, bool runActions) {
+    int lp_player;
+    int lv_player;
+    int lv_i;
+    int lv_retry;
+    string lv_upgradeId;
+    int lv_upgradeLevel;
+    playergroup autolibA2ADAPTER_g;
+
+    lp_player = 1;
+
+    // Conditions
+    if (testConds) {
+        return true;
+    }
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    // -------- 1. 为玩家1升级全部科技（数据驱动）--------
+    lv_i = 1;
+    for ( ; ( lv_i <= libA2ADAPTER_gv_upgradeCount ) ; lv_i += 1 ) {
+        lv_upgradeId = libA2ADAPTER_gf_UpgradeId(lv_i);
+        lv_upgradeLevel = libA2ADAPTER_gf_UpgradeLevel(lv_i);
+        if ((lv_upgradeId != "")) {
+            TechTreeUpgradeAddLevel(lp_player, lv_upgradeId, lv_upgradeLevel);
+        }
+    }
+
+    // -------- 2. 第一次解锁所有能力和单位 --------
+    autolibA2ADAPTER_g = PlayerGroupAll();
+    lv_player = -1;
+    while (true) {
+        lv_player = PlayerGroupNextPlayer(autolibA2ADAPTER_g, lv_player);
+        if (lv_player < 0) { break; }
+        if ((PlayerType(lv_player) == c_playerTypeUser)) {
+            libA2ADAPTER_gf_UnlockAllAbilities(lv_player);
+        }
+    }
+
+    // -------- 3. 周期性重解锁，覆盖 7v1/CMRE 框架 MapInit 后的重新禁用 --------
+    // TechTreeAbilityAllow/UnitAllow 幂等，重复调用 true 无副作用，对 7v1 地图安全。
+    for (lv_retry = 0; lv_retry < 8; lv_retry += 1) {
+        Wait(5.0, c_timeReal);
+        autolibA2ADAPTER_g = PlayerGroupAll();
+        lv_player = -1;
+        while (true) {
+            lv_player = PlayerGroupNextPlayer(autolibA2ADAPTER_g, lv_player);
+            if (lv_player < 0) { break; }
+            if ((PlayerType(lv_player) == c_playerTypeUser)) {
+                libA2ADAPTER_gf_UnlockAllAbilities(lp_player);
+            }
+        }
+    }
+
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libA2ADAPTER_InitTriggers () {
+    libA2ADAPTER_gt_MapInit = TriggerCreate("libA2ADAPTER_gt_MapInit_Func");
+    TriggerAddEventMapInit(libA2ADAPTER_gt_MapInit);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool libA2ADAPTER_InitLib_completed = false;
+
+void libA2ADAPTER_InitLib () {
+    if (libA2ADAPTER_InitLib_completed) {
+        return;
+    }
+
+    libA2ADAPTER_InitLib_completed = true;
+
+    libA2ADAPTER_InitTriggers();
+}

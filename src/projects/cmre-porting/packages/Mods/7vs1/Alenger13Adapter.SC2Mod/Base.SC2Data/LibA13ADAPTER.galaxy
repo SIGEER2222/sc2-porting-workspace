@@ -1,0 +1,225 @@
+include "TriggerLibs/NativeLib"
+
+include "LibA13ADAPTER_h"
+include "LibA13ADAPTER_Catalog"
+
+//--------------------------------------------------------------------------------------------------
+// Library: Alenger13Adapter
+// 通用 Alenger adapter（完整模式）：
+//   1. 为玩家1升级全部科技（数据驱动，来自源 mod UpgradeData.xml）
+//   2. 为所有人类玩家解锁全部自定义能力（cmd 0-31 全解锁）
+//   3. 为所有人类玩家解锁全部自定义单位（TechTreeUnitAllow）
+//   4. 周期性重解锁（5 秒×8 次，覆盖 40 秒）以覆盖 7v1/CMRE 框架 MapInit 后的重新禁用
+// 这样避免 ApplyOriginal7V1OpenerTech 没有 Alenger 分支导致的建造选项不完整问题。
+//--------------------------------------------------------------------------------------------------
+
+void libA13ADAPTER_gf_UnlockAllAbilities (int lp_player) {
+    int lv_i;
+
+    // 1. 解锁所有自定义能力（cmd 0-31 全解锁，TechTreeAbilityAllow 幂等）
+    for (lv_i = 0; lv_i <= 31; lv_i += 1) {
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13bianxingweijinghuazhehexin2", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13bianxingweiyingxionghexin", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13chaoxinxing", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13liangzijuzhenguangbo", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13zhongxingqiangjijijiku", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13huweijianjiku", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13guidaohongzha", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13hudunshuaxin", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13hudunshuaxin5", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13jinghuadajidanmu", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13jinghuadajidanmu5", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13jinghuaxinbiao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13jinghuaxinbiao5", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13jinghuafengbao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13daxinglanjiejijiku", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13qiangjijijiku", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13lingnengyizhilichang", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13daxingqiangjijijiku", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13quanxiangfuzhi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13guwushanxian", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13tiaoji5", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13touying", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13touying5", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13wajie", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13xiangweitousheqi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13yanfa3", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13jueduifangyulingyu", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13yanfa4", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13yazhichengxu", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13yazhichengxu5", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13zheyue5", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13zheyuebianxing5", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13zheyuejianzao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13zheyue1", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13chonggouguangshuBeam", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13zheyuebianxing", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13yunshumoshi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13xiangweimoshi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13bianxingjianzao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13bushufuwuqi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13zheyuejianzao5", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13zheyueshouweizhe5", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13zheyueshouweizhe", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13zhuangzai", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13tiaoji", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13hudunchongneng", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13zheyue2", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13zheyuexunlian2", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13yanfa2", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13shanxian", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13jidongmoshi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13kuozhanmoshi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13shuzikongjian", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13jinghuaxinxing", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13jinghuapao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13shouweizhechonggou", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13shouweizhesiwang", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13quntifengyin", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13guangshujijiku", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13lanjiejijiku", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13jinghuaguangshu", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13quntizheyue", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13bianxingweijinghuazhehexinPlacement", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("13bianxingweijinghuazhehexin", lv_i), true);
+    }
+
+    // 2. 允许所有自定义单位（确保建筑可出兵、单位可使用）
+    TechTreeUnitAllow(lp_player, "13buxiuzhezhanjia", true);
+    TechTreeUnitAllow(lp_player, "13huweijian", true);
+    TechTreeUnitAllow(lp_player, "13chengjiezhezhanjia", true);
+    TechTreeUnitAllow(lp_player, "13chuanxinzhezhanjia", true);
+    TechTreeUnitAllow(lp_player, "13qiangjiji", true);
+    TechTreeUnitAllow(lp_player, "13chuanxinzhezhanjiatouying", true);
+    TechTreeUnitAllow(lp_player, "13puluobisizhanjia", true);
+    TechTreeUnitAllow(lp_player, "13saodangzhe", true);
+    TechTreeUnitAllow(lp_player, "13saodangzhezhanjia", true);
+    TechTreeUnitAllow(lp_player, "13tansuozhezhanjia", true);
+    TechTreeUnitAllow(lp_player, "13yingxionghexin", true);
+    TechTreeUnitAllow(lp_player, "13jinghuazheshuniu", true);
+    TechTreeUnitAllow(lp_player, "13tanji", true);
+    TechTreeUnitAllow(lp_player, "13jinghuazhehexin", true);
+    TechTreeUnitAllow(lp_player, "13tianwangjuzhen", true);
+    TechTreeUnitAllow(lp_player, "13fuwuqi", true);
+    TechTreeUnitAllow(lp_player, "13zhongjiezhe", true);
+    TechTreeUnitAllow(lp_player, "13zhongjiezhezhanjia", true);
+    TechTreeUnitAllow(lp_player, "13zhongjilengjingPhasing", true);
+    TechTreeUnitAllow(lp_player, "13zhongjilengjingTransport", true);
+    TechTreeUnitAllow(lp_player, "13shouweizhe", true);
+    TechTreeUnitAllow(lp_player, "13shouweizhecanhai", true);
+    TechTreeUnitAllow(lp_player, "13fensuizhe", true);
+    TechTreeUnitAllow(lp_player, "13buxiuzhe", true);
+    TechTreeUnitAllow(lp_player, "13baohuzhe", true);
+    TechTreeUnitAllow(lp_player, "13guangzipaotai", true);
+    TechTreeUnitAllow(lp_player, "13hudunchongnengqi", true);
+    TechTreeUnitAllow(lp_player, "13zhinengxinacang", true);
+    TechTreeUnitAllow(lp_player, "13jianduihangbiao", true);
+    TechTreeUnitAllow(lp_player, "13chuansongmen", true);
+    TechTreeUnitAllow(lp_player, "13kongzhixinhe", true);
+    TechTreeUnitAllow(lp_player, "13chuanxinzhe", true);
+    TechTreeUnitAllow(lp_player, "13chuanxinzhetouying", true);
+    TechTreeUnitAllow(lp_player, "13ganraozhe", true);
+    TechTreeUnitAllow(lp_player, "13chengjiezhe", true);
+    TechTreeUnitAllow(lp_player, "13chaoyuezhe", true);
+    TechTreeUnitAllow(lp_player, "13duanlu", true);
+    TechTreeUnitAllow(lp_player, "13jinghuaxinbiao", true);
+    TechTreeUnitAllow(lp_player, "13yazhita", true);
+    TechTreeUnitAllow(lp_player, "13xingmen", true);
+    TechTreeUnitAllow(lp_player, "13jixietai", true);
+    TechTreeUnitAllow(lp_player, "13jixieyanjiusuo", true);
+    TechTreeUnitAllow(lp_player, "13zhuguangzhe", true);
+    TechTreeUnitAllow(lp_player, "13zhizhengzhezhanjia", true);
+    TechTreeUnitAllow(lp_player, "13suqingzhe", true);
+    TechTreeUnitAllow(lp_player, "13tansuozhe", true);
+    TechTreeUnitAllow(lp_player, "13baohuzhe2", true);
+    TechTreeUnitAllow(lp_player, "13lanjieji", true);
+    TechTreeUnitAllow(lp_player, "13guwuzhe", true);
+    TechTreeUnitAllow(lp_player, "13yinglingdian", true);
+    TechTreeUnitAllow(lp_player, "13jinghuapao", true);
+    TechTreeUnitAllow(lp_player, "13guangshuji", true);
+    TechTreeUnitAllow(lp_player, "13jinghuaguangshu", true);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: MapInit - 执行解锁逻辑
+//--------------------------------------------------------------------------------------------------
+bool libA13ADAPTER_gt_MapInit_Func (bool testConds, bool runActions) {
+    int lp_player;
+    int lv_player;
+    int lv_i;
+    int lv_retry;
+    string lv_upgradeId;
+    int lv_upgradeLevel;
+    playergroup autolibA13ADAPTER_g;
+
+    lp_player = 1;
+
+    // Conditions
+    if (testConds) {
+        return true;
+    }
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    // -------- 1. 为玩家1升级全部科技（数据驱动）--------
+    lv_i = 1;
+    for ( ; ( lv_i <= libA13ADAPTER_gv_upgradeCount ) ; lv_i += 1 ) {
+        lv_upgradeId = libA13ADAPTER_gf_UpgradeId(lv_i);
+        lv_upgradeLevel = libA13ADAPTER_gf_UpgradeLevel(lv_i);
+        if ((lv_upgradeId != "")) {
+            TechTreeUpgradeAddLevel(lp_player, lv_upgradeId, lv_upgradeLevel);
+        }
+    }
+
+    // -------- 2. 第一次解锁所有能力和单位 --------
+    autolibA13ADAPTER_g = PlayerGroupAll();
+    lv_player = -1;
+    while (true) {
+        lv_player = PlayerGroupNextPlayer(autolibA13ADAPTER_g, lv_player);
+        if (lv_player < 0) { break; }
+        if ((PlayerType(lv_player) == c_playerTypeUser)) {
+            libA13ADAPTER_gf_UnlockAllAbilities(lv_player);
+        }
+    }
+
+    // -------- 3. 周期性重解锁，覆盖 7v1/CMRE 框架 MapInit 后的重新禁用 --------
+    // TechTreeAbilityAllow/UnitAllow 幂等，重复调用 true 无副作用，对 7v1 地图安全。
+    for (lv_retry = 0; lv_retry < 8; lv_retry += 1) {
+        Wait(5.0, c_timeReal);
+        autolibA13ADAPTER_g = PlayerGroupAll();
+        lv_player = -1;
+        while (true) {
+            lv_player = PlayerGroupNextPlayer(autolibA13ADAPTER_g, lv_player);
+            if (lv_player < 0) { break; }
+            if ((PlayerType(lv_player) == c_playerTypeUser)) {
+                libA13ADAPTER_gf_UnlockAllAbilities(lp_player);
+            }
+        }
+    }
+
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libA13ADAPTER_InitTriggers () {
+    libA13ADAPTER_gt_MapInit = TriggerCreate("libA13ADAPTER_gt_MapInit_Func");
+    TriggerAddEventMapInit(libA13ADAPTER_gt_MapInit);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool libA13ADAPTER_InitLib_completed = false;
+
+void libA13ADAPTER_InitLib () {
+    if (libA13ADAPTER_InitLib_completed) {
+        return;
+    }
+
+    libA13ADAPTER_InitLib_completed = true;
+
+    libA13ADAPTER_InitTriggers();
+}

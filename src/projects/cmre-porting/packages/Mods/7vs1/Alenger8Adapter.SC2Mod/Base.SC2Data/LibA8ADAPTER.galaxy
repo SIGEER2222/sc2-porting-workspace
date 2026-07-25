@@ -1,0 +1,172 @@
+include "TriggerLibs/NativeLib"
+
+include "LibA8ADAPTER_h"
+include "LibA8ADAPTER_Catalog"
+
+//--------------------------------------------------------------------------------------------------
+// Library: Alenger8Adapter
+// 通用 Alenger adapter（完整模式）：
+//   1. 为玩家1升级全部科技（数据驱动，来自源 mod UpgradeData.xml）
+//   2. 为所有人类玩家解锁全部自定义能力（cmd 0-31 全解锁）
+//   3. 为所有人类玩家解锁全部自定义单位（TechTreeUnitAllow）
+//   4. 周期性重解锁（5 秒×8 次，覆盖 40 秒）以覆盖 7v1/CMRE 框架 MapInit 后的重新禁用
+// 这样避免 ApplyOriginal7V1OpenerTech 没有 Alenger 分支导致的建造选项不完整问题。
+//--------------------------------------------------------------------------------------------------
+
+void libA8ADAPTER_gf_UnlockAllAbilities (int lp_player) {
+    int lv_i;
+
+    // 1. 解锁所有自定义能力（cmd 0-31 全解锁，TechTreeAbilityAllow 幂等）
+    for (lv_i = 0; lv_i <= 31; lv_i += 1) {
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8chongci", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8guanghezuoyong", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8kongtoubaochong", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8zhaohuanzhajiala", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8quntikuangbao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8tianjiangchonghai", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8youchongbianyi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8jianzhubianyi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8bianyiweifuhuachao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8fuhuachangjijie", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8kuangbao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8jinhuajinhuaqiang", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8shibukedang", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8zibaomubiao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8baoliezhanglangqiandi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8baoliezhanglangchudi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8baozha", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8fushibaochongqiandi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8fushibaochongchudi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8wuran", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8fuhua", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8zhajialafuhuo", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8quntibuye", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8fuhuajuntanzhongliu", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8shencaochongdao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8fuhuapao", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8paifangjuntan", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8zhuangzai", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8buye", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8jicipachongzhagen", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8jicipachongzhanqi", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8suanyepachongzhagen", lv_i), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("8suanyepachongzhanqi", lv_i), true);
+    }
+
+    // 2. 允许所有自定义单位（确保建筑可出兵、单位可使用）
+    TechTreeUnitAllow(lp_player, "8gouzaojibianti", true);
+    TechTreeUnitAllow(lp_player, "8fushibaochong", true);
+    TechTreeUnitAllow(lp_player, "8jizhenfengbao", true);
+    TechTreeUnitAllow(lp_player, "8xunjielieshou", true);
+    TechTreeUnitAllow(lp_player, "8gongfeng", true);
+    TechTreeUnitAllow(lp_player, "8fuhuachang", true);
+    TechTreeUnitAllow(lp_player, "8youchong", true);
+    TechTreeUnitAllow(lp_player, "8fuhuachao", true);
+    TechTreeUnitAllow(lp_player, "8chongluan", true);
+    TechTreeUnitAllow(lp_player, "8tuliezhe", true);
+    TechTreeUnitAllow(lp_player, "8youleishou", true);
+    TechTreeUnitAllow(lp_player, "8zhajiala", true);
+    TechTreeUnitAllow(lp_player, "8jinhuaqiang", true);
+    TechTreeUnitAllow(lp_player, "8baoliezhanglang", true);
+    TechTreeUnitAllow(lp_player, "8baoliezhanglangBurrowed", true);
+    TechTreeUnitAllow(lp_player, "8minibaochong", true);
+    TechTreeUnitAllow(lp_player, "8baochongchaoxue", true);
+    TechTreeUnitAllow(lp_player, "8baowen", true);
+    TechTreeUnitAllow(lp_player, "8fushibaochongBurrowed", true);
+    TechTreeUnitAllow(lp_player, "8wasicuiqufang", true);
+    TechTreeUnitAllow(lp_player, "8baowenchaoxue", true);
+    TechTreeUnitAllow(lp_player, "8gouzaofuhuazhe", true);
+    TechTreeUnitAllow(lp_player, "8wuranzhe", true);
+    TechTreeUnitAllow(lp_player, "8baoliewangchong", true);
+    TechTreeUnitAllow(lp_player, "8danzhipaotai", true);
+    TechTreeUnitAllow(lp_player, "8juntanzhongliu", true);
+    TechTreeUnitAllow(lp_player, "8suanyechonghou", true);
+    TechTreeUnitAllow(lp_player, "8jicipachong", true);
+    TechTreeUnitAllow(lp_player, "8jicipachongStand", true);
+    TechTreeUnitAllow(lp_player, "8suanyepachong", true);
+    TechTreeUnitAllow(lp_player, "8suanyepachongStand", true);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: MapInit - 执行解锁逻辑
+//--------------------------------------------------------------------------------------------------
+bool libA8ADAPTER_gt_MapInit_Func (bool testConds, bool runActions) {
+    int lp_player;
+    int lv_player;
+    int lv_i;
+    int lv_retry;
+    string lv_upgradeId;
+    int lv_upgradeLevel;
+    playergroup autolibA8ADAPTER_g;
+
+    lp_player = 1;
+
+    // Conditions
+    if (testConds) {
+        return true;
+    }
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    // -------- 1. 为玩家1升级全部科技（数据驱动）--------
+    lv_i = 1;
+    for ( ; ( lv_i <= libA8ADAPTER_gv_upgradeCount ) ; lv_i += 1 ) {
+        lv_upgradeId = libA8ADAPTER_gf_UpgradeId(lv_i);
+        lv_upgradeLevel = libA8ADAPTER_gf_UpgradeLevel(lv_i);
+        if ((lv_upgradeId != "")) {
+            TechTreeUpgradeAddLevel(lp_player, lv_upgradeId, lv_upgradeLevel);
+        }
+    }
+
+    // -------- 2. 第一次解锁所有能力和单位 --------
+    autolibA8ADAPTER_g = PlayerGroupAll();
+    lv_player = -1;
+    while (true) {
+        lv_player = PlayerGroupNextPlayer(autolibA8ADAPTER_g, lv_player);
+        if (lv_player < 0) { break; }
+        if ((PlayerType(lv_player) == c_playerTypeUser)) {
+            libA8ADAPTER_gf_UnlockAllAbilities(lv_player);
+        }
+    }
+
+    // -------- 3. 周期性重解锁，覆盖 7v1/CMRE 框架 MapInit 后的重新禁用 --------
+    // TechTreeAbilityAllow/UnitAllow 幂等，重复调用 true 无副作用，对 7v1 地图安全。
+    for (lv_retry = 0; lv_retry < 8; lv_retry += 1) {
+        Wait(5.0, c_timeReal);
+        autolibA8ADAPTER_g = PlayerGroupAll();
+        lv_player = -1;
+        while (true) {
+            lv_player = PlayerGroupNextPlayer(autolibA8ADAPTER_g, lv_player);
+            if (lv_player < 0) { break; }
+            if ((PlayerType(lv_player) == c_playerTypeUser)) {
+                libA8ADAPTER_gf_UnlockAllAbilities(lp_player);
+            }
+        }
+    }
+
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libA8ADAPTER_InitTriggers () {
+    libA8ADAPTER_gt_MapInit = TriggerCreate("libA8ADAPTER_gt_MapInit_Func");
+    TriggerAddEventMapInit(libA8ADAPTER_gt_MapInit);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool libA8ADAPTER_InitLib_completed = false;
+
+void libA8ADAPTER_InitLib () {
+    if (libA8ADAPTER_InitLib_completed) {
+        return;
+    }
+
+    libA8ADAPTER_InitLib_completed = true;
+
+    libA8ADAPTER_InitTriggers();
+}
