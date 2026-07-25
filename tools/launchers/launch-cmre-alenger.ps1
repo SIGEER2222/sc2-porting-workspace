@@ -80,7 +80,8 @@ if ($DryRun) { $dependencies | ForEach-Object { Write-Host "  $_" }; exit 0 }
 function Enable-CmreSavedProfileStartup {
     param(
         [Parameter(Mandatory = $true)][string]$MapPath,
-        [Parameter(Mandatory = $true)][string]$Commander
+        [Parameter(Mandatory = $true)][string]$Commander,
+        [switch]$SkipCountdown
     )
     # Patch the map-level LibCOOC.galaxy (copied by Install-CmreGalaxyHostOverlay)
     # instead of the mod-source copy. The mod source is overwritten by Sync-ModSet
@@ -123,10 +124,13 @@ function Enable-CmreSavedProfileStartup {
     libCOUI_gv_cU_CommanderSelection[2] = "$Commander";
     libCOUI_gv_cU_CommanderSelect_PlayerReady[2] = true;
     libCOUI_gf_CU_CommanderFinalizeStates(2);
-    Wait(1.0, c_timeReal);
-    CMUIX_ReadyBeginCountdown();
-    return ;
 "@
+    if ($SkipCountdown) {
+        $replacementBody += "    // SkipCountdown (API mode): CMUIX_ReadyBeginCountdown() omitted to avoid Launched-state stall`r`n    return ;"
+        Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipCountdown=true (API mode, no CMUIX_ReadyBeginCountdown)"
+    } else {
+        $replacementBody += "    Wait(1.0, c_timeReal);`r`n    CMUIX_ReadyBeginCountdown();`r`n    return ;"
+    }
     $replacement = $replacementBody.Replace("`r`n", "`n").Replace("`n", "`r`n").TrimEnd("`r", "`n")
     Write-Host "DEBUG Enable-CmreSavedProfileStartup: Commander=$Commander"
     Write-Host "DEBUG replacement (first 200 chars): $($replacement.Substring(0, [Math]::Min(200, $replacement.Length)))"
@@ -134,12 +138,16 @@ function Enable-CmreSavedProfileStartup {
         Write-Host "DEBUG: replacement already in content, skipping"
         return
     }
+    $repatchPattern = '(?ms)^    if \(\(CMUIX_CoreReady == false\)\) \{ CMUIX_CoreInit\(\); \}.*?(?:CMUIX_ReadyBeginCountdown\(\);|SkipCountdown[^\r\n]*).*?return ;$'
     if ([regex]::IsMatch($content, $legacyPatchPattern)) {
         $content = [regex]::Replace($content, $legacyPatchPattern, $replacement, 1)
     } elseif ([regex]::IsMatch($content, $originalPattern)) {
         $content = [regex]::Replace($content, $originalPattern, $replacement, 1)
     } elseif ([regex]::IsMatch($content, $fallbackPattern)) {
         $content = [regex]::Replace($content, $fallbackPattern, $replacement, 1)
+    } elseif ([regex]::IsMatch($content, $repatchPattern)) {
+        Write-Host "DEBUG: repatch detected (previously patched block found), replacing with new commander/config"
+        $content = [regex]::Replace($content, $repatchPattern, $replacement, 1)
     } else {
         throw "CMRE saved-profile startup anchor not found"
     }
@@ -272,6 +280,22 @@ function Install-CmreDynamicObserver {
     if ($mapScript -notmatch 'gt_PortingObserverDeadOfNightPoll_Func') {
         $mapInitAnchor = "//--------------------------------------------------------------------------------------------------`r`n// Map Initialization"
         if (-not $mapScript.Contains($mapInitAnchor)) { throw "Map initialization anchor not found in MapScript" }
+        # 亡者之夜专用代码块：引用 gv_dayORNight/gv_nightNumber/gv_objective_Primary_DestroyInfestation
+        # 等亡者之夜特有的全局变量。其他地图（如克哈裂痕）没有这些变量，注入会导致编译崩溃。
+        # 只在亡者之夜地图注入这段代码；其他地图用空字符串占位，保持 poll trigger 通用部分可用。
+        $donUpdateBlock = ''
+        if ($MapName -eq "亡者之夜.SC2Map") {
+            $donUpdateBlock = @'
+        if (gv_objective_Primary_DestroyInfestation != c_invalidObjectiveId) {
+            lv_primaryState = ObjectiveGetState(gv_objective_Primary_DestroyInfestation);
+        }
+        if (gv_objective_Bonus_DestroyInfestationSource != c_invalidObjectiveId) {
+            lv_bonusState = ObjectiveGetState(gv_objective_Bonus_DestroyInfestationSource);
+        }
+        libDeadOfNightObserver_gf_Update(gv_dayORNight, gv_nightNumber,
+            gv_infestedStructuresRemaining, gv_infestedStructuresTotal, lv_primaryState, lv_bonusState);
+'@
+        }
         $pollGlue = @"
 include "LibDeadOfNightObserver"
 
@@ -286,14 +310,7 @@ bool gt_PortingObserverDeadOfNightPoll_Func(bool testConds, bool runActions) {
     libPortingObserver_gf_Publish("poll_trigger_started", "DeadOfNight poll trigger is running", false);
     Wait(10.0, c_timeReal);
     while (true) {
-        if (gv_objective_Primary_DestroyInfestation != c_invalidObjectiveId) {
-            lv_primaryState = ObjectiveGetState(gv_objective_Primary_DestroyInfestation);
-        }
-        if (gv_objective_Bonus_DestroyInfestationSource != c_invalidObjectiveId) {
-            lv_bonusState = ObjectiveGetState(gv_objective_Bonus_DestroyInfestationSource);
-        }
-        libDeadOfNightObserver_gf_Update(gv_dayORNight, gv_nightNumber,
-            gv_infestedStructuresRemaining, gv_infestedStructuresTotal, lv_primaryState, lv_bonusState);
+${donUpdateBlock}
         libPortingObserver_gf_PublishAlengerPresenceProbe();
         Wait(1.0, c_timeReal);
         libPortingObserver_gf_PublishAlengerStructureProbe();
@@ -500,9 +517,12 @@ void gt_Alenger3TrainProbe_Init() {
         $mapScript = $mapScript.Replace($mapInitAnchor, $pollGlue.Replace("`n", "`r`n") + $mapInitAnchor)
     }
     if ($mapScript -notmatch 'libDeadOfNightObserver_InitLib\s*\(\s*\)') {
-        $initAnchor = "    InitGlobals();`r`n    InitTriggers();"
+        # 用 InitTriggers() 调用作为 anchor，在其前面注入 InitLib 调用。
+        # 不使用 "InitGlobals();\r\nInitTriggers();" 这种相邻 anchor，因为
+        # 某些地图（如克哈裂痕）在两者之间还有 InitCustomAI() 等调用。
+        $initAnchor = "    InitTriggers();`r`n"
         if (-not $mapScript.Contains($initAnchor)) { throw "InitMap anchor not found in MapScript" }
-        $initMapReplacement = "    InitGlobals();`r`n    libDeadOfNightObserver_InitLib();`r`n    gt_PortingObserverDeadOfNightPoll_Init();`r`n    gt_$alengerId" + "StartingUnits_Init();`r`n    gt_$alengerId" + "TrainProbe_Init();`r`n    InitTriggers();"
+        $initMapReplacement = "    libDeadOfNightObserver_InitLib();`r`n    gt_PortingObserverDeadOfNightPoll_Init();`r`n    gt_$alengerId" + "StartingUnits_Init();`r`n    gt_$alengerId" + "TrainProbe_Init();`r`n" + $initAnchor
         $mapScript = $mapScript.Replace($initAnchor, $initMapReplacement)
     }
     [System.IO.File]::WriteAllText($mapScriptPath, $mapScript, [System.Text.UTF8Encoding]::new($false))
@@ -654,6 +674,24 @@ function Patch-CmreCoreRuntimeErrors {
         $patchCount++
     }
 
+    # Patch 11: libCOMI_gf_CM_CommanderVOSend - 当 lp_vOSound 为 null（指挥官未配置
+    # VO lines，如 Alenger6）时，SoundPlayForPlayer 会抛 "无法从'sCreateSound'的参数中
+    # 获取'sound'(值：0)" 触发器错误。跳过 null soundlink 的播放，避免运行时错误。
+    # 该错误在克哈裂痕等地图上单位被攻击时立即触发（libCOMI_gt_CM_VOEnemySpotted_Func）。
+    $comiAnchor11 = 'void libCOMI_gf_CM_CommanderVOSend (int lp_listenerPlayer, soundlink lp_vOSound, playergroup lp_targetPlayers) {
+    // Automatic Variable Declarations
+    // Implementation
+    SoundSetListenerGender(lp_vOSound, libCOOC_gf_CC_CommanderGender(libCOOC_gf_ActiveCommanderForPlayer(lp_listenerPlayer)));'
+    $comiPatch11 = 'void libCOMI_gf_CM_CommanderVOSend (int lp_listenerPlayer, soundlink lp_vOSound, playergroup lp_targetPlayers) {
+    // Automatic Variable Declarations
+    // Implementation
+    if ((lp_vOSound == null)) { return; } // CMRE patch: guard null soundlink (VO line not configured for this commander)
+    SoundSetListenerGender(lp_vOSound, libCOOC_gf_CC_CommanderGender(libCOOC_gf_ActiveCommanderForPlayer(lp_listenerPlayer)));'
+    if (-not $comi.Contains($comiPatch11)) {
+        if (-not $comi.Contains($comiAnchor11)) { throw "LibCOMI patch 11 anchor not found" }
+        $comi = $comi.Replace($comiAnchor11, $comiPatch11); $patchCount++
+    }
+
     [System.IO.File]::WriteAllText($comiPath, $comi, [System.Text.UTF8Encoding]::new($false))
 
     Write-Host "CMRE core runtime error patches applied: $patchCount locations"
@@ -730,7 +768,14 @@ try {
     [System.IO.Directory]::CreateDirectory($liveMap) | Out-Null
     robocopy $mapSource $liveMap /MIR /NFL /NDL /NJH /NJS /NC /NS /NP | Out-Null
     Install-CmreGalaxyHostOverlay -ModsRoot (Join-Path $Sc2Root "Mods") -MapPath $liveMap
-    Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander
+    if ($ListenPort -gt 0) {
+        # API 模式：不 SkipCountdown，让 CMUIX_ReadyBeginCountdown() 执行以触发游戏开始。
+        # 之前 SkipCountdown=true 是为了"避免 Launched-state stall"，但实测跳过后 SC2 仍卡在 Launched
+        # （因为游戏开始触发器被跳过）。改为不跳过，让 galaxy 触发器完整执行。
+        Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander
+    } else {
+        Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander
+    }
     # Install-CmreDynamicObserver 必须始终调用：
     #   - 注入 gt_Alenger3StartingUnits_Init（创建 5 个 3diguolaogong 工人 + 前哨基地）
     #   - 注入 libA3ADAPTER_InitLib（科技树解锁）
@@ -749,24 +794,24 @@ try {
     if ($NoLaunch) { Write-Host "CMRE Alenger composition staged: $liveMap"; exit 0 }
     $switcher = Join-Path $Sc2Root "Support64\SC2Switcher_x64.exe"
     if ($ListenPort -gt 0) {
-        # API 模式 + 地图同时加载：用 SC2Switcher -listen <host> -port <port> "<map>" 启动。
-        # 关键（Sc2ProcessLauncher 文档，Base97425 实机验证 2026-07-25）：
+        # API 模式 + 地图同时加载：用 SC2Switcher -listen <host> -port <port> -e "<map>" 启动。
+        # 关键（Base97425 实机验证 2026-07-25）：
         #   - SC2 静默忽略 -listenPort，必须用 -listen/-port 格式
         #   - SC2_x64.exe 直接启动会崩溃（Battle.net auth broker missing），必须通过 Switcher
         #   - 工作目录必须是 SC2 安装根目录，否则 SC2 回退到 6119
-        #   - 同时传地图位置参数，SC2 加载地图进 in_game 并开 API 端口
-        #   - 客户端用 --skip-create 跳过 RequestCreateGame，直接 Observe/Action
-        #   - 之前的注释说"-listen 与地图路径互斥会崩溃"是误判，实测可同时工作
+        #   - SC2Switcher 必须带 -e <map> 才会转发 -listen/-port 给 SC2_x64（无 -e 时 SC2 只监听 6119）
+        #   - -e 模式下 SC2 加载地图 + 开 API 端口，galaxy 触发器执行（含 CMUIX_ReadyBeginCountdown）
         #   - 不用 Wait-GameReady：它检测 Switcher 进程，而 Switcher 启动 SC2_x64 后
         #     会退出，被误判为"Game process exited (crash)"。改用端口轮询。
-        $argList = @("-listen","127.0.0.1","-port","$ListenPort","`"$liveMap`"")
-        Write-Host "SC2 API mode: launching SC2Switcher with -listen 127.0.0.1 -port $ListenPort `"$liveMap`""
+        #   - 不 SkipCountdown：让 CMUIX_ReadyBeginCountdown() 执行以触发游戏开始（进入 in_game）。
+        #     客户端用 --skip-create 直接连接（不调 CreateGame/JoinGame，避免与已加载的游戏冲突）。
+        $argList = @("-listen","127.0.0.1","-port","$ListenPort","-e","`"$liveMap`"")
+        Write-Host "SC2 API mode: launching SC2Switcher with -listen 127.0.0.1 -port $ListenPort -e `"$liveMap`""
         Write-Host "SC2 API will listen on 127.0.0.1:$ListenPort"
         Write-Host "Working directory: $Sc2Root"
         Write-Host "Live map: $liveMap (SC2 loads it on startup, client uses --skip-create)"
         Start-Process -FilePath $switcher -ArgumentList $argList -WorkingDirectory $Sc2Root
         # API 模式下轮询 TCP 端口，直到 SC2 API 监听就绪（最多等 120s）。
-        # 不依赖 Alerts.txt（API 模式下地图加载信号不可靠），直接确认端口监听。
         Write-Host "SC2 API mode: polling TCP 127.0.0.1:$ListenPort until listening (max 120s)..."
         $deadline = (Get-Date).AddSeconds(120)
         $listening = $false
@@ -799,7 +844,7 @@ try {
             }
         }
         Write-Host "SC2 API mode: API listening on 127.0.0.1:$ListenPort (SC2_x64 PID=$($proc.Id))"
-        # 给地图加载额外宽限时间：端口监听后地图可能仍在加载。
+        # 给地图加载额外宽限时间：端口监听后 galaxy 触发器仍在执行（CMUIX_ReadyBeginCountdown 倒计时）。
         # 轮询 GameLogs 是否出现 ScriptError 或地图加载完成信号（Alerts.txt）。
         $gameLogsDir = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "StarCraft II\GameLogs"
         $latestDir = Get-ChildItem -LiteralPath $gameLogsDir -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1
