@@ -84,6 +84,37 @@ def load_maps():
     return maps
 
 
+def load_extra_mods(bank_commander=""):
+    """扫描 packages/Mods/7vs1/ 目录，返回 [{id, name}]。
+
+    若提供 bank_commander（如 "Alenger6"），从 alenger-mods.json 的
+    commanderToAlenger[bank_commander] 查出该指挥官会自动加载的 mod 包，
+    从结果中排除它们。id = name = 目录名去掉 .SC2Mod 后缀。按 name 排序。
+    """
+    if not MODS_7VS1_PACKAGES_DIR.exists():
+        print(f"[warn] 7vs1 mod 包目录不存在: {MODS_7VS1_PACKAGES_DIR}")
+        return []
+
+    excluded = set()
+    if bank_commander:
+        try:
+            if ALENGER_MODS_JSON.exists():
+                data = json.loads(ALENGER_MODS_JSON.read_text(encoding="utf-8"))
+                mapping = data.get("commanderToAlenger", {})
+                excluded = set(mapping.get(bank_commander, []))
+        except Exception as exc:
+            print(f"[warn] 读取 alenger-mods.json 失败（extra-mods 过滤跳过）: {exc}")
+
+    mods = []
+    for entry in sorted(MODS_7VS1_PACKAGES_DIR.iterdir()):
+        if entry.is_dir() and entry.name.endswith(".SC2Mod"):
+            mod_id = entry.name[:-len(".SC2Mod")]
+            if mod_id in excluded:
+                continue
+            mods.append({"id": mod_id, "name": mod_id})
+    return mods
+
+
 def load_commanders():
     """从 commander-power-metadata.json 读取指挥官列表，返回 [{id, label, bank}]。
 
@@ -156,6 +187,13 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/maps":
             self._send_json({"maps": load_maps()})
             return
+        if self.path.startswith("/api/extra-mods"):
+            from urllib.parse import urlparse, parse_qs
+            parsed = urlparse(self.path)
+            qs = parse_qs(parsed.query)
+            bank = qs.get("commander", [""])[0]
+            self._send_json({"extraMods": load_extra_mods(bank)})
+            return
         if self.path == "/" or self.path == "":
             self.path = "/index.html"
         return super().do_GET()
@@ -182,6 +220,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         difficulty_plus = int(body.get("difficultyPlus", 0))
         enemy = body.get("enemy", "")
         mutators = body.get("mutators", []) or []
+        extra_mods = body.get("extraMods", []) or []
 
         # 因子数量上限保护：CMUIX_LAUNCH_PROFILE_MUTATOR_MAX = 20
         capped = False
@@ -235,6 +274,10 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             args.extend(["-Enemy", enemy])
         if mutator_str:
             args.extend(["-Mutators", mutator_str])
+        if extra_mods:
+            extra_str = ",".join(m for m in extra_mods if m)
+            if extra_str:
+                args.extend(["-ExtraMods", extra_str])
 
         # 测试/CI 用：设置 CMRE_WEBUI_DRY_RUN 时追加 -NoLaunch，
         # 只暂存地图 + 写银行、不启动 SC2。正常启动不受影响。

@@ -60,8 +60,18 @@ $selectedMods = @($alenger.commanderToAlenger.$alengerId)
 $dependencies = @($cmre.baseDependencyPaths) + @($cmre.commanderBaseDependencyPaths) + @($selectedMods | ForEach-Object { "file:Mods/7vs1/$_.SC2Mod" })
 if ($ExtraMods -ne "") {
     $extraList = $ExtraMods.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
-    foreach ($mod in $extraList) { $dependencies += "file:Mods/7vs1/$mod.SC2Mod" }
-    Write-Host "Extra mods: $($extraList -join ', ')"
+    # 去重：跳过已在 selectedMods（指挥官自动加载）中的 mod，避免 Document dependency 重复
+    $selectedSet = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($m in $selectedMods) { [void]$selectedSet.Add($m) }
+    $dedupedExtra = @($extraList | Where-Object { -not $selectedSet.Contains($_) })
+    if ($dedupedExtra.Count -lt $extraList.Count) {
+        $skipped = @($extraList | Where-Object { $selectedSet.Contains($_) })
+        Write-Host "Extra mods (skipped duplicates already in commander loadout): $($skipped -join ', ')"
+    }
+    foreach ($mod in $dedupedExtra) { $dependencies += "file:Mods/7vs1/$mod.SC2Mod" }
+    if ($dedupedExtra.Count -gt 0) {
+        Write-Host "Extra mods: $($dedupedExtra -join ', ')"
+    }
 }
 Write-Host "CMRE Alenger selection: $MapName x $Commander"
 Write-Host "On-demand packages: $($selectedMods -join ', ')"
