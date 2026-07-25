@@ -1,0 +1,1545 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CAbilMorph id="13bianxingweijinghuazhehexin2">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13bianxingweijinghuazhehexin"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Produce" value="1"/>
+        <Flags index="Rally" value="1"/>
+        <Flags index="RallyReset" value="1"/>
+        <Cost>
+            <Cooldown Link="13 变形为净化者核心 净化者核心" TimeStart="45" TimeUse="45"/>
+        </Cost>
+        <InfoArray Unit="13jinghuazhehexin">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="0.1"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Duration" value="0.1"/>
+                <EffectArray index="Finish" value="FullHeal"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilMorph id="13bianxingweiyingxionghexin">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13bianxingweiyingxionghexin">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="IgnorePlacement" value="0"/>
+        <Flags index="Produce" value="1"/>
+        <Cost>
+            <Cooldown Link="13 变形为英雄核心 英雄核心" TimeStart="45" TimeUse="45"/>
+        </Cost>
+        <InfoArray Unit="13yingxionghexin">
+            <SectionArray index="Stats">
+                <EffectArray index="Finish" value="FullHeal"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilEffectTarget id="13chaoxinxing">
+        <OrderArray index="0" Model="Assets\UI\Cursors\WayPointConfirm_Void\WayPointConfirm_Void.m3"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <PrepEffect value="13chaoxinxingPersistent"/>
+        <Effect index="0" value="13chaoxinxingDamage"/>
+        <Cost>
+            <Cooldown Link="13 超新星 科罗拉里昂" TimeStart="120" TimeUse="240"/>
+        </Cost>
+        <Range value="15"/>
+        <Arc value="360"/>
+        <PrepTime value="3"/>
+        <ShowProgressArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Cast" value="1"/>
+        <UninterruptibleArray index="Channel" value="1"/>
+        <UninterruptibleArray index="Finish" value="1"/>
+        <CursorEffect value="13chaoxinxingSearch"/>
+        <ProgressButtonArray index="Prep" value="13chaoxinxing"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13chaoxinxing" Requirements="13danweishikeluolaliang"/>
+    </CAbilEffectTarget>
+    <CAbilBehavior id="13liangzijuzhenguangbo">
+        <OrderArray index="0">
+            <DisplayType value="Confirm"/>
+            <Color value="255,0,255,0"/>
+            <Model value="Assets\UI\Cursors\WayPointAttack_Void\WayPointAttack_Void.m3"/>
+            <LineTexture value="Assets\Textures\WayPointLine.dds"/>
+        </OrderArray>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="On" DefaultButtonFace="13liangzijuzhenguangbo"/>
+        <CmdButtonArray index="Off" DefaultButtonFace="13guanbiliangzijuzhenguangbo"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Toggle" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <BehaviorArray value="13liangzijuzhenguangboCaster"/>
+        <Cost>
+            <Cooldown Link="13 量子矩阵广播 天网矩阵" TimeUse="15"/>
+        </Cost>
+    </CAbilBehavior>
+    <CAbilArmMagazine id="13zhongxingqiangjijijiku">
+        <AbilSetId value="CarrierAiurHanger"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="Retarget" value="1"/>
+        <Leash value="18"/>
+        <InfoArray index="Ammo1" Time="15" CountStart="4" Manage="Recall" Unit="13qiangjiji">
+            <Charge Link="Abil/##id##" Location="Unit"/>
+            <Cooldown Link="Abil/##id##"/>
+            <Button DefaultButtonFace="13zhizaoqiangjiji">
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+            <Flags index="AutoBuild" value="1"/>
+            <Flags index="AutoBuildOn" value="1"/>
+        </InfoArray>
+        <Alert value="TrainComplete"/>
+        <EffectArray index="Create" value="13AIzengqiangApply"/>
+        <MaxCount value="6"/>
+        <Launch value="ReleaseAtSource"/>
+    </CAbilArmMagazine>
+    <CAbilArmMagazine id="13huweijianjiku">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Launch value="ReleaseAtSource"/>
+        <Flags index="AutoCreate" value="1"/>
+        <Flags index="Retarget" value="1"/>
+        <Leash value="6"/>
+        <InfoArray index="Ammo1" Time="30" CountStart="2" Distance="1" Manage="Recall" Unit="13huweijian">
+            <Charge HideCount="1" Link="Abil/##id##" Location="Unit"/>
+            <Cooldown Link="Abil/##id##"/>
+            <Button DefaultButtonFace="13hujiaohuweijian">
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+            <Flags index="AutoBuild" value="1"/>
+            <Flags index="AutoBuildOn" value="1"/>
+            <Flags index="External" value="1"/>
+            <Flags index="LeashRetarget" value="1"/>
+        </InfoArray>
+        <EffectArray index="Create" value="13AIzengqiangApply"/>
+        <ExternalAngle value="0"/>
+        <ExternalAngle value="29.9926"/>
+        <ExternalAngle value="59.9963"/>
+        <ExternalAngle value="90"/>
+        <ExternalAngle value="119.9926"/>
+        <ExternalAngle value="149.9963"/>
+        <ExternalAngle value="180"/>
+        <ExternalAngle value="209.9926"/>
+        <ExternalAngle value="239.9963"/>
+        <ExternalAngle value="270"/>
+        <ExternalAngle value="299.9926"/>
+        <ExternalAngle value="329.9963"/>
+        <MaxCount value="2"/>
+    </CAbilArmMagazine>
+    <CAbilEffectTarget id="13guidaohongzha">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13guidaohongzhaPersistent"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13guidaohongzha" Requirements="13danweishizhanzhengshizhe"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 轨道轰炸 战争使者"/>
+                <TimeStart value="45"/>
+                <TimeUse value="45"/>
+            </Charge>
+        </Cost>
+        <CursorEffect value="13guidaohongzhaSearch"/>
+    </CAbilEffectTarget>
+    <CAbilEffectInstant id="13hudunshuaxin">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13hudunshuaxinPersistent"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Cooldown Link="13 护盾刷新 不朽者" TimeUse="15"/>
+        </Cost>
+        <AutoCastFilters value="Visible;Neutral,Enemy"/>
+        <AutoCastValidatorArray value="OutOfShields"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13hudunshuaxin"/>
+    </CAbilEffectInstant>
+    <CAbilEffectInstant id="13hudunshuaxin5">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13hudunshuaxinPersistent"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Cooldown Link="13 护盾刷新 不朽者" TimeUse="4.5"/>
+        </Cost>
+        <AutoCastAcquireLevel value="Defensive"/>
+        <AutoCastFilters value="Visible;Neutral,Enemy"/>
+        <AutoCastValidatorArray value="OutOfShields"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13hudunshuaxin"/>
+    </CAbilEffectInstant>
+    <CAbilEffectTarget id="13jinghuadajidanmu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13jinghuadajidanmuPersistent"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Cost>
+            <Cooldown Link="13 净化打击弹幕 扫荡者" TimeUse="7.5"/>
+        </Cost>
+        <Range value="9"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Missile,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="9"/>
+        <AutoCastValidatorArray value="TargetLifeGE20"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13jinghuadajidanmu"/>
+        <CursorEffect value="13jinghuadajidanmuSearch"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="13jinghuadajidanmu5">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13jinghuadajidanmuPersistent"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Cost>
+            <Cooldown Link="13 净化打击弹幕 扫荡者战甲" TimeUse="2.25"/>
+        </Cost>
+        <Range value="15"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Missile,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="15"/>
+        <AutoCastValidatorArray value="TargetLifeGE20"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13jinghuadajidanmu"/>
+        <CursorEffect value="13jinghuadajidanmuSearch"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="13jinghuaxinbiao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13jinghuaxinbiaoCreate"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 净化信标 干扰者"/>
+                <TimeStart value="15"/>
+                <TimeUse value="15"/>
+            </Charge>
+            <Cooldown Link="13 净化信标 干扰者" TimeUse="1.5"/>
+        </Cost>
+        <Range value="10"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="10"/>
+        <AutoCastValidatorArray value="13mubiaomeiyoujinghuaxinbiaoMarker"/>
+        <AutoCastValidatorArray value="13mubiaoshengmingzhidayuhuodengyu100"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13jinghuaxinbiao"/>
+        <CursorEffect value="13jinghuaxinxingSearch"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="13jinghuaxinbiao5">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13jinghuaxinbiaoCreate"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 净化信标 干扰者"/>
+                <TimeStart value="6"/>
+                <TimeUse value="6"/>
+            </Charge>
+            <Cooldown Link="13 净化信标 干扰者" TimeUse="0.75"/>
+        </Cost>
+        <Range value="10"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="10"/>
+        <AutoCastValidatorArray value="13mubiaomeiyoujinghuaxinbiaoMarker"/>
+        <AutoCastValidatorArray value="13mubiaoshengmingzhidayuhuodengyu100"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13jinghuaxinbiao"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="13jinghuafengbao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13jinghuafengbaoPersistent"/>
+        <Cost>
+            <Charge>
+                <CountMax value="2"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 量子风暴 卡拉斯"/>
+                <TimeStart value="45"/>
+                <TimeUse value="45"/>
+            </Charge>
+        </Cost>
+        <Range value="12"/>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13jinghuafengbao" Requirements="13danweishikalasi"/>
+        <CursorEffect value="13jinghuafengbaoSearch"/>
+    </CAbilEffectTarget>
+    <CAbilArmMagazine id="13daxinglanjiejijiku">
+        <AbilSetId value="CarrierAiurHanger"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="Retarget" value="1"/>
+        <Flags index="ShowStatus" value="0"/>
+        <Leash value="18"/>
+        <InfoArray index="Ammo1" Time="6" Count="2" CountStart="12" Manage="Recall" Unit="13lanjieji">
+            <Charge Link="Abil/##id##" Location="Unit"/>
+            <Cooldown Link="Abil/##id##"/>
+            <Button DefaultButtonFace="13lanjiejijiku">
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+            <Flags index="AutoBuild" value="1"/>
+            <Flags index="AutoBuildOn" value="1"/>
+        </InfoArray>
+        <Alert value="TrainComplete"/>
+        <EffectArray index="Create" value="13AIzengqiangApply"/>
+        <MaxCount value="24"/>
+        <Launch value="ReleaseAtSource"/>
+    </CAbilArmMagazine>
+    <CAbilArmMagazine id="13qiangjijijiku">
+        <AbilSetId value="CarrierAiurHanger"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="Retarget" value="1"/>
+        <Flags index="ShowStatus" value="0"/>
+        <Leash value="10"/>
+        <InfoArray index="Ammo1" Time="15" CountStart="1" Manage="Recall" Unit="13qiangjiji">
+            <Charge Link="Abil/##id##" Location="Unit"/>
+            <Cooldown Link="Abil/##id##"/>
+            <Button DefaultButtonFace="13zhizaoqiangjiji">
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+            <Flags index="AutoBuild" value="1"/>
+            <Flags index="AutoBuildOn" value="1"/>
+        </InfoArray>
+        <Alert value="TrainComplete"/>
+        <MaxCount value="1"/>
+        <EffectArray index="Create" value="13AIzengqiangApply"/>
+        <Launch value="ReleaseAtSource"/>
+    </CAbilArmMagazine>
+    <CAbilBehavior id="13lingnengyizhilichang">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="On" DefaultButtonFace="13lingnengyizhilichang"/>
+        <CmdButtonArray index="Off" DefaultButtonFace="13guanbilingnengyizhilichang"/>
+        <Flags index="Toggle" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Resource index="Vespene" value="5"/>
+            <Cooldown Link="13 灵能抑制力场 超越者" TimeUse="15"/>
+        </Cost>
+        <BehaviorArray value="13lingnengyizhilichangCaster"/>
+    </CAbilBehavior>
+    <CAbilArmMagazine id="13daxingqiangjijijiku">
+        <AbilSetId value="CarrierAiurHanger"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="Retarget" value="1"/>
+        <Flags index="ShowStatus" value="0"/>
+        <Leash value="10"/>
+        <InfoArray index="Ammo1" Time="15" CountStart="4" Manage="Recall" Unit="13qiangjiji">
+            <Charge Link="Abil/##id##" Location="Unit"/>
+            <Cooldown Link="Abil/##id##"/>
+            <Button DefaultButtonFace="13zhizaoqiangjiji">
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+            <Flags index="AutoBuild" value="1"/>
+            <Flags index="AutoBuildOn" value="1"/>
+        </InfoArray>
+        <Alert value="TrainComplete"/>
+        <EffectArray index="Create" value="13AIzengqiangApply"/>
+        <MaxCount value="4"/>
+        <Launch value="ReleaseAtSource"/>
+    </CAbilArmMagazine>
+    <CAbilEffectTarget id="13quanxiangfuzhi">
+        <OrderArray index="0" Model="Assets\UI\Cursors\WayPointConfirm_Void\WayPointConfirm_Void.m3"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13quanxiangfuzhiSearch"/>
+        <Range value="12"/>
+        <CursorEffect value="13quanxiangfuzhiSearch"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13quanxiangfuzhi" Requirements="13danweishitilate"/>
+        <Cost>
+            <Cooldown Link="13 全像复制 提拉特" TimeStart="120" TimeUse="240"/>
+        </Cost>
+        <Arc value="360"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="13guwushanxian">
+        <AbilSetId value="Blnk"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13guwushanxianBlink"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="0"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 鼓舞闪现 鼓舞者"/>
+                <TimeStart value="3"/>
+                <TimeUse value="3"/>
+            </Charge>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Enemy"/>
+        <AINotifyEffect value="13shanxianBlink"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13guwushanxian">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+    </CAbilEffectTarget>
+    <CAbilAugment id="13tiaoji5">
+        <OrderArray index="0">
+            <DisplayType value="Confirm"/>
+            <Color value="255,0,255,0"/>
+            <Model value="Assets\UI\Cursors\WayPointAttack_Void\WayPointAttack_Void.m3"/>
+            <LineTexture value="Assets\Textures\WayPointLine.dds"/>
+        </OrderArray>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13tiaoji"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Smart" value="1"/>
+        <AbilCmd value="attack,Execute"/>
+        <Effect value="13tiaojiMissile"/>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastValidatorArray value="CasterNotHoldingPosition"/>
+        <SmartValidatorArray value="TargetIsEnemy"/>
+        <Cost>
+            <Cooldown Link="13 跳击 终结者战甲"/>
+        </Cost>
+    </CAbilAugment>
+    <CAbilEffectTarget id="13touying">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13touyingCreate"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="0"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Cooldown Link="13 投影 传信者" TimeUse="12"/>
+        </Cost>
+        <Range value="500"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="8"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13touying"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="13touying5">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13zhanjiatouyingCreate"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="0"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Cooldown Link="13 投影 传信者" TimeUse="3"/>
+        </Cost>
+        <Range value="500"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="10"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13touying"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="13wajie">
+        <OrderArray index="0" Model="Assets\UI\Cursors\WayPointConfirm_Void\WayPointConfirm_Void.m3"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13wajiePersistent"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <TargetFilters value="Structure,Visible;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="7"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral"/>
+        <AutoCastRange value="9"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <Marker Link="13 瓦解 净化者核心"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13wajie"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="13xiangweitousheqi">
+        <OrderArray index="0" Model="Assets\UI\Cursors\WayPointConfirm_Void\WayPointConfirm_Void.m3"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13xiangweitousheqiApply"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 相位投射器 逐光者"/>
+                <Location value="Unit"/>
+                <TimeStart value="6"/>
+                <TimeUse value="6"/>
+            </Charge>
+        </Cost>
+        <TargetFilters value="Visible;Structure,Missile,Dead,Hidden,Invulnerable"/>
+        <Range value="7"/>
+        <AutoCastFilters value="Visible;Neutral,Enemy,Biological,Structure,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="7"/>
+        <AutoCastValidatorArray value="TargetInCombat"/>
+        <AutoCastValidatorArray value="13mubiaobushizhuguangzhe"/>
+        <AINotifyEffect value="13xiangweitousheqiApply"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13xiangweitousheqi"/>
+        <Arc value="360"/>
+    </CAbilEffectTarget>
+    <CAbilResearch id="13yanfa3">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray index="Research1" Time="90" Upgrade="13ganraomaichong">
+            <Resource index="Minerals" value="150"/>
+            <Resource index="Vespene" value="50"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 干扰脉冲 机械研究所"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="13ganraomaichong"/>
+        </InfoArray>
+        <InfoArray index="Research2" Time="90" Upgrade="13gongmingmaichong">
+            <Resource index="Minerals" value="225"/>
+            <Resource index="Vespene" value="75"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 共鸣脉冲 机械研究所"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="13gongmingmaichong"/>
+        </InfoArray>
+        <InfoArray index="Research3" Time="90" Upgrade="13bushuzheyue">
+            <Resource index="Minerals" value="150"/>
+            <Resource index="Vespene" value="50"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 部署折跃 机械研究所"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="13bushuzheyue"/>
+        </InfoArray>
+        <InfoArray index="Research4" Time="60" Upgrade="13niuqulichang">
+            <Resource index="Minerals" value="150"/>
+            <Resource index="Vespene" value="50"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 扭曲力场 扫荡者"/>
+                <Location value="Unit"/>
+            </Charge>
+            <Button DefaultButtonFace="13niuqulichang"/>
+        </InfoArray>
+    </CAbilResearch>
+    <CAbilEffectInstant id="13jueduifangyulingyu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13jueduifangyulingyuCasterApply"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Cooldown Link="13 绝对防御力场 卡拉斯" TimeStart="120" TimeUse="240"/>
+        </Cost>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13jueduifangyulingyu" Requirements="13danweishikalasi"/>
+    </CAbilEffectInstant>
+    <CAbilResearch id="13yanfa4">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray index="Research1" Time="45" Upgrade="13chuanganzhenlie">
+            <Resource index="Minerals" value="75"/>
+            <Resource index="Vespene" value="25"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 传感阵列 舰队航标"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="13chuanganzhenlie"/>
+        </InfoArray>
+        <InfoArray index="Research2" Time="60" Upgrade="13zhimangguangshu">
+            <Resource index="Minerals" value="150"/>
+            <Resource index="Vespene" value="50"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 致盲光束 舰队航标"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="13zhimangguangshu"/>
+        </InfoArray>
+        <InfoArray index="Research3" Time="60" Upgrade="13xiaoxingxiangweihujia">
+            <Resource index="Minerals" value="150"/>
+            <Resource index="Vespene" value="50"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 小型相位护甲 舰队航标"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="13xiaoxingxiangweihujia"/>
+        </InfoArray>
+        <InfoArray index="Research4" Time="90" Upgrade="13wuqichaozai">
+            <Resource index="Minerals" value="225"/>
+            <Resource index="Vespene" value="75"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 武器超载 舰队航标"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="13wuqichaozai"/>
+        </InfoArray>
+    </CAbilResearch>
+    <CAbilEffectTarget id="13yazhichengxu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13yazhichengxuSet"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Cost>
+            <Cooldown Link="13 压制程序 探索者" TimeUse="4.5"/>
+        </Cost>
+        <TargetFilters value="Air,Visible;Structure,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="8"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Heroic,HeroUnit"/>
+        <AutoCastRange value="8"/>
+        <AutoCastValidatorArray value="TargetLifeGE20"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <AutoCastValidatorArray value="13mubiaomeiyouyazhi"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13yazhichengxu"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="13yazhichengxu5">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13yazhichengxuSet"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Cost>
+            <Cooldown Link="13 压制程序 探索者战甲" TimeUse="0.75"/>
+        </Cost>
+        <TargetFilters value="Air,Visible;Structure,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="8"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Heroic,HeroUnit"/>
+        <AutoCastRange value="8"/>
+        <AutoCastValidatorArray value="TargetLifeGE20"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <AutoCastValidatorArray value="13mubiaomeiyouyazhi"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13yazhichengxu"/>
+    </CAbilEffectTarget>
+    <CAbilTrain id="13zheyue5">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Activity value="UI/Warping"/>
+        <InfoArray index="Train1" Effect="13kaerdalisiApply">
+            <Resource index="Vespene" value="400"/>
+            <Charge>
+                <CountMax value="2"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 折跃5 英灵殿"/>
+                <Location value="Player"/>
+                <TimeStart value="240"/>
+                <TimeUse value="240"/>
+            </Charge>
+            <Button DefaultButtonFace="13zheyuekaerdalisihexin" Requirements="13meiyoukaerdalisi"/>
+            <Unit value="13yingxionghexin"/>
+        </InfoArray>
+        <InfoArray index="Train2" Effect="13taerdalinApply">
+            <Resource index="Vespene" value="800"/>
+            <Charge>
+                <CountMax value="2"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 折跃5 英灵殿"/>
+                <Location value="Player"/>
+                <TimeStart value="240"/>
+                <TimeUse value="240"/>
+            </Charge>
+            <Cooldown Location="Unit"/>
+            <Button DefaultButtonFace="13zheyuetaerdalinhexin" Requirements="13meiyoutaerdalin"/>
+            <Unit value="13yingxionghexin"/>
+        </InfoArray>
+        <InfoArray index="Train3" Effect="13kalasiApply">
+            <Resource index="Vespene" value="800"/>
+            <Charge>
+                <CountMax value="2"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 折跃5 英灵殿"/>
+                <Location value="Player"/>
+                <TimeStart value="240"/>
+                <TimeUse value="240"/>
+            </Charge>
+            <Cooldown Location="Unit"/>
+            <Button DefaultButtonFace="13zheyuekalasihexin" Requirements="13meiyoukalasi"/>
+            <Unit value="13yingxionghexin"/>
+        </InfoArray>
+        <InfoArray index="Train4" Effect="13tilateApply">
+            <Resource index="Vespene" value="800"/>
+            <Charge>
+                <CountMax value="2"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 折跃5 英灵殿"/>
+                <Location value="Player"/>
+                <TimeStart value="240"/>
+                <TimeUse value="240"/>
+            </Charge>
+            <Button DefaultButtonFace="13zheyuetilatehexin1" Requirements="13meiyoutilate"/>
+            <Unit value="13yingxionghexin"/>
+        </InfoArray>
+        <InfoArray index="Train5" Effect="13moyueApply">
+            <Resource index="Vespene" value="800"/>
+            <Charge>
+                <CountMax value="2"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 折跃5 英灵殿"/>
+                <Location value="Player"/>
+                <TimeStart value="240"/>
+                <TimeUse value="240"/>
+            </Charge>
+            <Button DefaultButtonFace="13zheyuemoyuehexin" Requirements="13meiyoumoyue"/>
+            <Unit value="13yingxionghexin"/>
+        </InfoArray>
+        <InfoArray index="Train6" Effect="13zhanzhengshizheApply">
+            <Resource index="Vespene" value="800"/>
+            <Charge>
+                <CountMax value="2"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 折跃5 英灵殿"/>
+                <Location value="Player"/>
+                <TimeStart value="240"/>
+                <TimeUse value="240"/>
+            </Charge>
+            <Button DefaultButtonFace="13zheyuezhanzhengshizhehexin" Requirements="13meiyouzhanzhengshizhe"/>
+            <Unit value="13yingxionghexin"/>
+        </InfoArray>
+        <InfoArray index="Train7" Effect="13keluolaliangApply">
+            <Resource index="Vespene" value="800"/>
+            <Charge>
+                <CountMax value="2"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 折跃5 英灵殿"/>
+                <Location value="Player"/>
+                <TimeStart value="240"/>
+                <TimeUse value="240"/>
+            </Charge>
+            <Button DefaultButtonFace="13zheyuekeluolalianghexin" Requirements="13meiyoukeluolaliang"/>
+            <Unit value="13yingxionghexin"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilTrain id="13zheyuebianxing5">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <Activity value="UI/Morphing"/>
+        <Flags index="DisableCollision" value="1"/>
+        <Flags index="KillOnFinish" value="1"/>
+        <Flags index="Select" value="1"/>
+        <Flags index="WaitForFood" value="0"/>
+        <Range value="4"/>
+        <InfoArray index="Train1" Effect="13rengezhuanyiPersistent5">
+            <Button DefaultButtonFace="13jihuozhongjiezhezhanjia"/>
+            <Unit value="13zhongjiezhezhanjia"/>
+        </InfoArray>
+        <InfoArray index="Train2" Effect="13rengezhuanyiPersistent5">
+            <Button DefaultButtonFace="13jihuochuanxinzhezhanjia"/>
+            <Unit value="13chuanxinzhezhanjia"/>
+        </InfoArray>
+        <InfoArray index="Train3" Effect="13rengezhuanyiPersistent5">
+            <Button DefaultButtonFace="13jihuopuluobisizhanjia"/>
+            <Unit value="13puluobisizhanjia"/>
+        </InfoArray>
+        <InfoArray index="Train4" Effect="13rengezhuanyiPersistent5">
+            <Cooldown Location="Unit"/>
+            <Button DefaultButtonFace="13jihuobuxiuzhezhanjia"/>
+            <Unit value="13buxiuzhezhanjia"/>
+        </InfoArray>
+        <InfoArray index="Train6" Effect="13rengezhuanyiPersistent5">
+            <Cooldown Location="Unit"/>
+            <Button DefaultButtonFace="13jihuozhizhengzhezhanjia"/>
+            <Unit value="13zhizhengzhezhanjia"/>
+        </InfoArray>
+        <InfoArray index="Train8" Effect="13rengezhuanyiPersistent5">
+            <Cooldown Location="Unit"/>
+            <Button DefaultButtonFace="13jihuosaodangzhezhanjia"/>
+            <Unit value="13saodangzhezhanjia"/>
+        </InfoArray>
+        <InfoArray index="Train10" Effect="13rengezhuanyiPersistent5">
+            <Button DefaultButtonFace="13jihuotansuozhezhanjia"/>
+            <Unit value="13tansuozhezhanjia"/>
+        </InfoArray>
+        <InfoArray index="Train13" Effect="13rengezhuanyiPersistent5">
+            <Cooldown Location="Unit"/>
+            <Button DefaultButtonFace="13jihuochengjiezhezhanjia"/>
+            <Unit value="13chengjiezhezhanjia"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilBuild id="13zheyuejianzao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <FlagArray index="PeonDisableCollision" value="1"/>
+        <FlagArray index="PeonMaintained" value="0"/>
+        <InfoArray index="Build1" Unit="13jinghuazheshuniu" Time="80">
+            <Button DefaultButtonFace="13zheyuejinghuazheshuniu"/>
+        </InfoArray>
+        <InfoArray index="Build2" Unit="13fuwuqi" Time="20">
+            <Button DefaultButtonFace="13zheyuefuwuqi"/>
+        </InfoArray>
+        <InfoArray index="Build3" Unit="13zhinengxinacang" Time="30">
+            <Button DefaultButtonFace="13zheyuezhinengxinacang"/>
+        </InfoArray>
+        <InfoArray index="Build4" Unit="13chuansongmen" Time="40">
+            <Button DefaultButtonFace="13zheyuechuansongmen"/>
+        </InfoArray>
+        <InfoArray index="Build5" Unit="13duanlu" Time="30">
+            <Button DefaultButtonFace="13zheyueduanlu"/>
+        </InfoArray>
+        <InfoArray index="Build6" Unit="13jianduihangbiao" Time="60">
+            <Button DefaultButtonFace="13zheyuejianduihangbiao"/>
+        </InfoArray>
+        <InfoArray index="Build9" Time="25"/>
+        <InfoArray index="Build10" Unit="13xingmen" Time="60">
+            <Button DefaultButtonFace="13zheyuexingmen"/>
+        </InfoArray>
+        <InfoArray index="Build12" Unit="13yinglingdian" Time="60">
+            <Button DefaultButtonFace="13zheyueyinglingdian" Requirements="13zhinnegyouyizuoyinglingdian"/>
+        </InfoArray>
+        <InfoArray index="Build13" Unit="13jixieyanjiusuo" Time="45">
+            <Button DefaultButtonFace="13zheyuejixieyanjiusuo"/>
+        </InfoArray>
+        <InfoArray index="Build14" Unit="13jixietai" Time="45">
+            <Button DefaultButtonFace="3zheyuejixietai"/>
+        </InfoArray>
+        <InfoArray index="Build15" Unit="13kongzhixinhe" Time="40">
+            <Button DefaultButtonFace="13zheyuekongzhixinhe"/>
+        </InfoArray>
+        <ConstructionMover value="Construction"/>
+        <Range value="2"/>
+    </CAbilBuild>
+    <CAbilTrain id="13zheyue1">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Activity value="UI/Warping"/>
+        <InfoArray index="Train1" Time="15">
+            <Button DefaultButtonFace="13zheyuetanji"/>
+            <Unit value="13tanji"/>
+        </InfoArray>
+        <Alert value="TrainWorkerComplete"/>
+    </CAbilTrain>
+    <CAbilEffectTarget id="13chonggouguangshuBeam">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13chonggouguangshuHeal"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="ReExecutable" value="1"/>
+        <Flags index="Smart" value="1"/>
+        <TargetFilters value="Mechanical,Visible;Neutral,Enemy,Missile,UnderConstruction,Dead,Hidden"/>
+        <TargetSorts RequestCount="1">
+            <SortArray value="TSAlliancePassive"/>
+            <SortArray value="TSDistance"/>
+            <SortArray value="TSLifeFraction"/>
+        </TargetSorts>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Visible;Neutral,Enemy"/>
+        <AutoCastRange value="500"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13chonggouguangshu"/>
+        <AutoCastAcquireLevel value="Defensive"/>
+        <AutoCastValidatorArray value="IsNotWarpingIn"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <Marker Link="13 重构光束 净化者枢纽"/>
+        <UseMarkerArray index="Approach" value="0"/>
+        <UseMarkerArray index="Prep" value="0"/>
+    </CAbilEffectTarget>
+    <CAbilTrain id="13zheyuebianxing">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <Activity value="UI/Morphing"/>
+        <Flags index="DisableCollision" value="1"/>
+        <Flags index="KillOnFinish" value="1"/>
+        <Flags index="Select" value="1"/>
+        <Flags index="WaitForFood" value="0"/>
+        <Range value="4"/>
+        <InfoArray index="Train1" Effect="13rengezhuanyiPersistent1">
+            <Resource index="Vespene" value="-15"/>
+            <Button DefaultButtonFace="13bianxingweizhongjiezhe"/>
+            <Unit value="13zhongjiezhe"/>
+        </InfoArray>
+        <InfoArray index="Train2" Effect="13rengezhuanyiPersistent1">
+            <Resource index="Vespene" value="-15"/>
+            <Button DefaultButtonFace="13bianxingweichuanxinzhe"/>
+            <Unit value="13chuanxinzhe"/>
+        </InfoArray>
+        <InfoArray index="Train3" Effect="13rengezhuanyiPersistent1">
+            <Resource index="Vespene" value="-15"/>
+            <Button DefaultButtonFace="13bianxingweibaohuzhe" Requirements="13kongzhixinhe"/>
+            <Unit value="13baohuzhe"/>
+        </InfoArray>
+        <InfoArray index="Train5" Effect="13rengezhuanyiPersistent1">
+            <Resource index="Vespene" value="-15"/>
+            <Button DefaultButtonFace="13bianxingweibuxiuzhe" Requirements="13jixietai"/>
+            <Unit value="13buxiuzhe"/>
+        </InfoArray>
+        <InfoArray index="Train6" Effect="13rengezhuanyiPersistent1">
+            <Resource index="Vespene" value="-15"/>
+            <Button DefaultButtonFace="13bianxingweiganraozhe" Requirements="13jixietai"/>
+            <Unit value="13ganraozhe"/>
+        </InfoArray>
+        <InfoArray index="Train7" Effect="13rengezhuanyiPersistent1">
+            <Resource index="Vespene" value="-15"/>
+            <Button DefaultButtonFace="13bianxingweizhongjilengjing" Requirements="13jixietai"/>
+            <Unit value="13zhongjilengjingTransport"/>
+        </InfoArray>
+        <InfoArray index="Train8" Effect="13rengezhuanyiPersistent1">
+            <Resource index="Vespene" value="-15"/>
+            <Button DefaultButtonFace="13bianxingweisaodangzhe" Requirements="13jixieyanjiusuo"/>
+            <Unit value="13saodangzhe"/>
+        </InfoArray>
+        <InfoArray index="Train9" Effect="13rengezhuanyiPersistent1">
+            <Resource index="Vespene" value="-15"/>
+            <Cooldown Location="Unit"/>
+            <Button DefaultButtonFace="13bianxingweizhuguangzhe" Requirements="13xingmen"/>
+            <Unit value="13zhuguangzhe"/>
+        </InfoArray>
+        <InfoArray index="Train10" Effect="13rengezhuanyiPersistent1">
+            <Resource index="Vespene" value="-15"/>
+            <Button DefaultButtonFace="13bianxingweitansuozhe" Requirements="13xingmen"/>
+            <Unit value="13tansuozhe"/>
+        </InfoArray>
+        <InfoArray index="Train11" Effect="13rengezhuanyiPersistent1">
+            <Resource index="Vespene" value="-15"/>
+            <Button DefaultButtonFace="13bianxingweisuqingzhe" Requirements="13xingmen"/>
+            <Unit value="13suqingzhe"/>
+        </InfoArray>
+        <InfoArray index="Train12" Effect="13rengezhuanyiPersistent1">
+            <Resource index="Vespene" value="-15"/>
+            <Button DefaultButtonFace="13bianxingweichaoyuezhe" Requirements="13xingmen"/>
+            <Unit value="13chaoyuezhe"/>
+        </InfoArray>
+        <InfoArray index="Train13" Effect="13rengezhuanyiPersistent1">
+            <Resource index="Vespene" value="-15"/>
+            <Button DefaultButtonFace="13bianxingzweichengjiezhe" Requirements="13jianduihangbiao"/>
+            <Unit value="13chengjiezhe"/>
+        </InfoArray>
+        <InfoArray index="Train14" Effect="13rengezhuanyiPersistent1">
+            <Resource index="Vespene" value="-15"/>
+            <Button DefaultButtonFace="13bianxingweifensuizhe" Requirements="13jianduihangbiao"/>
+            <Unit value="13fensuizhe"/>
+        </InfoArray>
+        <InfoArray index="Train17" Effect="13rengezhuanyiPersistent1">
+            <Resource index="Vespene" value="-15"/>
+            <Button DefaultButtonFace="13bianxingweitianwangjuzhen" Requirements="13tianwangjuzhen"/>
+            <Unit value="13tianwangjuzhen"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilMorph id="13yunshumoshi">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13yunshumoshi"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <Flags index="Produce" value="1"/>
+        <InfoArray Unit="13zhongjilengjingTransport">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="1.5"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Duration" value="1.5"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilMorph id="13xiangweimoshi">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13xiangweimoshi"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <Flags index="Produce" value="1"/>
+        <InfoArray Unit="13zhongjilengjingPhasing">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="1.5"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Duration" value="1.5"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilBuild id="13bianxingjianzao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <FlagArray index="PeonHide" value="1"/>
+        <FlagArray index="PeonKillFinish" value="1"/>
+        <FlagArray index="PeonMaintained" value="0"/>
+        <FlagArray index="RangeIncludesBuilding" value="0"/>
+        <InfoArray index="Build8" Unit="13guangzipaotai" Time="0.1">
+            <Button DefaultButtonFace="13zheyueguangzipaotai"/>
+        </InfoArray>
+        <InfoArray index="Build9" Time="25"/>
+        <InfoArray index="Build22" Unit="13hudunchongnengqi" Time="0.1">
+            <Button DefaultButtonFace="13zheyuehudunchongnengqi"/>
+        </InfoArray>
+        <InfoArray index="Build25" Unit="13yazhita" Time="0.1">
+            <Button DefaultButtonFace="13zheyueyazhita"/>
+        </InfoArray>
+        <ConstructionMover value="Construction"/>
+        <Range value="1"/>
+    </CAbilBuild>
+    <CAbilBuild id="13bushufuwuqi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <FlagArray index="PeonDisableCollision" value="1"/>
+        <FlagArray index="PeonMaintained" value="0"/>
+        <InfoArray index="Build2" Unit="13fuwuqi" Time="20">
+            <Button DefaultButtonFace="13zheyuefuwuqi"/>
+        </InfoArray>
+        <InfoArray index="Build9" Time="25"/>
+        <Range value="2"/>
+        <ConstructionMover value="Construction"/>
+    </CAbilBuild>
+    <CAbilBuild id="13zheyuejianzao5">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <FlagArray index="PeonDisableCollision" value="1"/>
+        <FlagArray index="PeonMaintained" value="0"/>
+        <InfoArray index="Build1" Unit="13guangzipaotai" Time="1.5">
+            <Resource index="Vespene" value="-25"/>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 折跃光子炮台 普罗比斯战甲"/>
+                <Location value="Unit"/>
+                <TimeStart value="30"/>
+                <TimeUse value="60"/>
+            </Charge>
+            <Button DefaultButtonFace="13zheyueguangzipaotai"/>
+        </InfoArray>
+        <InfoArray index="Build2" Unit="13hudunchongnengqi" Time="1.5">
+            <Resource index="Vespene" value="-25"/>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 折跃护盾充能器 普罗比斯战甲"/>
+                <Location value="Unit"/>
+                <TimeStart value="45"/>
+                <TimeUse value="90"/>
+            </Charge>
+            <Button DefaultButtonFace="13zheyuehudunchongnengqi"/>
+        </InfoArray>
+        <InfoArray index="Build3" Unit="13yazhita" Time="1.5">
+            <Resource index="Vespene" value="-25"/>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 折跃压制塔 普罗比斯战甲"/>
+                <Location value="Unit"/>
+                <TimeStart value="90"/>
+                <TimeUse value="180"/>
+            </Charge>
+            <Button DefaultButtonFace="13zheyueyazhita"/>
+        </InfoArray>
+        <Range value="3"/>
+        <ConstructionMover value="Construction"/>
+        <EffectArray index="Finish" value="13shikongtisuApply"/>
+    </CAbilBuild>
+    <CAbilEffectTarget id="13zheyueshouweizhe5">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13zheyueshouweizheSet"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Cooldown Link="13 折跃守卫者 提拉特" TimeUse="4.5"/>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="10"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13zheyueshouweizhe" Requirements="13danweishitilate"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="13zheyueshouweizhe">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13zheyueshouweizheSet"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Cooldown Link="13 折跃守卫者 中继棱镜" TimeUse="15"/>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="10"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13zheyueshouweizhe"/>
+    </CAbilEffectTarget>
+    <CAbilTransport id="13zhuangzai">
+        <AbilSetId value="ULdM"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Load" DefaultButtonFace="13zhuangzai"/>
+        <CmdButtonArray index="UnloadAll" DefaultButtonFace="13quanbuxiezai2">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="UnloadAt" DefaultButtonFace="13quanbuxiezai"/>
+        <CmdButtonArray index="UnloadUnit">
+            <Flags index="Hidden" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="LoadAll">
+            <Flags index="Hidden" value="1"/>
+        </CmdButtonArray>
+        <Flags index="CargoDeath" value="1"/>
+        <Range value="6"/>
+        <MaxUnloadRange value="6"/>
+        <MaxCargoCount value="16"/>
+        <MaxCargoSize value="8"/>
+        <TotalCargoSpace value="16"/>
+        <TargetFilters value="Visible;Ally,Neutral,Enemy,Buried,UnderConstruction,Dead,Hidden"/>
+    </CAbilTransport>
+    <CAbilAugment id="13tiaoji">
+        <OrderArray index="0">
+            <DisplayType value="Confirm"/>
+            <Color value="255,0,255,0"/>
+            <Model value="Assets\UI\Cursors\WayPointAttack_Void\WayPointAttack_Void.m3"/>
+            <LineTexture value="Assets\Textures\WayPointLine.dds"/>
+        </OrderArray>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13tiaoji"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Smart" value="1"/>
+        <AbilCmd value="attack,Execute"/>
+        <Cost>
+            <Cooldown Link="13 跳击 终结者" TimeUse="6"/>
+        </Cost>
+        <Effect value="13tiaojiMissile"/>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastValidatorArray value="CasterNotHoldingPosition"/>
+        <SmartValidatorArray value="TargetIsEnemy"/>
+    </CAbilAugment>
+    <CAbilEffectTarget id="13hudunchongneng">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13hudunchongnengqiHeal"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="0"/>
+        <Flags index="ReExecutable" value="1"/>
+        <Flags index="Smart" value="1"/>
+        <TargetFilters value="Visible;Self,Enemy,Missile,Stasis,UnderConstruction,Dead,Hidden"/>
+        <Range value="6"/>
+        <Arc value="360"/>
+        <AutoCastAcquireLevel value="Defensive"/>
+        <AutoCastFilters value="Visible;Self,Neutral,Enemy,Missile,Stasis,UnderConstruction,Dead,Hidden"/>
+        <AutoCastRange value="4"/>
+        <UseMarkerArray index="Approach" value="0"/>
+        <UseMarkerArray index="Prep" value="0"/>
+        <AINotifyEffect value="13hudunchongnengqiHeal"/>
+        <DefaultError value="RequiresHealTarget"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13hudunchongneng"/>
+    </CAbilEffectTarget>
+    <CAbilTrain id="13zheyue2">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Activity value="UI/Warping"/>
+        <InfoArray index="Train1" Time="15">
+            <Button DefaultButtonFace="13zheyuejinghuazhehexin"/>
+            <Unit value="13jinghuazhehexin"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilWarpTrain id="13zheyuexunlian2">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray index="Train1" Time="3" Unit="13jinghuazhehexin">
+            <Charge Link="13 折跃训练2 折跃门" TimeStart="20" TimeUse="20">
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+            <Cooldown Link="13 折跃训练2 折跃门"/>
+            <Button DefaultButtonFace="13zheyuejinghuazhehexin"/>
+        </InfoArray>
+        <InfoArray index="Train2">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train3">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train4">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train5">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train6">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train7">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+    </CAbilWarpTrain>
+    <CAbilResearch id="13yanfa2">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray index="Research1" Time="45" Upgrade="13gangyihudun">
+            <Resource index="Minerals" value="75"/>
+            <Resource index="Vespene" value="25"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 刚毅护盾 控制芯核"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="13gangyihudun"/>
+        </InfoArray>
+        <InfoArray index="Research2" Time="60" Upgrade="13shuairuoxitong">
+            <Resource index="Minerals" value="150"/>
+            <Resource index="Vespene" value="50"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 衰弱系统 控制芯核"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="13shuairuoxitong"/>
+        </InfoArray>
+    </CAbilResearch>
+    <CAbilEffectTarget id="13shanxian">
+        <AbilSetId value="Blnk"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13shanxianBlink"/>
+        <Flags index="BestUnit" value="0"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Cooldown Link="13 闪现 净化者核心" TimeUse="6"/>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <AINotifyEffect value="13shanxianBlink"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13shanxian">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+    </CAbilEffectTarget>
+    <CAbilMorph id="13jidongmoshi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13jidongmoshi"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <InfoArray Unit="13baohuzhe">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="0.75"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Duration" value="0.75"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilMorph id="13kuozhanmoshi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13kuozhanmoshi"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <InfoArray Unit="13baohuzhe2">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="0.75"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Duration" value="0.75"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilTransport id="13shuzikongjian">
+        <OrderArray index="0">
+            <DisplayType value="Confirm"/>
+            <Color value="255,0,255,0"/>
+            <Model value="Assets\UI\Cursors\WayPointConfirm_Void\WayPointConfirm_Void.m3"/>
+            <Scale value="0.750000"/>
+            <LineTexture value="Assets\Textures\WayPointLine.dds"/>
+        </OrderArray>
+        <AbilSetId value="ULdS"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Load" DefaultButtonFace="13shuzihua"/>
+        <CmdButtonArray index="UnloadAll" DefaultButtonFace="13shitihua">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="UnloadAt">
+            <Flags index="Hidden" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="UnloadUnit">
+            <Flags index="Hidden" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="LoadAll">
+            <Flags index="Hidden" value="1"/>
+        </CmdButtonArray>
+        <Flags index="CargoDeath" value="1"/>
+        <Flags index="PlayerHold" value="1"/>
+        <Flags index="ShowCargoSize" value="0"/>
+        <Range value="3"/>
+        <MaxCargoCount value="255"/>
+        <MaxCargoSize value="1"/>
+        <TotalCargoSpace value="999"/>
+        <InitialUnloadDelay value="0.5"/>
+        <UnloadPeriod value="0.15"/>
+        <LoadValidatorArray value="13mubiaoshijinghuazhehexin"/>
+    </CAbilTransport>
+    <CAbilEffectTarget id="13jinghuaxinxing">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13jinghuaxinxingPersistent"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Cooldown TimeUse="3"/>
+        </Cost>
+        <Range value="1.25"/>
+        <Arc value="349.9914"/>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="1.25"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13jinghuaxinbiao"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="13jinghuapao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13jinghuapaoMissile"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 净化炮 执政者战甲"/>
+                <TimeStart value="15"/>
+                <TimeUse value="15"/>
+            </Charge>
+            <Cooldown Link="13 净化炮 执政者战甲"/>
+        </Cost>
+        <Range value="12"/>
+        <RangeSlop value="10"/>
+        <PrepTime value="1.5"/>
+        <ShowProgressArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Cast" value="1"/>
+        <UninterruptibleArray index="Channel" value="1"/>
+        <UninterruptibleArray index="Finish" value="1"/>
+        <ProgressButtonArray index="Prep" value="13jinghuapao"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13jinghuapao"/>
+        <TargetFilters value="Visible;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <TargetSorts RequestPercentage="1">
+            <SortArray value="TSLifeLargestFirst"/>
+        </TargetSorts>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Structure,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastValidatorArray value="13mubiaoshengmingzhidayuhuodengyu400"/>
+        <AutoCastRange value="12"/>
+    </CAbilEffectTarget>
+    <CAbilMorph id="13shouweizhechonggou">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13zheyueshouweizhe"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="Automatic" value="1"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Birth" value="1"/>
+        <Flags index="DisableAbils" value="1"/>
+        <Flags index="DisableCollision" value="1"/>
+        <Flags index="FastBuild" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <Flags index="IgnoreFood" value="1"/>
+        <Flags index="IgnoreUnitCost" value="1"/>
+        <Flags index="Produce" value="1"/>
+        <Flags index="Rally" value="1"/>
+        <Flags index="ShowProgress" value="1"/>
+        <Flags index="SuppressMovement" value="1"/>
+        <InfoArray Score="1" Unit="13shouweizhe">
+            <SectionArray index="Abils">
+                <DurationArray index="Delay" value="6.6"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Delay" value="6.6"/>
+            </SectionArray>
+            <SectionArray index="Collide">
+                <DurationArray index="Delay" value="6.6"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="6.6"/>
+                <EffectArray index="Finish" value="13shouweizheTimedLife2Apply"/>
+            </SectionArray>
+        </InfoArray>
+        <Activity value="UI/Reconstructing"/>
+    </CAbilMorph>
+    <CAbilMorph id="13shouweizhesiwang">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13zheyueshouweizhe"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <Flags index="RallyReset" value="1"/>
+        <Flags index="SuppressMovement" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 守卫者死亡 守卫者"/>
+                <Location value="Unit"/>
+            </Charge>
+        </Cost>
+        <InfoArray Unit="13shouweizhecanhai">
+            <SectionArray index="Stats">
+                <EffectArray index="Finish" value="ZealotPurifierReviveDeadSet"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilEffectTarget id="13quntifengyin">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13quntifengyinSearch"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 群体封印 超越者"/>
+                <TimeStart value="45"/>
+                <TimeUse value="45"/>
+            </Charge>
+        </Cost>
+        <Range value="9"/>
+        <CursorEffect value="13quntifengyinSearch"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13quntifengyin"/>
+    </CAbilEffectTarget>
+    <CAbilArmMagazine id="13guangshujijiku">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Launch value="ReleaseAtSource"/>
+        <Flags index="AutoCreate" value="1"/>
+        <Flags index="Retarget" value="1"/>
+        <Leash value="4"/>
+        <InfoArray index="Ammo1" Time="6" CountStart="4" Distance="1" Manage="Recall" Unit="13guangshuji">
+            <Charge HideCount="1" Link="Abil/##id##" Location="Unit"/>
+            <Cooldown Link="13 光束机机库 扫荡者战甲"/>
+            <Button DefaultButtonFace="13guangshuji">
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+            <Flags index="AutoBuild" value="1"/>
+            <Flags index="AutoBuildOn" value="1"/>
+            <Flags index="External" value="1"/>
+            <Flags index="LeashRetarget" value="1"/>
+        </InfoArray>
+        <ExternalAngle value="0"/>
+        <ExternalAngle value="29.9926"/>
+        <ExternalAngle value="59.9963"/>
+        <ExternalAngle value="90"/>
+        <ExternalAngle value="119.9926"/>
+        <ExternalAngle value="149.9963"/>
+        <ExternalAngle value="180"/>
+        <ExternalAngle value="209.9926"/>
+        <ExternalAngle value="239.9963"/>
+        <ExternalAngle value="270"/>
+        <ExternalAngle value="299.9926"/>
+        <ExternalAngle value="329.9963"/>
+        <MaxCount value="4"/>
+        <EffectArray index="Create" value="13AIzengqiangApply"/>
+    </CAbilArmMagazine>
+    <CAbilArmMagazine id="13lanjiejijiku">
+        <AbilSetId value="CarrierAiurHanger"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="Retarget" value="1"/>
+        <Leash value="10"/>
+        <InfoArray index="Ammo1" Time="6" Count="2" CountStart="4" Manage="Recall" Unit="13lanjieji">
+            <Charge Link="Abil/##id##" Location="Unit"/>
+            <Cooldown Link="Abil/##id##"/>
+            <Button DefaultButtonFace="13lanjiejijiku">
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+            <Flags index="AutoBuild" value="1"/>
+            <Flags index="AutoBuildOn" value="1"/>
+        </InfoArray>
+        <Alert value="TrainComplete"/>
+        <MaxCount value="8"/>
+        <EffectArray index="Create" value="13AIzengqiangApply"/>
+        <Launch value="ReleaseAtSource"/>
+    </CAbilArmMagazine>
+    <CAbilEffectTarget id="13jinghuaguangshu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13jinghuaguangshuCreate"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="TransientPreferred" value="1"/>
+        <Cost>
+            <Cooldown Link="13 净化光束 科罗拉里昂" TimeStart="120" TimeUse="240"/>
+        </Cost>
+        <Range value="15"/>
+        <Arc value="360"/>
+        <CursorEffect value="13jinghuaguangshuSearch"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13jinghuaguangshu" Requirements="13danweishikeluolaliang"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="13quntizheyue">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="13quntizheyueSearch"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="13 群体折跃 摩约"/>
+                <TimeStart value="90"/>
+                <TimeUse value="90"/>
+            </Charge>
+            <Cooldown Link="13 群体折跃 摩约" TimeUse="15"/>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <CursorEffect value="13quntizheyueSearch"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="13quntizheyue" Requirements="13danweishimoyue"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="Transient" value="1"/>
+    </CAbilEffectTarget>
+    <CAbilTrain id="13bianxingweijinghuazhehexinPlacement">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="DisableCollision" value="1"/>
+        <Flags index="KillOnFinish" value="1"/>
+        <Flags index="Select" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <InfoArray index="Train1" Effect="13fuchouxieyiPersistent" Rotation="Source">
+            <Cooldown TimeStart="45" TimeUse="45"/>
+            <Button DefaultButtonFace="13bianxingweijinghuazhehexin"/>
+            <Unit value="13jinghuazhehexinPlacement"/>
+            <Flags index="IgnorePlacement" value="1"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilTrain id="13bianxingweijinghuazhehexin">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="DisableCollision" value="1"/>
+        <Flags index="KillOnFinish" value="1"/>
+        <Flags index="Select" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <InfoArray index="Train1" Effect="13fuchouxieyiPersistent">
+            <Button DefaultButtonFace="13bianxingweijinghuazhehexin"/>
+            <Unit value="13jinghuazhehexin"/>
+            <Flags index="AutoCast" value="1"/>
+            <Flags index="AutoCastOn" value="1"/>
+            <Flags index="IgnorePlacement" value="1"/>
+        </InfoArray>
+    </CAbilTrain>
+</Catalog>

@@ -1,0 +1,797 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CAbilAugment id="2bushi">
+        <Alignment value="Negative"/>
+        <OrderArray index="0">
+            <DisplayType value="Confirm"/>
+            <Color value="255,0,255,0"/>
+            <Model value="Assets\UI\Cursors\WayPointAttack_Void\WayPointAttack_Void.m3"/>
+            <LineTexture value="Assets\Textures\WayPointLine.dds"/>
+        </OrderArray>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2bushi"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <AbilCmd value="attack,Execute"/>
+        <Effect value="2bushiSet"/>
+        <AutoCastFilters value="Air,Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastValidatorArray value="2mubiaozaipushafanweinei"/>
+        <AutoCastValidatorArray value="CasterNotHoldingPosition"/>
+        <Cost>
+            <Cooldown Link="2 捕食 变异飞蛇" TimeUse="18"/>
+        </Cost>
+    </CAbilAugment>
+    <CAbilEffectTarget id="2chongdong">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2chongdongCreate"/>
+        <Cost>
+            <Cooldown Link="2 虫洞 虫后" TimeStart="240" TimeUse="240"/>
+        </Cost>
+        <Range value="500"/>
+        <PrepTime value="15"/>
+        <ShowProgressArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <ProgressButtonArray index="Prep" value="2chongdong"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2chongdong" Requirements="2chongdong"/>
+        <Arc value="360"/>
+    </CAbilEffectTarget>
+    <CAbilEffectInstant id="2guanghewasi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2guanghewasiPlayer"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Smart" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Vital index="Energy" value="25"/>
+            <Cooldown Link="2 光合瓦斯 虫后" TimeUse="6"/>
+        </Cost>
+        <AutoCastFilters value="Visible;Neutral,Enemy"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2guanghewasi"/>
+        <AutoCastAcquireLevel value="Defensive"/>
+    </CAbilEffectInstant>
+    <CAbilEffectTarget id="2kengdaochong">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2zhaohuankengdaochongCreate"/>
+        <Range value="500"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2zhaohuankengdaochong" Requirements="2zhaohuankengdaochong"/>
+        <PlaceUnit value="2kengdaochong"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountUse value="1"/>
+                <Link value="2 召唤坑道虫 虫后"/>
+                <TimeStart value="120"/>
+                <TimeUse value="120"/>
+            </Charge>
+        </Cost>
+        <Arc value="360"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="2lingnengtubian">
+        <OrderArray index="0" Model="Assets\UI\Cursors\WayPointConfirm_Void\WayPointConfirm_Void.m3"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2lingnengtubian"/>
+        <Alignment value="Positive"/>
+        <Effect index="0" value="2lingnengtubianSearch"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountUse value="1"/>
+                <Link value="2 灵能突变 灵能甲虫"/>
+                <TimeUse value="18"/>
+            </Charge>
+        </Cost>
+        <Range value="5"/>
+        <AutoCastFilters value="Biological,Visible;Neutral,Enemy,Structure,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="7"/>
+        <AutoCastValidatorArray value="TargetInCombat"/>
+        <AutoCastValidatorArray value="2mubiaomeiyoulingnengtubian"/>
+    </CAbilEffectTarget>
+    <CAbilEffectInstant id="2paoxiao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2paoxiaoPersistent"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Cooldown Link="2 咆哮 巴哈姆特" TimeUse="45"/>
+        </Cost>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2paoxiao"/>
+    </CAbilEffectInstant>
+    <CAbilAugment id="2pusha">
+        <Alignment value="Negative"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2pusha"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <AbilCmd value="attack,Execute"/>
+        <Cost>
+            <Cooldown Link="2 猎杀 异化猎手" Location="Unit" TimeUse="12"/>
+        </Cost>
+        <Effect value="2pushaCreate"/>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastValidatorArray value="2mubiaozaipushafanweinei"/>
+        <AutoCastValidatorArray value="CasterNotHoldingPosition"/>
+        <AutoCastValidatorArray value="2mubiaomeiyouyazhi"/>
+    </CAbilAugment>
+    <CAbilEffectTarget id="2judupenshe">
+        <Alignment value="Negative"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2judupenshePersistent"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="Smart" value="1"/>
+        <Cost>
+            <Cooldown Link="2剧毒喷射" TimeUse="18"/>
+        </Cost>
+        <Range value="4"/>
+        <SmartValidatorArray value="TargetIsEnemy"/>
+        <SmartValidatorArray value="TargetLifeGE20"/>
+        <AutoCastRange value="4"/>
+        <AutoCastValidatorArray value="TargetIsEnemy"/>
+        <AutoCastValidatorArray value="TargetLifeGE20"/>
+        <UninterruptibleArray index="Channel" value="1"/>
+        <AINotifyEffect value="2judupenshePersistent"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2judupenshe"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+    </CAbilEffectTarget>
+    <CAbilEffectInstant id="2aibianjiaqiao">
+        <Alignment value="Positive"/>
+        <OrderArray index="0" Model="Assets\UI\Cursors\WayPointConfirm_Void\WayPointConfirm_Void.m3"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="0aibianjiaqiaoApply"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Cooldown Link="2 癌变甲壳 提亚马特" TimeUse="18"/>
+        </Cost>
+        <AutoCastAcquireLevel value="Defensive"/>
+        <AutoCastFilters value="Visible;Ally,Neutral,Enemy"/>
+        <AutoCastValidatorArray value="CasterShieldsNotFull"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2aibianjiaqiao"/>
+    </CAbilEffectInstant>
+    <CAbilAugment id="2chongfeng">
+        <Alignment value="Negative"/>
+        <OrderArray index="0">
+            <DisplayType value="Confirm"/>
+            <Color value="255,0,255,0"/>
+            <Model value="Assets\UI\Cursors\WayPointAttack_Void\WayPointAttack_Void.m3"/>
+            <LineTexture value="Assets\Textures\WayPointLine.dds"/>
+        </OrderArray>
+        <AbilSetId value="2chongfeng"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2chongfeng"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <AbilCmd value="attack,Execute"/>
+        <Cost>
+            <Charge TimeUse="-2"/>
+            <Cooldown Link="2 冲锋 冲锋" TimeUse="18"/>
+        </Cost>
+        <Effect value="2chongfengApply"/>
+        <AutoCastFilters value="Air,Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastValidatorArray value="2mubiaozai8fanweinei"/>
+        <AutoCastValidatorArray value="CasterNotHoldingPosition"/>
+    </CAbilAugment>
+    <CAbilEffectTarget id="2fuhuapenshe">
+        <Alignment value="Negative"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2fuhuapenshePersistent"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Cost>
+            <Cooldown Link="2 腐化喷射 精英腐化" TimeUse="18"/>
+        </Cost>
+        <TargetFilters value="Air,Visible;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="5"/>
+        <Arc value="14.9963"/>
+        <SmartValidatorArray value="TargetIsEnemy"/>
+        <SmartValidatorArray value="noMarkers"/>
+        <SmartValidatorArray value="2mubiaomeiyoufuhua"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="5"/>
+        <AutoCastValidatorArray value="TargetIsEnemy"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <AutoCastValidatorArray value="2mubiaomeiyoufuhua"/>
+        <Marker Link="2 腐化喷射 精英腐化">
+            <MismatchFlags index="Id" value="0"/>
+        </Marker>
+        <AINotifyEffect value="2fuhuapensheApply"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2fuhuapenshe"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+    </CAbilEffectTarget>
+    <CAbilEffectInstant id="2jiaqiaozengsheng">
+        <Alignment value="Positive"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2jiaqiaozengshengPersistent"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Cooldown Link="2 甲壳增生 亡灵巨兽" TimeUse="12"/>
+        </Cost>
+        <SmartValidatorArray value="CasterInCombat"/>
+        <AutoCastAcquireLevel value="Defensive"/>
+        <AutoCastFilters value="Visible;Neutral,Enemy"/>
+        <AutoCastValidatorArray value="CasterInCombat"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2jiaqiaozengsheng"/>
+    </CAbilEffectInstant>
+    <CAbilEffectTarget id="2lingnengbaolie2">
+        <Alignment value="Negative"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <PrepEffect value="2lingnengbaolieStartPersistent"/>
+        <Effect index="0" value="2lingnengbaolieDamagePersistent"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Cooldown Link="2 灵能爆裂 灵能甲虫" TimeUse="30"/>
+        </Cost>
+        <Range value="500"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="500"/>
+        <PrepTime value="1.5"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2lingnengbaolie"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="2fushichongji">
+        <Alignment value="Negative"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2fushichongjiMissile"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Cost>
+            <Cooldown Link="2 腐蚀冲击 酸蚀爬虫" TimeUse="18"/>
+        </Cost>
+        <TargetFilters value="Visible;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="5"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral"/>
+        <AutoCastRange value="5"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <AutoCastValidatorArray value="2mubiaomeiyoufushichongji"/>
+        <AINotifyEffect value="2fushichongjiDamageset"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2fushichongji"/>
+        <Marker>
+            <MismatchFlags index="Id" value="0"/>
+        </Marker>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="2suanxingfeichongzhadan">
+        <Alignment value="Negative"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2suanxingfeichongzhadanMissile"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Cost>
+            <Cooldown Link="2 酸性飞虫炸弹 腐蚀龙王" TimeUse="45"/>
+        </Cost>
+        <TargetFilters value="Visible;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="8"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Structure,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="8"/>
+        <AutoCastValidatorArray value="TargetLifeGE200"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2suanxingfeichongzhadan"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="2tunshi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2tunshiTargetApply"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <TargetFilters value="Air,Visible;Player,Ally,Structure,Missile,Stasis,Dead,Hidden,Invulnerable,HeroUnit"/>
+        <Range value="0"/>
+        <Arc value="29.9926"/>
+        <AutoCastFilters value="Massive,Visible;Player,Ally,Neutral"/>
+        <AutoCastRange value="4"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2tunshi"/>
+    </CAbilEffectTarget>
+    <CAbilTrain id="2fuhuabahamute">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Range value="6"/>
+        <InfoArray index="Train1" Effect="2bahamuteApply">
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="2 孵化巴哈姆特"/>
+                <TimeStart value="45"/>
+                <TimeUse value="45"/>
+            </Charge>
+            <Cooldown Link="2 孵化巴哈姆特"/>
+            <Button DefaultButtonFace="2fuhuabahamute" Requirements="2daxingchaoxue">
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+            <Unit value="2bahamute"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilEffectInstant id="2zhaohuanbahamute">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2zhaohuanbahamuteCreate"/>
+        <Flags index="BestUnit" value="1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2zhaohuanbahamute" Requirements="2bahamute"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountUse value="1"/>
+                <Link value="2 召唤巴哈姆特 虫后"/>
+                <TimeStart value="180"/>
+                <TimeUse value="180"/>
+            </Charge>
+        </Cost>
+    </CAbilEffectInstant>
+    <CAbilEffectInstant id="2zhaohuantiyamate">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2zhaohuantiyamateCreate"/>
+        <Flags index="BestUnit" value="1"/>
+        <Cost>
+            <Cooldown Link="2 召唤提亚马特 虫后" TimeStart="300" TimeUse="300"/>
+        </Cost>
+        <PrepTime value="15"/>
+        <ShowProgressArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <AINotifyEffect value="2zhaohuantiyamatePersistent"/>
+        <ProgressButtonArray index="Prep" value="2zhaohuantiyamate"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2zhaohuantiyamate" Requirements="2tiyamate"/>
+    </CAbilEffectInstant>
+    <CAbilEffectInstant id="2zihui">
+        <AbilSetId value="2zihui"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2zihuiApply"/>
+        <Flags index="Transient" value="1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2zihuizhiling">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+    </CAbilEffectInstant>
+    <CAbilEffectInstant id="2zihuimuchaoyanchong">
+        <AbilSetId value="2zihui"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2zihuiApplymuchaoyanchong"/>
+        <Flags index="Transient" value="1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2zihuizhiling">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+    </CAbilEffectInstant>
+    <CAbilEffectInstant id="2zihuiGround">
+        <AbilSetId value="2zihui"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2zihuiGroundApply"/>
+        <Flags index="Transient" value="1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2zihuizhiling">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+    </CAbilEffectInstant>
+    <CAbilEffectTarget id="2lingnengbaolie">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2lingnengbaolieDamagePersistent"/>
+        <Cost>
+            <Cooldown Link="2 灵能爆裂 灵能甲虫" TimeUse="60"/>
+        </Cost>
+        <Range value="5"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2lingnengbaolie"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <PrepEffect value="2lingnengbaolieStartPersistent"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="7"/>
+        <PrepTime value="4.5"/>
+        <AutoCastValidatorArray value="TargetLifeGE200"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="2lingnengfensui">
+        <Alignment value="Negative"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2lingnenghuimiePersistent2"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Charge Link="2 灵能粉碎 母巢眼虫"/>
+            <Cooldown Link="2 灵能粉碎 灵能眼虫" TimeUse="18"/>
+        </Cost>
+        <Range value="6"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Structure,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="8"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2lingnengfensui">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <AutoCastAcquireLevel value="Defensive"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="2zhebiyunwu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="2 遮蔽云雾 灵能甲虫"/>
+                <TimeStart value="90"/>
+                <TimeUse value="90"/>
+            </Charge>
+            <Cooldown Link="2 遮蔽云雾 灵能甲虫" TimeUse="15"/>
+        </Cost>
+        <Range value="5"/>
+        <Arc value="29.9926"/>
+        <SmartValidatorArray value="2mubiaomeiyoubeizhebiynwufugai"/>
+        <SmartValidatorArray value="TargetInCombat"/>
+        <AutoCastAcquireLevel value="Defensive"/>
+        <AutoCastFilters value="Visible;Neutral,Enemy,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="7"/>
+        <AutoCastValidatorArray value="2mubiaomeiyoubeizhebiynwufugai"/>
+        <AutoCastValidatorArray value="TargetInCombat"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2zhebiyunwu"/>
+        <Effect index="0" value="2zhebiyunwuCreate"/>
+        <AINotifyEffect value="2zhebiyunwuCreate"/>
+    </CAbilEffectTarget>
+    <CAbilMorph id="2wohaiyoujiangshi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2wohaiyoujiangshi"/>
+        <Flags index="DisableAbils" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <Flags index="RallyReset" value="1"/>
+        <Flags index="SuppressMovement" value="1"/>
+        <InfoArray Unit="2haichong">
+            <SectionArray index="Abils">
+                <DurationArray index="Delay" value="0.25"/>
+                <DurationArray index="Duration" value="5"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Delay" value="0.25"/>
+                <DurationArray index="Duration" value="5"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="0.25"/>
+                <DurationArray index="Duration" value="5"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilBehavior id="2zhongliuzuzhi">
+        <Alignment value="Positive"/>
+        <OrderArray index="0">
+            <DisplayType value="Confirm"/>
+            <Color value="255,0,255,0"/>
+            <Model value="Assets\UI\Cursors\WayPointAttack_Void\WayPointAttack_Void.m3"/>
+            <LineTexture value="Assets\Textures\WayPointLine.dds"/>
+        </OrderArray>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="On" DefaultButtonFace="2zhongliuzuzhi"/>
+        <CmdButtonArray index="Off" DefaultButtonFace="2guanbizhongliuzuzhi"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="AutomaticOn" value="1"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Toggle" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <BehaviorArray value="2zhongliuzuzhi"/>
+        <AutoCastToggleOnValidatorArray value="CasterLifeLT90Percent"/>
+        <AutoCastToggleOffValidatorArray value="CasterLifeGT90Percent"/>
+        <AutoCastToggleOffValidatorArray value="CasterNotInCombat"/>
+    </CAbilBehavior>
+    <CAbilTrain id="2youchongbianyi">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <Activity value="UI/2幼虫变异"/>
+        <Flags index="DisableCollision" value="1"/>
+        <Flags index="KillOnCancel" value="1"/>
+        <Flags index="KillOnFinish" value="1"/>
+        <Flags index="Select" value="1"/>
+        <Flags index="WaitForFood" value="0"/>
+        <MorphUnit value="2chongluan"/>
+        <Range value="4"/>
+        <InfoArray index="Train1" Time="10" Alert="TrainWorkerComplete" Effect="Pop">
+            <Button DefaultButtonFace="2bianyiweigongchong"/>
+            <Unit value="2gongchong"/>
+            <Unit value="2gongchong"/>
+        </InfoArray>
+        <InfoArray index="Train2" Time="15">
+            <Button DefaultButtonFace="2fuhuayihualieshou"/>
+            <Unit value="2yihualieshou"/>
+            <Unit value="2yihualieshou"/>
+        </InfoArray>
+        <InfoArray index="Train3" Time="25">
+            <Button DefaultButtonFace="2fuhuaweifuhuawangchong" Requirements="2chaoxue"/>
+            <Unit value="2fuhuawangchong"/>
+        </InfoArray>
+        <InfoArray index="Train4" Time="20">
+            <Button DefaultButtonFace="2fuhuaweisuanshipachong"/>
+            <Unit value="2suanshipachong"/>
+        </InfoArray>
+        <InfoArray index="Train5" Time="20">
+            <Button DefaultButtonFace="2fuhuaweijizhenyichong"/>
+            <Unit value="2jizhenyichong"/>
+        </InfoArray>
+        <InfoArray index="Train6">
+            <Button/>
+        </InfoArray>
+        <InfoArray index="Train7" Time="60">
+            <Button DefaultButtonFace="2fuhuaweiwanglingjushou" Requirements="2daxingchaoxue"/>
+            <Unit value="2wanglingjushou"/>
+        </InfoArray>
+        <InfoArray index="Train8" Time="35">
+            <Button Requirements="HaveBanelingNest"/>
+        </InfoArray>
+        <InfoArray index="Train10" Time="25">
+            <Button DefaultButtonFace="2fuhuaweiedutanglang" Requirements="2chaoxue"/>
+            <Unit value="2edutanglang"/>
+        </InfoArray>
+        <InfoArray index="Train11" Time="40">
+            <Button DefaultButtonFace="2fuhuaweilingnengjiachong" Requirements="2chaoxue"/>
+            <Unit value="2lingnengjiachong"/>
+        </InfoArray>
+        <InfoArray index="Train12" Time="30">
+            <Button DefaultButtonFace="2fuhuaweifuhuafeichong"/>
+            <Unit value="2fuhuafeichong"/>
+        </InfoArray>
+        <InfoArray index="Train13" Time="15">
+            <Button DefaultButtonFace="2fuhuabianyifeishe"/>
+            <Unit value="2bianyifeishe"/>
+            <Unit value="2bianyifeishe"/>
+        </InfoArray>
+        <InfoArray index="Train14" Time="40">
+            <Button DefaultButtonFace="2fuhuaweicanbaolongshou"/>
+            <Unit value="2canbaolongshou"/>
+        </InfoArray>
+        <InfoArray index="Train15" Time="40">
+            <Button DefaultButtonFace="2fuhuaweifushilongwang" Requirements="2daxingchaoxue"/>
+            <Unit value="2fushilongwang"/>
+        </InfoArray>
+        <InfoArray index="Train16" Time="35">
+            <Button DefaultButtonFace="2fuhuaweimuchaoyanchong" Requirements="2daxingchaoxue"/>
+            <Unit value="2muchaoyanchong"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilBuild id="2gongchongbianyi">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <FlagArray index="PeonHide" value="1"/>
+        <FlagArray index="PeonKillFinish" value="1"/>
+        <FlagArray index="RangeIncludesBuilding" value="0"/>
+        <InfoArray index="Build1" Unit="2chujichaoxue" Time="15">
+            <Button DefaultButtonFace="2bianyiweichujichaoxue"/>
+        </InfoArray>
+        <InfoArray index="Build2" Unit="2zidongcuiqufang" Time="25">
+            <Button DefaultButtonFace="2bianyiweizidongcuiqufang"/>
+        </InfoArray>
+        <InfoArray index="Build13" Time="70"/>
+        <InfoArray index="Build21" Unit="Digester" Time="30">
+            <Button DefaultButtonFace="Digester" Requirements="HaveSpawningPool"/>
+        </InfoArray>
+        <RefundFraction>
+            <Resource index="Minerals" value="-1"/>
+            <Resource index="Vespene" value="-1"/>
+            <Resource index="Terrazine" value="-1"/>
+            <Resource index="Custom" value="-1"/>
+        </RefundFraction>
+    </CAbilBuild>
+    <CAbilMorph id="2bianyiweichaoxue">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2bianyiweichaoxue"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="2quxiaobianyi"/>
+        <ActorKey value="LairUpgrade"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Birth" value="1"/>
+        <Flags index="DisableAbils" value="1"/>
+        <Flags index="FastBuild" value="1"/>
+        <Flags index="Interruptible" value="1"/>
+        <Flags index="Produce" value="1"/>
+        <Flags index="ShowProgress" value="1"/>
+        <InfoArray Score="1" Unit="2chaoxue">
+            <SectionArray index="Abils">
+                <DurationArray index="Delay" value="45"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="45"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="45"/>
+            </SectionArray>
+        </InfoArray>
+        <Alert value="MorphComplete_Zerg"/>
+        <Activity value="UI/Mutating"/>
+    </CAbilMorph>
+    <CAbilMorph id="2bianyiweidaxingchaoxue">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2bianyiweidaxingchaoxue"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="2quxiaobianyi"/>
+        <ActorKey value="HiveUpgrade"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Birth" value="1"/>
+        <Flags index="DisableAbils" value="1"/>
+        <Flags index="FastBuild" value="1"/>
+        <Flags index="Interruptible" value="1"/>
+        <Flags index="Produce" value="1"/>
+        <Flags index="ShowProgress" value="1"/>
+        <InfoArray Score="1" Unit="2daxingchaoxue">
+            <SectionArray index="Abils">
+                <DurationArray index="Delay" value="180"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="180"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="180"/>
+            </SectionArray>
+        </InfoArray>
+        <Alert value="MorphComplete_Zerg"/>
+        <Activity value="UI/Mutating"/>
+    </CAbilMorph>
+    <CAbilResearch id="2jinhuachaoxue">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray index="Research1" Time="60" Upgrade="2yexing">
+            <Resource index="Minerals" value="200"/>
+            <Resource index="Vespene" value="200"/>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="3"/>
+                <CountUse value="1"/>
+                <Link value="2 进化野性 野性"/>
+                <Location value="Player"/>
+            </Charge>
+            <Cooldown Link="2 进化野性 野性" Location="Player"/>
+            <Button DefaultButtonFace="2jinhuayexing" Requirements="2sanwei"/>
+        </InfoArray>
+        <InfoArray index="Research10" Time="60" Upgrade="2lingneng">
+            <Resource index="Minerals" value="200"/>
+            <Resource index="Vespene" value="200"/>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="3"/>
+                <CountUse value="1"/>
+                <Link value="2 进化灵能 灵能"/>
+                <Location value="Player"/>
+            </Charge>
+            <Cooldown Link="2 进化灵能 灵能" Location="Player"/>
+            <Button DefaultButtonFace="2jinhualingneng" Requirements="2sanwei"/>
+        </InfoArray>
+        <InfoArray index="Research11" Time="60" Upgrade="2chengzhang">
+            <Resource index="Minerals" value="300"/>
+            <Resource index="Vespene" value="300"/>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="3"/>
+                <CountUse value="1"/>
+                <Link value="2 进化成长 成长"/>
+                <Location value="Player"/>
+            </Charge>
+            <Cooldown Link="2 进化成长 成长" Location="Player"/>
+            <Button DefaultButtonFace="2jinhuachengzhang" Requirements="2sanwei"/>
+        </InfoArray>
+    </CAbilResearch>
+    <CAbilEffectInstant id="2zhenhanpaoxiao">
+        <OrderArray index="0" Model="Assets\UI\Cursors\WayPointConfirm_Void\WayPointConfirm_Void.m3"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2zhenhanpaoxiaoSearch"/>
+        <Cost>
+            <Cooldown Link="2 震撼咆哮 大型巢穴" Location="Player" TimeUse="90"/>
+        </Cost>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2zhenhanpaoxiao"/>
+    </CAbilEffectInstant>
+    <CAbilRally id="2chaoxuejijie">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <CmdButtonArray index="Rally2" DefaultButtonFace="RallyEgg"/>
+        <InfoArray index="0" UseFilters="-;Worker">
+            <SetValidators value="NotResourcesOrEnemyTargetType"/>
+            <UseValidators value="NotDroneAndNotOverlord"/>
+        </InfoArray>
+        <InfoArray SetOnGround="0"/>
+        <InfoArray SetOnGround="0">
+            <SetValidators value="Failure"/>
+        </InfoArray>
+    </CAbilRally>
+    <CAbilBuild id="2fuhuajuntanzhongliu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TargetMessage value="Abil/TargetMessage/CreepTumorBuild"/>
+        <FlagArray index="PeonMaintained" value="0"/>
+        <FlagArray index="RangeIncludesBuilding" value="0"/>
+        <Alert value="BuildComplete_Zerg"/>
+        <InfoArray index="Build1" Unit="CreepTumor" Time="3">
+            <Cooldown TimeUse="45"/>
+            <Button DefaultButtonFace="2fuhuajuntanzhongliu">
+                <Flags index="ShowInGlossary" value="1"/>
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+        </InfoArray>
+        <InfoArray index="Build3" Time="30"/>
+        <Range value="500"/>
+    </CAbilBuild>
+    <CAbilEffectInstant id="2zihuiAir">
+        <AbilSetId value="2zihui"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2zihuiAirApply"/>
+        <Flags index="Transient" value="1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2zihuizhiling">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+    </CAbilEffectInstant>
+    <CAbilBehavior id="2paifangjuntan">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="On" DefaultButtonFace="2paifangjuntan"/>
+        <CmdButtonArray index="Off" DefaultButtonFace="2tingzhipaifangjuntan"/>
+        <Flags index="Toggle" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <BehaviorArray value="makeCreep2x2Overlord"/>
+    </CAbilBehavior>
+    <CAbilTransport id="2zhuangzai">
+        <AbilSetId value="ULdM"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Load" DefaultButtonFace="OverlordTransportLoad"/>
+        <CmdButtonArray index="UnloadAll">
+            <Flags index="Hidden" value="1"/>
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="UnloadAt" DefaultButtonFace="OverlordTransportUnload"/>
+        <CmdButtonArray index="UnloadUnit">
+            <Flags index="Hidden" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="LoadAll">
+            <Flags index="Hidden" value="1"/>
+        </CmdButtonArray>
+        <Flags index="CargoDeath" value="1"/>
+        <MaxCargoCount value="8"/>
+        <MaxCargoSize value="8"/>
+        <TotalCargoSpace value="8"/>
+        <UnloadPeriod value="2"/>
+        <TargetFilters value="Visible;Ally,Neutral,Enemy,Structure,Buried,UnderConstruction,Dead,Hidden"/>
+    </CAbilTransport>
+    <CAbilArmMagazine id="3fuhuayilong">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="AutoCastOffOwnerLeave" value="0"/>
+        <Flags index="Retarget" value="1"/>
+        <Leash value="12"/>
+        <InfoArray index="Ammo1" Time="12" CountStart="4" Distance="1" Manage="Recall" Unit="2fushiyilong">
+            <Charge Link="2 孵化异龙 腐蚀领主"/>
+            <Cooldown Link="2 孵化异龙 腐蚀领主"/>
+            <Button DefaultButtonFace="Broodling" Requirements="2xianzhifeilongshuliang4"/>
+            <Flags index="AutoBuild" value="1"/>
+            <Flags index="AutoBuildOn" value="1"/>
+            <Flags index="External" value="1"/>
+        </InfoArray>
+        <Alert value=""/>
+        <EffectArray index="Release" value="KillsToCaster"/>
+        <ExternalAngle value="164.9926"/>
+        <ExternalAngle value="135"/>
+        <ExternalAngle value="194.9963"/>
+        <ExternalAngle value="225"/>
+    </CAbilArmMagazine>
+    <CAbilEffectTarget id="2tianjiangchonghai">
+        <OrderArray index="0" Model="Assets\UI\Cursors\WayPointConfirm_Void\WayPointConfirm_Void.m3"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2tianjiangchonghaiPersistent1"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Cooldown Link="2 天降虫海 虫后" TimeStart="180" TimeUse="180"/>
+        </Cost>
+        <Range value="500"/>
+        <PrepTime value="15"/>
+        <ShowProgressArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <ProgressButtonArray index="Prep" value="2tianjiangchonghai"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2tianjiangchonghai" Requirements="2tianjiangchonghai"/>
+    </CAbilEffectTarget>
+    <CAbilEffectInstant id="2fuhuachongqun">
+        <OrderArray index="0" Model="Assets\UI\Cursors\WayPointConfirm_Void\WayPointConfirm_Void.m3"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="2fuhuachongqunPersistent"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountUse value="1"/>
+                <Link value="2 孵化虫群 虫后"/>
+                <TimeStart value="60"/>
+                <TimeUse value="60"/>
+            </Charge>
+        </Cost>
+        <CmdButtonArray index="Execute" DefaultButtonFace="2fuhuachongqun" Requirements="2fuhuachongqun"/>
+    </CAbilEffectInstant>
+</Catalog>

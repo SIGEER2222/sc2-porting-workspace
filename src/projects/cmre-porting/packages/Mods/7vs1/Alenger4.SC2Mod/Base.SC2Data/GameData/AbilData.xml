@@ -1,0 +1,1388 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CAbilEffectInstant id="4AllIn">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4AllInSet"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4AllIn"/>
+    </CAbilEffectInstant>
+    <CAbilEffectTarget id="4alengerBlink">
+        <AbilSetId value="Blnk"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="BestUnit" value="0"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Vital index="Life" value="25"/>
+            <Cooldown Link="4 爱兰琪尔 闪现1" TimeUse="8"/>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4alengerBlink">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <Effect index="0" value="4shanxianBlink50"/>
+        <AINotifyEffect value="4shanxianBlink50"/>
+    </CAbilEffectTarget>
+    <CAbilEffectInstant id="4liangzidantou">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4liangzidantoufashechengxuApply"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4liangzihexin"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Resource index="Minerals" value="250"/>
+            <Resource index="Vespene" value="250"/>
+            <Cooldown Link="4 量子弹头 神罚号" TimeUse="240"/>
+        </Cost>
+    </CAbilEffectInstant>
+    <CAbilBehavior id="4sanjidanwanjiasulichang">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="On" DefaultButtonFace="4sanjidanwanjiasulichang"/>
+        <CmdButtonArray index="Off" DefaultButtonFace="4guanbisanjidanwanjiasulichang"/>
+        <Flags index="Toggle" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <BehaviorArray value="4sanjidanwanjiasulichang"/>
+    </CAbilBehavior>
+    <CAbilEffectTarget id="4shanxian5">
+        <AbilSetId value="Blnk"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4shanxianBlink5"/>
+        <Flags index="BestUnit" value="0"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Cooldown Link="4 闪现 黑暗王座" TimeUse="8"/>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4shanxian5">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+    </CAbilEffectTarget>
+    <CAbilBehavior id="4sijidanwanjiasulichang">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="On" DefaultButtonFace="4sijidanwanjiasulichang"/>
+        <CmdButtonArray index="Off" DefaultButtonFace="4guanbisijidanwanjiasulichang"/>
+        <Flags index="Toggle" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <BehaviorArray value="4sijidanwanjiasulichang"/>
+    </CAbilBehavior>
+    <CAbilResearch id="4jianduihangbiaoyanfa">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <InfoArray index="Research1" Time="180" Upgrade="4kuangrezhinu">
+            <Resource index="Minerals" value="450"/>
+            <Resource index="Vespene" value="300"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 狂热之怒 舰队航标"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="4kuangrezhinu">
+                <Flags index="ShowInGlossary" value="1"/>
+            </Button>
+        </InfoArray>
+        <InfoArray index="Research2" Time="120" Upgrade="4qianghuahongxi">
+            <Resource index="Minerals" value="300"/>
+            <Resource index="Vespene" value="200"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 强化虹吸 舰队航标"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="4qianghuahongxi"/>
+        </InfoArray>
+    </CAbilResearch>
+    <CAbilAugment id="4siwangchongfeng">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4siwangchongfeng"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <AbilCmd value="attack,Execute"/>
+        <Cost>
+            <Cooldown Link="4 死亡冲锋 鲜血信徒" Location="Unit" TimeUse="7.5"/>
+        </Cost>
+        <Effect value="4siwangchongfengPersistent"/>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Missile,Hidden,Invulnerable"/>
+        <AutoCastValidatorArray value="CasterNotHoldingPosition"/>
+    </CAbilAugment>
+    <CAbilBehavior id="4yijidanwanjiasulichang">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="On" DefaultButtonFace="4yijidanwanjiasulichang"/>
+        <CmdButtonArray index="Off" DefaultButtonFace="4guanbiyijidanwanjiasulichang"/>
+        <Flags index="Toggle" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <BehaviorArray value="4yijidanwanjiasulichang"/>
+    </CAbilBehavior>
+    <CAbilEffectTarget id="4fanwuzhihongzha">
+        <Alignment value="Negative"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4fanwuzhihongzhaPersistent"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="0"/>
+        <Flags index="Smart" value="1"/>
+        <Cost>
+            <Cooldown Link="4 反物质轰炸 暴力斥候" TimeUse="8"/>
+        </Cost>
+        <Range value="7"/>
+        <Arc value="14.9963"/>
+        <SmartValidatorArray value="noMarkers"/>
+        <SmartValidatorArray value="TargetIsEnemy"/>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="8"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <Marker Link="4 反物质轰炸 暴力斥候"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4fanwuzhihongzha"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="4huimieguangshu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4huimieguangshuPersistent"/>
+        <Cost>
+            <Cooldown>
+                <Link value="4 毁灭光束 塔达林终极武器库"/>
+                <Location value="Player"/>
+                <TimeStart value="300"/>
+                <TimeUse value="300"/>
+            </Cooldown>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <PrepTime value="3"/>
+        <FinishTime value="3"/>
+        <ShowProgressArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Finish" value="1"/>
+        <CursorEffect value="4huimieguangshuSearch"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4sileienguangshu"/>
+        <ProgressButtonArray index="Prep" value="4sileienguangshu"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="4lingzhushixian">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4lingzhushixianSearch"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Charge Link="4 领主视线 监察哨兵"/>
+            <Cooldown Link="4 领主视线 监察哨兵" TimeUse="60"/>
+        </Cost>
+        <Range value="32"/>
+        <CursorEffect value="4lingzhushixianSearch"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4lingzhushixian"/>
+    </CAbilEffectTarget>
+    <CAbilEffectInstant id="4quntikuangbao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4quntikuangbaoSearch"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4quntikuangbao"/>
+        <Cost>
+            <Cooldown>
+                <Link value="4 群体狂暴 塔达林终极武器库"/>
+                <Location value="Player"/>
+                <TimeStart value="300"/>
+                <TimeUse value="300"/>
+            </Cooldown>
+        </Cost>
+    </CAbilEffectInstant>
+    <CAbilEffectTarget id="4xianxuexintudenglu">
+        <Alignment value="Negative"/>
+        <OrderArray index="0" Model="Assets\UI\Cursors\WayPointConfirm_Void\WayPointConfirm_Void.m3"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4xianxuexintudengluApply"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="Smart" value="1"/>
+        <Cost>
+            <Resource index="Minerals" value="200"/>
+            <Charge>
+                <CountMax value="3"/>
+                <CountUse value="1"/>
+                <Link value="4 鲜血信徒登陆 亡魂战舰"/>
+                <TimeUse value="60"/>
+            </Charge>
+        </Cost>
+        <TargetFilters value="Mechanical,Massive,Visible;Player,Ally,Biological,Structure,Heroic,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="8"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral"/>
+        <AutoCastRange value="10"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4xianxuexintudenglu"/>
+        <AutoCastValidatorArray value="4mubiaomeiyouxianxuexintudenglu"/>
+        <Arc value="90"/>
+    </CAbilEffectTarget>
+    <CAbilBehavior id="4erjidanwanjiasulichang">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="On" DefaultButtonFace="4erjidanwanjiasulichang"/>
+        <CmdButtonArray index="Off" DefaultButtonFace="4guanbierjidanwanjiasulichang"/>
+        <Flags index="Toggle" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <BehaviorArray value="4erjidanwanjiasulichang"/>
+    </CAbilBehavior>
+    <CAbilEffectTarget id="4zhaohuansiwangjiandui">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4zhaohuansiwangjiandui"/>
+        <Effect index="0" value="4siwangjianduiPersistent1"/>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <PrepTime value="3"/>
+        <ShowProgressArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Finish" value="1"/>
+        <ProgressButtonArray index="Prep" value="4zhaohuansiwangjiandui"/>
+        <Cost>
+            <Resource index="Minerals" value="900"/>
+            <Resource index="Vespene" value="900"/>
+            <Charge>
+                <CountMax value="3"/>
+                <CountUse value="1"/>
+                <Link value="4 召唤死亡舰队 塔达林终极武器库"/>
+                <TimeStart value="450"/>
+                <TimeUse value="450"/>
+            </Charge>
+            <Cooldown Location="Player"/>
+        </Cost>
+        <FinishTime value="3"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="4zheyue4">
+        <AbilSetId value="Warp"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4zheyueMissile"/>
+        <Flags index="BestUnit" value="0"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Cooldown Link="4 折跃" TimeUse="60"/>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4zheyue"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="4zheyuekongjianfengbao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4zheyuekongjianfengbaoPersistent"/>
+        <Cost>
+            <Cooldown>
+                <Link value="4 折跃空间风暴 塔达林终极武器库"/>
+                <Location value="Player"/>
+                <TimeStart value="180"/>
+                <TimeUse value="180"/>
+            </Cooldown>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <PrepTime value="3"/>
+        <FinishTime value="3"/>
+        <ShowProgressArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Finish" value="1"/>
+        <CursorEffect value="4zheyuekongjianfengbaoSearch"/>
+        <ProgressButtonArray index="Prep" value="4zheyuekongjianfengbao"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4zheyuekongjianfengbao"/>
+    </CAbilEffectTarget>
+    <CAbilAugment id="4fennu">
+        <Alignment value="Negative"/>
+        <OrderArray index="0">
+            <DisplayType value="Confirm"/>
+            <Color value="255,0,255,0"/>
+            <Model value="Assets\UI\Cursors\WayPointAttack_Void\WayPointAttack_Void.m3"/>
+            <LineTexture value="Assets\Textures\WayPointLine.dds"/>
+        </OrderArray>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4fennu"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <AbilCmd value="attack,Execute"/>
+        <Cost>
+            <Cooldown Link="4 愤怒" TimeUse="18"/>
+        </Cost>
+        <Effect value="4fennuApply"/>
+        <AutoCastFilters value="Visible;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastValidatorArray value="4shifazhemeiyoufennu"/>
+    </CAbilAugment>
+    <CAbilEffectTarget id="4heidong1">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <PrepEffect value="4heidongTargetPersistent"/>
+        <Effect index="0" value="0heidongPersistentMedium"/>
+        <Cost>
+            <Cooldown Link="4 黑洞 塔达林终极武器库" Location="Player" TimeUse="240"/>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <PrepTime value="3"/>
+        <ShowProgressArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Finish" value="1"/>
+        <CursorEffect value="4heidongTargetPersistentSearch"/>
+        <ProgressButtonArray index="Prep" value="4heidong"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4heidong"/>
+        <FinishTime value="3"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="4jueduijianmie">
+        <OrderArray index="0" Model="Assets\UI\Cursors\WayPointConfirm_Void\WayPointConfirm_Void.m3"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4jueduijianmiePersistent"/>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <PrepTime value="3"/>
+        <FinishTime value="3"/>
+        <ShowProgressArray index="Prep" value="1"/>
+        <ProgressButtonArray index="Prep" value="4jueduijianmie"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4jueduijianmie"/>
+        <PrepEffect value="4jueduijianmieCharge"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Finish" value="1"/>
+        <CursorEffect value="4jueduijianmieSearch"/>
+        <Cost>
+            <Cooldown>
+                <Link value="4 绝对歼灭 塔达林终极武器库"/>
+                <Location value="Player"/>
+                <TimeStart value="240"/>
+                <TimeUse value="240"/>
+            </Cooldown>
+        </Cost>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="4siwanghongzha">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <PrepEffect value="4siwanghongzhaStartSearch"/>
+        <Effect index="0" value="4siwanghongzhaPersistent"/>
+        <Cost>
+            <Cooldown Link="4 死亡轰炸 塔达林终极武器库" Location="Player" TimeUse="180"/>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <PrepTime value="3"/>
+        <ShowProgressArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Finish" value="1"/>
+        <CursorEffect value="4siwanghongzhaStartSearch"/>
+        <ProgressButtonArray index="Prep" value="4siwanghongzha"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4siwanghongzha"/>
+        <FinishTime value="3"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="4shanxian">
+        <Alignment value="Negative"/>
+        <AbilSetId value="Blnk"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4shanxianBlink"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="0"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Cooldown Link="4 杀戮战士 闪现" TimeUse="8"/>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Structure,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="8"/>
+        <AINotifyEffect value="4shanxianBlink"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4shanxian">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <AutoCastValidatorArray value="4shifazhehudundiyu30"/>
+    </CAbilEffectTarget>
+    <CAbilEffectInstant id="4gongfeng">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4gongfengapply"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Cooldown Link="4 供奉 黑暗王座" TimeUse="120"/>
+        </Cost>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4gongfeng"/>
+    </CAbilEffectInstant>
+    <CAbilEffectInstant id="4hexintansuo">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4hexintansuoApply"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4hexintansuo"/>
+        <Cost>
+            <Cooldown Link="4 核心坍缩 黑暗王座" TimeStart="300" TimeUse="300"/>
+        </Cost>
+    </CAbilEffectInstant>
+    <CAbilEffectInstant id="4kuangbao">
+        <OrderArray index="0" Model="Assets\UI\Cursors\WayPointConfirm_Void\WayPointConfirm_Void.m3"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4kuangbaoApply"/>
+        <Cost>
+            <VitalFraction index="Life" value="0.2"/>
+            <Cooldown Link="4狂暴" TimeUse="180"/>
+        </Cost>
+        <AINotifyEffect value="4kuangbaoApply"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4kuangbao"/>
+    </CAbilEffectInstant>
+    <CAbilEffectTarget id="4xiangweiliejieshexian">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4xiangweiliejieshexianPersistent1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <AINotifyEffect value="4xiangweiliejieshexianPersistent"/>
+        <Alignment value="Negative"/>
+        <Cost>
+            <Cooldown Link="4 相位裂解射线 星尘之影" TimeUse="18"/>
+        </Cost>
+        <Range value="12"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="12"/>
+        <CursorEffect value="4xiangweiliejieshexianSearch"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4xiangweiliejieshexian"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="4xiaoxingheidong">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4xiaoxingheidongLaunch"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Cooldown Link="4 小型黑洞 亡魂战舰" TimeUse="45"/>
+        </Cost>
+        <Range value="16"/>
+        <PrepTime value="1.5"/>
+        <ShowProgressArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Cast" value="1"/>
+        <ProgressButtonArray index="Prep" value="4xiaoxingheidong"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4xiaoxingheidong"/>
+    </CAbilEffectTarget>
+    <CAbilArmMagazine id="4shandianwurenjijiku">
+        <AbilSetId value="CarrierHanger"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="Retarget" value="1"/>
+        <Leash value="10"/>
+        <InfoArray index="Ammo1" Time="6" Count="2" CountStart="8" Manage="Recall" Unit="4shandianwurenji">
+            <Charge Link="CarrierInterceptor" Location="Unit"/>
+            <Cooldown Link="CarrierTrainInterceptor" TimeUse="0.01"/>
+            <Button DefaultButtonFace="4zhizaoshandianwurenji" Requirements="ArmInterceptor">
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+            <Flags index="AutoBuild" value="1"/>
+            <Flags index="AutoBuildOn" value="1"/>
+            <Flags index="LeashRetarget" value="1"/>
+        </InfoArray>
+        <Alert value="TrainComplete"/>
+        <MaxCount value="8"/>
+    </CAbilArmMagazine>
+    <CAbilEffectInstant id="4xukongyinying">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4xukongyinyingApply"/>
+        <Flags index="Transient" value="1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4xukongyinying"/>
+        <Cost>
+            <Cooldown Link="4 虚空阴影" TimeUse="12"/>
+        </Cost>
+    </CAbilEffectInstant>
+    <CAbilEffectInstant id="4zheyue5">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4zheyuezhunbeiApply5"/>
+        <Flags index="Transient" value="1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4zheyue"/>
+        <AbilSetId value="Warp"/>
+        <Cost>
+            <Cooldown Link="4 折跃" TimeUse="60"/>
+        </Cost>
+    </CAbilEffectInstant>
+    <CAbilBuild id="4jianzhuzheyue">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <FlagArray index="PeonDisableCollision" value="1"/>
+        <FlagArray index="PeonMaintained" value="0"/>
+        <InfoArray index="Build1" Unit="4zhanzhengshuniu" Time="80">
+            <Button DefaultButtonFace="4zheyuezhanzhengshuniu"/>
+        </InfoArray>
+        <InfoArray index="Build2" Unit="4chuansongmen" Time="45">
+            <Button DefaultButtonFace="4zheyuechuansongmen" Requirements="4youzhanzhengshuniu"/>
+        </InfoArray>
+        <InfoArray index="Build3" Unit="4jianduihangbiao" Time="90">
+            <Button DefaultButtonFace="4zheyuejianduihangbiao" Requirements="4youxingmenhuozheyuexingmen"/>
+        </InfoArray>
+        <InfoArray index="Build4" Unit="4siwangyihui" Time="50">
+            <Button DefaultButtonFace="4zheyuesiwangyihui" Requirements="4youkongzhixinhe"/>
+        </InfoArray>
+        <InfoArray index="Build5" Time="25"/>
+        <InfoArray index="Build7" Unit="4shenggeshengdian" Time="80">
+            <Button DefaultButtonFace="4zheyueshenggeshengdian" Requirements="4yousiwangyihui"/>
+        </InfoArray>
+        <InfoArray index="Build8" Unit="4siwanglaolong" Time="80">
+            <Button DefaultButtonFace="4zheyuesiwanglaolong" Requirements="4yousiwangyihui"/>
+        </InfoArray>
+        <InfoArray index="Build9" Unit="4guidaoxinacang" Time="30">
+            <Button DefaultButtonFace="4zheyueguidaoxinacang"/>
+            <ValidatorArray value="HasVespene"/>
+        </InfoArray>
+        <InfoArray index="Build10" Unit="4shuijingta" Time="15">
+            <Button DefaultButtonFace="4zheyueshuijingta"/>
+        </InfoArray>
+        <InfoArray index="Build11" Unit="4guangzipaotai" Time="40">
+            <Button DefaultButtonFace="4zheyueguangzipaotai" Requirements="4youduanlu"/>
+        </InfoArray>
+        <InfoArray index="Build12" Unit="4duanlu" Time="40">
+            <Button DefaultButtonFace="4zheyueduanlu" Requirements="4youzhanzhengshuniu"/>
+        </InfoArray>
+        <InfoArray index="Build13" Unit="4jixieyanjiusuo" Time="80">
+            <Button DefaultButtonFace="4zheyuejixieyanjiusuo" Requirements="4youjixietaihuojixiezheyuetai"/>
+        </InfoArray>
+        <InfoArray index="Build14" Unit="4jixietai" Time="60">
+            <Button DefaultButtonFace="4zheyuejixietai" Requirements="4youkongzhixinhe"/>
+        </InfoArray>
+        <InfoArray index="Build15" Unit="4kongzhixinhe" Time="40">
+            <Button DefaultButtonFace="4zheyuekongzhixinhe" Requirements="HaveGateway"/>
+        </InfoArray>
+        <InfoArray index="Build16" Unit="4xingmen" Time="60">
+            <Button DefaultButtonFace="4zheyuexingmen" Requirements="4youkongzhixinhe"/>
+        </InfoArray>
+        <InfoArray index="Build19" Unit="4hudunchongnengqi" Time="30">
+            <Button DefaultButtonFace="4zheyuehudunchongnengqi" Requirements="4youduanlu"/>
+        </InfoArray>
+        <InfoArray index="Build20" Unit="4tadalinzhongjiwuqiku" Time="4">
+            <Button DefaultButtonFace="4zheyuetadalinzhongjiwuqiku" Requirements="4zhinengyouyigetadalinzhongjiwuqiku"/>
+        </InfoArray>
+        <InfoArray index="Build21" Unit="4silielichangfashengqi" Time="60">
+            <Button DefaultButtonFace="4zheyuesilielichangfashengqi" Requirements="4youjixieyanjiusuo"/>
+        </InfoArray>
+        <ConstructionMover value="Construction"/>
+    </CAbilBuild>
+    <CAbilTrain id="4zheyuetanzhengtanji">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Activity value="UI/Warping"/>
+        <InfoArray index="Train1" Time="20">
+            <Button DefaultButtonFace="4zhanzhengtanji"/>
+            <Unit value="4zhanzhengtanji"/>
+        </InfoArray>
+        <Alert value="TrainWorkerComplete"/>
+    </CAbilTrain>
+    <CAbilEffectTarget id="4shikongtisu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4shikongtisuPersistent1"/>
+        <Cost>
+            <Cooldown Link="4 时空提速 战争枢纽" TimeUse="3"/>
+        </Cost>
+        <TargetFilters value="-;Neutral,Enemy,Missile,Stasis,Dead,Hidden"/>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <AINotifyEffect value="ChronoBoost"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4shikongtisu"/>
+    </CAbilEffectTarget>
+    <CAbilTrain id="4xunlian2">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Activity value="UI/Warping"/>
+        <InfoArray index="Train1" Time="40">
+            <Button DefaultButtonFace="4zheyuexianxuexintu"/>
+            <Unit value="4Zealot2"/>
+        </InfoArray>
+        <InfoArray index="Train10" Time="50">
+            <Button DefaultButtonFace="4zheyueshaluzhanshi" Requirements="4youkongzhixinhe"/>
+            <Unit value="4shaluzhanshi"/>
+        </InfoArray>
+        <InfoArray index="Train11" Time="50">
+            <Button DefaultButtonFace="4zheyuejilishenshi" Requirements="4youkongzhixinhe"/>
+            <Unit value="4jilishenshi"/>
+        </InfoArray>
+        <InfoArray index="Train12" Time="50">
+            <Button DefaultButtonFace="4zheyuejianchashaobing" Requirements="4youkongzhixinhe"/>
+            <Unit value="4jianchashaobing"/>
+        </InfoArray>
+        <InfoArray index="Train13" Time="60">
+            <Button DefaultButtonFace="4zheyueduoluoqishi" Requirements="4yousiwanglaolong"/>
+            <Unit value="4duoluoqishi"/>
+        </InfoArray>
+        <InfoArray index="Train14" Time="60">
+            <Button DefaultButtonFace="4zheyueshenggeqishi" Requirements="4youshenggeshengdian"/>
+            <Unit value="4shenggeqishi"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilMorph id="1chuansongmenbianxingweizheyuemen">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4bianxingweizheyuemen" Requirements="4youzheyuemen"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Birth" value="1"/>
+        <Flags index="DisableAbils" value="1"/>
+        <Flags index="FastBuild" value="1"/>
+        <Flags index="Produce" value="1"/>
+        <Flags index="ShowProgress" value="1"/>
+        <InfoArray Unit="4zheyuemen">
+            <SectionArray index="Abils">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="3"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+        </InfoArray>
+        <Alert value="TransformationComplete"/>
+        <Activity value="UI/Transforming"/>
+        <ProgressButton value="4bianxingweizheyuemen"/>
+    </CAbilMorph>
+    <CAbilMorph id="4zheyuemenbianxingweichuansongmen">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4bianxingweichuansongmen"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Birth" value="1"/>
+        <Flags index="DisableAbils" value="1"/>
+        <Flags index="FastBuild" value="1"/>
+        <Flags index="ShowProgress" value="1"/>
+        <InfoArray Unit="4chuansongmen">
+            <SectionArray index="Abils">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="3"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+        </InfoArray>
+        <Alert value="MorphComplete"/>
+        <ProgressButton value="4bianxingweichuansongmen"/>
+    </CAbilMorph>
+    <CAbilEffectTarget id="4quntitousong">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4quntitousongPersistent"/>
+        <Cost>
+            <Charge Link=""/>
+            <Cooldown Link="4 群体投送 战争枢纽" TimeUse="180"/>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4quntitousong"/>
+        <AINotifyEffect value="4quntitousongBlink"/>
+    </CAbilEffectTarget>
+    <CAbilWarpTrain id="4zheyuexunlian2">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray index="Train1" Time="5" Unit="4Zealot2">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练"/>
+                <TimeStart value="30"/>
+                <TimeUse value="30"/>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练"/>
+            <Button DefaultButtonFace="4zheyuexianxuexintu"/>
+        </InfoArray>
+        <InfoArray index="Train2">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train3">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train4">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train5">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train6">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train7">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train10" Time="5" Unit="4shaluzhanshi">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练"/>
+                <TimeUse value="40"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练"/>
+            <Button DefaultButtonFace="4zheyueshaluzhanshi" Requirements="4youkongzhixinhe"/>
+        </InfoArray>
+        <InfoArray index="Train11" Time="5" Unit="4jilishenshi">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练"/>
+                <TimeUse value="40"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练"/>
+            <Button DefaultButtonFace="4zheyuejilishenshi" Requirements="4youkongzhixinhe"/>
+        </InfoArray>
+        <InfoArray index="Train12" Time="5" Unit="4jianchashaobing">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练"/>
+                <TimeUse value="40"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练"/>
+            <Button DefaultButtonFace="4zheyuejianchashaobing" Requirements="4youkongzhixinhe"/>
+        </InfoArray>
+        <InfoArray index="Train13" Time="5" Unit="4duoluoqishi">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练"/>
+                <TimeUse value="50"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练"/>
+            <Button DefaultButtonFace="4zheyueduoluoqishi" Requirements="4yousiwanglaolong"/>
+        </InfoArray>
+        <InfoArray index="Train14" Time="5" Unit="4shenggeqishi">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练"/>
+                <TimeUse value="50"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练"/>
+            <Button DefaultButtonFace="4zheyueshenggeqishi" Requirements="4youshenggeshengdian"/>
+        </InfoArray>
+        <Flags index="CmdToMostCharges" value="1"/>
+    </CAbilWarpTrain>
+    <CAbilEffectTarget id="4shangci">
+        <Alignment value="Positive"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4shangciPersistent"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="Smart" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountUse value="1"/>
+                <Link value="4 赏赐"/>
+                <TimeUse value="6"/>
+            </Charge>
+        </Cost>
+        <TargetFilters value="Visible;Self,Neutral,Enemy,Structure,Heroic,Missile,Item,Uncommandable,Stasis,Dead,Hidden"/>
+        <Range value="8"/>
+        <Arc value="4.9987"/>
+        <SmartValidatorArray value="TargetLifeNotFull"/>
+        <SmartValidatorArray value="4mubiaomeiyoushangci"/>
+        <AutoCastFilters value="Visible;Self,Neutral,Enemy,Structure,Missile,Item,Stasis,Dead,Hidden"/>
+        <AutoCastRange value="10"/>
+        <AutoCastValidatorArray value="TargetLifeNotFull"/>
+        <AutoCastValidatorArray value="4mubiaomeiyoushangci"/>
+        <Marker Link="4 赏赐 监察哨兵"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4shangci"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="4siwangshouge">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4siwangshougePersistent0"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="0"/>
+        <Cost>
+            <Cooldown TimeUse="8"/>
+        </Cost>
+        <TargetFilters value="Ground;Missile,Stasis,Dead,Hidden"/>
+        <Range value="8"/>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Structure,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="8"/>
+        <AutoCastValidatorArray value="CasterNotHoldingPosition"/>
+        <UninterruptibleArray index="Wait" value="1"/>
+        <UninterruptibleArray index="Cast" value="1"/>
+        <UninterruptibleArray index="Channel" value="1"/>
+        <UninterruptibleArray index="Finish" value="1"/>
+        <UninterruptibleArray index="Bail" value="1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4siwangshouge"/>
+        <CursorEffect value="4siwangshougeSearch"/>
+    </CAbilEffectTarget>
+    <CAbilMorph id="4bianxingweijixietai">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4bianxingweijixietai"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Birth" value="1"/>
+        <Flags index="DisableAbils" value="1"/>
+        <Flags index="FastBuild" value="1"/>
+        <Flags index="ShowProgress" value="1"/>
+        <InfoArray Unit="4jixietai">
+            <SectionArray index="Abils">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="3"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+        </InfoArray>
+        <Alert value="TransformationComplete"/>
+        <Activity value="UI/Transforming"/>
+        <ProgressButton value="4bianxingweijixietai"/>
+    </CAbilMorph>
+    <CAbilMorph id="4bianxingweijixiezheyuetai">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4bianxingweijixiezheyuetai" Requirements="4youzheyuemen"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Birth" value="1"/>
+        <Flags index="DisableAbils" value="1"/>
+        <Flags index="FastBuild" value="1"/>
+        <Flags index="Produce" value="1"/>
+        <Flags index="ShowProgress" value="1"/>
+        <InfoArray Unit="4jixiezheyuetai">
+            <SectionArray index="Abils">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="3"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+        </InfoArray>
+        <Alert value="TransformationComplete"/>
+        <Activity value="UI/Transforming"/>
+        <ProgressButton value="4bianxingweijixiezheyuetai"/>
+    </CAbilMorph>
+    <CAbilTrain id="4xunlian3">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Activity value="UI/Warping"/>
+        <InfoArray index="Train1" Time="50">
+            <Button DefaultButtonFace="4zheyuetaitanlengjing"/>
+            <Unit value="4taitanlengjingTransportMode"/>
+        </InfoArray>
+        <InfoArray index="Train10" Time="60">
+            <Button DefaultButtonFace="4zheyuelinghunlieshou"/>
+            <Unit value="4linghunlieshou"/>
+        </InfoArray>
+        <InfoArray index="Train11" Time="60">
+            <Button DefaultButtonFace="4zheyueroulinjijia"/>
+            <Unit value="4roulinjijia"/>
+        </InfoArray>
+        <InfoArray index="Train12" Time="60">
+            <Button DefaultButtonFace="4zheyuexingchenzhiying" Requirements="4youjixieyanjiusuo"/>
+            <Unit value="4xingchenzhiying"/>
+        </InfoArray>
+        <InfoArray index="Train13" Time="80">
+            <Button DefaultButtonFace="4zheyuesiwangyaosai" Requirements="4youjixieyanjiusuo"/>
+            <Unit value="4siwangyaosai"/>
+        </InfoArray>
+        <InfoArray index="Train14" Time="80">
+            <Button DefaultButtonFace="4zheyueshenyuanxingzhe" Requirements="4youjixieyanjiusuo"/>
+            <Unit value="4shenyuanxingzhe"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilMorph id="4hangxingmoshi">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4hangxingmoshi"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <InfoArray Unit="4taitanlengjingTransportMode">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="1.5"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Duration" value="1.5"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilMorph id="4xiangweimoshi">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="3xiangweimoshi"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <InfoArray Unit="4taitanlengjingPhasingMode">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="1.5"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Duration" value="1.5"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilWarpTrain id="4zheyuexunlian3">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <InfoArray index="Train1" Time="5" Unit="4taitanlengjingTransportMode">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练3"/>
+                <TimeStart value="30"/>
+                <TimeUse value="40"/>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练3"/>
+            <Button DefaultButtonFace="4zheyuetaitanlengjing"/>
+        </InfoArray>
+        <InfoArray index="Train2">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train3">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train4">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train5">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train10" Time="5" Unit="4linghunlieshou">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练3"/>
+                <TimeStart value="30"/>
+                <TimeUse value="50"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练3"/>
+            <Button DefaultButtonFace="4zheyuelinghunlieshou"/>
+        </InfoArray>
+        <InfoArray index="Train11" Time="5" Unit="4roulinjijia">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练3"/>
+                <TimeStart value="30"/>
+                <TimeUse value="50"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练3"/>
+            <Button DefaultButtonFace="4zheyueroulinjijia"/>
+        </InfoArray>
+        <InfoArray index="Train12" Time="5" Unit="4xingchenzhiying">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练3"/>
+                <TimeStart value="30"/>
+                <TimeUse value="60"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练3"/>
+            <Button DefaultButtonFace="4zheyuexingchenzhiying" Requirements="4youjixieyanjiusuo"/>
+        </InfoArray>
+        <InfoArray index="Train13" Time="5" Unit="4siwangyaosai">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练3"/>
+                <TimeStart value="30"/>
+                <TimeUse value="60"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练3"/>
+            <Button DefaultButtonFace="4zheyuesiwangyaosai" Requirements="4youjixieyanjiusuo"/>
+        </InfoArray>
+        <InfoArray index="Train14" Time="5" Unit="4shenyuanxingzhe">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练3"/>
+                <TimeUse value="60"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练3"/>
+            <Button DefaultButtonFace="4zheyueshenyuanxingzhe" Requirements="4youjixieyanjiusuo"/>
+        </InfoArray>
+        <InfoArray index="Train19">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+    </CAbilWarpTrain>
+    <CAbilEffectTarget id="4hudunhuifu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4hudunhuifuMedicalPersistent"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="0"/>
+        <Flags index="ReExecutable" value="1"/>
+        <Flags index="Smart" value="1"/>
+        <TargetFilters value="Visible;Self,Enemy,Missile,UnderConstruction,Dead,Hidden"/>
+        <Range value="6"/>
+        <Arc value="360"/>
+        <AutoCastAcquireLevel value="Defensive"/>
+        <AutoCastFilters value="Visible;Self,Neutral,Enemy,Missile,UnderConstruction,Dead,Hidden"/>
+        <AutoCastRange value="6"/>
+        <UseMarkerArray index="Approach" value="0"/>
+        <UseMarkerArray index="Prep" value="0"/>
+        <AINotifyEffect value="4hudunhuifuMedicalPersistent"/>
+        <DefaultError value="RequiresHealTarget"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4hudunhuifu"/>
+    </CAbilEffectTarget>
+    <CAbilMorph id="4bianxingweizheyuexingmen">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4bianxingweizheyuexingmen" Requirements="4youzheyuemen"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Birth" value="1"/>
+        <Flags index="DisableAbils" value="1"/>
+        <Flags index="FastBuild" value="1"/>
+        <Flags index="Produce" value="1"/>
+        <Flags index="ShowProgress" value="1"/>
+        <InfoArray Unit="4zheyuexingmen">
+            <SectionArray index="Abils">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="3"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+        </InfoArray>
+        <Alert value="TransformationComplete"/>
+        <Activity value="UI/Transforming"/>
+        <ProgressButton value="4bianxingweizheyuexingmen"/>
+    </CAbilMorph>
+    <CAbilMorph id="4bianxingweixingmen">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4bianxingweixingmen"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Birth" value="1"/>
+        <Flags index="DisableAbils" value="1"/>
+        <Flags index="FastBuild" value="1"/>
+        <Flags index="ShowProgress" value="1"/>
+        <InfoArray Unit="4xingmen">
+            <SectionArray index="Abils">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="3"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+        </InfoArray>
+        <Alert value="TransformationComplete"/>
+        <Activity value="UI/Transforming"/>
+        <ProgressButton value="4bianxingweixingmen"/>
+    </CAbilMorph>
+    <CAbilTrain id="4xunlian4">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Activity value="UI/Warping"/>
+        <InfoArray index="Train1" Time="50">
+            <Button DefaultButtonFace="4zheyuetiankongzhijian"/>
+            <Unit value="4tiankongzhijian"/>
+        </InfoArray>
+        <InfoArray index="Train3" Time="120">
+            <Button DefaultButtonFace="4zheyuerishihangmu" Requirements="4youjianduihangbiao"/>
+            <Unit value="4rishihangmu"/>
+        </InfoArray>
+        <InfoArray index="Train5" Time="70">
+            <Button DefaultButtonFace="4zheyuehuimielingzhu"/>
+            <Unit value="4huimielingzhu"/>
+        </InfoArray>
+        <InfoArray index="Train6" Time="40">
+            <Button DefaultButtonFace="4zheyuebaolichihou"/>
+            <Unit value="4baolichihou"/>
+        </InfoArray>
+        <InfoArray index="Train12" Time="80">
+            <Button DefaultButtonFace="4zheyuewanghunzhanjian"/>
+            <Unit value="4wanghunzhanjian"/>
+        </InfoArray>
+        <InfoArray index="Train13" Time="180">
+            <Button DefaultButtonFace="4zheyuelingzhuzhinu" Requirements="4youjianduihangbiao"/>
+            <Unit value="4lingzhuzhinu"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilWarpTrain id="4zheyuexunlian4">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <InfoArray index="Train1" Time="5" Unit="4tiankongzhijian">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练4"/>
+                <TimeStart value="30"/>
+                <TimeUse value="40"/>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练4"/>
+            <Button DefaultButtonFace="4zheyuetiankongzhijian"/>
+        </InfoArray>
+        <InfoArray index="Train3" Time="5" Unit="4rishihangmu">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练4"/>
+                <TimeStart value="30"/>
+                <TimeUse value="100"/>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练4"/>
+            <Button DefaultButtonFace="4zheyuerishihangmu" Requirements="4youjianduihangbiao"/>
+        </InfoArray>
+        <InfoArray index="Train5" Time="5" Unit="4huimielingzhu">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练4"/>
+                <TimeStart value="30"/>
+                <TimeUse value="50"/>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练4"/>
+            <Button DefaultButtonFace="4zheyuehuimielingzhu"/>
+        </InfoArray>
+        <InfoArray index="Train6" Time="5" Unit="4baolichihou">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练4"/>
+                <TimeStart value="30"/>
+                <TimeUse value="30"/>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练4"/>
+            <Button DefaultButtonFace="4zheyuebaolichihou"/>
+        </InfoArray>
+        <InfoArray index="Train9">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train10">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train11">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train12" Time="5" Unit="4wanghunzhanjian">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练4"/>
+                <TimeStart value="30"/>
+                <TimeUse value="70"/>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练4"/>
+            <Button DefaultButtonFace="4zheyuewanghunzhanjian"/>
+        </InfoArray>
+        <InfoArray index="Train13" Time="5" Unit="4lingzhuzhinu">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 折跃训练4"/>
+                <TimeStart value="30"/>
+                <TimeUse value="120"/>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+            <Cooldown Link="4 折跃训练4"/>
+            <Button DefaultButtonFace="4zheyuelingzhuzhinu" Requirements="4youjianduihangbiao"/>
+        </InfoArray>
+    </CAbilWarpTrain>
+    <CAbilWarpTrain id="4zheyuexunlian1">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <InfoArray index="Train1" Time="5" Unit="4ailanqier">
+            <Charge Link="1 折跃训练 塔达林终极武器库">
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+            <Cooldown Link="1 折跃训练 塔达林终极武器库"/>
+            <Button DefaultButtonFace="4zhaohuanailanqier" Requirements="4zhinengyouyigeailanqier"/>
+        </InfoArray>
+        <InfoArray index="Train2" Time="5" Unit="4shenfahao">
+            <Button DefaultButtonFace="4zheyueshenfahao" Requirements="4zhinengyouyigeshenfahao"/>
+        </InfoArray>
+        <InfoArray index="Train3" Time="5" Unit="4rishihangmu">
+            <Charge Link="1 折跃训练 塔达林终极武器库">
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+            <Cooldown Link="1 折跃训练 塔达林终极武器库"/>
+            <Button DefaultButtonFace="4zheyuerishihangmu"/>
+        </InfoArray>
+        <InfoArray index="Train4" Time="5" Unit="4heianwangzuo">
+            <Button DefaultButtonFace="4zhaohuanheianwangzuo" Requirements="4zhinengyouyigeheianwangzuo"/>
+        </InfoArray>
+        <InfoArray index="Train5">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train6">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train9">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train10">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train11">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train12">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train13">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <Flags index="WarpTrainersButton" value="0"/>
+    </CAbilWarpTrain>
+    <CAbilEffectTarget id="4jingjipingzhang">
+        <OrderArray index="0" Model="Assets\UI\Cursors\WayPointConfirm_Void\WayPointConfirm_Void.m3"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="4jingjipingzhangApply"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="Smart" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountUse value="1"/>
+                <Link value="4 荆棘屏障 亡魂战舰"/>
+                <TimeUse value="6"/>
+            </Charge>
+        </Cost>
+        <TargetFilters value="Visible;Self,Enemy,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="10"/>
+        <Arc value="360"/>
+        <SmartValidatorArray value="4mubiaomeiyoujingjipingzhang"/>
+        <SmartValidatorArray value="TargetInCombat"/>
+        <AutoCastFilters value="Visible;Neutral,Enemy,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="10"/>
+        <AutoCastValidatorArray value="4mubiaomeiyoujingjipingzhang"/>
+        <AutoCastValidatorArray value="TargetInCombat"/>
+        <AINotifyEffect value="4jingjipingzhangApply"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4jingjipingzhang"/>
+    </CAbilEffectTarget>
+    <CAbilResearch id="4siwangyihuiyanfa">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <InfoArray index="Research1" Time="45" Upgrade="4nengliangzhendangqi">
+            <Resource index="Minerals" value="150"/>
+            <Resource index="Vespene" value="75"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 能量振荡器 死亡议会"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="4nengliangzhendangqi">
+                <Flags index="ShowInGlossary" value="1"/>
+            </Button>
+        </InfoArray>
+        <InfoArray index="Research2" Time="30" Upgrade="4xisheng">
+            <Resource index="Minerals" value="50"/>
+            <Resource index="Vespene" value="50"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 牺牲 死亡议会"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="4xisheng"/>
+        </InfoArray>
+        <InfoArray index="Research3" Time="30" Upgrade="4xianxuejisi">
+            <Resource index="Minerals" value="50"/>
+            <Resource index="Vespene" value="50"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 鲜血祭祀 死亡议会"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="4xianxuejisi">
+                <Flags index="ShowInGlossary" value="1"/>
+            </Button>
+        </InfoArray>
+    </CAbilResearch>
+    <CAbilResearch id="4jixieyanjiusuoyanfa">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray index="Research1" Time="30" Upgrade="4duochongpaozu">
+            <Resource index="Minerals" value="75"/>
+            <Resource index="Vespene" value="25"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 多重炮组 机械研究所"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="4duochongpaozu"/>
+        </InfoArray>
+        <InfoArray index="Research2" Time="90" Upgrade="4kongjiansilielingyu">
+            <Resource index="Minerals" value="100"/>
+            <Resource index="Vespene" value="100"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 空间撕裂领域 机械研究所"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="4kongjiansilielingyu"/>
+        </InfoArray>
+        <InfoArray index="Research3" Time="60" Upgrade="4linghunhongxi">
+            <Resource index="Minerals" value="100"/>
+            <Resource index="Vespene" value="100"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="4 灵魂虹吸 机械研究所"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="4linghunhongxi"/>
+        </InfoArray>
+        <InfoArray index="Research4" Time="140"/>
+        <InfoArray index="Research5" Time="140"/>
+    </CAbilResearch>
+    <CAbilAugment id="4xianxuechongfeng">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="4xianxuechongfeng"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <AbilCmd value="attack,Execute"/>
+        <Cost>
+            <Cooldown Link="4 鲜血冲锋 鲜血信徒" Location="Unit" TimeUse="7.5"/>
+        </Cost>
+        <Effect value="4xianxuechongfengPersistent"/>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Missile,Hidden,Invulnerable"/>
+        <AutoCastValidatorArray value="CasterNotHoldingPosition"/>
+    </CAbilAugment>
+</Catalog>

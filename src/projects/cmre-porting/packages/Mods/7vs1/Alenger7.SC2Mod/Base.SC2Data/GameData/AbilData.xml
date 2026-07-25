@@ -1,0 +1,1157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CAbilEffectTarget id="7dantizhaohui">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7dantizhaohuiTeleport"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Flags index="TransientPreferred" value="1"/>
+        <Cost>
+            <Cooldown>
+                <Link value="7 单体召回 折跃棱镜"/>
+                <Location value="Unit"/>
+                <TimeStart value="3"/>
+                <TimeUse value="3"/>
+            </Cooldown>
+        </Cost>
+        <TargetFilters value="Visible;Self,Enemy,Structure,Missile,Stasis,Dead,Hidden"/>
+        <TargetSorts>
+            <SortArray value="TSLifeFraction"/>
+        </TargetSorts>
+        <Range value="8"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Visible;Ally,Neutral,Enemy,Worker,Missile,Stasis,Dead,Hidden"/>
+        <AutoCastRange value="8"/>
+        <AutoCastValidatorArray value="TargetInCombat"/>
+        <AutoCastValidatorArray value="TargetLifeNotFull"/>
+        <AutoCastValidatorArray value="0mubiaohudunxiaoyu30"/>
+        <AutoCastValidatorArray value="7mubiaomeiyouxingxingsuiliepao"/>
+        <AutoCastValidatorArray value="7mubiaomeiyouxiaohaotaiyanghexinchongneng"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7dantizhaohui"/>
+        <AcquireAttackers value="1"/>
+        <FollowRange value="2"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="7xingxingsuiliepao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <PrepEffect value="7xiaohaotaiyanghexinchongnengApply"/>
+        <Effect index="0" value="7xingxingsuiliepaoPersistent"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="45"/>
+                <Link value="7 太阳核心充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+        </Cost>
+        <Range value="17"/>
+        <Arc value="360"/>
+        <PrepTime value="1.5"/>
+        <FinishTime value="1.5"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Cast" value="1"/>
+        <UninterruptibleArray index="Channel" value="1"/>
+        <UninterruptibleArray index="Finish" value="1"/>
+        <CursorRangeMode value="Clamp"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7xingxingsuiliepao">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="7fanwuzhidanmu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <PrepEffect value="7fanwuzhidanmuPersistentStart"/>
+        <Effect index="0" value="7fanwuzhidanmuPersistent"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="15"/>
+                <Link value="7 太阳核心充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+        </Cost>
+        <TargetFilters value="Visible;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="24"/>
+        <Arc value="360"/>
+        <PrepTime value="0.3"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Cast" value="1"/>
+        <UninterruptibleArray index="Channel" value="1"/>
+        <UninterruptibleArray index="Finish" value="1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7fanwuzhidanmu">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="7guidaotance">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7guidaotancePersistent"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Flags index="Transient" value="1"/>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7guidaotance"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="7 轨道探测 太阳锻炉"/>
+                <Location value="Player"/>
+                <TimeStart value="240"/>
+                <TimeUse value="120"/>
+            </Charge>
+        </Cost>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="7qidian">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7qidianStartPersistent"/>
+        <Flags index="Transient" value="1"/>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7qidian"/>
+        <Cost>
+            <Cooldown>
+                <Link value="7 奇点 太阳锻炉"/>
+                <Location value="Player"/>
+                <TimeStart value="480"/>
+                <TimeUse value="240"/>
+            </Cooldown>
+        </Cost>
+    </CAbilEffectTarget>
+    <CAbilMorph id="7longqishishengkong" unit="StarportFlying">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7zheyueyadunlongqishi"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="Automatic" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <Flags index="Produce" value="1"/>
+        <Flags index="RallyReset" value="1"/>
+        <InfoArray Unit="7yadunlongqishiFlying">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="0.6"/>
+            </SectionArray>
+            <SectionArray index="Mover">
+                <DurationArray index="Duration" value="0.3"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="0.9"/>
+            </SectionArray>
+        </InfoArray>
+        <ValidatorArray value="7shifazheyoufanzhonglichaozai"/>
+    </CAbilMorph>
+    <CAbilEffectInstant id="7hudunhuichong">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7hudunhuichongPersistent"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Flags index="TransientPreferred" value="1"/>
+        <Cost>
+            <Cooldown Link="7 护盾回充" TimeUse="45"/>
+        </Cost>
+        <AutoCastFilters value="-;Ally,Neutral,Enemy,Missile,Stasis,Dead,Invulnerable"/>
+        <AutoCastValidatorArray value="CasterShieldsLT1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7hudunhuichong"/>
+    </CAbilEffectInstant>
+    <CAbilEffectTarget id="7dengliziguangpao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <PrepEffect value="7dengliziguangpaoPersistentStart"/>
+        <Effect index="0" value="7dengliziguangpaoPersistent"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Range value="12"/>
+        <Arc value="360"/>
+        <PrepTime value="0.3"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Cast" value="1"/>
+        <UninterruptibleArray index="Channel" value="1"/>
+        <UninterruptibleArray index="Finish" value="1"/>
+        <CursorRangeMode value="Clamp"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7dengliziguangpao">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <Cost>
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="15"/>
+                <Link value="7 太阳核心充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+        </Cost>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="7fangyupingzhang">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7fangyupingzhangApply"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Flags index="TransientPreferred" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="7 防御屏障 护盾充能器"/>
+                <TimeStart value="15"/>
+                <TimeUse value="15"/>
+            </Charge>
+        </Cost>
+        <TargetFilters value="Structure,Visible;Enemy,Missile,Stasis,UnderConstruction,Dead,Hidden,Invulnerable"/>
+        <Range value="8"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Visible;Neutral,Enemy"/>
+        <AutoCastRange value="8"/>
+        <AutoCastValidatorArray value="TargetInCombat"/>
+        <AutoCastValidatorArray value="noShields"/>
+        <AutoCastValidatorArray value="7mubiaomeiyoufangyupingzhang"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7fangyupingzhang"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="7jingzhihudun">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7jingzhihudunApply"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Flags index="TransientPreferred" value="1"/>
+        <Cost>
+            <Cooldown Link="7 静滞护盾 护盾充能器" TimeUse="45"/>
+        </Cost>
+        <TargetFilters value="Structure,Visible;Enemy,Missile,Stasis,UnderConstruction,Dead,Hidden,Invulnerable"/>
+        <Range value="8"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Visible;Neutral,Enemy"/>
+        <AutoCastRange value="8"/>
+        <AutoCastValidatorArray value="LifeLTHalf"/>
+        <AutoCastValidatorArray value="TargetInCombat"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7jingzhihudun"/>
+    </CAbilEffectTarget>
+    <CAbilMorph id="7longqishizhuolu" unit="StarportFlying">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7zheyueyadunlongqishizhuolu"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <Flags index="IgnorePlacement" value="0"/>
+        <Flags index="Produce" value="1"/>
+        <InfoArray Unit="7yadunlongqishi">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="0.6"/>
+            </SectionArray>
+            <SectionArray index="Mover">
+                <DurationArray index="Duration" value="0.3"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="0.9"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilMorph id="7buxiuzhezhuolu" unit="StarportFlying">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7yadunbuxiuzhezhuolu"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <Flags index="IgnorePlacement" value="0"/>
+        <Flags index="Produce" value="1"/>
+        <InfoArray Unit="7yadunbuxiuzhe">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="0.6"/>
+            </SectionArray>
+            <SectionArray index="Mover">
+                <DurationArray index="Duration" value="0.3"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="0.9"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilEffectInstant id="7quntizhuangjiachonggou">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <PrepEffect value="7xiaohaotaiyanghexinchongnengApply"/>
+        <Effect index="0" value="7quntizhuangjiachonggouCasterApply"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7quntizhuangjiachonggou">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <Cost>
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="45"/>
+                <Link value="7 太阳核心充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Cooldown Link="7 群体装甲重构 机械哨兵" TimeUse="6"/>
+        </Cost>
+    </CAbilEffectInstant>
+    <CAbilEffectTarget id="7shanxian">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7shanxianTeleport"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Cooldown Link="7 闪现 重型光子炮台" TimeUse="15"/>
+        </Cost>
+        <Placeholder value="7zhongxingguangzipaotai"/>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7shanxian"/>
+        <PlaceUnit value="7zhongxingguangzipaotai"/>
+    </CAbilEffectTarget>
+    <CAbilArmMagazine id="7xiuliwurenjijikuRight">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Launch value="ReleaseAtSource"/>
+        <Flags index="AutoCreate" value="1"/>
+        <Flags index="Retarget" value="1"/>
+        <Flags index="ShowStatus" value="0"/>
+        <Flags index="Transient" value="1"/>
+        <Leash value="4"/>
+        <InfoArray index="Ammo1" CountStart="1" Distance="0.5" Manage="Recall" Unit="7xiuliwurenji">
+            <Charge HideCount="1" Link="CarrierRepairDrone" Location="Unit"/>
+            <Cooldown Link="7 护盾回充"/>
+            <Button DefaultButtonFace="7xiuliwurenji">
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+            <Flags index="AutoBuild" value="1"/>
+            <Flags index="AutoBuildOn" value="1"/>
+            <Flags index="External" value="1"/>
+        </InfoArray>
+        <ExternalAngle value="-135"/>
+        <MaxCount value="1"/>
+    </CAbilArmMagazine>
+    <CAbilResearch id="7yanjiu">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray index="Research2" Time="90" Upgrade="7junxieyouhua">
+            <Resource index="Minerals" value="150"/>
+            <Resource index="Vespene" value="150"/>
+            <Button DefaultButtonFace="3yanjiujunxieyouhua" Requirements="7meiyoujunxieyouhua"/>
+        </InfoArray>
+        <InfoArray index="Research3" Time="90" Upgrade="7taiyanglieyan">
+            <Resource index="Minerals" value="150"/>
+            <Resource index="Vespene" value="150"/>
+            <Button DefaultButtonFace="7yanjiutaiyanglieyan" Requirements="7meiyoutaiyanglieyan"/>
+        </InfoArray>
+        <InfoArray index="Research5" Time="90" Upgrade="7guangzizhongjiqi">
+            <Resource index="Minerals" value="150"/>
+            <Resource index="Vespene" value="150"/>
+            <Button DefaultButtonFace="7yanjiuguangzizhongjiqi" Requirements="7meiyouguangzizhongjiqi"/>
+        </InfoArray>
+        <InfoArray index="Research6" Time="120" Upgrade="7juzhenchongnengqi">
+            <Resource index="Minerals" value="200"/>
+            <Resource index="Vespene" value="200"/>
+            <Button DefaultButtonFace="7yanjiujuzhenchongnengqi" Requirements="7meiyoujuzhenchongnengqi"/>
+        </InfoArray>
+    </CAbilResearch>
+    <CAbilEffectTarget id="7yinghuajuzhen">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7yinghuajuzhenPersistent"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Range value="4"/>
+        <AutoCastFilters value="Visible;Neutral,Enemy,Structure,Missile,Stasis,UnderConstruction,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="6"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <AutoCastValidatorArray value="TargetInCombat"/>
+        <AutoCastValidatorArray value="TargetLifeNotFull"/>
+        <AutoCastValidatorArray value="0mubiaohudunxiaoyu30"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7yinghuajuzhen"/>
+        <TargetFilters value="Visible;Self,Enemy,Structure,Missile,Dead,Hidden,Invulnerable"/>
+    </CAbilEffectTarget>
+    <CAbilBuild id="7zheyuexiangweishuniu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <FlagArray index="PeonDisableCollision" value="1"/>
+        <FlagArray index="PeonMaintained" value="0"/>
+        <InfoArray index="Build1" Unit="7xiangweishuniu" Time="120">
+            <Button DefaultButtonFace="7zheyuexiangweishuniu"/>
+        </InfoArray>
+        <InfoArray index="Build2" Unit="Pylon" Time="25">
+            <Button DefaultButtonFace="Pylon"/>
+        </InfoArray>
+        <InfoArray index="Build3" Unit="Assimilator" Time="30">
+            <Button DefaultButtonFace="Assimilator" Requirements="NotHaveSOAAutoAssimilator"/>
+            <ValidatorArray value="HasVespene"/>
+        </InfoArray>
+        <InfoArray index="Build4" Unit="Gateway" Time="65">
+            <Button DefaultButtonFace="Gateway" Requirements="HaveNexusAndNotHaveSOAWarpTech"/>
+        </InfoArray>
+        <InfoArray index="Build5" Unit="Forge" Time="45">
+            <Button DefaultButtonFace="Forge" Requirements="HaveNexus"/>
+        </InfoArray>
+        <InfoArray index="Build6" Unit="FleetBeacon" Time="60">
+            <Button DefaultButtonFace="FleetBeacon" Requirements="HaveStargate"/>
+        </InfoArray>
+        <InfoArray index="Build7" Unit="TwilightCouncil" Time="50">
+            <Button DefaultButtonFace="TwilightCouncil" Requirements="HaveCyberneticsCore"/>
+        </InfoArray>
+        <InfoArray index="Build8" Unit="PhotonCannon" Time="40">
+            <Button DefaultButtonFace="PhotonCannon" Requirements="HaveForge"/>
+        </InfoArray>
+        <InfoArray index="Build9" Time="25"/>
+        <InfoArray index="Build10" Unit="Stargate" Time="60">
+            <Button DefaultButtonFace="Stargate" Requirements="HaveGatewayAndNotHaveSOAWarpTech"/>
+        </InfoArray>
+        <InfoArray index="Build11" Unit="TemplarArchive" Time="50">
+            <Button DefaultButtonFace="TemplarArchive" Requirements="HaveGateway"/>
+        </InfoArray>
+        <InfoArray index="Build12" Unit="DarkShrine" Time="50">
+            <Button DefaultButtonFace="DarkShrine" Requirements="HaveGateway"/>
+        </InfoArray>
+        <InfoArray index="Build13" Unit="RoboticsBay" Time="65">
+            <Button DefaultButtonFace="RoboticsBay" Requirements="HaveRoboticsFa"/>
+        </InfoArray>
+        <InfoArray index="Build14" Unit="RoboticsFacility" Time="65">
+            <Button DefaultButtonFace="RoboticsFacility" Requirements="HaveGatewayAndNotHaveSOAWarpTech"/>
+        </InfoArray>
+        <InfoArray index="Build15" Unit="CyberneticsCore" Time="50">
+            <Button DefaultButtonFace="CyberneticsCore" Requirements="HaveGateway"/>
+        </InfoArray>
+        <InfoArray index="Build20" Unit="PsionicAmplifier" Time="40">
+            <Button DefaultButtonFace="PsionicAmplifier"/>
+        </InfoArray>
+        <InfoArray index="Build21" Unit="VoidPylon" Time="60">
+            <Button DefaultButtonFace="VoidPylon"/>
+        </InfoArray>
+        <InfoArray index="Build22" Unit="ShieldBattery" Time="30">
+            <Button DefaultButtonFace="ShieldBattery" Requirements="HaveNexus"/>
+        </InfoArray>
+        <InfoArray index="Build23" Unit="SoACaster" Time="40">
+            <Button DefaultButtonFace="WarpinSoACaster" Requirements="NoSoACaster"/>
+        </InfoArray>
+        <InfoArray index="Build24" Unit="AutomatedAssimilator" Time="30">
+            <Button DefaultButtonFace="AutomatedAssimilator" Requirements="HaveSOAAutoAssimilator"/>
+        </InfoArray>
+        <InfoArray index="Build25" Unit="KhaydarinMonolith" Time="80">
+            <Button DefaultButtonFace="KhaydarinMonolith" Requirements="HaveForge"/>
+        </InfoArray>
+        <InfoArray index="Build26" Unit="WarpGate" Time="65">
+            <Button DefaultButtonFace="WarpInWarpGate" Requirements="HaveNexusAndHaveSOAWarpTech"/>
+        </InfoArray>
+        <InfoArray index="Build27" Unit="StargateWarp" Time="60">
+            <Button DefaultButtonFace="WarpInStarWarpGate" Requirements="HaveGatewayAndHaveSOAWarpTech"/>
+        </InfoArray>
+        <InfoArray index="Build28" Unit="RoboticsFacilityWarp" Time="65">
+            <Button DefaultButtonFace="WarpInRoboticsWarpFacility" Requirements="HaveGatewayAndHaveSOAWarpTech"/>
+        </InfoArray>
+        <ConstructionMover value="Construction"/>
+    </CAbilBuild>
+    <CAbilBuild id="7zheyuejianzao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <FlagArray index="PeonMaintained" value="0"/>
+        <FlagArray index="RangeIncludesBuilding" value="0"/>
+        <InfoArray index="Build1" Unit="7xiangweishuniu" Time="6">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountStart value="1000"/>
+                <CountUse value="80"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuexiangweishuniu"/>
+        </InfoArray>
+        <InfoArray index="Build2" Unit="7shuijingta" Time="1.5">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountStart value="1000"/>
+                <CountUse value="20"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyueshuijingta"/>
+        </InfoArray>
+        <InfoArray index="Build3" Unit="7xiangweixinacang" Time="6">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountStart value="1000"/>
+                <CountUse value="30"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuexiangweixinacang"/>
+        </InfoArray>
+        <InfoArray index="Build4" Unit="7xiangweichuansongmen" Time="6">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountStart value="1000"/>
+                <CountUse value="45"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuechuansongmen" Requirements="7youxiangweishuniu"/>
+        </InfoArray>
+        <InfoArray index="Build5" Unit="7xiangweiduanlu" Time="6">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountStart value="1000"/>
+                <CountUse value="45"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuexiangweiduanlu" Requirements="7youxiangweishuniu"/>
+        </InfoArray>
+        <InfoArray index="Build6" Unit="7jianduihangbiao" Time="6">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="80"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuejianduihangbiao" Requirements="7youxiangweixingmen"/>
+        </InfoArray>
+        <InfoArray index="Build7" Unit="TwilightCouncil" Time="50">
+            <Button DefaultButtonFace="TwilightCouncil" Requirements="HaveCyberneticsCore"/>
+        </InfoArray>
+        <InfoArray index="Build8" Unit="7zhongxingguangzipaotai" Time="1.5">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountStart value="1000"/>
+                <CountUse value="30"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuezhongxingguangzipaotai" Requirements="7youxiangweiduanlu"/>
+        </InfoArray>
+        <InfoArray index="Build9" Time="25"/>
+        <InfoArray index="Build10" Unit="7xiangweixingmen" Time="6">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="75"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuexiangweixingmen" Requirements="7youxiangweixinhe"/>
+        </InfoArray>
+        <InfoArray index="Build11" Unit="TemplarArchive" Time="50">
+            <Button DefaultButtonFace="TemplarArchive" Requirements="HaveGateway"/>
+        </InfoArray>
+        <InfoArray index="Build12" Unit="DarkShrine" Time="50">
+            <Button DefaultButtonFace="DarkShrine" Requirements="HaveGateway"/>
+        </InfoArray>
+        <InfoArray index="Build13" Unit="7jixieyanjiusuo" Time="6">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="80"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuejixieyanjiusuo" Requirements="7youxiangweijixietai"/>
+        </InfoArray>
+        <InfoArray index="Build14" Unit="RoboticsFacility" Time="65">
+            <Button DefaultButtonFace="RoboticsFacility" Requirements="HaveGatewayAndNotHaveSOAWarpTech"/>
+        </InfoArray>
+        <InfoArray index="Build15" Unit="7xiangweixinhe" Time="6">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountStart value="1000"/>
+                <CountUse value="60"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="CyberneticsCore2" Requirements="7youxiangweichuansongmen"/>
+        </InfoArray>
+        <InfoArray index="Build20" Unit="PsionicAmplifier" Time="40">
+            <Button DefaultButtonFace="PsionicAmplifier"/>
+        </InfoArray>
+        <InfoArray index="Build22" Unit="7hudunchongnengqi" Time="1.5">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountStart value="1000"/>
+                <CountUse value="30"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuehudunchongnengqi" Requirements="7youxiangweiduanlu"/>
+        </InfoArray>
+        <InfoArray index="Build25" Unit="7xiangweijushi" Time="1.5">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="80"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuexiangweijushi" Requirements="7youxiangweiduanlu"/>
+        </InfoArray>
+        <InfoArray index="Build26" Unit="WarpGate" Time="65">
+            <Button DefaultButtonFace="WarpInWarpGate" Requirements="HaveNexusAndHaveSOAWarpTech"/>
+        </InfoArray>
+        <InfoArray index="Build27" Unit="StargateWarp" Time="60">
+            <Button DefaultButtonFace="WarpInStarWarpGate" Requirements="HaveGatewayAndHaveSOAWarpTech"/>
+        </InfoArray>
+        <InfoArray index="Build28" Unit="7xiangweijixietai" Time="6">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountStart value="1000"/>
+                <CountUse value="60"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuexiangweijixietai" Requirements="7youxiangweixinhe"/>
+        </InfoArray>
+        <Range value="500"/>
+    </CAbilBuild>
+    <CAbilTrain id="7zheyuetanji">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Activity value="UI/Warping"/>
+        <InfoArray index="Train1" Time="15">
+            <Button DefaultButtonFace="7zheyuexiangweitanji"/>
+            <Unit value="7xiangweitanji"/>
+        </InfoArray>
+        <Alert value="TrainWorkerComplete"/>
+    </CAbilTrain>
+    <CAbilEffectTarget id="7guidaohongzha">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7guidaohongzhaPersistent"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="3"/>
+                <Link value="7 太阳核心充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7guidaohongzha"/>
+        <CursorEffect value="7guidaohongzhaDamageSearch"/>
+    </CAbilEffectTarget>
+    <CAbilTrain id="7zheyuemujianhexin">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Activity value="UI/Warping"/>
+        <Offset value="0,0"/>
+        <InfoArray index="Train1" Time="60">
+            <Button DefaultButtonFace="7zheyuemujianhexin" Requirements="7meiyoumujianhuomujianhexin"/>
+            <Unit value="7mujianhexin"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilWarpTrain id="7zheyuexunlian">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray index="Train1" Unit="7yadunlongqishiFlying">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="40"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyueyadunlongqishizhuolu" Requirements="7youxiangweixingmen"/>
+        </InfoArray>
+        <InfoArray index="Train2" Unit="7yadunbuxiuzheFlying">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="60"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyueyadunbuxiuzheFlying" Requirements="7youxiangweixingmen"/>
+        </InfoArray>
+        <InfoArray index="Train3">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train4">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train5">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train6">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train7">
+            <Charge>
+                <Flags index="EnableChargeTimeQueuing" value="1"/>
+            </Charge>
+        </InfoArray>
+        <InfoArray index="Train10" Time="3" Unit="7yadunlongqishi">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="40"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Cooldown Link="WarpGateTrainWarpGateTrain2WarpGateTrain7zheyuexunlianWarpGateTrainWarpGateTrain2WarpGateTrain7zheyuexunlian2WarpGateTrainWarpGateTrain2WarpGateTrain7zheyuexunlianWarpGateTrainWarpGateTrain2WarpGateTrain7zheyuexunlian"/>
+            <Button DefaultButtonFace="7zheyueyadunlongqishi" Requirements="7youxiangweichuansongmen"/>
+        </InfoArray>
+        <InfoArray index="Train11" Time="3" Unit="7jixieshaobing">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="30"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuejixieshaobing" Requirements="7youxiangweixinhe"/>
+        </InfoArray>
+        <InfoArray index="Train12" Time="3" Unit="7yadunbuxiuzhe">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="60"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7yadunbuxiuzhezhuolu" Requirements="7youxiangweijixietai"/>
+        </InfoArray>
+        <InfoArray index="Train13" Time="3" Unit="7zheyuelengjingTransport">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="50"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuezheyuelengjing" Requirements="7youxiangweijixietai"/>
+        </InfoArray>
+        <InfoArray index="Train14" Time="3" Unit="7juxiang">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="80"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuejuxiang" Requirements="7youjixieyanjiusuo"/>
+        </InfoArray>
+        <InfoArray index="Train15" Time="3" Unit="7kalaizhenceqi">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="30"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuekalaizhenceqi"/>
+        </InfoArray>
+        <InfoArray index="Train17" Time="3" Unit="7fenghuang">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="50"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuefenghuang" Requirements="7youxiangweixingmen"/>
+        </InfoArray>
+        <InfoArray index="Train19" Time="3" Unit="7kalaizhixing">
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="90"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7zheyuekalaizhixing" Requirements="7youjianduihangbiao"/>
+        </InfoArray>
+    </CAbilWarpTrain>
+    <CAbilMorph id="7shengjiweitaiyangduanlu">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7shengjiweitaiyangduanlu" Requirements="7meiyoutaiyangduanlu"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Birth" value="1"/>
+        <Flags index="DisableAbils" value="1"/>
+        <Flags index="FastBuild" value="1"/>
+        <Flags index="Produce" value="1"/>
+        <Flags index="ShowProgress" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <InfoArray Score="1" Unit="7taiyangduanlu"/>
+    </CAbilMorph>
+    <CAbilEffectInstant id="7shikongyongdong">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7shikongyongdongSearch"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Cooldown>
+                <Link value="7 时空涌动 相位枢纽"/>
+                <Location value="Player"/>
+                <TimeStart value="360"/>
+                <TimeUse value="180"/>
+            </Cooldown>
+        </Cost>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7shikongyongdong"/>
+    </CAbilEffectInstant>
+    <CAbilEffectTarget id="7hudunchongneng">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7hudunchongnengHeal"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="BestUnit" value="0"/>
+        <Flags index="ReExecutable" value="1"/>
+        <Flags index="Smart" value="1"/>
+        <TargetFilters value="Visible;Self,Enemy,Missile,Stasis,UnderConstruction,Dead,Hidden"/>
+        <Range value="6"/>
+        <Arc value="360"/>
+        <AutoCastFilters value="Visible;Self,Neutral,Enemy,Missile,UnderConstruction,Dead,Hidden"/>
+        <AutoCastRange value="6"/>
+        <UseMarkerArray index="Approach" value="0"/>
+        <UseMarkerArray index="Prep" value="0"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7hudunchongneng"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="7shikongtisu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7shikongtisuPersistent"/>
+        <Cost>
+            <Cooldown Link="7 时空提速 相位枢纽" TimeUse="1.5"/>
+        </Cost>
+        <TargetFilters value="Structure;Neutral,Enemy,Missile,Stasis,Dead,Hidden"/>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7shikongtisu"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="7guangzichaozai">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <PrepEffect value="7xiaohaotaiyanghexinchongnengApply"/>
+        <Effect index="0" value="7guangzichaozaiApply"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="45"/>
+                <Link value="7 太阳核心充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+        </Cost>
+        <TargetFilters value="Structure,Visible;Neutral,Enemy,Missile,Stasis,Dead,Hidden"/>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <PrepTime value="0.3"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7guangzichaozai">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+    </CAbilEffectTarget>
+    <CAbilResearch id="7taiyanghexinchongnengqi">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray index="Research5" Time="180" Upgrade="7taiyanghexinchongnengqi">
+            <Resource index="Minerals" value="100"/>
+            <Resource index="Vespene" value="100"/>
+            <Charge>
+                <CountMax value="97"/>
+                <CountStart value="97"/>
+                <CountUse value="1"/>
+                <Link value="7 太阳核心充能器 太阳锻炉"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="7shengjitaiyanghexinchongnengqi"/>
+        </InfoArray>
+    </CAbilResearch>
+    <CAbilEffectTarget id="7quntizhaohui">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7quntizhaohuiSearch"/>
+        <Cost>
+            <Charge Link=""/>
+            <Cooldown Link="7 群体召回 相位枢纽" Location="Unit" TimeUse="180"/>
+        </Cost>
+        <Range value="500"/>
+        <Arc value="360"/>
+        <CursorEffect value="7quntizhaohuiSearch"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7quntizhaohui"/>
+        <Flags index="Transient" value="1"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="7dongnenglichang">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7dongnenglichangPersistent"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Vital index="Energy" value="75"/>
+        </Cost>
+        <Range value="9"/>
+        <Arc value="360"/>
+        <CursorEffect value="TemporalFieldSearchArea"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7dongnenglichang"/>
+    </CAbilEffectTarget>
+    <CAbilEffectInstant id="7pingzhang">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7pingzhangApply"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Flags index="TransientPreferred" value="1"/>
+        <Cost>
+            <Cooldown Link="7 屏障 亚顿不朽者" TimeUse="30"/>
+        </Cost>
+        <AutoCastFilters value="Visible;Ally,Neutral,Enemy"/>
+        <AutoCastValidatorArray value="CasterShieldsLT1"/>
+        <AutoCastValidatorArray value="CasterInCombat"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7pingzhang"/>
+    </CAbilEffectInstant>
+    <CAbilEffectTarget id="7hudunhuifu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7hudunhuifuHeal"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="ReExecutable" value="1"/>
+        <Flags index="Smart" value="1"/>
+        <TargetFilters value="Visible;Self,Enemy,Missile,Stasis,UnderConstruction,Dead,Hidden"/>
+        <TargetSorts RequestCount="1">
+            <SortArray value="TSAlliancePassive"/>
+            <SortArray value="TSShieldsFraction"/>
+            <SortArray value="TSDistance"/>
+        </TargetSorts>
+        <Range value="4"/>
+        <Arc value="4.9987"/>
+        <AutoCastFilters value="Visible;Self,Neutral,Enemy,Missile,UnderConstruction,Dead,Hidden"/>
+        <AutoCastRange value="6"/>
+        <UseMarkerArray index="Approach" value="0"/>
+        <UseMarkerArray index="Prep" value="0"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7hudunhuifu"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="7xiangweiguangpao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7xiangweiguangpaoCreate"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="RangeUseCasterRadius" value="0"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="7 相位光炮 机械哨兵"/>
+                <TimeStart value="30"/>
+                <TimeUse value="30"/>
+            </Charge>
+            <Cooldown Link="7 相位光炮 机械哨兵" Location="Player" TimeUse="6"/>
+        </Cost>
+        <Range value="6"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7xiangweiguangpao"/>
+        <Placeholder value="7zhongxingguangzipaotaiTimedLife"/>
+        <PlaceUnit value="7zhongxingguangzipaotaiTimedLife"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="6"/>
+        <AutoCastValidatorArray value="7xiangweiguangpaomubiao"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="7huishou">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7huishouPersistent"/>
+        <Flags index="AbortOnAllianceChange" value="0"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="7 回收 机械哨兵"/>
+                <TimeStart value="45"/>
+                <TimeUse value="45"/>
+            </Charge>
+            <Cooldown Link="7 回收 机械哨兵" TimeUse="1.5"/>
+        </Cost>
+        <TargetFilters value="Mechanical,Visible;Player,Ally,Structure,Heroic,Missile,Stasis,UnderConstruction,Dead,Hidden,Invulnerable,HeroUnit"/>
+        <Range value="9"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7huishou"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel2"/>
+        <TargetSorts>
+            <SortArray value="TSLife"/>
+        </TargetSorts>
+        <AutoCastRange value="9"/>
+        <AutoCastValidatorArray value="TargetLifeGE60"/>
+        <AutoCastValidatorArray value="7shifazhemeiyouhuishouCaster"/>
+    </CAbilEffectTarget>
+    <CAbilMorph id="7xiangweimoshi">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7xiangweimoshi"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <InfoArray Unit="7zheyuelengjingPhasing">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="1.5"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Duration" value="1.5"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilMorph id="7">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7yunshumoshi"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <InfoArray Unit="7zheyuelengjingTransport">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="1.5"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Duration" value="1.5"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilArmMagazine id="7qingxingguangshuwurenjijiku">
+        <AbilSetId value="CarrierAiurHanger"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="Retarget" value="1"/>
+        <Leash value="14"/>
+        <InfoArray index="Ammo1" Time="6" Count="2" CountStart="8" Manage="Recall" Unit="7qingxingguangshuwurenji">
+            <Charge Link="Abil/##id##" Location="Unit"/>
+            <Cooldown Link="Abil/##id##"/>
+            <Button DefaultButtonFace="7qingxingguangshuwurenji">
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+            <Flags index="AutoBuild" value="1"/>
+            <Flags index="AutoBuildOn" value="1"/>
+        </InfoArray>
+        <MaxCount value="12"/>
+    </CAbilArmMagazine>
+    <CAbilEffectTarget id="7xiuli">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7xiuliHeal"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <TargetFilters value="Mechanical,Visible;Self,Neutral,Enemy,Missile,Uncommandable,UnderConstruction,Dead,Hidden,Invulnerable"/>
+        <TargetSorts RequestCount="1">
+            <SortArray value="TSAlliancePassive"/>
+            <SortArray value="TSLifeFraction"/>
+            <SortArray value="TSDistance"/>
+        </TargetSorts>
+        <Range value="4"/>
+        <AutoCastFilters value="Mechanical,Visible;Self,Neutral,Enemy,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="6"/>
+        <AutoCastValidatorArray value="NotWarpingIn"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7xiuliwurenji"/>
+        <AcquireAttackers value="1"/>
+        <FollowRange value="2"/>
+    </CAbilEffectTarget>
+    <CAbilArmMagazine id="7xiuliwurenjijikuLeft">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Launch value="ReleaseAtSource"/>
+        <Flags index="AutoCreate" value="1"/>
+        <Flags index="Retarget" value="1"/>
+        <Flags index="ShowStatus" value="0"/>
+        <Flags index="Transient" value="1"/>
+        <Leash value="4"/>
+        <InfoArray index="Ammo1" CountStart="1" Distance="0.5" Manage="Recall" Unit="7xiuliwurenji">
+            <Charge HideCount="1" Link="CarrierRepairDrone" Location="Unit"/>
+            <Cooldown Link="7 护盾回充"/>
+            <Button DefaultButtonFace="7xiuliwurenji">
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+            <Flags index="AutoBuild" value="1"/>
+            <Flags index="AutoBuildOn" value="1"/>
+            <Flags index="External" value="1"/>
+        </InfoArray>
+        <ExternalAngle value="135"/>
+        <MaxCount value="1"/>
+    </CAbilArmMagazine>
+    <CAbilArmMagazine id="7zhiyuanliaojijikuRight">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Launch value="ReleaseAtSource"/>
+        <Flags index="AutoCreate" value="1"/>
+        <Flags index="Retarget" value="1"/>
+        <Flags index="ShowStatus" value="0"/>
+        <Flags index="Transient" value="1"/>
+        <Leash value="3"/>
+        <InfoArray index="Ammo1" CountStart="1" Distance="0.5" Manage="Recall" Unit="7zhiyuanliaoji">
+            <Charge HideCount="1" Link="CarrierRepairDrone" Location="Unit"/>
+            <Cooldown Link="7 护盾回充"/>
+            <Button DefaultButtonFace="7zhiyuanliaoji">
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+            <Flags index="AutoBuild" value="1"/>
+            <Flags index="AutoBuildOn" value="1"/>
+            <Flags index="External" value="1"/>
+        </InfoArray>
+        <ExternalAngle value="-135"/>
+        <MaxCount value="1"/>
+    </CAbilArmMagazine>
+    <CAbilTransport id="7zhuangzai">
+        <AbilSetId value="ULdM"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Load" DefaultButtonFace="7zhuangzai"/>
+        <CmdButtonArray index="UnloadAll" DefaultButtonFace="7quanbuxiezai">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="UnloadAt" DefaultButtonFace="7xezai"/>
+        <CmdButtonArray index="UnloadUnit">
+            <Flags index="Hidden" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="LoadAll">
+            <Flags index="Hidden" value="1"/>
+        </CmdButtonArray>
+        <Flags index="CargoDeath" value="1"/>
+        <Range value="6"/>
+        <MaxCargoCount value="8"/>
+        <MaxCargoSize value="8"/>
+        <TotalCargoSpace value="8"/>
+        <UnloadPeriod value="0.3"/>
+        <TargetFilters value="Visible;Ally,Neutral,Enemy,Buried,UnderConstruction,Dead,Hidden"/>
+    </CAbilTransport>
+    <CAbilMorph id="7buxiuzheshengkong" unit="StarportFlying">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7yadunbuxiuzhezhuolu"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="Automatic" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <Flags index="Produce" value="1"/>
+        <Flags index="RallyReset" value="1"/>
+        <InfoArray Unit="7yadunbuxiuzheFlying">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="0.6"/>
+            </SectionArray>
+            <SectionArray index="Mover">
+                <DurationArray index="Duration" value="0.3"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="0.9"/>
+            </SectionArray>
+        </InfoArray>
+        <ValidatorArray value="7shifazheyoufanzhonglichaozai"/>
+    </CAbilMorph>
+    <CAbilEffectTarget id="7fanzhonglichaozai">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="7fanzhonglichaozaiPersistent"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="ReExecutable" value="1"/>
+        <TargetFilters value="Ground,Visible;Self,Neutral,Enemy,Massive,Structure,Dead,Hidden"/>
+        <Range value="6"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="7fanzhonglichaozai" Requirements="NotHaveVoidPhoenixGravitonCampaignVersion">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <PrepEffect value="7xiaohaotaiyanghexinchongnengApply"/>
+        <Cost>
+            <Resource index="Minerals" value="15"/>
+            <Resource index="Vespene" value="15"/>
+            <Charge>
+                <CountMax value="1000"/>
+                <CountUse value="6"/>
+                <Link value="7 折跃矩阵充能 卡莱"/>
+                <Location value="Player"/>
+            </Charge>
+        </Cost>
+    </CAbilEffectTarget>
+    <CAbilArmMagazine id="7zhiyuanliaojijikuLeft">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Launch value="ReleaseAtSource"/>
+        <Flags index="AutoCreate" value="1"/>
+        <Flags index="Retarget" value="1"/>
+        <Flags index="ShowStatus" value="0"/>
+        <Flags index="Transient" value="1"/>
+        <Leash value="3"/>
+        <InfoArray index="Ammo1" CountStart="1" Distance="0.5" Manage="Recall" Unit="7zhiyuanliaoji">
+            <Charge HideCount="1" Link="CarrierRepairDrone" Location="Unit"/>
+            <Cooldown Link="7 护盾回充"/>
+            <Button DefaultButtonFace="7zhiyuanliaoji">
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+            <Flags index="AutoBuild" value="1"/>
+            <Flags index="AutoBuildOn" value="1"/>
+            <Flags index="External" value="1"/>
+        </InfoArray>
+        <ExternalAngle value="135"/>
+        <MaxCount value="1"/>
+    </CAbilArmMagazine>
+</Catalog>

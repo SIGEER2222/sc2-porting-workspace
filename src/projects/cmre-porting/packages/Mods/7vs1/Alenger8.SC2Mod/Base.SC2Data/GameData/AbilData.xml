@@ -1,0 +1,788 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CAbilEffectInstant id="8chongci">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Effect index="0" value="8chongciApply"/>
+        <Cost>
+            <Cooldown TimeUse="7.5"/>
+        </Cost>
+        <AutoCastFilters value="Visible;Ally,Neutral,Enemy"/>
+        <AutoCastValidatorArray value="8shifazheyouchongcizidongshifa"/>
+        <AutoCastValidatorArray value="CasterIsNotStationary"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8chongci"/>
+    </CAbilEffectInstant>
+    <CAbilBehavior id="8guanghezuoyong">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="On" DefaultButtonFace="8jihuoguanghezuoyong"/>
+        <CmdButtonArray index="Off" DefaultButtonFace="8guanbiguanghezuoyong"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="Toggle" value="1"/>
+        <Flags index="ToggledOn" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <BehaviorArray value="8guanghezuoyong"/>
+    </CAbilBehavior>
+    <CAbilEffectTarget id="8kongtoubaochong">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="8kongtoubaochongPersistent"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="8 空投爆虫 扎加拉"/>
+                <TimeStart value="15"/>
+                <TimeUse value="15"/>
+            </Charge>
+        </Cost>
+        <Range value="8"/>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8kongtoubaochong" Requirements="8youkongtoubaochong"/>
+    </CAbilEffectTarget>
+    <CAbilTrain id="8zhaohuanzhajiala">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Range value="5"/>
+        <InfoArray index="Train1" Effect="8chunbaihuajiaPlayer">
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="8 召唤扎加拉 扎加拉"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="13zhaohuanzhajiala"/>
+            <Unit value="8zhajiala"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilEffectInstant id="8quntikuangbao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="8quntikuangbaoSearch"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Cooldown>
+                <Link value="8 扎加拉"/>
+                <Location value="Unit"/>
+                <TimeStart value="480"/>
+                <TimeUse value="240"/>
+            </Cooldown>
+        </Cost>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8quntikuangbao" Requirements="8youchunbaihuajia"/>
+    </CAbilEffectInstant>
+    <CAbilEffectTarget id="8tianjiangchonghai">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="8tianjiangchonghaiPersistent"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Flags index="RequireTargetVision" value="0"/>
+        <Cost>
+            <Cooldown>
+                <Link value="8 扎加拉"/>
+                <Location value="Unit"/>
+                <TimeStart value="360"/>
+                <TimeUse value="180"/>
+            </Cooldown>
+        </Cost>
+        <Range value="15"/>
+        <Arc value="360"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8tianjiangchonghai" Requirements="8youchunbaihuajia"/>
+    </CAbilEffectTarget>
+    <CAbilTrain id="8youchongbianyi">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <Activity value="UI/Morphing"/>
+        <Flags index="DisableCollision" value="1"/>
+        <Flags index="KillOnCancel" value="1"/>
+        <Flags index="KillOnFinish" value="1"/>
+        <Flags index="Select" value="1"/>
+        <Flags index="WaitForFood" value="0"/>
+        <MorphUnit value="8chongluan"/>
+        <Range value="4"/>
+        <InfoArray index="Train1" Time="10" Alert="TrainWorkerComplete" Effect="Pop">
+            <Button DefaultButtonFace="8bianyiweigongfeng"/>
+            <Unit value="8gongfeng"/>
+            <Unit value="8gongfeng"/>
+        </InfoArray>
+        <InfoArray index="Train2" Time="1" Effect="8jisuyunyuMoveSpeedApply">
+            <Button DefaultButtonFace="8bianyiweixunjielieshou"/>
+            <Unit value="8xunjielieshou"/>
+            <Unit value="8xunjielieshou"/>
+            <Unit value="8xunjielieshou"/>
+        </InfoArray>
+        <InfoArray index="Train3" Time="7.5" Effect="8jisuyunyuMoveSpeedApply">
+            <Button DefaultButtonFace="8bianyiweibaoliewangchong"/>
+            <Unit value="8baoliewangchong"/>
+        </InfoArray>
+        <InfoArray index="Train4" Time="10" Effect="8jisuyunyuMoveSpeedApply">
+            <Button DefaultButtonFace="8bianyiweituliezhe" Requirements="8you孵化chao"/>
+            <Unit value="8tuliezhe"/>
+        </InfoArray>
+        <InfoArray index="Train5" Time="10" Effect="8jisuyunyuMoveSpeedApply">
+            <Button DefaultButtonFace="8bianyiweibaowen"/>
+            <Unit value="8baowen"/>
+            <Unit value="8baowen"/>
+            <Unit value="8baowen"/>
+        </InfoArray>
+        <InfoArray index="Train6" Time="12.5" Effect="8jisuyunyuMoveSpeedApply">
+            <Button DefaultButtonFace="8bianyiweigouzaojibianti" Requirements="8you孵化chao"/>
+            <Unit value="8gouzaojibianti"/>
+        </InfoArray>
+        <InfoArray index="Train7" Time="15" Effect="8jisuyunyuMoveSpeedApply">
+            <Button DefaultButtonFace="8bianyiweiyouleishou" Requirements="8you孵化chao"/>
+            <Unit value="8youleishou"/>
+        </InfoArray>
+        <InfoArray index="Train8" Time="7.5" Effect="8jisuyunyuMoveSpeedApply">
+            <Button DefaultButtonFace="8bianyiweifushibaochong"/>
+            <Unit value="8fushibaochong"/>
+            <Unit value="8fushibaochong"/>
+            <Unit value="8fushibaochong"/>
+        </InfoArray>
+        <InfoArray index="Train9" Time="12.5" Effect="8jisuyunyuMoveSpeedApply">
+            <Button DefaultButtonFace="8bianyiweigouzaofuhuazhe" Requirements="8you孵化chao"/>
+            <Unit value="8gouzaofuhuazhe"/>
+        </InfoArray>
+        <InfoArray index="Train10" Time="7.5" Effect="8jisuyunyuMoveSpeedApply">
+            <Button DefaultButtonFace="8bianyiweibaoliezhanglang"/>
+            <Unit value="8baoliezhanglang"/>
+        </InfoArray>
+        <InfoArray index="Train11" Time="8" Effect="8jisuyunyuMoveSpeedApply">
+            <Button DefaultButtonFace="8bianyiweisuanyechonghou"/>
+            <Unit value="8suanyechonghou"/>
+        </InfoArray>
+        <InfoArray index="Train12" Time="5" Effect="8jisuyunyuMoveSpeedApply">
+            <Button DefaultButtonFace="8bianyiweiqiegezhe"/>
+            <Unit value="8jianxiaoyilong"/>
+        </InfoArray>
+        <InfoArray index="Train13" Time="10" Effect="8jisuyunyuMoveSpeedApply">
+            <Button DefaultButtonFace="8bianyiweiwuranzhe" Requirements="8you孵化chao"/>
+            <Unit value="8wuranzhe"/>
+        </InfoArray>
+        <InfoArray index="Train14">
+            <Button Requirements="HaveSpire"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilBuild id="8jianzhubianyi">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <FlagArray index="PeonHide" value="1"/>
+        <FlagArray index="PeonKillFinish" value="1"/>
+        <FlagArray index="RangeIncludesBuilding" value="0"/>
+        <InfoArray index="Build1" Unit="8fuhuachang" Time="15">
+            <Button DefaultButtonFace="8bianyiweifuhuachang"/>
+        </InfoArray>
+        <InfoArray index="Build3" Unit="8wasicuiqufang" Time="30">
+            <Button DefaultButtonFace="8bianyiweiwasicuiqufang"/>
+            <ValidatorArray value="HasVespene"/>
+        </InfoArray>
+        <InfoArray index="Build4" Unit="8fenliechi" Time="30">
+            <Button DefaultButtonFace="8bianyiweifenliechi" Requirements="8youfuhuachanghuofuhuachao"/>
+        </InfoArray>
+        <InfoArray index="Build5" Unit="8jinhuaqiang" Time="30">
+            <Button DefaultButtonFace="8bianyiweijinhuaqiang" Requirements="8youfuhuachanghuofuhuachao"/>
+        </InfoArray>
+        <InfoArray index="Build6" Unit="8tuliezhechaoxue" Time="60">
+            <Button DefaultButtonFace="8bianyiweituliezhechaoxue" Requirements="8you孵化chao"/>
+        </InfoArray>
+        <InfoArray index="Build7" Unit="8buluejianta" Time="30">
+            <Button DefaultButtonFace="8bianyiweibuluejianta"/>
+        </InfoArray>
+        <InfoArray index="Build8" Unit="8leishouchaoxue" Time="75">
+            <Button DefaultButtonFace="8bianyiweileishouchaoxue" Requirements="8you孵化chao"/>
+        </InfoArray>
+        <InfoArray index="Build9" Unit="8gouzaosuo" Time="60">
+            <Button DefaultButtonFace="8bianyiweigouzaosuo" Requirements="8you孵化chao"/>
+        </InfoArray>
+        <InfoArray index="Build10" Unit="8gouzaojianta" Time="60">
+            <Button DefaultButtonFace="8bianyiweigouzaojianta"/>
+        </InfoArray>
+        <InfoArray index="Build11" Unit="8baochongchaoxue" Time="45">
+            <Button DefaultButtonFace="8bianyiweibaochongchaoxue" Requirements="8youfuhuachanghuofuhuachao"/>
+        </InfoArray>
+        <InfoArray index="Build12" Unit="8jicipachong" Time="15">
+            <Button DefaultButtonFace="8bianyiweijicipachong" Requirements="8youfuhuachanghuofuhuachao"/>
+        </InfoArray>
+        <InfoArray index="Build13" Unit="8suanyepachong" Time="15">
+            <Button DefaultButtonFace="8bianyiweisuanyepachong" Requirements="8youfuhuachanghuofuhuachao"/>
+        </InfoArray>
+        <InfoArray index="Build14" Unit="8xiatiandechufang" Time="45">
+            <Button DefaultButtonFace="8bianyiweizhanglangwenshi" Requirements="8youfuhuachanghuofuhuachao"/>
+        </InfoArray>
+        <InfoArray index="Build16" Unit="8danzhipaotai" Time="15">
+            <Button DefaultButtonFace="8bianyiweidanzhipaotai" Requirements="8you孵化chao"/>
+        </InfoArray>
+        <InfoArray index="Build17" Unit="8baowenchaoxue" Time="45">
+            <Button DefaultButtonFace="8bianyiweibaowenchaoxue" Requirements="8you孵化chao"/>
+        </InfoArray>
+        <InfoArray index="Build18" Unit="Virophage" Time="15">
+            <Button DefaultButtonFace="MorphToPlaguebringer"/>
+        </InfoArray>
+        <InfoArray index="Build20" Unit="KorhalSporeCannon" Time="120">
+            <Button DefaultButtonFace="BuildKorhalSporeCannon"/>
+        </InfoArray>
+        <RefundFraction>
+            <Resource index="Minerals" value="-1"/>
+            <Resource index="Vespene" value="-1"/>
+            <Resource index="Terrazine" value="-1"/>
+            <Resource index="Custom" value="-1"/>
+        </RefundFraction>
+    </CAbilBuild>
+    <CAbilMorph id="8bianyiweifuhuachao">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8bianyiweifuhuachao"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="CancelMutateMorph"/>
+        <ActorKey value="LairUpgrade"/>
+        <Flags index="BestUnit" value="1"/>
+        <Flags index="Birth" value="1"/>
+        <Flags index="DisableAbils" value="1"/>
+        <Flags index="FastBuild" value="1"/>
+        <Flags index="Interruptible" value="1"/>
+        <Flags index="Produce" value="1"/>
+        <Flags index="ShowProgress" value="1"/>
+        <InfoArray Score="1" Unit="8fuhuachao">
+            <SectionArray index="Abils">
+                <DurationArray index="Delay" value="45"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="45"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="45"/>
+            </SectionArray>
+        </InfoArray>
+        <Alert value="MorphComplete_Zerg"/>
+        <Activity value="UI/Mutating"/>
+    </CAbilMorph>
+    <CAbilRally id="8fuhuachangjijie">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <CmdButtonArray index="Rally2" DefaultButtonFace="RallyEgg"/>
+        <InfoArray index="0" UseFilters="-;Worker">
+            <SetValidators value="NotResourcesOrEnemyTargetType"/>
+        </InfoArray>
+        <InfoArray SetOnGround="0"/>
+        <InfoArray SetOnGround="0">
+            <SetValidators value="Failure"/>
+        </InfoArray>
+    </CAbilRally>
+    <CAbilEffectInstant id="8kuangbao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="8kuangbaoApply"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Cooldown Link="8 狂暴 屠猎者" TimeUse="30"/>
+        </Cost>
+        <AutoCastFilters value="Visible;Ally,Neutral,Enemy"/>
+        <AutoCastValidatorArray value="CasterIsAnimatingWeapon"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8kuangbao"/>
+    </CAbilEffectInstant>
+    <CAbilResearch id="8jinhuajinhuaqiang">
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray index="Research1" Time="90" Upgrade="8jisuyunyu">
+            <Resource index="Minerals" value="150"/>
+            <Resource index="Vespene" value="150"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="8 进化急速孕育 进化腔"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="8jisuyunyu"/>
+        </InfoArray>
+        <InfoArray index="Research2" Time="120" Upgrade="8jianhuajiyinzu">
+            <Resource index="Minerals" value="200"/>
+            <Resource index="Vespene" value="200"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="8 进化简化基因组 进化腔"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="8jinhuajianhuajiyinzu"/>
+        </InfoArray>
+        <InfoArray index="Research3" Time="120" Upgrade="8shenjingwangluochongzu">
+            <Resource index="Minerals" value="200"/>
+            <Resource index="Vespene" value="200"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="8 进化神经网络重组 进化腔"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="8jinhuashenjingwangluochongzu"/>
+        </InfoArray>
+        <InfoArray index="Research4" Time="120" Upgrade="6fushujiaqiao">
+            <Resource index="Minerals" value="200"/>
+            <Resource index="Vespene" value="200"/>
+            <Button DefaultButtonFace="8fushujiaqiao" Requirements="8meiyoufushujiaqiao"/>
+        </InfoArray>
+        <InfoArray index="Research5" Time="60" Upgrade="8suanyedui">
+            <Resource index="Minerals" value="100"/>
+            <Resource index="Vespene" value="100"/>
+            <Button DefaultButtonFace="8suanyedui"/>
+        </InfoArray>
+        <InfoArray index="Research10" Time="90" Upgrade="3kongtoubaochong">
+            <Resource index="Minerals" value="150"/>
+            <Resource index="Vespene" value="150"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="8 进化空投爆虫 进化腔"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="8jinhuakongtoubaochong"/>
+        </InfoArray>
+        <InfoArray index="Research11" Time="60" Upgrade="8meidushazhiren">
+            <Resource index="Minerals" value="100"/>
+            <Resource index="Vespene" value="100"/>
+            <Charge>
+                <CountMax value="1"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="8 进化美杜莎之刃 进化腔"/>
+                <Location value="Player"/>
+            </Charge>
+            <Button DefaultButtonFace="8jinhuameidushazhiren"/>
+        </InfoArray>
+        <InfoArray index="Research12" Time="30" Upgrade="8qiangsuanchonghou">
+            <Resource index="Minerals" value="50"/>
+            <Resource index="Vespene" value="50"/>
+            <Button DefaultButtonFace="8qiangsuanchonghou" Requirements="8meiyouqiangsuanchonghou"/>
+        </InfoArray>
+    </CAbilResearch>
+    <CAbilEffectTarget id="8shibukedang">
+        <Alignment value="Negative"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="8shibukedangMissile"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Cost>
+            <Cooldown Link="8 势不可挡 幼雷兽" TimeUse="6"/>
+        </Cost>
+        <Range value="6"/>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Structure,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="7"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <PrepTime value="0.3"/>
+        <ShowProgressArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Prep" value="1"/>
+        <UninterruptibleArray index="Cast" value="1"/>
+        <UninterruptibleArray index="Channel" value="1"/>
+        <AINotifyEffect value="8shibukedangApply"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8shibukedang"/>
+    </CAbilEffectTarget>
+    <CAbilBehavior id="8zibaomubiao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="On" DefaultButtonFace="8kaiqiduijianzhugongji">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="Off" DefaultButtonFace="8guanbiduijianzhugongji">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <Flags index="Toggle" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <BehaviorArray value="8zibaomubiao"/>
+    </CAbilBehavior>
+    <CAbilMorph id="8baoliezhanglangqiandi">
+        <AbilSetId value="BrwD"/>
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="BurrowDown">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <ActorKey value="BurrowDown"/>
+        <Flags index="Interruptible" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <Flags index="IgnorePlacement" value="0"/>
+        <InfoArray Unit="8baoliezhanglangBurrowed" RandomDelayMax="0.1">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="0.5556"/>
+            </SectionArray>
+            <SectionArray index="Collide">
+                <DurationArray index="Delay" value="0.5556"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="0.5556"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilMorph id="8baoliezhanglangchudi">
+        <AbilSetId value="BrwU"/>
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="BurrowUp">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <ActorKey value="BurrowUp"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <Flags index="SuppressMovement" value="1"/>
+        <InfoArray Unit="8baoliezhanglang" RandomDelayMax="0.1">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="0.4443"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Duration" value="0.4443"/>
+            </SectionArray>
+        </InfoArray>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Structure,Missile,Stasis,Dead,Hidden"/>
+        <AutoCastValidatorArray value="TargetNotChangeling"/>
+        <AutoCastRange value="2"/>
+        <AutoCastCountMin value="1"/>
+    </CAbilMorph>
+    <CAbilEffectInstant id="8baozha">
+        <AbilSetId value="Explode"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="Suicide"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="Explode"/>
+    </CAbilEffectInstant>
+    <CAbilMorph id="8fushibaochongqiandi">
+        <AbilSetId value="BrwD"/>
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="BurrowDown">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <ActorKey value="BurrowDown"/>
+        <Flags index="Interruptible" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <Flags index="IgnorePlacement" value="0"/>
+        <Flags index="SuppressMovement" value="1"/>
+        <InfoArray Unit="8fushibaochongBurrowed" RandomDelayMax="0.3703">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="1"/>
+            </SectionArray>
+            <SectionArray index="Collide">
+                <DurationArray index="Delay" value="0.5556"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="1"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilMorph id="8fushibaochongchudi">
+        <AbilSetId value="BrwU"/>
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="BurrowUp">
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <ActorKey value="BurrowUp"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="IgnoreFacing" value="1"/>
+        <Flags index="SuppressMovement" value="1"/>
+        <InfoArray Unit="8fushibaochong" RandomDelayMax="0.5">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="1"/>
+            </SectionArray>
+        </InfoArray>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Structure,Missile,Stasis,Dead,Hidden"/>
+        <AutoCastValidatorArray value="TargetNotChangeling"/>
+        <AutoCastRange value="1"/>
+        <AutoCastCountMin value="1"/>
+    </CAbilMorph>
+    <CAbilEffectTarget id="8wuran">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="8wuranPersistent"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="8 污染 污染者"/>
+                <TimeStart value="15"/>
+                <TimeUse value="15"/>
+            </Charge>
+            <Cooldown Link="8 污染 污染者" TimeUse="4.5"/>
+        </Cost>
+        <TargetFilters value="Structure,Visible;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="4"/>
+        <AutoCastFilters value="Structure,Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="5"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <AutoCastValidatorArray value="8mubiaomeiyouwuran"/>
+        <Marker Link="8 污染 污染者"/>
+        <AINotifyEffect value=""/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8wuran"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="8fuhua">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="8fuhuaPersistent"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Cost>
+            <Cooldown Link="8 腐化 构造腐化者" TimeUse="30"/>
+        </Cost>
+        <TargetFilters value="Visible;Structure,Missile,Stasis,Dead,Invulnerable"/>
+        <TargetSorts RequestPercentage="1">
+            <SortArray value="TSLife"/>
+        </TargetSorts>
+        <Range value="8"/>
+        <AutoCastFilters value="Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="8"/>
+        <AutoCastValidatorArray value="TargetLifeGE200"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <AutoCastValidatorArray value="8mubiaomeiyoufuhua"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8fuhua"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+    </CAbilEffectTarget>
+    <CAbilRevive id="8zhajialafuhuo" parent="ReviveSelf">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Revive1" DefaultButtonFace="KerriganRevive"/>
+        <CmdButtonArray index="ReviveAtTarget1" DefaultButtonFace="KerriganRevivePlacement"/>
+        <BaseInfo>
+            <Resource index="Minerals" value="500"/>
+            <Resource index="Vespene" value="500"/>
+            <Charge Link="8 扎加拉复活 扎加拉" Location="Player"/>
+            <Cooldown Link="8 扎加拉复活 扎加拉" Location="Player"/>
+        </BaseInfo>
+        <Offset value="0,0"/>
+        <Range value="10"/>
+        <VitalArray index="Life" value="Maximum"/>
+        <VitalArray index="Shields" value="Maximum"/>
+        <VitalArray index="Energy" value="Maximum"/>
+        <Alert value="KerriganReviveComplete"/>
+    </CAbilRevive>
+    <CAbilEffectInstant id="8quntibuye">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="8quntibuyePersistent"/>
+        <Flags index="Transient" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="8 群体哺液 扎加拉"/>
+                <TimeStart value="15"/>
+                <TimeUse value="15"/>
+            </Charge>
+        </Cost>
+        <AINotifyEffect value="8quntibuyePersistent"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8quntibuye"/>
+    </CAbilEffectInstant>
+    <CAbilBuild id="8fuhuajuntanzhongliu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TargetMessage value="Abil/TargetMessage/CreepTumorBuild"/>
+        <FlagArray index="PeonMaintained" value="0"/>
+        <FlagArray index="RangeIncludesBuilding" value="0"/>
+        <Alert value="BuildComplete_Zerg"/>
+        <InfoArray index="Build1" Unit="8juntanzhongliu" Delay="2" Time="3">
+            <Charge>
+                <CountMax value="6"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <TimeStart value="7.5"/>
+                <TimeUse value="7.5"/>
+            </Charge>
+            <Button DefaultButtonFace="8fuhuajuntanzhongliu">
+                <Flags index="ShowInGlossary" value="1"/>
+                <Flags index="ToSelection" value="1"/>
+            </Button>
+        </InfoArray>
+        <Range value="500"/>
+    </CAbilBuild>
+    <CAbilEffectTarget id="8shencaochongdao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="8shencaochongdaoPersistent"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="8 扎加拉大招"/>
+                <Location value="Unit"/>
+                <TimeStart value="15"/>
+                <TimeUse value="15"/>
+            </Charge>
+        </Cost>
+        <Range value="15"/>
+        <Arc value="360"/>
+        <CastIntroTime value="1"/>
+        <CastOutroTime value="1"/>
+        <UninterruptibleArray index="Cast" value="1"/>
+        <UninterruptibleArray index="Channel" value="1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8shencaochongdao"/>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="8fuhuapao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="8fuhuapaoMissile"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Cost>
+            <Cooldown Link="8 腐化炮 构造腐化者" TimeUse="15"/>
+        </Cost>
+        <TargetFilters value="Structure,Visible;Self,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="6"/>
+        <Arc value="29.9926"/>
+        <AutoCastFilters value="Structure,Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AutoCastRange value="8"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <AutoCastValidatorArray value="8mubiaomeiyoufuhuapao"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8fuhuapao"/>
+    </CAbilEffectTarget>
+    <CAbilBehavior id="8paifangjuntan">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="On" DefaultButtonFace="8paifangjuntan" Requirements="8youfuhuachanghuofuhuachao"/>
+        <CmdButtonArray index="Off" DefaultButtonFace="8tingzhipaifangjuntan"/>
+        <Flags index="Toggle" value="1"/>
+        <Flags index="ToggledOn" value="1"/>
+        <Flags index="Transient" value="1"/>
+        <BehaviorArray value="makeCreep2x2Overlord"/>
+    </CAbilBehavior>
+    <CAbilTransport id="8zhuangzai">
+        <AbilSetId value="ULdM"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <CmdButtonArray index="Load" DefaultButtonFace="8zhuangzai"/>
+        <CmdButtonArray index="UnloadAll">
+            <Flags index="Hidden" value="1"/>
+            <Flags index="ToSelection" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="UnloadAt" DefaultButtonFace="8quanbuxiezai"/>
+        <CmdButtonArray index="UnloadUnit">
+            <Flags index="Hidden" value="1"/>
+        </CmdButtonArray>
+        <CmdButtonArray index="LoadAll">
+            <Flags index="Hidden" value="1"/>
+        </CmdButtonArray>
+        <Flags index="CargoDeath" value="1"/>
+        <MaxCargoCount value="8"/>
+        <MaxCargoSize value="8"/>
+        <TotalCargoSpace value="8"/>
+        <LoadTransportBehavior value="OverlordTransport"/>
+        <UnloadPeriod value="1"/>
+        <TargetFilters value="Visible;Ally,Neutral,Enemy,Buried,UnderConstruction,Dead,Hidden"/>
+    </CAbilTransport>
+    <CAbilEffectTarget id="8buye">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="8buyePersistent"/>
+        <Flags index="AllowMovement" value="1"/>
+        <Flags index="AutoCast" value="1"/>
+        <Flags index="AutoCastOn" value="1"/>
+        <Flags index="NoDeceleration" value="1"/>
+        <Cost>
+            <Charge>
+                <CountMax value="3"/>
+                <CountStart value="1"/>
+                <CountUse value="1"/>
+                <Link value="8 哺液 酸液虫后"/>
+                <TimeStart value="6"/>
+                <TimeUse value="6"/>
+            </Charge>
+            <Cooldown Link="8 哺液 酸液虫后" TimeUse="0.6"/>
+        </Cost>
+        <TargetFilters value="Biological,Visible;Self,Neutral,Enemy,Missile,Stasis,UnderConstruction,Dead,Hidden,Invulnerable"/>
+        <Range value="8"/>
+        <AutoCastFilters value="Visible;Neutral,Enemy"/>
+        <AutoCastRange value="8"/>
+        <AutoCastValidatorArray value="TargetLifeNotFull"/>
+        <AutoCastValidatorArray value="noMarkers"/>
+        <AutoCastValidatorArray value="8mubiaomeiyoubuye"/>
+        <UninterruptibleArray index="Finish" value="1"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8buye"/>
+        <Arc value="14.9963"/>
+        <PrepTime value="0.15"/>
+    </CAbilEffectTarget>
+    <CAbilMorphPlacement id="8jicipachongzhagen">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8jicipachongzhagen"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <ActorKey value="Root"/>
+        <Flags index="DisableAbils" value="1"/>
+        <Flags index="FastBuild" value="1"/>
+        <Flags index="Interruptible" value="1"/>
+        <Flags index="IgnorePlacement" value="0"/>
+        <Flags index="ShowProgress" value="1"/>
+        <InfoArray Unit="8jicipachong" CollideRange="0">
+            <SectionArray index="Abils">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="3"/>
+            </SectionArray>
+            <SectionArray index="Mover">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+        </InfoArray>
+        <ProgressButton value="SpineCrawlerRootCancel"/>
+    </CAbilMorphPlacement>
+    <CAbilMorph id="8jicipachongzhanqi">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8jicipachongzhanqi"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <ActorKey value="Uproot"/>
+        <Flags index="FastBuild" value="1"/>
+        <InfoArray Unit="8jicipachongStand">
+            <SectionArray index="Abils">
+                <DurationArray index="Duration" value="1"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="1"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="1"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilMorphPlacement id="8suanyepachongzhagen">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8syanyepachongzhagen"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <ActorKey value="Root"/>
+        <Flags index="DisableAbils" value="1"/>
+        <Flags index="FastBuild" value="1"/>
+        <Flags index="Interruptible" value="1"/>
+        <Flags index="IgnorePlacement" value="0"/>
+        <Flags index="ShowProgress" value="1"/>
+        <InfoArray Unit="8suanyepachong" CollideRange="0">
+            <SectionArray index="Abils">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="3"/>
+            </SectionArray>
+            <SectionArray index="Mover">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="3"/>
+            </SectionArray>
+        </InfoArray>
+        <ProgressButton value="SporeCrawlerRootCancel"/>
+    </CAbilMorphPlacement>
+    <CAbilMorph id="8suanyepachongzhanqi">
+        <EditorCategories value="AbilityorEffectType:MorphsandBurrows"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="8suanyepachongzhanqi"/>
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel"/>
+        <ActorKey value="Uproot"/>
+        <Flags index="FastBuild" value="1"/>
+        <InfoArray Unit="8suanyepachongStand">
+            <SectionArray index="Abils">
+                <DurationArray index="Duration" value="1"/>
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="1"/>
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="1"/>
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+</Catalog>
