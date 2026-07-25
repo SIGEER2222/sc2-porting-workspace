@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CMRE 亡者之夜 - 因子选择</title>
+  <title>CMRE 合作地图 - 因子选择</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <h1>CMRE 亡者之夜</h1>
-      <p class="subtitle">合作指挥官-起义狂潮 · 因子选择与启动</p>
+      <h1>CMRE 合作地图</h1>
+      <p class="subtitle">合作指挥官-起义狂潮 · 地图/指挥官/因子选择与启动</p>
     </div>
     <div class="status" id="status" hidden></div>
   </header>
@@ -21,6 +21,12 @@
         <h2 class="card-title">基础配置</h2>
 
         <div class="field">
+          <label for="mapName">地图</label>
+          <select id="mapName"></select>
+          <p class="hint" id="mapName-hint"></p>
+        </div>
+
+        <div class="field">
           <label for="commander">指挥官</label>
           <select id="commander"></select>
         </div>
@@ -29,6 +35,7 @@
           <label for="mode">模式</label>
           <select id="mode"></select>
           <p class="hint" id="mode-hint"></p>
+          <div class="mode-notice" id="mode-notice" hidden></div>
         </div>
 
         <div class="field">
@@ -68,6 +75,17 @@
 
         <div class="mutator-list" id="mutator-list" role="list">
           <p class="hint" id="mutator-loading">加载中...</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">
+          额外 mod
+          <span class="counter">已选 <b id="extra-mods-count">0</b> 个</span>
+        </h2>
+        <p class="hint">叠加到所选指挥官自动加载的 mod 之上。切换指挥官会自动过滤掉已自动加载的 mod。</p>
+        <div class="mutator-list" id="extra-mods-list" role="list">
+          <p class="hint" id="extra-mods-loading">加载中...</p>
         </div>
       </section>
 
