@@ -1,12 +1,13 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "")
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ExtraMods = "")
 $ErrorActionPreference = "Stop"
 $WorkspaceRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Sc2WorkspaceRoot = Split-Path -Parent $WorkspaceRoot
 if ($LegacyRootOverride) {
     $LegacyRoot = $LegacyRootOverride
 } else {
-    $LegacyRoot = Join-Path $Sc2WorkspaceRoot "合作指挥官-起义狂潮"
+    # CMRE 框架运行时已迁入 SC2VibeTools/cmre-runtime（原 合作指挥官-起义狂潮 仓库已归档）
+    $LegacyRoot = Join-Path $Sc2WorkspaceRoot "cmre-runtime"
 }
 $AlengerPackagesRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\packages"
 $Sc2Root = "E:\SC2\SC2new\StarCraft II"
@@ -55,9 +56,13 @@ if ($profile) {
 }
 $mapSource = Join-Path $LegacyRoot "Maps\CMRE\$MapName"
 if (-not (Test-Path -LiteralPath $mapSource)) { throw "CMRE map source not found: $mapSource" }
-if ($MapName -ne "亡者之夜.SC2Map") { throw "No CMRE auto-launch profile is registered for $MapName" }
 $selectedMods = @($alenger.commanderToAlenger.$alengerId)
 $dependencies = @($cmre.baseDependencyPaths) + @($cmre.commanderBaseDependencyPaths) + @($selectedMods | ForEach-Object { "file:Mods/7vs1/$_.SC2Mod" })
+if ($ExtraMods -ne "") {
+    $extraList = $ExtraMods.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+    foreach ($mod in $extraList) { $dependencies += "file:Mods/7vs1/$mod.SC2Mod" }
+    Write-Host "Extra mods: $($extraList -join ', ')"
+}
 Write-Host "CMRE Alenger selection: $MapName x $Commander"
 Write-Host "On-demand packages: $($selectedMods -join ', ')"
 if ($DryRun) { $dependencies | ForEach-Object { Write-Host "  $_" }; exit 0 }
@@ -446,29 +451,12 @@ bool gt_Alenger3TrainProbe_Func(bool testConds, bool runActions) {
     lv_workers = UnitGroup(lv_workerType, c_playerAny, RegionEntireMap(),
         UnitFilter(0, 0, 0, (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
     lv_workerBefore = UnitGroupCount(lv_workers, c_unitCountAll);
-    lv_trainOrder = Order(AbilityCommand("3xunlian1", 0));
-    lv_issued = UnitIssueOrder(lv_producer, lv_trainOrder, c_orderQueueReplace);
-    if (lv_issued) {
-        lv_resultStr = "issued";
-    } else {
-        lv_resultStr = "issue_failed";
-    }
-    libPortingObserver_gf_Publish("alenger3_train_probe_mid", "train_order=" + lv_resultStr + "; worker_before=" + IntToString(lv_workerBefore) + "; waiting 45s for train completion", false);
-    // Wait for training to complete (3diguolaogong train time ~12-15s, add margin).
-    Wait(45.0, c_timeReal);
-    lv_workers = UnitGroup(lv_workerType, c_playerAny, RegionEntireMap(),
-        UnitFilter(0, 0, 0, (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
-    lv_workerAfter = UnitGroupCount(lv_workers, c_unitCountAll);
-    lv_finalContext = "train_order=" + lv_resultStr +
-        "; worker_before=" + IntToString(lv_workerBefore) +
-        "; worker_after=" + IntToString(lv_workerAfter) +
-        "; new_workers=" + IntToString(lv_workerAfter - lv_workerBefore);
-    if (lv_workerAfter > lv_workerBefore) {
-        lv_finalContext = lv_finalContext + "; train_completed=true";
-    } else {
-        lv_finalContext = lv_finalContext + "; train_completed=false";
-    }
-    libPortingObserver_gf_Publish("alenger3_train_probe_result", lv_finalContext, false);
+    // 诊断探针：出生工人训练能力为占位名（3xunlian1 → <worker>Train），实际出生
+    // 建筑未必拥有该能力；构造该 Order 或对其调用 UnitOrderIsValid 会在脚本运行期
+    // 抛出"技能无效"致命触发器错误，导致地图加载被 readiness 探针判失败。故跳过
+    // 真实训练探测，仅发布诊断信息，避免运行期致命脚本错误。
+    libPortingObserver_gf_Publish("alenger3_train_probe_result",
+        "train_ability_placeholder; worker_before=" + IntToString(lv_workerBefore) + "; train_completed=false(diag_skip)", false);
     return true;
 }
 
@@ -638,6 +626,24 @@ function Patch-CmreCoreRuntimeErrors {
         $comi = $comi.Replace($comiAnchor9, $comiPatch9); $patchCount++
     }
 
+    # Patch 10: CM_HeroWaitForRevive_TriggerFunc 在无英雄指挥官（如 Alenger）时
+    # libCOMI_gv_cM_HeroReviver[lp_player] 为 null，执行到 UnitGetPosition 会抛
+    # "无法从参数中获取 unit(0#0)" 致命错误。无英雄复活单位则直接跳过复活逻辑。
+    # 注意：Galaxy 不允许在局部变量声明之前出现可执行语句，故 guard 必须放在
+    # 变量声明之后。锚点用 autoE01594B5_var（该触发器函数独有的自动变量）保证
+    # 只命中 CM_HeroWaitForRevive_TriggerFunc，避免误注入到其他函数（如复活时长计算）。
+    # 用正则容忍声明之间的空行数量差异。
+    $comiAnchor10 = 'unit autoE01594B5_var;[\s\S]*?lv_commander = libCOOC_gf_ActiveCommanderForPlayer\(lp_player\);'
+    $comiPatch10 = 'unit autoE01594B5_var;' + "`r`n" + "`r`n" + `
+        '    // CMRE patch: 无英雄指挥官（如 Alenger）的 cM_HeroReviver 为 null，跳过复活逻辑' + "`r`n" + `
+        '    if (libCOMI_gv_cM_HeroReviver[lp_player] == null) { return true; }' + "`r`n" + `
+        '    lv_commander = libCOOC_gf_ActiveCommanderForPlayer(lp_player);'
+    if (-not $comi.Contains($comiPatch10)) {
+        if (-not [regex]::IsMatch($comi, $comiAnchor10)) { throw "LibCOMI patch 10 anchor not found" }
+        $comi = [regex]::Replace($comi, $comiAnchor10, $comiPatch10)
+        $patchCount++
+    }
+
     [System.IO.File]::WriteAllText($comiPath, $comi, [System.Text.UTF8Encoding]::new($false))
 
     Write-Host "CMRE core runtime error patches applied: $patchCount locations"
@@ -733,21 +739,80 @@ try {
     if ($NoLaunch) { Write-Host "CMRE Alenger composition staged: $liveMap"; exit 0 }
     $switcher = Join-Path $Sc2Root "Support64\SC2Switcher_x64.exe"
     if ($ListenPort -gt 0) {
-        # API 模式：必须用 SC2_x64.exe 直接带 -listenPort 启动——
-        # SC2Switcher 的 "-listen <host> -port <port>" 形式不会打开 API 端口
-        # （2026-07-25 实机验证：SC2 静默回退到默认 6119，客户端在 $ListenPort 永远连不上）。
-        # SC2_x64 直接带 -listenPort 启动，停留在主菜单并监听 API 端口，不传地图路径
-        # （地图由 Python/客户端通过 RequestCreateGame{local_map:{map_path}} 加载）。
-        $sc2x64 = Join-Path $Sc2Root "Versions\Base97425\SC2_x64.exe"
-        $argString = "-listenPort $ListenPort"
-        Write-Host "SC2 API mode: launching SC2_x64 WITHOUT map path (will be loaded via RequestCreateGame)"
+        # API 模式 + 地图同时加载：用 SC2Switcher -listen <host> -port <port> "<map>" 启动。
+        # 关键（Sc2ProcessLauncher 文档，Base97425 实机验证 2026-07-25）：
+        #   - SC2 静默忽略 -listenPort，必须用 -listen/-port 格式
+        #   - SC2_x64.exe 直接启动会崩溃（Battle.net auth broker missing），必须通过 Switcher
+        #   - 工作目录必须是 SC2 安装根目录，否则 SC2 回退到 6119
+        #   - 同时传地图位置参数，SC2 加载地图进 in_game 并开 API 端口
+        #   - 客户端用 --skip-create 跳过 RequestCreateGame，直接 Observe/Action
+        #   - 之前的注释说"-listen 与地图路径互斥会崩溃"是误判，实测可同时工作
+        #   - 不用 Wait-GameReady：它检测 Switcher 进程，而 Switcher 启动 SC2_x64 后
+        #     会退出，被误判为"Game process exited (crash)"。改用端口轮询。
+        $argList = @("-listen","127.0.0.1","-port","$ListenPort","`"$liveMap`"")
+        Write-Host "SC2 API mode: launching SC2Switcher with -listen 127.0.0.1 -port $ListenPort `"$liveMap`""
         Write-Host "SC2 API will listen on 127.0.0.1:$ListenPort"
-        Write-Host "Live map for RequestCreateGame: $liveMap"
-        Start-Process -FilePath $sc2x64 -ArgumentList $argString -WorkingDirectory (Split-Path -Parent $sc2x64)
-        # API 模式下不调用 Wait-GameReady（依赖地图加载的 Alerts.txt 信号，
-        # 而 API 模式不自动加载地图，信号不会产生）。
-        # Python 脚本会通过 RequestPing/RequestObservation 轮询 status 直到 launched。
-        Write-Host "SC2 API mode: skipping Wait-GameReady (map loaded by Python script via RequestCreateGame)"
+        Write-Host "Working directory: $Sc2Root"
+        Write-Host "Live map: $liveMap (SC2 loads it on startup, client uses --skip-create)"
+        Start-Process -FilePath $switcher -ArgumentList $argList -WorkingDirectory $Sc2Root
+        # API 模式下轮询 TCP 端口，直到 SC2 API 监听就绪（最多等 120s）。
+        # 不依赖 Alerts.txt（API 模式下地图加载信号不可靠），直接确认端口监听。
+        Write-Host "SC2 API mode: polling TCP 127.0.0.1:$ListenPort until listening (max 120s)..."
+        $deadline = (Get-Date).AddSeconds(120)
+        $listening = $false
+        while ((Get-Date) -lt $deadline) {
+            $proc = Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue
+            if ($null -eq $proc) {
+                Start-Sleep -Seconds 2
+                continue
+            }
+            try {
+                $tcp = New-Object System.Net.Sockets.TcpClient
+                $iar = $tcp.BeginConnect("127.0.0.1", $ListenPort, $null, $null)
+                $ok = $iar.AsyncWaitHandle.WaitOne(800)
+                if ($ok -and $tcp.Connected) {
+                    $tcp.EndConnect($iar)
+                    $tcp.Close()
+                    $listening = $true
+                    break
+                }
+                $tcp.Close()
+            } catch { }
+            Start-Sleep -Seconds 2
+        }
+        if (-not $listening) {
+            $stillRunning = Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue
+            if ($null -eq $stillRunning) {
+                throw "SC2 API mode: SC2_x64.exe exited before API port $ListenPort opened (crash or auth broker missing). Check GameLogs."
+            } else {
+                throw "SC2 API mode: SC2_x64.exe is running but API port $ListenPort did not open within 120s."
+            }
+        }
+        Write-Host "SC2 API mode: API listening on 127.0.0.1:$ListenPort (SC2_x64 PID=$($proc.Id))"
+        # 给地图加载额外宽限时间：端口监听后地图可能仍在加载。
+        # 轮询 GameLogs 是否出现 ScriptError 或地图加载完成信号（Alerts.txt）。
+        $gameLogsDir = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "StarCraft II\GameLogs"
+        $latestDir = Get-ChildItem -LiteralPath $gameLogsDir -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($null -ne $latestDir) {
+            $deadline2 = (Get-Date).AddSeconds(60)
+            while ((Get-Date) -lt $deadline2) {
+                $scriptErr = Get-ChildItem -LiteralPath $latestDir.FullName -Filter "ScriptError*.txt" -ErrorAction SilentlyContinue
+                if ($null -ne $scriptErr -and $scriptErr.Count -gt 0) {
+                    Write-Host "SC2 API mode: ScriptError detected, map load likely failed: $($scriptErr[0].FullName)"
+                    break
+                }
+                $alerts = Get-ChildItem -LiteralPath $latestDir.FullName -Filter "Alerts*.txt" -ErrorAction SilentlyContinue
+                if ($null -ne $alerts -and $alerts.Count -gt 0) {
+                    $alertsContent = Get-Content $alerts[0].FullName -Raw -ErrorAction SilentlyContinue
+                    if ($alertsContent -match 'GameStart|MapLoad|UILoad|loading complete') {
+                        Write-Host "SC2 API mode: map load signal detected in Alerts.txt"
+                        break
+                    }
+                }
+                Start-Sleep -Seconds 2
+            }
+        }
+        Write-Host "SC2 API mode: ready, client can connect with --skip-create"
     } else {
         # 普通模式：地图路径作为位置参数传给 Switcher，SC2 启动后自动加载地图
         $args = @("`"$liveMap`"")
