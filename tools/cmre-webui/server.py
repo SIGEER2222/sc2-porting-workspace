@@ -21,7 +21,24 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 WEBUI_DIR = SCRIPT_DIR / "webui"
 DATA_DIR = SCRIPT_DIR / "data"
 MUTATORS_JSON = DATA_DIR / "mutators.json"
+# 配置目录：sc2-porting-workspace/src/config/alenger-mods.json
+CONFIG_DIR = SCRIPT_DIR.parents[1] / "src" / "config"
+ALENGER_MODS_JSON = CONFIG_DIR / "alenger-mods.json"
 LAUNCH_SCRIPT = Path(__file__).resolve().parents[1] / "launchers" / "launch-cmre-alenger.ps1"
+
+# CMRE 框架运行时根目录（Maps/Mods/Shared/scripts）
+# SCRIPT_DIR.parents[2] = sc2-porting-workspace/tools/cmre-webui → tools → sc2-porting-workspace → SC2VibeTools
+SC2VIBE_ROOT = SCRIPT_DIR.parents[2]
+CMRE_RUNTIME_ROOT = SC2VIBE_ROOT / "cmre-runtime"
+MAPS_CMRE_DIR = CMRE_RUNTIME_ROOT / "Maps" / "CMRE"
+COMMANDER_METADATA_JSON = CMRE_RUNTIME_ROOT / "Shared" / "CommanderPower" / "commander-power-metadata.json"
+MODS_7VS1_PACKAGES_DIR = SC2VIBE_ROOT / "sc2-porting-workspace" / "src" / "projects" / "cmre-porting" / "packages" / "Mods" / "7vs1"
+
+# CMRE 因子上限：CMUIX_LAUNCH_PROFILE_MUTATOR_MAX = 20
+MUTATOR_MAX = 20
+
+# 指挥官种族前缀（launch-cmre-alenger.ps1 的 -Commander 正则只接受这三种前缀）
+COMMANDER_RACES = ["Terran", "Zerg", "Protoss"]
 
 # CMRE Legacy Root：合作指挥官-起义狂潮 仓库根目录。
 # launch-cmre-alenger.ps1 默认从 $PSScriptRoot 推导，但本机目录结构是
@@ -49,6 +66,60 @@ FACTORS_DATA = {
         "TerranAlenger3", "ZergAlenger3", "ProtossAlenger3",
     ],
 }
+
+
+def load_maps():
+    """扫描 cmre-runtime/Maps/CMRE/ 目录，返回 [{id, name}]。
+
+    id = 文件名（含 .SC2Map），name = 去掉 .SC2Map 扩展名的显示名。
+    按 name 排序。目录不存在时返回空列表。
+    """
+    if not MAPS_CMRE_DIR.exists():
+        print(f"[warn] CMRE 地图目录不存在: {MAPS_CMRE_DIR}")
+        return []
+    maps = []
+    for entry in sorted(MAPS_CMRE_DIR.iterdir()):
+        if entry.is_dir() and entry.name.endswith(".SC2Map"):
+            maps.append({"id": entry.name, "name": entry.name[:-len(".SC2Map")]})
+    return maps
+
+
+def load_commanders():
+    """从 commander-power-metadata.json 读取指挥官列表，返回 [{id, label, bank}]。
+
+    id = runtime_commander（如 TerranAlenger3，race 前缀已正确）
+    label = display_name（中文名，如"疯批帝国"）
+    bank = bank_commander（如 Alenger3，供 /api/extra-mods 过滤使用）
+
+    只返回 bank_commander 以 "Alenger" 开头的条目。metadata 不存在时回退到默认。
+    """
+    default_cmd = "TerranAlenger3"
+    try:
+        if COMMANDER_METADATA_JSON.exists():
+            data = json.loads(COMMANDER_METADATA_JSON.read_text(encoding="utf-8"))
+            commanders = []
+            for cmd in data.get("commanders", []):
+                bank = cmd.get("bank_commander", "")
+                if not bank.startswith("Alenger"):
+                    continue
+                runtime = cmd.get("runtime_commander", "")
+                display = cmd.get("display_name", "") or runtime
+                if not runtime:
+                    continue
+                commanders.append({"id": runtime, "label": display, "bank": bank})
+            if commanders:
+                return commanders
+            print(f"[warn] metadata 中无 Alenger 指挥官，回退默认: {COMMANDER_METADATA_JSON}")
+    except Exception as exc:  # noqa: BLE001 - 解析失败则回退到默认
+        print(f"[warn] 读取 commander-power-metadata.json 失败，使用默认: {exc}")
+    return [{"id": default_cmd, "label": "疯批帝国", "bank": "Alenger3"}]
+
+
+def build_factors_data():
+    """构造 /api/factors 返回数据，指挥官每次实时从配置派生。"""
+    data = dict(FACTORS_DATA)
+    data["commanders"] = load_commanders()
+    return data
 
 
 class CmreWebUIHandler(SimpleHTTPRequestHandler):
@@ -80,7 +151,10 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             self._handle_get_mutators()
             return
         if self.path == "/api/factors":
-            self._send_json(FACTORS_DATA)
+            self._send_json(build_factors_data())
+            return
+        if self.path == "/api/maps":
+            self._send_json({"maps": load_maps()})
             return
         if self.path == "/" or self.path == "":
             self.path = "/index.html"
@@ -107,7 +181,22 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         difficulty_base = int(body.get("difficultyBase", 0))
         difficulty_plus = int(body.get("difficultyPlus", 0))
         enemy = body.get("enemy", "")
-        mutators = body.get("mutators", [])
+        mutators = body.get("mutators", []) or []
+
+        # 因子数量上限保护：CMUIX_LAUNCH_PROFILE_MUTATOR_MAX = 20
+        capped = False
+        if len(mutators) > MUTATOR_MAX:
+            mutators = mutators[:MUTATOR_MAX]
+            capped = True
+
+        # 因子生效关键修复（"选择的因子无效"根因）：
+        # CMRE 仅在 Mode=2 (MutatorChallenges) 或 Mode=1 (Standard) 且 Brutal+ > 0 时
+        # 才会读取银行中的 Mutator|N|Id 并启用对应因子。若用户勾选了因子但当前处于
+        # 标准模式且残酷+=0（UI 默认状态），或处于自定义模式，因子会被静默丢弃。
+        # 这里在后端强制切换到 MutatorChallenges，确保所选因子一定生效。
+        if mutators:
+            if (mode == 1 and difficulty_plus == 0) or mode == 3:
+                mode = 2
 
         if not LAUNCH_SCRIPT.exists():
             self._send_json(
@@ -147,6 +236,11 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if mutator_str:
             args.extend(["-Mutators", mutator_str])
 
+        # 测试/CI 用：设置 CMRE_WEBUI_DRY_RUN 时追加 -NoLaunch，
+        # 只暂存地图 + 写银行、不启动 SC2。正常启动不受影响。
+        if os.environ.get("CMRE_WEBUI_DRY_RUN"):
+            args.append("-NoLaunch")
+
         try:
             proc = subprocess.Popen(
                 args,
@@ -156,13 +250,17 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                 encoding="gbk",
                 errors="replace",
             )
-            stdout, stderr = proc.communicate(timeout=300)
+            # 等待上限须大于 wait-for-game-ready.ps1 的 MaxWaitSeconds(600)，
+            # 否则 SC2 正常加载（~340s+20s grace）时会被误判超时。
+            stdout, stderr = proc.communicate(timeout=720)
 
             if proc.returncode == 0:
                 self._send_json(
                     {
                         "success": True,
                         "message": "SC2 已启动",
+                        "effectiveMode": mode,
+                        "mutatorsCapped": capped,
                         "output": stdout[-800:] if stdout else "",
                     }
                 )
@@ -178,7 +276,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                 )
         except subprocess.TimeoutExpired:
             proc.kill()
-            self._send_json({"success": False, "error": "启动脚本超时（300s）"}, 504)
+            self._send_json({"success": False, "error": "启动脚本超时（720s）"}, 504)
         except Exception as e:
             self._send_json({"success": False, "error": str(e)}, 500)
 
