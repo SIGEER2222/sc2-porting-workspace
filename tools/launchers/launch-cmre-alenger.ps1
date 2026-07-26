@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode)
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [switch]$EnableBuffPatch)
 $ErrorActionPreference = "Stop"
 # 模式校验：PlayerMode 和 DebugMode 互斥；DebugMode 自动启用 ApiMinimal 并要求 ListenPort
 if ($PlayerMode -and $DebugMode) { throw "-PlayerMode 和 -DebugMode 互斥，不能同时使用" }
@@ -862,6 +862,32 @@ function Write-CmreLaunchProfile {
         $values['Player|1|VoicePack'] = @("string", $VoicePack)
         $values['Player|2|VoicePack'] = @("string", $VoicePack)
     }
+    # Buff 补丁：仅当 -EnableBuffPatch 启用时写入。
+    # - Buffs: 逗号分隔的 "P1,P2,P3" 子集，编码为 bitmask (P1=1, P2=2, P3=4)
+    # - Masteries: 逗号分隔的 6 个 0..30 整数，覆盖原版精通设置
+    # galaxy 端通过 CMUIX_LaunchProfileApplyBuffs 读取并应用 supplement upgrade。
+    if ($EnableBuffPatch) {
+        $bonusMask = 0
+        if ($Buffs -match "P1") { $bonusMask += 1 }
+        if ($Buffs -match "P2") { $bonusMask += 2 }
+        if ($Buffs -match "P3") { $bonusMask += 4 }
+        $values['Player|1|EnableBuffPatch'] = @("int", "1")
+        $values['Player|2|EnableBuffPatch'] = @("int", "1")
+        $values['Player|1|PrestigeBonusMask'] = @("int", [string]$bonusMask)
+        $values['Player|2|PrestigeBonusMask'] = @("int", [string]$bonusMask)
+        Write-Host "BuffPatch: enabled, PrestigeBonusMask=$bonusMask (Buffs='$Buffs')"
+        if ($Masteries -ne "") {
+            $masteryValues = @($Masteries -split ',' | ForEach-Object { [int]$_.Trim() })
+            for ($i = 0; $i -lt 6 -and $i -lt $masteryValues.Count; $i++) {
+                $values["Player|1|Mastery|$i|Value"] = @("int", [string]$masteryValues[$i])
+                $values["Player|2|Mastery|$i|Value"] = @("int", [string]$masteryValues[$i])
+            }
+            Write-Host "BuffPatch: masteries=$Masteries"
+        }
+    } else {
+        $values['Player|1|EnableBuffPatch'] = @("int", "0")
+        $values['Player|2|EnableBuffPatch'] = @("int", "0")
+    }
     foreach ($entry in $values.GetEnumerator()) {
         $key = $doc.CreateElement("Key"); $key.SetAttribute("name", $entry.Key)
         $value = $doc.CreateElement("Value"); $value.SetAttribute($entry.Value[0], $entry.Value[1])
@@ -1001,6 +1027,10 @@ try {
         Clear-GameLogs
     }
     Sync-ModSet -ModRelPaths $cmre.baseMods -ProjRoot $LegacyRoot -Sc2Root $Sc2Root
+    # basePackageMods: 来自 packages 目录的基础 mod（如 CMRE_BuffPatch），与 baseMods 互补
+    if ($cmre.PSObject.Properties.Name -contains 'basePackageMods' -and @($cmre.basePackageMods).Count -gt 0) {
+        Sync-ModSet -ModRelPaths $cmre.basePackageMods -ProjRoot $AlengerPackagesRoot -Sc2Root $Sc2Root
+    }
     if (@($cmre.commanderBaseMods).Count -gt 0) {
         Sync-ModSet -ModRelPaths $cmre.commanderBaseMods -ProjRoot $AlengerPackagesRoot -Sc2Root $Sc2Root
     }
