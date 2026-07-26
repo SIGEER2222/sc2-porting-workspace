@@ -865,24 +865,56 @@ function Write-CmreLaunchProfile {
     # Buff 补丁：仅当 -EnableBuffPatch 启用时写入。
     # - Buffs: 逗号分隔的 "P1,P2,P3" 子集，编码为 bitmask (P1=1, P2=2, P3=4)
     # - Masteries: 逗号分隔的 6 个 0..30 整数，覆盖原版精通设置
-    # galaxy 端通过 CMUIX_LaunchProfileApplyBuffs 读取并应用 supplement upgrade。
+    # galaxy 端通过 CMUIX_LaunchProfileApplyBuffs 读取并应用 supplement upgrade，
+    # 精通点数由 CMUIX_LaunchProfileApplyCommanderCustomization 的 mastery 循环读取
+    # （Player|N|Mastery|slot|Id + Value，slot 为 1..6 1-indexed）。
     if ($EnableBuffPatch) {
         $bonusMask = 0
         if ($Buffs -match "P1") { $bonusMask += 1 }
         if ($Buffs -match "P2") { $bonusMask += 2 }
         if ($Buffs -match "P3") { $bonusMask += 4 }
+        # CustomizationSaved 必须为 1，否则 CMUIX_LaunchProfileApplyCommanderCustomization
+        # 会在入口处 return，mastery 与 prestige 都不会被应用。
+        $values['ProfileConfigLocked'] = @("int", "1")
+        $values['Player|1|CustomizationSaved'] = @("int", "1")
+        $values['Player|2|CustomizationSaved'] = @("int", "1")
         $values['Player|1|EnableBuffPatch'] = @("int", "1")
         $values['Player|2|EnableBuffPatch'] = @("int", "1")
         $values['Player|1|PrestigeBonusMask'] = @("int", [string]$bonusMask)
         $values['Player|2|PrestigeBonusMask'] = @("int", [string]$bonusMask)
         Write-Host "BuffPatch: enabled, PrestigeBonusMask=$bonusMask (Buffs='$Buffs')"
-        if ($Masteries -ne "") {
-            $masteryValues = @($Masteries -split ',' | ForEach-Object { [int]$_.Trim() })
-            for ($i = 0; $i -lt 6 -and $i -lt $masteryValues.Count; $i++) {
-                $values["Player|1|Mastery|$i|Value"] = @("int", [string]$masteryValues[$i])
-                $values["Player|2|Mastery|$i|Value"] = @("int", [string]$masteryValues[$i])
+
+        # 精通点数覆盖：从 commander-power-metadata.json 读取 6 个 mastery id，
+        # 写入 Player|N|Mastery|slot|Id/Value（slot 1..6 1-indexed）+ MasteryCount + MasteryLevel。
+        # galaxy 端 CMUIX_LaunchProfileApplyCommanderCustomization 会读取这些字段并调用
+        # libCOOC_gf_CC_PlayerMasteryUpgradeLevelSet 应用精通。
+        $masteryRecord = Resolve-CommanderPowerCommanderRecord -Commander $Commander -WorkspaceRoot $LegacyRoot
+        $masteryIds = @()
+        if ($null -ne $masteryRecord -and $null -ne $masteryRecord.masteries) {
+            $masteryIds = @($masteryRecord.masteries | ForEach-Object { [string]$_.id })
+        }
+        if ($masteryIds.Count -eq 6) {
+            $masteryValues = @(30, 30, 30, 30, 30, 30)
+            if ($Masteries -ne "") {
+                $parsed = @($Masteries -split ',' | ForEach-Object { [int]$_.Trim() })
+                for ($i = 0; $i -lt 6 -and $i -lt $parsed.Count; $i++) {
+                    $masteryValues[$i] = $parsed[$i]
+                }
             }
-            Write-Host "BuffPatch: masteries=$Masteries"
+            $values['Player|1|MasteryCount'] = @("int", "6")
+            $values['Player|2|MasteryCount'] = @("int", "6")
+            $values['Player|1|MasteryLevel'] = @("int", "180")
+            $values['Player|2|MasteryLevel'] = @("int", "180")
+            for ($i = 0; $i -lt 6; $i++) {
+                $slot = $i + 1
+                $values["Player|1|Mastery|$slot|Id"] = @("string", $masteryIds[$i])
+                $values["Player|2|Mastery|$slot|Id"] = @("string", $masteryIds[$i])
+                $values["Player|1|Mastery|$slot|Value"] = @("int", [string]$masteryValues[$i])
+                $values["Player|2|Mastery|$slot|Value"] = @("int", [string]$masteryValues[$i])
+            }
+            Write-Host "BuffPatch: masteries=$($masteryValues -join ',') ids=$($masteryIds -join ',')"
+        } else {
+            Write-Host "BuffPatch: WARN commander '$Commander' has $($masteryIds.Count) masteries in metadata, expected 6; skipping mastery override"
         }
     } else {
         $values['Player|1|EnableBuffPatch'] = @("int", "0")

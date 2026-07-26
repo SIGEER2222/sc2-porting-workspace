@@ -301,6 +301,163 @@ def build_factors_data():
     return data
 
 
+# 原版 18 位指挥官的 runtime_commander 列表（含 3 威望 + 6 精通）。
+# 仅这些指挥官支持 Buff 补丁（起义指挥官无原版威望/精通系统）。
+OFFICIAL_BUFF_COMMANDERS = [
+    "TerranRaynor", "ZergKerrigan", "ProtossArtanis", "TerranSwann",
+    "ZergZagara", "ProtossVorazun", "ProtossKarax", "ZergAbathur",
+    "ProtossAlarak", "TerranNova", "ZergStukov", "ProtossFenix",
+    "ZergDehaka", "TerranHorner", "TerranTychus", "ProtossZeratul",
+    "ZergStetmann", "TerranMengsk",
+]
+
+
+def load_buff_metadata():
+    """读取原版 18 指挥官的威望 + 精通元数据，用于 WebUI Buff 补丁 Tab。
+
+    数据源：cmre-runtime/Shared/CommanderPower/commander-power-metadata.json
+    返回结构：
+        {
+          "commanders": [
+            {
+              "runtime_commander": "TerranRaynor",
+              "display_name": "雷诺",
+              "prestiges": [
+                {
+                  "slot": 1,            # 1/2/3 对应 P1/P2/P3
+                  "name": "死水元帅",
+                  "advantage_text": "生物战斗单位的生命值提高100%。",
+                  "disadvantage_text": "矿骡不可用。",
+                  "bonus_upgrade_id": "CommanderPrestigeRaynorBioBonus",
+                  "needs_manual_review": false
+                }, ...
+              ],
+              "masteries": [
+                {
+                  "slot": 1,            # 1..6
+                  "id": "RaynorMastery1",
+                  "name": "资源费用",
+                  "value_format": "-~A~%",
+                  "point_increments": ["2"],
+                  "default_value": 30
+                }, ...
+              ]
+            }, ...
+          ]
+        }
+    prestige.advantage_text / disadvantage_text 由 tooltip 字段解析得到
+    （原版 tooltip 用 <s val="Coop_Prestige_Advantage">优点</s>... 标签包裹）。
+    bonus_upgrade_id 从 artifacts/buff-patch/prestige-bonus-index.json 读取，
+    用于让前端显示 supplement upgrade ID（galaxy 端实际应用时使用）。
+    """
+    if not COMMANDER_METADATA_JSON.exists():
+        return {"commanders": []}
+
+    try:
+        metadata = json.loads(COMMANDER_METADATA_JSON.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"commanders": []}
+
+    # bonus_upgrade_id 反查表：从 prestige-bonus-index.json 读取
+    bonus_index_path = (
+        SC2VIBE_ROOT
+        / "sc2-porting-workspace"
+        / "artifacts"
+        / "buff-patch"
+        / "prestige-bonus-index.json"
+    )
+    bonus_index = {}
+    if bonus_index_path.exists():
+        try:
+            for entry in json.loads(bonus_index_path.read_text(encoding="utf-8")):
+                key = (entry.get("runtime_commander", ""), entry.get("slot", -1))
+                bonus_index[key] = {
+                    "bonus_upgrade_id": entry.get("bonus_upgrade_id", ""),
+                    "needs_manual_review": entry.get("needs_manual_review", False),
+                    "review_notes": entry.get("review_notes", ""),
+                }
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    import re
+
+    def parse_tooltip_parts(tooltip):
+        """从原版 tooltip 中解析优点/缺点文本。
+
+        tooltip 格式：<s val="Coop_Prestige_Advantage">优点</s><n/>text<n/><n/><s val="Coop_Prestige_Disadvantage">缺点</s><n/>text
+        """
+        advantage = ""
+        disadvantage = ""
+        if not tooltip:
+            return advantage, disadvantage
+        # 移除所有 <s ...>label</s> 标签，但记录位置
+        adv_match = re.search(
+            r'<s val="Coop_Prestige_Advantage">[^<]*</s><n/>(.*?)(?:<n/><n/><s val="Coop_Prestige_Disadvantage">|$)',
+            tooltip, re.DOTALL,
+        )
+        if adv_match:
+            advantage = adv_match.group(1).strip()
+        dis_match = re.search(
+            r'<s val="Coop_Prestige_Disadvantage">[^<]*</s><n/>(.*?)$',
+            tooltip, re.DOTALL,
+        )
+        if dis_match:
+            disadvantage = dis_match.group(1).strip()
+        # 清理剩余标签
+        advantage = re.sub(r"<[^>]+>", "", advantage).strip()
+        disadvantage = re.sub(r"<[^>]+>", "", disadvantage).strip()
+        return advantage, disadvantage
+
+    commanders = []
+    for record in metadata.get("commanders", []):
+        runtime = record.get("runtime_commander", "")
+        if runtime not in OFFICIAL_BUFF_COMMANDERS:
+            continue
+        prestiges_out = []
+        for prest in record.get("prestiges", []):
+            slot = prest.get("slot", 0)
+            # metadata slot 是 0/1/2 对应 P1/P2/P3，前端用 1/2/3
+            slot_1based = slot + 1
+            advantage, disadvantage = parse_tooltip_parts(prest.get("tooltip", ""))
+            bonus_info = bonus_index.get((runtime, slot), {})
+            prestiges_out.append({
+                "slot": slot_1based,
+                "name": prest.get("name", ""),
+                "name_en": prest.get("name_en", ""),
+                "advantage_text": advantage,
+                "disadvantage_text": disadvantage,
+                "bonus_upgrade_id": bonus_info.get("bonus_upgrade_id", ""),
+                "needs_manual_review": bonus_info.get("needs_manual_review", False),
+                "review_notes": bonus_info.get("review_notes", ""),
+            })
+
+        masteries_out = []
+        for mas in record.get("masteries", []):
+            slot = mas.get("slot", 0)
+            slot_1based = slot + 1
+            masteries_out.append({
+                "slot": slot_1based,
+                "id": mas.get("id", ""),
+                "name": mas.get("name", ""),
+                "category": mas.get("category", 0),
+                "value_format": mas.get("value_format", ""),
+                "point_increments": mas.get("point_increments", []),
+                "default_value": 30,
+            })
+
+        commanders.append({
+            "runtime_commander": runtime,
+            "display_name": record.get("display_name", ""),
+            "prestiges": prestiges_out,
+            "masteries": masteries_out,
+        })
+
+    # 保持 OFFICIAL_BUFF_COMMANDERS 顺序
+    order = {c: i for i, c in enumerate(OFFICIAL_BUFF_COMMANDERS)}
+    commanders.sort(key=lambda c: order.get(c["runtime_commander"], 999))
+    return {"commanders": commanders}
+
+
 def load_localized_strings():
     """读取当前 CMRE 运行时的中文本地化表。"""
     strings = {}
@@ -566,6 +723,9 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/factors":
             self._send_json(build_factors_data())
             return
+        if self.path == "/api/buff-metadata":
+            self._send_json(load_buff_metadata())
+            return
         if self.path == "/api/maps":
             self._send_json({"maps": load_maps()})
             return
@@ -670,6 +830,43 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         # ApiMinimal: 跳过 commander UI/setup 但调用 libCOOC_gf_CC_CustomStartupLaunch()
         # 推进 SC2 从 Launched → in_game。用于 CMRE Coop 地图在 API 模式下避免 UI 阻塞。
         api_minimal = bool(body.get("apiMinimal", False))
+        # Buff 补丁：仅对原版 18 指挥官生效。WebUI Buff Tab 透传三个字段：
+        # - enableBuffPatch: bool，是否启用补丁
+        # - buffs: ["P1","P2","P3"] 子集，编码为 bitmask (P1=1, P2=2, P3=4)
+        # - masteries: [6 个 0..30 整数]，覆盖原版精通；空数组表示用默认 30
+        enable_buff_patch = bool(body.get("enableBuffPatch", False))
+        raw_buffs = body.get("buffs", []) or []
+        raw_masteries = body.get("masteries", []) or []
+        # 仅原版指挥官允许启用 Buff 补丁
+        if enable_buff_patch and commander not in OFFICIAL_BUFF_COMMANDERS:
+            self._send_json(
+                {"success": False, "error": f"Buff 补丁仅支持原版 18 指挥官，当前: {commander}"},
+                400,
+            )
+            return
+        # 校验 buffs
+        valid_buff_tokens = {"P1", "P2", "P3"}
+        buffs = [b for b in raw_buffs if b in valid_buff_tokens] if raw_buffs else []
+        if enable_buff_patch and not buffs:
+            self._send_json(
+                {"success": False, "error": "启用 Buff 补丁时至少需要选择一个威望优点 (P1/P2/P3)"},
+                400,
+            )
+            return
+        # 校验 masteries（0..30 整数，最多 6 个）
+        masteries = []
+        for v in raw_masteries[:6]:
+            try:
+                iv = int(v)
+                if iv < 0 or iv > 30:
+                    raise ValueError
+                masteries.append(iv)
+            except (TypeError, ValueError):
+                self._send_json(
+                    {"success": False, "error": f"精通点数必须为 0..30 整数: {v}"},
+                    400,
+                )
+                return
 
         try:
             mutators, capped = normalize_mutators(raw_mutators)
@@ -742,6 +939,12 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             args.extend(["-ListenPort", str(listen_port)])
         if api_minimal:
             args.append("-ApiMinimal")
+        # Buff 补丁参数透传：launcher 据此写 bank 字段，galaxy 端读取后应用。
+        if enable_buff_patch:
+            args.append("-EnableBuffPatch")
+            args.extend(["-Buffs", ",".join(buffs)])
+            if masteries:
+                args.extend(["-Masteries", ",".join(str(v) for v in masteries)])
 
         # WebUI 启动 = 玩家模式：launcher 不会清理已有 SC2 进程，
         # 若 SC2 已在运行则报错退出，避免误杀玩家正在进行的游戏。
@@ -782,6 +985,11 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                     "output": stdout[-800:] if stdout else "",
                     "debug_args": args,
                     "debug_api_minimal": api_minimal,
+                    "debug_buff_patch": {
+                        "enabled": enable_buff_patch,
+                        "buffs": buffs if enable_buff_patch else [],
+                        "masteries": masteries if enable_buff_patch and masteries else [],
+                    },
                     "debug_stdout_full": stdout if stdout else "",
                 }
                 if listen_port > 0:

@@ -10,6 +10,7 @@ const API = {
   maps: "/api/maps",
   mutators: "/api/mutators",
   voicePacks: "/api/voice-packs",
+  buffMetadata: "/api/buff-metadata",
   extraMods: (bank) => `/api/extra-mods?commander=${encodeURIComponent(bank)}`,
   launch: "/api/launch",
   asset: (relPath) => `/api/assets/dds?path=${encodeURIComponent(relPath)}`,
@@ -22,6 +23,7 @@ const state = {
   commanders: [],
   mutators: [],
   voicePacks: [],
+  buffMetadata: [],
   extraMods: [],
   cmdrFilter: "all",
   activeTab: "commanders",
@@ -42,6 +44,15 @@ const state = {
     extraMods: [],
     apiMode: false,
     listenPort: 5000,
+    // Buff 补丁：仅对原版 18 指挥官生效。
+    // - enabled: 是否启用补丁
+    // - buffs: ["P1","P2","P3"] 子集，对应 3 个威望优点
+    // - masteries: { slot1: value, ... }，slot 为 1..6，value 为 0..30；空对象表示用默认 30
+    buffPatch: {
+      enabled: false,
+      buffs: [],
+      masteries: {},
+    },
   },
 };
 
@@ -228,6 +239,119 @@ async function loadExtraMods() {
   const data = await fetch(API.extraMods(bank)).then(r => r.json());
   state.extraMods = data.extraMods || [];
   renderExtraMods();
+}
+
+/* === Buff 补丁元数据 === */
+async function loadBuffMetadata() {
+  try {
+    const data = await fetch(API.buffMetadata).then(r => r.json());
+    state.buffMetadata = data.commanders || [];
+  } catch {
+    state.buffMetadata = [];
+  }
+  renderBuffPatch();
+}
+
+/* === Buff 补丁：根据当前指挥官渲染 === */
+function getCurrentBuffCommander() {
+  const cid = state.selected.commander;
+  return state.buffMetadata.find(c => c.runtime_commander === cid) || null;
+}
+
+function renderBuffPatch() {
+  const body = $("buff-body");
+  const targetEl = $("buff-target");
+  const enableCk = $("buff-enable");
+  const cmdr = getCurrentBuffCommander();
+  if (!cmdr) {
+    // 当前指挥官不在原版 18 之列
+    body.innerHTML = `<p class="hint">Buff 补丁仅支持原版 18 位指挥官。当前指挥官 "<b>${esc(state.selected.commander)}</b>" 无威望/精通系统。</p>`;
+    targetEl.textContent = `当前指挥官：${state.selected.commander}（不支持）`;
+    enableCk.disabled = true;
+    enableCk.checked = false;
+    $("tab-buff-count").hidden = true;
+    return;
+  }
+  enableCk.disabled = false;
+  enableCk.checked = state.selected.buffPatch.enabled;
+  targetEl.textContent = `当前指挥官：${cmdr.display_name} (${cmdr.runtime_commander})`;
+
+  // 威望优点区
+  let html = '<div class="buff-section">';
+  html += '<div class="buff-section-head">威望优点（叠加，不替代原版威望）</div>';
+  html += '<div class="buff-section-hint">勾选要应用的威望优点。supplement upgrade 会通过 TechTreeUpgradeAddLevel 叠加到玩家身上，不影响原版威望的缺点。</div>';
+  for (const p of cmdr.prestiges) {
+    const token = `P${p.slot}`;
+    const checked = state.selected.buffPatch.buffs.includes(token) ? "checked" : "";
+    const reviewBadge = p.needs_manual_review ? '<span class="buff-review" title="' + esc(p.review_notes || '') + '">⚠ 需注意</span>' : '';
+    html += `
+      <label class="buff-prestige-row">
+        <input type="checkbox" class="buff-prestige-ck" data-token="${token}" ${checked}>
+        <div class="buff-prestige-info">
+          <div class="buff-prestige-name">P${p.slot} · ${esc(p.name)} ${reviewBadge}</div>
+          <div class="buff-prestige-adv"><span class="buff-tag buff-tag-adv">优点</span> ${esc(p.advantage_text || '(无说明)')}</div>
+          <div class="buff-prestige-dis"><span class="buff-tag buff-tag-dis">原缺点</span> ${esc(p.disadvantage_text || '(无)')}</div>
+          ${p.bonus_upgrade_id ? `<div class="buff-prestige-upgrade">↑ ${esc(p.bonus_upgrade_id)}</div>` : ''}
+        </div>
+      </label>`;
+  }
+  html += '</div>';
+
+  // 精通点数区
+  html += '<div class="buff-section">';
+  html += '<div class="buff-section-head">精通点数（覆盖原版，默认满级 30）</div>';
+  html += '<div class="buff-section-hint">滑块控制每个精通槽位的点数。默认 30 (满级)，可单独调整。launcher 会写入 Player|N|Mastery|slot|Id/Value。</div>';
+  for (const m of cmdr.masteries) {
+    const stored = state.selected.buffPatch.masteries[m.slot];
+    const val = (stored !== undefined) ? stored : 30;
+    html += `
+      <div class="buff-mastery-row">
+        <div class="buff-mastery-head">
+          <span class="buff-mastery-name">槽 ${m.slot} · ${esc(m.name)}</span>
+          <span class="buff-mastery-val" id="buff-mastery-val-${m.slot}">${val}</span>
+        </div>
+        <input type="range" class="buff-mastery-slider" data-slot="${m.slot}" min="0" max="30" step="1" value="${val}">
+        <div class="buff-mastery-fmt">${esc(m.value_format || '')} · 增量 ${esc((m.point_increments || []).join('/'))}</div>
+      </div>`;
+  }
+  html += '</div>';
+
+  body.innerHTML = html;
+
+  // 绑定威望优点 checkbox
+  body.querySelectorAll(".buff-prestige-ck").forEach(ck => {
+    ck.onchange = () => {
+      const token = ck.dataset.token;
+      const set = new Set(state.selected.buffPatch.buffs);
+      if (ck.checked) set.add(token); else set.delete(token);
+      state.selected.buffPatch.buffs = Array.from(set).sort();
+      updateBuffBadge();
+    };
+  });
+
+  // 绑定精通滑块
+  body.querySelectorAll(".buff-mastery-slider").forEach(sl => {
+    sl.oninput = () => {
+      const slot = parseInt(sl.dataset.slot, 10);
+      const v = parseInt(sl.value, 10);
+      state.selected.buffPatch.masteries[slot] = v;
+      const valEl = $("buff-mastery-val-" + slot);
+      if (valEl) valEl.textContent = v;
+    };
+  });
+
+  updateBuffBadge();
+}
+
+function updateBuffBadge() {
+  const badge = $("tab-buff-count");
+  if (state.selected.buffPatch.enabled) {
+    badge.hidden = false;
+    const n = state.selected.buffPatch.buffs.length;
+    badge.textContent = n > 0 ? `${n} 优` : "开";
+  } else {
+    badge.hidden = true;
+  }
 }
 
 /* === Tab 切换 === */
@@ -657,6 +781,17 @@ async function launchGame() {
     voicePack: s.voicePack, extraMods: s.extraMods,
   };
   if (s.apiMode) { body.listenPort = s.listenPort; body.apiMinimal = true; }
+  // Buff 补丁：仅当启用且当前指挥官在原版 18 之列时透传
+  if (s.buffPatch.enabled && getCurrentBuffCommander()) {
+    body.enableBuffPatch = true;
+    body.buffs = s.buffPatch.buffs.slice();
+    // 转换 masteries dict 为 6 元素数组（按 slot 1..6 顺序）
+    const masteryArr = [];
+    for (let i = 1; i <= 6; i++) {
+      masteryArr.push(s.buffPatch.masteries[i] !== undefined ? s.buffPatch.masteries[i] : 30);
+    }
+    body.masteries = masteryArr;
+  }
 
   const output = $("output");
   const outputBody = $("output-body");

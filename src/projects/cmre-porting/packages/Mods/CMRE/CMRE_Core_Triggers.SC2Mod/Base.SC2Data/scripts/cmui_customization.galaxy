@@ -12897,6 +12897,208 @@ void CMUIX_PrepareConsoleSkinRefreshForCommander(int lp_player, string lp_comman
     PlayerSetCommander(lp_player, lv_commanderData);
 }
 
+// Buff Patch: 返回指定指挥官威望 slot 对应的 supplement bonus upgrade ID。
+// slot 取值 1/2/3 对应 P1/P2/P3。返回空字符串表示无对应项（不应触发 TechTreeUpgradeAddLevel）。
+string CMUIX_GetPrestigeBonusUpgrade(string lp_commander, int lp_slot) {
+    if ((lp_slot < 1) || (lp_slot > 3)) {
+        return "";
+    }
+
+    // TerranRaynor
+    if ((lp_commander == "TerranRaynor")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeRaynorBioBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeRaynorMechAfterburnersBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeRaynorAirBonus"; }
+    }
+
+    // ZergKerrigan
+    if ((lp_commander == "ZergKerrigan")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeKerriganCreepBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeKerriganAbilitiesBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeKerriganAssimilationAuraBonus"; }
+    }
+
+    // ProtossArtanis
+    if ((lp_commander == "ProtossArtanis")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeArtanisCombatAbilitiesBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeArtanisPowerFieldBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeArtanisOrbitalStrikesBonus"; }
+    }
+
+    // TerranSwann
+    if ((lp_commander == "TerranSwann")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeSwannDrillBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeSwannTurretsBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeSwannHerculesBonus"; }
+    }
+
+    // ZergZagara
+    if ((lp_commander == "ZergZagara")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeZagaraMaxSupplyBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeZagaraCorruptorsAberrationsBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeZagaraZagaraBonus"; }
+    }
+
+    // ProtossVorazun
+    if ((lp_commander == "ProtossVorazun")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeVorazunEmergencyRecallBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeVorazunStasisBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeVorazunTimeStopBonus"; }
+    }
+
+    // ProtossKarax
+    if ((lp_commander == "ProtossKarax")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeKaraxStructuresBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeKaraxArmyBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeKaraxTopBarBonus"; }
+    }
+
+    // ZergAbathur
+    if ((lp_commander == "ZergAbathur")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeAbathurBiomassBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeAbathurDeepTunnelBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeAbathurUltEvoBonus"; }
+    }
+
+    // ProtossAlarak
+    if ((lp_commander == "ProtossAlarak")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeAlarakMechBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeAlarakEmpowerMeBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeAlarakDeathFleetBonus"; }
+    }
+
+    // TerranNova
+    if ((lp_commander == "TerranNova")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeNovaBioBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeNovaAirliftBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeNovaSuperCloakBonus"; }
+    }
+
+    // ZergStukov
+    if ((lp_commander == "ZergStukov")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeStukovMechBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeStukovBansheesBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeStukovBunkersBonus"; }
+    }
+
+    // ProtossFenix
+    if ((lp_commander == "ProtossFenix")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeFenixSuitSwapBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeFenixDataWebBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeFenixAvengerBonus"; }
+    }
+
+    // ZergDehaka
+    if ((lp_commander == "ZergDehaka")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeDehakaDevourBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeDehakaPackLeadersBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeDehakaCloneBonus"; }
+    }
+
+    // TerranHorner (Mira Han & Matt Horner)
+    if ((lp_commander == "TerranHorner")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeHornerMagMinesBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeHornerStarportBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeHornerBombingPlatformsBonus"; }
+    }
+
+    // TerranTychus
+    if ((lp_commander == "TerranTychus")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeTychusSquadAbilitiesBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeTychusLoneWolfBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeTychusOdinBonus"; }
+    }
+
+    // ProtossZeratul
+    if ((lp_commander == "ProtossZeratul")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeZeratulVoidSeekerBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeZeratulArtifactFragmentsBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeZeratulTornadoesBonus"; }
+    }
+
+    // ZergStetmann
+    if ((lp_commander == "ZergStetmann")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeStetmannStetellitesBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeStetmannGaryBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeStetmannCombatBuffBonus"; }
+    }
+
+    // TerranMengsk
+    if ((lp_commander == "TerranMengsk")) {
+        if ((lp_slot == 1)) { return "CommanderPrestigeMengskArtilleryBonus"; }
+        if ((lp_slot == 2)) { return "CommanderPrestigeMengskRoyalGuardBonus"; }
+        if ((lp_slot == 3)) { return "CommanderPrestigeMengskTroopersBonus"; }
+    }
+
+    return "";
+}
+
+// Buff Patch: 应用威望优点 supplement upgrade。
+// 由 launcher 通过 -EnableBuffPatch -Buffs <mask> 写入 bank：
+//   Player|N|EnableBuffPatch = 1
+//   Player|N|PrestigeBonusMask = bitmask (bit0=P1, bit1=P2, bit2=P3)
+// 精通点数覆盖由现有 CMUIX_LaunchProfileApplyCommanderCustomization 中的 mastery 循环
+// 直接读取 Player|N|Mastery|slot|Value 完成，无需在此重复。
+void CMUIX_LaunchProfileApplyBuffs(bank lp_bank, int lp_player, string lp_commander) {
+    int lv_enable;
+    int lv_mask;
+    int lv_slot;
+    string lv_bonusUpgrade;
+
+    if ((lp_bank == null) || (lp_player < 1) || (lp_player > libCOOC_gv_cCC_MAXPLAYERS)) {
+        return;
+    }
+
+    if ((lp_commander == "") || (lp_commander == null)) {
+        return;
+    }
+
+    lv_enable = CMUIX_PlayerProfileGetInt(lp_bank, CMUIX_LAUNCH_PROFILE_SECTION,
+        CMUIX_LaunchProfilePlayerKey(lp_player, "EnableBuffPatch"), 0);
+    if ((lv_enable != 1)) {
+        return;
+    }
+
+    lv_mask = CMUIX_PlayerProfileGetInt(lp_bank, CMUIX_LAUNCH_PROFILE_SECTION,
+        CMUIX_LaunchProfilePlayerKey(lp_player, "PrestigeBonusMask"), 0);
+
+    // P1 / P2 / P3 对应 bit0 / bit1 / bit2，slot 取 1/2/3
+    for (lv_slot = 1; lv_slot <= 3; lv_slot += 1) {
+        if (((lv_mask & (1 << (lv_slot - 1))) != 0)) {
+            lv_bonusUpgrade = CMUIX_GetPrestigeBonusUpgrade(lp_commander, lv_slot);
+            if ((lv_bonusUpgrade != "") && (lv_bonusUpgrade != null)) {
+                TechTreeUpgradeAddLevel(lp_player, lv_bonusUpgrade, 1);
+            }
+        }
+    }
+
+    // 特例：部分威望优点无法通过 supplement upgrade 表达，需要 galaxy 触发器补充。
+    // - Kerrigan P3 (AssimilationAura): 启用 PsionicLift / MindBolt 能力
+    // - Vorazun P3 (TimeStop): 启用 TimeStop 能力 + TimeStopMastery 升级
+    // - Stukov P2 (Banshees): 应用 BansheesMastery 升级
+    // - Swann P2 (Turrets): 应用 3 个炮塔 supplement upgrade
+    // 注意：这些特例由 WebUI 通过 PrestigeBonusMask 触发，对应 slot 已设置 bit。
+    if ((lp_commander == "ZergKerrigan") && ((lv_mask & 4) != 0)) {
+        TechTreeAbilityAllow(lp_player, AbilityCommand("PsionicLift", 0), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("MindBolt", 0), true);
+    }
+
+    if ((lp_commander == "ProtossVorazun") && ((lv_mask & 4) != 0)) {
+        TechTreeAbilityAllow(lp_player, AbilityCommand("CommanderPrestigeVorazunTimeStop", 0), true);
+        TechTreeUpgradeAddLevel(lp_player, "CommanderPrestigeVorazunTimeStopMastery", 30);
+    }
+
+    if ((lp_commander == "ZergStukov") && ((lv_mask & 2) != 0)) {
+        TechTreeUpgradeAddLevel(lp_player, "CommanderPrestigeStukovBansheesMastery", 30);
+    }
+
+    if ((lp_commander == "TerranSwann") && ((lv_mask & 2) != 0)) {
+        TechTreeUpgradeAddLevel(lp_player, "CommanderPrestigeSwannTurretsAttackSpeed", 1);
+        TechTreeUpgradeAddLevel(lp_player, "CommanderPrestigeSwannTurretsRange", 1);
+        TechTreeUpgradeAddLevel(lp_player, "CommanderPrestigeSwannTurretsArmor", 1);
+    }
+}
+
 void CMUIX_LaunchProfileApplyCommanderCustomization(bank lp_bank, int lp_player, string lp_commander) {
     int lv_slot;
     int lv_count;
@@ -12973,6 +13175,10 @@ void CMUIX_LaunchProfileApplyCommanderCustomization(bank lp_bank, int lp_player,
     }
 
     CMUIX_ApplyCommanderMasteryGate(lp_player, lp_commander);
+
+    // Buff Patch: 在 mastery/prestige 应用完成后，叠加威望优点 supplement upgrade。
+    // 仅当 bank 中 EnableBuffPatch=1 时生效，不影响原版威望缺点。
+    CMUIX_LaunchProfileApplyBuffs(lp_bank, lp_player, lp_commander);
 }
 
 void CMUIX_LaunchProfileApplyCommander(bank lp_bank, int lp_player) {
