@@ -1,6 +1,13 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn)
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode)
 $ErrorActionPreference = "Stop"
+# 模式校验：PlayerMode 和 DebugMode 互斥；DebugMode 自动启用 ApiMinimal 并要求 ListenPort
+if ($PlayerMode -and $DebugMode) { throw "-PlayerMode 和 -DebugMode 互斥，不能同时使用" }
+if ($DebugMode) {
+    if ($ListenPort -le 0) { throw "-DebugMode 必须配合 -ListenPort <port> 使用" }
+    $ApiMinimal = $true
+    Write-Host "DebugMode: 自动启用 ApiMinimal，SC2 窗口将最小化，launcher 退出时自动关闭 SC2"
+}
 $WorkspaceRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Sc2WorkspaceRoot = Split-Path -Parent $WorkspaceRoot
 if ($LegacyRootOverride) {
@@ -27,7 +34,8 @@ function Convert-TestCommanderToCommanderPowerKey {
 $cmre = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\cmre-alenger-dependencies.json") -Raw | ConvertFrom-Json
 $alenger = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\alenger-mods.json") -Raw | ConvertFrom-Json
 $isAlengerCommander = $false
-if ($Commander -match '^(Terran|Zerg|Protoss)?(Alenger\d+)$') {
+$alengerNames = 'SteelWall|Behemoth|Empire|TalDarim|Abathur|Khalai|Zagara|Pirate|Amon|Community|Ranger|Purifier'
+if ($Commander -match "^(Terran|Zerg|Protoss)?($alengerNames)$") {
     $isAlengerCommander = $true
     $alengerId = $Matches[2]
     if ($alenger.commanderToAlenger.PSObject.Properties.Name -notcontains $alengerId) { throw "No on-demand package mapping for $Commander" }
@@ -81,7 +89,7 @@ if ($isAlengerCommander) {
         # 指挥官的预期 mod 名，但本地只解包了 Dehaka 和 Swann（其他指挥官的 unit 数据
         # 已经包含在 CoreRuntime 或 CMRE 核心 mod 中），所以这里跳过不存在的 mod 以避免
         # DocumentInfo 引用不存在的依赖导致 SC2 加载失败。
-        $cmdrUnitsModPath = Join-Path $AlengerPackagesRoot "Mods\7vs1\$cmdrUnitsMod.SC2Mod"
+        $cmdrUnitsModPath = Join-Path $AlengerPackagesRoot "Mods\Commanders\$cmdrUnitsMod.SC2Mod"
         if (Test-Path -LiteralPath $cmdrUnitsModPath) {
             $selectedMods += $cmdrUnitsMod
             Write-Host "Official commander: adding CommanderUnits mod: $cmdrUnitsMod"
@@ -90,7 +98,7 @@ if ($isAlengerCommander) {
         }
     }
 }
-$dependencies = @($cmre.baseDependencyPaths) + @($cmre.commanderBaseDependencyPaths) + @($selectedMods | ForEach-Object { "file:Mods/7vs1/$_.SC2Mod" })
+$dependencies = @($cmre.baseDependencyPaths) + @($cmre.commanderBaseDependencyPaths) + @($selectedMods | ForEach-Object { "file:Mods/Commanders/$_.SC2Mod" })
 if ($ExtraMods -ne "") {
     $extraList = $ExtraMods.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
     $selectedSet = [System.Collections.Generic.HashSet[string]]::new()
@@ -100,7 +108,7 @@ if ($ExtraMods -ne "") {
         $skipped = @($extraList | Where-Object { $selectedSet.Contains($_) })
         Write-Host "Extra mods (skipped duplicates already in commander loadout): $($skipped -join ', ')"
     }
-    foreach ($mod in $dedupedExtra) { $dependencies += "file:Mods/7vs1/$mod.SC2Mod" }
+    foreach ($mod in $dedupedExtra) { $dependencies += "file:Mods/Commanders/$mod.SC2Mod" }
     if ($dedupedExtra.Count -gt 0) {
         Write-Host "Extra mods: $($dedupedExtra -join ', ')"
     }
@@ -110,12 +118,20 @@ if ($ExtraMods -ne "") {
 # -EnableReborn: 可选加载 reborn mod 包（5 个 mod + SwarmStory 战役依赖）。
 # reborn mod 存放在 cmre-runtime/Mods/reborn/ 下，主 mod 的 DocumentInfo 已改写
 # 子 mod 路径为 Mods/reborn/...，SwarmStory 战役包已部署到 SC2 安装目录 Campaigns/。
+# -RebornCommander: 指定重生虫心指挥官名称（Abathur/Dehaka/Izsha/Karass/Kerrigan/Mengsk/
+# Naktul/Narud/Raynor/Stukov/Tosh/Urun/Warfield/Zagara/Zeratul/Random），启用后会预写
+# cryswarmcoop.SC2Bank 银行，让重生虫心 mod 自动选择指定指挥官并执行 SwarmSetup 流程。
 if ($EnableReborn) {
     if ($cmre.PSObject.Properties.Name -notcontains 'optionalPackageModDependencyPaths') {
         throw "optionalPackageModDependencyPaths not declared in cmre-alenger-dependencies.json"
     }
     $dependencies += @($cmre.optionalPackageModDependencyPaths)
     Write-Host "Reborn mods enabled: adding $($cmre.optionalPackageModDependencyPaths.Count) optional dependencies"
+    if ($RebornCommander -ne "") {
+        Write-Host "Reborn commander preset: $RebornCommander (Difficulty=$RebornDifficulty, Speed=$RebornSpeed)"
+    }
+} elseif ($RebornCommander -ne "") {
+    throw "-RebornCommander requires -EnableReborn to load reborn mod packages."
 }
 Write-Host "CMRE Alenger selection: $MapName x $Commander"
 Write-Host "On-demand packages: $($selectedMods -join ', ')"
@@ -171,7 +187,12 @@ function Enable-CmreSavedProfileStartup {
     libCOUI_gf_CU_CommanderFinalizeStates(2);
 "@
     if ($ApiMinimal) {
-        throw "ApiMinimal is disabled: it has no successful JoinGame evidence and must not be used for real API runs."
+        # ApiMinimal: skip all galaxy startup patches (CustomStartupBegin pause,
+        # ReadyBeginCountdown, etc.). SC2 stays at main menu (Launched) after
+        # CreateGame. The client uses realtime=true + Step/Observation to advance
+        # to in_game (see Sc2Api.RealProfile.CreateAndJoinGameAsync).
+        Write-Host "ApiMinimal: skipping galaxy startup patches (client drives CreateGame+JoinGame)"
+        return
     }
 
     if ($SkipPause) {
@@ -269,7 +290,7 @@ function Install-CmreGalaxyHostOverlay {
     }
 
     if ($isAlengerCommander -and $adapterFiles.Count -gt 0) {
-        $adapterRoot = Join-Path $ModsRoot "7vs1\$adapterModName.SC2Mod\Base.SC2Data"
+        $adapterRoot = Join-Path $ModsRoot "Commanders\$adapterModName.SC2Mod\Base.SC2Data"
         foreach ($name in $adapterFiles) {
             $src = Join-Path $adapterRoot $name
             if (-not (Test-Path -LiteralPath $src)) { throw "$adapterModName galaxy file not found: $src" }
@@ -836,15 +857,133 @@ function Write-CmreLaunchProfile {
     Write-Host "CMCoopLaunchProfile 银行已写入: Mode=$Mode, DifficultyBase=$DifficultyBase, DifficultyPlus=$DifficultyPlus, Enemy='$Enemy', Mutators='$Mutators', ChaosMutators='$ChaosMutators', VoicePack='$VoicePack'"
 }
 
+function Set-RebornCommander {
+    param(
+        [Parameter(Mandatory = $true)][string]$Commander,
+        [int]$Difficulty = 5,
+        [int]$Speed = 5,
+        [switch]$UnlockAllMaps
+    )
+    # 白名单与 lib48DF4533_gt_CommanderStart_Func 的 14 个指挥官 + Random 一致
+    $validCommanders = @(
+        "Abathur","Dehaka","Izsha","Karass","Kerrigan","Mengsk","Naktul","Narud",
+        "Raynor","Stukov","Tosh","Urun","Warfield","Zagara","Zeratul","Random"
+    )
+    if ($validCommanders -notcontains $Commander) {
+        throw "Invalid Reborn commander: $Commander. Valid: $($validCommanders -join ', ')"
+    }
+    if ($Difficulty -lt 1 -or $Difficulty -gt 5) {
+        throw "Reborn Difficulty must be 1..5 (1=Easy, 2=Normal, 3=Hard, 4=Expert, 5=Expert+)"
+    }
+    if ($Speed -lt 1 -or $Speed -gt 5) {
+        throw "Reborn Speed must be 1..5 (1=Slower, 2=Slow, 3=Normal, 4=Fast, 5=Faster)"
+    }
+    $banksRoot = "C:\Users\22448\Documents\StarCraft II\Banks"
+    [System.IO.Directory]::CreateDirectory($banksRoot) | Out-Null
+    # Evolutions 默认值：取每个字段 if-else 顺序的第一个选项。
+    # 仅 Zerg 系指挥官（Abathur/Izsha/Kerrigan/Naktul/Zagara/Tosh/Random）会读取 Evolutions；
+    # 其他指挥官（Dehaka/Karass/Mengsk/Narud/Stukov/Urun/Warfield/Zeratul）走 Commander 替换路径，忽略此节。
+    $evolutions = [ordered]@{
+        "Zergling"        = "Raptorling"
+        "Baneling"        = "Hunter"
+        "Roach"           = "Corpser"
+        "Hydralisk"       = "Impaler"
+        "Mutalisk"        = "Char"
+        "Swarm Host"      = "Carrion"
+        "Ultralisk"       = "Indra"
+        "Monstrous Flier" = "Brood Lord"
+        "Caster"          = "Infestor"
+    }
+    # Maps 节：8 个虫群战役地图，全部 flag=1 解锁全部单位科技树。
+    # 对应关系（lib48DF4533_gf_IsUnitUnlocked）：
+    #   Harvest of Screams → Roach, Shoot the Messenger → Hydralisk,
+    #   Waking the Ancient → Mutalisk, The Crucible → Swarm Host,
+    #   Domination → Baneling, With Friends Like These → Heavy Air,
+    #   Infested → Caster, Hand of Darkness → Ultralisk
+    $maps = @(
+        "Harvest of Screams",
+        "Shoot the Messenger",
+        "Waking the Ancient",
+        "The Crucible",
+        "Domination",
+        "With Friends Like These",
+        "Infested",
+        "Hand of Darkness"
+    )
+    $doc = [xml]'<Bank version="1" />'
+    # Section Commanders
+    $secCmd = $doc.CreateElement("Section"); $secCmd.SetAttribute("name", "Commanders")
+    $keyCmd = $doc.CreateElement("Key"); $keyCmd.SetAttribute("name", "Commander")
+    $valCmd = $doc.CreateElement("Value"); $valCmd.SetAttribute("string", $Commander)
+    $keyCmd.AppendChild($valCmd) | Out-Null; $secCmd.AppendChild($keyCmd) | Out-Null
+    $doc.Bank.AppendChild($secCmd) | Out-Null
+    # Section Settings
+    $secSet = $doc.CreateElement("Section"); $secSet.SetAttribute("name", "Settings")
+    foreach ($entry in @(
+        @("Difficulty", "int", [string]$Difficulty),
+        @("Speed", "int", [string]$Speed),
+        @("Story", "int", "0")
+    )) {
+        $k = $doc.CreateElement("Key"); $k.SetAttribute("name", $entry[0])
+        $v = $doc.CreateElement("Value"); $v.SetAttribute($entry[1], $entry[2])
+        $k.AppendChild($v) | Out-Null; $secSet.AppendChild($k) | Out-Null
+    }
+    $doc.Bank.AppendChild($secSet) | Out-Null
+    # Section Evolutions
+    $secEvo = $doc.CreateElement("Section"); $secEvo.SetAttribute("name", "Evolutions")
+    foreach ($e in $evolutions.GetEnumerator()) {
+        $k = $doc.CreateElement("Key"); $k.SetAttribute("name", $e.Key)
+        $v = $doc.CreateElement("Value"); $v.SetAttribute("string", $e.Value)
+        $k.AppendChild($v) | Out-Null; $secEvo.AppendChild($k) | Out-Null
+    }
+    $doc.Bank.AppendChild($secEvo) | Out-Null
+    # Section Maps (optional)
+    if ($UnlockAllMaps) {
+        $secMap = $doc.CreateElement("Section"); $secMap.SetAttribute("name", "Maps")
+        foreach ($m in $maps) {
+            $k = $doc.CreateElement("Key"); $k.SetAttribute("name", $m)
+            $v = $doc.CreateElement("Value"); $v.SetAttribute("flag", "1")
+            $k.AppendChild($v) | Out-Null; $secMap.AppendChild($k) | Out-Null
+        }
+        $doc.Bank.AppendChild($secMap) | Out-Null
+    }
+    $settings = [System.Xml.XmlWriterSettings]::new(); $settings.Indent = $true; $settings.Encoding = [System.Text.UTF8Encoding]::new($false)
+    $writer = [System.Xml.XmlWriter]::Create((Join-Path $banksRoot "cryswarmcoop.SC2Bank"), $settings)
+    try { $doc.Save($writer) } finally { $writer.Dispose() }
+    Write-Host "cryswarmcoop 银行已写入: Commander=$Commander, Difficulty=$Difficulty, Speed=$Speed, UnlockAllMaps=$([bool]$UnlockAllMaps)"
+}
+
 $lock = Acquire-TestLock -TestType "cmre_alenger" -MapName $MapName -Commander $Commander
+$debugPidFile = Join-Path $env:TEMP "cmre-debug-sc2.pid"
 try {
-    Stop-RunningSc2
-    # Stop-RunningSc2 only targets SC2_x64/SC2Switcher_x64, but the live process
-    # is often named "SC2". Stop it as well so Clear-GameLogs does not hit locked
-    # SystemInfo.txt (which causes the launcher to abort with IOException).
-    Get-Process -Name "SC2","StarCraft II" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-    Start-Sleep 2
-    Clear-GameLogs
+    if ($PlayerMode) {
+        # PlayerMode：不清理任何 SC2 进程，避免杀玩家游戏。已有 SC2 在跑则报错退出。
+        $existing = Get-Process -Name "SC2_x64","SC2","StarCraft II" -ErrorAction SilentlyContinue
+        if ($existing) {
+            throw "检测到 SC2 已在运行（PID: $($existing.Id -join ',')）。PlayerMode 不会自动关闭已有游戏，请先手动关闭 SC2 再启动。"
+        }
+    } elseif ($DebugMode) {
+        # DebugMode：只清理自己上次启动的 SC2（按 PID 文件，禁止按进程名 kill 避免误杀玩家游戏）
+        if (Test-Path $debugPidFile) {
+            $oldPid = Get-Content $debugPidFile -ErrorAction SilentlyContinue
+            if ($oldPid) {
+                Write-Host "DebugMode: 清理上次调试启动的 SC2 (PID=$oldPid)"
+                Stop-Process -Id $oldPid -Force -ErrorAction SilentlyContinue
+            }
+            Remove-Item $debugPidFile -Force -ErrorAction SilentlyContinue
+        }
+        Start-Sleep 2
+        Clear-GameLogs
+    } else {
+        # 命令行手动启动（都不传）：走原有全量清理逻辑
+        Stop-RunningSc2
+        # Stop-RunningSc2 only targets SC2_x64/SC2Switcher_x64, but the live process
+        # is often named "SC2". Stop it as well so Clear-GameLogs does not hit locked
+        # SystemInfo.txt (which causes the launcher to abort with IOException).
+        Get-Process -Name "SC2","StarCraft II" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep 2
+        Clear-GameLogs
+    }
     Sync-ModSet -ModRelPaths $cmre.baseMods -ProjRoot $LegacyRoot -Sc2Root $Sc2Root
     if (@($cmre.commanderBaseMods).Count -gt 0) {
         Sync-ModSet -ModRelPaths $cmre.commanderBaseMods -ProjRoot $AlengerPackagesRoot -Sc2Root $Sc2Root
@@ -869,10 +1008,10 @@ try {
         }
     }
     if ($selectedMods.Count -gt 0) {
-        Sync-ModSet -ModRelPaths @($selectedMods | ForEach-Object { "7vs1\$_.SC2Mod" }) -ProjRoot $AlengerPackagesRoot -Sc2Root $Sc2Root
+        Sync-ModSet -ModRelPaths @($selectedMods | ForEach-Object { "Commanders\$_.SC2Mod" }) -ProjRoot $AlengerPackagesRoot -Sc2Root $Sc2Root
     }
     if ($dedupedExtra.Count -gt 0) {
-        Sync-ModSet -ModRelPaths @($dedupedExtra | ForEach-Object { "7vs1\$_.SC2Mod" }) -ProjRoot $AlengerPackagesRoot -Sc2Root $Sc2Root
+        Sync-ModSet -ModRelPaths @($dedupedExtra | ForEach-Object { "Commanders\$_.SC2Mod" }) -ProjRoot $AlengerPackagesRoot -Sc2Root $Sc2Root
     }
     # -EnableReborn: 同步 5 个 reborn mod 到 SC2 安装目录 Mods/reborn/。
     # ProjRoot 是 LegacyRoot（cmre-runtime），因为 reborn mod 存放在 cmre-runtime/Mods/reborn/。
@@ -905,8 +1044,8 @@ try {
     if ($cmre.PSObject.Properties.Name -contains 'extraPackageMods') {
         $modsToPatchStarCoop += @($cmre.extraPackageMods | ForEach-Object { Join-Path $Sc2Root "Mods\$_" })
     }
-    $modsToPatchStarCoop += @($selectedMods | ForEach-Object { Join-Path $Sc2Root "Mods\7vs1\$_.SC2Mod" })
-    $modsToPatchStarCoop += @($dedupedExtra | ForEach-Object { Join-Path $Sc2Root "Mods\7vs1\$_.SC2Mod" })
+    $modsToPatchStarCoop += @($selectedMods | ForEach-Object { Join-Path $Sc2Root "Mods\Commanders\$_.SC2Mod" })
+    $modsToPatchStarCoop += @($dedupedExtra | ForEach-Object { Join-Path $Sc2Root "Mods\Commanders\$_.SC2Mod" })
     $starCoopRemovedCount = 0
     foreach ($modDir in $modsToPatchStarCoop) {
         if (-not (Test-Path $modDir)) { continue }
@@ -949,7 +1088,7 @@ try {
         if ($modPatched) { $starCoopRemovedCount++ }
     }
     if ($starCoopRemovedCount -gt 0) {
-        Write-Host "StarCoop dependency removed from $starCoopRemovedCount 7vs1 mod(s)"
+        Write-Host "StarCoop dependency removed from $starCoopRemovedCount Commanders mod(s)"
     }
     $liveMap = Join-Path $Sc2Root "Maps\$MapName"
     if (Test-Path -LiteralPath $liveMap) { [System.IO.Directory]::Delete($liveMap, $true) }
@@ -997,6 +1136,11 @@ try {
     if (-not $roundtrip.Valid) { throw "Document dependency roundtrip failed: $($roundtrip.Errors -join '; ')" }
     Set-CampaignXCorePrimaryCommander -SelectedCommanders @($Commander)
     Set-CampaignXCoreTestRunId -RunId "CMREAlenger"
+    # Reborn 模式：预写 cryswarmcoop.SC2Bank，让重生虫心 mod 读取指定指挥官并自动执行 SwarmSetup。
+    # 必须在 -EnableReborn 模式下使用，且 RebornCommander 必须是重生虫心支持的指挥官名称。
+    if ($EnableReborn -and $RebornCommander -ne "") {
+        Set-RebornCommander -Commander $RebornCommander -Difficulty $RebornDifficulty -Speed $RebornSpeed -UnlockAllMaps
+    }
     if ($ShowSelectionUI) {
         # 删除已有的 LaunchProfile 银行文件，确保 CMRE 不会自动应用已保存的配置，
         # 而是显示指挥官选择界面。
@@ -1078,6 +1222,31 @@ try {
             }
         }
         Write-Host "SC2 API mode: API listening on 127.0.0.1:$ListenPort (SC2_x64 PID=$($proc.Id))"
+        # DebugMode：记录 PID 到文件（用于退出时按 PID 关闭，避免误杀玩家游戏）+ 最小化窗口
+        if ($DebugMode) {
+            Set-Content -Path $debugPidFile -Value $proc.Id -Encoding UTF8
+            Write-Host "DebugMode: SC2 PID $($proc.Id) 写入 $debugPidFile"
+            # 最小化 SC2 窗口（Win32 API ShowWindowAsync, SW_MINIMIZE=6）
+            try {
+                $signature = '[DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);'
+                $win32Type = Add-Type -MemberDefinition $signature -Name "Win32ShowWindowAsync" -Namespace Win32Functions -PassThru
+                $minDeadline = (Get-Date).AddSeconds(30)
+                $minimized = $false
+                while ((Get-Date) -lt $minDeadline) {
+                    $sc2Proc = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
+                    if ($sc2Proc -and $sc2Proc.MainWindowHandle -ne [IntPtr]::Zero) {
+                        $win32Type::ShowWindowAsync($sc2Proc.MainWindowHandle, 6) | Out-Null
+                        Write-Host "DebugMode: SC2 窗口已最小化"
+                        $minimized = $true
+                        break
+                    }
+                    Start-Sleep -Milliseconds 500
+                }
+                if (-not $minimized) { Write-Host "DebugMode: SC2 窗口最小化超时（非致命）" }
+            } catch {
+                Write-Host "DebugMode: 最小化窗口失败（非致命）: $_"
+            }
+        }
         # 给地图加载额外宽限时间：端口监听后 galaxy 触发器仍在执行（CMUIX_ReadyBeginCountdown 倒计时）。
         # 轮询 GameLogs 是否出现 ScriptError 或地图加载完成信号（Alerts.txt）。
         $gameLogsDir = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "StarCraft II\GameLogs"
@@ -1109,4 +1278,15 @@ try {
         $exitCode = Wait-GameReady -ScriptsRoot (Join-Path $LegacyRoot "scripts")
         if ($exitCode -ne 0) { throw "SC2 readiness check failed with exit code $exitCode" }
     }
-} finally { Release-TestLock -LockContext $lock }
+} finally {
+    # DebugMode 退出时按 PID 关闭自己启动的 SC2（禁止按进程名 kill，避免误杀玩家游戏）
+    if ($DebugMode -and (Test-Path $debugPidFile)) {
+        $debugPid = Get-Content $debugPidFile -ErrorAction SilentlyContinue
+        if ($debugPid) {
+            Write-Host "DebugMode: 退出时关闭 SC2 (PID=$debugPid)"
+            Stop-Process -Id $debugPid -Force -ErrorAction SilentlyContinue
+        }
+        Remove-Item $debugPidFile -Force -ErrorAction SilentlyContinue
+    }
+    Release-TestLock -LockContext $lock
+}

@@ -743,10 +743,19 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if api_minimal:
             args.append("-ApiMinimal")
 
+        # WebUI 启动 = 玩家模式：launcher 不会清理已有 SC2 进程，
+        # 若 SC2 已在运行则报错退出，避免误杀玩家正在进行的游戏。
+        # AI 调试脚本（run-cmre-sc2api.ps1）应使用 -DebugMode 而非 WebUI。
+        args.append("-PlayerMode")
+
         # 测试/CI 用：设置 CMRE_WEBUI_DRY_RUN 时追加 -NoLaunch，
         # 只暂存地图 + 写银行、不启动 SC2。正常启动不受影响。
         if os.environ.get("CMRE_WEBUI_DRY_RUN"):
             args.append("-NoLaunch")
+
+        # CREATE_NO_WINDOW: 避免 PowerShell 控制台窗口弹出干扰玩家。
+        # 仅 Windows 平台有此标志。
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
         try:
             proc = subprocess.Popen(
@@ -758,6 +767,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                 # diagnostics and made the real-launch test fail while printing them.
                 encoding="utf-8",
                 errors="replace",
+                creationflags=creationflags,
             )
             # 等待上限须大于 wait-for-game-ready.ps1 的 MaxWaitSeconds(600)，
             # 否则 SC2 正常加载（~340s+20s grace）时会被误判超时。
