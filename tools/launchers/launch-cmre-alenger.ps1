@@ -261,6 +261,19 @@ function Enable-CmreSavedProfileStartup {
                 throw "SkipPause pattern not found in libCOOC_gf_CC_DevStartupBegin (expected GameSetMissionTimePaused/AITimePause/UnitPauseAll)"
             }
         }
+        # SkipPause mode (API default, non-ApiMinimal): after commander setup, MUST
+        # call CMUIX_ReadyBeginCountdown() explicitly. Otherwise CMRE is stuck at
+        # selector-unit state (observation: self_units=1, type=4051, hp=1, no
+        # abilities, all Actions return NotSupported). ReadyBeginCountdown triggers
+        # ReadyCountdownFinishHandler -> CMUIX_FinalApplyLocalLaunchConfiguration
+        # + TriggerSendEvent(CMUIX_EVENT_COMMANDER_CHOICE_CLOSED), which lets
+        # downstream galaxy triggers spawn real commander units (SCV/CommandCenter/Marine).
+        # We do NOT directly TriggerSendEvent because ReadyBeginCountdown also runs
+        # FinalApplyLocalLaunchConfiguration (sets Mode/Mission/Enemy/Mutators).
+        if (-not $ApiMinimal) {
+            $replacementBody += [Environment]::NewLine + '    CMUIX_ReadyBeginCountdown();' + [Environment]::NewLine + '    return ;'
+            Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipPause mode appended CMUIX_ReadyBeginCountdown() + return"
+        }
     } elseif ($SkipCountdown) {
         $replacementBody += [Environment]::NewLine + '    // SkipCountdown (API mode): CMUIX_ReadyBeginCountdown() omitted to avoid Launched-state stall' + [Environment]::NewLine + '    return ;'
         Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipCountdown=true (API mode, no CMUIX_ReadyBeginCountdown)"
