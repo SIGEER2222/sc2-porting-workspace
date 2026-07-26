@@ -698,3 +698,138 @@ input[type="range"]::-moz-range-thumb {
 /* === 通用 === */
 [hidden] { display: none !important; }
 .hint { font-size: 11px; color: var(--text-secondary); padding: 12px; text-align: center; }
+
+/* === Buff 补丁面板 (在指挥官Tab内) === */
+.buff-panel {
+  margin-top: 12px;
+  border: 1px solid rgba(240,192,96,0.3);
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.buff-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(240,192,96,0.08);
+  color: var(--accent-gold);
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid rgba(240,192,96,0.2);
+}
+.buff-panel-title { flex-shrink: 0; }
+.buff-panel-status { flex: 1; font-size: 11px; color: var(--text-muted); font-weight: normal; }
+.buff-panel-head .toggle-icon { font-size: 10px; color: var(--text-secondary); transition: transform 0.15s; flex-shrink: 0; }
+.buff-panel-body {
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.15);
+}
+.buff-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(240,192,96,0.15);
+}
+.buff-enable-row span { font-size: 12px; color: var(--accent-gold); }
+
+.buff-section { margin-bottom: 12px; }
+.buff-section:last-child { margin-bottom: 0; }
+.buff-section-head {
+  font-size: 12px;
+  color: var(--accent-blue);
+  font-weight: bold;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(37,107,169,0.2);
+}
+.buff-section-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.buff-prestige-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 8px;
+  margin-bottom: 4px;
+  background: var(--bg-deep);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.buff-prestige-row:hover { border-color: var(--border-blue); background: var(--bg-card-hover); }
+.buff-prestige-row:has(input:checked) {
+  border-color: var(--accent-gold);
+  background: rgba(240,192,96,0.06);
+}
+.buff-prestige-row input[type="checkbox"] {
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--accent-gold);
+  cursor: pointer;
+}
+.buff-prestige-info { flex: 1; min-width: 0; }
+.buff-prestige-name { font-size: 12px; color: var(--text-primary); font-weight: bold; margin-bottom: 2px; }
+.buff-prestige-adv, .buff-prestige-dis {
+  font-size: 10px;
+  line-height: 1.4;
+  margin-bottom: 1px;
+}
+.buff-prestige-adv { color: var(--success); }
+.buff-prestige-dis { color: var(--text-muted); }
+.buff-prestige-upgrade {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: "Consolas", monospace;
+  margin-top: 2px;
+  word-break: break-all;
+}
+.buff-tag {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: bold;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.buff-tag-adv { background: rgba(96,192,128,0.15); color: var(--success); }
+.buff-tag-dis { background: rgba(208,80,80,0.1); color: var(--danger); }
+.buff-review {
+  display: inline-block;
+  font-size: 9px;
+  color: var(--accent-gold);
+  margin-left: 4px;
+}
+
+.buff-mastery-row {
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  background: var(--bg-deep);
+  border-radius: 3px;
+}
+.buff-mastery-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.buff-mastery-name { font-size: 11px; color: var(--text-secondary); }
+.buff-mastery-val {
+  font-size: 13px;
+  color: var(--accent-gold);
+  font-weight: bold;
+  min-width: 24px;
+  text-align: right;
+}
+.buff-mastery-slider { width: 100%; margin-bottom: 2px; }
+.buff-mastery-fmt { font-size: 10px; color: var(--text-muted); }

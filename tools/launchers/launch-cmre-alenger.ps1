@@ -1248,8 +1248,10 @@ try {
             # ApiMinimal 模式：不传 -e <map>，SC2 停在主菜单，客户端用 CreateGame 加载地图。
             # 与默认 API 模式的区别：ApiMinimal 在 DevStartupBegin 直接 return，不执行
             # commander 设置和 CustomStartupLaunch，仅用于 P11 catalog 验证。
-            $argList = @("-listen","127.0.0.1","-port","$ListenPort")
-            Write-Host "SC2 API mode (ApiMinimal): launching SC2Switcher with -listen 127.0.0.1 -port $ListenPort (no -e, client uses CreateGame)"
+            # -debug：启用 DebugCommand（DebugCreateUnit/AllResources/FastBuild 等），API 模式下必须，
+            #         否则 RequestDebug 会被 SC2 静默忽略（单位生成、作弊等全部无效）。
+            $argList = @("-listen","127.0.0.1","-port","$ListenPort","-debug")
+            Write-Host "SC2 API mode (ApiMinimal): launching SC2Switcher with -listen 127.0.0.1 -port $ListenPort -debug (no -e, client uses CreateGame)"
             Write-Host "SC2 API will listen on 127.0.0.1:$ListenPort"
             Write-Host "Working directory: $Sc2Root"
             Write-Host "Live map staged at: $liveMap (client loads it via CreateGame + map_data)"
@@ -1260,8 +1262,10 @@ try {
             # 之前用 -e <map> 的方案失败：SC2 加载地图后 API 状态卡在 Launched，
             # 不经过 CreateGame/JoinGame 无法进入 in_game，GameInfo/Step 全部报
             # "Not in a game"。详见 s2client-proto protocol.md 状态机。
-            $argList = @("-listen","127.0.0.1","-port","$ListenPort")
-            Write-Host "SC2 API mode: launching SC2Switcher with -listen 127.0.0.1 -port $ListenPort (no -e, client uses CreateGame+JoinGame)"
+            # -debug：启用 DebugCommand（DebugCreateUnit/AllResources/FastBuild 等），API 模式下必须，
+            #         否则 RequestDebug 会被 SC2 静默忽略（单位生成、作弊等全部无效）。
+            $argList = @("-listen","127.0.0.1","-port","$ListenPort","-debug")
+            Write-Host "SC2 API mode: launching SC2Switcher with -listen 127.0.0.1 -port $ListenPort -debug (no -e, client uses CreateGame+JoinGame)"
             Write-Host "SC2 API will listen on 127.0.0.1:$ListenPort"
             Write-Host "Working directory: $Sc2Root"
             Write-Host "Live map staged at: $liveMap (client loads it via CreateGame + map_data)"

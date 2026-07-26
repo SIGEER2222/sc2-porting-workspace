@@ -52,6 +52,7 @@ const state = {
       enabled: false,
       buffs: [],
       masteries: {},
+      _lastCommander: "",
     },
   },
 };
@@ -260,26 +261,46 @@ function getCurrentBuffCommander() {
 
 function renderBuffPatch() {
   const body = $("buff-body");
-  const targetEl = $("buff-target");
+  const panel = $("buff-panel");
   const enableCk = $("buff-enable");
+  const statusEl = $("buff-panel-status");
   const cmdr = getCurrentBuffCommander();
+  const cid = state.selected.commander;
+
   if (!cmdr) {
-    // 当前指挥官不在原版 18 之列
-    body.innerHTML = `<p class="hint">Buff 补丁仅支持原版 18 位指挥官。当前指挥官 "<b>${esc(state.selected.commander)}</b>" 无威望/精通系统。</p>`;
-    targetEl.textContent = `当前指挥官：${state.selected.commander}（不支持）`;
-    enableCk.disabled = true;
-    enableCk.checked = false;
-    $("tab-buff-count").hidden = true;
+    panel.hidden = true;
     return;
   }
+
+  // 切换到不同指挥官时重置 buff 选择（威望 P1/P2/P3 含义不同）
+  if (state.selected.buffPatch._lastCommander !== cid) {
+    state.selected.buffPatch.buffs = [];
+    state.selected.buffPatch.masteries = {};
+    state.selected.buffPatch._lastCommander = cid;
+  }
+
+  panel.hidden = false;
   enableCk.disabled = false;
   enableCk.checked = state.selected.buffPatch.enabled;
-  targetEl.textContent = `当前指挥官：${cmdr.display_name} (${cmdr.runtime_commander})`;
+
+  // 更新面板状态文字
+  let statusText = cmdr.display_name;
+  if (state.selected.buffPatch.enabled) {
+    const n = state.selected.buffPatch.buffs.length;
+    if (n > 0) {
+      statusText += ` · ${n} 个威望优点已选`;
+    } else {
+      statusText += " · 已启用";
+    }
+  } else {
+    statusText += " · 未启用";
+  }
+  statusEl.textContent = statusText;
 
   // 威望优点区
   let html = '<div class="buff-section">';
   html += '<div class="buff-section-head">威望优点（叠加，不替代原版威望）</div>';
-  html += '<div class="buff-section-hint">勾选要应用的威望优点。supplement upgrade 会通过 TechTreeUpgradeAddLevel 叠加到玩家身上，不影响原版威望的缺点。</div>';
+  html += '<div class="buff-section-hint">勾选要叠加的威望优点，效果通过 supplement upgrade 独立施加，不影响原版威望的缺点。</div>';
   for (const p of cmdr.prestiges) {
     const token = `P${p.slot}`;
     const checked = state.selected.buffPatch.buffs.includes(token) ? "checked" : "";
@@ -300,7 +321,7 @@ function renderBuffPatch() {
   // 精通点数区
   html += '<div class="buff-section">';
   html += '<div class="buff-section-head">精通点数（覆盖原版，默认满级 30）</div>';
-  html += '<div class="buff-section-hint">滑块控制每个精通槽位的点数。默认 30 (满级)，可单独调整。launcher 会写入 Player|N|Mastery|slot|Id/Value。</div>';
+  html += '<div class="buff-section-hint">滑块控制每个精通槽位的点数。默认 30（满级），可单独调整。</div>';
   for (const m of cmdr.masteries) {
     const stored = state.selected.buffPatch.masteries[m.slot];
     const val = (stored !== undefined) ? stored : 30;
@@ -325,7 +346,7 @@ function renderBuffPatch() {
       const set = new Set(state.selected.buffPatch.buffs);
       if (ck.checked) set.add(token); else set.delete(token);
       state.selected.buffPatch.buffs = Array.from(set).sort();
-      updateBuffBadge();
+      updateBuffStatus();
     };
   });
 
@@ -339,19 +360,24 @@ function renderBuffPatch() {
       if (valEl) valEl.textContent = v;
     };
   });
-
-  updateBuffBadge();
 }
 
-function updateBuffBadge() {
-  const badge = $("tab-buff-count");
+function updateBuffStatus() {
+  const statusEl = $("buff-panel-status");
+  const cmdr = getCurrentBuffCommander();
+  if (!cmdr || !statusEl) return;
+  let text = cmdr.display_name;
   if (state.selected.buffPatch.enabled) {
-    badge.hidden = false;
     const n = state.selected.buffPatch.buffs.length;
-    badge.textContent = n > 0 ? `${n} 优` : "开";
+    if (n > 0) {
+      text += ` · ${n} 个威望优点已选`;
+    } else {
+      text += " · 已启用";
+    }
   } else {
-    badge.hidden = true;
+    text += " · 未启用";
   }
+  statusEl.textContent = text;
 }
 
 /* === Tab 切换 === */
@@ -497,6 +523,7 @@ function renderCommanderCard() {
   bankEl.innerHTML = `<span style="color:${rc.color}">${rc.abbr}</span> ${rc.name}${groupLabel ? ' · <span class="group-tag">' + esc(groupLabel) + '</span>' : ""} · ${esc(c.bank)}`;
   updateFooter();
   loadExtraMods();
+  if (state.buffMetadata.length > 0) renderBuffPatch();
 }
 
 /* === 突变因子列表渲染 === */
@@ -827,6 +854,7 @@ function resetSelection() {
     mode: 1, difficultyBase: 0, difficultyPlus: 0, enemy: "",
     mutators: [], voicePack: "", extraMods: [],
     apiMode: false, listenPort: 5000,
+    buffPatch: { enabled: false, buffs: [], masteries: {}, _lastCommander: "" },
   };
   syncUI();
   $("mutator-search").value = "";
@@ -835,6 +863,7 @@ function resetSelection() {
   renderCommanderCard();
   renderMutators();
   loadExtraMods();
+  renderBuffPatch();
   updateFooter();
   updateMutatorCount();
   showStatus("已重置");
@@ -842,14 +871,14 @@ function resetSelection() {
 
 /* === 初始化 === */
 function initCollapsible() {
-  document.querySelectorAll(".card-head-toggle").forEach(head => {
+  document.querySelectorAll(".card-head-toggle, .buff-panel-head").forEach(head => {
     head.style.cursor = "pointer";
     head.onclick = () => {
       const targetId = head.dataset.target;
       const body = $(targetId);
       const icon = head.querySelector(".toggle-icon");
-      if (body.hidden) { body.hidden = false; icon.textContent = "▼"; }
-      else { body.hidden = true; icon.textContent = "▶"; }
+      if (body.hidden) { body.hidden = false; if (icon) icon.textContent = "▼"; }
+      else { body.hidden = true; if (icon) icon.textContent = "▶"; }
     };
   });
 }
@@ -916,6 +945,10 @@ async function init() {
     $("api-mode-config").hidden = !e.target.checked;
   };
   $("listenPort").oninput = e => { state.selected.listenPort = parseInt(e.target.value, 10) || 5000; };
+  $("buff-enable").onchange = e => {
+    state.selected.buffPatch.enabled = e.target.checked;
+    updateBuffStatus();
+  };
 
   initCollapsible();
   initTabs();
@@ -923,7 +956,7 @@ async function init() {
   initPresets();
 
   try {
-    await Promise.all([loadFactors(), loadMaps(), loadCommanders(), loadMutators(), loadVoicePacks()]);
+    await Promise.all([loadFactors(), loadMaps(), loadCommanders(), loadMutators(), loadVoicePacks(), loadBuffMetadata()]);
     syncUI();
     updateMutatorCount();
     showStatus("就绪", "success");
