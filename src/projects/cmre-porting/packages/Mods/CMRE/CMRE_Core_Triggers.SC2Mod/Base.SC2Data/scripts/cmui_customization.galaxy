@@ -13033,17 +13033,45 @@ string CMUIX_GetPrestigeBonusUpgrade(string lp_commander, int lp_slot) {
     return "";
 }
 
+// Buff Patch: 返回指定指挥官威望 slot 下 extra_index 对应的 upgrade ID。
+// slot 1/2/3 对应 P1/P2/P3；extra_index 从 0 开始对应 PRESTIGE_EXTRA_OPTIONS 中的顺序。
+// 返回空字符串表示无对应项。
+string CMUIX_GetPrestigeExtraUpgrade(string lp_commander, int lp_slot, int lp_extraIndex) {
+    if ((lp_slot < 1) || (lp_slot > 3)) { return ""; }
+    if ((lp_extraIndex < 0) || (lp_extraIndex > 30)) { return ""; }
+
+    // TerranRaynor P1 extras:
+    //   [0] BioSuperStim → 强化兴奋剂
+    if ((lp_commander == "TerranRaynor") && (lp_slot == 1)) {
+        if ((lp_extraIndex == 0)) { return "CommanderPrestigeRaynorBioSuperStim"; }
+    }
+
+    // ZergStukov P2 extras:
+    //   [0] P2SpawnInfestedMarineInBanshee → 女妖孵化感染枪兵（flag upgrade，触发器需自行检测）
+    if ((lp_commander == "ZergStukov") && (lp_slot == 2)) {
+        if ((lp_extraIndex == 0)) { return "CommanderPrestigeStukovP2SpawnInfestedMarineInBanshee"; }
+    }
+
+    return "";
+}
+
 // Buff Patch: 应用威望优点 supplement upgrade。
-// 由 launcher 通过 -EnableBuffPatch -Buffs <mask> 写入 bank：
+// 由 launcher 通过 -EnableBuffPatch -Buffs <mask> [-BuffExtras <p1m>,<p2m>,<p3m>] 写入 bank：
 //   Player|N|EnableBuffPatch = 1
 //   Player|N|PrestigeBonusMask = bitmask (bit0=P1, bit1=P2, bit2=P3)
+//   Player|N|PrestigeExtrasMaskP1 = bitmask (每 bit 对应该威望下一个 extra 子选项)
+//   Player|N|PrestigeExtrasMaskP2 = bitmask
+//   Player|N|PrestigeExtrasMaskP3 = bitmask
 // 精通点数覆盖由现有 CMUIX_LaunchProfileApplyCommanderCustomization 中的 mastery 循环
 // 直接读取 Player|N|Mastery|slot|Value 完成，无需在此重复。
 void CMUIX_LaunchProfileApplyBuffs(bank lp_bank, int lp_player, string lp_commander) {
     int lv_enable;
     int lv_mask;
     int lv_slot;
+    int lv_extraBit;
+    int lv_extraMask;
     string lv_bonusUpgrade;
+    string lv_extraUpgrade;
 
     if ((lp_bank == null) || (lp_player < 1) || (lp_player > libCOOC_gv_cCC_MAXPLAYERS)) {
         return;
@@ -13068,6 +13096,18 @@ void CMUIX_LaunchProfileApplyBuffs(bank lp_bank, int lp_player, string lp_comman
             lv_bonusUpgrade = CMUIX_GetPrestigeBonusUpgrade(lp_commander, lv_slot);
             if ((lv_bonusUpgrade != "") && (lv_bonusUpgrade != null)) {
                 TechTreeUpgradeAddLevel(lp_player, lv_bonusUpgrade, 1);
+            }
+
+            // 应用该威望下的 extra 子选项：从 PrestigeExtrasMaskP<slot> 读取 bitmask
+            lv_extraMask = CMUIX_PlayerProfileGetInt(lp_bank, CMUIX_LAUNCH_PROFILE_SECTION,
+                CMUIX_LaunchProfilePlayerKey(lp_player, "PrestigeExtrasMaskP" + IntToString(lv_slot)), 0);
+            for (lv_extraBit = 0; lv_extraBit <= 30; lv_extraBit += 1) {
+                if (((lv_extraMask & (1 << lv_extraBit)) != 0)) {
+                    lv_extraUpgrade = CMUIX_GetPrestigeExtraUpgrade(lp_commander, lv_slot, lv_extraBit);
+                    if ((lv_extraUpgrade != "") && (lv_extraUpgrade != null)) {
+                        TechTreeUpgradeAddLevel(lp_player, lv_extraUpgrade, 1);
+                    }
+                }
             }
         }
     }

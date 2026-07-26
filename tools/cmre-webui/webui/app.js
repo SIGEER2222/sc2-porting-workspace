@@ -48,10 +48,12 @@ const state = {
     // - enabled: 是否启用补丁
     // - buffs: ["P1","P2","P3"] 子集，对应 3 个威望优点
     // - masteries: { slot1: value, ... }，slot 为 1..6，value 为 0..30；空对象表示用默认 30
+    // - extras: { P1: Set([0,...]), P2: Set(...), P3: Set(...) }，每个威望下勾选的 extra 子选项 index 集合
     buffPatch: {
       enabled: false,
       buffs: [],
       masteries: {},
+      extras: { P1: new Set(), P2: new Set(), P3: new Set() },
       _lastCommander: "",
     },
   },
@@ -276,6 +278,7 @@ function renderBuffPatch() {
   if (state.selected.buffPatch._lastCommander !== cid) {
     state.selected.buffPatch.buffs = [];
     state.selected.buffPatch.masteries = {};
+    state.selected.buffPatch.extras = { P1: new Set(), P2: new Set(), P3: new Set() };
     state.selected.buffPatch._lastCommander = cid;
   }
 
@@ -287,8 +290,10 @@ function renderBuffPatch() {
   let statusText = cmdr.display_name;
   if (state.selected.buffPatch.enabled) {
     const n = state.selected.buffPatch.buffs.length;
+    const extraN = ["P1","P2","P3"].reduce((s,k) => s + state.selected.buffPatch.extras[k].size, 0);
     if (n > 0) {
-      statusText += ` · ${n} 个威望优点已选`;
+      statusText += ` · ${n} 威望`;
+      if (extraN > 0) statusText += ` + ${extraN} 子选项`;
     } else {
       statusText += " · 已启用";
     }
@@ -305,6 +310,25 @@ function renderBuffPatch() {
     const token = `P${p.slot}`;
     const checked = state.selected.buffPatch.buffs.includes(token) ? "checked" : "";
     const reviewBadge = p.needs_manual_review ? '<span class="buff-review" title="' + esc(p.review_notes || '') + '">⚠ 需注意</span>' : '';
+    let extrasHtml = '';
+    if (p.extras && p.extras.length > 0) {
+      const pSelected = state.selected.buffPatch.buffs.includes(token);
+      extrasHtml = `<div class="buff-extras" data-p="${token}" style="${pSelected ? '' : 'display:none;'}">`;
+      for (const ex of p.extras) {
+        const exChecked = state.selected.buffPatch.extras[token].has(ex.index) ? "checked" : "";
+        const exReview = ex.needs_manual_review ? '<span class="buff-review" title="效果待完善">⚠</span>' : '';
+        extrasHtml += `
+          <label class="buff-extra-row">
+            <input type="checkbox" class="buff-extra-ck" data-p="${token}" data-idx="${ex.index}" ${exChecked}>
+            <div class="buff-extra-info">
+              <div class="buff-extra-name">└ ${esc(ex.name)} ${exReview}</div>
+              <div class="buff-extra-desc">${esc(ex.description)}</div>
+              <div class="buff-extra-upgrade">↑ ${esc(ex.upgrade_id)}</div>
+            </div>
+          </label>`;
+      }
+      extrasHtml += '</div>';
+    }
     html += `
       <label class="buff-prestige-row">
         <input type="checkbox" class="buff-prestige-ck" data-token="${token}" ${checked}>
@@ -314,7 +338,8 @@ function renderBuffPatch() {
           <div class="buff-prestige-dis"><span class="buff-tag buff-tag-dis">原缺点</span> ${esc(p.disadvantage_text || '(无)')}</div>
           ${p.bonus_upgrade_id ? `<div class="buff-prestige-upgrade">↑ ${esc(p.bonus_upgrade_id)}</div>` : ''}
         </div>
-      </label>`;
+      </label>
+      ${extrasHtml}`;
   }
   html += '</div>';
 
@@ -344,8 +369,27 @@ function renderBuffPatch() {
     ck.onchange = () => {
       const token = ck.dataset.token;
       const set = new Set(state.selected.buffPatch.buffs);
-      if (ck.checked) set.add(token); else set.delete(token);
+      if (ck.checked) { set.add(token); } else {
+        set.delete(token);
+        // 取消勾选威望时，清除该威望下所有 extra 子选项
+        state.selected.buffPatch.extras[token].clear();
+        body.querySelectorAll(`.buff-extra-ck[data-p="${token}"]`).forEach(ec => { ec.checked = false; });
+      }
       state.selected.buffPatch.buffs = Array.from(set).sort();
+      // 显示/隐藏该威望的 extras 容器
+      const extrasDiv = body.querySelector(`.buff-extras[data-p="${token}"]`);
+      if (extrasDiv) extrasDiv.style.display = ck.checked ? '' : 'none';
+      updateBuffStatus();
+    };
+  });
+
+  // 绑定 extra 子选项 checkbox
+  body.querySelectorAll(".buff-extra-ck").forEach(ck => {
+    ck.onchange = () => {
+      const p = ck.dataset.p;
+      const idx = parseInt(ck.dataset.idx, 10);
+      const set = state.selected.buffPatch.extras[p];
+      if (ck.checked) set.add(idx); else set.delete(idx);
       updateBuffStatus();
     };
   });
@@ -369,8 +413,10 @@ function updateBuffStatus() {
   let text = cmdr.display_name;
   if (state.selected.buffPatch.enabled) {
     const n = state.selected.buffPatch.buffs.length;
+    const extraN = ["P1","P2","P3"].reduce((s,k) => s + state.selected.buffPatch.extras[k].size, 0);
     if (n > 0) {
-      text += ` · ${n} 个威望优点已选`;
+      text += ` · ${n} 威望`;
+      if (extraN > 0) text += ` + ${extraN} 子选项`;
     } else {
       text += " · 已启用";
     }
@@ -818,6 +864,12 @@ async function launchGame() {
       masteryArr.push(s.buffPatch.masteries[i] !== undefined ? s.buffPatch.masteries[i] : 30);
     }
     body.masteries = masteryArr;
+    // 转换 extras 为 {P1:[idx,...], P2:[...], P3:[...]} 格式
+    const extrasObj = {};
+    for (const key of ["P1","P2","P3"]) {
+      extrasObj[key] = Array.from(s.buffPatch.extras[key]).sort((a,b) => a-b);
+    }
+    body.buffExtras = extrasObj;
   }
 
   const output = $("output");
@@ -854,7 +906,7 @@ function resetSelection() {
     mode: 1, difficultyBase: 0, difficultyPlus: 0, enemy: "",
     mutators: [], voicePack: "", extraMods: [],
     apiMode: false, listenPort: 5000,
-    buffPatch: { enabled: false, buffs: [], masteries: {}, _lastCommander: "" },
+    buffPatch: { enabled: false, buffs: [], masteries: {}, extras: { P1: new Set(), P2: new Set(), P3: new Set() }, _lastCommander: "" },
   };
   syncUI();
   $("mutator-search").value = "";

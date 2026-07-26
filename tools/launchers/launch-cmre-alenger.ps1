@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [switch]$EnableBuffPatch)
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch)
 $ErrorActionPreference = "Stop"
 # 模式校验：PlayerMode 和 DebugMode 互斥；DebugMode 自动启用 ApiMinimal 并要求 ListenPort
 if ($PlayerMode -and $DebugMode) { throw "-PlayerMode 和 -DebugMode 互斥，不能同时使用" }
@@ -916,6 +916,22 @@ function Write-CmreLaunchProfile {
         } else {
             Write-Host "BuffPatch: WARN commander '$Commander' has $($masteryIds.Count) masteries in metadata, expected 6; skipping mastery override"
         }
+
+        # BuffExtras: 逗号分隔的 3 个整数（P1mask,P2mask,P3mask），每个是该威望下 extra 子选项的 bitmask。
+        # 例如 "1,0,0" 表示 P1 的 extra[0] 勾选，P2/P3 无 extras 勾选。
+        $extraMasks = @(0, 0, 0)
+        if ($BuffExtras -ne "") {
+            $parsed = @($BuffExtras -split ',' | ForEach-Object { [int]$_.Trim() })
+            for ($i = 0; $i -lt 3 -and $i -lt $parsed.Count; $i++) {
+                $extraMasks[$i] = $parsed[$i]
+            }
+        }
+        for ($slot = 1; $slot -le 3; $slot++) {
+            $mask = $extraMasks[$slot - 1]
+            $values["Player|1|PrestigeExtrasMaskP$slot"] = @("int", [string]$mask)
+            $values["Player|2|PrestigeExtrasMaskP$slot"] = @("int", [string]$mask)
+        }
+        Write-Host "BuffPatch: extras=$($extraMasks -join ',') (BuffExtras='$BuffExtras')"
     } else {
         $values['Player|1|EnableBuffPatch'] = @("int", "0")
         $values['Player|2|EnableBuffPatch'] = @("int", "0")

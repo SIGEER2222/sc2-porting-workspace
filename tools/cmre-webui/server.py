@@ -311,11 +311,37 @@ OFFICIAL_BUFF_COMMANDERS = [
     "ZergStetmann", "TerranMengsk",
 ]
 
+# 威望子选项（extra_options）：来源于起义狂潮 Shared/Talents 配置。
+# 结构: {(runtime_commander, prestige_slot_1based): [{id, name, description, upgrade_id, needs_review}]}
+# prestige_slot 为 1-based（1=P1, 2=P2, 3=P3）。
+PRESTIGE_EXTRA_OPTIONS = {
+    ("TerranRaynor", 1): [
+        {
+            "id": "BioSuperStim",
+            "name": "强化兴奋剂",
+            "description": "枪兵和劫掠者使用强化版兴奋剂（不扣血且加快生命恢复）。",
+            "upgrade_id": "CommanderPrestigeRaynorBioSuperStim",
+            "needs_manual_review": False,
+        },
+    ],
+    ("ZergStukov", 2): [
+        {
+            "id": "P2SpawnInfestedMarineInBanshee",
+            "name": "女妖孵化感染枪兵",
+            "description": "女妖每10秒消耗20点能量，在货舱中生成1个被感染的枪兵（需要女妖有货舱/能量）。",
+            "upgrade_id": "CommanderPrestigeStukovP2SpawnInfestedMarineInBanshee",
+            "needs_manual_review": True,
+        },
+    ],
+}
+
 
 def load_buff_metadata():
-    """读取原版 18 指挥官的威望 + 精通元数据，用于 WebUI Buff 补丁 Tab。
+    """读取原版 18 指挥官的威望 + 精通 + 威望子选项元数据，用于 WebUI Buff 补丁面板。
 
-    数据源：cmre-runtime/Shared/CommanderPower/commander-power-metadata.json
+    数据源：
+      - cmre-runtime/Shared/CommanderPower/commander-power-metadata.json（威望/精通基础数据）
+      - PRESTIGE_EXTRA_OPTIONS（威望子选项 extra_options，来源：起义狂潮 Talents）
     返回结构：
         {
           "commanders": [
@@ -324,31 +350,28 @@ def load_buff_metadata():
               "display_name": "雷诺",
               "prestiges": [
                 {
-                  "slot": 1,            # 1/2/3 对应 P1/P2/P3
+                  "slot": 1,
                   "name": "死水元帅",
-                  "advantage_text": "生物战斗单位的生命值提高100%。",
-                  "disadvantage_text": "矿骡不可用。",
+                  "advantage_text": "...",
+                  "disadvantage_text": "...",
                   "bonus_upgrade_id": "CommanderPrestigeRaynorBioBonus",
-                  "needs_manual_review": false
+                  "needs_manual_review": false,
+                  "extras": [
+                    {
+                      "index": 0,
+                      "id": "BioSuperStim",
+                      "name": "强化兴奋剂",
+                      "description": "...",
+                      "upgrade_id": "CommanderPrestigeRaynorBioSuperStim",
+                      "needs_manual_review": false
+                    }
+                  ]
                 }, ...
               ],
-              "masteries": [
-                {
-                  "slot": 1,            # 1..6
-                  "id": "RaynorMastery1",
-                  "name": "资源费用",
-                  "value_format": "-~A~%",
-                  "point_increments": ["2"],
-                  "default_value": 30
-                }, ...
-              ]
+              "masteries": [...]
             }, ...
           ]
         }
-    prestige.advantage_text / disadvantage_text 由 tooltip 字段解析得到
-    （原版 tooltip 用 <s val="Coop_Prestige_Advantage">优点</s>... 标签包裹）。
-    bonus_upgrade_id 从 artifacts/buff-patch/prestige-bonus-index.json 读取，
-    用于让前端显示 supplement upgrade ID（galaxy 端实际应用时使用）。
     """
     if not COMMANDER_METADATA_JSON.exists():
         return {"commanders": []}
@@ -420,6 +443,17 @@ def load_buff_metadata():
             slot_1based = slot + 1
             advantage, disadvantage = parse_tooltip_parts(prest.get("tooltip", ""))
             bonus_info = bonus_index.get((runtime, slot), {})
+            raw_extras = PRESTIGE_EXTRA_OPTIONS.get((runtime, slot_1based), [])
+            extras_out = []
+            for idx, ex in enumerate(raw_extras):
+                extras_out.append({
+                    "index": idx,
+                    "id": ex["id"],
+                    "name": ex["name"],
+                    "description": ex["description"],
+                    "upgrade_id": ex["upgrade_id"],
+                    "needs_manual_review": ex.get("needs_manual_review", False),
+                })
             prestiges_out.append({
                 "slot": slot_1based,
                 "name": prest.get("name", ""),
@@ -429,6 +463,7 @@ def load_buff_metadata():
                 "bonus_upgrade_id": bonus_info.get("bonus_upgrade_id", ""),
                 "needs_manual_review": bonus_info.get("needs_manual_review", False),
                 "review_notes": bonus_info.get("review_notes", ""),
+                "extras": extras_out,
             })
 
         masteries_out = []
@@ -830,13 +865,16 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         # ApiMinimal: 跳过 commander UI/setup 但调用 libCOOC_gf_CC_CustomStartupLaunch()
         # 推进 SC2 从 Launched → in_game。用于 CMRE Coop 地图在 API 模式下避免 UI 阻塞。
         api_minimal = bool(body.get("apiMinimal", False))
-        # Buff 补丁：仅对原版 18 指挥官生效。WebUI Buff Tab 透传三个字段：
+        # Buff 补丁：仅对原版 18 指挥官生效。WebUI Buff 面板透传字段：
         # - enableBuffPatch: bool，是否启用补丁
         # - buffs: ["P1","P2","P3"] 子集，编码为 bitmask (P1=1, P2=2, P3=4)
         # - masteries: [6 个 0..30 整数]，覆盖原版精通；空数组表示用默认 30
+        # - buffExtras: {"P1":[0,2], "P2":[], "P3":[1]} 每个威望已勾选的 extra 子选项 index 列表，
+        #              编码为 bitmask（每个威望最多 31 个 extra）
         enable_buff_patch = bool(body.get("enableBuffPatch", False))
         raw_buffs = body.get("buffs", []) or []
         raw_masteries = body.get("masteries", []) or []
+        raw_extras = body.get("buffExtras", {}) or {}
         # 仅原版指挥官允许启用 Buff 补丁
         if enable_buff_patch and commander not in OFFICIAL_BUFF_COMMANDERS:
             self._send_json(
@@ -867,6 +905,21 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                     400,
                 )
                 return
+        # 校验/编码 extras：每个 P 槽位的 extra index 列表 → 3 个 bitmask 整数
+        extra_masks = {"P1": 0, "P2": 0, "P3": 0}
+        for key in ("P1", "P2", "P3"):
+            idxs = raw_extras.get(key, []) if isinstance(raw_extras, dict) else []
+            if not isinstance(idxs, list):
+                idxs = []
+            mask = 0
+            for idx in idxs:
+                try:
+                    i = int(idx)
+                    if 0 <= i <= 30:
+                        mask |= (1 << i)
+                except (TypeError, ValueError):
+                    pass
+            extra_masks[key] = mask
 
         try:
             mutators, capped = normalize_mutators(raw_mutators)
@@ -945,6 +998,9 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             args.extend(["-Buffs", ",".join(buffs)])
             if masteries:
                 args.extend(["-Masteries", ",".join(str(v) for v in masteries)])
+            # Extra 子选项：三个 P 槽位各一个 bitmask（逗号分隔：P1mask,P2mask,P3mask）
+            extras_str = f"{extra_masks['P1']},{extra_masks['P2']},{extra_masks['P3']}"
+            args.extend(["-BuffExtras", extras_str])
 
         # WebUI 启动 = 玩家模式：launcher 不会清理已有 SC2 进程，
         # 若 SC2 已在运行则报错退出，避免误杀玩家正在进行的游戏。
