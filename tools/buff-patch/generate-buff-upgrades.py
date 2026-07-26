@@ -39,8 +39,12 @@ def get_bonus_upgrade_id(prestige: dict) -> str:
     return f"{primary}Bonus"
 
 
-def build_upgrade_element(commander: dict, prestige: dict) -> tuple[ET.Element | None, str]:
-    """构建单个 CUpgrade XML 元素。返回 (元素, upgrade_id)，元素为 None 表示跳过。"""
+def build_upgrade_element(commander: dict, prestige: dict) -> tuple[ET.Element, str]:
+    """构建单个 CUpgrade XML 元素。返回 (元素, upgrade_id)。
+
+    对 needs_manual_review=True 仍跳过；对无优点的 flag-only 威望，
+    生成最小 upgrade (parent + EditorCategories + MaxLevel) 作为 galaxy dispatch 的 flag。
+    """
     upgrade_id = get_bonus_upgrade_id(prestige)
     if not upgrade_id:
         return None, ""
@@ -51,16 +55,13 @@ def build_upgrade_element(commander: dict, prestige: dict) -> tuple[ET.Element |
 
     effect_arrays = prestige.get("effect_arrays", [])
     advantages = [ea for ea in effect_arrays if ea.get("is_advantage", False)]
-    if not advantages:
-        print(f"[WARN] 跳过无优点 EffectArray: {commander['runtime_commander']} P{prestige['slot']} ({prestige['name']})")
-        return None, upgrade_id
-
     race = detect_race(commander["runtime_commander"])
 
     upgrade = ET.Element("CUpgrade", {
         "id": upgrade_id,
         "parent": "CommanderPrestige",
     })
+    # 添加优点 EffectArray（如果有）
     for ea in advantages:
         attrs = {"Reference": ea["reference"], "Value": ea["value"]}
         op = ea.get("operation", "Add")
@@ -69,6 +70,10 @@ def build_upgrade_element(commander: dict, prestige: dict) -> tuple[ET.Element |
         ET.SubElement(upgrade, "EffectArray", attrs)
     ET.SubElement(upgrade, "EditorCategories", {"value": f"Race:{race},UpgradeType:Talents"})
     ET.SubElement(upgrade, "MaxLevel", {"value": "1"})
+
+    if not advantages:
+        # flag-only upgrade：galaxy dispatch 需要应用额外 upgrade/ability
+        print(f"[INFO] 生成 flag-only upgrade: {commander['runtime_commander']} P{prestige['slot']} ({prestige['name']})")
 
     return upgrade, upgrade_id
 
@@ -99,6 +104,9 @@ def main():
                     "bonus_upgrade_id": upgrade_id,
                     "needs_manual_review": prestige.get("needs_manual_review", False),
                     "generated": upgrade is not None,
+                    "galaxy_dispatch_required": prestige.get("galaxy_dispatch_required", False),
+                    "galaxy_dispatch_actions": prestige.get("galaxy_dispatch_actions", []),
+                    "review_notes": prestige.get("review_notes", ""),
                 })
             if upgrade is None:
                 skipped += 1
