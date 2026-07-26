@@ -4,6 +4,7 @@
 Usage:
     python tools/kb/kb-query.py "<question>"
     python tools/kb/kb-query.py --top-k 5 "<question>"
+    python tools/kb/kb-query.py --include-reference "<question>"
     python tools/kb/kb-query.py --allow-stale "<question>"
     python tools/kb/kb-query.py --filter-topic galaxy "<question>"
 """
@@ -19,10 +20,18 @@ from kb_common import (
     compute_source_hash_from_index,
     iter_all_source_files,
     load_config,
+    retrieval_text,
 )
 
 
-def query(config: dict, question: str, top_k: int, allow_stale: bool, filter_topic: str | None) -> int:
+def query(
+    config: dict,
+    question: str,
+    top_k: int,
+    allow_stale: bool,
+    filter_topic: str | None,
+    include_reference: bool,
+) -> int:
     from sentence_transformers import SentenceTransformer
     from qdrant_client import QdrantClient
 
@@ -70,11 +79,13 @@ def query(config: dict, question: str, top_k: int, allow_stale: bool, filter_top
     print(f"Loading model: {model_name}")
     if Path(model_name).exists():
         print(f"Loading from local path: {model_name}")
-        model = SentenceTransformer(model_name)
+        model = SentenceTransformer(model_name, device=config.get("embeddingDevice", "cpu"))
     else:
-        model = SentenceTransformer(model_name)
+        model = SentenceTransformer(model_name, device=config.get("embeddingDevice", "cpu"))
     print(f"Embedding query: {question}")
-    query_vec = model.encode([question], normalize_embeddings=True)[0].tolist()
+    query_vec = model.encode(
+        [retrieval_text(question, "query")], normalize_embeddings=True
+    )[0].tolist()
 
     client = QdrantClient(path=str(qdrant_path))
     try:
@@ -83,15 +94,22 @@ def query(config: dict, question: str, top_k: int, allow_stale: bool, filter_top
         qmodels = None
 
     query_filter = None
-    if filter_topic and qmodels:
-        query_filter = qmodels.Filter(
-            must=[
+    if qmodels:
+        must = []
+        if not include_reference:
+            must.append(
                 qmodels.FieldCondition(
-                    key="topic",
-                    match=qmodels.MatchValue(value=filter_topic),
+                    key="origin", match=qmodels.MatchValue(value="curated")
                 )
-            ]
-        )
+            )
+        if filter_topic:
+            must.append(
+                qmodels.FieldCondition(
+                    key="topic", match=qmodels.MatchValue(value=filter_topic)
+                )
+            )
+        if must:
+            query_filter = qmodels.Filter(must=must)
 
     # qdrant-client 1.10+ deprecates `search` in favor of `query_points`.
     # Use `query_points` when available; fall back to `search` for older versions.
@@ -132,7 +150,7 @@ def query(config: dict, question: str, top_k: int, allow_stale: bool, filter_top
         print(f"\n[{i}] score={score:.4f}")
         print(f"    source: {payload.get('source')}")
         print(f"    heading: {payload.get('heading')}")
-        print(f"    topic: {payload.get('topic')}  chunk_index: {payload.get('chunk_index')}")
+        print(f"    topic: {payload.get('topic')}  origin: {payload.get('origin')}  chunk_index: {payload.get('chunk_index')}")
         text = payload.get("text", "")
         # Truncate very long chunks for terminal display.
         if len(text) > 800:
@@ -150,10 +168,18 @@ def main() -> int:
     parser.add_argument("--top-k", type=int, default=5, help="Number of results to return (default: 5).")
     parser.add_argument("--allow-stale", action="store_true", help="Query even if the index hash differs from sources.")
     parser.add_argument("--filter-topic", help="Restrict results to a topic (e.g. galaxy, catalog, bank).")
+    parser.add_argument("--include-reference", action="store_true", help="Include raw official XML and tutorial sources in addition to curated knowledge.")
     args = parser.parse_args()
 
     config = load_config()
-    return query(config, args.question, args.top_k, args.allow_stale, args.filter_topic)
+    return query(
+        config,
+        args.question,
+        args.top_k,
+        args.allow_stale,
+        args.filter_topic,
+        args.include_reference,
+    )
 
 
 if __name__ == "__main__":

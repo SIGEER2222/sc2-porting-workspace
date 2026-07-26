@@ -11,8 +11,8 @@ async function readJson(path) {
 }
 
 async function resolveRegistered(id) {
-  const config = await readJson(join(repoRoot, "config", "workspace.json"));
-  const localPath = join(repoRoot, "config", "local.sources.json");
+  const config = await readJson(join(repoRoot, "src", "config", "workspace.json"));
+  const localPath = join(repoRoot, "src", "config", "local.sources.json");
   const local = existsSync(localPath) ? await readJson(localPath) : { bindings: {} };
   const entry = [...(config.tools ?? []), ...(config.sources ?? [])].find((item) => item.id === id);
   if (!entry) throw new Error("Unknown registered id: " + id);
@@ -110,6 +110,6 @@ async function run(recipePath, generatedSourceId, outputPath) {
 
 const [recipePath, generatedSourceId, outputPath] = process.argv.slice(2);
 if (!recipePath || !generatedSourceId || !outputPath) {
-  throw new Error("Usage: node scripts/compare-catalog-chains.mjs <recipe-path> <generated-source-id> <output-path>");
+  throw new Error("Usage: node tools/analysis/compare-catalog-chains.mjs <recipe-path> <generated-source-id> <output-path>");
 }
 await run(recipePath, generatedSourceId, outputPath);

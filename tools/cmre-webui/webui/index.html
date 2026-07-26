@@ -3,107 +3,163 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CMRE 合作地图 - 因子选择</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>CMRE 启动器 - 合作指挥官起义狂潮</title>
+  <link rel="stylesheet" href="styles.css?v=6">
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <h1>CMRE 合作地图</h1>
-      <p class="subtitle">合作指挥官-起义狂潮 · 地图/指挥官/因子选择与启动</p>
+      <span class="brand-title">CMRE</span>
+      <span class="brand-sub">合作指挥官 · 起义狂潮</span>
     </div>
     <div class="status" id="status" hidden></div>
+    <div class="topbar-actions">
+      <button type="button" id="reset-btn" class="btn-secondary">重置</button>
+      <button type="button" id="launch-btn" class="btn-primary">启动游戏</button>
+    </div>
   </header>
 
-  <main class="layout">
-    <form id="launch-form">
-      <section class="card">
-        <h2 class="card-title">基础配置</h2>
-
-        <div class="field">
-          <label for="mapName">地图</label>
-          <select id="mapName"></select>
-          <p class="hint" id="mapName-hint"></p>
-        </div>
-
-        <div class="field">
-          <label for="commander">指挥官</label>
-          <select id="commander"></select>
-        </div>
-
-        <div class="field">
-          <label for="mode">模式</label>
-          <select id="mode"></select>
-          <p class="hint" id="mode-hint"></p>
-          <div class="mode-notice" id="mode-notice" hidden></div>
-        </div>
-
-        <div class="field">
-          <div class="field-head">
-            <label for="difficultyBase">基础难度</label>
-            <span class="value-badge" id="difficultyBase-value">0</span>
+  <main class="content">
+    <aside class="sidebar">
+      <div class="card">
+        <div class="card-head">当前指挥官</div>
+        <div class="commander-selected" id="commander-selected">
+          <div class="commander-portrait-large" id="commander-portrait-large">
+            <img src="" alt="" id="commander-portrait-img">
+            <div class="commander-portrait-placeholder" id="commander-portrait-fb">?</div>
           </div>
-          <input type="range" id="difficultyBase" min="0" max="5" value="0" step="1">
-          <p class="hint" id="difficultyBase-hint"></p>
-        </div>
-
-        <div class="field">
-          <div class="field-head">
-            <label for="difficultyPlus">残酷+等级</label>
-            <span class="value-badge" id="difficultyPlus-value">0</span>
+          <div class="commander-info">
+            <div class="commander-name-large" id="commander-name-large">加载中...</div>
+            <div class="commander-bank-large" id="commander-bank-large"></div>
           </div>
-          <input type="range" id="difficultyPlus" min="0" max="12" value="0" step="1">
-          <p class="hint" id="difficultyPlus-hint"></p>
         </div>
-
-        <div class="field">
-          <label for="enemy">敌方阵营</label>
-          <select id="enemy"></select>
-          <p class="hint" id="enemy-hint"></p>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2 class="card-title">
-          突变因子
-          <span class="counter">已选 <b id="mutator-count">0</b> 个</span>
-        </h2>
-
-        <div class="field">
-          <input type="search" id="mutator-search" placeholder="搜索突变因子（名称或描述）..." autocomplete="off">
-        </div>
-
-        <div class="mutator-list" id="mutator-list" role="list">
-          <p class="hint" id="mutator-loading">加载中...</p>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2 class="card-title">
-          额外 mod
-          <span class="counter">已选 <b id="extra-mods-count">0</b> 个</span>
-        </h2>
-        <p class="hint">叠加到所选指挥官自动加载的 mod 之上。切换指挥官会自动过滤掉已自动加载的 mod。</p>
-        <div class="mutator-list" id="extra-mods-list" role="list">
-          <p class="hint" id="extra-mods-loading">加载中...</p>
-        </div>
-      </section>
-
-      <section class="actions">
-        <button type="submit" id="launch-btn" class="btn-primary">启动游戏</button>
-        <button type="button" id="reset-btn" class="btn-secondary">重置</button>
-      </section>
-    </form>
-
-    <section class="output-card" id="output" hidden>
-      <div class="output-head">
-        <h3 id="output-title">启动结果</h3>
-        <button type="button" class="btn-icon" id="output-close" aria-label="关闭">×</button>
       </div>
-      <pre class="output-body" id="output-body"></pre>
-    </section>
+
+      <div class="card">
+        <div class="card-head">难度设置</div>
+        <div class="difficulty-group">
+          <label>基础难度 <span class="val" id="difficultyBase-value">0</span></label>
+          <input type="range" id="difficultyBase" min="0" max="5" value="0" step="1">
+          <span class="val-name" id="difficultyBase-hint">普通</span>
+        </div>
+        <div class="difficulty-group">
+          <label>残酷+ <span class="val" id="difficultyPlus-value">0</span></label>
+          <input type="range" id="difficultyPlus" min="0" max="12" value="0" step="1">
+          <span class="val-name" id="difficultyPlus-hint">无</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">游戏模式</div>
+        <select id="mode" class="field-select"></select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">敌方阵营</div>
+        <div class="enemy-list" id="enemy-list"></div>
+      </div>
+
+      <div class="card collapsible" id="advanced-card">
+        <div class="card-head card-head-toggle" data-target="advanced-body">
+          高级选项
+          <span class="toggle-icon">▶</span>
+        </div>
+        <div class="card-body" id="advanced-body" hidden>
+          <div class="advanced-section">
+            <label>语音包</label>
+            <select id="voicePack" class="field-select">
+              <option value="">指挥官默认语音</option>
+            </select>
+          </div>
+          <div class="advanced-section">
+            <label class="checkbox-row">
+              <input type="checkbox" id="apiMode">
+              <span>SC2API 校准模式</span>
+            </label>
+            <div class="api-mode-config" id="api-mode-config" hidden>
+              <label>端口</label>
+              <input type="number" id="listenPort" value="5000" min="1024" max="65535" step="1" class="field-select">
+            </div>
+          </div>
+          <div class="advanced-section">
+            <label>额外 Mod</label>
+            <p class="hint tip">勾选要额外挂载的 7vs1 模组包（当前指挥官自带的模组已自动排除）</p>
+            <div class="extra-mods-list" id="extra-mods-list">
+              <p class="hint">加载中...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <div class="tab-bar">
+        <button type="button" class="tab-btn active" data-tab="commanders">指挥官</button>
+        <button type="button" class="tab-btn" data-tab="maps">地图</button>
+        <button type="button" class="tab-btn" data-tab="mutators">突变因子 <span class="tab-count" id="tab-mutator-count">0</span></button>
+      </div>
+
+      <div class="tab-content" id="tab-commanders">
+        <div class="cmdr-filter-bar">
+          <div class="cmdr-filter-tabs" id="cmdr-filter-tabs">
+            <button type="button" class="cmdr-tab active" data-group="all">全部</button>
+            <button type="button" class="cmdr-tab" data-group="official">官方</button>
+            <button type="button" class="cmdr-tab" data-group="alenger">起义</button>
+          </div>
+          <span class="cmdr-count" id="cmdr-count"></span>
+        </div>
+        <div class="commander-grid-big" id="commander-grid"></div>
+      </div>
+
+      <div class="tab-content" id="tab-maps" hidden>
+        <div class="map-grid" id="map-list"></div>
+      </div>
+
+      <div class="tab-content" id="tab-mutators" hidden>
+        <div class="mutator-toolbar">
+          <input type="search" id="mutator-search" placeholder="搜索因子（名称/说明）..." autocomplete="off" class="mutator-search">
+          <div class="preset-actions">
+            <button type="button" id="preset-save" class="btn-tiny" title="保存当前因子组合为预设">💾 保存</button>
+            <button type="button" id="preset-manage" class="btn-tiny" title="管理已保存的预设">📂 预设</button>
+          </div>
+          <span class="counter">已选 <b id="mutator-count">0</b>/20</span>
+        </div>
+        <div class="preset-list" id="preset-list" hidden></div>
+        <div class="mutator-list" id="mutator-list"><p class="hint">加载中...</p></div>
+      </div>
+    </div>
   </main>
 
-  <script src="app.js"></script>
+  <section class="output-card" id="output" hidden>
+    <div class="output-head">
+      <h3 id="output-title">启动结果</h3>
+      <button type="button" class="btn-icon" id="output-close" aria-label="关闭">×</button>
+    </div>
+    <pre class="output-body" id="output-body"></pre>
+  </section>
+
+  <div class="modal-overlay" id="preset-modal" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h3>保存因子预设</h3>
+        <button type="button" class="btn-icon" id="preset-modal-close">×</button>
+      </div>
+      <div class="modal-body">
+        <label>预设名称</label>
+        <input type="text" id="preset-name-input" placeholder="例如：核弹风暴、丧尸狂潮..." maxlength="30" class="field-select">
+        <p class="hint tip">当前选了 <span id="preset-modal-count">0</span> 个因子，将保存：地图、指挥官、难度、敌方、语音包、因子组合</p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" id="preset-modal-cancel" class="btn-secondary">取消</button>
+        <button type="button" id="preset-modal-confirm" class="btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-summary" id="footer-summary">加载中...</div>
+  </footer>
+
+  <script src="app.js?v=6"></script>
 </body>
 </html>

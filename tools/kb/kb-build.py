@@ -23,6 +23,8 @@ from kb_common import (
     compute_source_hash_from_index,
     iter_all_source_files,
     load_config,
+    retrieval_text,
+    source_origin,
 )
 
 
@@ -93,7 +95,7 @@ def resolve_model_name(config: dict) -> str:
     return model_name
 
 
-def load_embeddings_model(model_name: str):
+def load_embeddings_model(model_name: str, device: str):
     """Lazy import so --status works without the dependency installed."""
     try:
         from sentence_transformers import SentenceTransformer
@@ -104,12 +106,13 @@ def load_embeddings_model(model_name: str):
             "    pip install -r tools/kb/requirements.txt\n"
         )
         raise SystemExit(2) from exc
+    print(f"Loading embedding model on device: {device}")
     # If the model name resolves to an existing path, load from there directly.
     # This avoids requiring network access when a local copy is available.
     if Path(model_name).exists():
         print(f"Loading embedding model from local path: {model_name}")
-        return SentenceTransformer(model_name)
-    return SentenceTransformer(model_name)
+        return SentenceTransformer(model_name, device=device)
+    return SentenceTransformer(model_name, device=device)
 
 
 def build_index(config: dict, force: bool) -> int:
@@ -120,6 +123,7 @@ def build_index(config: dict, force: bool) -> int:
     expected_dim = config["embeddingDim"]
     chunk_size = config.get("chunkSize", 1200)
     chunk_overlap = config.get("chunkOverlap", 200)
+    embedding_device = config.get("embeddingDevice", "cpu")
 
     sources_root = REPO_ROOT / config["sourcesRoot"]
     if not sources_root.is_dir():
@@ -172,17 +176,26 @@ def build_index(config: dict, force: bool) -> int:
         print(f"  {topic}: {count}")
 
     print(f"Loading embedding model: {model_name}")
-    model = load_embeddings_model(model_name)
+    model = load_embeddings_model(model_name, embedding_device)
     actual_dim = model.get_sentence_embedding_dimension()
     if actual_dim != expected_dim:
         print(f"WARNING: model dimension {actual_dim} != configured {expected_dim}; using actual.")
         expected_dim = actual_dim
 
     print(f"Embedding {len(all_chunks)} chunks...")
+    import torch
+    if torch.cuda.is_available():
+        print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+        batch_size = 32
+    else:
+        print("Using CPU")
+        batch_size = 64
+    texts = [retrieval_text(c["text"], "passage") for c in all_chunks]
     embeddings = model.encode(
-        [c["text"] for c in all_chunks],
+        texts,
         normalize_embeddings=True,
         show_progress_bar=True,
+        batch_size=batch_size,
     )
 
     # Open Qdrant embedded collection.
@@ -229,6 +242,7 @@ def build_index(config: dict, force: bool) -> int:
                         "heading": all_chunks[start + i]["heading"],
                         "chunk_index": all_chunks[start + i]["chunk_index"],
                         "topic": all_chunks[start + i]["topic"],
+                        "origin": source_origin(all_chunks[start + i]["topic"]),
                     },
                 )
                 for i in range(end - start)

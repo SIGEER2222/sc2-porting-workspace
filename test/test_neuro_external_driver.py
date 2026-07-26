@@ -53,6 +53,16 @@ class TestNeuroExternalDriverBankAction(unittest.TestCase):
         self.assertEqual(driver.read_chat_flag(pending), "1")
         self.assertEqual(driver.read_chat_flag(cleared), "0")
 
+    def test_order_action_has_three_arguments_and_a_consumable_flag(self):
+        section = driver.build_action_section("issue_order", ["Marine", "move", "42 64"])
+        updated = driver.replace_or_insert_section(SAMPLE_BANK, "do_action", section)
+
+        self.assertEqual(driver.read_action_flag(updated, "issue_order"), "1")
+        self.assertIn('<Key name="issue_order_arg_1">', updated)
+        self.assertIn('<Value string="Marine"/>', updated)
+        self.assertIn('<Value string="move"/>', updated)
+        self.assertIn('<Value string="42 64"/>', updated)
+
 
 if __name__ == "__main__":
     unittest.main()

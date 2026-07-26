@@ -76,3 +76,28 @@ documents map 才能正确解析跨文件引用。
 - **跨 mod / 跨项目分析**：当前 host 不支持注入外部 `TriggerLibs/` 头文件，若被
   分析文件依赖外部库的符号声明，相关 unresolved 诊断会标记为 `inference`，需要
   人工核对。analyze-galaxy.mjs 的 dependency graph 可作为补充证据。
+
+## 静态校验入口
+
+```powershell
+# 全项目静态校验
+node tools/utils/workspace.mjs static-validate src/projects/<project-id>
+
+# 声明式校验（按 static-analysis-request.json 指定）
+node tools/utils/workspace.mjs static-validate --request <request.json> --out-dir <stage>/evidence/static
+
+# 单独运行 galaxy-lint
+node tools/utils/workspace.mjs lint src/projects/<project-id> --out evidence/static/diagnostics.json
+
+# 单独运行 analyze-galaxy（输出符合 dependency-graph schema）
+node tools/analysis/analyze-galaxy.mjs --composition <composition.json> <output-path>
+
+# 单独运行 analyze-catalog（输出符合 dependency-graph schema）
+node tools/analysis/analyze-catalog.mjs <source-id> <relative-root> <pattern> <output-path>
+
+# 单独运行 packaging 校验
+node tools/analysis/validate-packaging.mjs <composition.json> <output-path> [dependency-graph.json]
+
+# 单独运行 schema 校验
+node tools/analysis/validate-schema.mjs <data.json> <schema.json>
+```

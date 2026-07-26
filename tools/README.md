@@ -10,7 +10,15 @@ tools/
 ├── runtime-bridge/   # 与运行中 SC2 实例交互
 │   ├── sc2-observer.py   # 工作流接入点：被动观察 SC2 API 事件流（只读）
 │   └── legacy/            # 早期合作指挥官项目的 bank/输入/OCR 辅助脚本（hardcoded 路径，与新工作流无关）
-├── analysis/         # 静态分析（catalog XML、galaxy AST、边界提取、链对比、galaxy-lint）
+├── analysis/         # 静态分析
+│   ├── galaxy-lint.mjs            # Galaxy 语法+类型诊断（改进跨 mod 头文件注入）
+│   ├── analyze-galaxy.mjs         # Galaxy 依赖图（输出符合 dependency-graph schema）
+│   ├── analyze-catalog.mjs        # Catalog 分析（输出符合 dependency-graph schema）
+│   ├── extract-catalog-boundary.mjs # Catalog 边界抽取
+│   ├── compare-catalog-chains.mjs   # Catalog 链对比
+│   ├── static-validate.mjs        # 静态校验编排器（新增）
+│   ├── validate-packaging.mjs     # Packaging 校验器（新增）
+│   └── validate-schema.mjs        # Schema 校验器（新增）
 ├── mpq/              # MPQ 打包/解包工具（MPQEditor.exe + 自研脚本，见 mpq/README.md）
 ├── utils/            # 工作区管理（workspace.mjs）与通用小工具
 ├── kb/               # 知识库向量索引（独立模块，见 kb/README.md）

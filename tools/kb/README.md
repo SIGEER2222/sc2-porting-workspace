@@ -43,6 +43,7 @@ python tools/kb/kb-build.py
 python tools/kb/kb-query.py "how does DocumentHeader differ from DocumentInfo"
 python tools/kb/kb-query.py --top-k 5 "bank save format"
 python tools/kb/kb-query.py --filter-topic galaxy "UnitIsAlive"
+python tools/kb/kb-query.py --include-reference "UnitIsAlive"
 
 # 6. Check status without building
 python tools/kb/kb-build.py --status
@@ -54,7 +55,7 @@ python tools/kb/kb-hash.py
 The scripts resolve the embedding model in this order:
 
 1. `KB_EMBEDDING_MODEL` environment variable.
-2. `embeddingModel` field in `kb-config.json` (default: `BAAI/bge-small-zh-v1.5`).
+2. `embeddingModel` field in `kb-config.json` (default: `intfloat/multilingual-e5-small`).
 
 If the resolved value is an existing path on disk (e.g. a locally cached model
 directory), `sentence-transformers` loads directly from that path. Otherwise the
@@ -73,19 +74,25 @@ HuggingFace Hub, for diagnostic purposes only.
 
 - `sourcesRoot`: directory scanned for `.md` / `.txt` / `.galaxy` files.
 - `indexRoot`, `qdrantPath`, `manifestPath`: where the index and manifest live.
-- `embeddingModel`: HuggingFace model ID. Default: `BAAI/bge-small-zh-v1.5`
-  (~100 MB; downloaded on first run to the user's HF cache).
+- `embeddingModel`: HuggingFace model ID. Default: `intfloat/multilingual-e5-small`
+  (downloaded on first run to the user's HF cache).
+- `embeddingDevice`: device passed to sentence-transformers, such as `cuda` or
+  `cpu`.
 - `embeddingDim`: must match the model's output dimension.
 - `chunkSize`, `chunkOverlap`: fallback chunking for files without Markdown
   headings.
-- `excludePaths`: top-level directories to skip during indexing. The default
-  excludes `legacy/`; set `includeLegacy: true` to include migrated verbatim
-  materials.
+- `excludePaths`: source-relative paths omitted from vector retrieval. Navigation
+  pages are excluded by default because they crowd out mechanism-specific chunks.
+  They remain available for manual reading.
 - `extraScanRoots`: additional scan roots beyond `sourcesRoot`. Each entry has
   `path`, `alias`, `description`, `fileExtensions`, `excludeSubpaths`. The
   default adds the local Blizzard data mirror at `src/sc2-data-trigger/` under
   the `sc2-official` alias. Chunks from extra roots have their `source` field
   prefixed with `<alias>/` so the origin is traceable from query results.
+
+Queries search authored knowledge by default. Pass `--include-reference` to add
+raw official XML and tutorial sources when tracing exact catalog fields or native
+declarations.
 
 ## Cross-machine portability
 

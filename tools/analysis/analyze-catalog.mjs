@@ -11,8 +11,8 @@ async function readJson(path) {
 }
 
 async function resolveRegistered(id) {
-  const config = await readJson(join(repoRoot, "config", "workspace.json"));
-  const localPath = join(repoRoot, "config", "local.sources.json");
+  const config = await readJson(join(repoRoot, "src", "config", "workspace.json"));
+  const localPath = join(repoRoot, "src", "config", "local.sources.json");
   const local = existsSync(localPath) ? await readJson(localPath) : { bindings: {} };
   const entry = [...(config.tools ?? []), ...(config.sources ?? [])].find((item) => item.id === id);
   if (!entry) throw new Error("Unknown registered id: " + id);
@@ -51,6 +51,120 @@ function collectReferences(element, targetIds, path, references) {
   }
 }
 
+// DeepCatalogStore 适配器：支持直接从 XML 内容加载
+class DeepCatalogStore {
+  constructor() {
+    this.documents = new Map();
+    this.entries = new Map(); // family -> id -> entry
+  }
+
+  loadXML(content, uri) {
+    this.documents.set(uri, content);
+    this._parseCatalog(content, uri);
+  }
+
+  _parseCatalog(content, uri) {
+    const lines = content.split('\n');
+    const reDataElement = /^\s*<C([A-Z][A-Za-z0-9]+)\s([^>]+)\/?>/;
+    const reAttrs = /([\w-]+)\s?=\s?"([^"]+)"/g;
+    const reSubwordSeparator = /(?=[A-Z])/;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const matchedElement = line.match(reDataElement);
+      if (!matchedElement) continue;
+
+      let family = null;
+      const kindList = matchedElement[1].split(reSubwordSeparator);
+      while (kindList.length > 0) {
+        const familyName = kindList.join('');
+        if (S2DataCatalogDomain[familyName] !== undefined) {
+          family = S2DataCatalogDomain[familyName];
+          break;
+        }
+        kindList.pop();
+      }
+
+      if (family === null) continue;
+
+      const entry = {
+        family,
+        ctype: matchedElement[1],
+        id: '',
+        parent: null,
+        sourceUri: uri,
+        attributes: {},
+        children: []
+      };
+
+      let matchedAttr;
+      while ((matchedAttr = reAttrs.exec(matchedElement[2])) !== null) {
+        entry.attributes[matchedAttr[1]] = matchedAttr[2];
+        if (matchedAttr[1] === 'id') {
+          entry.id = matchedAttr[2];
+        } else if (matchedAttr[1] === 'parent') {
+          entry.parent = matchedAttr[2];
+        }
+      }
+      reAttrs.lastIndex = 0;
+
+      if (!entry.id) continue;
+
+      if (!this.entries.has(family)) {
+        this.entries.set(family, new Map());
+      }
+      this.entries.get(family).set(entry.id, entry);
+    }
+  }
+
+  getLoadedFamilies() {
+    return [...this.entries.keys()];
+  }
+
+  *findEntry(family) {
+    const familyEntries = this.entries.get(family);
+    if (!familyEntries) return;
+    yield* familyEntries.values();
+  }
+
+  get docCount() {
+    return this.documents.size;
+  }
+}
+
+// S2DataCatalogDomain 枚举（与 toolkit 保持一致）
+const S2DataCatalogDomain = {
+  Abil: 0,
+  Actor: 1,
+  Behavior: 2,
+  Button: 3,
+  Effect: 4,
+  Model: 5,
+  Mover: 6,
+  Race: 7,
+  Requirement: 8,
+  TargetFind: 9,
+  TargetPlan: 10,
+  Tech: 11,
+  Tower: 12,
+  Unit: 13,
+  Upgrade: 14,
+  Weapon: 15,
+  Validator: 16,
+  ScoreSum: 17,
+  ScoreV: 18,
+  Tile: 19,
+  Texture: 20,
+  Turret: 21,
+  Volume: 23,
+};
+
+// 反向映射：数字 -> 字符串
+const S2DataCatalogDomainReverse = {};
+for (const [key, value] of Object.entries(S2DataCatalogDomain)) {
+  S2DataCatalogDomainReverse[value] = key;
+}
+
 async function analyze(sourceId, relativeRoot, patternText, outputPath) {
   const sourceRoot = await resolveRegistered(sourceId);
   const analysisRoot = resolve(sourceRoot, relativeRoot);
@@ -59,9 +173,6 @@ async function analyze(sourceId, relativeRoot, patternText, outputPath) {
   }
   if (!existsSync(analysisRoot)) throw new Error("Analysis root is missing: " + relativeRoot);
 
-  const toolkitRoot = await resolveRegistered("galaxy-toolkit");
-  const dataModule = join(toolkitRoot, "packages", "sc2-data", "lib", "src", "index.js");
-  const { DeepCatalogStore, S2DataCatalogDomain } = await import(pathToFileURL(dataModule));
   const files = await listXmlFiles(analysisRoot);
   const store = new DeepCatalogStore();
   const parseErrors = [];
@@ -78,7 +189,8 @@ async function analyze(sourceId, relativeRoot, patternText, outputPath) {
   const entries = [];
   for (const family of store.getLoadedFamilies()) {
     for (const entry of store.findEntry(family)) {
-      entries.push({ entry, family: S2DataCatalogDomain[family] });
+      const familyName = S2DataCatalogDomainReverse[family] ?? String(family);
+      entries.push({ entry, family: familyName });
     }
   }
   const pattern = new RegExp(patternText, "i");
@@ -106,8 +218,58 @@ async function analyze(sourceId, relativeRoot, patternText, outputPath) {
     caseGroups.set(key, values);
   }
 
+  // ===== 构建 nodes（符合 dependency-graph.schema.json）=====
+  const nodes = entries.map(({ entry, family }) => ({
+    id: family + ":" + entry.id,
+    kind: "catalog-entry",
+    path: entry.sourceUri,
+    metadata: {
+      family,
+      ctype: entry.ctype,
+      parent: entry.parent ?? null
+    }
+  }));
+
+  // ===== 构建 edges（符合 dependency-graph.schema.json）=====
+  const edges = [];
+
+  // parent 继承边
+  for (const { entry, family } of entries) {
+    if (entry.parent) {
+      edges.push({
+        from: family + ":" + entry.id,
+        to: family + ":" + entry.parent,
+        relation: "depends-on",
+        evidence: [`parent:${entry.parent}`]
+      });
+    }
+  }
+
+  // reverseReferences 边
+  for (const ref of reverseReferences) {
+    for (const r of ref.references) {
+      for (const target of r.targets) {
+        edges.push({
+          from: ref.family + ":" + ref.id,
+          to: ref.family + ":" + target,
+          relation: "depends-on",
+          evidence: [`${r.path}@${ref.source}`]
+        });
+      }
+    }
+  }
+
+  // ===== 构建 unresolved（catalog 分析通常无 unresolved）=====
+  const unresolved = [];
+
   const result = {
     schemaVersion: 1,
+    composition: sourceId,
+    nodes,
+    edges,
+    unresolved,
+
+    // 保留向后兼容字段
     analyzer: "sc2-data.DeepCatalogStore",
     sourceId,
     root: relativeRoot,
@@ -139,6 +301,6 @@ async function analyze(sourceId, relativeRoot, patternText, outputPath) {
 
 const [sourceId, relativeRoot, patternText, outputPath] = process.argv.slice(2);
 if (!sourceId || !relativeRoot || !patternText || !outputPath) {
-  throw new Error("Usage: node scripts/analyze-catalog.mjs <source-id> <relative-root> <pattern> <output-path>");
+  throw new Error("Usage: node tools/analysis/analyze-catalog.mjs <source-id> <relative-root> <pattern> <output-path>");
 }
 await analyze(sourceId, relativeRoot, patternText, outputPath);

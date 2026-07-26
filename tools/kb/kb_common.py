@@ -15,6 +15,17 @@ REPO_ROOT = SCRIPT_DIR.parent.parent
 CONFIG_PATH = SCRIPT_DIR / "kb-config.json"
 
 
+def retrieval_text(text: str, role: str) -> str:
+    """Format text for the asymmetric E5 retrieval model."""
+    prefix = f"{role}: "
+    return text if text.startswith(prefix) else f"{prefix}{text}"
+
+
+def source_origin(topic: str) -> str:
+    """Classify authored knowledge separately from raw reference material."""
+    return "reference" if topic.startswith(("sc2-official:", "blizzard-tutorials:")) else "curated"
+
+
 def load_config() -> dict:
     with CONFIG_PATH.open("r", encoding="utf-8") as f:
         return json.load(f)

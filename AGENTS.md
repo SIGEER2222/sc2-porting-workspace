@@ -33,6 +33,18 @@ explicitly grants a narrow write scope.
 - Keep every diff bounded by the current stage. Split work when unrelated concerns appear.
 - Preserve user changes and stop if an approved write-scope file contains unexplained concurrent edits.
 
+## SC2 launch rules
+
+- **禁止直接启动 `SC2_x64.exe`**：必须通过 `tools/launchers/` 下的 launcher 脚本启动 SC2。
+  - 原因：直接启动会跳过 mod 同步、test lock、地图同步、ready 信号监控、ScriptError 复核等保障流程，导致无法判断游戏是否真正进入可观测状态。
+  - 例外：仅当 launcher 脚本本身损坏或缺失时，可临时使用 `SC2Switcher_x64.exe`（注意：Switcher 会吞掉 `-listen` 参数，不能用于 API 模式）。
+  - 正确入口：
+    - CMRE 移植项目：`launch-cmre-alenger.ps1 -MapName <map> -Commander <cmdr> [-ListenPort <port>]`
+    - 7vs1 合作测试：`E:\Code\MyMod\SC2\合作指挥官-起义狂潮\scripts\launch-7vs1-coop-test.ps1`
+    - Live runtime probe（无 mod 依赖）：`run-live-runtime-probe.ps1 -Port <port> -Map <map>`
+- launcher 退出码 0 视为加载完成；退出后必须复核 `C:\Users\22448\Documents\StarCraft II\GameLogs` 是否有本次启动新增的 `ScriptError.*.txt`。
+- 禁止用固定时间盲等 SC2 启动；依赖 launcher 自带的 `Wait-GameReady` 信号检测。
+
 ## Evidence rules
 
 Every technical claim must be classified as one of:

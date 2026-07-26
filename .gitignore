@@ -14,3 +14,31 @@ venv/
 *.bak
 *.SC2Replay
 *.StormReplay
+tools/cmre-webui/webui/assets_cache/
+src/projects/cmre-porting/evidence/runtime/replay-probe/**
+
+# 临时调试脚本（一次性目的，根目录下 _ 前缀）
+_*.py
+_*.ps1
+
+# 临时调试输出目录
+out/
+
+# 一次性字节/编码检查脚本（路径硬编码到具体文件，无复用价值）
+tools/launchers/check-bom.ps1
+tools/launchers/check-braces.ps1
+tools/launchers/check-bytes.ps1
+tools/launchers/check-lines.ps1
+tools/launchers/check-syntax.ps1
+tools/launchers/check-temp.ps1
+tools/launchers/convert-to-crlf.py
+tools/launchers/convert-to-crlf-bom.py
+
+# 顶级 webui 产物目录（测试输出）
+tools/cmre-webui/artifacts/
+
+# reference/ 是外部 submodule 集合（参考资料），未在本仓库内跟踪。
+# .gitmodules 保留了 submodule URL 配置作为参考，
+# 用户可手动 git submodule update --init reference/<name> 拉取所需资料。
+# 仓库不跟踪 reference/ 下的 gitlink 指针变化。
+reference/

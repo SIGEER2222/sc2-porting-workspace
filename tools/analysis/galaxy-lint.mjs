@@ -72,15 +72,25 @@ async function findNativesFiles(repoRootPath) {
     const config = await readJson(join(repoRootPath, "src", "config", "workspace.json"));
     const localPath = join(repoRootPath, "src", "config", "local.sources.json");
     const local = existsSync(localPath) ? await readJson(localPath) : { bindings: {} };
-    // SC2GameData 在 workspace.json 注册为 "official-data"
     const entry = [...(config.tools ?? []), ...(config.sources ?? [])].find((item) => item.id === "official-data");
     if (entry) {
       const resolvedPath = entry.path ? resolve(repoRootPath, entry.path) : local.bindings?.["official-data"];
       if (resolvedPath && existsSync(resolvedPath)) {
         const triggerLibs = join(resolvedPath, "mods", "core.sc2mod", "base.sc2data", "TriggerLibs");
-        for (const name of ["natives.galaxy", "natives_missing.galaxy"]) {
-          const file = join(triggerLibs, name);
-          if (existsSync(file)) candidates.push(file);
+        if (existsSync(triggerLibs)) {
+          const dir = await opendir(triggerLibs);
+          for await (const entry of dir) {
+            if (entry.isFile() && extname(entry.name).toLowerCase() === ".galaxy") {
+              candidates.push(join(triggerLibs, entry.name));
+            }
+          }
+          // 引擎常量（c_targetFilter*、c_playerTypeUser 等）定义在 GameData/Game.galaxy，
+          // 不在 TriggerLibs 根目录，需要单独加载，否则项目文件引用这些常量会误报 "Undeclared symbol"。
+          const gameDataDir = join(triggerLibs, "GameData");
+          if (existsSync(gameDataDir)) {
+            const gameFile = join(gameDataDir, "Game.galaxy");
+            if (existsSync(gameFile)) candidates.push(gameFile);
+          }
         }
       }
     }
@@ -119,8 +129,10 @@ function normalizePath(root, path) {
 
 // 将 sc2-galaxy-lang 的 Diagnostic 转为统一输出格式
 // DiagnosticCategory: Error=1, Warning=2, Message=3, Hint=4
-function toOutputDiagnostic(d, file, source) {
-  const line = typeof d.line === "number" ? d.line + 1 : 1;
+function toOutputDiagnostic(d, file, source, injected = false) {
+  let line = typeof d.line === "number" ? d.line + 1 : 1;
+  // 注入桩 include 会在文件顶部插入一行，回拨偏移以对齐真实行号
+  if (injected) line = Math.max(1, line - 1);
   const column = typeof d.col === "number" ? d.col + 1 : 1;
   const severity = d.category === 1 ? "error" :
                    d.category === 2 ? "warning" :
@@ -147,23 +159,41 @@ async function lintFiles(files, repoRootPath) {
   // natives.galaxy 声明了所有引擎内置函数（AICreateOrder、UnitOrder 等），
   // 加载后可避免 native 函数被误报为 "Undeclared symbol"
   const nativesFiles = await findNativesFiles(repoRootPath);
-  const allFiles = [...nativesFiles, ...files];
+  const nativesRelSet = new Set(nativesFiles.map((f) => normalizePath(repoRootPath, f)));
+
+  // 外部依赖声明桩：等价于 C 头文件 / TypeScript .d.ts。声明引擎常量、
+  // NeuroIntegration (libEFA54406)、合作指挥官 (libCOOC) 等跨模组符号，
+  // 使项目文件在脱离完整 SC2 编辑器上下文时也能解析这些引用。
+  const stubPath = join(repoRootPath, "reference", "stubs", "porting-deps.galaxy");
+  const stubFiles = existsSync(stubPath) ? [stubPath] : [];
+  const stubRelSet = new Set(stubFiles.map((f) => normalizePath(repoRootPath, f)));
+  // 同时跳过引擎 natives 与桩文件自身的诊断（它们只提供符号，不计入目标文件检查）
+  const skipRelSet = new Set([...nativesRelSet, ...stubRelSet]);
+  const allFiles = [...nativesFiles, ...stubFiles, ...files];
+  // 记录注入了桩 include 的文件，用于在校验后回拨行号偏移
+  const injectedFiles = new Set();
 
   for (const absFile of allFiles) {
     const relFile = normalizePath(repoRootPath, absFile);
-    const text = await readFile(absFile, "utf8");
+    let text = await readFile(absFile, "utf8");
+    // 为项目目标文件注入桩 include（不修改磁盘源码），使跨模组符号可解析
+    const isTarget = !nativesFiles.includes(absFile) && !stubFiles.includes(absFile);
+    if (isTarget) {
+      text = 'include "porting-deps"\n' + text;
+      injectedFiles.add(relFile);
+    }
     const parser = new Parser();
     const sourceFile = parser.parseFile(relFile, text);
     documents.set(relFile, sourceFile);
 
-    // 只收集目标文件的 parser 诊断，不收集 natives 文件的诊断
-    if (nativesFiles.includes(absFile)) continue;
+    // 不收集 natives / 桩文件自身的 parser 诊断
+    if (nativesFiles.includes(absFile) || stubFiles.includes(absFile)) continue;
     const parseDiags = [
       ...(sourceFile.parseDiagnostics ?? []),
       ...(sourceFile.additionalSyntacticDiagnostics ?? [])
     ];
     for (const d of parseDiags) {
-      diagnostics.push(toOutputDiagnostic(d, relFile, "sc2-galaxy-lang.parser"));
+      diagnostics.push(toOutputDiagnostic(d, relFile, "sc2-galaxy-lang.parser", injectedFiles.has(relFile)));
     }
   }
 
@@ -176,7 +206,9 @@ async function lintFiles(files, repoRootPath) {
       resolveGlobalSymbol: (name) => globalSymbols.get(name) ?? null
     };
     // 先 bind natives 文件，让 native 函数先进入 globalSymbols
-    const bindOrder = [...nativesFiles, ...files];
+    // 同时 bind 桩文件：declareSymbol 依赖 bindSourceFile 预填充的 sourceFile.symbol，
+    // 若桩未被 bind，checker 解析 include "porting-deps" 时会因 symbol 为 undefined 崩溃。
+    const bindOrder = [...nativesFiles, ...stubFiles, ...files];
     for (const absFile of bindOrder) {
       const relFile = normalizePath(repoRootPath, absFile);
       const sourceFile = documents.get(relFile);
@@ -217,12 +249,41 @@ async function lintFiles(files, repoRootPath) {
       }
       qualifiedDocuments.get(base).set(fileName, sourceFile);
     }
+    // 注册 `triggerlibs/<base>` 形式的 key，使 `include "TriggerLibs/natives"` 这类带目录的
+    // include 语句能被 checker 解析（checker 用完整 include 路径作为 qualifiedDocuments 的 key）。
+    for (const absFile of nativesFiles) {
+      const base = absFile.split(/[\\/]/).pop().toLowerCase().replace(/\.galaxy$/, "");
+      const tlKey = "triggerlibs/" + base;
+      const relFile = normalizePath(repoRootPath, absFile);
+      const sf = documents.get(relFile);
+      if (sf) {
+        if (!qualifiedDocuments.has(tlKey)) qualifiedDocuments.set(tlKey, new Map());
+        qualifiedDocuments.get(tlKey).set(relFile, sf);
+      }
+    }
+    // 注册外部依赖桩文件：让项目文件已有的 include "LibEFA54406_h" 等语句解析到桩，
+    // 从而解析 NeuroIntegration / 合作指挥官 / 引擎常量 / 兄弟库发布函数等跨模组符号。
+    // （checker 按 fileName 去重，porting-deps 与 libefa54406_h 指向同一文件不会重复加载）
+    for (const absFile of stubFiles) {
+      const relFile = normalizePath(repoRootPath, absFile);
+      const sf = documents.get(relFile);
+      if (!sf) continue;
+      for (const key of ["libefa54406_h", "libefa54406", "porting-deps", "libcooc", "libportingobserver"]) {
+        if (!qualifiedDocuments.has(key)) qualifiedDocuments.set(key, new Map());
+        if (!qualifiedDocuments.get(key).has(relFile)) qualifiedDocuments.get(key).set(relFile, sf);
+      }
+    }
 
     // 构造 s2workspace，让 checkSourceFileRecursively 自动加载 natives
     // checkSourceFileRecursively 用 URI.file(fpath).toString() 作为 key 查 documents
     // 因此需要把 natives 文件也以 URI 格式 key 存入 documents
     let s2workspace = null;
-    if (nativesFiles.length > 0) {
+    // 注意：故意不设置 s2workspace。若设置 core.sc2mod archive，sc2-galaxy-lang 的 checker
+    // 会自行加载并递归类型检查整个引擎 TriggerLibs，而引擎库之间在脱离完整 SC2 编辑器
+    // 上下文时 include 依赖无法完全解析，会产生数千条误报。这里改为完全依赖
+    // qualifiedDocuments（已为 natives 注册 triggerlibs/<base> 形式的 key）解析 include，
+    // checker 只递归检查项目文件真正 include 的引擎文件。
+    if (false && nativesFiles.length > 0) {
       const config = await readJson(join(repoRootPath, "src", "config", "workspace.json"));
       const officialEntry = [...(config.tools ?? []), ...(config.sources ?? [])]
         .find((item) => item.id === "official-data");
@@ -251,14 +312,23 @@ async function lintFiles(files, repoRootPath) {
     const checker = new TypeChecker(host);
     for (const [fileName, sourceFile] of documents) {
       const absFile = join(repoRootPath, fileName.split("/").join(sep));
-      if (nativesFiles.includes(absFile)) continue;
+      if (skipRelSet.has(fileName)) continue;
       try {
         const result = checker.checkSourceFileRecursively(sourceFile);
         const checkerDiags = result.diagnostics;
         if (checkerDiags instanceof Map) {
           for (const [diagFile, diags] of checkerDiags) {
+            // checkSourceFileRecursively 会递归进入项目文件 include 的引擎文件 / 桩文件，
+            // 这些在脱离 SC2 编辑器上下文时会报出大量 "Undeclared symbol" 误报。
+            // 按相对路径过滤掉引擎 native 与桩文件的诊断（仅报告真正的目标文件问题）。
+            if (skipRelSet.has(diagFile) || skipRelSet.has(diagFile.split(/[\\/]/).join("/"))) continue;
             for (const d of diags) {
-              diagnostics.push(toOutputDiagnostic(d, diagFile, "sc2-galaxy-lang.checker"));
+              // 桩文件为提供跨文件函数体（如 libPortingObserver_gf_Publish）会与其在
+              // 项目文件中的真实定义产生 "Symbol redeclared" 提示；这是桩机制的有意产物，
+              // 真实定义才是权威实现，因此抑制指向桩文件的重声明诊断。
+              const diagMsg = (d.messageText || d.message || "");
+              if (stubRelSet.size > 0 && /porting-deps\.galaxy/.test(diagMsg)) continue;
+              diagnostics.push(toOutputDiagnostic(d, diagFile, "sc2-galaxy-lang.checker", injectedFiles.has(diagFile)));
             }
           }
         }

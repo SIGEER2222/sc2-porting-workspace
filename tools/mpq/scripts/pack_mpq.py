@@ -66,7 +66,11 @@ def mpq_encrypt(data: bytes, key: int) -> bytes:
 
 def hash_filepath(path: str):
     """Return (table_offset, hash_a, hash_b) for a file path."""
-    path = path.replace('\\', '/')
+    # SC2 MPQ archives address nested files with Windows-style separators.
+    # The separator participates in Blizzard's filename hash, so storing and
+    # hashing paths with '/' produces an archive that mpyq can read but SC2
+    # cannot resolve beyond its root files.
+    path = path.replace('/', '\\')
     return (
         mpq_hash(path, 0),
         mpq_hash(path, 1),
@@ -109,7 +113,7 @@ def pack_mpq(input_dir: str, output_path: str):
     files = []
     for f in input_path.rglob('*'):
         if f.is_file():
-            rel = f.relative_to(input_path).as_posix()
+            rel = str(f.relative_to(input_path)).replace('/', '\\')
             files.append((str(f), rel))
 
     if not files:

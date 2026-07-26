@@ -6,190 +6,1023 @@
       "id": "official.void-campaign",
       "kind": "campaign",
       "ownership": "external",
-      "source": { "sourceId": "official-data", "path": "campaigns/void.sc2campaign", "containerType": "native" },
-      "metadata": { "resolution": "resolved-from-registered-official-data" }
+      "source": {
+        "sourceId": "official-data",
+        "path": "campaigns/void.sc2campaign",
+        "containerType": "native"
+      },
+      "metadata": {
+        "resolution": "resolved-from-registered-official-data"
+      }
     },
     {
       "id": "external.alenger3-mad-empire",
       "kind": "commander",
       "ownership": "external",
-      "source": { "sourceId": "alenger-heart", "path": "Mods/Alenger/3疯批帝国.SC2Mod", "containerType": "mpq" },
-      "metadata": { "runtimeCommanderId": "TerranAlenger3", "displayName": "疯批帝国", "onDemandPackages": ["AlengerCommon", "Alenger3", "Alenger3Adapter"] }
+      "source": {
+        "sourceId": "alenger-heart",
+        "path": "Mods/Alenger/3疯批帝国.SC2Mod",
+        "containerType": "mpq"
+      },
+      "metadata": {
+        "runtimeCommanderId": "TerranAlenger3",
+        "displayName": "疯批帝国",
+        "onDemandPackages": [
+          "AlengerCommon",
+          "Alenger3",
+          "Alenger3Adapter"
+        ]
+      }
     },
     {
       "id": "cmre.port.alenger-effects",
       "kind": "shared-runtime",
       "ownership": "shared",
-      "source": { "sourceId": "alenger3-workspace-source", "path": "Mods/7vs1/AlengerCommon.SC2Mod", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "official.void-campaign", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "alenger3-workspace-source",
+        "path": "Mods/7vs1/AlengerCommon.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "official.void-campaign",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.port.alenger3-mad-empire",
       "kind": "commander",
       "ownership": "commander",
-      "source": { "sourceId": "alenger3-workspace-source", "path": "Mods/7vs1/Alenger3.SC2Mod", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.port.alenger-effects", "relation": "declared", "required": true }],
-      "metadata": { "runtimeCommanderId": "TerranAlenger3", "displayName": "疯批帝国" }
+      "source": {
+        "sourceId": "alenger3-workspace-source",
+        "path": "Mods/7vs1/Alenger3.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger-effects",
+          "relation": "declared",
+          "required": true
+        }
+      ],
+      "metadata": {
+        "runtimeCommanderId": "TerranAlenger3",
+        "displayName": "疯批帝国"
+      }
     },
     {
       "id": "cmre.port.alenger3-dead-of-night-adapter",
       "kind": "commander-map-adapter",
       "ownership": "pairing",
-      "source": { "sourceId": "alenger3-workspace-source", "path": "Mods/7vs1/Alenger3Adapter.SC2Mod", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.port.alenger3-mad-empire", "relation": "adapter", "required": true }]
+      "source": {
+        "sourceId": "alenger3-workspace-source",
+        "path": "Mods/7vs1/Alenger3Adapter.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger3-mad-empire",
+          "relation": "adapter",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.source.artpack",
       "kind": "mod",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Mods/CM_ArtPack/CM_ArtPack_Base.SC2Mod", "containerType": "mpq" }
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Mods/CM_ArtPack/CM_ArtPack_Base.SC2Mod",
+        "containerType": "mpq"
+      }
     },
     {
       "id": "cmre.source.base",
       "kind": "mod",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Mods/CMRE/CMRE_Core_Base.SC2Mod", "containerType": "unpacked" },
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Mods/CMRE/CMRE_Core_Base.SC2Mod",
+        "containerType": "unpacked"
+      },
       "dependencies": [
-        { "packageId": "cmre.source.artpack", "relation": "declared", "required": true },
-        { "packageId": "official.void-campaign", "relation": "declared", "required": true }
+        {
+          "packageId": "cmre.source.artpack",
+          "relation": "declared",
+          "required": true
+        },
+        {
+          "packageId": "official.void-campaign",
+          "relation": "declared",
+          "required": true
+        }
       ]
     },
     {
       "id": "cmre.source.commander.mengsk",
       "kind": "commander",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Mods/CMRE/CMRE_Core_Mengsk.SC2Mod", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.base", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Mods/CMRE/CMRE_Core_Mengsk.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.base",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.source.commander.stetmann",
       "kind": "commander",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Mods/CMRE/CMRE_Core_Stetmann.SC2Mod", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.base", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Mods/CMRE/CMRE_Core_Stetmann.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.base",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.source.triggers",
       "kind": "mod",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Mods/CMRE/CMRE_Core_Triggers.SC2Mod", "containerType": "unpacked" },
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Mods/CMRE/CMRE_Core_Triggers.SC2Mod",
+        "containerType": "unpacked"
+      },
       "dependencies": [
-        { "packageId": "cmre.source.base", "relation": "declared", "required": true },
-        { "packageId": "cmre.source.commander.mengsk", "relation": "declared", "required": true },
-        { "packageId": "cmre.source.commander.stetmann", "relation": "declared", "required": true }
+        {
+          "packageId": "cmre.source.base",
+          "relation": "declared",
+          "required": true
+        },
+        {
+          "packageId": "cmre.source.commander.mengsk",
+          "relation": "declared",
+          "required": true
+        },
+        {
+          "packageId": "cmre.source.commander.stetmann",
+          "relation": "declared",
+          "required": true
+        }
       ]
     },
     {
       "id": "cmre.source.launcher",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Mods/CMRE/启动器改版.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Mods/CMRE/启动器改版.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.dark-killing-star",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/黑暗杀星.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/黑暗杀星.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.mist-opportunity",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/机会渺茫.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/机会渺茫.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.malwarfare",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/净网行动.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/净网行动.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.part-and-parcel",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/聚铁成兵.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/聚铁成兵.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.rifts-to-korhal",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/克哈裂痕.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/克哈裂痕.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.vermilion-problem",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/熔火危机.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/熔火危机.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.chain-of-ascension",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/升格之链.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/升格之链.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.cradle-of-death",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/死亡摇篮.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/死亡摇篮.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.lock-and-load",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/天界封锁.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/天界封锁.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.dead-of-night",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/亡者之夜.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/亡者之夜.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.temple-of-the-past",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/往日神庙.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/往日神庙.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.void-launch",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/虚空降临.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/虚空降临.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.void-rifts",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/虚空撕裂.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/虚空撕裂.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.oblivion-express",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/湮灭快车.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/湮灭快车.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
     },
     {
       "id": "cmre.map.miner-evacuation",
       "kind": "map",
       "ownership": "source",
-      "source": { "sourceId": "cmre-dev-package", "path": "Maps/营救矿工.SC2Map", "containerType": "unpacked" },
-      "dependencies": [{ "packageId": "cmre.source.triggers", "relation": "declared", "required": true }]
+      "source": {
+        "sourceId": "cmre-dev-package",
+        "path": "Maps/营救矿工.SC2Map",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.source.triggers",
+          "relation": "declared",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "external.alenger1-steel",
+      "kind": "commander",
+      "ownership": "external",
+      "source": {
+        "sourceId": "alenger-heart",
+        "path": "Mods/Alenger/1钢铁.SC2Mod",
+        "containerType": "mpq"
+      },
+      "metadata": {
+        "runtimeCommanderId": "TerranAlenger1",
+        "displayName": "钢铁",
+        "onDemandPackages": [
+          "AlengerCommon",
+          "Alenger1",
+          "Alenger1Adapter"
+        ]
+      }
+    },
+    {
+      "id": "cmre.port.alenger1-steel",
+      "kind": "commander",
+      "ownership": "commander",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger1.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger-effects",
+          "relation": "declared",
+          "required": true
+        }
+      ],
+      "metadata": {
+        "runtimeCommanderId": "TerranAlenger1",
+        "displayName": "钢铁"
+      }
+    },
+    {
+      "id": "cmre.port.alenger1-steel-dead-of-night-adapter",
+      "kind": "commander-map-adapter",
+      "ownership": "pairing",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger1Adapter.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger1-steel",
+          "relation": "adapter",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "external.alenger2-behemoth",
+      "kind": "commander",
+      "ownership": "external",
+      "source": {
+        "sourceId": "alenger-heart",
+        "path": "Mods/Alenger/2贝希摩斯虫群.SC2Mod",
+        "containerType": "mpq"
+      },
+      "metadata": {
+        "runtimeCommanderId": "ZergAlenger2",
+        "displayName": "贝希摩斯虫群",
+        "onDemandPackages": [
+          "AlengerCommon",
+          "Alenger2",
+          "Alenger2Adapter"
+        ]
+      }
+    },
+    {
+      "id": "cmre.port.alenger2-behemoth",
+      "kind": "commander",
+      "ownership": "commander",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger2.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger-effects",
+          "relation": "declared",
+          "required": true
+        }
+      ],
+      "metadata": {
+        "runtimeCommanderId": "ZergAlenger2",
+        "displayName": "贝希摩斯虫群"
+      }
+    },
+    {
+      "id": "cmre.port.alenger2-behemoth-dead-of-night-adapter",
+      "kind": "commander-map-adapter",
+      "ownership": "pairing",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger2Adapter.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger2-behemoth",
+          "relation": "adapter",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "external.alenger4-taldarim",
+      "kind": "commander",
+      "ownership": "external",
+      "source": {
+        "sourceId": "alenger-heart",
+        "path": "Mods/Alenger/4塔达林.SC2Mod",
+        "containerType": "mpq"
+      },
+      "metadata": {
+        "runtimeCommanderId": "ProtossAlenger4",
+        "displayName": "塔达林",
+        "onDemandPackages": [
+          "AlengerCommon",
+          "Alenger4",
+          "Alenger4Adapter"
+        ]
+      }
+    },
+    {
+      "id": "cmre.port.alenger4-taldarim",
+      "kind": "commander",
+      "ownership": "commander",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger4.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger-effects",
+          "relation": "declared",
+          "required": true
+        }
+      ],
+      "metadata": {
+        "runtimeCommanderId": "ProtossAlenger4",
+        "displayName": "塔达林"
+      }
+    },
+    {
+      "id": "cmre.port.alenger4-taldarim-dead-of-night-adapter",
+      "kind": "commander-map-adapter",
+      "ownership": "pairing",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger4Adapter.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger4-taldarim",
+          "relation": "adapter",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "external.alenger7-khalai",
+      "kind": "commander",
+      "ownership": "external",
+      "source": {
+        "sourceId": "alenger-heart",
+        "path": "Mods/Alenger/7卡莱.SC2Mod",
+        "containerType": "mpq"
+      },
+      "metadata": {
+        "runtimeCommanderId": "ProtossAlenger7",
+        "displayName": "卡莱",
+        "onDemandPackages": [
+          "AlengerCommon",
+          "Alenger7",
+          "Alenger7Adapter"
+        ]
+      }
+    },
+    {
+      "id": "cmre.port.alenger7-khalai",
+      "kind": "commander",
+      "ownership": "commander",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger7.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger-effects",
+          "relation": "declared",
+          "required": true
+        }
+      ],
+      "metadata": {
+        "runtimeCommanderId": "ProtossAlenger7",
+        "displayName": "卡莱"
+      }
+    },
+    {
+      "id": "cmre.port.alenger7-khalai-dead-of-night-adapter",
+      "kind": "commander-map-adapter",
+      "ownership": "pairing",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger7Adapter.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger7-khalai",
+          "relation": "adapter",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "external.alenger8-zagara",
+      "kind": "commander",
+      "ownership": "external",
+      "source": {
+        "sourceId": "alenger-heart",
+        "path": "Mods/Alenger/8扎加拉.SC2Mod",
+        "containerType": "mpq"
+      },
+      "metadata": {
+        "runtimeCommanderId": "ZergAlenger8",
+        "displayName": "扎加拉",
+        "onDemandPackages": [
+          "AlengerCommon",
+          "Alenger8",
+          "Alenger8Adapter"
+        ]
+      }
+    },
+    {
+      "id": "cmre.port.alenger8-zagara",
+      "kind": "commander",
+      "ownership": "commander",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger8.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger-effects",
+          "relation": "declared",
+          "required": true
+        }
+      ],
+      "metadata": {
+        "runtimeCommanderId": "ZergAlenger8",
+        "displayName": "扎加拉"
+      }
+    },
+    {
+      "id": "cmre.port.alenger8-zagara-dead-of-night-adapter",
+      "kind": "commander-map-adapter",
+      "ownership": "pairing",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger8Adapter.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger8-zagara",
+          "relation": "adapter",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "external.alenger9-pirate",
+      "kind": "commander",
+      "ownership": "external",
+      "source": {
+        "sourceId": "alenger-heart",
+        "path": "Mods/Alenger/9海盗.SC2Mod",
+        "containerType": "mpq"
+      },
+      "metadata": {
+        "runtimeCommanderId": "TerranAlenger9",
+        "displayName": "海盗",
+        "onDemandPackages": [
+          "AlengerCommon",
+          "Alenger9",
+          "Alenger9Adapter"
+        ]
+      }
+    },
+    {
+      "id": "cmre.port.alenger9-pirate",
+      "kind": "commander",
+      "ownership": "commander",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger9.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger-effects",
+          "relation": "declared",
+          "required": true
+        }
+      ],
+      "metadata": {
+        "runtimeCommanderId": "TerranAlenger9",
+        "displayName": "海盗"
+      }
+    },
+    {
+      "id": "cmre.port.alenger9-pirate-dead-of-night-adapter",
+      "kind": "commander-map-adapter",
+      "ownership": "pairing",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger9Adapter.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger9-pirate",
+          "relation": "adapter",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "external.alenger10-amon",
+      "kind": "commander",
+      "ownership": "external",
+      "source": {
+        "sourceId": "alenger-heart",
+        "path": "Mods/Alenger/10埃蒙.SC2Mod",
+        "containerType": "mpq"
+      },
+      "metadata": {
+        "runtimeCommanderId": "TerranAlenger10",
+        "displayName": "埃蒙",
+        "onDemandPackages": [
+          "AlengerCommon",
+          "Alenger10",
+          "Alenger10Adapter"
+        ]
+      }
+    },
+    {
+      "id": "cmre.port.alenger10-amon",
+      "kind": "commander",
+      "ownership": "commander",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger10.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger-effects",
+          "relation": "declared",
+          "required": true
+        }
+      ],
+      "metadata": {
+        "runtimeCommanderId": "TerranAlenger10",
+        "displayName": "埃蒙"
+      }
+    },
+    {
+      "id": "cmre.port.alenger10-amon-dead-of-night-adapter",
+      "kind": "commander-map-adapter",
+      "ownership": "pairing",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger10Adapter.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger10-amon",
+          "relation": "adapter",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "external.alenger11-groupmate",
+      "kind": "commander",
+      "ownership": "external",
+      "source": {
+        "sourceId": "alenger-heart",
+        "path": "Mods/Alenger/11群友.SC2Mod",
+        "containerType": "mpq"
+      },
+      "metadata": {
+        "runtimeCommanderId": "TerranAlenger11",
+        "displayName": "群友",
+        "onDemandPackages": [
+          "AlengerCommon",
+          "Alenger11",
+          "Alenger11Adapter"
+        ]
+      }
+    },
+    {
+      "id": "cmre.port.alenger11-groupmate",
+      "kind": "commander",
+      "ownership": "commander",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger11.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger-effects",
+          "relation": "declared",
+          "required": true
+        }
+      ],
+      "metadata": {
+        "runtimeCommanderId": "TerranAlenger11",
+        "displayName": "群友"
+      }
+    },
+    {
+      "id": "cmre.port.alenger11-groupmate-dead-of-night-adapter",
+      "kind": "commander-map-adapter",
+      "ownership": "pairing",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger11Adapter.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger11-groupmate",
+          "relation": "adapter",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "external.alenger12-ranger",
+      "kind": "commander",
+      "ownership": "external",
+      "source": {
+        "sourceId": "alenger-heart",
+        "path": "Mods/Alenger/12游骑兵.SC2Mod",
+        "containerType": "mpq"
+      },
+      "metadata": {
+        "runtimeCommanderId": "TerranAlenger12",
+        "displayName": "游骑兵",
+        "onDemandPackages": [
+          "AlengerCommon",
+          "Alenger12",
+          "Alenger12Adapter"
+        ]
+      }
+    },
+    {
+      "id": "cmre.port.alenger12-ranger",
+      "kind": "commander",
+      "ownership": "commander",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger12.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger-effects",
+          "relation": "declared",
+          "required": true
+        }
+      ],
+      "metadata": {
+        "runtimeCommanderId": "TerranAlenger12",
+        "displayName": "游骑兵"
+      }
+    },
+    {
+      "id": "cmre.port.alenger12-ranger-dead-of-night-adapter",
+      "kind": "commander-map-adapter",
+      "ownership": "pairing",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger12Adapter.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger12-ranger",
+          "relation": "adapter",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "external.alenger13-purifier",
+      "kind": "commander",
+      "ownership": "external",
+      "source": {
+        "sourceId": "alenger-heart",
+        "path": "Mods/Alenger/13净化者.SC2Mod",
+        "containerType": "mpq"
+      },
+      "metadata": {
+        "runtimeCommanderId": "ProtossAlenger13",
+        "displayName": "净化者",
+        "onDemandPackages": [
+          "AlengerCommon",
+          "Alenger13",
+          "Alenger13Adapter"
+        ]
+      }
+    },
+    {
+      "id": "cmre.port.alenger13-purifier",
+      "kind": "commander",
+      "ownership": "commander",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger13.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger-effects",
+          "relation": "declared",
+          "required": true
+        }
+      ],
+      "metadata": {
+        "runtimeCommanderId": "ProtossAlenger13",
+        "displayName": "净化者"
+      }
+    },
+    {
+      "id": "cmre.port.alenger13-purifier-dead-of-night-adapter",
+      "kind": "commander-map-adapter",
+      "ownership": "pairing",
+      "source": {
+        "sourceId": "alenger-workspace-source",
+        "path": "Mods/7vs1/Alenger13Adapter.SC2Mod",
+        "containerType": "unpacked"
+      },
+      "dependencies": [
+        {
+          "packageId": "cmre.port.alenger13-purifier",
+          "relation": "adapter",
+          "required": true
+        }
+      ]
     }
   ]
 }

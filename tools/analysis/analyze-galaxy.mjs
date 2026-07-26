@@ -16,8 +16,8 @@ async function readJson(path) {
 }
 
 async function resolveRegistered(id) {
-  const config = await readJson(join(repoRoot, "config", "workspace.json"));
-  const localPath = join(repoRoot, "config", "local.sources.json");
+  const config = await readJson(join(repoRoot, "src", "config", "workspace.json"));
+  const localPath = join(repoRoot, "src", "config", "local.sources.json");
   const local = existsSync(localPath) ? await readJson(localPath) : { bindings: {} };
   const entry = [...(config.tools ?? []), ...(config.sources ?? [])].find((item) => item.id === id);
   if (!entry) throw new Error("Unknown registered id: " + id);
@@ -241,10 +241,98 @@ async function runAnalysis(packages, outputPath, meta) {
     unresolvedByPackage.set(item.packageId, entries);
   }
 
+  // ===== Build nodes =====
+  const nodes = records.map((record) => ({
+    id: record.path,
+    kind: "galaxy-library",
+    path: record.path,
+    metadata: {
+      packageId: record.packageId,
+      bytes: record.bytes,
+      parseErrors: record.parseErrors,
+      functions: record.functions,
+      calls: record.calls,
+      apiCalls: record.apiCalls
+    }
+  }));
+
+  // ===== Build edges =====
+  const edges = [];
+
+  // Include edges
+  for (const record of records) {
+    for (const include of record.includes) {
+      const target = resolveInclude(record.path, include.target, fileIndex, suffixIndex);
+      if (target) {
+        edges.push({
+          from: record.path,
+          to: target,
+          relation: "includes",
+          evidence: [`${record.path}:${include.line}`]
+        });
+      }
+    }
+  }
+
+  // Cross-file call edges
+  for (const call of calls) {
+    const targets = definitions.get(call.callee) ?? [];
+    const otherFiles = [...new Set(targets.map((t) => t.file).filter((f) => f !== call.file))];
+    for (const target of otherFiles) {
+      edges.push({
+        from: call.file,
+        to: target,
+        relation: "calls",
+        evidence: [`${call.callee}@${call.file}:${call.line}`]
+      });
+    }
+  }
+
+  // API call edges (trigger/bank/objective/reward/initializer)
+  const relationMap = {
+    trigger: "registers",
+    bank: "reads",
+    objective: "activates",
+    reward: "rewards",
+    initializer: "initializes"
+  };
+  for (const record of records) {
+    for (const category of ["trigger", "bank", "objective", "reward", "initializer"]) {
+      for (const apiCall of record.apiCalls[category]) {
+        edges.push({
+          from: record.path,
+          to: apiCall.name,
+          relation: relationMap[category],
+          evidence: [`${apiCall.name}@${record.path}:${apiCall.line}`]
+        });
+      }
+    }
+  }
+
+  // ===== Build unresolved =====
+  const unresolved = [];
+  for (const include of unresolvedIncludes) {
+    unresolved.push({
+      description: `Unresolved include: ${include.include} from ${include.from}`,
+      requiredEvidence: "static"
+    });
+  }
+  for (const item of unresolvedProjectCalls.values()) {
+    unresolved.push({
+      description: `Unresolved call: ${item.symbol} in ${item.file} (${item.count} occurrences)`,
+      requiredEvidence: "static"
+    });
+  }
+
   const result = {
     schemaVersion: 1,
+    composition: meta.compositionId,
+    nodes,
+    edges,
+    unresolved,
+
+    // Backward compatibility fields
     analyzer: "sc2-galaxy-lang.Parser",
-    compositionId: meta.compositionId,
     sourceId: meta.sourceId ?? null,
     root: meta.root || ".",
     packages: packages.map((p) => ({ packageId: p.packageId, sourceId: p.sourceId })),
@@ -316,13 +404,13 @@ if (args[0] === "--composition") {
   const manifestPath = args[1];
   const outputPath = args[2];
   if (!manifestPath || !outputPath) {
-    throw new Error("Usage: node scripts/analyze-galaxy.mjs --composition <manifest.json> <output-path>");
+    throw new Error("Usage: node tools/analysis/analyze-galaxy.mjs --composition <manifest.json> <output-path>");
   }
   await analyzeComposition(manifestPath, outputPath);
 } else {
   const [sourceId, relativeRoot = ".", outputPath] = args;
   if (!sourceId || !outputPath) {
-    throw new Error("Usage: node scripts/analyze-galaxy.mjs <source-id> <relative-root> <output-path>");
+    throw new Error("Usage: node tools/analysis/analyze-galaxy.mjs <source-id> <relative-root> <output-path>");
   }
   await analyzeSingle(sourceId, relativeRoot, outputPath);
 }

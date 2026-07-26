@@ -12,8 +12,8 @@ async function readJson(path) {
 }
 
 async function resolveRegistered(id) {
-  const config = await readJson(join(repoRoot, "config", "workspace.json"));
-  const localPath = join(repoRoot, "config", "local.sources.json");
+  const config = await readJson(join(repoRoot, "src", "config", "workspace.json"));
+  const localPath = join(repoRoot, "src", "config", "local.sources.json");
   const local = existsSync(localPath) ? await readJson(localPath) : { bindings: {} };
   const entry = [...(config.tools ?? []), ...(config.sources ?? [])].find((item) => item.id === id);
   if (!entry) throw new Error("Unknown registered id: " + id);
@@ -273,5 +273,5 @@ async function run(recipePath) {
 }
 
 const [recipePath] = process.argv.slice(2);
-if (!recipePath) throw new Error("Usage: node scripts/extract-catalog-boundary.mjs <recipe-path>");
+if (!recipePath) throw new Error("Usage: node tools/analysis/extract-catalog-boundary.mjs <recipe-path>");
 await run(recipePath);

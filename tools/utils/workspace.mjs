@@ -1,8 +1,9 @@
-import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "..", "..");
@@ -245,6 +246,23 @@ async function searchCommand(query, options) {
   await runTool("python", args);
 }
 
+// static-validate 子命令：静态校验编排器入口
+async function staticValidateCommand(projectId, options) {
+  const validateScript = join(scriptDir, "..", "analysis", "static-validate.mjs");
+  if (!existsSync(validateScript)) throw new Error("static-validate.mjs 不存在: " + validateScript);
+
+  const args = [validateScript];
+  if (options.request) {
+    args.push("--request", options.request);
+    if (options.outDir) args.push("--out-dir", options.outDir);
+  } else {
+    args.push(projectId);
+    if (options.stage) args.push("--stage", options.stage);
+  }
+
+  await runTool("node", args);
+}
+
 // 解析 --key value 形式的选项
 function parseOptions(argv) {
   const opts = {};
@@ -285,6 +303,11 @@ if (command === "validate") {
   // workspace.mjs observe --port <n> [--duration <s>] [--scenario <file>] [--out-dir <dir>]
   const opts = parseOptions(process.argv.slice(3));
   await observeCommand(opts);
+} else if (command === "static-validate") {
+  // workspace.mjs static-validate <project-id> [--stage <stage-dir>]
+  // workspace.mjs static-validate --request <request.json> --out-dir <dir>
+  const opts = parseOptions(process.argv.slice(3));
+  await staticValidateCommand(argument, opts);
 } else if (command === "search") {
   // workspace.mjs search "<question>" [--top-k <n>]
   const opts = parseOptions(process.argv.slice(3));
