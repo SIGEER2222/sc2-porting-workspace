@@ -34,11 +34,27 @@ function Convert-TestCommanderToCommanderPowerKey {
 $cmre = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\cmre-alenger-dependencies.json") -Raw | ConvertFrom-Json
 $alenger = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\alenger-mods.json") -Raw | ConvertFrom-Json
 $isAlengerCommander = $false
+# alengerId 始终是 alenger-mods.json 中 commanderToAlenger / commanderProfiles 的命名键
+# （如 TalDarim、Empire）。WebUI 传入的 runtime_commander 形如 ProtossAlenger4，
+# 需要通过 alengerIdToName 映射回命名键。
+$alengerId = ''
 $alengerNames = 'SteelWall|Behemoth|Empire|TalDarim|Abathur|Khalai|Zagara|Pirate|Amon|Community|Ranger|Purifier'
 if ($Commander -match "^(Terran|Zerg|Protoss)?($alengerNames)$") {
     $isAlengerCommander = $true
     $alengerId = $Matches[2]
     if ($alenger.commanderToAlenger.PSObject.Properties.Name -notcontains $alengerId) { throw "No on-demand package mapping for $Commander" }
+} elseif ($Commander -match '^(Terran|Zerg|Protoss)?(Alenger\d+)$') {
+    # WebUI / commander-power-metadata.json 使用 RaceAlengerN（如 ProtossAlenger4）作为 runtime_commander。
+    # 通过 alengerIdToName 把 AlengerN 映射为命名键（如 Alenger4 → TalDarim）。
+    $alengerNumberKey = $Matches[2]
+    if ($alenger.PSObject.Properties.Name -notcontains 'alengerIdToName' -or
+        $alenger.alengerIdToName.PSObject.Properties.Name -notcontains $alengerNumberKey) {
+        throw "No alengerIdToName mapping for $Commander (key: $alengerNumberKey)"
+    }
+    $alengerId = $alenger.alengerIdToName.$alengerNumberKey
+    $isAlengerCommander = $true
+    Write-Host "Mapped $Commander -> $alengerId via alengerIdToName"
+    if ($alenger.commanderToAlenger.PSObject.Properties.Name -notcontains $alengerId) { throw "No on-demand package mapping for $Commander (resolved: $alengerId)" }
 } else {
     $validOfficial = @('Raynor','Nova','Swann','Mengsk','Tychus','Kerrigan','Abathur','Stukov','Zagara','Stetmann','Dehaka','Artanis','Vorazun','Karax','Alarak','Fenix','Zeratul','Talandar','Horner','MiraHan','Han','Horu')
     if ($Commander -match '^(Terran|Zerg|Protoss)([A-Za-z]+)$') {
