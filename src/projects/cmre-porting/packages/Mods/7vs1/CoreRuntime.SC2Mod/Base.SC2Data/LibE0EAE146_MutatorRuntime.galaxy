@@ -1,0 +1,157 @@
+//--------------------------------------------------------------------------------------------------
+// 7v1 optional mutator runtime bridge.
+//--------------------------------------------------------------------------------------------------
+
+// Mutator id<->index and attribute_value<->id lookups, plus the count constants, are
+// provided data-driven by LibE0EAE146_MutatorCatalog.galaxy (generated from
+// Shared/Mutators/mutator-ids.json). The previous hardcoded lists were migrated into
+// that catalog; this file retains only the runtime/preset/bank bridging logic.
+
+int libE0EAE146_gf_MutatorRuntimeBankIntOrDefault (string lp_key, int lp_defaultValue) {
+    BankLoad("CampaignXCore", 1);
+    if (!BankKeyExists(BankLastCreated(), "Mutators", lp_key)) {
+        return lp_defaultValue;
+    }
+    return BankValueGetAsInt(BankLastCreated(), "Mutators", lp_key);
+}
+
+string libE0EAE146_gf_MutatorRuntimeSelectedKey (string lp_mutator) {
+    return "Selected." + lp_mutator;
+}
+
+// gf_MutatorRuntimeId and gf_MutatorRuntimeAttributeId are thin wrappers around the
+// data-driven catalog so existing call sites keep working unchanged.
+string libE0EAE146_gf_MutatorRuntimeId (int lp_index) {
+    return libE0EAE146_gf_MutatorIdByIndex(lp_index);
+}
+
+string libE0EAE146_gf_MutatorRuntimeAttributeId (string lp_attributeValue) {
+    return libE0EAE146_gf_MutatorIdByAttribute(lp_attributeValue);
+}
+
+int libE0EAE146_gf_MutatorRuntimePresetContains (int lp_preset, string lp_mutator) {
+    if ((lp_preset >= 1) && (lp_mutator == "UnitSpeed")) {
+        return 1;
+    }
+    if ((lp_preset >= 2) && ((lp_mutator == "Avenger") || (lp_mutator == "Barrier"))) {
+        return 1;
+    }
+    if ((lp_preset >= 3) && ((lp_mutator == "HybridNuke") || (lp_mutator == "VoidRifts"))) {
+        return 1;
+    }
+    return 0;
+}
+
+void libE0EAE146_gf_MutatorRuntimeClearAllMutators () {
+    int lv_i;
+    string lv_mutator;
+
+    lv_i = 1;
+    for ( ; ( lv_i <= libE0EAE146_gv_mutatorIdCount ) ; lv_i += 1 ) {
+        lv_mutator = libE0EAE146_gf_MutatorRuntimeId(lv_i);
+        if (lv_mutator != "") {
+            libA070801C_gf_EnableDisableMutator(false, lv_mutator);
+        }
+    }
+}
+
+int libE0EAE146_gf_MutatorRuntimeEnableSelectedFromBank (int lp_preset) {
+    int lv_i;
+    int lv_hasSelectedKey;
+    int lv_enabledCount;
+    string lv_mutator;
+    string lv_key;
+
+    BankLoad("CampaignXCore", 1);
+    lv_hasSelectedKey = 0;
+    lv_enabledCount = 0;
+    lv_i = 1;
+    for ( ; ( lv_i <= libE0EAE146_gv_mutatorIdCount ) ; lv_i += 1 ) {
+        lv_mutator = libE0EAE146_gf_MutatorRuntimeId(lv_i);
+        lv_key = libE0EAE146_gf_MutatorRuntimeSelectedKey(lv_mutator);
+        if (BankKeyExists(BankLastCreated(), "Mutators", lv_key)) {
+            lv_hasSelectedKey = 1;
+            if (BankValueGetAsInt(BankLastCreated(), "Mutators", lv_key) > 0) {
+                libA070801C_gf_EnableDisableMutator(true, lv_mutator);
+                lv_enabledCount += 1;
+            }
+        }
+    }
+
+    if (lv_hasSelectedKey == 0) {
+        lv_i = 1;
+        for ( ; ( lv_i <= libE0EAE146_gv_mutatorIdCount ) ; lv_i += 1 ) {
+            lv_mutator = libE0EAE146_gf_MutatorRuntimeId(lv_i);
+            if (libE0EAE146_gf_MutatorRuntimePresetContains(lp_preset, lv_mutator) > 0) {
+                libA070801C_gf_EnableDisableMutator(true, lv_mutator);
+                lv_enabledCount += 1;
+            }
+        }
+    }
+    return lv_enabledCount;
+}
+
+void libE0EAE146_gf_MutatorRuntimeStartFromBank (int lp_enemyPlayer) {
+    int lv_enabled;
+    int lv_preset;
+    int lv_enabledCount;
+
+    if (libE0EAE146_gv_mutatorRuntimeStarted) {
+        return;
+    }
+
+    lv_enabled = libE0EAE146_gf_MutatorRuntimeBankIntOrDefault("Enabled", 0);
+    lv_preset = libE0EAE146_gf_MutatorRuntimeBankIntOrDefault("Preset", 0);
+    if (lv_enabled <= 0) {
+        return;
+    }
+
+    if (lv_preset < 0) {
+        lv_preset = 0;
+    }
+    if (lv_preset > 3) {
+        lv_preset = 3;
+    }
+
+    libE0EAE146_gf_MutatorRuntimeClearAllMutators();
+    libA070801C_gf_EnableMutatorCustomMode();
+    lv_enabledCount = libE0EAE146_gf_MutatorRuntimeEnableSelectedFromBank(lv_preset);
+    if (lv_enabledCount <= 0) {
+        return;
+    }
+
+    libA070801C_gf_StartAllEnabledMutators(lp_enemyPlayer);
+    libE0EAE146_gv_mutatorRuntimeStarted = true;
+    libE0EAE146_gv_mutatorRuntimePreset = lv_preset;
+}
+
+void libE0EAE146_gf_MutatorRuntimeStartFromAttribute (int lp_enemyPlayer) {
+    string lv_mutatorChoice;
+    string lv_mutator;
+
+    if (libE0EAE146_gv_mutatorRuntimeStarted) {
+        return;
+    }
+
+    libE0EAE146_gf_MutatorRuntimeStartFromBank(lp_enemyPlayer);
+    if (libE0EAE146_gv_mutatorRuntimeStarted) {
+        return;
+    }
+
+    lv_mutatorChoice = GameAttributeGameValue("[bnet:local/0.0/223536]11");
+    if ((lv_mutatorChoice == "") || (lv_mutatorChoice == "0001")) {
+        return;
+    }
+
+    lv_mutator = libE0EAE146_gf_MutatorRuntimeAttributeId(lv_mutatorChoice);
+    if (lv_mutator == "") {
+        return;
+    }
+
+    libE0EAE146_gf_MutatorRuntimeClearAllMutators();
+    libA070801C_gf_EnableMutatorCustomMode();
+    libA070801C_gf_EnableDisableMutator(true, lv_mutator);
+    libA070801C_gf_StartAllEnabledMutators(lp_enemyPlayer);
+    libE0EAE146_gv_mutatorRuntimeStarted = true;
+    libE0EAE146_gv_mutatorRuntimePreset = 0;
+}

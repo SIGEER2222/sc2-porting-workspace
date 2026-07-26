@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CEffectApplyBehavior id="StimpackRaynorApply">
+    <Behavior value="StimpackRaynor" />
+    <WhichUnit Value="Source" />
+    <Marker Link="Effect/Stimpack" />
+  </CEffectApplyBehavior>
+  <CEffectCreatePersistent id="InfestedStukovCoopInfestedTerrans">
+    <EditorCategories value="Race:Zerg" />
+    <PeriodCount value="4" />
+    <PeriodicEffectArray value="InfestedStukovCoopInfestedTerransLayEgg" />
+    <ValidatorArray value="CliffLevelGE1" />
+    <PeriodicPeriodArray value="0.125" />
+  </CEffectCreatePersistent>
+  <CEffectCreateUnit id="InfestedStukovCoopInfestedTerransLayEgg">
+    <EditorCategories value="Race:Zerg" />
+    <SpawnEffect value="InfestedStukovCoopInfestedTerransInitialSet" />
+    <SpawnUnit value="SIInfestedMarine" />
+    <ValidatorArray value="CliffLevelGE1" />
+    <SpawnRange value="5" />
+    <WhichLocation Value="TargetPoint" />
+    <CreateFlags index="Birth" value="0" />
+    <CreateFlags index="SetFacing" value="1" />
+  </CEffectCreateUnit>
+  <CEffectSet id="InfestedStukovCoopInfestedTerransInitialSet">
+    <EditorCategories value="Race:Zerg" />
+    <EffectArray value="KillsToCaster" />
+    <EffectArray value="InfestedStukovInfestedTerranTimedLife" />
+  </CEffectSet>
+  <CEffectModifyUnit id="AbathurMendHealSecondaryMU">
+    <EditorCategories value="" />
+    <VitalArray index="Life">
+      <Change value="1.6667" />
+    </VitalArray>
+  </CEffectModifyUnit>
+  <CEffectModifyUnit id="AbathurMendHealInitialMU">
+    <ValidatorArray value="LifeNotFull" />
+    <EditorCategories value="" />
+    <VitalArray index="Life">
+      <Change value="100" />
+    </VitalArray>
+  </CEffectModifyUnit>
+  <CEffectCreateHealer id="AbathurMendInitialHealer">
+    <EditorCategories value="" />
+    <ValidatorArray value="LifeNotFull" />
+    <Flags index="Channeled" value="0" />
+    <RechargeVitalRate value="100" />
+    <PeriodCount value="1" />
+    <PeriodicPeriod value="1" />
+  </CEffectCreateHealer>
+  <CEffectCreateHealer id="AbathurMendSecondaryHealer">
+    <EditorCategories value="" />
+    <Flags index="Channeled" value="0" />
+    <PeriodCount value="16" />
+    <RechargeVitalRate value="5" />
+  </CEffectCreateHealer>
+  <CEffectSet id="AbathurMendSet">
+    <EditorCategories value="" />
+    <EffectArray value="AbathurMendInitialHealer" />
+    <EffectArray value="AbathurMendAB" />
+    <ValidatorArray value="NotUnrepairable" />
+  </CEffectSet>
+  <CEffectApplyBehavior id="AbathurMendAB">
+    <EditorCategories value="Race:Protoss" />
+    <Behavior value="AbathurMendInitialHeal" />
+    <ValidatorArray value="TargetIsNotNonCommanderAlly" />
+  </CEffectApplyBehavior>
+  <CEffectApplyBehavior id="AbathurMendPeriodicHeal">
+    <EditorCategories value="Race:Protoss" />
+  </CEffectApplyBehavior>
+  <CEffectEnumArea id="AbathurMendSearch">
+    <EditorCategories value="Race:Zerg" />
+    <ImpactLocation Value="TargetPoint" />
+    <SearchFilters value="-;Neutral,Enemy,Missile,Destructible,Item,Stasis,Dead,Hidden" />
+    <AreaArray Radius="500" Effect="AbathurMendAB" />
+  </CEffectEnumArea>
+  <CEffectDamage id="MasteryAbathurMendHealInitialDisplayDummy" />
+  <CEffectDamage id="MasteryAbathurMendHealHOTDisplayDummy" />
+  <CEffectDamage id="MasteryAbathurMendHealDurationDisplayDummy" />
+  <CEffectDamage id="AbathurBiomassUltimateMaxStacksDummy" />
+  <CEffectEnumArea id="InfestedStukovCoopRegenAuraSearch">
+    <SearchFilters value="-;Neutral,Enemy,Structure,Stasis,Dead,Hidden" />
+    <AreaArray Radius="7" Effect="InfestedStukovCoopRegenAuraTarget" />
+    <SearchFlags index="ExtendByUnitRadius" value="1" />
+    <SearchFlags index="SameCliff" value="1" />
+    <ImpactLocation Value="TargetUnit" />
+  </CEffectEnumArea>
+  <CEffectApplyBehavior id="InfestedStukovCoopRegenAuraTarget">
+    <EditorCategories value="Race:Zerg" />
+    <ValidatorArray value="LifeNotFull" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="SIStukovMassNeuralParasiteInitialSet">
+    <EffectArray value="SIStukovMassNeuralParasiteSearch" />
+    <TargetLocationType value="Point" />
+  </CEffectSet>
+  <CEffectEnumArea id="SIStukovMassNeuralParasiteSearch">
+    <SearchFilters value="-;Player,Ally,Heroic,Missile,Destructible,Stasis,Dead,Hidden,Invulnerable" />
+    <AreaArray Radius="2" Effect="SIStukovMassNeuralParasiteDebuffAB" />
+    <ImpactLocation Value="TargetPoint" />
+    <MinCount value="1" />
+  </CEffectEnumArea>
+  <CEffectApplyBehavior id="SIStukovMassNeuralParasiteDebuffAB">
+    <Behavior value="SIStukovMassNeuralParasiteDebuff" />
+    <ValidatorArray value="NotHaveSIStukovMassNeuralParasite" />
+    <ValidatorArray value="TargetIsNotNonCommanderAlly" />
+    <ValidatorArray value="NoDarkArchonMindControlPrevention" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="SIStukovMassNeuralParasiteTargetSet">
+    <EffectArray value="SIStukovMassNeuralParasiteTargetAB" />
+    <EffectArray value="FullHealSource" />
+    <EffectArray value="StopMovingIssueStopOrder" />
+  </CEffectSet>
+  <CEffectApplyBehavior id="SIStukovMassNeuralParasiteTargetAB">
+    <Behavior value="SIStukovMassNeuralParasiteTarget" />
+    <WhichUnit Value="Source" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="SIStukovMassNeuralParasiteTargetExpireSet">
+    <EffectArray value="Suicide" />
+  </CEffectSet>
+  <CEffectSet id="HHStarportBirthDummy" />
+  <CEffectSet id="HHStarportDeathDummy" />
+
+  <CEffectCreateUnit id="TychusCalldownOdinCreateUnit">
+    <WhichLocation Value="TargetPoint" />
+    <SpawnEffect value="TychusCalldownOdinDamageSet" />
+    <SpawnUnit value="TychusOdin" />
+    <CreateFlags index="Placement" value="0" />
+    <CreateFlags index="ProvideFood" value="0" />
+    <CreateFlags index="UseFood" value="0" />
+    <SelectUnit Value="Caster" />
+  </CEffectCreateUnit>
+  <CEffectApplyBehavior id="TychusCalldownOdinApplyTimedLife">
+    <Behavior value="TychusOdinTimedLife" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="TychusCalldownOdinDamageSet">
+    <EffectArray value="TychusCalldownOdinApplyTimedLife" />
+    <EffectArray value="TychusCalldownSearchAreaPersistent" />
+    <TargetLocationType value="Point" />
+  </CEffectSet>
+  <CEffectCreatePersistent id="TychusCalldownSearchAreaPersistent">
+    <ExpireEffect value="TychusCalldownOdinSearchArea" />
+    <ExpireDelay value="0.8" />
+  </CEffectCreatePersistent>
+  <CEffectEnumArea id="TychusCalldownOdinSearchArea">
+    <AreaArray Radius="2" Effect="TychusCalldownOdinDamage" />
+    <SearchFilters value="-;Player,Ally,Structure,Missile,Stasis,Dead,Hidden,Invulnerable" />
+  </CEffectEnumArea>
+  <CEffectDamage id="TychusCalldownOdinDamage">
+    <Amount value="150" />
+  </CEffectDamage>
+  <CEffectApplyBehavior id="COOPHeroJustRevive" />
+  <CEffectSet id="KerriganReviveHeal">
+    <EffectArray value="COOPHeroJustRevive" />
+  </CEffectSet>
+  <CEffectModifyUnit id="KerriganReviveHealA">
+    <VitalArray index="Shields">
+      <ChangeFraction value="0" />
+    </VitalArray>
+  </CEffectModifyUnit>
+</Catalog>

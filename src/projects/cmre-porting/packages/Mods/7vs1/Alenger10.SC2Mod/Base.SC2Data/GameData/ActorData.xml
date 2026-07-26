@@ -1,0 +1,620 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CActorModel id="10shangshu" parent="ModelAnimationStyleContinuousUNIT">
+        <Inherits index="CastShadows" value="1"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <HostSiteOps Ops="SOpAttachOrigin SOpMoveUpBy1 SOpMoveUpByDot5"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+        <On Terms="Effect.10shangshuPersistentStart.Start" Send="Create"/>
+        <On Terms="Effect.10shangshuPersistentStart.Stop" Send="Destroy"/>
+    </CActorModel>
+    <CActorModel id="10hundunlingyu" parent="ModelAnimationStyleContinuousUNIT">
+        <Inherits index="CastShadows" value="1"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="LocalTintColor" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="TintColor" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <Inherits index="WarpGroup" value="1"/>
+        <On Terms="Behavior.10hundunlingyu.On" Send="Create"/>
+        <On Terms="Behavior.10hundunlingyu.Off" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpAttachOrigin SOpMoveDownBy2"/>
+        <Model value="10hundunlingyuModel"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+    </CActorModel>
+    <CActorModel id="10pingyijianglinModel" parent="ModelAnimationStyleContinuous">
+        <On Terms="Behavior.10pingyijianglin.Off" Send="AnimBracketStop BSD"/>
+        <On Terms="Behavior.10pingyijianglin.On" Send="Create"/>
+        <Host Subject="_Unit"/>
+        <HostSiteOps Ops="SOpAttachOrigin"/>
+        <Scale value="1.500000"/>
+    </CActorModel>
+    <CActorUnit id="10hunhetiliulangzhe" parent="GenericUnitStandard" unitName="10hunhetiliulangzhe">
+        <Aliases value="_UnitLarge"/>
+        <On index="64" Terms="WeaponStart.*.AttackStart" Send="AnimBracketStart Attack Spell"/>
+        <On index="65" Terms="WeaponStop.*.AttackStop" Send="AnimBracketStop Attack"/>
+        <On Terms="ActorCreation" Send="SetTintColor 128,192,255"/>
+        <On Terms="ActorCreation" Send="HaloStart"/>
+        <On Terms="ActorCreation" Send="HaloSetColor 0,128,255"/>
+        <Model value="HybridDestroyer"/>
+        <Scale value="0.500000"/>
+        <AnimBlendTime value="0.200000"/>
+        <BuildModel value="HybridDestroyer"/>
+        <DeathArray index="Normal" ModelLink="HybridProtossDeath" SoundLink="" VoiceLink=""/>
+        <PlacementModel value="HybridDestroyer"/>
+        <PortraitModel value="HybridProtossPortrait"/>
+        <BarOffset value="120"/>
+        <BarWidth value="66"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="Birth" value="HybridABirth"/>
+        <GroupSoundArray index="Ready" value="HybridAReady"/>
+        <GroupSoundArray index="Help" value="HybridAHelp"/>
+        <GroupSoundArray index="What" value="HybridAWhat"/>
+        <GroupSoundArray index="Yes" value="HybridAYes"/>
+        <GroupSoundArray index="Attack" value="HybridAYes"/>
+        <GroupSoundArray index="Pissed" value="HybridAPissed"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-frenzy.dds"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-ability-protoss-shieldrecharge.dds"/>
+        <SoundArray index="Help" value="HybridCHelp"/>
+        <SoundArray index="Attack" value="HybridDestroyer_Attack"/>
+        <SoundArray index="Movement" value="HybridCMovement"/>
+        <SoundArray index="Turning" value="HybridCTurning"/>
+        <SoundArray index="Board" value="HybridCBoard"/>
+        <SoundArray index="Click" value="HybridCClick"/>
+        <SoundArray index="ClickError" value="HybridCClickError"/>
+        <SoundArray index="Highlight" value="HybridCHighlight"/>
+        <UnitIcon value="Assets\Textures\BTN-Unit-xelnaga-destroyer.dds"/>
+        <UnitKillRank Text="UnitKillRank/Z02Hybrid"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer.dds"/>
+        </Wireframe>
+        <WireframeShield>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer-Shield01.dds"/>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer-Shield02.dds"/>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer-Shield03.dds"/>
+        </WireframeShield>
+    </CActorUnit>
+    <CActorUnit id="10hunhetihuimiezhe" parent="GenericUnitStandard" unitName="10hunhetihuimiezhe">
+        <Aliases value="_UnitHuge"/>
+        <On Terms="Abil.10miejuechongji.SourceCastStart" Send="AnimPlay Spell Stand,Work"/>
+        <On Terms="Signal.*.Birth" Send="$Birth 0 0.000000"/>
+        <On Terms="ActorCreation" Send="SetTintColor 255,128,128"/>
+        <On Terms="ActorCreation" Send="HaloStart"/>
+        <On Terms="ActorCreation" Send="HaloSetColor 255,0,0"/>
+        <Model value="10hunhetihuimiezheModel"/>
+        <AnimBlendTime value="0.200000"/>
+        <BuildModel value="HybridBehemothBirth"/>
+        <DeathArray index="Normal" ModelLink="HybridBehemothDeath" SoundLink="HybridZerg_Death"/>
+        <PlacementModel value="10hunhetihuimiezheModel"/>
+        <PortraitModel value="HybridBehemothPortrait"/>
+        <BarOffset value="200"/>
+        <BarWidth value="150"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-zerg-hybridbehemoth.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="Birth" value="HybridCBirth"/>
+        <GroupSoundArray index="Ready" value="HybridCReady"/>
+        <GroupSoundArray index="Help" value="HybridCHelp"/>
+        <GroupSoundArray index="What" value="HybridCWhat"/>
+        <GroupSoundArray index="Yes" value="HybridCYes"/>
+        <GroupSoundArray index="Attack" value="HybridCYes"/>
+        <GroupSoundArray index="Pissed" value="HybridCPissed"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-frenzy.dds"/>
+        <SoundArray index="Birth" value=""/>
+        <SoundArray index="Ready" value="HybridCReady"/>
+        <SoundArray index="Help" value="HybridCHelp"/>
+        <SoundArray index="What" value="HybridCWhat"/>
+        <SoundArray index="Yes" value="HybridCYes"/>
+        <SoundArray index="Attack" value="HybridCYes"/>
+        <SoundArray index="Pissed" value="HybridCPissed"/>
+        <SoundArray index="Movement" value="HybridCMovement"/>
+        <SoundArray index="Turning" value="HybridCTurning"/>
+        <SoundArray index="Board" value="HybridCBoard"/>
+        <SoundArray index="Click" value="HybridCClick"/>
+        <SoundArray index="ClickError" value="HybridCClickError"/>
+        <SoundArray index="Highlight" value="HybridCHighlight"/>
+        <UnitIcon value="Assets\Textures\tip_hybridbehemoth.dds"/>
+        <UnitKillRank Text="UnitKillRank/H05SHybrid"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-zerg-hybridbehemoth.dds"/>
+        </Wireframe>
+        <ShieldArmorIcon value="Assets\Textures\btn-ability-protoss-shieldrecharge.dds"/>
+    </CActorUnit>
+    <CActorUnit id="10hunhetichengfazhe" parent="GenericUnitStandard" unitName="10hunhetichengfazhe">
+        <Aliases value="_UnitLarge"/>
+        <On index="64" Terms="WeaponStart.*.AttackStart" Send="AnimBracketStart Attack Spell"/>
+        <On index="65" Terms="WeaponStop.*.AttackStop" Send="AnimBracketStop Attack"/>
+        <On index="66" Terms="Behavior.HybridSingularity.On" Send="ModelSwap HybridProtossBlackDeath"/>
+        <On index="67" Terms="Behavior.HybridSingularity.On" Send="$Birth"/>
+        <On Terms="ActorCreation" Send="SetTintColor 128,192,255"/>
+        <On Terms="ActorCreation" Send="HaloStart"/>
+        <On Terms="ActorCreation" Send="HaloSetColor 0,128,255"/>
+        <Model value="HybridDestroyer"/>
+        <AnimBlendTime value="0.200000"/>
+        <BuildModel value="HybridDestroyer"/>
+        <DeathArray index="Normal" ModelLink="HybridProtossDeath" SoundLink="Hybrid_Protoss_Death" VoiceLink="Hybrid_DeathFX"/>
+        <PlacementModel value="HybridDestroyer"/>
+        <PortraitModel value="HybridProtossPortrait"/>
+        <BarOffset value="120"/>
+        <BarWidth value="66"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="Birth" value="HybridABirth"/>
+        <GroupSoundArray index="Ready" value="HybridAReady"/>
+        <GroupSoundArray index="Help" value="HybridAHelp"/>
+        <GroupSoundArray index="What" value="HybridAWhat"/>
+        <GroupSoundArray index="Yes" value="HybridAYes"/>
+        <GroupSoundArray index="Attack" value="HybridAYes"/>
+        <GroupSoundArray index="Pissed" value="HybridAPissed"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-frenzy.dds"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-ability-protoss-shieldrecharge.dds"/>
+        <SoundArray index="Help" value="HybridCHelp"/>
+        <SoundArray index="Attack" value="HybridDestroyer_Attack"/>
+        <SoundArray index="Movement" value="HybridCMovement"/>
+        <SoundArray index="Turning" value="HybridCTurning"/>
+        <SoundArray index="Board" value="HybridCBoard"/>
+        <SoundArray index="Click" value="HybridCClick"/>
+        <SoundArray index="ClickError" value="HybridCClickError"/>
+        <SoundArray index="Highlight" value="HybridCHighlight"/>
+        <UnitIcon value="Assets\Textures\BTN-Unit-xelnaga-destroyer.dds"/>
+        <UnitKillRank Text="UnitKillRank/Z02Hybrid"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer.dds"/>
+        </Wireframe>
+        <WireframeShield>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer-Shield01.dds"/>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer-Shield02.dds"/>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer-Shield03.dds"/>
+        </WireframeShield>
+    </CActorUnit>
+    <CActorUnit id="10hunhetizhongjiezhe" parent="GenericUnitStandard" unitName="10hunhetizhongjiezhe">
+        <Aliases value="_UnitHuge"/>
+        <On index="64" Terms="WeaponStart.*.AttackStart" Send="AnimBracketStart Attack Spell"/>
+        <On index="65" Terms="WeaponStop.*.AttackStop" Send="AnimBracketStop Attack"/>
+        <On index="66" Terms="Abil.10qidiantansuo.SourcePrepStart" Send="AnimPlay Channel Stand,Channel"/>
+        <On index="67" Terms="Abil.10miejuechongji.SourcePrepStop" Send="AnimClear Channel"/>
+        <On index="68" Terms="Abil.10xukongliexi.SourceCastStart" Send="AnimPlay Spell Stand,Work NonLooping"/>
+        <On Terms="ActorCreation" Send="TimerSet 0.200000 Shadow"/>
+        <On Terms="Behavior.HybridDominatorVoidPsychicClonesSpawn.On" Send="SetOpacity"/>
+        <On Terms="Behavior.HybridDominatorVoidPsychicClonesSpawn.On" Send="Create HybridDominatorVoidPsychicClonesImpact"/>
+        <On Terms="Behavior.HybridDominatorVoidPsychicClonesSpawn.On" Send="SetOpacity 1.000000 0.500000"/>
+        <On Terms="Behavior.HybridDominatorVoidPsychicClonesCaster.On" Send="Create HybridDominatorVoidPsychicClonesCast"/>
+        <On Terms="Behavior.HybridDominatorVoidPsychicClonesCaster.On" Send="SetOpacity 0.000000 1.000000"/>
+        <On Terms="Behavior.HybridDominatorVoidPsychicClonesCaster.Off" Send="SetOpacity 1.000000 0.250000"/>
+        <On Terms="Behavior.HybridDominatorVoidPsychicClonesCaster.Off" Send="Create HybridDominatorVoidPsychicClonesCast"/>
+        <On Terms="TimerExpired; TimerName Shadow; IsStatus ShadowCreate 1" Send="Create HybridDominatorVoidShadow"/>
+        <On Terms="TimerExpired; TimerName Shadow" Send="TimerSet 0.200000 Shadow"/>
+        <On Terms="UnitMovementUpdate.*.Stand" Send="StatusSet ShadowCreate 0"/>
+        <On Terms="UnitMovementUpdate.*.Walk" Send="StatusSet ShadowCreate 1"/>
+        <On Terms="ActorCreation" Send="StatusSet ShadowCreate 0"/>
+        <On Terms="Signal.*.Smaller" Send="StatusSet HybridSize 1"/>
+        <On Terms="Signal.*.Bigger" Send="StatusSet HybridSize 3"/>
+        <On Terms="Signal.*.Birth" Send="$Birth 0 0.000000"/>
+        <On Terms="ActorCreation" Send="SetTintColor 192,255,192"/>
+        <On Terms="ActorCreation" Send="HaloStart"/>
+        <On Terms="ActorCreation" Send="HaloSetColor 128,255,128"/>
+        <Model value="10hunhetizhongjiezheModel"/>
+        <AnimBlendTime value="0.200000"/>
+        <BuildModel value="HybridWarpIn"/>
+        <DeathArray index="Normal" ModelLink="HybridDominatorVoidDeath" SoundLink="Hybrid_Protoss_Death" VoiceLink="HybridADeath"/>
+        <PlacementModel value="10hunhetizhongjiezheModel"/>
+        <PortraitModel value="HybridDominatorVoidPortrait"/>
+        <BarDistance value="42"/>
+        <BarOffset value="120"/>
+        <BarWidth value="90"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\tip_hybriddominator.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-frenzy.dds"/>
+        <SoundArray index="Birth" value="Hybrid_Birth"/>
+        <SoundArray index="Ready" value="Hybrid_Ready"/>
+        <SoundArray index="What" value="Hybrid_What"/>
+        <SoundArray index="Yes" value="Hybrid_Yes"/>
+        <SoundArray index="Attack" value="Hybrid_Attack"/>
+        <SoundArray index="Pissed" value="Hybrid_Pissed"/>
+        <UnitIcon value="Assets\Textures\tip_hybriddominator.dds"/>
+        <UnitKillRank Text="UnitKillRank/H05SHybrid"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer.dds"/>
+        </Wireframe>
+        <WireframeShield>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer-Shield01.dds"/>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer-Shield02.dds"/>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Destroyer-Shield03.dds"/>
+        </WireframeShield>
+        <ShieldArmorIcon value="Assets\Textures\btn-ability-protoss-shieldrecharge.dds"/>
+    </CActorUnit>
+    <CActorUnit id="10hunhetifuchouzhe" parent="GenericUnitStandard" unitName="10hunhetifuchouzhe">
+        <Aliases value="_UnitHuge"/>
+        <On Terms="Behavior.HybridZerg_WarpIn.On" Send="SetOpacity"/>
+        <On Terms="Behavior.HybridZerg_WarpIn.Off" Send="SetOpacity 1.000000"/>
+        <On Terms="ActorCreation" Send="SetTintColor 128,192,255"/>
+        <On Terms="ActorCreation" Send="HaloStart"/>
+        <On Terms="ActorCreation" Send="HaloSetColor 0,128,255"/>
+        <Model value="HybridReaver"/>
+        <AnimBlendTime value="0.200000"/>
+        <BuildModel value="HybridReaver"/>
+        <DeathArray index="Normal" ModelLink="HybridZergDeath" SoundLink="HybridZerg_Death"/>
+        <DeathActorSound value="Hybrid_Dominator_Void_Death"/>
+        <PlacementModel value="HybridReaver"/>
+        <PortraitModel value="HybridZergPortrait"/>
+        <BarOffset value="120"/>
+        <BarWidth value="66"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Viper.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="Birth" value="HybridABirth"/>
+        <GroupSoundArray index="Ready" value="HybridAReady"/>
+        <GroupSoundArray index="Help" value="HybridAHelp"/>
+        <GroupSoundArray index="What" value="HybridAWhat"/>
+        <GroupSoundArray index="Yes" value="HybridAYes"/>
+        <GroupSoundArray index="Attack" value="HybridAYes"/>
+        <GroupSoundArray index="Pissed" value="HybridAPissed"/>
+        <HighlightTooltip value="Unit/Name/HybridReaver"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-frenzy.dds"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-ability-protoss-shieldrecharge.dds"/>
+        <SoundArray index="Birth" value="HybridCBirth"/>
+        <SoundArray index="Ready" value="HybridCReady"/>
+        <SoundArray index="Help" value="HybridCHelp"/>
+        <SoundArray index="What" value="HybridCWhat"/>
+        <SoundArray index="Yes" value="HybridCYes"/>
+        <SoundArray index="Attack" value="HybridCYes"/>
+        <SoundArray index="Pissed" value="HybridCPissed"/>
+        <SoundArray index="Movement" value="HybridCMovement"/>
+        <SoundArray index="Turning" value="HybridCTurning"/>
+        <SoundArray index="Board" value="HybridCBoard"/>
+        <SoundArray index="Click" value="HybridCClick"/>
+        <SoundArray index="ClickError" value="HybridCClickError"/>
+        <SoundArray index="Highlight" value="HybridCHighlight"/>
+        <UnitIcon value="Assets\Textures\BTN-Unit-xelnaga-viper.dds"/>
+        <UnitKillRank Text="UnitKillRank/H05SHybrid"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Hybrid-Viper.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorUnit id="10hunhetidiaolingzhe" parent="GenericUnitStandard" unitName="10hunhetidiaolingzhe">
+        <Aliases value="_UnitHuge"/>
+        <Remove Terms="WeaponStart.*.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="Abil.HybridNemesisStream.SourceChannelStart" Send="$Spell PlayForever"/>
+        <On Terms="Abil.HybridNemesisStream.SourceChannelStop" Send="AnimClear Spell"/>
+        <On Terms="WeaponStart.*.AttackStart" Send="AnimBracketStart Attack Work,Start Work"/>
+        <On Terms="ActorCreation" Send="SetTintColor 128,192,255"/>
+        <On Terms="ActorCreation" Send="HaloStart"/>
+        <On Terms="ActorCreation" Send="HaloSetColor 0,128,255"/>
+        <Model value="10hunhetidiaolingzheModel"/>
+        <EventDataFootprint index="0" Actor="UnitFootprint" Model="QueenFootprint"/>
+        <BuildModel value="10hunhetidiaolingzheModel"/>
+        <DeathArray index="Normal" ModelLink="HybridNemesisDeath" SoundLink="" VoiceLink="Hybrid_Zerg_Death"/>
+        <DeathCustoms ModelLink="ZergLargeUnitDeathLow" Name="AntiGravZerg"/>
+        <PlacementModel value="10hunhetidiaolingzheModel"/>
+        <PortraitModel value="HybridNemesisPortrait"/>
+        <WalkAnimMoveSpeed value="1.7031"/>
+        <BarOffset value="75"/>
+        <ErrorArray Error="CantSeeBuildLocation" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantSeeLandLocation" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantBuildLocationInvalid" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantLandLocationInvalid" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-protoss-hybridnemesis.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="What" value="Queen_GroupWhat"/>
+        <GroupSoundArray index="Yes" value="Queen_GroupYes"/>
+        <GroupSoundArray index="Attack" value="Queen_GroupAttack"/>
+        <GroupSoundArray index="Board" value="Queen_GroupBoard"/>
+        <HeroIcon value="Assets\Textures\tip_hybridnemesis.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-frenzy.dds"/>
+        <MovementHerdNode value="HerdNode_ZergQueens"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-ability-protoss-shieldrecharge.dds"/>
+        <SoundArray index="Birth" value="HybridDBirth"/>
+        <SoundArray index="Ready" value="HybridZerg_Roar"/>
+        <SoundArray index="Help" value="QueenHelp"/>
+        <SoundArray index="What" value="QueenWhat"/>
+        <SoundArray index="Yes" value="QueenYes"/>
+        <SoundArray index="Attack" value="HybridF_Attack_vox"/>
+        <SoundArray index="Pissed" value="Queen_Pissed"/>
+        <SoundArray index="Movement" value="zQueen_moveLoop"/>
+        <SoundArray index="Turning" value="Queen_Turning"/>
+        <SoundArray index="Board" value="Queen_Board"/>
+        <SoundArray index="Click" value="Queen_Click"/>
+        <SoundArray index="ClickError" value="Queen_ClickError"/>
+        <SoundArray index="Highlight" value="Queen_Highlight"/>
+        <UnitFlags index="StandAnimBirthVariation" value="0"/>
+        <UnitIcon value="Assets\Textures\tip_hybridnemesis.dds"/>
+        <UnitKillRank Text="UnitKillRank/H05SHybrid"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-protoss-hybridnemesis.dds"/>
+        </Wireframe>
+        <WireframeShield>
+            <Image value="Assets\Textures\wireframe-protoss-hybridnemesis-shield01.dds"/>
+            <Image value="Assets\Textures\wireframe-protoss-hybridnemesis-shield02.dds"/>
+            <Image value="Assets\Textures\wireframe-protoss-hybridnemesis-shield03.dds"/>
+        </WireframeShield>
+    </CActorUnit>
+    <CActorAction id="10lingnengchongjiAttack" parent="GenericAttack" effectImpact="10lingnengchongjiDamage" effectLaunch="10lingnengchongjiLaunch">
+        <LaunchAssets Sound="HybridDAttackLaunch"/>
+        <Missile value="HybridDAttackMissile"/>
+        <ImpactMap index="None" Model="HybridDAttackImpact" Sound="HybridDAttackImpact"/>
+    </CActorAction>
+    <CActorModel id="10weixingzheyuemaichongModel" parent="ModelAnimationStyleContinuousUNIT">
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <Inherits index="WarpGroup" value="1"/>
+        <On Terms="Behavior.10weixingzheyuemaichong.On" Send="Create"/>
+        <On Terms="Behavior.10weixingzheyuemaichong.Off" Send="AnimBracketStop BSD"/>
+        <Host Subject="_Unit"/>
+        <HostSiteOps Ops="SOpAttachOrigin"/>
+        <Scale value="0.100000"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+    </CActorModel>
+    <CActorModel id="10zhongxinglingnengchongjiImpact" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.10zhongxinglingnengchongjiDamage.Start" Send="Create"/>
+        <On Terms="ActorCreation" Send="SetTintColor 0,128,255"/>
+        <Scale value="1.200000"/>
+    </CActorModel>
+    <CActorAction id="10zhongxinglingnengchongjiAttack" parent="GenericAttack" effectImpact="10zhongxinglingnengchongjiDamage" effectLaunch="10zhongxinglingnengchongjiLaunch">
+        <ImpactMap index="None" Sound="10zhongxinglingnengdanmuAttackImpact" ModelReaction="10zhongxinglingnengdanmuAttackImpactReaction"/>
+        <ImpactMap index="Shield" Sound="10zhongxinglingnengdanmuAttackImpactShield" ModelReaction="10zhongxinglingnengdanmuAttackImpactReactionShield"/>
+        <ImpactSiteOps Ops="SOpShadow SOpMoveUpBy1 SOpMoveUpByDot5"/>
+    </CActorAction>
+    <CActorModel id="10lingnengyaliguanghuan" parent="ModelAnimationStyleContinuousUNIT">
+        <Inherits index="CastShadows" value="1"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="LocalTintColor" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="TintColor" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <Inherits index="WarpGroup" value="1"/>
+        <On Terms="Behavior.10lingnengyaliguanghuanLarge.On" Send="Create"/>
+        <On Terms="Behavior.10lingnengyaliguanghuanLarge.Off" Send="AnimBracketStop BSD"/>
+        <On Terms="Behavior.10lingnengyaliguanghuanSmall.On" Send="Create"/>
+        <On Terms="Behavior.10lingnengyaliguanghuanSmall.Off" Send="AnimBracketStop BSD"/>
+        <On Terms="Behavior.10lingnengyaliguanghuanHide.On" Send="Create"/>
+        <On Terms="Behavior.10lingnengyaliguanghuanHide.Off" Send="AnimBracketStop BSD"/>
+        <On Terms="ActorCreation" Send="SetOpacity 0.750000"/>
+        <Host Subject="_Unit"/>
+        <HostSiteOps Ops="SOpAttachOrigin"/>
+        <Model value="10lingnengyaliguanghuanModel"/>
+        <AutoScaleFactor value="1.500000"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+    </CActorModel>
+    <CActorModel id="10routichongzuModel" parent="ModelAnimationStyleOneShotUNIT">
+        <On Terms="Effect.10routichongzuModify.Start" Send="Create"/>
+        <Host Subject="_Unit"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+    </CActorModel>
+    <CActorModel id="10xukongmaichongboLarge" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.10xukongmaichongboShieldModifyLarge.Start" Send="Create"/>
+        <HostSiteOps Ops="SOpAttachOrigin SOpMoveUpBy1"/>
+        <Model value="10xukongmaichongboModel"/>
+        <Scale value="0.800000"/>
+    </CActorModel>
+    <CActorModel id="10xukongmaichongboSmall" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.10xukongmaichongboShieldModifySmall.Start" Send="Create"/>
+        <HostSiteOps Ops="SOpAttachOrigin SOpMoveUpBy1"/>
+        <Model value="10xukongmaichongboModel"/>
+        <Scale value="0.400000"/>
+    </CActorModel>
+    <CActorModel id="10xukongmaichongboMedium" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.10xukongmaichongboShieldModifyMedium.Start" Send="Create"/>
+        <HostSiteOps Ops="SOpAttachOrigin SOpMoveUpBy1"/>
+        <Model value="10xukongmaichongboModel"/>
+        <Scale value="0.600000"/>
+    </CActorModel>
+    <CActorSound id="10diaolingfengbaoImpactSound" parent="SoundOneShot">
+        <On Terms="Behavior.10diaolingfengbao.On" Send="Create"/>
+        <Sound value="HighTemplar_PsionicStormImpact"/>
+    </CActorSound>
+    <CActorModel id="10diaolingfengbaoImpactModel" parent="ModelAnimationStyleContinuous">
+        <Inherits index="BaseModelScale" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <On Terms="Behavior.10diaolingfengbao.On" Send="Create"/>
+        <On Terms="Behavior.10diaolingfengbao.Off" Send="AnimBracketStop BSD"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <Model value="HighTemplarPsiStormImpact"/>
+        <AutoScaleFactor value="0.750000"/>
+    </CActorModel>
+    <CActorModel id="10diaolingfengbaoModel" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.10diaolingfengbaoPersistent.Start" Send="Create"/>
+        <On Terms="Effect.10diaolingfengbaoPersistent.Stop" Send="AnimBracketStop BSD"/>
+        <On Terms="ActorCreation; ValidatePlayer HaveVoidHighTemplarPsiStormFilter" Send="SetTintColor 0,255,0"/>
+        <On Terms="Effect.PsiStormShakurasPersistent.Start" Send="Create"/>
+        <On Terms="Effect.PsiStormShakurasPersistent.Stop" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Model value="HighTemplarPsiStormModel"/>
+        <Scale value="1.300000"/>
+    </CActorModel>
+    <CActorSound id="10diaolingfengbaoSound" parent="SoundContinuous">
+        <On Terms="Effect.10diaolingfengbaoPersistent.Start" Send="Create"/>
+        <On Terms="Effect.10diaolingfengbaoPersistent.Stop" Send="Destroy"/>
+        <On Terms="Effect.PsiStormShakurasPersistent.Start" Send="Create"/>
+        <On Terms="Effect.PsiStormShakurasPersistent.Stop" Send="Destroy"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Sound value="HighTemplar_PsionicStormLaunch"/>
+    </CActorSound>
+    <CActorAction id="10diaolinghongxiAttack" parent="GenericAttackBase">
+        <On Terms="Effect.10diaolinghongxiPersistent.Start" Send="Create"/>
+        <On Terms="Effect.HybridNemesisWeaponDamage.Start; FromEffectTreeDescendant" Send="ActionDamage"/>
+        <On Terms="Effect.10diaolinghongxiPersistent.Stop" Send="Destroy"/>
+        <LaunchSiteOps Ops="SOpAttachWeapon"/>
+        <Beam value="10diaolinghongxiBeam"/>
+        <ImpactSiteOps Ops="SOpAttachHarness SOpAttachVolumeNoVizEnhance SOpForwardLaunchGuide"/>
+        <AcquisitionYawHalfArc value="10.000000"/>
+        <ActionFlags index="AlignedImpactsAndDamages" value="1"/>
+        <ActionFlags index="LaunchForceSite" value="1"/>
+        <Lifetime value="-1.000000"/>
+    </CActorAction>
+    <CActorBeamSimple id="10diaolinghongxiBeam" parent="BeamSimpleAnimationStyleContinuous">
+        <On Terms="Effect.10diaolinghongxiPersistent.Stop; At Effect" Send="AnimBracketStop BSD"/>
+        <ModelFlags index="AutomateGlobalLoops" value="1"/>
+    </CActorBeamSimple>
+    <CActorSound id="10diaolinghongxiLoopSound" parent="SoundContinuous">
+        <On Terms="Effect.10diaolinghongxiPersistent.Start; At Caster" Send="Create"/>
+        <On Terms="Effect.10diaolinghongxiPersistent.Stop" Send="Destroy"/>
+        <Sound value="HybridNemesisWeaponLoop"/>
+    </CActorSound>
+    <CActorSound id="10diaolinghongxiStartSound" parent="SoundOneShot">
+        <On Terms="Effect.10diaolinghongxiPersistent.Start; At Target" Send="Create"/>
+        <Sound value="HybridNemesisWeaponStart"/>
+    </CActorSound>
+    <CActorSound id="10diaolinghongxiStopSound" parent="SoundOneShot">
+        <On Terms="Effect.10diaolinghongxiPersistent.Stop; At Caster" Send="Create"/>
+        <Sound value="HybridNemesisWeaponEnd"/>
+    </CActorSound>
+    <CActorMissile id="10zhongxinglingnengchongjiAttackMissile" parent="GenericAttackMissile" unitName="10zhongxinglingnengchongjiMissile">
+        <On Terms="ActorCreation" Send="Create VoidThrasherMissile_AttackLaunch"/>
+        <On Terms="ActorCreation" Send="Create VoidThrasherMissile_flyByLoop"/>
+        <Scale value="0.600000"/>
+    </CActorMissile>
+    <CActorModel id="10houcheshanxianBlinkIn" parent="ModelAnimationStyleOneShotNoOrphan">
+        <On Terms="Effect.10houcheshanxianBlink.Stop; At Source" Send="Create"/>
+        <On Terms="ActorCreation" Send="RefSet ::scope.Impact ::Self"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachOrigin SOpForwardScopeLaunch"/>
+    </CActorModel>
+    <CActorModel id="10houcheshanxianBlinkOut" parent="ModelAnimationStyleOneShotNoOrphan">
+        <On Terms="Effect.10houcheshanxianBlink.Start; At Source" Send="Create"/>
+        <On Terms="ActorCreation" Send="RefSet ::scope.Launch ::Self"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachOriginStationary SOpForwardZeratulAiur01"/>
+        <Model value="0houcheshanxianBlinkOut"/>
+    </CActorModel>
+    <CActorAction id="10xukongchongjiAttack" parent="GenericAttack" effectAttack="10xukongchongjiDamage">
+        <LaunchSiteOps Ops="SOpAttachWeapon"/>
+        <LaunchAttachQuery Methods="Weapon"/>
+        <LaunchAssets Sound="HybridProtoss_attack"/>
+    </CActorAction>
+    <CActorBeamSimple id="10xukongchongjiAttackBeam" parent="BeamSimpleAnimationStyleOneShot"/>
+    <CActorAction id="10qidiantansuoAttack" parent="GenericAttack" effectImpact="ZHybridPlasmaBlastDamage" effectLaunch="10qidiantansuoLaunch">
+        <LaunchAssets Sound="Hybrid_PlasmaBlastLaunch"/>
+        <ImpactSiteOps HoldPosition="1"/>
+        <ImpactMap index="None" Model="ZHybridPlasmaAttackImpact" Sound="Hybrid_PlasmaBlastImpact"/>
+        <ImpactModel value="ZHybridPlasmaAttackImpactModel"/>
+    </CActorAction>
+    <CActorModel id="10qidiantansuoCharge" parent="ModelAnimationStyleContinuous">
+        <On Terms="Abil.10qidiantansuo.SourcePrepStart" Send="Create"/>
+        <On Terms="Abil.10qidiantansuo.SourcePrepStop" Send="Destroy"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachWeapon"/>
+    </CActorModel>
+    <CActorSound id="10qidiantansuoChargeSound" parent="SoundContinuous">
+        <On Terms="Abil.10qidiantansuo.SourcePrepStart" Send="Create"/>
+        <On Terms="Abil.10qidiantansuo.SourcePrepStop" Send="Destroy"/>
+        <Host Subject="ZHybridPlasmaAttackChargeModel"/>
+        <Sound value="Hybrid_PlasmaBlastCharge"/>
+    </CActorSound>
+    <CActorMissile id="10qidiantansuoAttackMissile" parent="GenericAttackMissile" unitName="10qidiantansuoWeapon"/>
+    <CActorUnit id="10xukongliexi" parent="GenericUnitStandard" unitName="10xukongliexi">
+        <On Terms="ActorCreation" Send="Create VoidChasm_AmbienceLoopSound"/>
+        <On Terms="ActorCreation" Send="$Birth 0 0.000000"/>
+        <On Terms="AbilMorph.*.Start; MorphTo VoidChasm; MorphFrom VoidChasmDormant" Send="Create"/>
+        <On Terms="AbilMorph.*.Start; MorphTo VoidChasm; MorphFrom VoidChasmDormant" Send="AnimSetTimeScale Birth 0.600000"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo VoidChasm; MorphFrom VoidChasmDormant" Send="AnimSetTimeScale Birth 1.000000"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo VoidChasmDormant; MorphFrom VoidChasm" Send="Destroy"/>
+        <Model value="10xukongiexiModel"/>
+        <BuildModel value="10xukongiexiModel"/>
+        <PlacementModel value="10xukongiexiModel"/>
+        <PortraitActor value="AmonEx2Portrait"/>
+        <PortraitModel value="AmonEx2Portrait"/>
+        <BarOffset value="180"/>
+        <BarWidth value="85"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-protoss-voidrift.dds"/>
+        </GroupIcon>
+        <LifeArmorIcon value="Assets\Textures\amonshards _armor.dds"/>
+        <NameOffset value="70"/>
+        <SoundArray index="Birth" value="VoidChasm_Birth"/>
+        <UnitIcon value="Assets\Textures\voidrifts_coop.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-protoss-voidrift.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorAction id="10pohuainengliangAttack" parent="GenericAttack" effectImpact="10pohuainengliangDamage" effectLaunch="10pohuainengliangLaunch">
+        <LaunchAttachQuery Methods="Center"/>
+        <LaunchAssets Sound="SporeCannon_AttackLaunch"/>
+    </CActorAction>
+    <CActorMissile id="10pohuainengliangAttackMissile" parent="GenericAttackMissile" unitName="HybridBehemothAntiAirAttackWeapon">
+        <On index="0" Terms="UnitBirth.10pohuainengliangWeapon" Send="Create"/>
+        <Model value="10pohuainengliangWeapon"/>
+    </CActorMissile>
+    <CActorModel id="10miejuechongjiModel" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.10miejuechongjiDamage.Start" Send="Create"/>
+        <Model value="10miejuechongji"/>
+    </CActorModel>
+    <CActorModelMaterial id="10pingyijianglinGlaze" parent="GlazeParent">
+        <On Terms="Behavior.10pingyijianglin.On" Send="Create"/>
+        <On Terms="ActorCreation" Send="ModelMaterialApplyTo ::Main"/>
+        <On Terms="Behavior.10pingyijianglin.Off" Send="Destroy"/>
+        <ModelFlags index="AutomateGlobalLoops" value="1"/>
+    </CActorModelMaterial>
+    <CActorUnit id="10hunhetisiliezhe" parent="GenericUnitStandard" unitName="10hunhetisiliezhe">
+        <On Terms="ActorCreation" Send="Create VoidThrasherGroundSkirt"/>
+        <On Terms="UnitDeathCustomize" Target="VoidThrasherGroundSkirt" Send="AnimBracketStop BSD"/>
+        <On Terms="Abil.10zhongxinglingnengdanmu.SourceChannelStart" Send="AnimBracketStart Spell Stand,Work,Start Stand,Work Stand,Work,End"/>
+        <On Terms="Abil.10shangshu.SourcePrepStart" Send="AnimBracketStart Work Stand,Work,Start Stand,Work Stand,Work,End"/>
+        <On Terms="Abil.*.SourceCastStart; AnimPlaying Birth" Send="AnimClear Birth"/>
+        <On Terms="ActorCreation" Send="SetTintColor 128,192,255"/>
+        <On Terms="ActorCreation" Send="HaloStart"/>
+        <On Terms="ActorCreation" Send="HaloSetColor 0,128,255"/>
+        <On Terms="Abil.10zhongxinglingnengdanmu.SourceChannelStop" Send="AnimBracketStop Spell"/>
+        <On Terms="Abil.10shangshu.SourceChannelStop" Send="AnimBracketStop Work"/>
+        <BuildModel value="NydusRumble"/>
+        <DeathArray index="Normal" ModelLink="NydusBeastDeath" SoundLink="Void_Thrasher_Death_LowEnd_Fx" VoiceLink="Void_Thrasher_Death_Fx"/>
+        <DeathArray index="UnderConstruction" ModelLink="ZergBuildingDeath" SoundLink="Zerg_ExplosionLarge"/>
+        <PlacementModel value="NydusBeast"/>
+        <PlacementSound value="Zerg_BuildingPlacement"/>
+        <PlacementActorModel value="ZergPlacementModel"/>
+        <PlaceholderActorModel value="ZergPlacementModel"/>
+        <PortraitModel value="NydusBeastPortrait"/>
+        <BarOffset value="225"/>
+        <BarWidth value="155"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Void-VoidThrasher.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="Birth" value="Yagdra_UnBurrow"/>
+        <HeroIcon value="Assets\Textures\tip_voidthrasher.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-ancillaryarmor.dds"/>
+        <NameOffset value="70"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-upgrade-protoss-shieldslevel2.dds"/>
+        <SoundArray index="Birth" value="Void_Thrasher_Birth_Fx"/>
+        <SoundArray index="Ready" value="NydusWorm_Ready"/>
+        <SoundArray index="What" value="NydusWorm_What"/>
+        <SoundArray index="Yes" value="NydusWorm_What"/>
+        <SoundArray index="Attack" value="Yagdra_Attack"/>
+        <SoundArray index="Construction" value="Zerg_BuildingMorphWhat"/>
+        <UnitFlags index="ShowBlobShadow" value="0"/>
+        <UnitIcon value="Assets\Textures\tip_voidthrasher.dds"/>
+        <UnitKillRank Text="UnitKillRank/10hunhetisiliezhe"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-protoss-voidthrasher.dds"/>
+        </Wireframe>
+        <WireframeShield>
+            <Image value="Assets\Textures\Wireframe-protoss-voidthrasher-shield01.dds"/>
+            <Image value="Assets\Textures\Wireframe-protoss-voidthrasher-shield02.dds"/>
+            <Image value="Assets\Textures\Wireframe-protoss-voidthrasher-shield03.dds"/>
+        </WireframeShield>
+    </CActorUnit>
+    <CActorAction id="10zhongxinglingnengdanmuAttack" parent="GenericAttack" effectImpact="10zhongxinglingnengchongjiDamage" effectLaunch="10zhongxinglingnengdanmuLaunch">
+        <Missile value="10zhongxinglingnengchongjiAttackMissile"/>
+        <ImpactMap index="None" Model="10zhongxinglingnengchongjiAttackImpact"/>
+    </CActorAction>
+    <CActorAction id="10zhongxinglingnengqisheAttack" parent="GenericAttack" effectImpact="10zhongxinglingnengchongjiDamage" effectLaunch="10zhongxinglingnengqisheLaunch">
+        <Missile value="10zhongxinglingnengchongjiAttackMissile"/>
+        <ImpactMap index="None" Model="10zhongxinglingnengchongjiAttackImpact"/>
+    </CActorAction>
+</Catalog>

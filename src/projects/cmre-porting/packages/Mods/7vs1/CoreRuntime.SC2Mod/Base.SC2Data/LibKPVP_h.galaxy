@@ -1,0 +1,65 @@
+include "TriggerLibs/natives"
+
+//--------------------------------------------------------------------------------------------------
+// Library: PVP
+//--------------------------------------------------------------------------------------------------
+// Variable Declarations
+int libKPVP_gv_alliance_tab;
+int[17] libKPVP_gv_commanders_names;
+int libKPVP_gv_alliance_button_dialog;
+int libKPVP_gv_alliance_button;
+text[16] libKPVP_gv_players_names;
+text[16] libKPVP_gv_players_commanders_names;
+playergroup libKPVP_gv_han_allies;
+playergroup libKPVP_gv_cOMMANDERS;
+playergroup libKPVP_gv_dehaka_players;
+playergroup libKPVP_gv_abathur_players;
+playergroup libKPVP_gv_tychus_players;
+playergroup libKPVP_gv_mengsk_players;
+int libKPVP_gv_observer;
+playergroup libKPVP_gv_observerGroup;
+playergroup libKPVP_gv_sTUKOV_ACTIVATED;
+
+// Function Declarations
+void libKPVP_gf_set_alliance_button ();
+text libKPVP_gf_mastery_tooltip_for_player (int lp_player);
+int libKPVP_gf_player_row (int lp_player);
+void libKPVP_gf_reset_tech_to_default_for_player (int lp_player);
+void libKPVP_gf_set_commander_for_player (string lp_commander, int lp_player);
+void libKPVP_gf_enable_upgrades_for_player (int lp_player, string lp_commander);
+void libKPVP_gf_STARTPVP ();
+void libKPVP_gf_apply_peace_time ();
+void libKPVP_gf_hide_own_nydus (unit lp_unit);
+void libKPVP_gf_hide_ally_nydus (unit lp_unit);
+void libKPVP_gf_StartingTechForHumanPlayer (int lp_player);
+void libKPVP_gf_set_resources (string lp_mineral_behavior, string lp_gas_behavior);
+void libKPVP_gf_apply_kerrigan_creep_bonus (int lp_player);
+void libKPVP_gf_reset_skins_for_player (int lp_player);
+void libKPVP_gf_set_difficulty_for_all_players ();
+void libKPVP_gf_share_essense_vision (unit lp_unit);
+point libKPVP_gf_get_point_for_zeratul_artifact (int lp_player, int lp_artifact_num);
+string libKPVP_gf_codex_commander_attribute_from_bank_key (string lp_bankKey);
+string libKPVP_gf_codex_commander_attribute_for_runtime_player (int lp_player);
+void libKPVP_gf_codex_apply_swann_worker_tech (int lp_player);
+void libKPVP_gf_codex_swann_init (int lp_player);
+void libKPVP_gf_codex_post_lobby_init ();
+string libKPVP_gf_CodexPrimaryCommanderName ();
+
+// Trigger Declarations
+trigger libKPVP_gt_alliance_button_pressed;
+trigger libKPVP_gt_player_defeated;
+trigger libKPVP_gt_init;
+trigger libKPVP_gt_show_panel;
+trigger libKPVP_gt_hide_panel;
+trigger libKPVP_gt_dehaka_devour;
+trigger libKPVP_gt_tooltips_for_units;
+trigger libKPVP_gt_StartingTech;
+trigger libKPVP_gt_NYDUS_CREATED;
+trigger libKPVP_gt_NYDUS_CREATED2;
+trigger libKPVP_gt_NYDUS_CREATED3;
+trigger libKPVP_gt_mengsk_colors;
+trigger libKPVP_gt_setobserver;
+
+// Library Initialization
+void libKPVP_InitVariables ();
+

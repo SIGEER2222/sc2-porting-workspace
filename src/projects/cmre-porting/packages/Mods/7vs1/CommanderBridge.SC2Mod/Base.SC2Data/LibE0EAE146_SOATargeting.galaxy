@@ -1,0 +1,711 @@
+// ============================================================================
+// LibE0EAE146_SOATargeting.galaxy
+// SOA (Strike-from-Above) Targeting system - consolidated from LibKMIS/LibKCUI/LibE0EAE146.
+// Self-contained module for the CommanderBridge layer.
+// ============================================================================
+
+// === 常量 ===
+const int libE0EAE146_ge_CM_SoATargetingPhaseType_None = 0;
+const int libE0EAE146_ge_CM_SoATargetingPhaseType_Location = 1;
+const int libE0EAE146_ge_CM_SoATargetingPhaseType_Direction = 2;
+const int libE0EAE146_gv_cMC_SOATARGETCOUNTMAX = 5;
+
+// === 全局变量 ===
+bool libE0EAE146_gv_cM_SoAExitInstantly;
+int[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingChargesSpent;
+int[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingChargesTotal;
+unit[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoACasterUnit;
+unitgroup[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoACasterGroup;
+int libE0EAE146_gv_cM_SoATargetingUsageCount;
+int[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingPhase;
+bool[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingTransitioning;
+bool[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingUnrefundableStageEntered;
+bool[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingAlreadyCanceled;
+string[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingModel;
+string[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingUnitType;
+unit[libE0EAE146_gv_cMC_SOATARGETCOUNTMAX + 1][libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingUnit;
+actor[libE0EAE146_gv_cMC_SOATARGETCOUNTMAX + 1][libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingActors;
+string[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingBehavior;
+string[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingActivateAbility;
+abilcmd[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingExecuteCommand;
+text[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingInstructionsPrimary;
+text[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingInstructionsSecondary;
+string[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingCooldown;
+order[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingOrder;
+unitgroup[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingDirectionGroup;
+bool[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cM_SoATargetingCycling;
+timer libE0EAE146_gv_cM_SoATimeFreezeTimer;
+timer libE0EAE146_gv_cM_SoASuperChronoTimer;
+
+// === 触发器声明 ===
+trigger libE0EAE146_gt_CM_SoAShiftCheatFailSafeThermal;
+trigger libE0EAE146_gt_CM_SoAShiftCheatFailSafeHHCallFleet;
+trigger libE0EAE146_gt_CM_SoAShiftCheatFailSafeNovaBombing;
+trigger libE0EAE146_gt_CM_SoATargetingForceOff;
+trigger libE0EAE146_gt_CM_SoATargetingDeactivated;
+trigger libE0EAE146_gt_CM_SoATargetingPointChosen;
+trigger libE0EAE146_gt_CM_SoATargetingDirectionChosen;
+trigger libE0EAE146_gt_CM_SoATargetingEffectFired;
+trigger libE0EAE146_gt_CM_SoATargetingCancel;
+trigger libE0EAE146_gt_CM_SoATargetingCancelFromUI;
+trigger libE0EAE146_gt_CM_SoATargetingCameraShake;
+trigger libE0EAE146_gt_CM_SoAOrbitalStrikeActivated;
+trigger libE0EAE146_gt_CM_SoAGravitonBombActivated;
+trigger libE0EAE146_gt_CM_SoAThermalLanceActivated;
+trigger libE0EAE146_gt_CM_SoATimeFreezeOn;
+trigger libE0EAE146_gt_CM_SoATimeFreezeCleanup;
+trigger libE0EAE146_gt_CM_SoASuperChronoApply;
+trigger libE0EAE146_gt_CM_SoASuperChronoCleanup;
+trigger libE0EAE146_gt_CM_SoAOrbitalStrikeActivatedKarax;
+
+// PurifierBeam triggers (moved from LibKMIS PM_SoA group)
+trigger libE0EAE146_gt_PM_SoATargetingPurifierBeamOn;
+trigger libE0EAE146_gt_PM_SoATargetingPurifierBeamOff;
+
+// === Auto-trigger globals for fog helpers ===
+trigger auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_Trigger = null;
+fixed auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_lp_targetAlpha;
+fixed auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_lp_duration;
+int auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_lp_player;
+
+trigger auto_libE0EAE146_gf_CM_ResetFogAlphaOverTime_Trigger = null;
+fixed auto_libE0EAE146_gf_CM_ResetFogAlphaOverTime_lp_duration;
+int auto_libE0EAE146_gf_CM_ResetFogAlphaOverTime_lp_player;
+
+// === UI 函数 (simplified stubs - KCUI dialog system not available in Bridge) ===
+void libE0EAE146_gf_CU_TargetingSetCharges (int lp_current, int lp_max, int lp_player) {
+    // Stub: KCUI targeting charge panel not available in Bridge layer.
+    // Real implementation requires libKCUI_gv_cU_TargetingChargeSinglePanel dialog controls.
+}
+
+void libE0EAE146_gf_CU_TargetingSetInstructionText (text lp_instructions, int lp_player) {
+    // Stub: KCUI targeting instructions label not available in Bridge layer.
+}
+
+int libE0EAE146_gf_CU_TargetingTriggeringPlayer () {
+    return DataTableGetInt(false, TriggerEventParamName(libKCUI_gv_cUC_TargetingEventCancel, libKCUI_gv_cUC_TargetingParamPlayer));
+}
+
+void libE0EAE146_gf_CU_TargetingCancel (trigger t) {
+    TriggerAddEventGeneric(t, libKCUI_gv_cUC_TargetingEventCancel);
+}
+
+// === 核心函数 ===
+void libE0EAE146_gf_CM_SoACasterUnitSet (unit lp_unit, int lp_player) {
+    libE0EAE146_gv_cM_SoACasterUnit[lp_player] = lp_unit;
+    libE0EAE146_gv_cM_SoACasterGroup[lp_player] = libNtve_gf_ConvertUnitToUnitGroup(lp_unit);
+}
+
+void libE0EAE146_gf_CM_SoATargetingModeEnter (int lp_player) {
+    int lv_count;
+
+    libE0EAE146_gv_cM_SoATargetingUnrefundableStageEntered[lp_player] = false;
+    libE0EAE146_gv_cM_SoATargetingAlreadyCanceled[lp_player] = false;
+    while (!((libE0EAE146_gv_cM_SoATargetingTransitioning[lp_player] == false))) {
+        Wait(0.0625, c_timeGame);
+    }
+    TriggerEnable(libE0EAE146_gt_CM_SoATargetingCancel, true);
+    libE0EAE146_gv_cM_SoAExitInstantly = false;
+    libE0EAE146_gv_cM_SoATargetingUsageCount += 1;
+    libE0EAE146_gv_cM_SoATargetingChargesSpent[lp_player] = 0;
+    libE0EAE146_gf_CU_TargetingSetCharges(libE0EAE146_gv_cM_SoATargetingChargesTotal[lp_player], libE0EAE146_gv_cM_SoATargetingChargesTotal[lp_player], lp_player);
+    if ((libE0EAE146_gv_cM_SoATargetingOrder[lp_player] != null)) {
+        TriggerEnable(libE0EAE146_gt_CM_SoATargetingPointChosen, true);
+        TriggerEnable(libE0EAE146_gt_CM_SoATargetingDirectionChosen, true);
+        UISetTargetingOrder(PlayerGroupSingle(lp_player), libE0EAE146_gv_cM_SoACasterGroup[lp_player], libE0EAE146_gv_cM_SoATargetingOrder[lp_player], false);
+        libE0EAE146_gv_cM_SoATargetingPhase[lp_player] = libE0EAE146_ge_CM_SoATargetingPhaseType_Location;
+    }
+    else {
+        libE0EAE146_gv_cM_SoATargetingPhase[lp_player] = libE0EAE146_ge_CM_SoATargetingPhaseType_None;
+    }
+    libE0EAE146_gv_cM_SoATargetingTransitioning[lp_player] = true;
+    libKCUI_gf_PU_TargetingUI_EnterTargetingMode(true, false, lp_player);
+    libE0EAE146_gf_CU_TargetingSetInstructionText(libE0EAE146_gv_cM_SoATargetingInstructionsPrimary[lp_player], lp_player);
+    libE0EAE146_gf_CM_SetFogAlphaOverTime(100.0, 0.5, lp_player);
+    CameraSetValue(lp_player, c_cameraValueDistance, 50.0, 1.0, -1, 10.0);
+    CameraSetValue(lp_player, c_cameraValuePitch, 70.0, 1.0, -1, 10.0);
+    CameraSetData(PlayerGroupSingle(lp_player), "SOATargetingModeCamera");
+    libE0EAE146_gv_cM_SoATargetingTransitioning[lp_player] = false;
+    libE0EAE146_gv_cM_SoATargetingCycling[lp_player] = false;
+}
+
+void libE0EAE146_gf_CM_SoATargetingModeExit (int lp_player) {
+    libE0EAE146_gv_cM_SoATargetingPhase[lp_player] = libE0EAE146_ge_CM_SoATargetingPhaseType_None;
+    while (!((libE0EAE146_gv_cM_SoATargetingTransitioning[lp_player] == false))) {
+        Wait(0.0625, c_timeGame);
+    }
+    libE0EAE146_gv_cM_SoATargetingTransitioning[lp_player] = true;
+    if ((libE0EAE146_gv_cM_SoAExitInstantly == true)) {
+        CameraSetValue(lp_player, c_cameraValueDistance, 34.0, 0.0, -1, 10.0);
+        CameraSetValue(lp_player, c_cameraValuePitch, 56.0, 0.0, -1, 10.0);
+    }
+    else {
+        CameraSetValue(lp_player, c_cameraValueDistance, 34.0, 0.5, -1, 10.0);
+        CameraSetValue(lp_player, c_cameraValuePitch, 56.0, 0.5, -1, 10.0);
+    }
+    CameraSetData(PlayerGroupSingle(lp_player), "Dflt");
+    if ((libE0EAE146_gv_cM_SoAExitInstantly == true)) {
+        VisResetFoWAlpha(lp_player);
+        libKCUI_gf_PU_TargetingUI_EnterTargetingMode(false, true, lp_player);
+    }
+    else {
+        libE0EAE146_gf_CM_ResetFogAlphaOverTime(0.5, lp_player);
+        libKCUI_gf_PU_TargetingUI_EnterTargetingMode(false, false, lp_player);
+    }
+    libNtve_gf_RestoreUnitSelection(lp_player);
+    libE0EAE146_gv_cM_SoATargetingActivateAbility[lp_player] = null;
+    libE0EAE146_gv_cM_SoATargetingTransitioning[lp_player] = false;
+    libE0EAE146_gv_cM_SoATargetingUsageCount -= 1;
+    if ((libE0EAE146_gv_cM_SoATargetingUsageCount == 0)) {
+        TriggerEnable(libE0EAE146_gt_CM_SoATargetingCancel, false);
+        TriggerEnable(libE0EAE146_gt_CM_SoATargetingPointChosen, false);
+        TriggerEnable(libE0EAE146_gt_CM_SoATargetingDirectionChosen, false);
+    }
+}
+
+void libE0EAE146_gf_CM_SoATargetingCleanupActorsAndUnits (int lp_player) {
+    int lv_index;
+    const int autoA7000234_ae = libE0EAE146_gv_cMC_SOATARGETCOUNTMAX;
+    const int autoA7000234_ai = 1;
+
+    lv_index = 1;
+    for ( ; ( (autoA7000234_ai >= 0 && lv_index <= autoA7000234_ae) || (autoA7000234_ai < 0 && lv_index >= autoA7000234_ae) ) ; lv_index += autoA7000234_ai ) {
+        if ((libE0EAE146_gv_cM_SoATargetingActors[lv_index][lp_player] != null)) {
+            ActorSend(libE0EAE146_gv_cM_SoATargetingActors[lv_index][lp_player], "Signal Destroy");
+            libE0EAE146_gv_cM_SoATargetingActors[lv_index][lp_player] = null;
+        }
+
+        if ((libE0EAE146_gv_cM_SoATargetingUnit[lv_index][lp_player] != null)) {
+            UnitRemove(libE0EAE146_gv_cM_SoATargetingUnit[lv_index][lp_player]);
+            libE0EAE146_gv_cM_SoATargetingUnit[lv_index][lp_player] = null;
+        }
+
+    }
+}
+
+// === Fog helper functions ===
+void libE0EAE146_gf_CM_SetFogAlphaOverTime (fixed lp_targetAlpha, fixed lp_duration, int lp_player) {
+    auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_lp_targetAlpha = lp_targetAlpha;
+    auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_lp_duration = lp_duration;
+    auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_lp_player = lp_player;
+
+    if (auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_Trigger == null) {
+        auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_Trigger = TriggerCreate("auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_TriggerFunc");
+    }
+
+    TriggerExecute(auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_Trigger, false, false);
+}
+
+bool auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_TriggerFunc (bool testConds, bool runActions) {
+    fixed lp_targetAlpha = auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_lp_targetAlpha;
+    fixed lp_duration = auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_lp_duration;
+    int lp_player = auto_libE0EAE146_gf_CM_SetFogAlphaOverTime_lp_player;
+
+    fixed lv_currentAlpha;
+    fixed lv_alphaIncrement;
+    fixed lv_incrementFrequency;
+    int lv_increments;
+
+    int autoE1EEDFCD_n;
+    int autoE1EEDFCD_i;
+
+    lv_incrementFrequency = 0.05;
+    lv_currentAlpha = VisGetFoWAlpha(lp_player);
+    lv_increments = AbsI(FixedToInt((lp_duration / lv_incrementFrequency)));
+    lv_alphaIncrement = ((lp_targetAlpha-lv_currentAlpha)/IntToFixed(lv_increments));
+    autoE1EEDFCD_n = lv_increments;
+    for (autoE1EEDFCD_i = 1; autoE1EEDFCD_i <= autoE1EEDFCD_n; autoE1EEDFCD_i += 1) {
+        Wait(lv_incrementFrequency, c_timeGame);
+        lv_currentAlpha += lv_alphaIncrement;
+        VisSetFoWAlpha(lp_player, lv_currentAlpha);
+    }
+    VisSetFoWAlpha(lp_player, lp_targetAlpha);
+    return true;
+}
+
+void libE0EAE146_gf_CM_ResetFogAlphaOverTime (fixed lp_duration, int lp_player) {
+    auto_libE0EAE146_gf_CM_ResetFogAlphaOverTime_lp_duration = lp_duration;
+    auto_libE0EAE146_gf_CM_ResetFogAlphaOverTime_lp_player = lp_player;
+
+    if (auto_libE0EAE146_gf_CM_ResetFogAlphaOverTime_Trigger == null) {
+        auto_libE0EAE146_gf_CM_ResetFogAlphaOverTime_Trigger = TriggerCreate("auto_libE0EAE146_gf_CM_ResetFogAlphaOverTime_TriggerFunc");
+    }
+
+    TriggerExecute(auto_libE0EAE146_gf_CM_ResetFogAlphaOverTime_Trigger, false, false);
+}
+
+bool auto_libE0EAE146_gf_CM_ResetFogAlphaOverTime_TriggerFunc (bool testConds, bool runActions) {
+    fixed lp_duration = auto_libE0EAE146_gf_CM_ResetFogAlphaOverTime_lp_duration;
+    int lp_player = auto_libE0EAE146_gf_CM_ResetFogAlphaOverTime_lp_player;
+
+    fixed lv_currentAlpha;
+    fixed lv_alphaIncrement;
+    fixed lv_incrementFrequency;
+    int lv_increments;
+    fixed lv_targetAlpha;
+
+    int auto26F5891F_n;
+    int auto26F5891F_i;
+
+    lv_incrementFrequency = 0.05;
+    lv_currentAlpha = VisGetFoWAlpha(lp_player);
+    VisResetFoWAlpha(lp_player);
+    lv_targetAlpha = VisGetFoWAlpha(lp_player);
+    lv_increments = AbsI(FixedToInt((lp_duration / lv_incrementFrequency)));
+    lv_alphaIncrement = ((lv_targetAlpha-lv_currentAlpha)/IntToFixed(lv_increments));
+    VisSetFoWAlpha(lp_player, lv_currentAlpha);
+    auto26F5891F_n = lv_increments;
+    for (auto26F5891F_i = 1; auto26F5891F_i <= auto26F5891F_n; auto26F5891F_i += 1) {
+        Wait(lv_incrementFrequency, c_timeGame);
+        lv_currentAlpha += lv_alphaIncrement;
+        VisSetFoWAlpha(lp_player, lv_currentAlpha);
+    }
+    VisResetFoWAlpha(lp_player);
+    return true;
+}
+
+void libE0EAE146_gf_CM_SoATargetingCancel (int lp_player) {
+    string lv_cost;
+    string lv_costField;
+
+    lv_cost = "";
+    lv_costField = "";
+
+    UnitIssueOrder(libE0EAE146_gv_cM_SoACasterUnit[lp_player], Order(AbilityCommand("stop", 0)), c_orderQueueReplace);
+    libE0EAE146_gv_cM_SoATargetingAlreadyCanceled[lp_player] = true;
+    libE0EAE146_gf_CM_SoATargetingCleanupActorsAndUnits(lp_player);
+    if ((libE0EAE146_gv_cM_SoATargetingUnitType[lp_player] != null) && (libE0EAE146_gv_cM_SoATargetingPhase[lp_player] == libE0EAE146_ge_CM_SoATargetingPhaseType_Direction)) {
+        libE0EAE146_gv_cM_SoATargetingChargesSpent[lp_player] -= 1;
+    }
+
+    if ((libE0EAE146_gv_cM_SoATargetingChargesSpent[lp_player] == 0) && (libE0EAE146_gv_cM_SoATargetingUnrefundableStageEntered[lp_player] == false)) {
+        libNtve_gf_UnitAbilityRemoveCooldown(libE0EAE146_gv_cM_SoACasterUnit[lp_player], libE0EAE146_gv_cM_SoATargetingActivateAbility[lp_player], libE0EAE146_gv_cM_SoATargetingCooldown[lp_player]);
+        lv_costField = ("Cost[0].Vital[" + "Energy" + "]");
+        lv_cost = CatalogFieldValueGet(c_gameCatalogAbil, libE0EAE146_gv_cM_SoATargetingActivateAbility[lp_player], (lv_costField), lp_player);
+        UnitSetPropertyFixed(libE0EAE146_gv_cM_SoACasterUnit[lp_player], c_unitPropEnergy, (UnitGetPropertyFixed(libE0EAE146_gv_cM_SoACasterUnit[lp_player], c_unitPropEnergy, c_unitPropCurrent) + StringToFixed(lv_cost)));
+        if ((TechTreeUpgradeCount(lp_player, "NovaCommander", c_techCountCompleteOnly) == 1)) {
+            PlayerModifyPropertyInt(lp_player, c_playerPropMinerals, c_playerPropOperAdd, libE0EAE146_gv_cM_NovaGriffinBombingRunCost[lp_player]);
+        }
+
+    }
+
+    UnitBehaviorRemove(libE0EAE146_gv_cM_SoACasterUnit[lp_player], libE0EAE146_gv_cM_SoATargetingBehavior[lp_player], 1);
+    libE0EAE146_gv_cM_SoATargetingUnrefundableStageEntered[lp_player] = true;
+    UISetTargetingOrder(PlayerGroupSingle(lp_player), libE0EAE146_gv_cM_SoACasterGroup[lp_player], null, false);
+    UISetTargetingOrder(PlayerGroupSingle(lp_player), libE0EAE146_gv_cM_SoATargetingDirectionGroup[lp_player], null, false);
+    libE0EAE146_gv_cM_SoATargetingChargesSpent[lp_player] = 0;
+    if ((libE0EAE146_gv_cM_SoATargetingPhase[lp_player] != libE0EAE146_ge_CM_SoATargetingPhaseType_None)) {
+        libE0EAE146_gf_CM_SoATargetingModeExit(lp_player);
+    }
+}
+
+void libE0EAE146_gf_CM_SoATimeFreezeApply (int lp_castingPlayer) {
+    PlayerCreateEffectPoint(lp_castingPlayer, "SOATimeFreezeVisual", Point(PointGetX(CameraGetTarget(lp_castingPlayer)), PointGetY(CameraGetTarget(lp_castingPlayer))));
+    libKCOR_gf_CC_TimeAITemporarySet(true);
+    TriggerEnable(libE0EAE146_gt_CM_SoATimeFreezeCleanup, true);
+    TimerStart(libE0EAE146_gv_cM_SoATimeFreezeTimer, CatalogFieldValueGetAsInt(c_gameCatalogBehavior, "SOATimeFreeze", "Duration", c_playerAny), false, c_timeGame);
+}
+
+// === 触发器函数 ===
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: CM_SoATargetingForceOff
+//--------------------------------------------------------------------------------------------------
+bool libE0EAE146_gt_CM_SoATargetingForceOff_Func (bool testConds, bool runActions) {
+    int lv_indexPlayer;
+    playergroup autoDA5C7614_g;
+
+    if (!runActions) {
+        return true;
+    }
+
+    TriggerEnable(libE0EAE146_gt_CM_SoATargetingCancel, false);
+    TriggerEnable(libE0EAE146_gt_CM_SoATargetingPointChosen, false);
+    TriggerEnable(libE0EAE146_gt_CM_SoATargetingDirectionChosen, false);
+    libE0EAE146_gv_cM_SoAExitInstantly = true;
+    autoDA5C7614_g = libE0EAE146_gf_CommanderPlayers();
+    lv_indexPlayer = -1;
+    while (true) {
+        lv_indexPlayer = PlayerGroupNextPlayer(autoDA5C7614_g, lv_indexPlayer);
+        if (lv_indexPlayer < 0) { break; }
+        if ((libE0EAE146_gv_cM_SoATargetingPhase[lv_indexPlayer] != libE0EAE146_ge_CM_SoATargetingPhaseType_None)) {
+            libE0EAE146_gv_cM_SoATargetingTransitioning[lv_indexPlayer] = false;
+            UISetTargetingOrder(PlayerGroupSingle(lv_indexPlayer), libE0EAE146_gv_cM_SoACasterGroup[lv_indexPlayer], null, false);
+            libE0EAE146_gf_CM_SoATargetingCancel(lv_indexPlayer);
+        }
+
+    }
+    libE0EAE146_gv_cM_SoATargetingUsageCount = 0;
+    return true;
+}
+
+void libE0EAE146_gt_CM_SoATargetingForceOff_Init () {
+    libE0EAE146_gt_CM_SoATargetingForceOff = TriggerCreate("libE0EAE146_gt_CM_SoATargetingForceOff_Func");
+    TriggerAddEventGeneric(libE0EAE146_gt_CM_SoATargetingForceOff, "CinematicModeOn");
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: CM_SoATargetingDeactivated
+//--------------------------------------------------------------------------------------------------
+bool libE0EAE146_gt_CM_SoATargetingDeactivated_Func (bool testConds, bool runActions) {
+    int lv_casterPlayer;
+
+    if (!runActions) {
+        return true;
+    }
+
+    lv_casterPlayer = UnitGetOwner(EventUnit());
+    UISetTargetingOrder(PlayerGroupSingle(lv_casterPlayer), libE0EAE146_gv_cM_SoACasterGroup[lv_casterPlayer], null, false);
+    libE0EAE146_gv_cM_SoATargetingChargesSpent[lv_casterPlayer] = 0;
+    libE0EAE146_gf_CM_SoATargetingModeExit(lv_casterPlayer);
+    return true;
+}
+
+void libE0EAE146_gt_CM_SoATargetingDeactivated_Init () {
+    libE0EAE146_gt_CM_SoATargetingDeactivated = TriggerCreate("libE0EAE146_gt_CM_SoATargetingDeactivated_Func");
+    TriggerAddEventUnitBehaviorChange(libE0EAE146_gt_CM_SoATargetingDeactivated, null, "SOAOrbitalStrikeActivate", c_unitBehaviorChangeDeactivate);
+    TriggerAddEventUnitBehaviorChange(libE0EAE146_gt_CM_SoATargetingDeactivated, null, "SOAGravitonBombActivate", c_unitBehaviorChangeDeactivate);
+    TriggerAddEventUnitBehaviorChange(libE0EAE146_gt_CM_SoATargetingDeactivated, null, "SOAThermalLanceActivate", c_unitBehaviorChangeDeactivate);
+    TriggerAddEventUnitBehaviorChange(libE0EAE146_gt_CM_SoATargetingDeactivated, null, "SOAStrafeAttackActivate", c_unitBehaviorChangeDeactivate);
+    TriggerAddEventUnitBehaviorChange(libE0EAE146_gt_CM_SoATargetingDeactivated, null, "NovaGriffinBombingRunActivate", c_unitBehaviorChangeDeactivate);
+    TriggerAddEventUnitBehaviorChange(libE0EAE146_gt_CM_SoATargetingDeactivated, null, "HornerAirFleetActivate", c_unitBehaviorChangeDeactivate);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: CM_SoATargetingPointChosen
+//--------------------------------------------------------------------------------------------------
+bool libE0EAE146_gt_CM_SoATargetingPointChosen_Func (bool testConds, bool runActions) {
+    point lv_targetPoint;
+    int lv_casterPlayer;
+
+    if (testConds) {
+        if (!((PlayerGroupHasPlayer(libE0EAE146_gf_CommanderPlayers(), EventPlayer()) == true))) {
+            return false;
+        }
+
+        if (!((libE0EAE146_gv_cM_SoATargetingPhase[EventPlayer()] == libE0EAE146_ge_CM_SoATargetingPhaseType_Location))) {
+            return false;
+        }
+
+        if (!((libE0EAE146_gv_cM_SoATargetingChargesSpent[EventPlayer()] < libE0EAE146_gv_cM_SoATargetingChargesTotal[EventPlayer()]))) {
+            return false;
+        }
+    }
+
+    if (!runActions) {
+        return true;
+    }
+
+    lv_targetPoint = OrderGetTargetPoint(EventUnitOrder());
+    lv_casterPlayer = EventPlayer();
+    if ((VisIsVisibleForPlayer(lv_casterPlayer, lv_targetPoint) == false)) {
+        return true;
+    }
+
+    libE0EAE146_gv_cM_SoATargetingCycling[lv_casterPlayer] = true;
+    libE0EAE146_gv_cM_SoATargetingChargesSpent[lv_casterPlayer] += 1;
+    libNtve_gf_CreateActorAtPoint(libE0EAE146_gv_cM_SoATargetingModel[lv_casterPlayer], lv_targetPoint);
+    libE0EAE146_gv_cM_SoATargetingActors[libE0EAE146_gv_cM_SoATargetingChargesSpent[lv_casterPlayer]][lv_casterPlayer] = libNtve_gf_ActorLastCreated();
+    libNtve_gf_CreateActorAtPoint("SOATargetingModeConfirmationSound", lv_targetPoint);
+    if ((libE0EAE146_gv_cM_SoATargetingUnitType[lv_casterPlayer] == null)) {
+        UnitIssueOrder(libE0EAE146_gv_cM_SoACasterUnit[lv_casterPlayer], OrderTargetingPoint(libE0EAE146_gv_cM_SoATargetingExecuteCommand[lv_casterPlayer], lv_targetPoint), c_orderQueueAddToEnd);
+        libE0EAE146_gf_CU_TargetingSetCharges((libE0EAE146_gv_cM_SoATargetingChargesTotal[lv_casterPlayer]-libE0EAE146_gv_cM_SoATargetingChargesSpent[lv_casterPlayer]), libE0EAE146_gv_cM_SoATargetingChargesTotal[lv_casterPlayer], lv_casterPlayer);
+        if ((libE0EAE146_gv_cM_SoATargetingChargesSpent[lv_casterPlayer] == libE0EAE146_gv_cM_SoATargetingChargesTotal[lv_casterPlayer])) {
+            Wait(0.125, c_timeGame);
+            UnitBehaviorRemove(libE0EAE146_gv_cM_SoACasterUnit[lv_casterPlayer], libE0EAE146_gv_cM_SoATargetingBehavior[lv_casterPlayer], 1);
+        }
+        else {
+            Wait(0.1, c_timeGame);
+            UISetTargetingOrder(PlayerGroupSingle(lv_casterPlayer), libE0EAE146_gv_cM_SoACasterGroup[lv_casterPlayer], libE0EAE146_gv_cM_SoATargetingOrder[lv_casterPlayer], false);
+        }
+    }
+    else {
+        libNtve_gf_CreateUnitsWithDefaultFacing(1, libE0EAE146_gv_cM_SoATargetingUnitType[lv_casterPlayer], 0, lv_casterPlayer, lv_targetPoint);
+        UnitSetState(UnitLastCreated(), c_unitStateTooltipable, false);
+        libE0EAE146_gv_cM_SoATargetingUnit[libE0EAE146_gv_cM_SoATargetingChargesSpent[lv_casterPlayer]][lv_casterPlayer] = UnitLastCreated();
+        libE0EAE146_gv_cM_SoATargetingDirectionGroup[lv_casterPlayer] = libNtve_gf_ConvertUnitToUnitGroup(libE0EAE146_gv_cM_SoATargetingUnit[libE0EAE146_gv_cM_SoATargetingChargesSpent[lv_casterPlayer]][lv_casterPlayer]);
+        Wait(0.1, c_timeGame);
+        if ((UnitIsValid(libE0EAE146_gv_cM_SoATargetingUnit[libE0EAE146_gv_cM_SoATargetingChargesSpent[lv_casterPlayer]][lv_casterPlayer]) == true)) {
+            UISetTargetingOrder(PlayerGroupSingle(lv_casterPlayer), libE0EAE146_gv_cM_SoATargetingDirectionGroup[lv_casterPlayer], OrderTargetingPoint(libE0EAE146_gv_cM_SoATargetingExecuteCommand[lv_casterPlayer], UnitGetPosition(libE0EAE146_gv_cM_SoATargetingUnit[libE0EAE146_gv_cM_SoATargetingChargesSpent[lv_casterPlayer]][lv_casterPlayer])), false);
+            libE0EAE146_gf_CU_TargetingSetInstructionText(libE0EAE146_gv_cM_SoATargetingInstructionsSecondary[lv_casterPlayer], lv_casterPlayer);
+            libE0EAE146_gv_cM_SoATargetingPhase[lv_casterPlayer] = libE0EAE146_ge_CM_SoATargetingPhaseType_Direction;
+        }
+
+    }
+    libE0EAE146_gv_cM_SoATargetingCycling[lv_casterPlayer] = false;
+    return true;
+}
+
+void libE0EAE146_gt_CM_SoATargetingPointChosen_Init () {
+    libE0EAE146_gt_CM_SoATargetingPointChosen = TriggerCreate("libE0EAE146_gt_CM_SoATargetingPointChosen_Func");
+    TriggerEnable(libE0EAE146_gt_CM_SoATargetingPointChosen, false);
+    TriggerAddEventUnitOrder(libE0EAE146_gt_CM_SoATargetingPointChosen, null, AbilityCommand("SOAOrbitalStrikeTargetingDummy", 0));
+    TriggerAddEventUnitOrder(libE0EAE146_gt_CM_SoATargetingPointChosen, null, AbilityCommand("SOAThermalLanceTargetingDummy", 0));
+    TriggerAddEventUnitOrder(libE0EAE146_gt_CM_SoATargetingPointChosen, null, AbilityCommand("SOAGravitonBomb", 0));
+    TriggerAddEventUnitOrder(libE0EAE146_gt_CM_SoATargetingPointChosen, null, AbilityCommand("NovaGriffinBombingRunTargetingDummy", 0));
+    TriggerAddEventUnitOrder(libE0EAE146_gt_CM_SoATargetingPointChosen, null, AbilityCommand("HornerAirFleetTargetingDummy", 0));
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: CM_SoATargetingDirectionChosen
+//--------------------------------------------------------------------------------------------------
+bool libE0EAE146_gt_CM_SoATargetingDirectionChosen_Func (bool testConds, bool runActions) {
+    point lv_targetPoint;
+    int lv_casterPlayer;
+
+    if (testConds) {
+        if (!((PlayerGroupHasPlayer(libE0EAE146_gf_CommanderPlayers(), EventPlayer()) == true))) {
+            return false;
+        }
+
+        if (!((libE0EAE146_gv_cM_SoATargetingPhase[EventPlayer()] == libE0EAE146_ge_CM_SoATargetingPhaseType_Direction))) {
+            return false;
+        }
+    }
+
+    if (!runActions) {
+        return true;
+    }
+
+    lv_casterPlayer = EventPlayer();
+    libE0EAE146_gv_cM_SoATargetingCycling[lv_casterPlayer] = true;
+    lv_targetPoint = OrderGetTargetPoint(EventUnitOrder());
+    libE0EAE146_gv_cM_SoATargetingUnrefundableStageEntered[lv_casterPlayer] = true;
+    libNtve_gf_CreateActorAtPoint("SOATargetingModeConfirmationSound", lv_targetPoint);
+    ActorSend(libE0EAE146_gv_cM_SoATargetingActors[libE0EAE146_gv_cM_SoATargetingChargesSpent[lv_casterPlayer]][lv_casterPlayer], "Signal Destroy");
+    if ((UnitIsValid(libE0EAE146_gv_cM_SoATargetingUnit[libE0EAE146_gv_cM_SoATargetingChargesSpent[lv_casterPlayer]][lv_casterPlayer]) == false)) {
+        return true;
+    }
+
+    libNtve_gf_MakeUnitFacePoint(libE0EAE146_gv_cM_SoATargetingUnit[libE0EAE146_gv_cM_SoATargetingChargesSpent[lv_casterPlayer]][lv_casterPlayer], lv_targetPoint, 0.0);
+    libE0EAE146_gf_CU_TargetingSetCharges((libE0EAE146_gv_cM_SoATargetingChargesTotal[lv_casterPlayer]-libE0EAE146_gv_cM_SoATargetingChargesSpent[lv_casterPlayer]), libE0EAE146_gv_cM_SoATargetingChargesTotal[lv_casterPlayer], lv_casterPlayer);
+    if ((libE0EAE146_gv_cM_SoATargetingChargesSpent[lv_casterPlayer] == libE0EAE146_gv_cM_SoATargetingChargesTotal[lv_casterPlayer])) {
+        UnitBehaviorRemove(libE0EAE146_gv_cM_SoACasterUnit[lv_casterPlayer], libE0EAE146_gv_cM_SoATargetingBehavior[lv_casterPlayer], 1);
+        Wait(0.1, c_timeGame);
+    }
+    else {
+        libE0EAE146_gf_CU_TargetingSetInstructionText(libE0EAE146_gv_cM_SoATargetingInstructionsPrimary[lv_casterPlayer], lv_casterPlayer);
+        Wait(0.1, c_timeGame);
+        if ((libE0EAE146_gv_cM_SoATargetingAlreadyCanceled[lv_casterPlayer] == false)) {
+            UISetTargetingOrder(PlayerGroupSingle(lv_casterPlayer), libE0EAE146_gv_cM_SoACasterGroup[lv_casterPlayer], libE0EAE146_gv_cM_SoATargetingOrder[lv_casterPlayer], false);
+        }
+
+        libE0EAE146_gv_cM_SoATargetingPhase[lv_casterPlayer] = libE0EAE146_ge_CM_SoATargetingPhaseType_Location;
+    }
+    libE0EAE146_gv_cM_SoATargetingCycling[lv_casterPlayer] = false;
+    return true;
+}
+
+void libE0EAE146_gt_CM_SoATargetingDirectionChosen_Init () {
+    libE0EAE146_gt_CM_SoATargetingDirectionChosen = TriggerCreate("libE0EAE146_gt_CM_SoATargetingDirectionChosen_Func");
+    TriggerEnable(libE0EAE146_gt_CM_SoATargetingDirectionChosen, false);
+    TriggerAddEventUnitOrder(libE0EAE146_gt_CM_SoATargetingDirectionChosen, null, AbilityCommand("SOAThermalLanceExecute", 0));
+    TriggerAddEventUnitOrder(libE0EAE146_gt_CM_SoATargetingDirectionChosen, null, AbilityCommand("NovaGriffinBombingRunExecute", 0));
+    TriggerAddEventUnitOrder(libE0EAE146_gt_CM_SoATargetingDirectionChosen, null, AbilityCommand("HornerAirFleetExecute", 0));
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: CM_SoATargetingEffectFired
+//--------------------------------------------------------------------------------------------------
+bool libE0EAE146_gt_CM_SoATargetingEffectFired_Func (bool testConds, bool runActions) {
+    if (!runActions) {
+        return true;
+    }
+
+    libE0EAE146_gf_CM_SoATargetingCleanupActorsAndUnits(EventPlayer());
+    return true;
+}
+
+void libE0EAE146_gt_CM_SoATargetingEffectFired_Init () {
+    libE0EAE146_gt_CM_SoATargetingEffectFired = TriggerCreate("libE0EAE146_gt_CM_SoATargetingEffectFired_Func");
+    TriggerAddEventPlayerEffectUsed(libE0EAE146_gt_CM_SoATargetingEffectFired, c_playerAny, "SOAOrbitalStrikeCP");
+    TriggerAddEventPlayerEffectUsed(libE0EAE146_gt_CM_SoATargetingEffectFired, c_playerAny, "SOAGravitonBombLM");
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: CM_SoATargetingCancel
+//--------------------------------------------------------------------------------------------------
+bool libE0EAE146_gt_CM_SoATargetingCancel_Func (bool testConds, bool runActions) {
+    if (testConds) {
+        if (!((libE0EAE146_gv_cM_SoATargetingCycling[EventPlayer()] == false))) {
+            return false;
+        }
+
+        if (!(((EventTargetModeAbilCmd() == AbilityCommand("SOAOrbitalStrikeTargetingDummy", 0)) || (EventTargetModeAbilCmd() == AbilityCommand("SOAThermalLanceTargetingDummy", 0)) || (EventTargetModeAbilCmd() == AbilityCommand("SOAGravitonBomb", 0)) || (EventTargetModeAbilCmd() == AbilityCommand("SOAThermalLanceExecute", 0)) || (EventTargetModeAbilCmd() == AbilityCommand("NovaGriffinBombingRunExecute", 0)) || (EventTargetModeAbilCmd() == AbilityCommand("NovaGriffinBombingRunTargetingDummy", 0)) || (EventTargetModeAbilCmd() == AbilityCommand("HornerAirFleetExecute", 0)) || (EventTargetModeAbilCmd() == AbilityCommand("HornerAirFleetTargetingDummy", 0))))) {
+            return false;
+        }
+    }
+
+    if (!runActions) {
+        return true;
+    }
+
+    libE0EAE146_gf_CM_SoATargetingCancel(EventPlayer());
+    return true;
+}
+
+void libE0EAE146_gt_CM_SoATargetingCancel_Init () {
+    libE0EAE146_gt_CM_SoATargetingCancel = TriggerCreate("libE0EAE146_gt_CM_SoATargetingCancel_Func");
+    TriggerEnable(libE0EAE146_gt_CM_SoATargetingCancel, false);
+    TriggerAddEventTargetModeUpdate(libE0EAE146_gt_CM_SoATargetingCancel, c_playerAny, null, c_targetModeStateOff);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: CM_SoATargetingCancelFromUI
+//--------------------------------------------------------------------------------------------------
+bool libE0EAE146_gt_CM_SoATargetingCancelFromUI_Func (bool testConds, bool runActions) {
+    if (!runActions) {
+        return true;
+    }
+
+    libE0EAE146_gf_CM_SoATargetingCancel(libE0EAE146_gf_CU_TargetingTriggeringPlayer());
+    UISetTargetingOrder(PlayerGroupSingle(libE0EAE146_gf_CU_TargetingTriggeringPlayer()), libKMIS_gv_cM_GlobalCasterUnitGroup[libE0EAE146_gf_CU_TargetingTriggeringPlayer()], null, false);
+    return true;
+}
+
+void libE0EAE146_gt_CM_SoATargetingCancelFromUI_Init () {
+    libE0EAE146_gt_CM_SoATargetingCancelFromUI = TriggerCreate("libE0EAE146_gt_CM_SoATargetingCancelFromUI_Func");
+    libE0EAE146_gf_CU_TargetingCancel(libE0EAE146_gt_CM_SoATargetingCancelFromUI);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: CM_SoATargetingCameraShake
+//--------------------------------------------------------------------------------------------------
+bool libE0EAE146_gt_CM_SoATargetingCameraShake_Func (bool testConds, bool runActions) {
+    fixed lv_distance;
+    fixed[4] lv_cameraPosition;
+    fixed[4] lv_effectPosition;
+    int lv_player;
+    point lv_effectTargetPoint;
+    point lv_cameraTargetPoint;
+
+    lv_player = EventPlayerEffectUsedUnitOwner(c_effectPlayerCaster);
+    lv_effectTargetPoint = EventPlayerEffectUsedPoint(c_effectLocationTargetPoint);
+
+    if (!runActions) {
+        return true;
+    }
+
+    lv_cameraTargetPoint = CameraGetTarget(lv_player);
+    lv_cameraPosition[0] = PointGetX(lv_cameraTargetPoint);
+    lv_cameraPosition[1] = (PointGetY(lv_cameraTargetPoint)-(Cos(CameraGetPitch(lv_player))*CameraGetDistance(lv_player)));
+    lv_cameraPosition[2] = (WorldHeight(c_heightMapGround, lv_cameraTargetPoint)+(Sin(CameraGetPitch(lv_player))*CameraGetDistance(lv_player)));
+    lv_effectPosition[0] = PointGetX(lv_effectTargetPoint);
+    lv_effectPosition[1] = PointGetY(lv_effectTargetPoint);
+    lv_effectPosition[2] = WorldHeight(c_heightMapGround, lv_effectTargetPoint);
+    lv_distance = SquareRoot((Pow((lv_cameraPosition[0]-lv_effectPosition[0]), 2.0) + Pow((lv_cameraPosition[1]-lv_effectPosition[1]), 2.0) + Pow((lv_cameraPosition[2]-lv_effectPosition[2]), 2.0)));
+    CameraShakeStart(lv_player, c_cameraPositionTarget, c_cameraDirectionZ, MaxF((1-(lv_distance/50)), 0.0), 2.5, 100.0, 0.1);
+    return true;
+}
+
+void libE0EAE146_gt_CM_SoATargetingCameraShake_Init () {
+    libE0EAE146_gt_CM_SoATargetingCameraShake = TriggerCreate("libE0EAE146_gt_CM_SoATargetingCameraShake_Func");
+    TriggerAddEventPlayerEffectUsed(libE0EAE146_gt_CM_SoATargetingCameraShake, c_playerAny, "SOAOrbitalStrikeImpactSearch");
+    TriggerAddEventPlayerEffectUsed(libE0EAE146_gt_CM_SoATargetingCameraShake, c_playerAny, "SOAGravitonBombCP");
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: CM_SoAThermalLanceActivated
+//--------------------------------------------------------------------------------------------------
+bool libE0EAE146_gt_CM_SoAThermalLanceActivated_Func (bool testConds, bool runActions) {
+    int lv_casterPlayer;
+
+    if (!runActions) {
+        return true;
+    }
+
+    lv_casterPlayer = UnitGetOwner(EventUnit());
+    libNtve_gf_StoreUnitSelection(lv_casterPlayer, libNtve_ge_UnitSelectionStoreOption_ClearUnitSelection);
+    libE0EAE146_gv_cM_SoATargetingActivateAbility[lv_casterPlayer] = "SOAThermalLanceActivate";
+    libE0EAE146_gv_cM_SoATargetingExecuteCommand[lv_casterPlayer] = AbilityCommand("SOAThermalLanceExecute", 0);
+    libE0EAE146_gv_cM_SoATargetingCooldown[lv_casterPlayer] = "Abil/SOAThermalLanceActivate";
+    libE0EAE146_gv_cM_SoATargetingBehavior[lv_casterPlayer] = "SOAThermalLanceActivate";
+    libE0EAE146_gv_cM_SoATargetingModel[lv_casterPlayer] = "SOAThermalLanceTargetingModel";
+    libE0EAE146_gv_cM_SoATargetingOrder[lv_casterPlayer] = OrderTargetingPoint(AbilityCommand("SOAThermalLanceTargetingDummy", 0), UnitGetPosition(libE0EAE146_gv_cM_SoACasterUnit[lv_casterPlayer]));
+    libE0EAE146_gv_cM_SoATargetingUnitType[lv_casterPlayer] = "SOAThermalLanceTargeter";
+    libE0EAE146_gv_cM_SoATargetingChargesTotal[lv_casterPlayer] = 3;
+    libE0EAE146_gv_cM_SoATargetingInstructionsPrimary[lv_casterPlayer] = StringExternal("Param/Value/lib_KMIS_FA8A12D3");
+    libE0EAE146_gv_cM_SoATargetingInstructionsSecondary[lv_casterPlayer] = StringExternal("Param/Value/lib_KMIS_B639B493");
+    libE0EAE146_gf_CM_SoATargetingModeEnter(lv_casterPlayer);
+    return true;
+}
+
+void libE0EAE146_gt_CM_SoAThermalLanceActivated_Init () {
+    libE0EAE146_gt_CM_SoAThermalLanceActivated = TriggerCreate("libE0EAE146_gt_CM_SoAThermalLanceActivated_Func");
+    TriggerAddEventUnitBehaviorChange(libE0EAE146_gt_CM_SoAThermalLanceActivated, null, "SOAThermalLanceActivate", c_unitBehaviorChangeActivate);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: PM_SoATargetingPurifierBeamOn (moved from LibKMIS)
+//--------------------------------------------------------------------------------------------------
+bool libE0EAE146_gt_PM_SoATargetingPurifierBeamOn_Func (bool testConds, bool runActions) {
+    if (!runActions) {
+        return true;
+    }
+
+    libNtve_gf_StoreUnitSelection(EventPlayer(), libNtve_ge_UnitSelectionStoreOption_ClearUnitSelection);
+    libE0EAE146_gv_cM_SoATargetingActivateAbility[EventPlayer()] = "SOAPurifierBeam";
+    libE0EAE146_gv_cM_SoATargetingOrder[EventPlayer()] = null;
+    libE0EAE146_gv_cM_SoATargetingExecuteCommand[EventPlayer()] = null;
+    libE0EAE146_gv_cM_SoATargetingCooldown[EventPlayer()] = "";
+    libE0EAE146_gv_cM_SoATargetingBehavior[EventPlayer()] = null;
+    libE0EAE146_gv_cM_SoATargetingModel[EventPlayer()] = null;
+    libE0EAE146_gv_cM_SoATargetingUnitType[EventPlayer()] = null;
+    libE0EAE146_gv_cM_SoATargetingChargesTotal[EventPlayer()] = 1;
+    libE0EAE146_gv_cM_SoATargetingInstructionsPrimary[EventPlayer()] = StringExternal("Param/Value/lib_KMIS_43A2DF64");
+    libE0EAE146_gf_CM_SoATargetingModeEnter(EventPlayer());
+    return true;
+}
+
+void libE0EAE146_gt_PM_SoATargetingPurifierBeamOn_Init () {
+    libE0EAE146_gt_PM_SoATargetingPurifierBeamOn = TriggerCreate("libE0EAE146_gt_PM_SoATargetingPurifierBeamOn_Func");
+    TriggerAddEventTargetModeUpdate(libE0EAE146_gt_PM_SoATargetingPurifierBeamOn, c_playerAny, AbilityCommand("SOAPurifierBeam", 0), c_targetModeStateOn);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: PM_SoATargetingPurifierBeamOff (moved from LibKMIS)
+//--------------------------------------------------------------------------------------------------
+bool libE0EAE146_gt_PM_SoATargetingPurifierBeamOff_Func (bool testConds, bool runActions) {
+    if (!runActions) {
+        return true;
+    }
+
+    libE0EAE146_gf_CM_SoATargetingModeExit(EventPlayer());
+    return true;
+}
+
+void libE0EAE146_gt_PM_SoATargetingPurifierBeamOff_Init () {
+    libE0EAE146_gt_PM_SoATargetingPurifierBeamOff = TriggerCreate("libE0EAE146_gt_PM_SoATargetingPurifierBeamOff_Func");
+    TriggerAddEventTargetModeUpdate(libE0EAE146_gt_PM_SoATargetingPurifierBeamOff, c_playerAny, AbilityCommand("SOAPurifierBeam", 0), c_targetModeStateOff);
+}
+
+// === InitVariables ===
+void libE0EAE146_SOATargeting_InitVariables () {
+    int init_i;
+    for (init_i = 0; init_i <= libE0EAE146_gv_MAXPLAYERS; init_i += 1) {
+        libE0EAE146_gv_cM_SoACasterGroup[init_i] = UnitGroupEmpty();
+    }
+    for (init_i = 0; init_i <= libE0EAE146_gv_MAXPLAYERS; init_i += 1) {
+        libE0EAE146_gv_cM_SoATargetingAlreadyCanceled[init_i] = true;
+    }
+    for (init_i = 0; init_i <= libE0EAE146_gv_MAXPLAYERS; init_i += 1) {
+        libE0EAE146_gv_cM_SoATargetingDirectionGroup[init_i] = UnitGroupEmpty();
+    }
+    libE0EAE146_gv_cM_SoATimeFreezeTimer = TimerCreate();
+    libE0EAE146_gv_cM_SoASuperChronoTimer = TimerCreate();
+}
+
+// === InitTriggers ===
+void libE0EAE146_SOATargeting_InitTriggers () {
+    libE0EAE146_gt_CM_SoATargetingForceOff_Init();
+    libE0EAE146_gt_CM_SoATargetingDeactivated_Init();
+    libE0EAE146_gt_CM_SoATargetingPointChosen_Init();
+    libE0EAE146_gt_CM_SoATargetingDirectionChosen_Init();
+    libE0EAE146_gt_CM_SoATargetingEffectFired_Init();
+    libE0EAE146_gt_CM_SoATargetingCancel_Init();
+    libE0EAE146_gt_CM_SoATargetingCancelFromUI_Init();
+    libE0EAE146_gt_CM_SoATargetingCameraShake_Init();
+    libE0EAE146_gt_CM_SoAThermalLanceActivated_Init();
+    libE0EAE146_gt_PM_SoATargetingPurifierBeamOn_Init();
+    libE0EAE146_gt_PM_SoATargetingPurifierBeamOff_Init();
+}

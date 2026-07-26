@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CBehaviorBuff id="11aihua">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse Fatal="1" Handled="11aihua2Apply" ModifyFraction="0">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11aihua2">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoFlags index="AlwaysUseGameText" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <InitialEffect value="11aihuaModify"/>
+        <Modification UnitNameOverride="Unit/Name/11aihua">
+            <BehaviorLinkDisableArray value="11aihua"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11chujianshakangxing">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DamageTotalMultiplier index="Spell" value="-0.3"/>
+            <DamageTotalMultiplier index="Melee" value="-0.3"/>
+            <DamageTotalMultiplier index="Ranged" value="-0.3"/>
+            <DamageTotalMultiplier index="Splash" value="-0.3"/>
+            <DamageTotalMultiplier index="NoProc" value="-0.3"/>
+        </Modification>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="9999"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11chujianshakangxingCaster">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-disruptionweb.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse Handled="11chujianshakangxingPersistent" ModifyFraction="0">
+            <ValidatorArray value="11mubiaomeiyouchujianshakangxing"/>
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11chujianshakangxingCaster2">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="50000"/>
+        <MaxStackCountPerCaster value="50000"/>
+        <Modification>
+            <VitalMaxArray index="Shields" value="10"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11chujianshakangxingRemove">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="2"/>
+        <PeriodicEffect value="11chujianshakangxingCasterRemove"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11daimawuran2">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMultiplier="2" AttackSpeedMultiplier="1.3">
+            <DamageTotalMultiplier index="Spell" value="1"/>
+            <DamageTotalMultiplier index="Melee" value="1"/>
+            <DamageTotalMultiplier index="Ranged" value="1"/>
+            <DamageTotalMultiplier index="Splash" value="1"/>
+            <DamageTotalMultiplier index="NoProc" value="1"/>
+            <LifeArmorBonus value="5"/>
+            <VitalMaxFractionArray index="Life" value="2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11jianguo">
+        <InfoIcon value="Assets\Textures\btn-commander-alarak.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse ModifyFraction="0.05">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11jibiantiTimedLife">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="6"/>
+        <InitialEffect value="11wanmeijibiantiApply"/>
+        <ExpireEffect value="TimedLifeFate"/>
+        <Period value="0.0625"/>
+        <PeriodCount value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11kongtoucangTimedLife">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="18"/>
+        <ExpireEffect value="Suicide"/>
+        <Modification AttackSpeedMultiplier="1.7">
+            <DamageDealtUnscaled index="Ranged" value="6"/>
+            <LifeArmorBonus value="3"/>
+            <VitalMaxFractionArray index="Life" value="1"/>
+        </Modification>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11setudeenze">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-dehaka-ultralisk-healingadaptation.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.25"/>
+        <PeriodicEffect value="11setudeenzeModify"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11setudeenzeCaster">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.15"/>
+        <PeriodicEffect value="11setudeenzeSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11wanquanshikong">
+        <InfoIcon value="Assets\Textures\btn-building-zerg-sporecrawler.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="6"/>
+        <Period value="0.75"/>
+        <PeriodicEffect value="11wanquanshikongPersistent"/>
+        <Modification MoveSpeedMultiplier="2" AttackSpeedMultiplier="1.7">
+            <WeaponEnableArray value="11qiguaideyeti"/>
+            <WeaponDisableArray value="11shifenzhengchangdelizhua"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11wanmeijibianti">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5" UnitNameOverride="Unit/Name/11jibianti2">
+            <VitalMaxArray index="Shields" value="100"/>
+        </Modification>
+        <InitialEffect value="11wanquanshikongSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11shikong">
+        <InfoIcon value="Assets\Textures\btn-building-zerg-spinecrawler.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="4.5"/>
+        <PeriodicEffect value="11shikongPersistent"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11daimawuran">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="50000"/>
+        <MaxStackCountPerCaster value="50000"/>
+        <FinalEffect value="11daimawuranCreate"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11wuxianzhan">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-shadowblade.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMultiplier="1.7" AttackSpeedMultiplier="1.7"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="11yibeijietu">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DamageTotalMultiplier index="Spell" value="-0.3"/>
+            <DamageTotalMultiplier index="Melee" value="-0.3"/>
+            <DamageTotalMultiplier index="Ranged" value="-0.3"/>
+            <DamageTotalMultiplier index="Splash" value="-0.3"/>
+            <DamageTotalMultiplier index="NoProc" value="-0.3"/>
+        </Modification>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisplayDuration index="Neutral" value="1"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <Duration value="9999"/>
+    </CBehaviorBuff>
+</Catalog>

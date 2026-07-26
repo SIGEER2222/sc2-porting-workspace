@@ -1,0 +1,1908 @@
+include "TriggerLibs/NativeLib"
+include "LibKCOR_h"
+include "LibKMIS_h"
+include "LibKCUI_h"
+include "LibE0EAE146_h"
+
+include "LibKPVP_h"
+include "LibKPVP_Commander"
+
+//--------------------------------------------------------------------------------------------------
+// Library: PVP
+//--------------------------------------------------------------------------------------------------
+// External Library Initialization
+void libKPVP_InitLibraries () {
+    libNtve_InitVariables();
+    libKCOR_InitVariables();
+    libKMIS_InitVariables();
+    libKCUI_InitVariables();
+}
+
+// Variable Initialization
+bool libKPVP_InitVariables_completed = false;
+
+void libKPVP_InitVariables () {
+    int init_i;
+
+    if (libKPVP_InitVariables_completed) {
+        return;
+    }
+
+    libKPVP_InitVariables_completed = true;
+
+    libKPVP_gv_alliance_tab = c_invalidDialogId;
+    for (init_i = 0; init_i <= 16; init_i += 1) {
+        libKPVP_gv_commanders_names[init_i] = c_invalidDialogControlId;
+    }
+    libKPVP_gv_alliance_button_dialog = c_invalidDialogId;
+    libKPVP_gv_alliance_button = c_invalidDialogControlId;
+    libKPVP_gv_han_allies = PlayerGroupEmpty();
+    libKPVP_gv_cOMMANDERS = PlayerGroupEmpty();
+    libKPVP_gv_dehaka_players = PlayerGroupEmpty();
+    libKPVP_gv_abathur_players = PlayerGroupEmpty();
+    libKPVP_gv_tychus_players = PlayerGroupEmpty();
+    libKPVP_gv_mengsk_players = PlayerGroupEmpty();
+    libKPVP_gv_observer = CatalogFieldValueGetAsInt(c_gameCatalogGameUI, "Dflt", "DefaultObservedPlayerId", c_playerAny);
+    libKPVP_gv_observerGroup = PlayerGroupSingle(CatalogFieldValueGetAsInt(c_gameCatalogGameUI, "Dflt", "DefaultObservedPlayerId", c_playerAny));
+    libKPVP_gv_sTUKOV_ACTIVATED = PlayerGroupEmpty();
+}
+
+// Functions
+void libKPVP_gf_set_alliance_button () {
+    // Variable Declarations
+    int lv_offset_y;
+    int lv_label_height;
+    int lv_player;
+    int lv_num_of_players;
+    string lv_button;
+
+    // Automatic Variable Declarations
+    playergroup auto749A30A7_g;
+
+    // Variable Initialization
+    lv_offset_y = 35;
+    lv_label_height = 28;
+    lv_num_of_players = PlayerGroupCount(PlayerGroupActive());
+
+    // Implementation
+    DialogCreate(825, (lv_label_height*lv_num_of_players+60), c_anchorTopLeft, 0, 0, true);
+    libKPVP_gv_alliance_tab = DialogLastCreated();
+    auto749A30A7_g = PlayerGroupActive();
+    lv_player = -1;
+    while (true) {
+        lv_player = PlayerGroupNextPlayer(auto749A30A7_g, lv_player);
+        if (lv_player < 0) { break; }
+        libNtve_gf_CreateDialogItemLabel(libKPVP_gv_alliance_tab, 200, lv_label_height, c_anchorTopLeft, 35, lv_offset_y, PlayerName(lv_player), libNtve_gf_ConvertPlayerColorToColor(PlayerGetColorIndex(lv_player, false)), false, 2.0);
+        libNtve_gf_SetDialogItemStyle(DialogControlLastCreated(), "ModLeftSize20", PlayerGroupAll());
+        libNtve_gf_CreateDialogItemLabel(libKPVP_gv_alliance_tab, 250, lv_label_height, c_anchorTopLeft, 250, lv_offset_y, libKCOR_gf_CC_CommanderName(libKCOR_gf_ActiveCommanderForPlayer(lv_player)), libNtve_gf_ConvertPlayerColorToColor(PlayerGetColorIndex(lv_player, false)), false, 2.0);
+        libNtve_gf_SetDialogItemStyle(DialogControlLastCreated(), "ModLeftSize20", PlayerGroupAll());
+        libKPVP_gv_commanders_names[lv_player] = DialogControlLastCreated();
+        if ((GameAttributeGameValue("[bnet:local/0.0/223536]3") == "0001")) {
+            libNtve_gf_SetDialogItemTooltip(DialogControlLastCreated(), libKPVP_gf_mastery_tooltip_for_player(lv_player), PlayerGroupAll());
+        }
+
+        if ((GameAttributeGameValue("[bnet:local/0.0/223536]9") == "0001")) {
+            lv_button = libKCOR_gf_CC_CommanderPrestigeIndexFace(libKCOR_gf_CC_CommanderData(libKCOR_gv_cCX_PlayerCommander[lv_player]), libKCOR_gf_CC_PlayerActivePrestigeIndex(lv_player));
+            libNtve_gf_CreateDialogItemLabel(libKPVP_gv_alliance_tab, 300, lv_label_height, c_anchorTopRight, 35, lv_offset_y, StringExternal(CatalogFieldValueGet(c_gameCatalogButton, lv_button, "Name", lv_player)), libNtve_gf_ConvertPlayerColorToColor(PlayerGetColorIndex(lv_player, false)), false, 2.0);
+            libNtve_gf_SetDialogItemStyle(DialogControlLastCreated(), "ModRightSize20", PlayerGroupAll());
+            libNtve_gf_SetDialogItemTooltip(DialogControlLastCreated(), StringExternal(CatalogFieldValueGet(c_gameCatalogButton, lv_button, "Tooltip", lv_player)), PlayerGroupAll());
+        }
+
+        lv_offset_y = (lv_offset_y+lv_label_height);
+    }
+    DialogSetVisible(libKPVP_gv_alliance_tab, PlayerGroupAll(), false);
+    DialogCreate(36, 36, c_anchorTopRight, 5, 5, true);
+    libKPVP_gv_alliance_button_dialog = DialogLastCreated();
+    libNtve_gf_CreateDialogItemButton(libKPVP_gv_alliance_button_dialog, 36, 36, c_anchorTopLeft, 0, 0, StringToText(""), StringToText(""), "Assets\\Textures\\ui_alliance_button_normalpressed.dds");
+    libNtve_gf_SetDialogItemImage(DialogControlLastCreated(), "Assets\\Textures\\ui_alliance_button_normalpressed.dds", PlayerGroupAll());
+    libNtve_gf_SetDialogItemImageType(DialogControlLastCreated(), c_triggerImageTypeNormal, PlayerGroupAll());
+    libKPVP_gv_alliance_button = DialogControlLastCreated();
+    DialogSetVisible(libKPVP_gv_alliance_button_dialog, PlayerGroupAll(), true);
+    DialogSetVisible(libKPVP_gv_alliance_button_dialog, libKPVP_gv_observerGroup, false);
+}
+
+text libKPVP_gf_mastery_tooltip_for_player (int lp_player) {
+    // Variable Declarations
+    text lv_tooltip;
+
+    // Automatic Variable Declarations
+    string auto9643C0DF_val;
+
+    // Variable Initialization
+    lv_tooltip = StringToText("");
+
+    // Implementation
+    auto9643C0DF_val = libKCOR_gf_ActiveCommanderForPlayer(lp_player);
+    if (auto9643C0DF_val == "ZergAbathur") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_D8D5874A", "A", libKCOR_gf_CC_PlayerMasteryName("AbathurMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_D8D5874A", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("AbathurMastery1"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_D8D5874A");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6DD8BE7D", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6DD8BE7D", "A", libKCOR_gf_CC_PlayerMasteryName("AbathurMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6DD8BE7D", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("AbathurMastery2"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_6DD8BE7D");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_DA68DBC2", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_DA68DBC2", "A", libKCOR_gf_CC_PlayerMasteryName("AbathurMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_DA68DBC2", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("AbathurMastery3"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_DA68DBC2");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_A3B6A58E", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_A3B6A58E", "A", libKCOR_gf_CC_PlayerMasteryName("AbathurMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_A3B6A58E", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("AbathurMastery4"), c_techCountCompleteOnly)*0.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_A3B6A58E");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_AB6B9B76", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_AB6B9B76", "A", libKCOR_gf_CC_PlayerMasteryName("AbathurMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_AB6B9B76", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("AbathurMastery5"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_AB6B9B76", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("AbathurMastery5"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_AB6B9B76");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_CBFAAAA1", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_CBFAAAA1", "A", libKCOR_gf_CC_PlayerMasteryName("AbathurMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_CBFAAAA1", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("AbathurMastery6"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_CBFAAAA1");
+    }
+    else if (auto9643C0DF_val == "ProtossAlarak") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_45B06968", "A", libKCOR_gf_CC_PlayerMasteryName("AlarakMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_45B06968", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("AlarakMastery1"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_45B06968");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_98C00F15", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_98C00F15", "A", libKCOR_gf_CC_PlayerMasteryName("AlarakMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_98C00F15", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("AlarakMastery2"), c_techCountCompleteOnly)*0.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_98C00F15");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C6F10489", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C6F10489", "A", libKCOR_gf_CC_PlayerMasteryName("AlarakMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C6F10489", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("AlarakMastery3"), c_techCountCompleteOnly)*0.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_C6F10489");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_709096E7", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_709096E7", "A", libKCOR_gf_CC_PlayerMasteryName("AlarakMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_709096E7", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("AlarakMastery4"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_709096E7");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_7449A522", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_7449A522", "A", libKCOR_gf_CC_PlayerMasteryName("AlarakMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_7449A522", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("AlarakMastery5"), c_techCountCompleteOnly)*7.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_7449A522");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_2557A56D", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_2557A56D", "A", libKCOR_gf_CC_PlayerMasteryName("AlarakMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_2557A56D", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("AlarakMastery6"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_2557A56D");
+    }
+    else if (auto9643C0DF_val == "ProtossArtanis") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_12FC3815", "A", libKCOR_gf_CC_PlayerMasteryName("ArtanisMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_12FC3815", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ArtanisMastery1"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_12FC3815");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_660DADEE", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_660DADEE", "A", libKCOR_gf_CC_PlayerMasteryName("ArtanisMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_660DADEE", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ArtanisMastery2"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_660DADEE");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4B2B6CC2", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4B2B6CC2", "A", libKCOR_gf_CC_PlayerMasteryName("ArtanisMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4B2B6CC2", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ArtanisMastery3"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_4B2B6CC2");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_237F5CA2", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_237F5CA2", "A", libKCOR_gf_CC_PlayerMasteryName("ArtanisMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_237F5CA2", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ArtanisMastery4"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_237F5CA2");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_14E00240", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_14E00240", "A", libKCOR_gf_CC_PlayerMasteryName("ArtanisMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_14E00240", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ArtanisMastery5"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_14E00240");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C7FB5FD1", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C7FB5FD1", "A", libKCOR_gf_CC_PlayerMasteryName("ArtanisMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C7FB5FD1", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ArtanisMastery6"), c_techCountCompleteOnly)*3.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_C7FB5FD1");
+    }
+    else if (auto9643C0DF_val == "ZergDehaka") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_62B6B044", "A", libKCOR_gf_CC_PlayerMasteryName("DehakaMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_62B6B044", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("DehakaMastery1"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_62B6B044");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_D8BC9AB0", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_D8BC9AB0", "A", libKCOR_gf_CC_PlayerMasteryName("DehakaMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_D8BC9AB0", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("DehakaMastery2"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_D8BC9AB0");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_2AB735CA", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_2AB735CA", "A", libKCOR_gf_CC_PlayerMasteryName("DehakaMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_2AB735CA", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("DehakaMastery3"), c_techCountCompleteOnly)*1.2), 1));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_2AB735CA");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_40E65718", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_40E65718", "A", libKCOR_gf_CC_PlayerMasteryName("DehakaMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_40E65718", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("DehakaMastery4"), c_techCountCompleteOnly)*0.6), 1));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_40E65718");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_E1857D70", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_E1857D70", "A", libKCOR_gf_CC_PlayerMasteryName("DehakaMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_E1857D70", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("DehakaMastery5"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_E1857D70");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_D03E9D74", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_D03E9D74", "A", libKCOR_gf_CC_PlayerMasteryName("DehakaMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_D03E9D74", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("DehakaMastery6"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_D03E9D74");
+    }
+    else if (auto9643C0DF_val == "ProtossFenix") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_DF3711AD", "A", libKCOR_gf_CC_PlayerMasteryName("FenixMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_DF3711AD", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("FenixMastery1"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_DF3711AD");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_CB56AE3A", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_CB56AE3A", "A", libKCOR_gf_CC_PlayerMasteryName("FenixMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_CB56AE3A", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("FenixMastery2"), c_techCountCompleteOnly)*0.75), 2));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_CB56AE3A");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_AC1C270D", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_AC1C270D", "A", libKCOR_gf_CC_PlayerMasteryName("FenixMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_AC1C270D", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("FenixMastery3"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_AC1C270D");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_A15891B3", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_A15891B3", "A", libKCOR_gf_CC_PlayerMasteryName("FenixMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_A15891B3", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("FenixMastery4"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_A15891B3");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_86F1794F", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_86F1794F", "A", libKCOR_gf_CC_PlayerMasteryName("FenixMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_86F1794F", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("FenixMastery5"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_86F1794F");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_D5F8FE24", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_D5F8FE24", "A", libKCOR_gf_CC_PlayerMasteryName("FenixMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_D5F8FE24", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("FenixMastery6"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_D5F8FE24");
+    }
+    else if (auto9643C0DF_val == "TerranHorner") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_7B30C9E2", "A", libKCOR_gf_CC_PlayerMasteryName("HornerMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_7B30C9E2", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("HornerMastery1"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_7B30C9E2");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8C04029C", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8C04029C", "A", libKCOR_gf_CC_PlayerMasteryName("HornerMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8C04029C", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("HornerMastery2"), c_techCountCompleteOnly)*1.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_8C04029C");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4BE46E23", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4BE46E23", "A", libKCOR_gf_CC_PlayerMasteryName("HornerMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4BE46E23", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("HornerMastery3"), c_techCountCompleteOnly)*0.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_4BE46E23");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8B3D0194", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8B3D0194", "A", libKCOR_gf_CC_PlayerMasteryName("HornerMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8B3D0194", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("HornerMastery4"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_8B3D0194");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_20E0C468", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_20E0C468", "A", libKCOR_gf_CC_PlayerMasteryName("HornerMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_20E0C468", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("HornerMastery5"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_20E0C468");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_CF6EE8F3", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_CF6EE8F3", "A", libKCOR_gf_CC_PlayerMasteryName("HornerMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_CF6EE8F3", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("HornerMastery6"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_CF6EE8F3");
+    }
+    else if (auto9643C0DF_val == "ProtossKarax") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_38815352", "A", libKCOR_gf_CC_PlayerMasteryName("KaraxMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_38815352", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("KaraxMastery1"), c_techCountCompleteOnly)*0.75), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_38815352");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6299039F", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6299039F", "A", libKCOR_gf_CC_PlayerMasteryName("KaraxMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6299039F", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("KaraxMastery2"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_6299039F");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6BB76AAC", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6BB76AAC", "A", libKCOR_gf_CC_PlayerMasteryName("KaraxMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6BB76AAC", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("KaraxMastery3"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_6BB76AAC");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B74FE0F3", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B74FE0F3", "A", libKCOR_gf_CC_PlayerMasteryName("KaraxMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B74FE0F3", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("KaraxMastery4"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_B74FE0F3");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4D741149", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4D741149", "A", libKCOR_gf_CC_PlayerMasteryName("KaraxMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4D741149", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("KaraxMastery5"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_4D741149");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_64481276", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_64481276", "A", libKCOR_gf_CC_PlayerMasteryName("KaraxMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_64481276", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("KaraxMastery6"), c_techCountCompleteOnly)*3.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_64481276");
+    }
+    else if (auto9643C0DF_val == "ZergKerrigan") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_FC144FE9", "A", libKCOR_gf_CC_PlayerMasteryName("KerriganMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_FC144FE9", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("KerriganMastery1"), c_techCountCompleteOnly)*1.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_FC144FE9");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4B6A7CC1", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4B6A7CC1", "A", libKCOR_gf_CC_PlayerMasteryName("KerriganMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4B6A7CC1", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("KerriganMastery2"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_4B6A7CC1");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C12DA651", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C12DA651", "A", libKCOR_gf_CC_PlayerMasteryName("KerriganMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C12DA651", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("KerriganMastery3"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_C12DA651");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6224F8A4", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6224F8A4", "A", libKCOR_gf_CC_PlayerMasteryName("KerriganMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6224F8A4", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("KerriganMastery4"), c_techCountCompleteOnly)*3.33), 2));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_6224F8A4");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8F482CAB", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8F482CAB", "A", libKCOR_gf_CC_PlayerMasteryName("KerriganMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8F482CAB", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("KerriganMastery5"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_8F482CAB");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_87AAEB28", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_87AAEB28", "A", libKCOR_gf_CC_PlayerMasteryName("KerriganMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_87AAEB28", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("KerriganMastery6"), c_techCountCompleteOnly)*3.33), 2));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_87AAEB28");
+    }
+    else if (auto9643C0DF_val == "TerranMengsk") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_F83D8805", "A", libKCOR_gf_CC_PlayerMasteryName("MengskMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_F83D8805", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("MengskMastery1"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_F83D8805");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_7098FE55", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_7098FE55", "A", libKCOR_gf_CC_PlayerMasteryName("MengskMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_7098FE55", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("MengskMastery2"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_7098FE55");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_052C0705", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_052C0705", "A", libKCOR_gf_CC_PlayerMasteryName("MengskMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_052C0705", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("MengskMastery3"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_052C0705");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_790C40E9", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_790C40E9", "A", libKCOR_gf_CC_PlayerMasteryName("MengskMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_790C40E9", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("MengskMastery4"), c_techCountCompleteOnly)*0.6667), 1));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_790C40E9");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_CB0521F1", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_CB0521F1", "A", libKCOR_gf_CC_PlayerMasteryName("MengskMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_CB0521F1", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("MengskMastery5"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_CB0521F1");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_811CCBEA", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_811CCBEA", "A", libKCOR_gf_CC_PlayerMasteryName("MengskMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_811CCBEA", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("MengskMastery6"), c_techCountCompleteOnly)*0.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_811CCBEA");
+    }
+    else if (auto9643C0DF_val == "TerranNova") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_10A055C6", "A", libKCOR_gf_CC_PlayerMasteryName("NovaMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_10A055C6", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("NovaMastery1"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_10A055C6");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B5E7F333", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B5E7F333", "A", libKCOR_gf_CC_PlayerMasteryName("NovaMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B5E7F333", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("NovaMastery2"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_B5E7F333");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_3FA85DB4", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_3FA85DB4", "A", libKCOR_gf_CC_PlayerMasteryName("NovaMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_3FA85DB4", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("NovaMastery3"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_3FA85DB4");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_BD1E3452", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_BD1E3452", "A", libKCOR_gf_CC_PlayerMasteryName("NovaMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_BD1E3452", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("NovaMastery4"), c_techCountCompleteOnly)*0.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_BD1E3452");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_FA2B70B3", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_FA2B70B3", "A", libKCOR_gf_CC_PlayerMasteryName("NovaMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_FA2B70B3", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("NovaMastery5"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_FA2B70B3");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_786DBD78", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_786DBD78", "A", libKCOR_gf_CC_PlayerMasteryName("NovaMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_786DBD78", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("NovaMastery6"), c_techCountCompleteOnly)*0.2), 1));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_786DBD78");
+    }
+    else if (auto9643C0DF_val == "TerranRaynor") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_97426A0B", "A", libKCOR_gf_CC_PlayerMasteryName("RaynorMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_97426A0B", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("RaynorMastery1"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_97426A0B");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B7132A37", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B7132A37", "A", libKCOR_gf_CC_PlayerMasteryName("RaynorMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B7132A37", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("RaynorMastery2"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_B7132A37");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_74F4FFFF", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_74F4FFFF", "A", libKCOR_gf_CC_PlayerMasteryName("RaynorMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_74F4FFFF", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("RaynorMastery3"), c_techCountCompleteOnly)*3.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_74F4FFFF");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_A4187DEC", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_A4187DEC", "A", libKCOR_gf_CC_PlayerMasteryName("RaynorMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_A4187DEC", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("RaynorMastery4"), c_techCountCompleteOnly)*4.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_A4187DEC");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8394AB35", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8394AB35", "A", libKCOR_gf_CC_PlayerMasteryName("RaynorMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8394AB35", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("RaynorMastery5"), c_techCountCompleteOnly)*3.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_8394AB35");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8BE29E7C", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8BE29E7C", "A", libKCOR_gf_CC_PlayerMasteryName("RaynorMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8BE29E7C", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("RaynorMastery6"), c_techCountCompleteOnly)*0.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_8BE29E7C");
+    }
+    else if (auto9643C0DF_val == "ZergStetmann") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_696A02E2", "A", libKCOR_gf_CC_PlayerMasteryName("StetmannMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_696A02E2", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("StetmannMastery1"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_696A02E2");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_DA1AFE1A", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_DA1AFE1A", "A", libKCOR_gf_CC_PlayerMasteryName("StetmannMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_DA1AFE1A", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("StetmannMastery2"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_DA1AFE1A");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_57F9A716", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_57F9A716", "A", libKCOR_gf_CC_PlayerMasteryName("StetmannMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_57F9A716", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("StetmannMastery3"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_57F9A716");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4D9B19E8", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4D9B19E8", "A", libKCOR_gf_CC_PlayerMasteryName("StetmannMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4D9B19E8", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("StetmannMastery4"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_4D9B19E8");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_406E9863", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_406E9863", "A", libKCOR_gf_CC_PlayerMasteryName("StetmannMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_406E9863", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("StetmannMastery5"), c_techCountCompleteOnly)*0.16), 2));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_406E9863");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_7FBF5033", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_7FBF5033", "A", libKCOR_gf_CC_PlayerMasteryName("StetmannMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_7FBF5033", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("StetmannMastery6"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_7FBF5033");
+    }
+    else if (auto9643C0DF_val == "ZergStukov") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_042A2F56", "A", libKCOR_gf_CC_PlayerMasteryName("StukovMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_042A2F56", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("StukovMastery1"), c_techCountCompleteOnly)*0.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_042A2F56");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B4573152", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B4573152", "A", libKCOR_gf_CC_PlayerMasteryName("StukovMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B4573152", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("StukovMastery2"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_B4573152");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C5C741BD", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C5C741BD", "A", libKCOR_gf_CC_PlayerMasteryName("StukovMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C5C741BD", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("StukovMastery3"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_C5C741BD");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_14B53BD8", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_14B53BD8", "A", libKCOR_gf_CC_PlayerMasteryName("StukovMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_14B53BD8", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("StukovMastery4"), c_techCountCompleteOnly)*3.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_14B53BD8");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4162004E", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4162004E", "A", libKCOR_gf_CC_PlayerMasteryName("StukovMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4162004E", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("StukovMastery5"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_4162004E");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_FAFC6BFB", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_FAFC6BFB", "A", libKCOR_gf_CC_PlayerMasteryName("StukovMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_FAFC6BFB", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("StukovMastery6"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_FAFC6BFB");
+    }
+    else if (auto9643C0DF_val == "TerranSwann") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_78B2CD0F", "A", libKCOR_gf_CC_PlayerMasteryName("SwannMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_78B2CD0F", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("SwannMastery1"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_78B2CD0F");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6C17201A", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6C17201A", "A", libKCOR_gf_CC_PlayerMasteryName("SwannMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6C17201A", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("SwannMastery2"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_6C17201A");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_402AF706", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_402AF706", "A", libKCOR_gf_CC_PlayerMasteryName("SwannMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_402AF706", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("SwannMastery3"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_402AF706");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_A770E1DA", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_A770E1DA", "A", libKCOR_gf_CC_PlayerMasteryName("SwannMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_A770E1DA", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("SwannMastery4"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_A770E1DA");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_2F3D97A5", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_2F3D97A5", "A", libKCOR_gf_CC_PlayerMasteryName("SwannMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_2F3D97A5", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("SwannMastery5"), c_techCountCompleteOnly)*3.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_2F3D97A5");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_D5EE4A60", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_D5EE4A60", "A", libKCOR_gf_CC_PlayerMasteryName("SwannMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_D5EE4A60", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("SwannMastery6"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_D5EE4A60");
+    }
+    else if (auto9643C0DF_val == "TerranTychus") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_14097766", "A", libKCOR_gf_CC_PlayerMasteryName("TychusMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_14097766", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("TychusMastery1"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_14097766");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C6AA0CDE", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C6AA0CDE", "A", libKCOR_gf_CC_PlayerMasteryName("TychusMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_C6AA0CDE", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("TychusMastery2"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_C6AA0CDE");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_536D1E4A", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_536D1E4A", "A", libKCOR_gf_CC_PlayerMasteryName("TychusMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_536D1E4A", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("TychusMastery3"), c_techCountCompleteOnly)*0.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_536D1E4A");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8F6F3521", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8F6F3521", "A", libKCOR_gf_CC_PlayerMasteryName("TychusMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_8F6F3521", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("TychusMastery4"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_8F6F3521");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_259C2E74", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_259C2E74", "A", libKCOR_gf_CC_PlayerMasteryName("TychusMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_259C2E74", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("TychusMastery5"), c_techCountCompleteOnly)*0.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_259C2E74");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_43A58060", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_43A58060", "A", libKCOR_gf_CC_PlayerMasteryName("TychusMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_43A58060", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("TychusMastery6"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_43A58060");
+    }
+    else if (auto9643C0DF_val == "ProtossVorazun") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_E3D8C0FA", "A", libKCOR_gf_CC_PlayerMasteryName("VorazunMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_E3D8C0FA", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("VorazunMastery1"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_E3D8C0FA");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_DE205FBC", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_DE205FBC", "A", libKCOR_gf_CC_PlayerMasteryName("VorazunMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_DE205FBC", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("VorazunMastery2"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_DE205FBC");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_0B848771", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_0B848771", "A", libKCOR_gf_CC_PlayerMasteryName("VorazunMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_0B848771", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("VorazunMastery3"), c_techCountCompleteOnly)*0.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_0B848771");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_252AC51E", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_252AC51E", "A", libKCOR_gf_CC_PlayerMasteryName("VorazunMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_252AC51E", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("VorazunMastery4"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_252AC51E");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4F8DEA34", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4F8DEA34", "A", libKCOR_gf_CC_PlayerMasteryName("VorazunMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4F8DEA34", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("VorazunMastery5"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_4F8DEA34");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_F839A245", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_F839A245", "A", libKCOR_gf_CC_PlayerMasteryName("VorazunMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_F839A245", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("VorazunMastery6"), c_techCountCompleteOnly)*3.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_F839A245");
+    }
+    else if (auto9643C0DF_val == "ZergZagara") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_E6513647", "A", libKCOR_gf_CC_PlayerMasteryName("ZagaraMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_E6513647", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ZagaraMastery1"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_E6513647");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_0359F8E7", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_0359F8E7", "A", libKCOR_gf_CC_PlayerMasteryName("ZagaraMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_0359F8E7", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ZagaraMastery2"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_0359F8E7");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B599A209", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B599A209", "A", libKCOR_gf_CC_PlayerMasteryName("ZagaraMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B599A209", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ZagaraMastery3"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_B599A209");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_FCCFF761", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_FCCFF761", "A", libKCOR_gf_CC_PlayerMasteryName("ZagaraMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_FCCFF761", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ZagaraMastery4"), c_techCountCompleteOnly)*0.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_FCCFF761");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_80346F58", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_80346F58", "A", libKCOR_gf_CC_PlayerMasteryName("ZagaraMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_80346F58", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ZagaraMastery5"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_80346F58");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B7150A7E", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B7150A7E", "A", libKCOR_gf_CC_PlayerMasteryName("ZagaraMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_B7150A7E", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ZagaraMastery6"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_B7150A7E");
+    }
+    else if (auto9643C0DF_val == "ProtossZeratul") {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_DD091610", "A", libKCOR_gf_CC_PlayerMasteryName("ZeratulMastery1"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_DD091610", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ZeratulMastery1"), c_techCountCompleteOnly)*1.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_DD091610");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4B590C55", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4B590C55", "A", libKCOR_gf_CC_PlayerMasteryName("ZeratulMastery2"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_4B590C55", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ZeratulMastery2"), c_techCountCompleteOnly)*0.5), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_4B590C55");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_AAEBBB26", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_AAEBBB26", "A", libKCOR_gf_CC_PlayerMasteryName("ZeratulMastery3"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_AAEBBB26", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ZeratulMastery3"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_AAEBBB26");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_686543D8", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_686543D8", "A", libKCOR_gf_CC_PlayerMasteryName("ZeratulMastery4"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_686543D8", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ZeratulMastery4"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_686543D8");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6DBAD4C4", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6DBAD4C4", "A", libKCOR_gf_CC_PlayerMasteryName("ZeratulMastery5"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6DBAD4C4", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ZeratulMastery5"), c_techCountCompleteOnly)*1.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_6DBAD4C4");
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6DC77455", "C", lv_tooltip);
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6DC77455", "A", libKCOR_gf_CC_PlayerMasteryName("ZeratulMastery6"));
+        TextExpressionSetToken("Param/Expression/lib_KPVP_6DC77455", "B", FixedToText((TechTreeUpgradeCount(lp_player, libKCOR_gf_CC_PlayerMasteryUpgradeData("ZeratulMastery6"), c_techCountCompleteOnly)*2.0), c_fixedPrecisionAny));
+        lv_tooltip = TextExpressionAssemble("Param/Expression/lib_KPVP_6DC77455");
+    }
+    else {
+    }
+    return lv_tooltip;
+}
+
+int libKPVP_gf_player_row (int lp_player) {
+    // Automatic Variable Declarations
+    // Implementation
+    return (lp_player + 1);
+}
+
+void libKPVP_gf_reset_tech_to_default_for_player (int lp_player) {
+    // Variable Declarations
+    string lv_indexCategory;
+    string lv_indexCategory2;
+    string lv_indexUpgrade;
+    string lv_playerCommander;
+    bool lv_categoryEnableDisable;
+    bool lv_upgradeEnableDisable;
+    int lv_rand;
+
+    // Automatic Variable Declarations
+    int autoF19AAED6_val;
+
+    // Variable Initialization
+    lv_categoryEnableDisable = true;
+    lv_upgradeEnableDisable = true;
+
+    // Implementation
+    if ((!((PlayerRace(lp_player) == "Zerg") || (PlayerRace(lp_player) == "Terr") || (PlayerRace(lp_player) == "Prot")))) {
+        lv_rand = RandomInt(0, 2);
+        autoF19AAED6_val = lv_rand;
+        if (autoF19AAED6_val == 0) {
+            PlayerSetRace(lp_player, "Prot");
+        }
+        else if (autoF19AAED6_val == 1) {
+            PlayerSetRace(lp_player, "Zerg");
+        }
+        else if (autoF19AAED6_val == 2) {
+            PlayerSetRace(lp_player, "Terr");
+        }
+        else {
+        }
+    }
+
+    return ;
+}
+
+void libKPVP_gf_set_commander_for_player (string lp_commander, int lp_player) {
+    // Variable Declarations
+    string lv_indexMasteryUpgrade;
+    int lv_currentLevel;
+    int[11] lv_mastery_levels;
+    int lv_i;
+
+    // Automatic Variable Declarations
+    string autoCF1F655D_val;
+    string auto9C060E8A_val;
+    string auto2AB85E63_val;
+    string auto3D2A4092_val;
+    int autoED5D707B_ai;
+    int autoED5D707B_ae;
+    int autoED5D707B_ac;
+
+    // Variable Initialization
+    lv_currentLevel = 15;
+
+    // Implementation
+    PlayerGroupAdd(libKPVP_gv_cOMMANDERS, lp_player);
+    libKPVP_gv_players_commanders_names[lp_player] = libKCOR_gf_CC_CommanderName(lp_commander);
+    TechTreeUpgradeAddLevel(lp_player, "PlayerCommander", 1);
+    libKCOR_gf_CC_PlayerCommanderSet(lp_player, lp_commander);
+    PlayerSetRace(lp_player, libKCOR_gf_CC_CommanderSpawnRace(lp_commander));
+    lv_currentLevel = 15;
+    libKCOR_gf_CC_PlayerLevelSet(lp_player, lv_currentLevel, lp_commander);
+    libKCOR_gf_CC_PlayerExperienceSetToLevel(lp_player, lv_currentLevel, lp_commander);
+    if ((GameAttributeGameValue("[bnet:local/0.0/223536]9") == "0001")) {
+        autoCF1F655D_val = GameAttributePlayerValue("[bnet:local/0.0/223536]10", lp_player);
+        if (autoCF1F655D_val == "0002") {
+            libKCOR_gf_CC_SetPlayerPrestigeIndex(lp_player, 1);
+        }
+        else if (autoCF1F655D_val == "0003") {
+            libKCOR_gf_CC_SetPlayerPrestigeIndex(lp_player, 2);
+        }
+        else if (autoCF1F655D_val == "0004") {
+            libKCOR_gf_CC_SetPlayerPrestigeIndex(lp_player, 3);
+        }
+        else {
+        }
+    }
+
+    if ((GameAttributeGameValue("[bnet:local/0.0/223536]3") == "0001")) {
+        auto9C060E8A_val = GameAttributePlayerValue("[bnet:local/0.0/223536]4", lp_player);
+        if (auto9C060E8A_val == "0002") {
+            lv_mastery_levels[1] = 0;
+            lv_mastery_levels[2] = 30;
+        }
+        else if (auto9C060E8A_val == "0003") {
+            lv_mastery_levels[1] = 5;
+            lv_mastery_levels[2] = 25;
+        }
+        else if (auto9C060E8A_val == "0004") {
+            lv_mastery_levels[1] = 10;
+            lv_mastery_levels[2] = 20;
+        }
+        else if (auto9C060E8A_val == "0005") {
+            lv_mastery_levels[1] = 15;
+            lv_mastery_levels[2] = 15;
+        }
+        else if (auto9C060E8A_val == "0006") {
+            lv_mastery_levels[1] = 20;
+            lv_mastery_levels[2] = 10;
+        }
+        else if (auto9C060E8A_val == "0007") {
+            lv_mastery_levels[1] = 25;
+            lv_mastery_levels[2] = 5;
+        }
+        else if (auto9C060E8A_val == "0008") {
+            lv_mastery_levels[1] = 30;
+            lv_mastery_levels[2] = 0;
+        }
+        else if (auto9C060E8A_val == "0009") {
+            lv_mastery_levels[1] = 30;
+            lv_mastery_levels[2] = 30;
+        }
+        else if (auto9C060E8A_val == "0010") {
+            lv_mastery_levels[1] = 60;
+            lv_mastery_levels[2] = 60;
+        }
+        else {
+        }
+        auto2AB85E63_val = GameAttributePlayerValue("[bnet:local/0.0/223536]5", lp_player);
+        if (auto2AB85E63_val == "0002") {
+            lv_mastery_levels[3] = 0;
+            lv_mastery_levels[4] = 30;
+        }
+        else if (auto2AB85E63_val == "0003") {
+            lv_mastery_levels[3] = 5;
+            lv_mastery_levels[4] = 25;
+        }
+        else if (auto2AB85E63_val == "0004") {
+            lv_mastery_levels[3] = 10;
+            lv_mastery_levels[4] = 20;
+        }
+        else if (auto2AB85E63_val == "0005") {
+            lv_mastery_levels[3] = 15;
+            lv_mastery_levels[4] = 15;
+        }
+        else if (auto2AB85E63_val == "0006") {
+            lv_mastery_levels[3] = 20;
+            lv_mastery_levels[4] = 10;
+        }
+        else if (auto2AB85E63_val == "0007") {
+            lv_mastery_levels[3] = 25;
+            lv_mastery_levels[4] = 5;
+        }
+        else if (auto2AB85E63_val == "0008") {
+            lv_mastery_levels[3] = 30;
+            lv_mastery_levels[4] = 0;
+        }
+        else if (auto2AB85E63_val == "0009") {
+            lv_mastery_levels[3] = 30;
+            lv_mastery_levels[4] = 30;
+        }
+        else if (auto2AB85E63_val == "0010") {
+            lv_mastery_levels[3] = 60;
+            lv_mastery_levels[4] = 60;
+        }
+        else {
+        }
+        auto3D2A4092_val = GameAttributePlayerValue("[bnet:local/0.0/223536]6", lp_player);
+        if (auto3D2A4092_val == "0002") {
+            lv_mastery_levels[5] = 0;
+            lv_mastery_levels[6] = 30;
+        }
+        else if (auto3D2A4092_val == "0003") {
+            lv_mastery_levels[5] = 5;
+            lv_mastery_levels[6] = 25;
+        }
+        else if (auto3D2A4092_val == "0004") {
+            lv_mastery_levels[5] = 10;
+            lv_mastery_levels[6] = 20;
+        }
+        else if (auto3D2A4092_val == "0005") {
+            lv_mastery_levels[5] = 15;
+            lv_mastery_levels[6] = 15;
+        }
+        else if (auto3D2A4092_val == "0006") {
+            lv_mastery_levels[5] = 20;
+            lv_mastery_levels[6] = 10;
+        }
+        else if (auto3D2A4092_val == "0007") {
+            lv_mastery_levels[5] = 25;
+            lv_mastery_levels[6] = 5;
+        }
+        else if (auto3D2A4092_val == "0008") {
+            lv_mastery_levels[5] = 30;
+            lv_mastery_levels[6] = 0;
+        }
+        else if (auto3D2A4092_val == "0009") {
+            lv_mastery_levels[5] = 30;
+            lv_mastery_levels[6] = 30;
+        }
+        else if (auto3D2A4092_val == "0010") {
+            lv_mastery_levels[5] = 60;
+            lv_mastery_levels[6] = 60;
+        }
+        else {
+        }
+        autoED5D707B_ai = 0;
+        autoED5D707B_ae = UserDataInstanceCount("MasteryUpgrades")+1;
+        while (autoED5D707B_ai < autoED5D707B_ae) {
+            autoED5D707B_ai = autoED5D707B_ai+1;
+            autoED5D707B_ac = UserDataGetInt("MasteryUpgrades", UserDataInstance("MasteryUpgrades", autoED5D707B_ai), "Category", 1);
+            if( lp_commander == UserDataGetUserInstance("MasteryUpgrades",UserDataInstance("MasteryUpgrades", autoED5D707B_ai),"Commander",1) ) {
+                lv_indexMasteryUpgrade = UserDataInstance("MasteryUpgrades", autoED5D707B_ai);
+                lv_i = (lv_i+1);
+                if ((lv_i > libKCOR_gv_cCC_MASTERIES_PER_COMMANDER)) {
+                    break;
+                }
+                else {
+                    libKCOR_gf_CC_PlayerMasteryUpgradeLevelSet(lp_player, lv_indexMasteryUpgrade, lv_mastery_levels[lv_i]);
+                }
+            }    
+        }
+    }
+
+    libKCOR_gf_CC_ApplyTech(lp_player);
+    libKPVP_gf_enable_upgrades_for_player(lp_player, lp_commander);
+    if ((lp_commander == "ZergKerrigan")) {
+        libKPVP_gf_apply_kerrigan_creep_bonus(lp_player);
+    }
+
+}
+
+void libKPVP_gf_enable_upgrades_for_player (int lp_player, string lp_commander) {
+    // Automatic Variable Declarations
+    string auto0729CA93_val;
+
+    // Implementation
+    auto0729CA93_val = lp_commander;
+    if (auto0729CA93_val == "TerranNova") {
+        TechTreeUpgradeAllow(lp_player, "NovaDetector", true);
+        TechTreeUpgradeAllow(lp_player, "RavenSuperScience", true);
+        TechTreeUpgradeAllow(lp_player, "MarauderMagrailMunitions", true);
+        TechTreeUpgradeAllow(lp_player, "MultiTaskMAFServosLiberator", true);
+        TechTreeUpgradeAllow(lp_player, "NovaConcussiveShells", true);
+        TechTreeUpgradeAllow(lp_player, "BansheePermaCloak", true);
+        TechTreeUpgradeAllow(lp_player, "HealingDroneCloakHealBeam", true);
+    }
+    else if (auto0729CA93_val == "TerranRaynor") {
+        TechTreeUpgradeAllow(lp_player, "MedivacIncreaseSpeedBoost", false);
+        TechTreeUpgradeAllow(lp_player, "AresClassWeaponsSystemViking", true);
+    }
+    else if (auto0729CA93_val == "TerranHorner") {
+        TechTreeUpgradeAllow(lp_player, "MedivacIncreaseSpeedBoost", false);
+    }
+    else if (auto0729CA93_val == "TerranMengsk") {
+        TechTreeUpgradeAllow(lp_player, "MedivacIncreaseSpeedBoost", false);
+    }
+    else {
+    }
+}
+
+void libKPVP_gf_STARTPVP () {
+    // Variable Declarations
+    unit lv_indexUnit;
+    int lv_indexPlayer;
+    playergroup lv_itPlayerGroup;
+    int lv_rand;
+
+    // Automatic Variable Declarations
+    playergroup auto814DE7B0_g;
+    playergroup auto9B654530_g;
+    playergroup autoB401BABE_g;
+
+    // Variable Initialization
+    lv_itPlayerGroup = PlayerGroupEmpty();
+
+    // Implementation
+    Wait(0.01, c_timeGame);
+    auto814DE7B0_g = libKCOR_gf_CommanderPlayers();
+    lv_indexPlayer = -1;
+    while (true) {
+        lv_indexPlayer = PlayerGroupNextPlayer(auto814DE7B0_g, lv_indexPlayer);
+        if (lv_indexPlayer < 0) { break; }
+        if ((PlayerType(lv_indexPlayer) != c_playerTypeUser)) {
+            continue;
+        }
+
+        PlayerSetRace(lv_indexPlayer, libKCOR_gf_CC_CommanderRace(libKCOR_gf_ActiveCommanderForPlayer(lv_indexPlayer)));
+    }
+    TriggerExecute(libKPVP_gt_StartingTech, true, true);
+    libKMIS_gf_EnableDisableZerglingRespawn(true);
+    TriggerExecute(libKMIS_gt_CM_HatcheryPrimarySearch, true, true);
+    TriggerExecute(libKMIS_gt_CM_HeroSpawn, true, true);
+    TriggerExecute(libKMIS_gt_CM_GlobalCasterInit, true, true);
+    Wait(0.05, c_timeGame);
+    auto9B654530_g = libKCOR_gf_CommanderPlayers();
+    lv_indexPlayer = -1;
+    while (true) {
+        lv_indexPlayer = PlayerGroupNextPlayer(auto9B654530_g, lv_indexPlayer);
+        if (lv_indexPlayer < 0) { break; }
+        MeleeSetOption(lv_indexPlayer, c_meleeOptionXPGainDisable, false);
+        if (((libKCOR_gf_ActiveCommanderForPlayer(lv_indexPlayer) == "TerranNova") || (libKCOR_gf_ActiveCommanderForPlayer(lv_indexPlayer) == "ZergZagara") || (libKCOR_gf_ActiveCommanderForPlayer(lv_indexPlayer) == "TerranTychus") || (libKCOR_gf_ActiveCommanderForPlayer(lv_indexPlayer) == "ProtossZeratul"))) {
+            PlayerModifyPropertyFixed(lv_indexPlayer, c_playerPropSuppliesLimit, c_playerPropOperSetTo, 100.0);
+        }
+
+    }
+    UISetFrameVisible(PlayerGroupAll(), c_syncFrameTypeMenuBar, true);
+    libKPVP_gf_set_alliance_button();
+    libKMIS_gf_CM_ChatBarSetMode(libKMIS_ge_CM_ChatBarMode_CM_ChatBarNormal, PlayerGroupAll());
+    libKPVP_gf_apply_peace_time();
+    Wait(4.0, c_timeGame);
+    autoB401BABE_g = libKCOR_gf_CommanderPlayers();
+    lv_indexPlayer = -1;
+    while (true) {
+        lv_indexPlayer = PlayerGroupNextPlayer(autoB401BABE_g, lv_indexPlayer);
+        if (lv_indexPlayer < 0) { break; }
+        libKCUI_gf_CU_GPVisibilitySet(true, lv_indexPlayer, c_transitionDurationImmediate);
+    }
+    UIDisplayMessage(PlayerGroupAll(), c_messageAreaSubtitle, StringExternal("Param/Value/lib_KPVP_5B84F5F1"));
+    Wait(20.0, c_timeGame);
+    UIDisplayMessage(PlayerGroupAll(), c_messageAreaSubtitle, StringExternal("Param/Value/lib_KPVP_A61FC2DA"));
+    Wait(30.0, c_timeGame);
+    if ((PlayerGroupCount(PlayerGroupActive()) > 6)) {
+        UIDisplayMessage(PlayerGroupActive(), c_messageAreaChat, StringExternal("Param/Value/lib_KPVP_C934A0F8"));
+    }
+
+}
+
+void libKPVP_gf_apply_peace_time () {
+    // Variable Declarations
+    string lv_peace_time_aura;
+    int lv_peace_time_duration;
+    unit lv_cc;
+
+    // Automatic Variable Declarations
+    string auto0AF7BC25_val;
+    playergroup autoC8DFDC3B_g;
+    int autoC8DFDC3B_var;
+
+    // Variable Initialization
+    lv_peace_time_aura = "peaceTimeAura";
+    lv_peace_time_duration = 10;
+
+    // Implementation
+    auto0AF7BC25_val = GameAttributeGameValue("[bnet:local/0.0/223536]8");
+    if (auto0AF7BC25_val == "0001") {
+        return ;
+    }
+    else if (auto0AF7BC25_val == "0002") {
+        lv_peace_time_duration = 252;
+        UIDisplayMessage(PlayerGroupAll(), c_messageAreaSubtitle, StringExternal("Param/Value/lib_KPVP_93F970A0"));
+    }
+    else if (auto0AF7BC25_val == "0003") {
+        lv_peace_time_duration = 420;
+        UIDisplayMessage(PlayerGroupAll(), c_messageAreaSubtitle, StringExternal("Param/Value/lib_KPVP_1ED00F95"));
+    }
+    else if (auto0AF7BC25_val == "0004") {
+        lv_peace_time_duration = 588;
+        UIDisplayMessage(PlayerGroupAll(), c_messageAreaSubtitle, StringExternal("Param/Value/lib_KPVP_4687D56A"));
+    }
+    else {
+        return ;
+    }
+    autoC8DFDC3B_g = PlayerGroupActive();
+    autoC8DFDC3B_var = -1;
+    while (true) {
+        autoC8DFDC3B_var = PlayerGroupNextPlayer(autoC8DFDC3B_g, autoC8DFDC3B_var);
+        if (autoC8DFDC3B_var < 0) { break; }
+        lv_cc = UnitGroupClosestToPoint(UnitGroupSearch(null, autoC8DFDC3B_var, PlayerStartLocation(autoC8DFDC3B_var), 10.0, UnitFilter((1 << c_targetFilterStructure), 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0), PlayerStartLocation(autoC8DFDC3B_var));
+        if ((lv_cc != null)) {
+            UnitBehaviorAdd(lv_cc, lv_peace_time_aura, lv_cc, 1);
+            UnitBehaviorSetDuration(lv_cc, lv_peace_time_aura, lv_peace_time_duration);
+        }
+
+    }
+}
+
+void libKPVP_gf_hide_own_nydus (unit lp_unit) {
+    // Automatic Variable Declarations
+    playergroup auto012FCBDF_g;
+    int auto012FCBDF_var;
+
+    // Implementation
+    auto012FCBDF_g = PlayerGroupAlliance(c_playerGroupAlly, UnitGetOwner(lp_unit));
+    auto012FCBDF_var = -1;
+    while (true) {
+        auto012FCBDF_var = PlayerGroupNextPlayer(auto012FCBDF_g, auto012FCBDF_var);
+        if (auto012FCBDF_var < 0) { break; }
+        if ((auto012FCBDF_var != libKPVP_gv_observer)) {
+            TextExpressionSetToken("Param/Expression/lib_KPVP_0E9A9A74", "A", IntToText(auto012FCBDF_var));
+            ActorSendAsText(libNtve_gf_MainActorofUnit(lp_unit), TextExpressionAssemble("Param/Expression/lib_KPVP_0E9A9A74"));
+        }
+
+    }
+}
+
+void libKPVP_gf_hide_ally_nydus (unit lp_unit) {
+    // Automatic Variable Declarations
+    playergroup autoDDBF9491_g;
+    int autoDDBF9491_var;
+
+    // Implementation
+    TextExpressionSetToken("Param/Expression/lib_KPVP_F4935F8D", "A", IntToText(libKPVP_gv_observer));
+    ActorSendAsText(libNtve_gf_MainActorofUnit(lp_unit), TextExpressionAssemble("Param/Expression/lib_KPVP_F4935F8D"));
+    autoDDBF9491_g = PlayerGroupActive();
+    autoDDBF9491_var = -1;
+    while (true) {
+        autoDDBF9491_var = PlayerGroupNextPlayer(autoDDBF9491_g, autoDDBF9491_var);
+        if (autoDDBF9491_var < 0) { break; }
+        if ((autoDDBF9491_var != UnitGetOwner(lp_unit))) {
+            TextExpressionSetToken("Param/Expression/lib_KPVP_A7BACF4A", "A", IntToText(autoDDBF9491_var));
+            ActorSendAsText(libNtve_gf_MainActorofUnit(lp_unit), TextExpressionAssemble("Param/Expression/lib_KPVP_A7BACF4A"));
+        }
+
+    }
+}
+
+void libKPVP_gf_StartingTechForHumanPlayer (int lp_player) {
+    // Variable Declarations
+    point lv_spawnPoint;
+    point lv_mineralPoint;
+    unitgroup lv_geysers;
+    int lv_unitIter;
+    fixed lv_distance;
+    fixed lv_startingAngle;
+    fixed lv_placementAngle;
+    unit lv_workerRally;
+    point lv_mercSpawnPoint;
+    unit lv_townHall;
+    string lv_townHallType;
+    int lv_larvaCount;
+
+    // Automatic Variable Declarations
+    string auto48DC5AAA_val;
+    unitgroup autoE2A4BA3D_g;
+    int autoE2A4BA3D_u;
+    unit autoE2A4BA3D_var;
+
+    // Variable Initialization
+    lv_geysers = UnitGroupEmpty();
+    lv_townHallType = (CatalogFieldValueGet(c_gameCatalogRace, libKCOR_gf_CC_CommanderSpawnRace(libKCOR_gf_ActiveCommanderForPlayer(lp_player)), "StartingUnitArray[" + IntToString(0) + "].Unit", c_playerAny));
+    lv_larvaCount = UserDataGetInt("PlayerCommanders", libKCOR_gf_ActiveCommanderForPlayer(lp_player), "StartingLarvaCount", 1);
+
+    // Implementation
+    if ((PlayerStartLocation(lp_player) == null)) {
+        TextExpressionSetToken("Param/Expression/lib_KPVP_9A7F0139", "A", IntToText(lp_player));
+        TriggerDebugOutput(1, TextExpressionAssemble("Param/Expression/lib_KPVP_9A7F0139"), false);
+        return ;
+    }
+
+    auto48DC5AAA_val = PlayerRace(lp_player);
+    if (auto48DC5AAA_val == "Prot") {
+        if ((TechTreeUpgradeCount(lp_player, "FenixCommander", c_techCountCompleteOnly) == 1)) {
+            TriggerExecute(libE0EAE146_gt_CM_Fenix_TriggersInit, true, false);
+        }
+
+        if ((TechTreeUpgradeCount(lp_player, "ZeratulCommander", c_techCountCompleteOnly) == 1)) {
+            TriggerExecute(libE0EAE146_gt_CM_Zeratul_TriggersInit, true, false);
+        }
+
+    }
+    else if (auto48DC5AAA_val == "Terr") {
+        if ((TechTreeUpgradeCount(lp_player, "MasteryRaynorResearchCost", c_techCountCompleteOnly) >= 1)) {
+            libKMIS_gf_CM_RaynorUpgradeResearchCost(lp_player, TechTreeUpgradeCount(lp_player, "MasteryRaynorResearchCost", c_techCountCompleteOnly));
+        }
+
+        if ((TechTreeUpgradeCount(lp_player, "SwannCommander", c_techCountCompleteOnly) == 1)) {
+            if ((TechTreeUpgradeCount(lp_player, "SwannCommanderStartingOrbitalCommand", c_techCountCompleteOnly) == 1)) {
+                autoE2A4BA3D_g = UnitGroup("CommandCenter", lp_player, RegionCircle(PlayerStartLocation(lp_player), 1.0), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1);
+                autoE2A4BA3D_u = UnitGroupCount(autoE2A4BA3D_g, c_unitCountAll);
+                for (;; autoE2A4BA3D_u -= 1) {
+                    autoE2A4BA3D_var = UnitGroupUnitFromEnd(autoE2A4BA3D_g, autoE2A4BA3D_u);
+                    if (autoE2A4BA3D_var == null) { break; }
+                    UnitIssueOrder(autoE2A4BA3D_var, Order(AbilityCommand("UpgradeToOrbitalCoop", 0)), c_orderQueueReplace);
+                }
+            }
+
+            if ((TechTreeUpgradeCount(lp_player, "SwannCommanderStartingRefinery", c_techCountCompleteOnly) == 1)) {
+                UnitGroupAddUnitGroup(lv_geysers, UnitGroup("VespeneGeyser", c_playerAny, RegionCircle(PlayerStartLocation(lp_player), 15.0), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 2));
+                UnitGroupAddUnitGroup(lv_geysers, UnitGroup("ProtossVespeneGeyser", c_playerAny, RegionCircle(PlayerStartLocation(lp_player), 15.0), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 2));
+                UnitGroupAddUnitGroup(lv_geysers, UnitGroup("SpacePlatformGeyser", c_playerAny, RegionCircle(PlayerStartLocation(lp_player), 15.0), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 2));
+                if ((TechTreeUpgradeCount(lp_player, "AutoHarvester", c_techCountCompleteOnly) == 1)) {
+                    libNtve_gf_CreateUnitsWithDefaultFacing(1, "AutomatedRefinery", c_unitCreateIgnorePlacement, lp_player, UnitGetPosition(UnitGroupUnit(lv_geysers, 1)));
+                    libNtve_gf_CreateUnitsWithDefaultFacing(1, "AutomatedRefinery", c_unitCreateIgnorePlacement, lp_player, UnitGetPosition(UnitGroupUnit(lv_geysers, 2)));
+                }
+                else {
+                    libNtve_gf_CreateUnitsWithDefaultFacing(1, "Refinery", c_unitCreateIgnorePlacement, lp_player, UnitGetPosition(UnitGroupUnit(lv_geysers, 1)));
+                    libNtve_gf_CreateUnitsWithDefaultFacing(1, "Refinery", c_unitCreateIgnorePlacement, lp_player, UnitGetPosition(UnitGroupUnit(lv_geysers, 2)));
+                }
+            }
+
+        }
+
+        if ((TechTreeUpgradeCount(lp_player, "NovaCommander", c_techCountCompleteOnly) == 1)) {
+            TriggerExecute(libE0EAE146_gt_CM_Nova_TriggersInit, true, false);
+        }
+
+        if ((TechTreeUpgradeCount(lp_player, "HornerCommander", c_techCountCompleteOnly) == 1)) {
+            TriggerExecute(libE0EAE146_gt_CM_Horner_TriggersInit, true, false);
+            libNtve_gf_SetUpgradeLevelForPlayer(lp_player, "HHMercStarportLimitCount", CatalogFieldValueGetAsInt(c_gameCatalogEffect, "HHMercStarportLimitDummy", "Amount", lp_player));
+        }
+
+        if ((TechTreeUpgradeCount(lp_player, "TychusCommander", c_techCountCompleteOnly) == 1)) {
+            TriggerExecute(libE0EAE146_gt_CM_Tychus_TriggersInit, true, false);
+        }
+
+        if ((TechTreeUpgradeCount(lp_player, "MengskCommander", c_techCountCompleteOnly) == 1)) {
+            TriggerExecute(libE0EAE146_gt_CM_Mengsk_TriggersInit, true, false);
+        }
+
+    }
+    else if ((auto48DC5AAA_val == "Zerg") || (auto48DC5AAA_val == "ZergStukov")) {
+        if ((TechTreeUpgradeCount(lp_player, "KerriganCommander", c_techCountCompleteOnly) == 1)) {
+        }
+
+        if ((TechTreeUpgradeCount(lp_player, "AbathurCommander", c_techCountCompleteOnly) == 1)) {
+            TriggerExecute(libE0EAE146_gt_CM_Abathur_TriggersInit, true, false);
+        }
+
+        if ((TechTreeUpgradeCount(lp_player, "StukovCommander", c_techCountCompleteOnly) == 1)) {
+            TriggerExecute(libE0EAE146_gt_CM_Stukov_TriggersInit, true, false);
+        }
+
+        if ((TechTreeUpgradeCount(lp_player, "DehakaCommander", c_techCountCompleteOnly) == 1)) {
+            if ((TechTreeUpgradeCount(lp_player, "CommanderLevel", c_techCountCompleteOnly) >= 5)) {
+                libKMIS_gv_cM_DehakaLevelsMax[lp_player] = 12;
+                libKMIS_gv_cM_DehakaVeterencyBehavior[lp_player] = "DehakaVeterancyCoopMedium";
+            }
+
+            if ((TechTreeUpgradeCount(lp_player, "CommanderLevel", c_techCountCompleteOnly) >= 12)) {
+                libKMIS_gv_cM_DehakaLevelsMax[lp_player] = 14;
+                libKMIS_gv_cM_DehakaVeterencyBehavior[lp_player] = "DehakaVeterancyCoopHigh";
+            }
+
+            if ((TechTreeUpgradeCount(lp_player, "CommanderLevel", c_techCountCompleteOnly) >= 14)) {
+                libKMIS_gv_cM_DehakaLevelsMax[lp_player] = 15;
+                libKMIS_gv_cM_DehakaVeterencyBehavior[lp_player] = "DehakaVeterancyCoopFinal";
+            }
+
+            libKMIS_gf_CM_Dehaka_SetLevelValues(lp_player);
+            TriggerExecute(libE0EAE146_gt_CM_Dehaka_TriggersInit, true, false);
+        }
+
+        if ((TechTreeUpgradeCount(lp_player, "StetmannCommander", c_techCountCompleteOnly) == 1)) {
+            TriggerExecute(libE0EAE146_gt_CM_Stetmann_TriggersInit, true, false);
+        }
+
+    }
+    else {
+    }
+    libKMIS_gf_VoicePackCommanderDefaultApply(lp_player);
+}
+
+void libKPVP_gf_set_resources (string lp_mineral_behavior, string lp_gas_behavior) {
+    // Automatic Variable Declarations
+    unitgroup auto9D29D841_g;
+    int auto9D29D841_u;
+    unit auto9D29D841_var;
+
+    // Implementation
+    auto9D29D841_g = UnitGroup(null, 0, RegionEntireMap(), UnitFilter((1 << c_targetFilterStructure), 0, 0, 0), 0);
+    auto9D29D841_u = UnitGroupCount(auto9D29D841_g, c_unitCountAll);
+    for (;; auto9D29D841_u -= 1) {
+        auto9D29D841_var = UnitGroupUnitFromEnd(auto9D29D841_g, auto9D29D841_u);
+        if (auto9D29D841_var == null) { break; }
+        if (((UnitBehaviorEnabled(auto9D29D841_var, "MineralFieldMinerals") == true) || (UnitBehaviorEnabled(auto9D29D841_var, "MineralFieldMinerals750") == true) || (UnitBehaviorEnabled(auto9D29D841_var, "HighYieldMineralFieldMinerals") == true) || (UnitBehaviorEnabled(auto9D29D841_var, "HighYieldMineralFieldMinerals750") == true))) {
+            UnitBehaviorRemove(auto9D29D841_var, "MineralFieldMinerals", 1);
+            UnitBehaviorRemove(auto9D29D841_var, "MineralFieldMinerals750", 1);
+            UnitBehaviorRemove(auto9D29D841_var, "HighYieldMineralFieldMinerals", 1);
+            UnitBehaviorRemove(auto9D29D841_var, "HighYieldMineralFieldMinerals750", 1);
+            UnitBehaviorAdd(auto9D29D841_var, lp_mineral_behavior, auto9D29D841_var, 1);
+        }
+
+        if (((UnitBehaviorEnabled(auto9D29D841_var, "RawVespeneGeyserGas") == true) || (UnitBehaviorEnabled(auto9D29D841_var, "RawRichVespeneGeyserGas") == true))) {
+            UnitBehaviorRemove(auto9D29D841_var, "RawVespeneGeyserGas", 1);
+            UnitBehaviorRemove(auto9D29D841_var, "RawRichVespeneGeyserGas", 1);
+            UnitBehaviorAdd(auto9D29D841_var, lp_gas_behavior, auto9D29D841_var, 1);
+        }
+
+    }
+}
+
+void libKPVP_gf_apply_kerrigan_creep_bonus (int lp_player) {
+    // Variable Declarations
+    int lv_itPlayer;
+    int lv_totalPlayersLevel;
+    int[libKCOR_gv_cCC_MAXPLAYERS + 1] lv_playerLevel;
+    string lv_entry;
+    int lv_catalog;
+    int lv_index;
+    int lv_count;
+    fixed lv_add;
+    int lv_kerriganplayer;
+    fixed lv_attackspeedmultiplier;
+    fixed lv_liferegenrate;
+    int lv_has_talent;
+
+    // Automatic Variable Declarations
+    int autoE5A22749_catalog;
+    int autoE5A22749_i;
+    playergroup auto807B9AE9_g;
+
+    // Variable Initialization
+    lv_catalog = c_gameCatalogUnit;
+    lv_kerriganplayer = lp_player;
+    lv_attackspeedmultiplier = libNtve_gf_CatalogFieldValueGetAsReal(c_gameCatalogEffect, "KerriganMalignantCreepAttackSpeedDummy", "Amount", lv_kerriganplayer);
+    lv_liferegenrate = libNtve_gf_CatalogFieldValueGetAsReal(c_gameCatalogEffect, "KerriganMalignantCreepLifeRegenDummy", "Amount", lv_kerriganplayer);
+
+    // Implementation
+    lv_has_talent = TechTreeUpgradeCount(lp_player, libKMIS_gv_cM_TalentKerriganMalignantCreepUpgrade, c_techCountCompleteOnly);
+    if ((lv_has_talent <= 0)) {
+        return ;
+    }
+
+    autoE5A22749_catalog = lv_catalog;
+    autoE5A22749_i = 1;
+    for ( ; autoE5A22749_i <= CatalogEntryCount(lv_catalog) ; autoE5A22749_i += 1 ) {
+        lv_entry = CatalogEntryGet(autoE5A22749_catalog, autoE5A22749_i);
+        if ((CatalogEntryIsDefault(lv_catalog, lv_entry) == false) && (UnitTypeTestFlag(lv_entry, c_unitFlagInvulnerable) == false) && (UnitTypeTestFlag(lv_entry, c_unitFlagNoDraw) == false) && (UnitTypeTestFlag(lv_entry, c_unitFlagDestructible) == false) && (UnitTypeTestFlag(lv_entry, c_unitFlagMissile) == false) && (UnitTypeTestAttribute(lv_entry, c_unitAttributeStructure) == false) && ((UnitTypeTestAttribute(lv_entry, c_unitAttributeBiological) == true) || (UnitTypeTestAttribute(lv_entry, c_unitAttributeMechanical) == true) || (UnitTypeTestAttribute(lv_entry, c_unitAttributePsionic) == true)) && (CatalogFieldValueGet(c_gameCatalogUnit, lv_entry, "PlaneArray[Ground]", c_playerAny) == "1")) {
+            auto807B9AE9_g = libNtve_gf_AlliesEnemiesOfPlayerCountInactiveAndSelf(libNtve_ge_PlayerRelation_AllyMutual, lp_player);
+            lv_itPlayer = -1;
+            while (true) {
+                lv_itPlayer = PlayerGroupNextPlayer(auto807B9AE9_g, lv_itPlayer);
+                if (lv_itPlayer < 0) { break; }
+                CatalogFieldValueModify(c_gameCatalogUnit, lv_entry, "LifeRegenRateCreep", lv_itPlayer, FixedToString(lv_liferegenrate, c_fixedPrecisionAny), c_upgradeOperationAdd);
+                CatalogFieldValueModify(c_gameCatalogUnit, lv_entry, "AttackSpeedMultiplierCreep", lv_itPlayer, FixedToString(lv_attackspeedmultiplier, c_fixedPrecisionAny), c_upgradeOperationAdd);
+            }
+        }
+
+    }
+}
+
+void libKPVP_gf_reset_skins_for_player (int lp_player) {
+    // Automatic Variable Declarations
+    // Implementation
+    // Commander skin should have a single owner. Resetting every user player to
+    // Carrier here causes campaign ally presentation units on shared player slots
+    // to bounce between multiple skins before KCOR applies the final commander skin.
+    return;
+}
+
+void libKPVP_gf_set_difficulty_for_all_players () {
+    // Variable Declarations
+    int lv_difficulty;
+    int lv_player;
+
+    // Automatic Variable Declarations
+    string auto1172A69C_val;
+    playergroup auto63C538DD_g;
+
+    // Variable Initialization
+    lv_difficulty = 4;
+
+    // Implementation
+    auto1172A69C_val = GameAttributeGameValue("[bnet:local/0.0/223536]7");
+    if (auto1172A69C_val == "0001") {
+        lv_difficulty = 1;
+    }
+    else if (auto1172A69C_val == "0002") {
+        lv_difficulty = 2;
+    }
+    else if (auto1172A69C_val == "0003") {
+        lv_difficulty = 3;
+    }
+    else if (auto1172A69C_val == "0004") {
+        lv_difficulty = 4;
+    }
+    else {
+    }
+    auto63C538DD_g = PlayerGroupActive();
+    lv_player = -1;
+    while (true) {
+        lv_player = PlayerGroupNextPlayer(auto63C538DD_g, lv_player);
+        if (lv_player < 0) { break; }
+        PlayerSetDifficulty(lv_player, lv_difficulty);
+    }
+}
+
+void libKPVP_gf_share_essense_vision (unit lp_unit) {
+    // Automatic Variable Declarations
+    playergroup auto129A717D_g;
+    int auto129A717D_var;
+    int autoD99C5B41_val;
+
+    // Implementation
+    auto129A717D_g = PlayerGroupActive();
+    auto129A717D_var = -1;
+    while (true) {
+        auto129A717D_var = PlayerGroupNextPlayer(auto129A717D_g, auto129A717D_var);
+        if (auto129A717D_var < 0) { break; }
+        if ((PlayerGroupHasPlayer(libKPVP_gv_dehaka_players, auto129A717D_var) == false)) {
+            autoD99C5B41_val = auto129A717D_var;
+            if (autoD99C5B41_val == 1) {
+                libNtve_gf_SendActorMessageToUnit(lp_unit, "SetFilterPlayers 1");
+            }
+            else if (autoD99C5B41_val == 2) {
+                libNtve_gf_SendActorMessageToUnit(lp_unit, "SetFilterPlayers 2");
+            }
+            else if (autoD99C5B41_val == 3) {
+                libNtve_gf_SendActorMessageToUnit(lp_unit, "SetFilterPlayers 3");
+            }
+            else if (autoD99C5B41_val == 4) {
+                libNtve_gf_SendActorMessageToUnit(lp_unit, "SetFilterPlayers 4");
+            }
+            else if (autoD99C5B41_val == 5) {
+                libNtve_gf_SendActorMessageToUnit(lp_unit, "SetFilterPlayers 5");
+            }
+            else if (autoD99C5B41_val == 6) {
+                libNtve_gf_SendActorMessageToUnit(lp_unit, "SetFilterPlayers 6");
+            }
+            else if (autoD99C5B41_val == 7) {
+                libNtve_gf_SendActorMessageToUnit(lp_unit, "SetFilterPlayers 7");
+            }
+            else if (autoD99C5B41_val == 8) {
+                libNtve_gf_SendActorMessageToUnit(lp_unit, "SetFilterPlayers 8");
+            }
+            else if (autoD99C5B41_val == 9) {
+                libNtve_gf_SendActorMessageToUnit(lp_unit, "SetFilterPlayers 9");
+            }
+            else if (autoD99C5B41_val == 10) {
+                libNtve_gf_SendActorMessageToUnit(lp_unit, "SetFilterPlayers 10");
+            }
+            else if (autoD99C5B41_val == 11) {
+                libNtve_gf_SendActorMessageToUnit(lp_unit, "SetFilterPlayers 11");
+            }
+            else if (autoD99C5B41_val == 12) {
+                libNtve_gf_SendActorMessageToUnit(lp_unit, "SetFilterPlayers 12");
+            }
+            else {
+            }
+        }
+
+    }
+}
+
+point libKPVP_gf_get_point_for_zeratul_artifact (int lp_player, int lp_artifact_num) {
+    // Variable Declarations
+    int lv_offset;
+    fixed lv_r;
+    point lv_artifact_point;
+    point lv_tmp_point;
+    region lv_search_region;
+    region lv_search_region2;
+
+    // Automatic Variable Declarations
+    // Variable Initialization
+    lv_offset = 30;
+    lv_r = DistanceBetweenPoints(RegionGetCenter(RegionPlayableMap()), PlayerStartLocation(lp_player));
+    lv_search_region = RegionCircle(RegionGetCenter(RegionPlayableMap()), (DistanceBetweenPoints(RegionGetCenter(RegionPlayableMap()), PlayerStartLocation(lp_player)) - lv_offset));
+    lv_search_region2 = RegionCircle(RegionGetCenter(RegionPlayableMap()), DistanceBetweenPoints(RegionGetCenter(RegionPlayableMap()), PlayerStartLocation(lp_player)));
+
+    // Implementation
+    if ((lv_r < 60.0)) {
+        lv_search_region = RegionCircle(RegionGetCenter(RegionPlayableMap()), lv_r);
+    }
+    else {
+        lv_search_region = RegionCircle(RegionGetCenter(RegionPlayableMap()), (lv_r - lv_offset));
+    }
+    while ((lv_artifact_point == null)) {
+        lv_tmp_point = RegionRandomPoint(lv_search_region);
+        if ((PointPathingPassable(lv_tmp_point) == true)) {
+            lv_artifact_point = lv_tmp_point;
+        }
+
+    }
+    return lv_artifact_point;
+}
+
+// Triggers
+//--------------------------------------------------------------------------------------------------
+// Trigger: alliance_button_pressed
+//--------------------------------------------------------------------------------------------------
+bool libKPVP_gt_alliance_button_pressed_Func (bool testConds, bool runActions) {
+    // Automatic Variable Declarations
+    // Conditions
+    if (testConds) {
+        if (!((EventDialogControl() == libKPVP_gv_alliance_button))) {
+            return false;
+        }
+    }
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    if ((DialogIsVisible(libKPVP_gv_alliance_tab, EventPlayer()) == true)) {
+        DialogSetVisible(libKPVP_gv_alliance_tab, PlayerGroupSingle(EventPlayer()), false);
+    }
+    else {
+        DialogSetVisible(libKPVP_gv_alliance_tab, PlayerGroupSingle(EventPlayer()), true);
+    }
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gt_alliance_button_pressed_Init () {
+    libKPVP_gt_alliance_button_pressed = TriggerCreate("libKPVP_gt_alliance_button_pressed_Func");
+    TriggerAddEventDialogControl(libKPVP_gt_alliance_button_pressed, c_playerAny, c_invalidDialogControlId, c_triggerControlEventTypeClick);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: player_defeated
+//--------------------------------------------------------------------------------------------------
+bool libKPVP_gt_player_defeated_Func (bool testConds, bool runActions) {
+    // Automatic Variable Declarations
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    libNtve_gf_SetDialogItemColor(libKPVP_gv_commanders_names[EventPlayer()], Color(44.71, 44.71, 44.71), PlayerGroupAll());
+    libNtve_gf_SetDialogItemText(libKPVP_gv_commanders_names[EventPlayer()], StringExternal("Param/Value/lib_KPVP_E75C5CB9"), PlayerGroupAll());
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gt_player_defeated_Init () {
+    libKPVP_gt_player_defeated = TriggerCreate("libKPVP_gt_player_defeated_Func");
+    TriggerAddEventPlayerLeft(libKPVP_gt_player_defeated, c_playerAny, c_gameResultUndecided);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: init
+//--------------------------------------------------------------------------------------------------
+bool libKPVP_gt_init_Func (bool testConds, bool runActions) {
+    // Variable Declarations
+    int lv_player;
+    bool lv_with_random_ai;
+
+    // Automatic Variable Declarations
+    string auto5355CBCC_val;
+    playergroup autoEE3370AE_g;
+    string auto0C816381_val;
+
+    // Variable Initialization
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    TriggerDebugOutputEnable(false);
+    AITimePause(false);
+    libKPVP_gf_set_difficulty_for_all_players();
+    auto5355CBCC_val = GameAttributeGameValue("[bnet:local/0.0/223536]2");
+    if (auto5355CBCC_val == "0002") {
+        libKPVP_gf_set_resources("MineralsMineralFieldcoop", "GasRawVespeneGeysercoop");
+        UIDisplayMessage(PlayerGroupAll(), c_messageAreaSubtitle, StringExternal("Param/Value/lib_KPVP_281D0E01"));
+    }
+    else if (auto5355CBCC_val == "0003") {
+        libKPVP_gf_set_resources("MineralsMineralFieldmany", "GasRawVespeneGeysermany");
+        UIDisplayMessage(PlayerGroupAll(), c_messageAreaSubtitle, StringExternal("Param/Value/lib_KPVP_3D689A05"));
+    }
+    else if (auto5355CBCC_val == "0004") {
+        libKPVP_gf_set_resources("MineralsMineralFieldverymany", "GasRawVespeneGeyserverymany");
+        UIDisplayMessage(PlayerGroupAll(), c_messageAreaSubtitle, StringExternal("Param/Value/lib_KPVP_8DCE1084"));
+    }
+    else {
+    }
+    autoEE3370AE_g = PlayerGroupActive();
+    lv_player = -1;
+    while (true) {
+        lv_player = PlayerGroupNextPlayer(autoEE3370AE_g, lv_player);
+        if (lv_player < 0) { break; }
+        if ((PlayerType(lv_player) != c_playerTypeUser)) {
+            if ((!((PlayerRace(lv_player) == "Zerg") || (PlayerRace(lv_player) == "Terr") || (PlayerRace(lv_player) == "Prot")))) {
+                lv_with_random_ai = true;
+            }
+
+            continue;
+        }
+
+        libKPVP_gf_reset_skins_for_player(lv_player);
+        libKPVP_gv_players_names[lv_player] = PlayerName(lv_player);
+        auto0C816381_val = libKPVP_gf_codex_commander_attribute_for_runtime_player(lv_player);
+        if (auto0C816381_val == "0001") {
+            libKPVP_gf_set_commander_for_player("ZergAbathur", lv_player);
+            PlayerGroupAdd(libKPVP_gv_abathur_players, lv_player);
+        }
+        else if (auto0C816381_val == "0002") {
+            libKPVP_gf_set_commander_for_player("ProtossAlarak", lv_player);
+        }
+        else if (auto0C816381_val == "0003") {
+            libKPVP_gf_set_commander_for_player("ProtossArtanis", lv_player);
+        }
+        else if (auto0C816381_val == "0004") {
+            libKPVP_gf_set_commander_for_player("ZergDehaka", lv_player);
+            PlayerGroupAdd(libKPVP_gv_dehaka_players, lv_player);
+        }
+        else if (auto0C816381_val == "0005") {
+            libKPVP_gf_set_commander_for_player("ProtossFenix", lv_player);
+        }
+        else if (auto0C816381_val == "0006") {
+            libKPVP_gf_set_commander_for_player("TerranHorner", lv_player);
+            libNtve_gf_AddPlayerGroupToPlayerGroup(libNtve_gf_AlliesEnemiesOfPlayerCountInactiveAndSelf(libNtve_ge_PlayerRelation_AllyMutual, lv_player), libKPVP_gv_han_allies);
+        }
+        else if (auto0C816381_val == "0007") {
+            libKPVP_gf_set_commander_for_player("ProtossKarax", lv_player);
+        }
+        else if (auto0C816381_val == "0008") {
+            libKPVP_gf_set_commander_for_player("ZergKerrigan", lv_player);
+        }
+        else if (auto0C816381_val == "0019") {
+            libKPVP_gf_set_commander_for_player("TerranMengsk", lv_player);
+            PlayerGroupAdd(libKPVP_gv_mengsk_players, lv_player);
+        }
+        else if (auto0C816381_val == "0009") {
+            libKPVP_gf_set_commander_for_player("TerranNova", lv_player);
+        }
+        else if (auto0C816381_val == "0010") {
+            libKPVP_gf_set_commander_for_player("TerranRaynor", lv_player);
+        }
+        else if (auto0C816381_val == "0018") {
+            libKPVP_gf_set_commander_for_player("ZergStetmann", lv_player);
+        }
+        else if (auto0C816381_val == "0011") {
+            libKPVP_gf_set_commander_for_player("ZergStukov", lv_player);
+        }
+        else if (auto0C816381_val == "0012") {
+            libKPVP_gf_set_commander_for_player("TerranSwann", lv_player);
+        }
+        else if (auto0C816381_val == "0016") {
+            libKPVP_gf_set_commander_for_player("TerranTychus", lv_player);
+            PlayerGroupAdd(libKPVP_gv_tychus_players, lv_player);
+        }
+        else if (auto0C816381_val == "0013") {
+            libKPVP_gf_set_commander_for_player("ProtossVorazun", lv_player);
+        }
+        else if (auto0C816381_val == "0014") {
+            libKPVP_gf_set_commander_for_player("ZergZagara", lv_player);
+        }
+        else if (auto0C816381_val == "0017") {
+            libKPVP_gf_set_commander_for_player("ProtossZeratul", lv_player);
+        }
+        else {
+            libKPVP_gf_set_commander_for_player(UserDataInstance("PlayerCommanders", RandomInt(1, UserDataInstanceCount("PlayerCommanders"))), lv_player);
+        }
+    }
+    UnitEventSetNullVariableInvalid(true);
+    libKMIS_gf_CM_DataUtilInit();
+    libKPVP_gf_STARTPVP();
+    libKPVP_gf_codex_post_lobby_init();
+    if ((lv_with_random_ai == true)) {
+        UIDisplayMessage(PlayerGroupAll(), c_messageAreaSubtitle, StringExternal("Param/Value/lib_KPVP_9C99DE4D"));
+    }
+
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gt_init_Init () {
+    libKPVP_gt_init = TriggerCreate("libKPVP_gt_init_Func");
+    TriggerAddEventMapInit(libKPVP_gt_init);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: show_panel
+//--------------------------------------------------------------------------------------------------
+bool libKPVP_gt_show_panel_Func (bool testConds, bool runActions) {
+    // Automatic Variable Declarations
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    libKCUI_gf_CU_GPVisibilitySet(true, EventPlayer(), c_transitionDurationImmediate);
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gt_show_panel_Init () {
+    libKPVP_gt_show_panel = TriggerCreate("libKPVP_gt_show_panel_Func");
+    TriggerAddEventChatMessage(libKPVP_gt_show_panel, c_playerAny, "show", true);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: hide_panel
+//--------------------------------------------------------------------------------------------------
+bool libKPVP_gt_hide_panel_Func (bool testConds, bool runActions) {
+    // Automatic Variable Declarations
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    libKCUI_gf_CU_GPVisibilitySet(false, EventPlayer(), c_transitionDurationImmediate);
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gt_hide_panel_Init () {
+    libKPVP_gt_hide_panel = TriggerCreate("libKPVP_gt_hide_panel_Func");
+    TriggerAddEventChatMessage(libKPVP_gt_hide_panel, c_playerAny, "hide", true);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: dehaka_devour
+//--------------------------------------------------------------------------------------------------
+bool libKPVP_gt_dehaka_devour_Func (bool testConds, bool runActions) {
+    // Variable Declarations
+    unit lv_unit;
+    string lv_beh;
+    int lv_beh_count;
+
+    // Automatic Variable Declarations
+    // Variable Initialization
+    lv_unit = EventUnit();
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    UnitBehaviorRemove(lv_unit, "OnDeathControllerDeathPrevent", 1);
+    UnitBehaviorRemove(lv_unit, "KaraxUnitSpawnBarrier", 1);
+    UnitBehaviorRemove(lv_unit, "ZaGaraDontDie", 1);
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gt_dehaka_devour_Init () {
+    libKPVP_gt_dehaka_devour = TriggerCreate("libKPVP_gt_dehaka_devour_Func");
+    TriggerAddEventUnitBehaviorChange(libKPVP_gt_dehaka_devour, null, "DehakaConsume", c_unitBehaviorChangeCreate);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: tooltips_for_units
+//--------------------------------------------------------------------------------------------------
+bool libKPVP_gt_tooltips_for_units_Func (bool testConds, bool runActions) {
+    // Variable Declarations
+    unit lv_unit;
+    int lv_player;
+
+    // Automatic Variable Declarations
+    // Variable Initialization
+    lv_unit = EventUnitCreatedUnit();
+    lv_player = UnitGetOwner(EventUnitCreatedUnit());
+
+    // Conditions
+    if (testConds) {
+        if (!((PlayerGroupHasPlayer(libKCOR_gf_CommanderPlayers(), lv_player) == true))) {
+            return false;
+        }
+    }
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    TextExpressionSetToken("Param/Expression/lib_KPVP_A03D24E1", "A", libKPVP_gv_players_names[lv_player]);
+    TextExpressionSetToken("Param/Expression/lib_KPVP_A03D24E1", "B", libKPVP_gv_players_commanders_names[lv_player]);
+    UnitSetInfoTip(lv_unit, TextExpressionAssemble("Param/Expression/lib_KPVP_A03D24E1"));
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gt_tooltips_for_units_Init () {
+    libKPVP_gt_tooltips_for_units = TriggerCreate("libKPVP_gt_tooltips_for_units_Func");
+    TriggerAddEventUnitCreated(libKPVP_gt_tooltips_for_units, null, null, null);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: StartingTech
+//--------------------------------------------------------------------------------------------------
+bool libKPVP_gt_StartingTech_Func (bool testConds, bool runActions) {
+    // Variable Declarations
+    int lv_itPlayer;
+    playergroup lv_itPlayerGroup;
+
+    // Automatic Variable Declarations
+    playergroup auto92D7FABE_g;
+    playergroup autoD2F2BF71_g;
+
+    // Variable Initialization
+    lv_itPlayerGroup = PlayerGroupEmpty();
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    auto92D7FABE_g = PlayerGroupActive();
+    lv_itPlayer = -1;
+    while (true) {
+        lv_itPlayer = PlayerGroupNextPlayer(auto92D7FABE_g, lv_itPlayer);
+        if (lv_itPlayer < 0) { break; }
+        libNtve_gf_SetAllianceAspectForPlayerGroup(libNtve_gf_AlliesEnemiesOfPlayerCountInactiveAndSelf(libNtve_ge_PlayerRelation_AllyMutual, lv_itPlayer), c_allianceIdPower, true);
+    }
+    autoD2F2BF71_g = libKCOR_gf_CommanderPlayers();
+    lv_itPlayer = -1;
+    while (true) {
+        lv_itPlayer = PlayerGroupNextPlayer(autoD2F2BF71_g, lv_itPlayer);
+        if (lv_itPlayer < 0) { break; }
+        libKPVP_gf_StartingTechForHumanPlayer(lv_itPlayer);
+        libKMIS_gf_SetWorkerRallyPointsPlayersNexuses(lv_itPlayer);
+    }
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gt_StartingTech_Init () {
+    libKPVP_gt_StartingTech = TriggerCreate("libKPVP_gt_StartingTech_Func");
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: NYDUS_CREATED
+//--------------------------------------------------------------------------------------------------
+bool libKPVP_gt_NYDUS_CREATED_Func (bool testConds, bool runActions) {
+    // Variable Declarations
+    point lv_created_point;
+
+    // Automatic Variable Declarations
+    playergroup auto9AB9CF88_g;
+    int auto9AB9CF88_var;
+
+    // Variable Initialization
+    lv_created_point = UnitGetPosition(EventUnitProgressUnit());
+
+    // Conditions
+    if (testConds) {
+        if (!((UnitGetType(EventUnitProgressUnit()) == "NydusNetwork"))) {
+            return false;
+        }
+    }
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    libKPVP_gf_hide_own_nydus(EventUnitProgressUnit());
+    auto9AB9CF88_g = PlayerGroupAlliance(c_playerGroupAlly, EventPlayer());
+    auto9AB9CF88_var = -1;
+    while (true) {
+        auto9AB9CF88_var = PlayerGroupNextPlayer(auto9AB9CF88_g, auto9AB9CF88_var);
+        if (auto9AB9CF88_var < 0) { break; }
+        libNtve_gf_CreateUnitsWithDefaultFacing(1, "NydusNetworkAlly", c_unitCreateIgnorePlacement, auto9AB9CF88_var, lv_created_point);
+        libKPVP_gf_hide_ally_nydus(UnitLastCreated());
+    }
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gt_NYDUS_CREATED_Init () {
+    libKPVP_gt_NYDUS_CREATED = TriggerCreate("libKPVP_gt_NYDUS_CREATED_Func");
+    TriggerAddEventUnitConstructProgress(libKPVP_gt_NYDUS_CREATED, null, c_unitProgressStageComplete);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: NYDUS_CREATED 2
+//--------------------------------------------------------------------------------------------------
+bool libKPVP_gt_NYDUS_CREATED2_Func (bool testConds, bool runActions) {
+    // Variable Declarations
+    point lv_created_point;
+
+    // Automatic Variable Declarations
+    playergroup auto48FD946E_g;
+    int auto48FD946E_var;
+
+    // Variable Initialization
+    lv_created_point = UnitGetPosition(EventUnitProgressUnit());
+
+    // Conditions
+    if (testConds) {
+        if (!((UnitGetType(EventUnitProgressUnit()) == "NydusCanal"))) {
+            return false;
+        }
+    }
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    libKPVP_gf_hide_own_nydus(EventUnitProgressUnit());
+    auto48FD946E_g = PlayerGroupAlliance(c_playerGroupAlly, EventPlayer());
+    auto48FD946E_var = -1;
+    while (true) {
+        auto48FD946E_var = PlayerGroupNextPlayer(auto48FD946E_g, auto48FD946E_var);
+        if (auto48FD946E_var < 0) { break; }
+        libNtve_gf_CreateUnitsWithDefaultFacing(1, "NydusCanalAlly", c_unitCreateIgnorePlacement, auto48FD946E_var, lv_created_point);
+        libKPVP_gf_hide_ally_nydus(UnitLastCreated());
+    }
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gt_NYDUS_CREATED2_Init () {
+    libKPVP_gt_NYDUS_CREATED2 = TriggerCreate("libKPVP_gt_NYDUS_CREATED2_Func");
+    TriggerAddEventUnitConstructProgress(libKPVP_gt_NYDUS_CREATED2, null, c_unitProgressStageComplete);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: NYDUS_CREATED 3
+//--------------------------------------------------------------------------------------------------
+bool libKPVP_gt_NYDUS_CREATED3_Func (bool testConds, bool runActions) {
+    // Variable Declarations
+    point lv_created_point;
+
+    // Automatic Variable Declarations
+    playergroup autoE0A4D2A5_g;
+    int autoE0A4D2A5_var;
+
+    // Variable Initialization
+    lv_created_point = UnitGetPosition(EventUnitCreatedUnit());
+
+    // Conditions
+    if (testConds) {
+        if (!((UnitGetType(EventUnitCreatedUnit()) == "GreaterNydusWorm"))) {
+            return false;
+        }
+    }
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    libKPVP_gf_hide_own_nydus(EventUnitCreatedUnit());
+    autoE0A4D2A5_g = PlayerGroupAlliance(c_playerGroupAlly, EventPlayer());
+    autoE0A4D2A5_var = -1;
+    while (true) {
+        autoE0A4D2A5_var = PlayerGroupNextPlayer(autoE0A4D2A5_g, autoE0A4D2A5_var);
+        if (autoE0A4D2A5_var < 0) { break; }
+        libNtve_gf_CreateUnitsWithDefaultFacing(1, "GreaterNydusWormAlly", c_unitCreateIgnorePlacement, autoE0A4D2A5_var, lv_created_point);
+        libKPVP_gf_hide_ally_nydus(UnitLastCreated());
+    }
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gt_NYDUS_CREATED3_Init () {
+    libKPVP_gt_NYDUS_CREATED3 = TriggerCreate("libKPVP_gt_NYDUS_CREATED3_Func");
+    TriggerAddEventUnitCreated(libKPVP_gt_NYDUS_CREATED3, null, null, null);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: mengsk_colors
+//--------------------------------------------------------------------------------------------------
+bool libKPVP_gt_mengsk_colors_Func (bool testConds, bool runActions) {
+    // Automatic Variable Declarations
+    int lv_owner;
+
+    // Conditions
+    lv_owner = UnitGetOwner(EventUnitCreatedUnit());
+    if (testConds) {
+        if (!((PlayerGroupHasPlayer(libKPVP_gv_mengsk_players, lv_owner) == true))) {
+            return false;
+        }
+    }
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    libE0EAE146_gf_RuntimeVisualProbe("KPVP_UnitCreateTeamColor", lv_owner, UnitGetType(EventUnitCreatedUnit()), IntToString(PlayerGetColorIndex(lv_owner, false)), UnitGetTag(EventUnitCreatedUnit()));
+    UnitSetTeamColorIndex(EventUnitCreatedUnit(), PlayerGetColorIndex(lv_owner, false));
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gt_mengsk_colors_Init () {
+    libKPVP_gt_mengsk_colors = TriggerCreate("libKPVP_gt_mengsk_colors_Func");
+    TriggerAddEventUnitCreated(libKPVP_gt_mengsk_colors, null, null, null);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: set observer
+//--------------------------------------------------------------------------------------------------
+bool libKPVP_gt_setobserver_Func (bool testConds, bool runActions) {
+    // Automatic Variable Declarations
+    playergroup auto83D5F9D4_g;
+    int auto83D5F9D4_var;
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    UIUnitColorStyleOverride(libKPVP_gv_observerGroup, c_unitColorStyleNormal);
+    auto83D5F9D4_g = PlayerGroupActive();
+    auto83D5F9D4_var = -1;
+    while (true) {
+        auto83D5F9D4_var = PlayerGroupNextPlayer(auto83D5F9D4_g, auto83D5F9D4_var);
+        if (auto83D5F9D4_var < 0) { break; }
+        libNtve_gf_SetAllianceOneWay(libKPVP_gv_observer, auto83D5F9D4_var, libNtve_ge_AllianceSetting_Neutral);
+        PlayerSetAlliance(auto83D5F9D4_var, c_allianceIdDefeat, libKPVP_gv_observer, true);
+        PlayerSetAlliance(auto83D5F9D4_var, c_allianceIdPassive, libKPVP_gv_observer, true);
+        PlayerSetAlliance(auto83D5F9D4_var, c_allianceIdControl, libKPVP_gv_observer, true);
+        PlayerSetAlliance(auto83D5F9D4_var, c_allianceIdVision, libKPVP_gv_observer, true);
+    }
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gt_setobserver_Init () {
+    libKPVP_gt_setobserver = TriggerCreate("libKPVP_gt_setobserver_Func");
+    TriggerAddEventMapInit(libKPVP_gt_setobserver);
+}
+
+void libKPVP_InitTriggers () {
+    libKPVP_gt_alliance_button_pressed_Init();
+    libKPVP_gt_player_defeated_Init();
+    libKPVP_gt_init_Init();
+    libKPVP_gt_show_panel_Init();
+    libKPVP_gt_hide_panel_Init();
+    libKPVP_gt_dehaka_devour_Init();
+    libKPVP_gt_tooltips_for_units_Init();
+    libKPVP_gt_StartingTech_Init();
+    libKPVP_gt_NYDUS_CREATED_Init();
+    libKPVP_gt_NYDUS_CREATED2_Init();
+    libKPVP_gt_NYDUS_CREATED3_Init();
+    libKPVP_gt_mengsk_colors_Init();
+    libKPVP_gt_setobserver_Init();
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool libKPVP_InitLib_completed = false;
+
+void libKPVP_InitLib () {
+    if (libKPVP_InitLib_completed) {
+        return;
+    }
+
+    libKPVP_InitLib_completed = true;
+
+    libKPVP_InitLibraries();
+    libKPVP_InitVariables();
+    libKPVP_InitTriggers();
+}
+
+include "LibKCOR"
+include "LibKMIS"
+include "LibKCUI"

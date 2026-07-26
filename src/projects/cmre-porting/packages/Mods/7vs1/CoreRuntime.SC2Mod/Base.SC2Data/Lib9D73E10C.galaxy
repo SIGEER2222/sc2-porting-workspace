@@ -1,0 +1,144 @@
+include "TriggerLibs/NativeLib"
+
+include "Lib9D73E10C_h"
+
+//--------------------------------------------------------------------------------------------------
+// Library: ??????
+//--------------------------------------------------------------------------------------------------
+// External Library Initialization
+void lib9D73E10C_InitLibraries () {
+    libNtve_InitVariables();
+}
+
+// Variable Initialization
+bool lib9D73E10C_InitVariables_completed = false;
+
+void lib9D73E10C_InitVariables () {
+    if (lib9D73E10C_InitVariables_completed) {
+        return;
+    }
+
+    lib9D73E10C_InitVariables_completed = true;
+
+    lib9D73E10C_gv_die = 3;
+    lib9D73E10C_gv_increase_unit = 1;
+}
+
+// Functions
+void lib9D73E10C_gf_E68A98E8B68AE6B0B4E699B6E5A194E68896E88085E58589E5AD90E782AEE58FB0 (unit lp_e68EA2E5A7AC, int lp_e9A29DE5A496E6ACA1E695B0) {
+    // Variable Declarations
+    point lv_e782B9;
+
+    // Automatic Variable Declarations
+    int autoEAA5F7A7_n;
+    int autoEAA5F7A7_i;
+
+    // Variable Initialization
+
+    // Implementation
+    TechTreeRequirementsEnable(UnitGetOwner(lp_e68EA2E5A7AC), false);
+    if ((RandomInt(0, 1) == 0)) {
+        UnitIssueOrder(lp_e68EA2E5A7AC, OrderTargetingPoint(AbilityCommand("ProtossBuild", 1), UnitTypePlacementFromPoint("Pylon", UnitGetOwner(lp_e68EA2E5A7AC), RegionRandomPoint(RegionPlayableMap()), 7.0)), c_orderQueueReplace);
+    }
+    else {
+        lv_e782B9 = PointWithOffsetPolar(UnitGetPosition(UnitGroupRandomUnit(UnitGroup("Pylon", UnitGetOwner(lp_e68EA2E5A7AC), RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0), c_unitCountAlive)), RandomFixed(0.5, 7.5), libNtve_gf_RandomAngle());
+        UnitIssueOrder(lp_e68EA2E5A7AC, OrderTargetingPoint(AbilityCommand("ProtossBuild", 7), UnitTypePlacementFromPoint("PhotonCannon", UnitGetOwner(lp_e68EA2E5A7AC), lv_e782B9, 2.0)), c_orderQueueReplace);
+    }
+    autoEAA5F7A7_n = lp_e9A29DE5A496E6ACA1E695B0;
+    for (autoEAA5F7A7_i = 1; autoEAA5F7A7_i <= autoEAA5F7A7_n; autoEAA5F7A7_i += 1) {
+        if ((RandomInt(0, 2) == 0)) {
+            UnitIssueOrder(lp_e68EA2E5A7AC, OrderTargetingPoint(AbilityCommand("ProtossBuild", 1), UnitTypePlacementFromPoint("Pylon", UnitGetOwner(lp_e68EA2E5A7AC), RegionRandomPoint(RegionPlayableMap()), 7.0)), c_orderQueueAddToEnd);
+        }
+        else {
+            lv_e782B9 = PointWithOffsetPolar(UnitGetPosition(UnitGroupRandomUnit(UnitGroup("Pylon", UnitGetOwner(lp_e68EA2E5A7AC), RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0), c_unitCountAlive)), RandomFixed(0.5, 7.5), libNtve_gf_RandomAngle());
+            UnitIssueOrder(lp_e68EA2E5A7AC, OrderTargetingPoint(AbilityCommand("ProtossBuild", 7), UnitTypePlacementFromPoint("PhotonCannon", UnitGetOwner(lp_e68EA2E5A7AC), lv_e782B9, 2.0)), c_orderQueueAddToEnd);
+        }
+    }
+    UnitIssueOrder(lp_e68EA2E5A7AC, Order(AbilityCommand("ProbeHarvest", 1)), c_orderQueueAddToEnd);
+}
+
+void lib9D73E10C_gf_E5BBBAE980A0E5AFBCE5BCB9E5A194E68896E6AF81E781ADE782AEE58FB0 (unit lp_scv, int lp_e9A29DE5A496E6ACA1E695B0) {
+    // Automatic Variable Declarations
+    int auto73D1AE5C_n;
+    int auto73D1AE5C_i;
+
+    // Implementation
+    TechTreeRequirementsEnable(UnitGetOwner(lp_scv), false);
+    if ((RandomInt(0, 1) == 0)) {
+        UnitIssueOrder(lp_scv, OrderTargetingPoint(AbilityCommand("TerranBuild", 5), UnitTypePlacementFromPoint("MissileTurret", UnitGetOwner(lp_scv), RegionRandomPoint(RegionPlayableMap()), 7.0)), c_orderQueueReplace);
+    }
+    else {
+        UnitIssueOrder(lp_scv, OrderTargetingPoint(AbilityCommand("TerranBuild", 26), UnitTypePlacementFromPoint("KelMorianGrenadeTurret", UnitGetOwner(lp_scv), RegionRandomPoint(RegionPlayableMap()), 7.0)), c_orderQueueReplace);
+    }
+    auto73D1AE5C_n = lp_e9A29DE5A496E6ACA1E695B0;
+    for (auto73D1AE5C_i = 1; auto73D1AE5C_i <= auto73D1AE5C_n; auto73D1AE5C_i += 1) {
+        if ((RandomInt(0, 2) == 0)) {
+            UnitIssueOrder(lp_scv, OrderTargetingPoint(AbilityCommand("TerranBuild", 5), UnitTypePlacementFromPoint("MissileTurret", UnitGetOwner(lp_scv), RegionRandomPoint(RegionPlayableMap()), 7.0)), c_orderQueueAddToEnd);
+        }
+        else {
+            UnitIssueOrder(lp_scv, OrderTargetingPoint(AbilityCommand("TerranBuild", 26), UnitTypePlacementFromPoint("KelMorianGrenadeTurret", UnitGetOwner(lp_scv), RegionRandomPoint(RegionPlayableMap()), 7.0)), c_orderQueueAddToEnd);
+        }
+    }
+    UnitIssueOrder(lp_scv, Order(AbilityCommand("SCVHarvest", 1)), c_orderQueueAddToEnd);
+}
+
+void lib9D73E10C_gf_E58F98E5BC82E8848AE6A48EE788ACE899ABE68896E5ADA2E5AD90E788ACE899AB (unit lp_e5B7A5E89C82, int lp_e9A29DE5A496E6ACA1E695B0) {
+    // Variable Declarations
+    point lv_e782B9;
+
+    // Automatic Variable Declarations
+    int autoCB97E9E4_val;
+    int auto84B7E1E2_n;
+    int auto84B7E1E2_i;
+    int auto15F638B4_val;
+
+    // Variable Initialization
+
+    // Implementation
+    TechTreeRequirementsEnable(UnitGetOwner(lp_e5B7A5E89C82), false);
+    autoCB97E9E4_val = RandomInt(0, 2);
+    if (autoCB97E9E4_val == 0) {
+        UnitIssueOrder(lp_e5B7A5E89C82, OrderTargetingPoint(AbilityCommand("ZergBuild", 14), UnitTypePlacementFromPoint("SpineCrawler", UnitGetOwner(lp_e5B7A5E89C82), RegionRandomPoint(RegionPlayableMap()), 500.0)), c_orderQueueReplace);
+    }
+    else if (autoCB97E9E4_val == 1) {
+        UnitIssueOrder(lp_e5B7A5E89C82, OrderTargetingPoint(AbilityCommand("ZergBuild", 15), UnitTypePlacementFromPoint("SporeCrawler", UnitGetOwner(lp_e5B7A5E89C82), RegionRandomPoint(RegionPlayableMap()), 500.0)), c_orderQueueReplace);
+    }
+    else if (autoCB97E9E4_val == 2) {
+        UnitIssueOrder(lp_e5B7A5E89C82, OrderTargetingPoint(AbilityCommand("ZergBuild", 0), UnitTypePlacementFromPoint("Hatchery", UnitGetOwner(lp_e5B7A5E89C82), RegionRandomPoint(RegionPlayableMap()), 500.0)), c_orderQueueReplace);
+    }
+    else {
+    }
+    auto84B7E1E2_n = lp_e9A29DE5A496E6ACA1E695B0;
+    for (auto84B7E1E2_i = 1; auto84B7E1E2_i <= auto84B7E1E2_n; auto84B7E1E2_i += 1) {
+        auto15F638B4_val = RandomInt(0, 2);
+        if (auto15F638B4_val == 0) {
+            UnitIssueOrder(lp_e5B7A5E89C82, OrderTargetingPoint(AbilityCommand("ZergBuild", 14), UnitTypePlacementFromPoint("SpineCrawler", UnitGetOwner(lp_e5B7A5E89C82), RegionRandomPoint(RegionPlayableMap()), 500.0)), c_orderQueueAddToEnd);
+        }
+        else if (auto15F638B4_val == 1) {
+            UnitIssueOrder(lp_e5B7A5E89C82, OrderTargetingPoint(AbilityCommand("ZergBuild", 15), UnitTypePlacementFromPoint("SporeCrawler", UnitGetOwner(lp_e5B7A5E89C82), RegionRandomPoint(RegionPlayableMap()), 500.0)), c_orderQueueAddToEnd);
+        }
+        else if (auto15F638B4_val == 2) {
+            UnitIssueOrder(lp_e5B7A5E89C82, OrderTargetingPoint(AbilityCommand("ZergBuild", 0), UnitTypePlacementFromPoint("Hatchery", UnitGetOwner(lp_e5B7A5E89C82), RegionRandomPoint(RegionPlayableMap()), 500.0)), c_orderQueueAddToEnd);
+        }
+        else {
+        }
+    }
+    UnitIssueOrder(lp_e5B7A5E89C82, Order(AbilityCommand("ProbeHarvest", 1)), c_orderQueueAddToEnd);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool lib9D73E10C_InitLib_completed = false;
+
+void lib9D73E10C_InitLib () {
+    if (lib9D73E10C_InitLib_completed) {
+        return;
+    }
+
+    lib9D73E10C_InitLib_completed = true;
+
+    lib9D73E10C_InitLibraries();
+    lib9D73E10C_InitVariables();
+}
+

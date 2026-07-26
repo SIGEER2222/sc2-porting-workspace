@@ -1,0 +1,143 @@
+// XMFinal split module: legacy commander power query helpers.
+// Apply functions (Generated/Closure/ApplyProfile) have been replaced by the
+// talent system (LibE0EAE146_TalentSystem.galaxy + LibE0EAE146_TalentCatalog.galaxy).
+// Only Bank read helpers, mastery/prestige query functions, and the shared
+// SetUpgradeAtLeast helper remain, because Runtime modules still query them.
+
+void libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast (int lp_player, string lp_upgrade, int lp_level) {
+    int lv_currentLevel;
+
+    if ((lp_upgrade == "") || (!CatalogEntryIsValid(c_gameCatalogUpgrade, lp_upgrade))) {
+        return;
+    }
+
+    lv_currentLevel = TechTreeUpgradeCount(lp_player, lp_upgrade, c_techCountCompleteOnly);
+    if (lv_currentLevel < lp_level) {
+        TechTreeUpgradeAddLevel(lp_player, lp_upgrade, (lp_level - lv_currentLevel));
+    }
+}
+
+int libE0EAE146_gf_CommanderPowerBankIntOrDefault (string lp_commander, string lp_key, int lp_defaultValue) {
+    string lv_bankKey;
+
+    BankLoad("CampaignXCore", 1);
+    lv_bankKey = lp_commander + "." + lp_key;
+    if (!BankKeyExists(BankLastCreated(), "CommanderPower", lv_bankKey)) {
+        return lp_defaultValue;
+    }
+    return BankValueGetAsInt(BankLastCreated(), "CommanderPower", lv_bankKey);
+}
+
+string libE0EAE146_gf_CommanderPowerBankStringOrDefault (string lp_commander, string lp_key, string lp_defaultValue) {
+    string lv_value;
+
+    BankLoad("CampaignXCore", 1);
+    lv_value = BankValueGetAsString(BankLastCreated(), "CommanderPower", (lp_commander + "." + lp_key));
+    if (lv_value == "") {
+        return lp_defaultValue;
+    }
+    return lv_value;
+}
+
+bool libE0EAE146_gf_CommanderPowerBankKeyExists (string lp_commander, string lp_key) {
+    BankLoad("CampaignXCore", 1);
+    return BankKeyExists(BankLastCreated(), "CommanderPower", (lp_commander + "." + lp_key));
+}
+
+bool libE0EAE146_gf_CommanderPowerBankFlagEnabled (string lp_commander, string lp_key) {
+    return (libE0EAE146_gf_CommanderPowerBankIntOrDefault(lp_commander, lp_key, 0) > 0);
+}
+
+int libE0EAE146_gf_CommanderPowerClampInt (int lp_value, int lp_min, int lp_max) {
+    if (lp_value < lp_min) {
+        return lp_min;
+    }
+    if (lp_value > lp_max) {
+        return lp_max;
+    }
+    return lp_value;
+}
+
+bool libE0EAE146_gf_CommanderPowerMasteriesEnabled (string lp_commander) {
+    return (libE0EAE146_gf_CommanderPowerBankIntOrDefault(lp_commander, "EnableMasteries", 1) > 0);
+}
+
+int libE0EAE146_gf_CommanderPowerMasteryDefaultLevel (string lp_commander) {
+    if (!libE0EAE146_gf_CommanderPowerMasteriesEnabled(lp_commander)) {
+        return 0;
+    }
+    return libE0EAE146_gf_CommanderPowerClampInt(libE0EAE146_gf_CommanderPowerBankIntOrDefault(lp_commander, "MasteryDefault", 30), 0, 30);
+}
+
+int libE0EAE146_gf_CommanderPowerMasteryLevel (string lp_commander, int lp_masteryIndex) {
+    int lv_defaultLevel;
+    string lv_bankKey;
+
+    if (!libE0EAE146_gf_CommanderPowerMasteriesEnabled(lp_commander)) {
+        return 0;
+    }
+    lv_defaultLevel = libE0EAE146_gf_CommanderPowerMasteryDefaultLevel(lp_commander);
+    lv_bankKey = lp_commander + "." + ("Mastery" + IntToString(lp_masteryIndex));
+    BankLoad("CampaignXCore", 1);
+    if (!BankKeyExists(BankLastCreated(), "CommanderPower", lv_bankKey)) {
+        return lv_defaultLevel;
+    }
+    return libE0EAE146_gf_CommanderPowerClampInt(BankValueGetAsInt(BankLastCreated(), "CommanderPower", lv_bankKey), 0, 30);
+}
+
+bool libE0EAE146_gf_CommanderPowerPrestigesEnabled (string lp_commander) {
+    return (libE0EAE146_gf_CommanderPowerBankIntOrDefault(lp_commander, "EnablePrestiges", 1) > 0);
+}
+
+int libE0EAE146_gf_CommanderPowerPrestigePointIndex (string lp_commander) {
+    if (libE0EAE146_gf_CommanderPowerBankKeyExists(lp_commander, "PrestigePointIndex")) {
+        return libE0EAE146_gf_CommanderPowerBankIntOrDefault(lp_commander, "PrestigePointIndex", -1);
+    }
+    return libE0EAE146_gf_CommanderPowerBankIntOrDefault(lp_commander, "PrestigeIndex", -1);
+}
+
+int libE0EAE146_gf_CommanderPowerPrestigeIndex (string lp_commander) {
+    return libE0EAE146_gf_CommanderPowerPrestigePointIndex(lp_commander);
+}
+
+int libE0EAE146_gf_CommanderPowerDefaultPrestigeBonusMask (string lp_commander) {
+    return 7;
+}
+
+int libE0EAE146_gf_CommanderPowerPrestigeBonusMask (string lp_commander) {
+    int lv_prestigePointIndex;
+    int lv_prestigeMask;
+    int lv_defaultMask;
+
+    if (!libE0EAE146_gf_CommanderPowerPrestigesEnabled(lp_commander)) {
+        return 0;
+    }
+    lv_defaultMask = libE0EAE146_gf_CommanderPowerDefaultPrestigeBonusMask(lp_commander);
+    if (libE0EAE146_gf_CommanderPowerBankKeyExists(lp_commander, "PrestigeBonusMask")) {
+        lv_prestigeMask = libE0EAE146_gf_CommanderPowerBankIntOrDefault(lp_commander, "PrestigeBonusMask", lv_defaultMask);
+        return libE0EAE146_gf_CommanderPowerClampInt(lv_prestigeMask, 0, 7);
+    }
+    if (libE0EAE146_gf_CommanderPowerBankKeyExists(lp_commander, "PrestigeMask")) {
+        lv_prestigeMask = libE0EAE146_gf_CommanderPowerBankIntOrDefault(lp_commander, "PrestigeMask", lv_defaultMask);
+        return libE0EAE146_gf_CommanderPowerClampInt(lv_prestigeMask, 0, 7);
+    }
+
+    lv_prestigePointIndex = libE0EAE146_gf_CommanderPowerPrestigePointIndex(lp_commander);
+    if (lv_prestigePointIndex == 0) {
+        return 0;
+    }
+    if (lv_prestigePointIndex == 1) {
+        return 1;
+    }
+    if (lv_prestigePointIndex == 2) {
+        return 2;
+    }
+    if (lv_prestigePointIndex == 3) {
+        return 4;
+    }
+    return libE0EAE146_gf_CommanderPowerClampInt(libE0EAE146_gf_CommanderPowerBankIntOrDefault(lp_commander, "PrestigeMask", lv_defaultMask), 0, 7);
+}
+
+int libE0EAE146_gf_CommanderPowerPrestigeMask (string lp_commander) {
+    return libE0EAE146_gf_CommanderPowerPrestigeBonusMask(lp_commander);
+}

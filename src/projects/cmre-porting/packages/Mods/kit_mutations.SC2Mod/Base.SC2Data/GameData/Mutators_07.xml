@@ -1,0 +1,1734 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CActorMissile id="MutatorAmonZagaraBanelingBarrageAttackMissile" parent="GenericAttackMissile" unitName="MutatorAmonZagaraBanelingBarrageWeapon">
+    <On Terms="ActorCreation" Send="Create MutatorAmonZagaraBanelingBarrageWeaponAddition" />
+  </CActorMissile>
+  <CActorModel id="MutatorNovaPrimalPortraitAddition" parent="CompositePortraitAddition">
+    <On Terms="ActorCreation" Send="Create MutatorGlazePortrait" />
+    <Model value="SMX3_NovaPortraitAddition" />
+  </CActorModel>
+  <CActorEventMacro id="UnloadDropAnim">
+    <On Terms="AbilTransport.MedivacTransportBlackOps.CargoLoad" Send="AnimBracketStart Unload IGNORE Unload Unload,End DontResetOnUnhide" />
+    <On Terms="AbilTransport.MedivacTransportBlackOps.CargoUnload" Send="AnimBracketStop Unload" />
+    <On Terms="AbilTransport.MedivacTransportBlackOps.CargoUnloadSuppressed" Send="AnimBracketStop Unload" />
+    <On Terms="AbilTransport.MedivacTransportBlackOps.TransportLoad" Send="AnimBracketStart Unload IGNORE Unload Unload,End DontResetOnUnhide" />
+    <On Terms="AbilTransport.MedivacTransportBlackOps.TransportUnload" Send="AnimBracketStop Unload" />
+    <On Terms="Behavior.NovaGriffinTransportGroundUnits.On" Send="AnimBracketStart Unload IGNORE Unload Unload,End DontResetOnUnhide" />
+    <On Terms="Behavior.NovaGriffinTransportGroundUnits.Off" Send="AnimBracketStop Unload" />
+    <On Terms="Behavior.TychusMedicTransportGroundUnits.On" Send="AnimBracketStart Unload IGNORE Unload Unload,End DontResetOnUnhide" />
+    <On Terms="Behavior.TychusMedicTransportGroundUnits.Off" Send="AnimBracketStop Unload" />
+  </CActorEventMacro>
+  <CActorSound id="MutatorAmonDehakaMirrorImageImpactSound" parent="SoundOneShot">
+    <Sound value="DehakaMini_Jump_land" />
+    <On Terms="Behavior.MutatorAmonDehakaMirrorImageTimedLife.On" Send="Create" />
+    <Layers Sound="Karak_FoleyBodyFall">
+      <Chance value="100" />
+      <Pitch value="0.000000,0.000000" />
+      <PlayDelay value="0,0" />
+      <Volume value="0.000000,0.000000" />
+    </Layers>
+  </CActorSound>
+  <CActorUnit id="MutatorStoneZealot" parent="GenericUnitStandard" unitName="MutatorStoneZealot">
+    <DeathArray index="Normal" ModelLink="MutatorStoneZealotDeath" SoundLink="StoneZealot_Death" VoiceLink="StoneZealot_deathVox" />
+    <DeathActorModelLow value="UnitDeathModel" />
+    <WalkAnimMoveSpeed value="2.3867" />
+    <BarWidth value="102" />
+    <BarOffset value="180" />
+    <NameOffset value="80" />
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-protoss-groundarmorlevel1.dds" />
+    <UnitIcon value="Assets\Textures\btn-unit-protoss-stonezealot.dds" />
+    <WireframeShield>
+      <Image value="Assets\Textures\Wireframe-Protoss-stonezealot-Shield01.dds" />
+      <Image value="Assets\Textures\Wireframe-Protoss-stonezealot-Shield02.dds" />
+      <Image value="Assets\Textures\Wireframe-Protoss-stonezealot-Shield03.dds" />
+    </WireframeShield>
+    <GroupIcon>
+      <Image value="Assets\Textures\Wireframe-Protoss-stonezealot.dds" />
+    </GroupIcon>
+    <Wireframe>
+      <Image value="Assets\Textures\Wireframe-Protoss-stonezealot.dds" />
+    </Wireframe>
+    <Aliases value="_UnitHuge" />
+  </CActorUnit>
+  <CActorModel id="MutatorAmonZagaraInfestedPodsTargetModel" parent="ModelAnimationStyleContinuous">
+    <Model value="KerriganDropPodsCursorSplat" />
+    <On Terms="Effect.MutatorAmonZagaraInfestedPodsCP.Start" Send="Create ZergDropPodAC_FlyBySound" />
+    <On Terms="Effect.MutatorAmonZagaraInfestedPodsCP.Start" Send="Create" />
+    <On Terms="Effect.MutatorAmonZagaraInfestedPodsCP.Stop" Send="Create ZergDropPod_Impact_RockSweetSound" />
+    <On Terms="Effect.MutatorAmonZagaraInfestedPodsCP.Stop" Send="Destroy" />
+    <Scale value="2.000000,2.000000,1.000000" />
+  </CActorModel>
+  <CActorSound id="MutatorMissileSplitterFlightSound" parent="SoundContinuous">
+    <Sound value="Mutator_Missile02_FlyMoveLoop" />
+  </CActorSound>
+  <CActorModel id="MutatorAmonZagaraRangedAttackMissileAddition" parent="ModelAddition">
+    <On Terms="ActorCreation" Send="SetTintColor {128,0,64 3.000000}" />
+    <On Terms="ActorCreation" Send="SetOpacity 0.400000" />
+    <Host Subject="::Creator" />
+  </CActorModel>
+  <CActorModelMaterial id="MutatorGlazePortrait" parent="GlazeParent">
+    <On Terms="ActorCreation" Send="ModelMaterialApplyTo ::Creator" />
+    <On Terms="AnimDone; AnimName Death" Send="ModelMaterialRemoveFrom ::Creator" />
+    <On Terms="AnimDone; AnimName Death" Send="Destroy" />
+    <Model value="GlazeShadow" />
+    <ModelFlags index="AutomateGlobalLoops" value="1" />
+  </CActorModelMaterial>
+  <CActorMissile id="MutatorAmonArtanisAttackMissile" parent="GenericAttackMissile" unitName="MutatorAmonArtanisWeapon" />
+  <CActorModel id="MutatorFireworksMissileImpact" parent="ModelAnimationStyleOneShot">
+    <On Terms="Effect.MutatorFireworksSearch.Start" Send="Create" />
+    <On Terms="ActorCreation; ModelVariation 0; PassChance 10.000000" Send="Create MutatorFireworksMissileImpactText0" />
+    <On Terms="ActorCreation; ModelVariation 1; PassChance 10.000000" Send="Create MutatorFireworksMissileImpactText2" />
+    <On Terms="ActorCreation; ModelVariation 2; PassChance 10.000000" Send="Create MutatorFireworksMissileImpactText1" />
+  </CActorModel>
+  <CActorUnit id="MutatorAmonZeratul" parent="GenericUnitStandard" unitName="MutatorAmonZeratul">
+    <On Terms="UnitHeightUpdate.*.Land" Send="Create DarkTemplar_Land" />
+    <On Terms="UnitHeightUpdate.*.Land" Send="Create Templar_LandSweetener" />
+    <On Terms="Abil.MutatorAmonZeratulBlink.SourceCastStart" Send="ModelSuddenMotionStart" />
+    <On Terms="Abil.MutatorAmonZeratulBlink.SourceCastStart" Send="AnimPlay Spell Attack,03 NonLooping" />
+    <On Terms="Abil.MutatorAmonZeratulBlink.SourceFinishStop" Send="ModelSuddenMotionStop" />
+    <On Terms="Abil.MutatorAmonShadowBlade.SourceCastStart" Send="$Spell 0 -1.000000 -1.000000 1.200000 AsDuration" />
+    <On Terms="Abil.MutatorAmonShadowBlade.SourceCastStart" Target="_Unit" Send="Create TemporalFieldImpactModel" />
+    <On Terms="Abil.MutatorAmonShadowBlade.SourceCastStart" Send="Create ShadowBladeWeaponAttach" />
+    <On Terms="Abil.MutatorAmonShadowBlade.SourceFinishStop" Target="TemporalFieldImpactModel" Send="Destroy" />
+    <On Terms="Abil.MutatorAmonShadowBlade.SourceFinishStop" Target="ShadowBladeWeaponAttach" Send="Destroy" />
+    <On Terms="UnitMovementUpdate.*.Walk" Send="AnimClear Spell" />
+    <BuildModel value="DarkTemplarWarpIn" />
+    <DeathArray index="Normal" ModelLink="DeathVoidShadowMedium" SoundLink="MutatorAmonZeratul_DeathFX" VoiceLink="MutatorAmonZeratul_Death" />
+    <PortraitModel value="MutatorAmonZeratulPortrait" />
+    <PortraitActor value="MutatorPortraitActor" />
+    <WalkAnimMoveSpeed value="3" />
+    <BarOffset value="50" />
+    <BarWidth value="42" />
+    <CustomUnitStatusFrame value="Coop_UnitStatus/MutatorAmonHeroUnitShieldedStatusFrameTemplate" />
+    <GroupIcon>
+      <Image value="Assets\Textures\Wireframe-Protoss-Zeratul.dds" />
+    </GroupIcon>
+    <HeroIcon value="Assets\Textures\ui-heroicon-zeratul.dds" />
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-protoss-groundarmorlevel1.dds" />
+    <SoundArray index="Birth" value="Zeratul_Birth" />
+    <SoundArray index="Ready" value="ZeratulVoid_Ready" />
+    <SoundArray index="Help" value="ZeratulVoid_Help" />
+    <SoundArray index="What" value="ZeratulVoid_What" />
+    <SoundArray index="Yes" value="ZeratulVoid_Yes" />
+    <SoundArray index="Attack" value="ZeratulVoid_Attack" />
+    <SoundArray index="Pissed" value="ZeratulVoid_Pissed" />
+    <SoundArray index="Movement" value="Zeratul_Movement" />
+    <UnitBorderNormalColor value="150,150,150" />
+    <UnitBorderSubgroupColor value="255,255,255" />
+    <UnitFlags index="SuppressDefaultStatusBar" value="1" />
+    <UnitIcon value="Assets\Textures\btn-unit-protoss-zeratul.dds" />
+    <UnitKillRank Text="UnitKillRank/Zeratul" />
+    <Wireframe>
+      <Image value="Assets\Textures\Wireframe-Protoss-Zeratul.dds" />
+    </Wireframe>
+    <WireframeShield>
+      <Image value="Assets\Textures\Wireframe-Protoss-Zeratul-Shield01.dds" />
+      <Image value="Assets\Textures\Wireframe-Protoss-Zeratul-Shield02.dds" />
+      <Image value="Assets\Textures\Wireframe-Protoss-Zeratul-Shield03.dds" />
+    </WireframeShield>
+  </CActorUnit>
+  <CActorSound id="MutatorMineralCrystalSpawnSound" parent="SoundOneShot">
+    <Sound value="Mineral_Birth" />
+  </CActorSound>
+  <CActorModel id="LaserDrillTripodCoopUnitDeathModel" parent="UnitDeathModel">
+    <On Terms="ActorCreation" Send="TimerSet 5.000000 DelayDestroy" />
+    <On Terms="TimerExpired; TimerName DelayDestroy" Send="Destroy" />
+  </CActorModel>
+  <CActorSound id="MutatorAmonDehakaSpellDragRetract" parent="SoundOneShot">
+    <Sound value="Spell_Drag_Retract" />
+    <On Terms="Effect.DragLaunchTarget.Start" Send="Create" />
+  </CActorSound>
+  <CActorBeamSimple id="MutatorMissilePointDefenseAttackBeam" parent="BeamSimpleAnimationStyleContinuous">
+    <On Terms="Effect.MutatorMissilePointDefenseDamage.Start; At Caster" Send="Create" />
+    <On Terms="ActorCreation" Send="TimerSet 0.125000 Die" />
+    <On Terms="TimerExpired; TimerName Die" Send="Destroy" />
+    <Model value="PointDefenseDroneAttackBeam" />
+    <HostLaunch Subject="_Selectable" Actor="Find" />
+    <HostLaunchSiteOps Ops="SOpAttachCenter" />
+    <HostImpact Subject="_Missile" Actor="Find" />
+    <HostImpactSiteOps Ops="SOpAttachCenter" />
+  </CActorBeamSimple>
+  <CActorModel id="MutatorDeathBotAttackRight" parent="ModelAnimationStyleOneShot">
+    <On Terms="Effect.MutatorDeathBot.Start; At Caster" Send="Create" />
+    <Host Subject="_Selectable" />
+    <HostSiteOps Ops="SOpAttachWeapon01" />
+    <Model value="ThorHandGunAttackLaunch" />
+  </CActorModel>
+  <CActorSound id="MutatorMissilePointDefenseAttackImpactSound" parent="SoundOneShot">
+    <On Terms="Effect.MutatorMissilePointDefenseDamage.Start; At Caster" Send="Create" />
+    <Host Subject="::Creator" />
+    <Sound value="Raven_PointDefenseDroneAttackImpact" />
+  </CActorSound>
+  <CActorMissile id="MutatorFireworksMissileAttackMissile" parent="GenericAttackMissile" unitName="MutatorFireworksMissile" />
+  <CActorUnit id="MutatorTurking" parent="GenericUnitCritter" unitName="MutatorTurking">
+    <Aliases value="_UnitSmall" />
+    <On Terms="Behavior.CarrionBirdFlee.On" Send="AnimBracketStart FlyAway Stand,Unpowered,End Stand,Unpowered Stand,Unpowered,Start ClosingFull" />
+    <On Terms="Behavior.CarrionBirdFlee.Off" Send="AnimBracketStop FlyAway" />
+    <On Terms="Effect.Suicide.Start" Send="Create CritterExplosion" />
+    <On Terms="UnitMovementUpdate.*.Walk" Send="AnimClear Birth" />
+    <On Terms="Abil.MutatorInfestedTurkeyTerrifyingGobble.SourcePrepStart" Send="AnimPlay Spell Walk,00" />
+    <On Terms="Abil.MutatorInfestedTurkeyTerrifyingGobble.SourceCastStop" Send="AnimClear Spell 1.000000" />
+    <DeathArray index="Normal" ModelLink="Turkey_King_Death" SoundLink="Mutator_Turkey_Death_Large" />
+    <PortraitModel value="CarrionBirdPortrait" />
+    <WalkAnimMoveSpeed value="2.5" />
+    <BarOffset value="90" />
+    <GroupIcon>
+      <Image value="Assets\Textures\Wireframe-critter-turkeyking.dds" />
+    </GroupIcon>
+    <SoundArray index="What" value="CarrionBird2_What" />
+    <SoundArray index="Yes" value="CarrionBird2_What" />
+    <SoundArray index="Attack" value="CarrionBird2_What" />
+    <SoundArray index="Pissed" value="CarrionBird2_What" />
+    <StatusBarFlags index="Shields" value="0" />
+    <StatusBarFlags index="Energy" value="0" />
+    <StatusBarFlags index="Cargo" value="0" />
+    <StatusBarFlags index="Progress" value="0" />
+    <StatusBarFlags index="Duration" value="0" />
+    <StatusBarFlags index="Magazine" value="0" />
+    <UnitIcon value="Assets\Textures\Wireframe-critter-turkeyking.dds" />
+    <Wireframe>
+      <Image value="Assets\Textures\Wireframe-critter-turkeyking.dds" />
+    </Wireframe>
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level0.dds" />
+    <StatusBarOn index="Life" value="1" />
+  </CActorUnit>
+  <CActorUnit id="MutatorPlagueCloudLarge" parent="GenericUnitMinimal" unitName="MutatorPlagueCloudLarge">
+    <Model value="MutatorPlagueCloud" />
+    <Scale value="2.000000" />
+  </CActorUnit>
+  <CActorModel id="MutatorWidowMineAttackImpact" parent="ModelAnimationStyleOneShot">
+    <On Terms="Effect.MutatorWidowMineExplodeSplashSearch.Start" Send="Create" />
+  </CActorModel>
+  <CActorSound id="MutatorAmonDehakaBurrowUp" parent="SoundOneShot">
+    <Sound value="Dehaka_Unburrow" />
+  </CActorSound>
+  <CActorUnit id="MutatorStormCloud" parent="GenericUnitStandard" unitName="MutatorStormCloud">
+    <Aliases value="_NoGlaze" />
+    <FogVisibility value="Visible" />
+    <On Terms="ActorCreation" Send="Create MutatorStormCloudAddition" />
+    <On Terms="ActorCreation" Send="Create MutatorStormCloud_ActorSoundLoop" />
+    <Model value="Invisible" />
+    <EditorModel value="WeatherHelper" />
+    <MinimapIcon value="Assets\Textures\clouds_hurricane.dds" />
+    <MinimapIconScale value="0.070000" />
+    <MinimapIconTintColor value="255,255,0,0" />
+    <UnitFlags index="SuppressDefaultStatusBar" value="1" />
+  </CActorUnit>
+  <CActorSound id="MutatorEvolveSoundZerg" parent="SoundOneShot">
+    <Sound value="MutatorRift_SpawnBirthSound" />
+    <Layers Sound="Vorazun_Death_Fx">
+      <Chance value="100" />
+      <Pitch value="0.000000,0.000000" />
+      <PlayDelay value="0,0" />
+      <Volume value="0.000000,0.000000" />
+    </Layers>
+  </CActorSound>
+  <CActorModel id="MutatorImmunetoPlayer1" parent="ModelAnimationStyleContinuous">
+    <On Terms="Behavior.MutatorImmunetoPlayer1Visual.On" Send="Create" />
+    <On Terms="Behavior.MutatorImmunetoPlayer1Visual.Off" Send="Destroy" />
+    <Host Subject="_Selectable" />
+    <HostSiteOps Ops="SOpAttachOverhead SOpForwardDefault" />
+    <FilterPlayers index="2" value="1" />
+    <AcceptedTransfers index="Rotation" value="0" />
+    <AcceptedHostedPropTransfers index="TeamColor" value="0" />
+    <FogVisibility value="Hidden" />
+    <Flags index="VisionTestCenterOnly" value="1" />
+    <Inherits index="CloakEffect" value="1" />
+  </CActorModel>
+  <CActorModel id="MutatorAmonPhaseCannonWarpIn" parent="ModelAddition">
+    <EditorCategories value="DoodadType:Structures" />
+    <On Terms="Behavior.MutatorAmonPhaseCannonInitialStun.On" Send="Create" />
+    <Model value="PhaseCannonWarpIn" />
+    <Inherits index="CreepEngulfment" value="0" />
+    <AcceptedHostedPropTransfers index="CreepEngulfment" value="0" />
+    <CreepHeightClass value="Small" />
+  </CActorModel>
+  <CActorModel id="MutatorAmonArtanisAstralWindImpactModel" parent="ModelAnimationStyleOneShot">
+    <Model value="ArtanisAstralWindImpactModel" />
+    <On Terms="Effect.MutatorAmonArtanisAstralWindOther.Start; At Target" Send="Create" />
+    <Host Subject="_Selectable" />
+    <Inherits index="CloakEffect" value="1" />
+    <Inherits index="Visibility" value="1" />
+    <HostSiteOps Ops="SOpAttachOrigin" HoldRotation="1" />
+  </CActorModel>
+  <CActorModel id="MutatorDeathPullDebuff" parent="ModelAnimationStyleOneShot">
+    <HostSiteOps Ops="SOpAttachCenter" />
+    <Host Subject="_Unit" />
+  </CActorModel>
+  <CActorAction id="MutatorMurderBotAttack" parent="GenericAttack" effectAttack="MutatorMurderBot">
+    <LaunchAssets Sound="UmojanWarbot_AttackLaunch" />
+    <ImpactMap index="None" Sound="UmojanWarbot_AttackImpact" />
+    <ImpactMap index="Flesh" ModelReaction="BloodTargetImpact" />
+  </CActorAction>
+  <CActorBeamSimple id="MutatorAmonNovaWeaponImprovedCanisterRifleSnipeAttackBeam" parent="GenericAttackBeam" />
+  <CActorModel id="MutatorAmonZagaraFrenzyTarget" parent="ModelAnimationStyleContinuous">
+    <Model value="ZagaraVoidCoopFrenzyTarget" />
+    <On Terms="Behavior.MutatorAmonZagaraMassFrenzyTarget.On" Send="Create" />
+    <On Terms="Behavior.MutatorAmonZagaraMassFrenzyTarget.On; ValidateUnit IsSiegeTankBlackOpsorSieged" Send="SetScale 2.000000" />
+    <On Terms="Behavior.MutatorAmonZagaraMassFrenzyTarget.Off" Send="AnimBracketStop BSD" />
+    <HostSiteOps Ops="SOpAttachCenter" />
+    <ModelFlags index="AllowHitTest" value="0" />
+    <ModelFlags index="AutomateGlobalLoops" value="1" />
+    <AutoScaleFactor value="2.000000" />
+    <Inherits index="BaseModelScale" value="1" />
+    <Inherits index="Scale" value="1" />
+  </CActorModel>
+  <CActorSound id="MutatorAmonKerriganApocalypseLaunchSound" parent="SoundOneShot">
+    <Sound value="KerriganApocalypseLaunchSound" />
+    <On Terms="Abil.MutatorAmonKerriganApocalypse.TargetPrepStart" Send="Create" />
+  </CActorSound>
+  <CActorUnit id="MutatorSpiderMine" parent="GenericUnitStandard" unitName="MutatorSpiderMine">
+    <On Terms="UnitBirth.MutatorSpiderMineBurrowed" Send="Create" />
+    <On Terms="UnitBirth.MutatorSpiderMineBurrowed" Send="AnimPlay Burrow Burrow PlayForever,NonLooping" />
+    <On Terms="AbilMorph.*.Start; MorphTo MutatorSpiderMineBurrowed" Send="AnimPlay Burrow Burrow PlayForever,NonLooping" />
+    <On Terms="AbilMorph.*.Start; MorphTo MutatorSpiderMineBurrowed" Send="AnimClear Unburrow" />
+    <On Terms="AbilMorph.*.Start; MorphTo MutatorSpiderMine" Send="AnimClear Burrow" />
+    <On Terms="AbilMorph.*.Start; MorphTo MutatorSpiderMine" Send="AnimPlay Unburrow Unburrow" />
+    <On Terms="AbilMorph.MutatorSpiderMineBurrow.Start" Send="Create VultureSpiderMineBurrowSound" />
+    <On Terms="Abil.attack.ReadyStart" Send="Create VultureSpiderMineSeekSound" />
+    <DeathArray index="Normal" ModelLink="SpiderMineExplosion" SoundLink="Terran_ExplosionSmall" />
+    <BarWidth value="36" />
+    <BarOffset value="10" />
+    <NameOffset value="10" />
+    <PlacementModel value="SpiderMinePlacement" />
+    <UnitIcon value="Assets\Textures\BTN-Unit-Terran-SpiderMine.dds" />
+    <HeroIcon value="Assets\Textures\BTN-Unit-Terran-SpiderMine.dds" />
+    <GroupIcon>
+      <Image value="Assets\Textures\Wireframe-Terran-SpiderMine.dds" />
+    </GroupIcon>
+    <Wireframe>
+      <Image value="Assets\Textures\Wireframe-Terran-SpiderMine.dds" />
+    </Wireframe>
+    <SoundArray index="Birth" value="SpiderMineBirth" />
+    <SoundArray index="Ready" value="SpiderMineReady" />
+    <SoundArray index="Help" value="SpiderMineHelp" />
+    <SoundArray index="What" value="SpiderMineWhat" />
+    <SoundArray index="Yes" value="SpiderMineYes" />
+    <SoundArray index="Attack" value="SpiderMineYes" />
+    <SoundArray index="Pissed" value="SpiderMinePissed" />
+    <SoundArray index="Movement" value="SpiderMineMovement" />
+    <SoundArray index="Turning" value="SpiderMineTurning" />
+    <SoundArray index="Board" value="SpiderMineBoard" />
+    <GroupSoundArray index="Birth" value="SpiderMineBirth" />
+    <GroupSoundArray index="Ready" value="SpiderMineReady" />
+    <GroupSoundArray index="Help" value="SpiderMineHelp" />
+    <GroupSoundArray index="What" value="SpiderMineWhat" />
+    <GroupSoundArray index="Yes" value="SpiderMineYes" />
+    <GroupSoundArray index="Attack" value="SpiderMineYes" />
+    <GroupSoundArray index="Pissed" value="SpiderMinePissed" />
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel0.dds" />
+    <Aliases value="_UnitSmall" />
+    <Model value="SpiderMine" />
+    <BuildModel value="SpiderMine" />
+  </CActorUnit>
+  <CActorAction id="MutatorAmonDehakaAttack" parent="GenericAttack" effectAttack="MutatorAmonDehaka">
+    <ImpactAttachQuery Methods="AMFilterTargetVolumes" />
+    <ShieldFlashType value="Header" />
+    <ImpactPhysics>
+      <Name value="Attack00" />
+      <MatchKeys value="Basic" />
+      <AttackAnimProps value="00" />
+      <Physics value="DehakaAttackDeathForce02" />
+    </ImpactPhysics>
+    <ImpactPhysics>
+      <Name value="Attack01" />
+      <MatchKeys value="Basic" />
+      <AttackAnimProps value="01" />
+      <Physics value="DehakaAttackDeathForce00" />
+    </ImpactPhysics>
+    <ImpactPhysics>
+      <Name value="Attack02" />
+      <MatchKeys value="Basic" />
+      <AttackAnimProps value="02" />
+      <Physics value="DehakaAttackDeathForce01" />
+    </ImpactPhysics>
+    <ImpactPhysics>
+      <Name value="Attack03" />
+      <MatchKeys value="Basic" />
+      <AttackAnimProps value="03" />
+      <Physics value="DehakaAttackDeathForce01" />
+    </ImpactPhysics>
+    <ImpactPhysics>
+      <Name value="Attack04" />
+      <MatchKeys value="Basic" />
+      <AttackAnimProps value="04" />
+      <Physics value="DehakaAttackDeathForce02" />
+    </ImpactPhysics>
+    <ImpactPhysics>
+      <Name value="Attack05" />
+      <MatchKeys value="Basic" />
+      <AttackAnimProps value="05" />
+      <Physics value="DehakaAttackDeathForce03" />
+    </ImpactPhysics>
+    <ImpactPhysics>
+      <Name value="Attack06" />
+      <MatchKeys value="Basic" />
+      <AttackAnimProps value="06" />
+      <Physics value="DehakaAttackDeathForce03" />
+    </ImpactPhysics>
+    <AcquisitionYawHalfArc value="25.000000" />
+    <AcquisitionPitchHalfArc value="25.000000" />
+  </CActorAction>
+  <CActorModel id="MutatorInfestedTurkeyModelAddition" parent="ModelAddition">
+    <On Terms="ActorOrphan" Send="Destroy" />
+    <HostSiteOps Ops="SOpAttachCenter" />
+  </CActorModel>
+  <CActorSite id="MutatorAmonDehakaDragTentacleLaunchSite">
+    <Host Subject="::scope.MutatorAmonDehakaDragTentacle" />
+  </CActorSite>
+  <CActorSound id="MutatorAmonArtanisResurgenceHealSound" parent="SoundContinuous">
+    <Sound value="Medivac_HealLoop" />
+    <On Terms="Behavior.MutatorAmonArtanisResurgenceRegen.On" Send="Create" />
+    <On Terms="Behavior.MutatorAmonArtanisResurgenceRegen.Off" Send="Destroy" />
+    <Host Subject="_Selectable" />
+    <HostSiteOps Ops="SOpAttachOverhead" />
+  </CActorSound>
+  <CActorSound id="MutatorScorchedEarthSmall" parent="SoundContinuous">
+    <On Terms="Effect.MutatorScorchedEarthFireBeamSmallInitialCP.Start" Send="Create" />
+    <On Terms="Effect.MutatorScorchedEarthFireBeamSmallInitialCP.Stop" Send="Destroy" />
+    <Sound value="Protoss_FireSmall" />
+  </CActorSound>
+  <CActorSite id="MutatorAmonKerriganImpactSite" parent="GenericAttackImpactSite" />
+  <CActorModel id="MutatorFireworksMissileImpactText0" parent="ModelAnimationStyleOneShot">
+    <Supporter Subject="::Creator" />
+    <Host Subject="::Creator" />
+    <HostSiteOps Ops="SOpMoveUpBy1" />
+  </CActorModel>
+  <CActorModel id="MutatorCloakedMineAttackMissileDeath">
+    <On Terms="Effect.MutatorCloakedMineWeaponSearchDamage.Start; At Caster" Send="Create" />
+    <On Terms="ActorCreation" Send="$Death" />
+    <On Terms="AnimDone; AnimName Death" Send="Destroy" />
+  </CActorModel>
+  <CActorRegionCircle id="MutatorBoomBotNukeTreeKiller">
+    <On Terms="Effect.MutatorBoomBotNukeDamage.Start; At Effect" Send="Create" />
+    <On Terms="ActorCreation" Send="QueryRegion ::Self TreeBurnQuery AgainstCenter" />
+    <On Terms="ActorCreation" Send="QueryRegion ::Self NukedQuery AgainstCenter" />
+    <On Terms="Effect.MutatorBoomBotNukeDamage.Start; At Effect" Send="Destroy" />
+    <Radius value="8.000000" />
+  </CActorRegionCircle>
+  <CActorModel id="MutatorTimeWarpModel">
+    <Macros value="GlobalLoopMacro" />
+    <On Terms="Effect.MutatorTimeWarpCreatePersistent.Start" Send="Create" />
+    <On Terms="Effect.MutatorTimeWarpCreatePersistent.Stop" Send="AnimBracketStop BSD" />
+    <On Terms="ActorCreation" Send="AnimBracketStart BSD Spell Stand Death" />
+    <On Terms="ActorCreation" Send="SetTintColor {193,0,0 5.000000}" />
+    <On Terms="ModelEvent; ModelEventName SoundStart" Send="Create GuardianShieldSoundBirth" />
+    <On Terms="ModelEvent; ModelEventName SoundLoopStart" Send="Create GuardianShieldSoundLoop" />
+    <On Terms="ModelEvent; ModelEventName SoundLoopEnd" Target="GuardianShieldSoundLoop" Send="Destroy" />
+    <On Terms="ModelEvent; ModelEventName SoundLoopEnd" Send="Create GuardianShieldSoundDeath" />
+    <HostForProps Subject="_Unit" Scope="Caster" Actor="Find" />
+    <HostSiteOps Ops="SOpShadow" />
+    <Model value="MutatorTimeWarpFieldModel" />
+  </CActorModel>
+  <CActorMissile id="MutatorMissileSplitter">
+    <Aliases value="_Unit" />
+    <Aliases value="_Missile" />
+    <On Terms="UnitBirth.MutatorMissileSplitter" Send="Create" />
+    <On Terms="ActorCreation" Send="AnimBracketStart BSD Birth Stand" />
+    <On Terms="ActorCreation" Send="Create MutatorMissileSplitterFlightSound" />
+    <On Terms="ActorCreation" Send="Create MutatorMissileSplitterPingSound" />
+    <On Terms="ActorDestruction" Target="MutatorMissileSplitterFlightSound" Send="Destroy" />
+    <On Terms="ActorDestruction" Target="MutatorMissileSplitterPingSound" Send="Destroy" />
+    <DeathArray index="Normal" AnimProps="Birth" ModelLink="Mutator_MissileMadness_ShotDown" SoundLink="Mutator_MissileSplitter_Explosion" />
+    <DeathArray index="Impact" AnimProps="Birth" ModelLink="Mutator_MissileMadness_Explosion" SoundLink="Mutator_MissileSplitter_Explosion" />
+    <DeathActorModel value="UnitDeathModel" />
+    <DeathActorModelLow value="UnitDeathModelUnscaled" />
+    <DeathActorSound value="UnitDeathSound" />
+    <DeathActorVoice value="UnitDeathVoice" />
+    <PreHost value="_ActorAction" />
+  </CActorMissile>
+  <CActorModel id="MutatorAmonArtanisLightningDashIn" parent="ModelAnimationStyleOneShotNoOrphan">
+    <Model value="ArtanisLightningDashIn" />
+    <Host Subject="_Selectable" />
+    <HostSiteOps Ops="SOpAttachOrigin SOpForwardScopeLaunch" />
+    <On Terms="Effect.MutatorAmonArtanisLightningDashLaunchMissileImpactSet.Start" Send="Create" />
+  </CActorModel>
+  <CActorModel id="MutatorBoomBotRecovery" parent="ModelAnimationStyleContinuous">
+    <On Terms="Behavior.MutatorBoomBotRecovery.On" Send="Create" />
+    <On Terms="ActorCreation" Send="AnimBracketStart GL_BSD GLbirth GLstand GLdeath" />
+    <On Terms="ActorCreation" Send="AnimBracketStart $BSD" />
+    <On Terms="Behavior.MutatorBoomBotRecovery.Off" Send="Destroy" />
+    <Host Subject="_Selectable" />
+    <HostSiteOps Ops="SOpAttachCenter" />
+    <ModelFlags index="AllowHitTest" value="0" />
+  </CActorModel>
+  <CActorUnit id="MutatorBoomBot" parent="GenericUnitStandard" unitName="MutatorBoomBot">
+    <Aliases value="_UnitSmall" />
+    <DeathArray index="Normal" ModelLink="MutatorBoomBotDeath" SoundLink="UtilityBot_deathExplosion" />
+    <PortraitModel value="MutatorBoomBotPortrait" />
+    <WalkAnimMoveSpeed value="1.1992" />
+    <BarOffset value="40" />
+    <BarWidth value="36" />
+    <GroupIcon>
+      <Image value="Assets\Textures\Wireframe-critter-utilitybot.dds" />
+    </GroupIcon>
+    <SoundArray index="What" value="UtilityBot_What" />
+    <SoundArray index="Yes" value="UtilityBot_What" />
+    <SoundArray index="Attack" value="UtilityBot_What" />
+    <StatusBarGroups index="Owner" value="0" />
+    <StatusBarGroups index="Allied" value="0" />
+    <StatusBarGroups index="Enemy" value="0" />
+    <StatusBarGroups index="All" value="0" />
+    <UnitIcon value="Assets\Textures\Wireframe-critter-utilitybot.dds" />
+    <Wireframe>
+      <Image value="Assets\Textures\Wireframe-critter-utilitybot.dds" />
+    </Wireframe>
+    <ModelFlags index="AllowHitTest" value="0" />
+    <StatusBarFlags index="Shields" value="0" />
+    <StatusBarFlags index="Life" value="0" />
+    <StatusBarFlags index="Energy" value="0" />
+    <StatusBarFlags index="Cargo" value="0" />
+    <StatusBarFlags index="Progress" value="0" />
+    <StatusBarFlags index="Magazine" value="0" />
+    <StatusBarFlags index="Workers" value="0" />
+    <StatusBarFlags index="Custom" value="0" />
+    <StatusBarOn index="Duration" value="1" />
+  </CActorUnit>
+  <CActorSound id="MutatorCloakedMineAttackImpactSound" parent="SoundOneShot">
+    <On Terms="Effect.MutatorCloakedMineWeaponSearchDamage.Start; At Caster" Send="Create" />
+    <Sound value="MutatorCloakedMine_AttackImpact" />
+  </CActorSound>
+  <CActorUnit id="MutatorDeathBot" parent="GenericUnitStandardNoAutoSoundLinks" unitName="MutatorDeathBot">
+    <On Terms="ActorCreation" Send="AnimGroupApply C" />
+    <On Terms="Abil.WarbotCharge.SourcePrepStart" Send="AnimGroupRemove C" />
+    <On Terms="Abil.WarbotCharge.SourceFinishStart" Send="AnimGroupApply C" />
+    <Model value="UmojanLabWarbot" />
+    <BuildModel value="UmojanLabWarbot" />
+    <DeathArray index="Normal" ModelLink="UmojanLabWarbotDeath" SoundLink="WarbotAC_DieExplosion" />
+    <DeathActorModelLow value="UnitDeathModel" />
+    <PlacementModel value="UmojanLabWarbot" />
+    <PortraitModel value="ARESPortrait" />
+    <BarOffset value="140" />
+    <BarWidth value="180" />
+    <CustomUnitStatusFrame value="Coop_UnitStatus/UnitStatusInfoFrameTemplate" />
+    <GlossaryAnim value="Stand,C" />
+    <GroupIcon>
+      <Image value="Assets\Textures\Wireframe-terran-warbot.dds" />
+    </GroupIcon>
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel0.dds" />
+    <NameOffset value="40" />
+    <UnitFlags index="SuppressStandIntro" value="1" />
+    <UnitFlags index="SuppressWalkIntro" value="1" />
+    <UnitFlags index="SuppressWalkOutro" value="1" />
+    <UnitIcon value="Assets\Textures\btn-unit-terran-ares.dds" />
+    <Wireframe>
+      <Image value="Assets\Textures\Wireframe-terran-warbot.dds" />
+    </Wireframe>
+    <Scale value="0.900000" />
+  </CActorUnit>
+  <CActorModel id="MutatorAmonNovaNukeDrop">
+    <On Terms="Effect.MutatorAmonNovaNukeDetonate.Start" Send="Create" />
+    <On Terms="Effect.MutatorAmonNovaNukeDetonate.Start" Send="$Birth" />
+    <On Terms="Effect.MutatorAmonNovaNukeDamage.Start" Send="Destroy" />
+    <HostSiteOps Ops="SOpTargetPointStationary SOpShadow" />
+  </CActorModel>
+  <CActorFoliageFXSpawner id="MutatorAmonNovaFoliageFXSpawner" parent="FoliageFXSpawnerFire">
+    <On Terms="Effect.MutatorAmonNovaNukeDamage.Start" Send="Create" />
+    <Radius value="5.000000" />
+  </CActorFoliageFXSpawner>
+  <CActorAction id="MutatorAmonDehakaDrag" parent="GenericAttack" effectImpact="MutatorAmonDehakaDragTeleport" effectLaunch="MutatorAmonDehakaDragLaunchMissile">
+    <LaunchSite value="MutatorAmonDehakaDragTentacleLaunchSite" />
+    <LaunchAttachQuery Methods="Weapon" />
+    <LaunchSiteOps Ops="SOpAttachWeapon" />
+    <ImpactAttachQuery Methods="AMFilterHead" />
+    <ImpactSiteOps Ops="SOpAttachHead SOpForwardLaunchGuide" />
+    <ImpactSiteOpsReaction Ops="SOp2DRotation SOp180" HoldPosition="1" HoldRotation="1" />
+    <ImpactMap index="None" Sound="Infestor_NeuralParasiteAttackImpact" />
+    <LaunchAssets Sound="Spell_Drag_Launch" />
+    <ShieldFlashType value="None" />
+  </CActorAction>
+  <CActorModel id="MutatorAmonShadowBladeCastEffect" parent="ModelAnimationStyleOneShot">
+    <On Terms="Abil.MutatorAmonShadowBlade.SourceCastStart" Send="Create" />
+    <Host Subject="_Unit" />
+    <HostSiteOps Ops="SOpAttachCenter" />
+  </CActorModel>
+  <CActorSiteOpLocalOffset id="MutatorStormCloudGroundAdditionOffset">
+    <EditorCategories value="" />
+    <LocalOffset value="1.000000,-4.000000,0.000000" />
+  </CActorSiteOpLocalOffset>
+  <CActorAction id="MutatorLaserDrillAttackC" parent="GenericAttackBase">
+    <Lifetime value="-1.000000" />
+    <On Terms="Effect.MutatorLaserDrillStageCCP.Start" Send="Create" />
+    <On Terms="Effect.MutatorLaserDrillStageCCP.Stop; At Effect" Send="Destroy" />
+    <ImpactSiteOps Ops="SOpAttachHarness SOpAttachVolumeNoVizEnhance VoidRaySOpForwardLaunch" />
+    <ActionFlags index="AlignedImpactsAndDamages" value="1" />
+    <ActionFlags index="LaunchForceSite" value="1" />
+    <LaunchAssets Sound="Archon_AttackLaunch" />
+    <ImpactMap index="None" Model="" Sound="Archon_AttackImpact" />
+    <HostImpactSource Subject="MutatorLaserDrillAttackB" ReachAcrossEffectTrees="1" />
+  </CActorAction>
+  <CActorSound id="MutatorCloakedMineAttackSound" parent="SoundOneShot">
+    <Sound value="SJCloakedMine_Attack" />
+    <On Terms="Abil.MutatorCloakedMineAttack.SourceCastStart" Send="Create" />
+  </CActorSound>
+  <CActorModel id="MutatorKillBotAttackRight" parent="ModelAnimationStyleOneShot">
+    <On Terms="Effect.MutatorKillBot.Start; At Caster" Send="Create" />
+    <Host Subject="_Selectable" />
+    <HostSiteOps Ops="SOpAttachWeapon01" />
+    <Model value="ThorHandGunAttackLaunch" />
+  </CActorModel>
+  <CActorSound id="Mutator_DeathPull" parent="SoundOneShot">
+    <On Terms="Effect.MutatorDeathPullPersistent.Start" Send="Create" />
+    <Layers Sound="Mutator_DeathPull_Cast">
+      <Chance value="100" />
+      <Pitch value="0.000000,0.000000" />
+      <PlayDelay value="0,0" />
+      <Volume value="0.000000,0.000000" />
+    </Layers>
+    <Layers Sound="Mutator_DeathPull_SubBreathy">
+      <Chance value="100" />
+      <Pitch value="0.000000,0.000000" />
+      <PlayDelay value="0,0" />
+      <Volume value="0.000000,0.000000" />
+    </Layers>
+  </CActorSound>
+  <CActorModel id="MutatorAmonPhotonCannonDeath" parent="UnitDeathModel">
+    <AcceptedTransfers index="Textures" value="1" />
+    <CopySource value="MutatorAmonPhotonCannon" />
+    <Inherits index="BaseModelScale" value="0" />
+    <Host Subject="_Selectable" />
+    <HostSiteOps Ops="SOpAttachOriginStationary SOpShadow" />
+  </CActorModel>
+  <CActorModel id="MutatorStormCloudGroundAddition" parent="ModelAnimationStyleContinuous">
+    <HostSiteOps Ops="SOpShadow MutatorStormCloudGroundAdditionOffset" />
+  </CActorModel>
+  <CActorBeamSimple id="MutatorLaserDrillAttackCBeam" parent="BeamSimpleAnimationStyleContinuous">
+    <On Terms="ActorCreation" Send="SetTintColor {255,255,255 5.000000}" />
+    <On Terms="Effect.MutatorLaserDrillStageCCP.Stop; At Effect" Send="Destroy" />
+    <Host Subject="_Unit" Scope="Caster" Actor="Find" />
+    <Supporter Subject="_Unit" Scope="Caster" Actor="Find" />
+    <Model value="MutatorLaserDrillAttackBeam" />
+  </CActorBeamSimple>
+  <CActorAction id="MutatorLaserDrillAttackB" parent="GenericAttackBase">
+    <Lifetime value="-1.000000" />
+    <On Terms="Effect.MutatorLaserDrillStageBCP.Start" Send="Create" />
+    <On Terms="Effect.MutatorLaserDrillStageBCP.Stop; At Effect" Send="Destroy" />
+    <ImpactSiteOps Ops="SOpAttachHarness SOpAttachVolumeNoVizEnhance VoidRaySOpForwardLaunch" />
+    <ActionFlags index="AlignedImpactsAndDamages" value="1" />
+    <ActionFlags index="LaunchForceSite" value="1" />
+    <LaunchAssets Sound="Archon_AttackLaunch" />
+    <ImpactMap index="None" Model="" Sound="Archon_AttackImpact" />
+    <HostImpactSource Subject="MutatorLaserDrillAttackA" ReachAcrossEffectTrees="1" />
+  </CActorAction>
+  <CActorMissile id="MutatorAmonKerrigan" parent="GenericUnitBase" unitName="MutatorAmonKerrigan">
+    <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds" />
+    <StatusColors index="Shields">
+      <ColorArray index="0" value="255,0,128,0" />
+    </StatusColors>
+    <StatusColors index="Energy">
+      <ColorArray index="0" value="255,255,128,0" />
+    </StatusColors>
+    <StatusBarOn index="Shields" value="1" />
+    <StatusBarOn index="Life" value="1" />
+    <StatusBarOn index="Energy" value="1" />
+    <StatusBarOn index="Progress" value="1" />
+    <StatusBarOn index="Duration" value="1" />
+    <VitalColors index="Shields">
+      <ColorArray value="255,0,128,0" />
+    </VitalColors>
+    <VitalNames index="Shields" value="Vital/ZergShields" />
+    <WireframeShieldColor value="255,0,128,0" />
+    <UnitFlags index="SuppressDefaultStatusBar" value="1" />
+    <CustomUnitStatusFrame value="Coop_UnitStatus/MutatorAmonHeroUnitStatusFrameTemplate" />
+    <Aliases value="_MissileHybrids" />
+    <PlacementModel value="KerriganGhost" />
+    <WalkAnimMoveSpeed value="2" />
+    <Macros value="ZergBurrowStandardAnimMacro" />
+    <Macros value="ZergSmallBurrowEffects" />
+    <On Terms="Abil.attack.ReadyStart" Send="AnimGroupApply Ready" />
+    <On Terms="ActorCreation" Send="RefSet ::global.MutatorAmonKerrigan ::Self" />
+    <On Terms="WeaponStart.MutatorAmonKerriganRanged.AttackStart" Send="AnimBracketStart Attack Spell,D" />
+    <On Terms="WeaponStop.MutatorAmonKerriganRanged.AttackStop" Send="AnimBracketStop Attack" />
+    <On Terms="Abil.attack.ReadyStop" Send="AnimGroupRemove Ready" />
+    <On Terms="UnitBirth.MutatorAmonKerriganBurrowed" Send="Create" />
+    <On Terms="UnitBirth.MutatorAmonKerriganBurrowed" Send="AnimBracketStart Burrow Burrow IGNORE Unburrow ClosingFull,OpeningPlayForever,Instant" />
+    <On Terms="Abil.MutatorAmonKerriganPrimalSlash.SourcePrepStart" Send="AnimBracketStart Jump Jump,Start Jump Jump,End ClosingFull,ContentPlayOnce 1.500000 AsTimeScale" />
+    <On Terms="Abil.MutatorAmonKerriganPrimalSlash.SourcePrepStart" Send="AnimBlendTimeApply" />
+    <On Terms="Effect.MutatorAmonKerriganPrimalSlashPointSearch.Stop; At Caster" Send="AnimBlendTimeApply" />
+    <On Terms="Effect.MutatorAmonKerriganPrimalSlashPoint.Stop; At Caster" Send="AnimBlendTimeApply" />
+    <On Terms="UnitMovementUpdate.*.Walk" Send="AnimBracketClear Jump" />
+    <On Terms="UnitBirth.MutatorAmonKerrigan" Send="TerrainSquibActivateGroup RippleStandard" />
+    <On Terms="AbilMorph.*.Finish; MorphTo MutatorAmonKerrigan" Send="TerrainSquibActivateGroup RippleStandard" />
+    <On Terms="AbilMorph.*.Finish; MorphTo MutatorAmonKerriganBurrowed" Send="TerrainSquibDeactivate" />
+    <On Terms="AbilMorph.*.Cancel; MorphFrom MutatorAmonKerrigan; MorphTo MutatorAmonKerriganBurrowed" Send="AnimClear Burrow" />
+    <On Terms="AbilMorph.*.Finish; MorphTo MutatorAmonKerrigan; MorphFrom MutatorAmonKerriganBurrowed" Send="AnimBracketStop Burrow" />
+    <On Terms="AbilMorph.*.Finish; MorphTo MutatorAmonKerrigan; MorphFrom MutatorAmonKerriganBurrowed" Send="AnimClear Burrow" />
+    <On Terms="UnitMovementUpdate.*.Walk" Send="AnimClear Birth" />
+    <On Terms="Behavior.MutatorAmonKerriganPsiStrikeWalkSpeed.On" Send="AnimPlay SpellC Spell,C PlayForever 0.250000 0.250000" />
+    <On Terms="Behavior.MutatorAmonKerriganPsiStrikeWalkSpeed.Off" Send="AnimClear SpellC" />
+    <On Terms="Abil.MutatorAmonKerriganApocalypse.SourcePrepStart" Send="$Spell PlayForever 0.250000 0.250000" />
+    <On Terms="Abil.MutatorAmonKerriganApocalypse.SourcePrepStop" Send="AnimClear Spell" />
+    <EventDataSound Name="KerriganAttackLaunch" Actor="UnitSound" Sound="QueenOfBladesAttackLaunch" />
+    <EventDataSound Name="KerriganAttackImpact" Actor="UnitSound" Sound="QueenOfBladesAttackImpact" />
+    <DeathArray index="Normal" ModelLink="DeathVoidShadowMedium" />
+    <AnimBlendTime value="0.250000" />
+    <PortraitActor value="MutatorKerriganPrimalPortrait" />
+    <PortraitModel value="MutatorAmonKerriganPortrait" />
+    <BarWidth value="78" />
+    <BarOffset value="60" />
+    <SoundArray index="Ready" value="KerriganX1_Ready_Queen" />
+    <SoundArray index="Help" value="KerriganX1_Help_Queen" />
+    <SoundArray index="What" value="KerriganX1_What_Queen" />
+    <SoundArray index="Yes" value="KerriganX1_Yes_Queen" />
+    <SoundArray index="Attack" value="KerriganX1_Attack_Queen" />
+    <SoundArray index="Pissed" value="KerriganX1_Pissed_Queen" />
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level0.dds" />
+    <UnitIcon value="Assets\Textures\btn-unit-zerg-kerriganinfested.dds" />
+    <HeroIcon value="Assets\Textures\btn-unit-zerg-kerriganinfested.dds" />
+    <GroupIcon>
+      <Image value="Assets\Textures\wireframe-zerg-kerrigan.dds" />
+    </GroupIcon>
+    <Wireframe>
+      <Image value="Assets\Textures\wireframe-zerg-kerrigan.dds" />
+    </Wireframe>
+    <UnitKillRank Text="UnitKillRank/MutatorAmonKerrigan" />
+    <TerrainSquibs>
+      <GroupName value="RippleStandard" />
+      <MovementDistance value="0.150000,0.150000" />
+      <IdlePeriod value="0.100000,0.250000" />
+      <RangeUp value="1.000000" />
+      <RangeDown value="1.000000" />
+      <AttachQuery Methods="AMFilterCenter" />
+      <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleLarge" />
+    </TerrainSquibs>
+    <ErrorArray Error="CantLandLocationInvalid" Sound="UI_GenericError" GroupSound="UI_GenericError" />
+  </CActorMissile>
+  <CActorMissile id="MutatorWidowMineAttackMissile" parent="GenericAttackMissile" unitName="MutatorWidowMineWeapon">
+    <Model value="TornadoMissileWeapon" />
+    <On Terms="ActorCreation" Send="$Spell PlayForever" />
+    <On Terms="ActorCreation" Send="Create WidowMineAttackLaunch" />
+  </CActorMissile>
+  <CActorAction id="MutatorAmonTychusTossGrenade" parent="GenericAttack" effectImpact="MutatorAmonTychusTossGrenadeDamage" effectLaunch="MutatorAmonTychusTossGrenadeLaunchMissile">
+    <LaunchAttachQuery Methods="Weapon 1" />
+    <ImpactMap index="None" Sound="MutAmon_Tychus_GrenadeImpact" />
+  </CActorAction>
+  <CActorModel id="MutatorStoneZealotEyeBeamAirImpact" parent="ModelAnimationStyleOneShot">
+    <Model value="MutatorStoneZealotEyeBeamImpact" />
+    <Host Subject="_Unit" />
+    <HostSiteOps Ops="SOpAttachTarget" />
+    <On Terms="Effect.MutatorEyeBeamsAirPersistent.Start; At Target" Send="Create" />
+    <On Terms="ActorCreation" Send="Create StoneZealotAttackImpactSound" />
+  </CActorModel>
+  <CActorMissile id="MutatorAmonZagara" parent="GenericUnitBase" unitName="MutatorAmonZagara">
+    <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds" />
+    <StatusColors index="Shields">
+      <ColorArray index="0" value="255,0,128,0" />
+    </StatusColors>
+    <StatusColors index="Energy">
+      <ColorArray index="0" value="255,255,128,0" />
+    </StatusColors>
+    <DeathArray index="Normal" ModelLink="DeathVoidShadowMedium" SoundLink="ZagaraAC_Explode" VoiceLink="MutatorAmon_UnitDeath_SoulVapor" />
+    <StatusBarOn index="Shields" value="1" />
+    <StatusBarOn index="Life" value="1" />
+    <StatusBarOn index="Energy" value="1" />
+    <StatusBarOn index="Progress" value="1" />
+    <StatusBarOn index="Duration" value="1" />
+    <StatusBarOn index="Custom" value="1" />
+    <VitalColors index="Shields">
+      <ColorArray value="255,0,128,0" />
+    </VitalColors>
+    <VitalNames index="Shields" value="Vital/ZergShields" />
+    <WireframeShieldColor value="255,0,128,0" />
+    <UnitFlags index="SuppressDefaultStatusBar" value="1" />
+    <CustomUnitStatusFrame value="Coop_UnitStatus/MutatorAmonHeroUnitStatusFrameTemplate" />
+    <Aliases value="_MissileHybrids" />
+    <WalkAnimMoveSpeed value="1.7031" />
+    <Macros value="ZergBurrowStandardAnimMacro" />
+    <On Terms="AbilMorph.*.Start; AbilKey BurrowDown" Send="Create SmallBurrowDownEffects" />
+    <On Terms="AbilMorph.*.Start; AbilKey BurrowDown" Send="Create ZagaraAC_BurrowSound" />
+    <On Terms="AbilMorph.*.Start; AbilKey BurrowUp" Send="Create SmallBurrowUpEffects" />
+    <On Terms="AbilMorph.*.Start; AbilKey BurrowUp" Send="Create ZagaraAC_UnburrowSound" />
+    <On Terms="AbilMorph.*.Start; AbilKey BurrowUpMorph" Send="Create ZagaraAC_UnburrowSound" />
+    <On Terms="ActorCreation" Send="StatusSet SoundRank 0" />
+    <On Terms="WeaponStart.MutatorAmonZagaraRanged.AttackStart" Send="AnimBracketStart Attack Spell,C" />
+    <On Terms="WeaponStop.*.AttackStop" Send="AnimBracketStop Attack" />
+    <On Terms="UnitDeath.MutatorAmonZagara" Send="Create ZagaraAC_DeathSweetener" />
+    <On Terms="UnitDeath.MutatorAmonZagara" Send="UIStatusFlagSet Incapacitated 1" />
+    <On Terms="UnitBirth.MutatorAmonZagaraBurrowed" Send="Create" />
+    <On Terms="UnitBirth.MutatorAmonZagaraBurrowed" Send="AnimBracketStart Burrow Burrow IGNORE Unburrow ClosingFull,OpeningPlayForever,Instant" />
+    <On Terms="UnitBirth.MutatorAmonZagara" Send="TerrainSquibActivateGroup RippleStandard" />
+    <On Terms="AbilMorph.*.Finish; MorphTo MutatorAmonZagara" Send="TerrainSquibActivateGroup RippleStandard" />
+    <On Terms="AbilMorph.*.Finish; MorphTo MutatorAmonZagaraBurrowed" Send="TerrainSquibDeactivate" />
+    <On Terms="AbilMorph.*.Cancel; MorphFrom MutatorAmonZagara; MorphTo MutatorAmonZagaraBurrowed" Send="AnimClear Burrow" />
+    <On Terms="AbilMorph.*.Finish; MorphTo MutatorAmonZagara; MorphFrom MutatorAmonZagaraBurrowed" Send="AnimBracketStop Burrow" />
+    <On Terms="AbilMorph.*.Finish; MorphTo MutatorAmonZagara; MorphFrom MutatorAmonZagaraBurrowed" Send="AnimClear Burrow" />
+    <On Terms="Abil.MutatorAmonZagaraBanelingBarrage.SourceCastStart" Send="Create ZagaraAC_BanelingBarrageLaunchSound" />
+    <On Terms="Abil.MutatorAmonZagaraBanelingBarrage.SourceCastStart" Send="$Spell" />
+    <On Terms="Abil.MutatorAmonZagaraBanelingBarrage.SourceCastStart" Send="$Spell" />
+    <On Terms="Abil.MutatorAmonZagaraSpawnHunterKillers.SourceCastStart" Send="$Spell" />
+    <On Terms="UnitMovementUpdate.*.Walk" Send="AnimClear Birth" />
+    <AnimBlendTime value="0.250000" />
+    <PortraitModel value="MutatorAmonZagaraPortrait" />
+    <PortraitActor value="MutatorZagaraPrimalPortrait" />
+    <BarOffset value="75" />
+    <ErrorArray Error="CantSeeBuildLocation" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError" />
+    <ErrorArray Error="CantSeeLandLocation" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError" />
+    <ErrorArray Error="CantBuildLocationInvalid" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError" />
+    <ErrorArray Error="CantLandLocationInvalid" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError" />
+    <ErrorArray Error="CantLandLocationInvalid" Sound="UI_GenericError" GroupSound="UI_GenericError" />
+    <GroupIcon>
+      <Image value="Assets\Textures\btn-unit-zerg-broodqueen.dds" />
+    </GroupIcon>
+    <UnitIcon value="Assets\Textures\btn-unit-zerg-broodqueen.dds" />
+    <HeroIcon value="Assets\Textures\btn-unit-zerg-broodqueen.dds" />
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level0.dds" />
+    <SoundArray index="Ready" value="ZagaraHero_Ready" />
+    <SoundArray index="Help" value="ZagaraHero_Help" />
+    <SoundArray index="What" value="ZagaraHero_What" />
+    <SoundArray index="Yes" value="ZagaraHero_Yes" />
+    <SoundArray index="Attack" value="ZagaraHero_Attack" />
+    <AbilSoundArray AbilCmd="MutatorAmonZagaraBanelingBarrage,Execute" Sound="Swarm_Silent" />
+    <AbilSoundArray AbilCmd="MutatorAmonZagaraSpawnHunterKillers,Execute" Sound="Swarm_Silent" />
+    <AbilSoundArray AbilCmd="MutatorAmonZagaraMassRoachDrop,Execute" Sound="Swarm_Silent" />
+    <UnitKillRank Text="UnitKillRank/BroodMother" />
+    <TerrainSquibs>
+      <GroupName value="RippleStandard" />
+      <MovementDistance value="0.150000,0.150000" />
+      <IdlePeriod value="0.100000,0.250000" />
+      <RangeUp value="1.000000" />
+      <RangeDown value="1.000000" />
+      <AttachQuery Methods="AMFilterCenter" />
+      <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleLarge" />
+    </TerrainSquibs>
+    <ModelFlags index="OutlineEmitter" value="1" />
+  </CActorMissile>
+  <CActorModel id="MutatorPropagatorTentacle">
+    <Host Subject="_Selectable" />
+    <Inherits index="CloakEffect" value="1" />
+    <Inherits index="Visibility" value="1" />
+    <HostSiteOps Ops="SOpAttachWeapon" />
+    <HostedAttaches Name="MutatorPropagatorTentacleAttack">
+      <AttachQuery Methods="Hardpoint" />
+    </HostedAttaches>
+    <On Terms="Effect.MutatorPropagateDummyLM.Start; At Caster" Send="Create" />
+    <On Terms="ActorCreation" Send="AnimBracketStart BSD Attack Stand Death" />
+    <On Terms="ActorCreation" Send="RefSet ::scope.MutatorPropagatorTentacle ::Self" />
+    <On Terms="ActorCreation" Send="TimerSet 1.500000 DelayDestroy" />
+    <On Terms="ActorCreation" Send="SetOpacity" />
+    <On Terms="ActorCreation" Send="SetOpacity 1.000000 0.500000" />
+    <On Terms="Effect.MutatorPropagateDummyImpact.Start" Send="Create MutatorPropagatorAttackImpactHoldingSite" />
+    <On Terms="Effect.MutatorPropagateDummyImpact.Start" Send="RefSetFromRequest MutatorPropagatorTentacleAttack MutatorPropagatorAttackImpactHoldingSite" />
+    <On Terms="Effect.MutatorPropagateDummyImpact.Start" Send="TimerSet 0.750000 DelayDestroy" />
+    <On Terms="TimerExpired; TimerName DelayDestroy" Send="AnimBracketStop BSD" />
+    <On Terms="AnimBracketState.*.AfterClosing; AnimName BSD" Send="Destroy" />
+    <On Terms="ActorOrphan" Send="AnimBracketStop BSD" />
+    <ModelFlags index="AutomateGlobalLoops" value="1" />
+  </CActorModel>
+  <CActorModel id="MutatorStormCloudAddition" parent="ModelAnimationStyleContinuous">
+    <ModelFlags index="OutlineOccluder" value="1" />
+    <On Terms="Behavior.MutatorStormCloudBlizzardDisable.On" Send="ModelSwap MutatorStormCloudAdditionDisabled" />
+    <On Terms="Behavior.MutatorStormCloudBlizzardDisable.Off" Send="ModelSwap MutatorStormCloudAddition" />
+  </CActorModel>
+  <CActorModel id="MutatorArtanisPrimalPortraitAddition" parent="CompositePortraitAddition">
+    <On Terms="ActorCreation" Send="Create MutatorGlazePortrait" />
+    <Model value="ArtanisEx2PortraitAddition" />
+  </CActorModel>
+  <CActorBeamSimple id="MutatorCloakedMineInitialTargetBeam" parent="BeamSimpleAnimationStyleContinuous">
+    <HostLaunch Subject="::Creator" />
+    <HostLaunchSiteOps Ops="SOpAttachCenter" />
+    <HostImpact Subject="::Creator" />
+    <HostImpactSiteOps Ops="SOpAttachCenter SOpForwardTargetPoint SOpMutatorCloakedMineOffset SOpShadow SOpMoveUpBy2" />
+  </CActorBeamSimple>
+  <CActorSound id="UI_Gas_Pickup" parent="SoundOneShot">
+    <On Terms="Abil.MutatorPickupGas50.SourceCastStart" Send="Create" />
+  </CActorSound>
+  <CActorModel id="FloatingTextGas50">
+    <On Terms="Effect.MutatorPickupGas50.Start" Send="Create" />
+  </CActorModel>
+  <CActorUnit id="MutatorNaturalGas50" parent="GenericUnitStandardNoAutoSoundLinks" unitName="MutatorNaturalGas50">
+    <Macros value="AntiGravDeathRemoveMacro" />
+    <On Terms="ActorCreation" Send="Create GasCanisterGlow" />
+    <On Terms="ActorCreation" Send="Create MutatorGasSpawnModel" />
+    <On Terms="ActorCreation" Send="Create MutatorGasSpawnSound" />
+    <DeathArray index="Normal" ModelLink="NaturalGasDeath" />
+    <HeroIcon value="Assets\Textures\icon-gas.dds" />
+    <InfoText value="Unit/InfoText/MutatorNaturalGas50" />
+    <StatusBarFlags index="Shields" value="0" />
+    <StatusBarFlags index="Life" value="0" />
+    <StatusBarFlags index="Energy" value="0" />
+    <StatusBarFlags index="Cargo" value="0" />
+    <StatusBarFlags index="Progress" value="0" />
+    <StatusBarFlags index="Duration" value="0" />
+    <UnitIcon value="Assets\Textures\icon-gas.dds" />
+  </CActorUnit>
+  <CActorModel id="MutatorAmonDehakaMirrorImageImpactModel" parent="ModelAnimationStyleOneShot">
+    <Model value="JumpLandDust" />
+    <HostSiteOps Ops="SOpShadow" HoldPosition="1" HoldRotation="1" />
+    <FogVisibility value="Visible" />
+    <Host Subject="_Selectable" />
+    <AutoScaleFactor value="0.750000" />
+    <On Terms="Behavior.MutatorAmonDehakaMirrorImageTimedLife.On" Send="Create" />
+  </CActorModel>
+  <CActorSplat id="MutatorFireworksMissileWarning">
+    <FogVisibility value="Visible" />
+    <Layer value="AOELayer" />
+    <On Terms="Effect.MutatorFireworksMissileCP.Start" Send="Create" />
+    <On Terms="Effect.MutatorFireworksSearch.Stop" Send="Destroy" />
+    <HostSiteOps Ops="SOpTargetPoint SOpShadow" HoldPosition="1" HoldRotation="1" />
+  </CActorSplat>
+  <CActorAction id="MutatorPropagatorAttack" parent="GenericAttack" effectImpact="MutatorPropagateDummyImpact" effectLaunch="MutatorPropagateDummyLM">
+    <LaunchSite value="MutatorPropagatorAttackTentacleLaunchSite" />
+    <LaunchAttachQuery Methods="Weapon" />
+    <LaunchSiteOps Ops="SOpAttachWeapon" />
+    <ImpactAttachQuery Methods="AMFilterCenter" />
+    <ImpactSiteOps Ops="SOpAttachCenter SOpForwardLaunchGuide" />
+    <ImpactSiteOpsReaction Ops="SOp2DRotation SOp180" HoldPosition="1" HoldRotation="1" />
+    <ImpactMap index="None" Sound="" />
+    <LaunchAssets Sound="Mutator_Propagator_AttackLaunch" />
+    <ShieldFlashType value="None" />
+  </CActorAction>
+  <CActorAction id="MutatorAmonZeratulAttack" parent="GenericAttack" effectAttack="MutatorAmonPrologueZeratul">
+    <LaunchAssets Sound="Zeratul_AttackLaunch" />
+    <ImpactMap index="None" Sound="Zeratul_AttackImpact" />
+  </CActorAction>
+  <CActorModel id="MutatorMurderBotAttackRight" parent="ModelAnimationStyleOneShot">
+    <On Terms="Effect.MutatorMurderBot.Start; At Caster" Send="Create" />
+    <Host Subject="_Selectable" />
+    <HostSiteOps Ops="SOpAttachWeapon01" />
+    <Model value="ThorHandGunAttackLaunch" />
+  </CActorModel>
+  <CActorMissile id="MutatorAmonDehakaMirrorImageAttackMissile" parent="GenericAttackMissile" unitName="MutatorAmonDehakaMirrorImageWeapon">
+    <On index="1" Terms="UnitBirth" Send="AnimBracketStart Lifetime {} Birth,Start" />
+    <On Terms="ActorCreation" Send="TextureSelectById DehakaRedDiffuse" />
+    <On Terms="ActorCreation" Send="SetScale 1.000000 0.500000" />
+    <Scale value="0.050000" />
+  </CActorMissile>
+  <CActorModelMaterial id="MutatorStormCloudGlazeFrozen" parent="GlazeParent">
+    <On Terms="Behavior.MutatorStormCloudSlow.On" Send="Create" />
+    <On Terms="ActorCreation" Send="ModelMaterialApplyTo ::Main" />
+    <On Terms="Behavior.MutatorStormCloudSlow.Off" Send="AnimBracketStop BSD" />
+    <On Terms="AnimDone; AnimName Death" Send="ModelMaterialRemoveFrom ::Main" />
+    <Model value="GlazeIceUnitTangentSpace" />
+  </CActorModelMaterial>
+  <CActorSiteOpLocalOffset id="MutatorInfestedTurkeyDisgustingSpewWeaponMissileOffset">
+    <LocalOffset value="0.000000,-0.450000,-0.200000" />
+  </CActorSiteOpLocalOffset>
+  <CActorAction id="MutatorWidowMineAirAttack" parent="GenericAttack" effectImpact="MutatorWidowMineExplodeSet" effectLaunch="MutatorWidowMineLMAir">
+    <LaunchSiteOps Ops="SOpForwardPointsUp" />
+    <LaunchAttachQuery Methods="Center" />
+    <LaunchAssets Sound="WidowMine_Attack" />
+    <ImpactMap index="None" Sound="WidowMine_Death" />
+    <ImpactPhysics Name="WidowMineImpact" MatchKeys="Basic" Physics="WidowMineAirAttackForce" />
+    <ShieldFlashType value="Full" />
+  </CActorAction>
+  <CActorModel id="MutatorAmonZeratulBlinkIn" parent="ModelAnimationStyleOneShotNoOrphan">
+    <On Terms="Effect.MutatorAmonZeratulBlink.Stop; At Source" Send="Create" />
+    <On Terms="ActorCreation" Send="RefSet ::scope.Impact ::Self" />
+    <Host Subject="_Selectable" />
+    <HostSiteOps Ops="SOpAttachOrigin SOpForwardScopeLaunch" />
+  </CActorModel>
+  <CActorModel id="ProtossGenericWarpInOut">
+    <HostSiteOps Ops="SOpAttachCenterStationary" />
+    <On Terms="Behavior.ZeratulXelNagaConstruct_WarpIn.On" Send="Create" />
+    <On Terms="Behavior.ZeratulXelNagaConstruct_WarpIn.Off" Send="AnimBracketStop BSD" />
+  </CActorModel>
+  <CActorSound id="MutatorWidowMine_Armed" parent="SoundOneShot">
+    <On Terms="Behavior.MutatorWidowMineAnimationController.Off" Send="Create" />
+    <Host Subject="_Unit" />
+    <Inherits index="CloakEffect" value="1" />
+  </CActorSound>
+  <CActorUnit id="MutatorPropagator" parent="GenericUnitBase" unitName="MutatorPropagator">
+    <On Terms="Effect.MutatorPropagateModifyCloneAir.Start; At Target" Send="SetOpacity" />
+    <On Terms="Effect.MutatorPropagateModifyCloneAir.Start; At Target" Send="Create MutatorPropagatorBirth" />
+    <On Terms="Signal.*.BirthDone" Send="SetOpacity 1.000000" />
+    <Aliases value="_UnitSmall" />
+    <ModelFlags index="OutlineEmitter" value="1" />
+    <DeathArray index="Normal" ModelLink="MutatorPropagatorDeath" SoundLink="Mutator_Propagator_Death" />
+    <PortraitModel value="ChangelingPortrait" />
+    <WalkAnimMoveSpeed value="1.5976" />
+    <BarOffset value="40" />
+    <BarWidth value="36" />
+    <GroupIcon>
+      <Image value="Assets\Textures\Wireframe-Zerg-changeling.dds" />
+    </GroupIcon>
+    <HeroIcon value="Assets\Textures\BTN-Unit-Zerg-changeling.dds" />
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level0.dds" />
+    <UnitIcon value="Assets\Textures\BTN-Unit-Zerg-changeling.dds" />
+    <Wireframe>
+      <Image value="Assets\Textures\Wireframe-Zerg-changeling.dds" />
+    </Wireframe>
+  </CActorUnit>
+  <CActorAction id="MutatorKillBotAttack" parent="GenericAttack" effectAttack="MutatorKillBot">
+    <LaunchAssets Sound="AC_KillBot_AttackLaunch" />
+    <ImpactMap index="None" Sound="UmojanWarbot_AttackImpact" />
+    <ImpactMap index="Flesh" ModelReaction="BloodTargetImpact" />
+  </CActorAction>
+  <CActorBeamSimple id="MutatorCloakedMineTargetBeam" parent="BeamSimpleAnimationStyleContinuous">
+    <HostLaunch Subject="_Missile" />
+    <HostLaunchSiteOps Ops="SOpAttachCenter" />
+    <HostImpact Subject="::Creator" />
+    <HostImpactSiteOps Ops="SOpAttachCenter SOpShadow SOpMoveUpBy2" />
+  </CActorBeamSimple>
+  <CActorBeamSimple id="MutatorLaserDrillAttackABeam" parent="BeamSimpleAnimationStyleContinuous">
+    <On Terms="ActorCreation" Send="SetTintColor 128,128,255" />
+    <On Terms="Effect.MutatorLaserDrillStageACP.Stop; At Effect" Send="Destroy" />
+    <Host Subject="_Unit" Scope="Caster" Actor="Find" />
+    <Supporter Subject="_Unit" Scope="Caster" Actor="Find" />
+    <Model value="MutatorLaserDrillAttackBeam" />
+  </CActorBeamSimple>
+  <CActorSplat id="MutatorStormCloudBlizzardSplat">
+    <On Terms="ActorCreation" Send="$Stand PlayForever,NonLooping" />
+    <On Terms="ActorCreation" Send="SetTintColor 255,0,0" />
+    <On Terms="ActorOrphan" Send="Destroy" />
+    <HoldTime value="-1.000000" />
+    <FadeOut value="0.000000" />
+    <HostSiteOps Ops="SOpShadow" />
+    <FogVisibility value="Visible" />
+  </CActorSplat>
+  <CActorSound id="MutatorTornadoActorSound" parent="SoundContinuous">
+    <Sound value="Mutator_Tornado_Base_Loop" />
+    <Layers Sound="Mutator_Tornado_Spirit_OneShots_Lp" />
+    <Layers Sound="Mutator_Tornado_Wind_OneShots_Lp" />
+  </CActorSound>
+  <CActorSound id="MutatorGasSpawnSound" parent="SoundOneShot">
+    <Sound value="Gas_Birth" />
+  </CActorSound>
+  <CActorAction id="MutatorAmonZagaraRangedAttack" parent="GenericAttack" effectImpact="MutatorAmonZagaraRangedDamage" effectLaunch="MutatorAmonZagaraRangedLaunchMissile">
+    <LaunchAttachQuery Methods="Weapon" />
+    <LaunchAssets Sound="AcidSpines_AttackLaunch" />
+    <ImpactMap index="None" Sound="AcidSpines_AttackImpact" />
+    <ShieldFlashType value="Header" />
+  </CActorAction>
+  <CActorSimple id="MutatorGravitonBombStunTinter">
+    <On Terms="Behavior.MutatorGravitonBomb.On" Send="Create" />
+    <On Terms="ActorCreation" Send="SetTintColor {255,0,0 5.000000}" />
+    <On Terms="ActorCreation" Send="TimerSet 0.062500 DelayCreation" />
+    <On Terms="Behavior.MutatorGravitonBomb.Off" Send="Destroy" />
+  </CActorSimple>
+  <CActorSound id="MutatorTurkeyAttachLaunch" parent="SoundOneShot">
+    <On Terms="WeaponStart.MutatorTurkeyPeck" Send="Create" />
+    <Sound value="MutatorTurkeyAttackLaunch" />
+  </CActorSound>
+  <CActorModelMaterial id="MutatorGlazeSpawnedZerg" parent="GlazeParent">
+    <On Terms="AnimDone; AnimName Death" Send="ModelMaterialRemoveFrom ::Main" />
+    <On Terms="AnimDone; AnimName Death" Send="Destroy" />
+    <Model value="GlazeShadow" />
+    <ModelFlags index="AutomateGlobalLoops" value="1" />
+  </CActorModelMaterial>
+  <CActorModel id="MutatorAmonZagaraBanelingBarrageWeaponAddition">
+    <On Terms="ActorCreation" Send="AnimPlay Attack Walk,Superior PlayForever" />
+    <On Terms="ActorOrphan" Send="ModelSwap BanelingDeath" />
+    <On Terms="ActorOrphan" Send="Create ZagaraAC_BanelingDeathSuicideSound" />
+    <On Terms="ActorOrphan" Send="$Death" />
+    <On Terms="AnimDone; AnimName Death" Send="Destroy" />
+    <ModelFlags index="UseSyncSeed" value="1" />
+    <Aliases value="_Snapshot" />
+    <Host Subject="_Missile" />
+    <Inherits index="CastShadows" value="1" />
+    <Inherits index="CloakEffect" value="1" />
+    <Inherits index="CreepEngulfment" value="1" />
+    <Inherits index="Decal" value="1" />
+    <Inherits index="Opacity" value="1" />
+    <Inherits index="TeamColor" value="1" />
+    <Inherits index="TimeScale" value="1" />
+    <Inherits index="TintColor" value="1" />
+    <Inherits index="Visibility" value="1" />
+    <Inherits index="WarpGroup" value="1" />
+    <Macros value="GlobalLoopMacro" />
+    <HostSiteOps Ops="SOpAttachOrigin SOpShadow" />
+  </CActorModel>
+  <CActorModel id="MutatorOrbitalStrikeLaunch" parent="ModelAnimationStyleOneShot">
+    <On Terms="Effect.MutatorOrbitalStrike.Start" Send="Create" />
+    <On Terms="ActorCreation" Send="Create SOAOrbitalStrikeLaunchSound" />
+    <On Terms="ActorCreation" Send="Create SOAOrbitalStrikePreLaunchSound" />
+    <HostSiteOps Ops="SOpShadow" />
+    <Model value="MutatorOrbitalStrikeMissile" />
+  </CActorModel>
+  <CActorMissile id="MutatorCloakedMineAttackMissile" parent="GenericAttackMissile" unitName="MutatorCloakedMineWeapon">
+    <On Terms="ActorCreation" Send="Create MutatorCloakedMineFlyingLoopSound" />
+  </CActorMissile>
+  <CActorMissile id="MutatorAmonTychusTossGrenadeMissile" parent="GenericAttackMissile" unitName="MutatorAmonTychusGrenadeWeapon" />
+  <CActorUnit id="MutatorEnvelopeGasPickup" parent="GenericUnitStandardNoAutoSoundLinks" unitName="MutatorEnvelopeGasPickup">
+    <Macros value="AntiGravDeathRemoveMacro" />
+    <On Terms="ActorCreation" Send="Create GasCanisterGlow" />
+    <On Terms="ActorCreation" Send="Create MutatorGasSpawnModel" />
+    <On Terms="ActorCreation" Send="Create MutatorGasSpawnSound" />
+    <DeathArray index="Normal" AnimProps="Death,A" ModelLink="MutatorEnvelopeMineralPickup" />
+    <HeroIcon value="Assets\Textures\icon-gas.dds" />
+    <InfoText value="Unit/InfoText/MutatorNaturalGas50" />
+    <StatusBarFlags index="Shields" value="0" />
+    <StatusBarFlags index="Life" value="0" />
+    <StatusBarFlags index="Energy" value="0" />
+    <StatusBarFlags index="Cargo" value="0" />
+    <StatusBarFlags index="Progress" value="0" />
+    <StatusBarFlags index="Duration" value="0" />
+    <UnitIcon value="Assets\Textures\icon-gas.dds" />
+    <GroupIcon>
+      <Image value="Assets\Textures\wireframe-redenvelope.dds" />
+    </GroupIcon>
+    <Wireframe>
+      <Image value="Assets\Textures\wireframe-redenvelope.dds" />
+    </Wireframe>
+  </CActorUnit>
+  <CActorModel id="MutatorGravitonBombImpact" parent="ModelAnimationStyleContinuous">
+    <On Terms="ActorCreation" Send="SetOpacity 0.500000" />
+    <On Terms="ActorCreation" Send="SetTintColor {255,0,0 5.000000}" />
+    <On Terms="Effect.MutatorGravitonBombCP.Stop" Send="AnimBracketStop BSD" />
+    <On Terms="AnimDone; AnimName Death" Send="Destroy" />
+    <HostSiteOps Ops="SOpMutatorGravitonBombImpactOffset" />
+  </CActorModel>
+  <CActorModel id="MutatorAmonDehakaHealImpactModel" parent="ModelAnimationStyleContinuous">
+    <On Terms="Effect.MutatorAmonDehakaHealSearch.Start" Send="Create" />
+    <Host Subject="_Selectable" />
+    <Inherits index="CloakEffect" value="1" />
+    <Inherits index="Visibility" value="1" />
+    <HostSiteOps Ops="SOpAttachOrigin" HoldRotation="1" />
+  </CActorModel>
+  <CActorPortrait id="DehakaCoopPortrait" parent="CompositePortrait" />
+  <CActorSound id="MutatorFireworks_Missile_Attack_Launch_BSound" parent="SoundOneShot">
+    <On Terms="Effect.MutatorFireworksMissileCP.Start" Send="Create" />
+    <Sound value="Mutator_Fireworks_Missile_Attack_Launch_B" />
+    <Layers Sound="Mutator_Fireworks_Crowd_Reax_VxFx">
+      <Chance value="40" />
+      <Pitch value="0.000000,0.000000" />
+      <PlayDelay value="0,0" />
+      <Volume value="0.000000,0.000000" />
+    </Layers>
+  </CActorSound>
+  <CActorModel id="MutatorFireworksFireAdditionStructure" parent="ModelAnimationStyleOneShot">
+    <Model value="HellionTankAttackFireAddition" />
+    <Host Subject="_Unit" />
+    <HostSiteOps Ops="SOpAttachRandomDamage" />
+    <On Terms="Effect.MutatorFireworksDamage.Start; At Target; ValidateUnitType IsStructureTarget" Send="Create" />
+  </CActorModel>
+  <CActorSound id="MutatorCandyBowl_Add_ActorSound">
+    <Sound value="MutatorCandyBowl_Add" />
+  </CActorSound>
+  <CActorUnit id="MutatorHybridImmortalDead" parent="GenericUnitStandard" unitName="MutatorHybridImmortalDead">
+    <Aliases value="_UnitHuge" />
+    <On Terms="ActorCreation" Send="SetTintColor {255,255,255 -1.000000}" />
+    <On Terms="AbilMorph.*.Finish; MorphTo MutatorHybridImmortal; MorphFrom MutatorHybridImmortalDead" Send="Destroy" />
+    <On Terms="AbilMorph.*.Finish; MorphFrom MutatorHybridImmortal" Send="Create" />
+    <Model value="ArchonMerge" />
+    <AnimBlendTime value="0.200000" />
+    <DeathArray index="Normal" ModelLink="HybridBehemothDeath" SoundLink="HybridZerg_Death" />
+    <PortraitModel value="HybridBehemothPortrait" />
+    <BarOffset value="200" />
+    <BarWidth value="150" />
+    <GroupIcon>
+      <Image value="Assets\Textures\wireframe-zerg-hybridbehemoth.dds" />
+    </GroupIcon>
+    <GroupSoundArray index="Birth" value="HybridCBirth" />
+    <GroupSoundArray index="Ready" value="HybridCReady" />
+    <GroupSoundArray index="Help" value="HybridCHelp" />
+    <GroupSoundArray index="What" value="HybridCWhat" />
+    <GroupSoundArray index="Yes" value="HybridCYes" />
+    <GroupSoundArray index="Attack" value="HybridCYes" />
+    <GroupSoundArray index="Pissed" value="HybridCPissed" />
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level0.dds" />
+    <SoundArray index="Birth" value="" />
+    <SoundArray index="Ready" value="HybridCReady" />
+    <SoundArray index="Help" value="HybridCHelp" />
+    <SoundArray index="What" value="HybridCWhat" />
+    <SoundArray index="Yes" value="HybridCYes" />
+    <SoundArray index="Attack" value="HybridCYes" />
+    <SoundArray index="Pissed" value="HybridCPissed" />
+    <SoundArray index="Movement" value="HybridCMovement" />
+    <SoundArray index="Turning" value="HybridCTurning" />
+    <SoundArray index="Board" value="HybridCBoard" />
+    <SoundArray index="Click" value="HybridCClick" />
+    <SoundArray index="ClickError" value="HybridCClickError" />
+    <SoundArray index="Highlight" value="HybridCHighlight" />
+    <UnitKillRank Text="UnitKillRank/H05SHybrid" />
+    <Wireframe>
+      <Image value="Assets\Textures\wireframe-zerg-hybridbehemoth.dds" />
+    </Wireframe>
+  </CActorUnit>
+  <CActorModel id="MutatorKaraxPrimalPortraitAddition" parent="CompositePortraitAddition">
+    <On Terms="ActorCreation" Send="Create MutatorGlazePortrait" />
+    <Model value="KaraxEx2RoboticCordsPortraitAddition" />
+  </CActorModel>
+  <CActorModelMaterial id="GlazeShadow">
+    <On Terms="Behavior.HybridPnPMirrorImage.On" Send="Create" />
+    <On Terms="Behavior.HybridPnPMirrorImage.Off" Send="Destroy" />
+  </CActorModelMaterial>
+  <CActorModel id="Fear_Coop" parent="ModelAnimationStyleContinuous">
+    <Host Subject="_Selectable" />
+    <HostSiteOps Ops="SOpAttachOverhead" />
+    <On Terms="Behavior.MutatorFear.On" Send="Create" />
+    <On Terms="Behavior.MutatorFear.Off" Send="AnimBracketStop BSD" />
+  </CActorModel>
+  <CActorSound id="MutatorFearHit" parent="SoundOneShot">
+    <On Terms="Behavior.MutatorFear.On" Send="Create" />
+  </CActorSound>
+  <CActorUnit id="MutatorAmonKhaydarinMonolith" parent="ProtossBuilding" unitName="MutatorAmonKhaydarinMonolith">
+    <Macros value="BuildingFlattenTerrainMacro" />
+    <EditorCategories value="" />
+    <On Terms="WeaponStart.*.AttackStart" Send="Create KhaydarinMonolithPowerUpModel" />
+    <On Terms="WeaponStart.*.AttackStart" Send="Create KhaydarinMonolith_ChargeSound" />
+    <On Terms="WeaponStop.*.AttackStop" Target="KhaydarinMonolithPowerUpModel" Send="Destroy" />
+    <On Terms="WeaponStop.*.AttackStop" Target="KhaydarinMonolith_ChargeSound" Send="Destroy" />
+    <On Terms="UnitConstruction.MutatorAmonKhaydarinMonolith; ValidatePlayer KaraxHaveStructureInstantWarp" Send="AnimPlay BSD Stand,Build,End 0 -1.000000 -1.000000 1.500000 AsDuration 0.000000 60" />
+    <On Terms="Behavior.MutatorAmonPhaseCannonInitialStun.On" Send="AnimPlay Creation Stand,Unpowered,End" />
+    <On Terms="Behavior.MutatorAmonPhaseCannonInitialStun.On" Send="AnimSetTimeScale Creation 2.000000" />
+    <EventDataSound Name="BuildingWarpIn" Actor="UnitSound" Sound="Protoss_BuildingWarpIn" />
+    <BuildModel value="KhaydarinMonolithBirth" />
+    <DeathArray index="Normal" ModelLink="KhaydarinMonolithDeath" SoundLink="PhotonCannon_Explode" />
+    <DeathArray index="UnderConstruction" ModelLink="ProtossWarpInDeath" SoundLink="PhotonCannon_Explode" />
+    <DeathCustoms ModelLink="KhaydarinMonolithUnpoweredDeath" SoundLink="PhotonCannon_Explode" Name="Variation2" />
+    <PlacementModel value="KhaydarinMonolithPlacement" />
+    <PlacementSound value="Protoss_BuildingPlacement" />
+    <PlacementActorModel value="KhaydarinMonolithPlacementModel" />
+    <PortraitModel value="ExecutorPortrait" />
+    <BarOffset value="135" />
+    <BarWidth value="75" />
+    <GroupIcon>
+      <Image value="Assets\Textures\Wireframe-Protoss-ship-PhotonCannon.dds" />
+    </GroupIcon>
+    <HeroIcon value="Assets\Textures\btn-building-protoss-ship-photoncannon.dds" />
+    <LifeArmorIcon value="Assets\Textures\btn-armor-protoss-buildingplating.dds" />
+    <SoundArray index="Construction" value="Protoss_ConstructionWhat" />
+    <UnitIcon value="Assets\Textures\btn-unit-protoss-khaydarinmonolith.dds" />
+    <Wireframe>
+      <Image value="Assets\Textures\Wireframe-Protoss-ship-PhotonCannon.dds" />
+    </Wireframe>
+    <WireframeShield>
+      <Image value="Assets\Textures\Wireframe-Protoss-ship-PhotonCannon-Shield01.dds" />
+      <Image value="Assets\Textures\Wireframe-Protoss-ship-PhotonCannon-Shield02.dds" />
+      <Image value="Assets\Textures\Wireframe-Protoss-ship-PhotonCannon-Shield03.dds" />
+    </WireframeShield>
+    <Model value="KhaydarinMonolith" />
+  </CActorUnit>
+  <CActorSound id="KerriganApocalypseExplodeSound">
+    <On Terms="Effect.MutatorKerriganApocalypse.Start" Send="Create" />
+  </CActorSound>
+  <CActorSound id="MutatorCloakedMineFlyingLoopSound" parent="SoundContinuous">
+    <Sound value="SJCloakedMine_FlyByLoop" />
+    <On Terms="ActorCreation" Send="SoundSetPitch Linear -12.000000@0.000000,24.000000@8000.000000" />
+  </CActorSound>
+  <CActorModel id="MutatorFireworksMissileImpactText2" parent="ModelAnimationStyleOneShot">
+    <Supporter Subject="::Creator" />
+    <Host Subject="::Creator" />
+    <HostSiteOps Ops="SOpMoveUpBy1" />
+  </CActorModel>
+  <CActorModel id="MutatorVoidRiftSpawnBirth" parent="ModelAnimationStyleOneShot">
+    <On Terms="ActorCreation" Send="SetTintColor {255,255,255 2.000000}" />
+    <On Terms="ActorCreation" Send="Create VoidRiftTrainBirthSound" />
+    <On Terms="ActorCreation" Target="_Selectable" Send="SetOpacity" />
+    <On Terms="ActorCreation" Target="_Selectable" Send="SetOpacity 1.000000 0.500000" />
+    <On Terms="Effect.MutatorVoidRiftSpawnLMImpactDummy; At Target" Send="Create" />
+    <Host Subject="_Selectable" />
+    <HostSiteOps Ops="SOpAttachCenter" />
+    <Model value="VoidRiftTrainBirth" />
+    <AutoScaleFactor value="1.000000" />
+  </CActorModel>
+  <CActorSound id="MutatorEvolveSoundProtoss" parent="SoundOneShot">
+    <Sound value="Vorazun_Death_Fx" />
+    <Layers Sound="Alarak_Death_Fx">
+      <Chance value="100" />
+      <Pitch value="0.000000,0.000000" />
+      <PlayDelay value="0,0" />
+      <Volume value="0.000000,0.000000" />
+    </Layers>
+  </CActorSound>
+  <CActorModel id="MutatorAmonReclamationImpact" parent="ModelAnimationStyleOneShot">
+    <On Terms="Effect.MutatorAmonReclamationCP.Start; At Target; ValidateUnitType IsNotColossi" Send="Create" />
+    <Host Subject="_Unit" />
+    <HostSiteOps Ops="SOpAttachCenter" />
+    <Model value="ReclamationImpact" />
+  </CActorModel>
+  <CActorUnit id="MutatorInfestedTurkey" parent="GenericUnitCritter" unitName="MutatorInfestedTurkey">
+    <Remove Terms="WeaponStart.*.AttackStart" Send="AnimBracketStart Attack Attack" />
+    <On Terms="WeaponStart.MutatorInfestedTurkeyDisgustingSpew.AttackStart" Send="AnimBracketStart Attack Attack,A" />
+    <On Terms="Behavior.CarrionBirdFlee.On" Send="AnimBracketStart FlyAway Stand,Unpowered,End Stand,Unpowered Stand,Unpowered,Start ClosingFull" />
+    <On Terms="Behavior.CarrionBirdFlee.Off" Send="AnimBracketStop FlyAway" />
+    <On Terms="Effect.Suicide.Start" Send="Create CritterExplosion" />
+    <On Terms="UnitMovementUpdate.*.Walk" Send="AnimClear Birth" />
+    <On Terms="ActorCreation" Send="Create MutatorInfestedTurkeyModelAddition" />
+    <Aliases value="_UnitSmall" />
+    <DeathArray index="Normal" ModelLink="Turkey_Infested_Minion_Death" SoundLink="Zerg_ExplosionSmall" />
+    <PortraitModel value="CarrionBirdPortrait" />
+    <WalkAnimMoveSpeed value="2.5" />
+    <BarOffset value="60" />
+    <BarWidth value="48" />
+    <GroupIcon>
+      <Image value="Assets\Textures\Wireframe-critter-turkeyinfestedminion.dds" />
+    </GroupIcon>
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level0.dds" />
+    <SoundArray index="What" value="CarrionBird2_What" />
+    <SoundArray index="Yes" value="CarrionBird2_What" />
+    <SoundArray index="Attack" value="CarrionBird2_What" />
+    <SoundArray index="Pissed" value="CarrionBird2_What" />
+    <StatusBarFlags index="Charges" value="1" />
+    <UnitIcon value="Assets\Textures\Wireframe-critter-turkeyinfestedminion.dds" />
+    <Wireframe>
+      <Image value="Assets\Textures\Wireframe-critter-turkeyinfestedminion.dds" />
+    </Wireframe>
+    <StatusBarOn index="Life" value="1" />
+  </CActorUnit>
+  <CActorSound id="MutatorTimeWarpEnd" parent="SoundOneShot">
+    <On Terms="Effect.MutatorTimeWarpCreatePersistent.Stop" Send="Create" />
+    <Sound value="Mothership_TimeWarpEnd" />
+  </CActorSound>
+  <CActorMissile id="HybridImmortalConsumeMissile" parent="GenericAttackMissile" unitName="HybridImmortalConsumeMissile">
+    <Model value="ConsumeDNAFeedbackWeapon" />
+  </CActorMissile>
+  <CActorModel id="MutatorQuickEvolveZerg" parent="ModelAnimationStyleOneShot">
+    <On Terms="ActorCreation" Send="Create MutatorEvolveSoundZerg" />
+  </CActorModel>
+  <CActorSound id="MutatorAmonZeratulDeathSound" parent="SoundOneShot">
+    <On Terms="UnitDeath.MutatorAmonZeratul; PassChance 100.000000" Send="Create" />
+    <Sound value="MutatorAmonZeratul_Death" />
+  </CActorSound>
+  <CActorUnit id="MutatorAmonTychus" parent="GenericUnitStandard" unitName="MutatorAmonTychus">
+    <UnitFlags index="SuppressDefaultStatusBar" value="1" />
+    <CustomUnitStatusFrame value="Coop_UnitStatus/MutatorAmonHeroUnitStatusFrameTemplate" />
+    <On Terms="Abil.MutatorAmonTychusTossGrenade.SourceCastStart" Send="$Spell 0 -1.000000 -1.000000 2.000000 AsTimeScale" />
+    <DeathArray index="Normal" ModelLink="DeathVoidShadowMedium" SoundLink="Tychus_Explode" VoiceLink="MutatorAmon_UnitDeath_SoulVapor" />
+    <WalkAnimMoveSpeed value="2.25" />
+    <StandAnimTurnTime value="5" />
+    <PortraitActor value="MutatorPortraitActor" />
+    <PortraitModel value="MutatorAmonTychusPortrait" />
+    <BarWidth value="50" />
+    <BarOffset value="50" />
+    <UnitIcon value="Assets\Textures\BTN-Unit-Terran-MarineTychus.dds" />
+    <HeroIcon value="Assets\Textures\ui-heroicon-tychus.dds" />
+    <GroupIcon>
+      <Image value="Assets\Textures\Wireframe-Terran-marine-tychus.dds" />
+    </GroupIcon>
+    <Wireframe>
+      <Image value="Assets\Textures\Wireframe-Terran-marine-tychus.dds" />
+    </Wireframe>
+    <UnitBorderNormalColor value="150,150,150" />
+    <UnitBorderSubgroupColor value="255,255,255" />
+    <SoundArray index="Birth" value="Tychus_Birth" />
+    <SoundArray index="Ready" value="Tychus_Ready" />
+    <SoundArray index="Help" value="Tychus_Help" />
+    <SoundArray index="What" value="Tychus_What" />
+    <SoundArray index="Yes" value="Tychus_Yes" />
+    <SoundArray index="Attack" value="Tychus_Attack" />
+    <SoundArray index="Pissed" value="Tychus_Pissed" />
+    <SoundArray index="Movement" value="Tychus_Movement" />
+    <SoundArray index="Turning" value="Tychus_Turning" />
+    <SoundArray index="Board" value="Tychus_Board" />
+    <AbilSoundArray AbilCmd="MutatorAmonTychusTossGrenade,Execute" Sound="Tychus_TossGrenadeVO" />
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel0.dds" />
+    <UnitKillRank Text="UnitKillRank/MutatorAmonTychus" />
+    <Aliases value="_UnitSmall" />
+  </CActorUnit>
+  <CActorModel id="MutatorTimeWarpAttackWarning" parent="ModelAnimationStyleContinuous">
+    <On Terms="ActorCreation" Send="AnimBracketStart BSD Birth Stand Death" />
+    <On Terms="ActorCreation" Send="SetTintColor {255,0,0 5.000000}" />
+    <On Terms="Effect.MutatorGravitonBombInitialCP.Start" Send="Create" />
+    <On Terms="Effect.MutatorGravitonBombCP.Start" Send="AnimBracketStop BSD" />
+    <ModelFlags index="AutomateGlobalLoops" value="1" />
+    <HostSiteOps Ops="SOpShadow" />
+  </CActorModel>
+  <CActorUnit id="MutatorAmonKaraxInvisiblePylon" parent="GenericUnitBase" unitName="MutatorAmonKaraxInvisiblePylon">
+    <Model value="Invisible" />
+    <EditorModel value="Ball1x1" />
+    <StatusBarFlags index="Shields" value="0" />
+    <StatusBarFlags index="Life" value="0" />
+    <StatusBarFlags index="Energy" value="0" />
+    <StatusBarFlags index="Cargo" value="0" />
+    <StatusBarFlags index="Progress" value="0" />
+  </CActorUnit>
+  <CActorModel id="MutatorImmunetoPlayer2" parent="ModelAnimationStyleContinuous">
+    <On Terms="Behavior.MutatorImmunetoPlayer2Visual.On" Send="Create" />
+    <On Terms="Behavior.MutatorImmunetoPlayer2Visual.Off" Send="Destroy" />
+    <Host Subject="_Selectable" />
+    <HostSiteOps Ops="SOpAttachOverhead SOpForwardDefault" />
+    <FilterPlayers index="1" value="1" />
+    <AcceptedTransfers index="Rotation" value="0" />
+    <AcceptedHostedPropTransfers index="TeamColor" value="0" />
+    <FogVisibility value="Hidden" />
+    <Flags index="VisionTestCenterOnly" value="1" />
+    <Inherits index="CloakEffect" value="1" />
+  </CActorModel>
+  <CActorModel id="MutatorSilentDetector11">
+    <Terms value="Cap 1" />
+    <Host Subject="_Unit" />
+    <HostSiteOps Ops="SOpAttachOverhead" />
+    <On Terms="Behavior.MutatorSilentDetector11.On" Send="Create" />
+    <On Terms="ActorCreation" Send="AnimBracketStart BSD {} Stand Death" />
+    <On Terms="ActorOrphan" Send="Destroy" />
+    <On Terms="AnimBracketState.*.AfterClosing; !AnimBracketExitReason ModelSwap; AnimName BSD" Send="Destroy" />
+    <On Terms="Behavior.MutatorSilentDetector11.Off" Send="Destroy" />
+    <On Terms="ActorCreation; ModelIsLowQuality" Send="Destroy" />
+    <Inherits index="CloakEffect" value="1" />
+    <Inherits index="Visibility" value="1" />
+  </CActorModel>
+  <CActorModel id="MutatorAmonArtanisAstralWindCastModel" parent="ModelAnimationStyleOneShot">
+    <Model value="ArtanisAstralWindCastModel" />
+    <On Terms="Effect.MutatorAmonArtanisAstralWindSearch.Start" Send="Create" />
+    <Host Subject="_Selectable" />
+    <Inherits index="CloakEffect" value="1" />
+    <Inherits index="Visibility" value="1" />
+    <HostSiteOps Ops="SOpAttachOrigin" HoldRotation="1" />
+  </CActorModel>
+  <CActorSite id="MutatorStoneZealotGroundAttackLaunchSiteReverse" parent="SiteUNIT">
+    <Aliases value="_LaunchGuide" />
+    <HostSiteOps Ops="SOpAttachWeaponLeft" />
+  </CActorSite>
+  <CActorSound id="MutatorAmonArtanisLightningDashImpactSound" parent="SoundOneShot">
+    <On Terms="Effect.MutatorAmonArtanisLightningDashLaunchMissileImpactSet.Start" Send="Create" />
+    <Sound value="ArtanisVoid_LightningStrikeImpact" />
+  </CActorSound>
+  <CActorSound id="MutatorAmonZeratulBlinkSound" parent="SoundOneShot">
+    <On Terms="Abil.MutatorAmonZeratulBlink.TargetCastStart" Send="Create" />
+    <Sound value="Zeratul_Blink" />
+  </CActorSound>
+  <CActorSite id="MutatorAmonDehakaDragImpactHoldingSite">
+    <Host Subject="_ImpactGuide" Scope="Target" />
+    <HostSiteOps Ops="SOp180" />
+  </CActorSite>
+  <CActorModel id="MutatorKillKarmaDebuff" parent="ModelAnimationStyleContinuous">
+    <On Terms="BehaviorLevel.MutatorKarmaIncreasedDamageVet.Start; Level 14 GE" Send="SetVisibility 1" />
+    <On Terms="BehaviorLevel.MutatorKarmaIncreasedDamageVet.Start; Level 14 LT" Send="SetVisibility" />
+    <On Terms="Behavior.MutatorKarmaIncreasedDamageVet.Create" Send="Create" />
+    <On Terms="Behavior.MutatorKarmaIncreasedDamageVet.Destroy" Send="AnimBracketStop BSD" />
+    <On Terms="ActorCreation" Send="SetTintColor 255,0,0" />
+    <Host Subject="_Selectable" />
+    <HostSiteOps Ops="SOpAttachOverhead" />
+  </CActorModel>
+  <CActorAction id="MutatorLaserDrillAttackA" parent="GenericAttackBase">
+    <Lifetime value="-1.000000" />
+    <On Terms="Effect.MutatorLaserDrillStageACP.Start" Send="Create" />
+    <On Terms="Effect.MutatorLaserDrillStageACP.Stop; At Effect" Send="Destroy" />
+    <ImpactSiteOps Ops="SOpAttachHarness SOpAttachVolumeNoVizEnhance VoidRaySOpForwardLaunch" />
+    <ActionFlags index="AlignedImpactsAndDamages" value="1" />
+    <ActionFlags index="LaunchForceSite" value="1" />
+    <LaunchAssets Sound="Archon_AttackLaunch" />
+    <ImpactMap index="None" Model="" Sound="Archon_AttackImpact" />
+  </CActorAction>
+  <CActorSquib id="MutatorMissileNukeExplode">
+    <On Terms="Effect.MutatorMissileNukeDamage.Start; At Effect" Send="Create" />
+    <HostSiteOps Ops="SOpTargetPointStationary SOpShadow" />
+    <Map index="None" Model="GhostNukeExplode" />
+  </CActorSquib>
+  <CActorSound id="MutatorAmonDehakaJumpLaunchSound" parent="SoundOneShot">
+    <Sound value="Dehaka_Jump_Leap" />
+    <On Terms="Behavior.MutatorAmonDehakaJump.Launch" Send="Create" />
+  </CActorSound>
+  <CActorModel id="MutatorStoneZealotGroundAttackBeamImpactReverse">
+    <Model value="MutatorStoneZealotEyeBeamImpact" />
+    <Host Subject="MutatorStoneZealotGroundAttackImpactSiteReverse" />
+    <Supporter Subject="::Creator" />
+    <On Terms="ActorCreation" Send="AnimBracketStart BSD Birth Stand Death" />
+    <On Terms="SupporterDestruction" Send="AnimBracketStop BSD" />
+    <On Terms="AnimBracketState.*.AfterClosing; AnimName BSD" Send="Destroy" />
+  </CActorModel>
+  <CActorMissile id="MutatorAmonDehakaDragMissile" parent="GenericAttackMissile" unitName="MutatorAmonDehakaDragMissile">
+    <Model value="Invisible" />
+    <Supporter>
+      <Subject value="MutatorAmonDehakaDragTentacle" />
+      <Scope value="Caster" />
+      <Actor value="Find" />
+      <Effect value="MutatorAmonDehakaDragLaunchMissile" />
+    </Supporter>
+    <On Terms="MotionPhaseStart; MotionPhase" Target="::Supporter" Send="RefSet MutatorAmonDehakaTentacleAttack ::Self" />
+  </CActorMissile>
+  <CActorBeamSimple id="MutatorAmonKerriganAttackBeam" parent="BeamSimpleAnimationStyleOneShot">
+    <Model value="KerriganEnergyAttack" />
+  </CActorBeamSimple>
+  <CActorSound id="MutatorBarrierOffSound" parent="SoundOneShot">
+    <On Terms="Behavior.MutatorBarrier.Off" Send="Create" />
+    <On Terms="Behavior.MutatorBarrier50.Off" Send="Create" />
+    <Sound value="Mutator_Barrier_Off" />
+  </CActorSound>
+  <CActorModel id="MutatorWorkerSleep" parent="ModelAnimationStyleContinuous">
+    <On Terms="ActorCreation" Send="AnimBracketStart GL_BSD GLbirth GLstand GLdeath" />
+    <On Terms="Behavior.MutatorWorkerSleep.On" Send="Create" />
+    <On Terms="ActorCreation" Send="AnimBracketStart $BSD" />
+    <On Terms="Behavior.MutatorWorkerSleep.Off" Send="AnimBracketStop BSD" />
+    <Host Subject="_Selectable" />
+    <HostSiteOps Ops="SOpAttachOverhead SOpForwardDefault" />
+    <Model value="ShapeCrescentMoon" />
+    <AcceptedTransfers index="Rotation" value="0" />
+    <Scale value="0.700000" />
+  </CActorModel>
+  <CActorSquib id="MutatorAmonNovaNukeExplode">
+    <On Terms="Effect.MutatorAmonNovaNukeDamage.Start; At Effect" Send="Create" />
+    <HostSiteOps Ops="SOpTargetPointStationary SOpShadow" />
+    <Map index="None" Sound="Ghost_NukeExplode" />
+  </CActorSquib>
+  <CActorUnit id="MutatorWidowMine" parent="GenericUnitStandard" unitName="MutatorWidowMine">
+    <Aliases value="_UnitSmall" />
+    <Macros value="ZergBurrowStandardAnimMacro" />
+    <Macros value="ZergSmallBurrowEffects" />
+    <Macros value="UnloadDropAnim" />
+    <Macros value="TerrainSquibAnimations" />
+    <Macros value="PhysicsDeathsSwarmGround" />
+    <Macros value="PhysicsDeathsVoidGround" />
+    <On Terms="UnitBirth.MutatorWidowMineBurrowed" Send="Create" />
+    <On Terms="UnitBirth.MutatorWidowMineBurrowed" Send="AnimPlay Burrow Burrow PlayForever,NonLooping" />
+    <On Terms="ActorCreation" Send="StatusSet Fired 0" />
+    <On Terms="ActorCreation" Send="Create WidowMineReadyAttach" />
+    <On Terms="AbilMorph.*.Start; MorphTo MutatorWidowMineBurrowed" Send="AnimPlay Burrow Burrow PlayForever,NonLooping" />
+    <On Terms="AbilMorph.*.Start; MorphTo MutatorWidowMineBurrowed" Send="AnimClear Unburrow" />
+    <On Terms="AbilMorph.*.Start; MorphTo MutatorWidowMine" Send="AnimClear Burrow" />
+    <On Terms="AbilMorph.*.Start; MorphTo MutatorWidowMine" Send="AnimPlay Unburrow Unburrow" />
+    <On Terms="AbilMorph.*.Finish; MorphTo MutatorWidowMine" Send="AnimClear Unburrow" />
+    <On Terms="Abil.MutatorWidowMineAttack.SourcePrepStart" Send="Create WidowMineWarning" />
+    <On Terms="Abil.MutatorWidowMineAttack.SourcePrepStop" Target="WidowMineWarning" Send="Destroy" />
+    <On Terms="Abil.MutatorWidowMineAttack.SourceCastStart" Send="StatusSet Fired 1" />
+    <On Terms="UnitDeathCustomize; ValidateUnit IsBuried" Send="DeathCustomize Variation0" />
+    <On Terms="Behavior.MutatorWidowMineAnimationController.On" Target="WidowMineReadyAttach" Send="AnimBracketStop Work" />
+    <On Terms="Behavior.MutatorWidowMineAnimationController.Off" Target="WidowMineReadyAttach" Send="AnimBracketStart Work Stand,Work,Start Stand,Work Stand,Work,End ClosingFull" />
+    <On Terms="UnitHeightUpdate.*.Land" Send="Create WidowMine_Land" />
+    <ModelFlags index="OutlineEmitter" value="1" />
+    <DeathArray index="Normal" ModelLink="WidowMineDeath" SoundLink="Terran_ExplosionSmall" />
+    <DeathCustoms ModelLink="WidowMineDeathRagdoll" Name="RagdollBasic">
+      <BodySquibs Name="TerranSquibDeathRagdoll" />
+    </DeathCustoms>
+    <DeathCustoms Name="RagdollSiegeTank" InheritsFrom="RagdollBasic" />
+    <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+      <BodySquibs Name="Fire" />
+    </DeathCustoms>
+    <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+      <BodySquibs Name="Fire" />
+    </DeathCustoms>
+    <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+      <BodySquibs Name="Acid" />
+    </DeathCustoms>
+    <DeathCustoms Name="RagdollBaneling" InheritsFrom="RagdollBasic">
+      <BodySquibs Name="Acid" />
+    </DeathCustoms>
+    <DeathCustoms Name="RagdollUltraUnburrow" InheritsFrom="RagdollBasic" />
+    <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic" />
+    <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic" />
+    <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic" />
+    <DeathCustoms ModelLink="WidowMineBurrowDeath" Name="Variation0" />
+    <DeathCustoms ModelLink="Invisible" Name="Variation1" />
+    <PlacementModel value="SpiderMinePlacement" />
+    <PortraitModel value="WidowMinePortrait" />
+    <TerrainSquibs>
+      <MovementDistance value="0.150000,0.150000" />
+      <IdlePeriod value="0.100000,0.250000" />
+      <RangeUp value="1.000000" />
+      <RangeDown value="1.000000" />
+      <AttachQuery Methods="AMFilterCenter" />
+      <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleLargeVehicle" />
+    </TerrainSquibs>
+    <WalkAnimMoveSpeed value="2.8125" />
+    <BarOffset value="35" />
+    <BarWidth value="42" />
+    <GroupIcon>
+      <Image value="Assets\Textures\wireframe-terran-widowmine.dds" />
+    </GroupIcon>
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel0.dds" />
+    <NameOffset value="10" />
+    <UnitIcon value="Assets\Textures\btn-unit-terran-widowmine.dds" />
+    <Wireframe>
+      <Image value="Assets\Textures\wireframe-terran-widowmine.dds" />
+    </Wireframe>
+  </CActorUnit>
+  <CActorSound id="MutatorWidowMine_ArmedBeep" parent="SoundOneShot">
+    <On Terms="Behavior.MutatorWidowMineAnimationController.Off" Send="Create" />
+    <Host Subject="_Unit" />
+    <Inherits index="CloakEffect" value="1" />
+  </CActorSound>
+  <CActorModel id="MutatorOrbitalStrikeTarget" parent="ModelAnimationStyleOneShot">
+    <Remove Terms="ActorCreation" Send="AnimBracketStart BSD Birth Stand Death ContentPlayOnce" />
+    <On Terms="ActorCreation" Send="$Birth" />
+    <On Terms="AnimDone; AnimName Birth" Send="$Stand PlayForever" />
+    <On Terms="Signal.*.Destroy" Send="SetOpacity 0.000000 1.000000" />
+    <On Terms="Signal.*.Destroy" Send="TimerSet 1.000000 DelayDestroy" />
+    <On Terms="TimerExpired; TimerName DelayDestroy" Send="Destroy" />
+  </CActorModel>
+  <CActorRange id="MutatorAmonNovaNukeRange" parent="RangeAbil" abil="MutatorAmonNovaNuke">
+    <Icon value="Assets\Textures\RadarIcon2.dds" />
+  </CActorRange>
+  <CActorBeamSimple id="MutatorStoneZealotGroundAttackBeam">
+    <Model value="MutatorStoneZealotEyeBeam" />
+    <Terms value="Cap 1" />
+    <HostLaunch Subject="MutatorStoneZealotGroundAttackLaunchSite" Scope="Caster" Actor="Create" />
+    <HostImpact Subject="MutatorStoneZealotGroundAttackImpactSite" />
+    <On Terms="ActorCreation" Send="Create MutatorStoneZealotGroundAttackBeamImpact" />
+    <On Terms="ActorCreation" Send="Create StoneZealotAttackLaunchSound" />
+    <On Terms="ActorCreation" Send="AnimBracketStart BSD Birth Stand Death" />
+    <On Terms="Signal.*.Arrival" Send="AnimBracketStop BSD" />
+    <On Terms="AnimBracketState.*.AfterOpening; AnimName BSD" Target="MutatorStoneZealotGroundAttackImpactSite" Send="MoverMove" />
+    <On Terms="AnimBracketState.*.AfterClosing; AnimName BSD" Send="Destroy" />
+    <On Terms="Effect.MutatorEyeBeamsGroundLineSearch.Impact" Send="Create" />
+  </CActorBeamSimple>
+  <CActorModel id="MutatorAmonDehakaHealBuffModel" parent="ModelAnimationStyleContinuous">
+    <Model value="MendBuff" />
+    <On Terms="ActorCreation" Send="$Birth PlayForever" />
+    <On Terms="Behavior.MutatorAmonDehakaHealSmall.On" Send="Create" />
+    <On Terms="Behavior.MutatorAmonDehakaHealBig.On" Send="Create" />
+    <On Terms="Behavior.MutatorAmonDehakaHealSmall.Off" Send="Destroy" />
+    <On Terms="Behavior.MutatorAmonDehakaHealBig.Off" Send="Destroy" />
+    <Host Subject="_Selectable" />
+    <Inherits index="CloakEffect" value="1" />
+    <Inherits index="Visibility" value="1" />
+    <HostSiteOps Ops="SOpAttachCenter SOpForwardNorth" HoldRotation="1" />
+  </CActorModel>
+  <CFootprint id="MutatorLaserDrill">
+    <Layers index="Check" Area="-2,-2,2,2">
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+    </Layers>
+    <Layers index="Place" Area="-2,-2,2,2">
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+    </Layers>
+    <Shape>
+      <Radius value="2.8286" />
+      <Offsets value="-2,-2;-1.5,-2;-1,-1.5;-0.5,-1.5;0,-1;0.5,-1;1,-0.5;2,-0.5;1.5,0;2,0;-0.5,1;0,1;0.5,1;1,1;-0.5,2;0,2;-2,-1.5;-1.5,-1;-1.5,-0.5;-1,0;-1,0.5;0,1.5;1,0.5;-0.25,1.25" />
+      <Borders value="0,16,2;1,0,2;2,1,2;3,2,2;4,3,2;5,4,2;6,5,2;7,6,2;8,9,2;9,7,2;10,11,2;10,14,2;11,23,2;12,13,2;13,22,2;14,15,2;15,21,2;16,17,2;17,18,2;18,19,2;19,20,2;20,10,2;21,12,2;22,8,2;23,10,2" />
+    </Shape>
+  </CFootprint>
+  <CFootprint id="Footprint2x2CreepNormal">
+    <Layers index="Check">
+      <Sets index="0">
+        <Negative index="Creep" value="0" />
+      </Sets>
+      <Rows value="xx" />
+      <Rows value="xx" />
+    </Layers>
+    <Layers index="Place">
+      <Rows value="xx" />
+      <Rows value="xx" />
+    </Layers>
+    <Shape>
+      <Radius value="1.4143" />
+      <Offsets value="-1,-1;-1,1;1,1;1,-1" />
+      <Borders value="3,0,2;0,1,2;1,2,2;2,3,2" />
+    </Shape>
+  </CFootprint>
+  <CFootprint id="Footprint4x4ContourCreepNormalContour">
+    <Layers index="Check" Area="-2,-2,2,2">
+      <Sets index="0">
+        <Negative index="Creep" value="0" />
+      </Sets>
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+    </Layers>
+    <Layers index="Place" Area="-2,-2,2,2">
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+    </Layers>
+    <Shape>
+      <Radius value="2.236" />
+      <Offsets value="-2,-1;-2,1;-1,2;1,2;2,1;2,-1;1,-2;-1,-2" />
+      <Borders value="7,0,2;0,1,2;1,2,2;2,3,2;3,4,2;4,5,2;5,6,2;6,7,2" />
+    </Shape>
+  </CFootprint>
+  <CFootprint id="Footprint2x2CreepNormalContour">
+    <Layers index="Check">
+      <Sets index="0">
+        <Negative index="Creep" value="0" />
+      </Sets>
+      <Rows value="xx" />
+      <Rows value="xx" />
+    </Layers>
+    <Layers index="Place">
+      <Rows value="xx" />
+      <Rows value="xx" />
+    </Layers>
+    <Shape>
+      <Radius value="1.1181" />
+      <Offsets value="-1,0.5;-0.5,1;0.5,1;1,0.5;1,-0.5;0.5,-1;-0.5,-1;-1,-0.5" />
+      <Borders value="7,0,2;0,1,2;1,2,2;2,3,2;3,4,2;4,5,2;5,6,2;6,7,2" />
+    </Shape>
+  </CFootprint>
+  <CFootprint id="UnfinishedDrakkenLaserDrillCoop">
+    <Layers index="Check" Area="-2,-2,2,2">
+      <Sets index="0">
+        <Negative index="Creep" value="0" />
+      </Sets>
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+    </Layers>
+    <Layers index="Place" Area="-2,-2,2,2">
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+      <Rows value="xxxx" />
+    </Layers>
+    <Shape>
+      <Radius value="2.236" />
+      <Offsets value="-1,-2;1,-2;-1,2;1,2;-2,-1;-2,1;2,-1;2,1" />
+      <Borders value="0,4,0;1,0,0;2,3,0;3,7,0;4,5,0;5,2,0;6,1,0;7,6,0" />
+    </Shape>
+  </CFootprint>
+  <CTargetSortBehaviorCount id="CarryMineralFieldMinerals">
+    <Behavior value="CarryMineralFieldMinerals" />
+  </CTargetSortBehaviorCount>
+  <CModel id="Fear_Coop" parent="PersistentSpellFX">
+    <Model value="Assets\Effects\Neutral\Fear_Coop\Fear_Coop.m3" />
+    <EditorCategories value="Race:Terran" />
+  </CModel>
+  <CModel id="MineralFieldMutatorLowYield">
+    <Model value="Assets\Buildings\Resources\LowYieldMinerals\LowYieldMinerals.m3" />
+    <SelectionLayer value="2" />
+    <SelectionRadius value="0.750000" />
+    <Radius value="0.750000" />
+    <EditorCategories value="Race:Neutral" />
+    <VariationCount value="10" />
+    <ShadowRadius value="0.750000" />
+    <TextureDeclares Prefix="rocks_">
+      <Adaptions TriggerOnSubstring="_Diffuse" Slot="main" />
+      <Adaptions TriggerOnSubstring="_Specular" Slot="main" />
+    </TextureDeclares>
+  </CModel>
+  <CModel id="MineralFieldProtossMutatorLowYield">
+    <Model value="Assets\Buildings\Resources\LowYieldMinerals_Protoss\LowYieldMinerals_Protoss.m3" />
+    <SelectionLayer value="2" />
+    <SelectionRadius value="0.750000" />
+    <Radius value="0.750000" />
+    <EditorCategories value="Race:Neutral" />
+    <VariationCount value="10" />
+    <ShadowRadius value="0.750000" />
+    <TextureDeclares Prefix="rocks_">
+      <Adaptions TriggerOnSubstring="_Diffuse" Slot="main" />
+      <Adaptions TriggerOnSubstring="_Specular" Slot="main" />
+    </TextureDeclares>
+  </CModel>
+  <CModel id="MineralFieldPurifierMutatorLowYield">
+    <Model value="Assets\Buildings\Resources\LowYieldMinerals_Purifier\LowYieldMinerals_Purifier.m3" />
+    <SelectionLayer value="2" />
+    <SelectionRadius value="0.750000" />
+    <Radius value="0.750000" />
+    <EditorCategories value="Race:Neutral" />
+    <VariationCount value="10" />
+    <ShadowRadius value="0.750000" />
+    <TextureDeclares Prefix="rocks_">
+      <Adaptions TriggerOnSubstring="_Diffuse" Slot="main" />
+      <Adaptions TriggerOnSubstring="_Specular" Slot="main" />
+    </TextureDeclares>
+  </CModel>
+  <CModel id="MineralFieldTerranMutatorLowYield">
+    <Model value="Assets\Buildings\Resources\LowYieldMinerals_Terran\LowYieldMinerals_Terran.m3" />
+    <SelectionLayer value="2" />
+    <SelectionRadius value="0.750000" />
+    <Radius value="0.750000" />
+    <EditorCategories value="Race:Neutral" />
+    <VariationCount value="10" />
+    <ShadowRadius value="0.750000" />
+    <TextureDeclares Prefix="rocks_">
+      <Adaptions TriggerOnSubstring="_Diffuse" Slot="main" />
+      <Adaptions TriggerOnSubstring="_Specular" Slot="main" />
+    </TextureDeclares>
+  </CModel>
+  <CModel id="MineralFieldTerranLabMutatorLowYield">
+    <Model value="Assets\Buildings\Resources\LowYieldMinerals_TerranLab\LowYieldMinerals_TerranLab.m3" />
+    <SelectionLayer value="2" />
+    <SelectionRadius value="0.750000" />
+    <Radius value="0.750000" />
+    <EditorCategories value="Race:Neutral" />
+    <VariationCount value="10" />
+    <ShadowRadius value="0.750000" />
+    <TextureDeclares Prefix="rocks_">
+      <Adaptions TriggerOnSubstring="_Diffuse" Slot="main" />
+      <Adaptions TriggerOnSubstring="_Specular" Slot="main" />
+    </TextureDeclares>
+  </CModel>
+  <CModel id="Reanimator_Resurrect_Coop" parent="RacePersistentSpellFX" />
+  <CModel id="Diffusion_Shockwave_Coop" parent="RaceOneShotSpellFX" />
+  <CModel id="Glaze_BlackDeath_Coop" parent="Glaze" />
+  <CModel id="MutatorHardenedWill" parent="PersistentSpellFX">
+    <Model value="Assets\Effects\Neutral\HardenedWill_Shield\HardenedWill_Shield.m3" />
+  </CModel>
+</Catalog>

@@ -1,0 +1,28 @@
+//--------------------------------------------------------------------------------------------------
+// Izsha Runtime - Simplified wrapper using Zagara's configuration
+//--------------------------------------------------------------------------------------------------
+void libE0EAE146_gf_IzshaRuntimeInit (int lp_player, point lp_heroPoint, bool lp_createHero) {
+    unit lv_caster;
+
+    if (libE0EAE146_gv_izshaRuntimeInitialized == true) {
+        return;
+    }
+
+    libE0EAE146_gv_izshaRuntimeInitialized = true;
+    // Skip CommanderPower for now to test basic framework
+    if (libE0EAE146_gf_CommanderUsePrivateTechFilter("Zagara")) {
+        libE0EAE146_gf_ZagaraAllowUnitIfPresent(lp_player, "CoopCasterZagara");
+    }
+
+    libNtve_gf_CreateUnitsWithDefaultFacing(1, "CoopCasterZagara", c_unitCreateIgnorePlacement, lp_player, RegionGetBoundsMin(RegionEntireMap()));
+    lv_caster = UnitLastCreated();
+
+    if (lp_createHero == true) {
+        libE0EAE146_gt_CommanderHeroDied_Init();
+        TriggerEnable(libKMIS_gt_CM_HeroDied, false);
+    }
+    lib67C0F0E7_gf_CU_GPInit(lp_player, "Zagara", lv_caster, null);
+
+    lib67C0F0E7_gf_CU_GPShowHide(true, lp_player, c_transitionDurationDefault);
+    lib67C0F0E7_gf_ShowChooseButton();
+}

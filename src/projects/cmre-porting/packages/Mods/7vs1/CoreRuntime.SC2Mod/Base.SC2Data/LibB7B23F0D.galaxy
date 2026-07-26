@@ -1,0 +1,34 @@
+include "TriggerLibs/NativeLib"
+
+include "LibB7B23F0D_h"
+
+//--------------------------------------------------------------------------------------------------
+// Library: SCV
+//--------------------------------------------------------------------------------------------------
+// External Library Initialization
+void libB7B23F0D_InitLibraries () {
+    libNtve_InitVariables();
+}
+
+// Functions
+void libB7B23F0D_gf_LocustSCV (unit lp_u, int lp_n) {
+    // Automatic Variable Declarations
+    // Implementation
+    UnitBehaviorAdd(lp_u, "LocustSCV", lp_u, lp_n);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool libB7B23F0D_InitLib_completed = false;
+
+void libB7B23F0D_InitLib () {
+    if (libB7B23F0D_InitLib_completed) {
+        return;
+    }
+
+    libB7B23F0D_InitLib_completed = true;
+
+    libB7B23F0D_InitLibraries();
+}
+

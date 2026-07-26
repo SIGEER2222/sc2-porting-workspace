@@ -1,0 +1,163 @@
+void libE0EAE146_gf_TestZergAllowUnitIfPresent (int lp_player, string lp_unit) {
+    if ((lp_unit == "") || (!CatalogEntryIsValid(c_gameCatalogUnit, lp_unit))) {
+        return;
+    }
+    TechTreeUnitAllow(lp_player, lp_unit, true);
+}
+
+void libE0EAE146_gf_TestZergAllowAbilityIfPresent (int lp_player, string lp_abil, int lp_cmdIndex) {
+    if ((lp_abil == "") || (!CatalogEntryIsValid(c_gameCatalogAbil, lp_abil))) {
+        return;
+    }
+    TechTreeAbilityAllow(lp_player, AbilityCommand(lp_abil, lp_cmdIndex), true);
+}
+
+void libE0EAE146_gf_TestZergAllowAbilityCommandsIfPresent (int lp_player, string lp_abil, int lp_maxCmdIndex) {
+    int lv_i;
+
+    if ((lp_abil == "") || (!CatalogEntryIsValid(c_gameCatalogAbil, lp_abil))) {
+        return;
+    }
+    lv_i = 0;
+    for ( ; ( lv_i <= lp_maxCmdIndex ) ; lv_i += 1 ) {
+        TechTreeAbilityAllow(lp_player, AbilityCommand(lp_abil, lv_i), true);
+    }
+}
+
+void libE0EAE146_gf_TestZergApplyTechFilter (int lp_player) {
+    CatalogFieldValueSet(c_gameCatalogBehavior, "SpawnLarva", "InfoArray[0].Unit", lp_player, "LarvaTestZerg");
+    CatalogFieldValueSet(c_gameCatalogBehavior, "SpawnLarva", "InfoArray[1].Unit", lp_player, "LarvaTestZerg");
+    CatalogFieldValueSet(c_gameCatalogBehavior, "SpawnLarva", "InfoArray[2].Unit", lp_player, "LarvaTestZerg");
+    CatalogFieldValueSet(c_gameCatalogBehavior, "SpawnLarvaKerrigan", "InfoArray[0].Unit", lp_player, "LarvaTestZerg");
+    CatalogFieldValueSet(c_gameCatalogBehavior, "SpawnLarvaKerrigan", "InfoArray[1].Unit", lp_player, "LarvaTestZerg");
+    CatalogFieldValueSet(c_gameCatalogBehavior, "SpawnLarvaKerrigan", "InfoArray[2].Unit", lp_player, "LarvaTestZerg");
+
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Drone");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Overlord");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Zergling");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Queen");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Hydralisk");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Mutalisk");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Ultralisk");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Roach");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Infestor");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Corruptor");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "BroodLord");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Viper");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "SwarmHostMP");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Ravager");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Baneling");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Overseer");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "LurkerMP");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Hatchery");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Lair");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Hive");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Extractor");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "SpawningPool");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "EvolutionChamber");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "HydraliskDen");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "LurkerDen");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "InfestationPit");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Spire");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "GreaterSpire");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "UltraliskCavern");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "NydusNetwork");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "NydusCanal");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "SpineCrawler");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "SporeCrawler");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "RoachWarren");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "BanelingNest");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "CreepTumor");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Larva");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "LarvaTestZerg");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Egg");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Cocoon");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "LurkerEgg");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "BanelingCocoon");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "BroodLordCocoon");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "RavagerCocoon");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "OverlordTransport");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "OverlordCocoon");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Transportspeed");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "OverseerCocoon");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "VentralSacks");
+
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "HotSRaptor");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "HotSSwarmling");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "ZerglingToxic");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "RoachCorpser");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "RoachVile");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "HydraliskImpaler");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "HydraliskLurker");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "HunterKiller");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Hydralisk2");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "MutaliskBroodlord");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "MutaliskChar");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Mamba");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "MutaliskAnkylos");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Mesmer");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "HotSTorrasque");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "HotSNoxious");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "UltraliskSavage");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "UltraliskKaldir");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Igniter");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "BileTitan");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "FrostFiend");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "HotSHunter");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "HotSSplitterlingBig");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "SwarmHostSplitA");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "SwarmHostSplitB");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "BaneHost");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "VespidHost");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Aberration");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Brutalisk");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Scourge");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "DefilerMP");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "QueenClassic");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Pygalisk");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "IzshaGuardian");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Kraken");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Blightbringer");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Omegalisk");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Leviathan");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Devourer");
+    libE0EAE146_gf_TestZergAllowUnitIfPresent(lp_player, "Slivan");
+
+    libE0EAE146_gf_TestZergAllowAbilityCommandsIfPresent(lp_player, "ZergBuild", 31);
+    libE0EAE146_gf_TestZergAllowAbilityCommandsIfPresent(lp_player, "ZergBuildAdvanced", 31);
+    libE0EAE146_gf_TestZergAllowAbilityIfPresent(lp_player, "MorphHydraliskToLurker", 0);
+    libE0EAE146_gf_TestZergAllowAbilityIfPresent(lp_player, "MutaliskMorphToBroodLord", 0);
+    libE0EAE146_gf_TestZergAllowAbilityIfPresent(lp_player, "MorphRoachToRavager", 0);
+    libE0EAE146_gf_TestZergAllowAbilityIfPresent(lp_player, "MorphZerglingToBaneling", 0);
+    libE0EAE146_gf_TestZergAllowAbilityIfPresent(lp_player, "MorphToOverseer", 0);
+    libE0EAE146_gf_TestZergAllowAbilityIfPresent(lp_player, "UpgradeToLair", 0);
+    libE0EAE146_gf_TestZergAllowAbilityIfPresent(lp_player, "UpgradeToHive", 0);
+    libE0EAE146_gf_TestZergAllowAbilityIfPresent(lp_player, "UpgradeToGreaterSpire", 0);
+    libE0EAE146_gf_TestZergAllowAbilityIfPresent(lp_player, "UpgradeToLurkerDen", 0);
+    libE0EAE146_gf_TestZergAllowAbilityCommandsIfPresent(lp_player, "QueenBuild", 31);
+}
+
+void libE0EAE146_gf_TestZergCreateBuilding (int lp_player, point lp_center, string lp_unitType, fixed lp_offsetX, fixed lp_offsetY) {
+    point lv_p;
+    lv_p = PointWithOffset(lp_center, lp_offsetX, lp_offsetY);
+    libNtve_gf_CreateUnitsWithDefaultFacing(1, lp_unitType, c_unitCreateIgnorePlacement, lp_player, lv_p);
+}
+
+void libE0EAE146_gf_TestZergCreateBuildings (int lp_player, point lp_center) {
+    libE0EAE146_gf_TestZergCreateBuilding(lp_player, lp_center, "SpawningPool", -5.0, -5.0);
+    libE0EAE146_gf_TestZergCreateBuilding(lp_player, lp_center, "BanelingNest", 5.0, -5.0);
+    libE0EAE146_gf_TestZergCreateBuilding(lp_player, lp_center, "RoachWarren", -5.0, 5.0);
+    libE0EAE146_gf_TestZergCreateBuilding(lp_player, lp_center, "HydraliskDen", 5.0, 5.0);
+    libE0EAE146_gf_TestZergCreateBuilding(lp_player, lp_center, "LurkerDen", 10.0, 5.0);
+    libE0EAE146_gf_TestZergCreateBuilding(lp_player, lp_center, "InfestationPit", -10.0, 5.0);
+    libE0EAE146_gf_TestZergCreateBuilding(lp_player, lp_center, "Spire", 10.0, -5.0);
+    libE0EAE146_gf_TestZergCreateBuilding(lp_player, lp_center, "GreaterSpire", 15.0, -5.0);
+    libE0EAE146_gf_TestZergCreateBuilding(lp_player, lp_center, "UltraliskCavern", -10.0, -5.0);
+    libE0EAE146_gf_TestZergCreateBuilding(lp_player, lp_center, "EvolutionChamber", 0.0, 10.0);
+    libE0EAE146_gf_TestZergCreateBuilding(lp_player, lp_center, "Lair", 20.0, 0.0);
+}
+
+void libE0EAE146_gf_TestZergRuntimeInit (int lp_player, point lp_heroPoint, bool lp_createHero) {
+    libE0EAE146_gf_TestZergApplyTechFilter(lp_player);
+    libE0EAE146_gf_TestZergCreateBuildings(lp_player, lp_heroPoint);
+}

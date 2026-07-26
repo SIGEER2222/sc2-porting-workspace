@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "packaging-report.schema.json",
+  "title": "Packaging Validation Report",
+  "description": "SC2 包完整性校验报告，由 tools/analysis/validate-packaging.mjs 产生",
+  "type": "object",
+  "required": ["schemaVersion", "generatedAt", "compositionId", "summary", "checks"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "compositionId": { "type": "string" },
+    "summary": {
+      "type": "object",
+      "required": ["total", "passed", "failed", "warnings"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "status", "findings"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "status": { "enum": ["pass", "fail", "warning"] },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["level", "message", "path"],
+              "properties": {
+                "level": { "enum": ["error", "warning", "info"] },
+                "message": { "type": "string" },
+                "path": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["packageId", "sourceId", "path", "exists"],
+        "properties": {
+          "packageId": { "type": "string" },
+          "sourceId": { "type": "string" },
+          "path": { "type": "string" },
+          "exists": { "type": "boolean" },
+          "declarations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "exists"],
+              "properties": {
+                "name": { "type": "string" },
+                "exists": { "type": "boolean" },
+                "path": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "isMpq": { "type": "boolean" },
+          "mpqValid": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,58 @@
+// KerriganCreepBonus - 凯瑞甘恶性菌毯加成，替代 LibKPVP
+// 迁移自 LibKPVP.galaxy 的 gf_apply_kerrigan_creep_bonus，前缀替换为 libE0EAE146_
+// 依赖 libKMIS_gv_cM_TalentKerriganMalignantCreepUpgrade，此处声明为自有常量（硬编码字符串）
+
+// ===== 常量 =====
+// 从 LibKMIS 迁移 cM_TalentKerriganMalignantCreepUpgrade — 硬编码为字符串常量
+const string libE0EAE146_gv_cM_TalentKerriganMalignantCreepUpgrade = "KerriganCreepBonusesCoop";
+
+// ===== 函数实现 =====
+void libE0EAE146_gf_apply_kerrigan_creep_bonus (int lp_player) {
+    // Variable Declarations
+    int lv_itPlayer;
+    int lv_totalPlayersLevel;
+    int[libE0EAE146_gv_MAXPLAYERS + 1] lv_playerLevel;
+    string lv_entry;
+    int lv_catalog;
+    int lv_index;
+    int lv_count;
+    fixed lv_add;
+    int lv_kerriganplayer;
+    fixed lv_attackspeedmultiplier;
+    fixed lv_liferegenrate;
+    int lv_has_talent;
+
+    // Automatic Variable Declarations
+    int autoE5A22749_catalog;
+    int autoE5A22749_i;
+    playergroup auto807B9AE9_g;
+
+    // Variable Initialization
+    lv_catalog = c_gameCatalogUnit;
+    lv_kerriganplayer = lp_player;
+    lv_attackspeedmultiplier = libNtve_gf_CatalogFieldValueGetAsReal(c_gameCatalogEffect, "KerriganMalignantCreepAttackSpeedDummy", "Amount", lv_kerriganplayer);
+    lv_liferegenrate = libNtve_gf_CatalogFieldValueGetAsReal(c_gameCatalogEffect, "KerriganMalignantCreepLifeRegenDummy", "Amount", lv_kerriganplayer);
+
+    // Implementation
+    lv_has_talent = TechTreeUpgradeCount(lp_player, libE0EAE146_gv_cM_TalentKerriganMalignantCreepUpgrade, c_techCountCompleteOnly);
+    if ((lv_has_talent <= 0)) {
+        return ;
+    }
+
+    autoE5A22749_catalog = lv_catalog;
+    autoE5A22749_i = 1;
+    for ( ; autoE5A22749_i <= CatalogEntryCount(lv_catalog) ; autoE5A22749_i += 1 ) {
+        lv_entry = CatalogEntryGet(autoE5A22749_catalog, autoE5A22749_i);
+        if ((CatalogEntryIsDefault(lv_catalog, lv_entry) == false) && (UnitTypeTestFlag(lv_entry, c_unitFlagInvulnerable) == false) && (UnitTypeTestFlag(lv_entry, c_unitFlagNoDraw) == false) && (UnitTypeTestFlag(lv_entry, c_unitFlagDestructible) == false) && (UnitTypeTestFlag(lv_entry, c_unitFlagMissile) == false) && (UnitTypeTestAttribute(lv_entry, c_unitAttributeStructure) == false) && ((UnitTypeTestAttribute(lv_entry, c_unitAttributeBiological) == true) || (UnitTypeTestAttribute(lv_entry, c_unitAttributeMechanical) == true) || (UnitTypeTestAttribute(lv_entry, c_unitAttributePsionic) == true)) && (CatalogFieldValueGet(c_gameCatalogUnit, lv_entry, "PlaneArray[Ground]", c_playerAny) == "1")) {
+            auto807B9AE9_g = libNtve_gf_AlliesEnemiesOfPlayerCountInactiveAndSelf(libNtve_ge_PlayerRelation_AllyMutual, lp_player);
+            lv_itPlayer = -1;
+            while (true) {
+                lv_itPlayer = PlayerGroupNextPlayer(auto807B9AE9_g, lv_itPlayer);
+                if (lv_itPlayer < 0) { break; }
+                CatalogFieldValueModify(c_gameCatalogUnit, lv_entry, "LifeRegenRateCreep", lv_itPlayer, FixedToString(lv_liferegenrate, c_fixedPrecisionAny), c_upgradeOperationAdd);
+                CatalogFieldValueModify(c_gameCatalogUnit, lv_entry, "AttackSpeedMultiplierCreep", lv_itPlayer, FixedToString(lv_attackspeedmultiplier, c_fixedPrecisionAny), c_upgradeOperationAdd);
+            }
+        }
+
+    }
+}

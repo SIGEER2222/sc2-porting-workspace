@@ -1,0 +1,557 @@
+// XMFinal split module: commander hero death and revive anchors.
+
+string libE0EAE146_gf_CommanderHeroReviveUnitType (string lp_commander) {
+    if (lp_commander == "Kerrigan") {
+        return "KerriganReviveCocoon";
+    }
+    else if (lp_commander == "Zagara") {
+        return "ZagaraReviveCocoon";
+    }
+    else if (lp_commander == "Alarak") {
+        return "AlarakReviveBeacon";
+    }
+    else if (lp_commander == "Artanis") {
+        return "ArtanisReviveBeacon";
+    }
+    else if (lp_commander == "Vorazun") {
+        return "ArtanisReviveBeacon";
+    }
+    else if (lp_commander == "Zeratul") {
+        return "ZeratulCoopReviveBeacon";
+    }
+    else if (lp_commander == "Raynor") {
+        return "NovaReviveBeacon";
+    }
+    else if (lp_commander == "RaynorX") {
+        return "NovaReviveBeacon";
+    }
+    else if (lp_commander == "Stukov") {
+        return "StukovReviveCocoon";
+    }
+    else if (lp_commander == "Swann") {
+        return "NovaReviveBeacon";
+    }
+    else if (lp_commander == "Karax") {
+        return "ArtanisReviveBeacon";
+    }
+
+    return "";
+}
+
+string libE0EAE146_gf_CommanderHeroReviveFirstBehavior (string lp_commander) {
+    if (lp_commander == "Kerrigan") {
+        return "KerriganFirstReviveTimer";
+    }
+    else if (lp_commander == "Zagara") {
+        return "ZagaraFirstReviveTimer";
+    }
+    else if (lp_commander == "Alarak") {
+        return "AlarakInitialReviveTimer";
+    }
+    else if (lp_commander == "Artanis") {
+        return "AlarakInitialReviveTimer";
+    }
+    else if (lp_commander == "Vorazun") {
+        return "AlarakInitialReviveTimer";
+    }
+    else if (lp_commander == "Zeratul") {
+        return "ZeratulInitialReviveTimer";
+    }
+    else if (lp_commander == "Raynor") {
+        return "NovaReviveTimerInitial";
+    }
+    else if (lp_commander == "RaynorX") {
+        return "NovaReviveTimerInitial";
+    }
+    else if (lp_commander == "Stukov") {
+        return "StukovFirstReviveTimer";
+    }
+    else if (lp_commander == "Swann") {
+        return "NovaReviveTimerInitial";
+    }
+    else if (lp_commander == "Karax") {
+        return "NovaReviveTimerInitial";
+    }
+
+    return "";
+}
+
+string libE0EAE146_gf_CommanderHeroReviveNormalBehavior (string lp_commander) {
+    if (lp_commander == "Kerrigan") {
+        return "KerriganNormalReviveTimer";
+    }
+    else if (lp_commander == "Zagara") {
+        return "ZagaraNormalReviveTimer";
+    }
+    else if (lp_commander == "Alarak") {
+        return "AlarakReviveTimer";
+    }
+    else if (lp_commander == "Artanis") {
+        return "AlarakReviveTimer";
+    }
+    else if (lp_commander == "Vorazun") {
+        return "AlarakReviveTimer";
+    }
+    else if (lp_commander == "Zeratul") {
+        return "ZeratulReviveTimer";
+    }
+    else if (lp_commander == "Raynor") {
+        return "NovaReviveTimer";
+    }
+    else if (lp_commander == "RaynorX") {
+        return "NovaReviveTimer";
+    }
+    else if (lp_commander == "Stukov") {
+        return "StukovNormalReviveTimer";
+    }
+    else if (lp_commander == "Swann") {
+        return "NovaReviveTimer";
+    }
+    else if (lp_commander == "Karax") {
+        return "NovaReviveTimer";
+    }
+
+    return "";
+}
+
+string libE0EAE146_gf_CommanderHeroUnitType (string lp_commander) {
+    if (lp_commander == "Kerrigan") {
+        return "K5Kerrigan";
+    }
+    else if (lp_commander == "Zagara") {
+        return "ZagaraVoidCoop";
+    }
+    else if (lp_commander == "Alarak") {
+        return "AlarakCoop";
+    }
+    else if (lp_commander == "Artanis") {
+        return "ArtanisVoid";
+    }
+    else if (lp_commander == "Vorazun") {
+        return "VorazunChampion";
+    }
+    else if (lp_commander == "Zeratul") {
+        return "ZeratulCoop";
+    }
+    else if (lp_commander == "Raynor") {
+        return "RaynorCommando";
+    }
+    else if (lp_commander == "RaynorX") {
+        return "RaynorXCommando";
+    }
+    else if (lp_commander == "Stukov") {
+        return "InfestedStukovCoop";
+    }
+    else if (lp_commander == "Swann") {
+        return "Swann";
+    }
+    else if (lp_commander == "Karax") {
+        return "KaraxChampion";
+    }
+
+    return "";
+}
+
+bool libE0EAE146_gf_CommanderHeroReviveMatches (string lp_commander, unit lp_hero) {
+    string lv_unitType;
+
+    if (UnitIsValid(lp_hero) == false) {
+        return false;
+    }
+
+    lv_unitType = UnitGetType(lp_hero);
+    if (lp_commander == "Kerrigan") {
+        return ((lv_unitType == "K5Kerrigan") || (lv_unitType == "K5KerriganBurrowed"));
+    }
+    else if (lp_commander == "Zagara") {
+        return lv_unitType == "ZagaraVoidCoop";
+    }
+    else if (lp_commander == "Alarak") {
+        return lv_unitType == "AlarakCoop";
+    }
+    else if (lp_commander == "Artanis") {
+        return lv_unitType == "ArtanisVoid";
+    }
+    else if (lp_commander == "Vorazun") {
+        return lv_unitType == "VorazunChampion";
+    }
+    else if (lp_commander == "Zeratul") {
+        return lv_unitType == "ZeratulCoop";
+    }
+    else if (lp_commander == "Raynor") {
+        return lv_unitType == "RaynorCommando";
+    }
+    else if (lp_commander == "RaynorX") {
+        return lv_unitType == "RaynorXCommando";
+    }
+    else if (lp_commander == "Stukov") {
+        return ((lv_unitType == "InfestedStukovCoop") || (lv_unitType == "InfestedStukovCoopBurrowed"));
+    }
+    else if (lp_commander == "Swann") {
+        return lv_unitType == "Swann";
+    }
+    else if (lp_commander == "Karax") {
+        return lv_unitType == "KaraxChampion";
+    }
+
+    return false;
+}
+
+unit libE0EAE146_gf_FindFirstPlayerUnitOfType (int lp_player, string lp_unitType) {
+    unitgroup lv_units;
+
+    if ((lp_unitType == "") || (!CatalogEntryIsValid(c_gameCatalogUnit, lp_unitType))) {
+        return null;
+    }
+
+    lv_units = UnitGroup(lp_unitType, lp_player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    if (UnitGroupCount(lv_units, c_unitCountAlive) > 0) {
+        return UnitGroupUnit(lv_units, 1);
+    }
+
+    return null;
+}
+
+unit libE0EAE146_gf_CommanderPrimaryTownHall (int lp_player, string lp_commander) {
+    unit lv_townHall;
+    string lv_unitType;
+
+    lp_commander = libE0EAE146_gf_CommanderShortName(lp_commander);
+
+    if (lp_commander == "Kerrigan") {
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "HatcheryKerrigan");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "LairKerrigan");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "HiveKerrigan");
+    }
+    else if (lp_commander == "Zagara") {
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "HatcheryZagara");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "LairZagara");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "HiveZagara");
+    }
+    else if (lp_commander == "Abathur") {
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "HatcheryAbathur");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "LairAbathur");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "HiveAbathur");
+    }
+    else if (lp_commander == "Stetmann") {
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "HatcheryStetmann");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "LairStetmann");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "HiveStetmann");
+    }
+    else if (lp_commander == "Alarak") {
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "NexusAlarak");
+    }
+    else if (lp_commander == "Artanis") {
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "NexusArtanis");
+    }
+    else if (lp_commander == "Fenix") {
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "NexusFenix");
+    }
+    else if (lp_commander == "Karax") {
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "NexusKarax");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "Nexus");
+    }
+    else if (lp_commander == "Vorazun") {
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "NexusVorazun");
+    }
+    else if (lp_commander == "Zeratul") {
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "NexusZeratul");
+    }
+    else if (lp_commander == "Raynor") {
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "CommandCenterRaynor");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "OrbitalCommandRaynor");
+    }
+    else if (lp_commander == "RaynorX") {
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "CommandCenterRaynorX");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "OrbitalCommandRaynorX");
+    }
+    else if (lp_commander == "Stukov") {
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "SICommandCenter");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "SICommandCenterFlying");
+    }
+    else if (lp_commander == "Swann") {
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "CommandCenterSwann");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "OrbitalCommandSwann");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "PlanetaryFortressSwann");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "CommandCenterSwannFlying");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "OrbitalCommandSwannFlying");
+    }
+    else if (lp_commander == "Nova") {
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "CommandCenterNova");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "OrbitalCommandNova");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "PlanetaryFortressNova");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "CommandCenterNovaFlying");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "OrbitalCommandNovaFlying");
+    }
+    else if (lp_commander == "Mengsk") {
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "CommandCenterMengsk");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "CommandCenterMengskFlying");
+    }
+    else if ((lp_commander == "Mira") || (lp_commander == "Horner") || (lp_commander == "HanHorner") || (lp_commander == "HanAndHorner")) {
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "HHCommandCenter");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "HHCommandCenterFlying");
+    }
+    else if (lp_commander == "Tychus") {
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "TychusCommandCenter");
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+        return libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "TychusCommandCenterFlying");
+    }
+
+    lv_unitType = libE0EAE146_gf_CommanderAchUnit("CommandCenter");
+    if (lv_unitType != "") {
+        lv_townHall = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, lv_unitType);
+        if (UnitIsValid(lv_townHall) == true) { return lv_townHall; }
+    }
+
+    return null;
+}
+
+point libE0EAE146_gf_CommanderEffectiveBaseAnchor (int lp_player, string lp_commander) {
+    unit lv_townHall;
+    point lv_point;
+
+    if (libE0EAE146_gv_effectiveBaseAnchor != null) {
+        return libE0EAE146_gv_effectiveBaseAnchor;
+    }
+    if (libE0EAE146_gv_currentMapId == "thanson01_7vs1") {
+        lv_point = PointFromId(858);
+        if (lv_point != null) {
+            return lv_point;
+        }
+    }
+
+    lv_townHall = libE0EAE146_gf_CommanderPrimaryTownHall(lp_player, lp_commander);
+    if (UnitIsValid(lv_townHall) == true) {
+        return UnitGetPosition(lv_townHall);
+    }
+
+    return PlayerStartLocation(lp_player);
+}
+
+point libE0EAE146_gf_CommanderHeroRevivePoint (int lp_player, string lp_commander, string lp_reviveUnitType) {
+    point lv_origin;
+    point lv_candidate;
+    point lv_placement;
+
+    lv_origin = libE0EAE146_gf_CommanderEffectiveBaseAnchor(lp_player, lp_commander);
+    if (lv_origin == null) {
+        lv_origin = PlayerStartLocation(lp_player);
+    }
+
+    lv_candidate = PointWithOffsetPolar(lv_origin, 5.0, 315.0);
+    lv_placement = UnitTypePlacementFromPoint(lp_reviveUnitType, lp_player, lv_candidate, 8.0);
+    if (lv_placement != null) {
+        return lv_placement;
+    }
+
+    return lv_candidate;
+}
+
+fixed libE0EAE146_gf_CommanderHeroReviveDuration (string lp_behavior) {
+    fixed lv_duration;
+
+    if ((lp_behavior == "") || (!CatalogEntryIsValid(c_gameCatalogBehavior, lp_behavior))) {
+        return 60.0;
+    }
+
+    lv_duration = StringToFixed(CatalogFieldValueGet(c_gameCatalogBehavior, lp_behavior, "Duration", 1));
+    if (lv_duration <= 0.0) {
+        return 60.0;
+    }
+
+    return lv_duration;
+}
+
+void libE0EAE146_gf_CommanderHeroReviveAfterDelay (int lp_player, string lp_commander, unit lp_hero, unit lp_reviver, fixed lp_duration) {
+    point lv_revivePoint;
+
+    Wait(lp_duration, c_timeGame);
+
+    if (UnitIsValid(lp_reviver) == true) {
+        lv_revivePoint = UnitGetPosition(lp_reviver);
+    }
+    else {
+        lv_revivePoint = libE0EAE146_gf_CommanderHeroRevivePoint(lp_player, lp_commander, libE0EAE146_gf_CommanderHeroReviveUnitType(lp_commander));
+    }
+
+    if ((UnitIsValid(lp_hero) == false) || (UnitIsAlive(lp_hero) == true)) {
+        libE0EAE146_gv_commanderHeroRevivePending = false;
+        return;
+    }
+
+    UnitRevive(lp_hero);
+    if (lv_revivePoint != null) {
+        UnitSetPosition(lp_hero, lv_revivePoint, false);
+    }
+    libNtve_gf_ShowHideUnit(lp_hero, true);
+
+    if (UnitIsValid(lp_reviver) == true) {
+        UnitKill(lp_reviver);
+    }
+
+    libE0EAE146_gv_commanderHeroRevivePending = false;
+}
+
+bool libE0EAE146_gt_CommanderHeroDied_Func (bool testConds, bool runActions) {
+    unit lv_hero;
+    int lv_player;
+    string lv_commander;
+    string lv_reviveUnitType;
+    string lv_reviveBehavior;
+    string lv_heroUnitType;
+    fixed lv_duration;
+    point lv_revivePoint;
+    unit lv_reviver;
+
+    lv_hero = EventUnit();
+
+    if (testConds) {
+        if (libE0EAE146_gv_commanderHeroRevivePending == true) {
+            return false;
+        }
+        if (UnitIsValid(lv_hero) == false) {
+            return false;
+        }
+        if (libE0EAE146_gf_CommanderHeroReviveMatches("Kerrigan", lv_hero) == true) {
+            lv_commander = "Kerrigan";
+        }
+        else if (libE0EAE146_gf_CommanderHeroReviveMatches("Zagara", lv_hero) == true) {
+            lv_commander = "Zagara";
+        }
+        else if (libE0EAE146_gf_CommanderHeroReviveMatches("Alarak", lv_hero) == true) {
+            lv_commander = "Alarak";
+        }
+        else if (libE0EAE146_gf_CommanderHeroReviveMatches("Artanis", lv_hero) == true) {
+            lv_commander = "Artanis";
+        }
+        else if (libE0EAE146_gf_CommanderHeroReviveMatches("Vorazun", lv_hero) == true) {
+            lv_commander = "Vorazun";
+        }
+        else if (libE0EAE146_gf_CommanderHeroReviveMatches("Zeratul", lv_hero) == true) {
+            lv_commander = "Zeratul";
+        }
+        else if (libE0EAE146_gf_CommanderHeroReviveMatches("Raynor", lv_hero) == true) {
+            lv_commander = "Raynor";
+        }
+        else if (libE0EAE146_gf_CommanderHeroReviveMatches("Stukov", lv_hero) == true) {
+            lv_commander = "Stukov";
+        }
+        else if (libE0EAE146_gf_CommanderHeroReviveMatches("Swann", lv_hero) == true) {
+            lv_commander = "Swann";
+        }
+        else if (libE0EAE146_gf_CommanderHeroReviveMatches("Karax", lv_hero) == true) {
+            lv_commander = "Karax";
+        }
+        else {
+            return false;
+        }
+    }
+
+    if (!runActions) {
+        return true;
+    }
+
+    if (libE0EAE146_gf_CommanderHeroReviveMatches("Kerrigan", lv_hero) == true) {
+        lv_commander = "Kerrigan";
+    }
+    else if (libE0EAE146_gf_CommanderHeroReviveMatches("Zagara", lv_hero) == true) {
+        lv_commander = "Zagara";
+    }
+    else if (libE0EAE146_gf_CommanderHeroReviveMatches("Alarak", lv_hero) == true) {
+        lv_commander = "Alarak";
+    }
+    else if (libE0EAE146_gf_CommanderHeroReviveMatches("Artanis", lv_hero) == true) {
+        lv_commander = "Artanis";
+    }
+    else if (libE0EAE146_gf_CommanderHeroReviveMatches("Vorazun", lv_hero) == true) {
+        lv_commander = "Vorazun";
+    }
+    else if (libE0EAE146_gf_CommanderHeroReviveMatches("Zeratul", lv_hero) == true) {
+        lv_commander = "Zeratul";
+    }
+    else if (libE0EAE146_gf_CommanderHeroReviveMatches("Raynor", lv_hero) == true) {
+        lv_commander = "Raynor";
+    }
+    else if (libE0EAE146_gf_CommanderHeroReviveMatches("Stukov", lv_hero) == true) {
+        lv_commander = "Stukov";
+    }
+    else if (libE0EAE146_gf_CommanderHeroReviveMatches("Swann", lv_hero) == true) {
+        lv_commander = "Swann";
+    }
+    else if (libE0EAE146_gf_CommanderHeroReviveMatches("Karax", lv_hero) == true) {
+        lv_commander = "Karax";
+    }
+    else {
+        return true;
+    }
+
+    lv_player = UnitGetOwner(lv_hero);
+    lv_reviveUnitType = libE0EAE146_gf_CommanderHeroReviveUnitType(lv_commander);
+    if ((lv_reviveUnitType == "") || (!CatalogEntryIsValid(c_gameCatalogUnit, lv_reviveUnitType))) {
+        return true;
+    }
+
+    if ((libE0EAE146_gf_FindFirstPlayerUnitOfType(lv_player, lv_reviveUnitType) != null)) {
+        libE0EAE146_gv_commanderHeroRevivePending = false;
+        return true;
+    }
+
+    libE0EAE146_gv_commanderHeroRevivePending = true;
+    libE0EAE146_gv_commanderHeroDeathCount += 1;
+    lv_reviveBehavior = libE0EAE146_gf_CommanderHeroReviveNormalBehavior(lv_commander);
+    if (libE0EAE146_gv_commanderHeroDeathCount == 1) {
+        lv_reviveBehavior = libE0EAE146_gf_CommanderHeroReviveFirstBehavior(lv_commander);
+        if ((lv_reviveBehavior == "") || (!CatalogEntryIsValid(c_gameCatalogBehavior, lv_reviveBehavior))) {
+            lv_reviveBehavior = libE0EAE146_gf_CommanderHeroReviveNormalBehavior(lv_commander);
+        }
+    }
+    lv_duration = libE0EAE146_gf_CommanderHeroReviveDuration(lv_reviveBehavior);
+    lv_revivePoint = libE0EAE146_gf_CommanderHeroRevivePoint(lv_player, lv_commander, lv_reviveUnitType);
+
+    UnitCreate(1, lv_reviveUnitType, 0, lv_player, lv_revivePoint, 225.0);
+    lv_reviver = UnitLastCreated();
+    if ((UnitIsValid(lv_reviver) == true) && (lv_reviveBehavior != "") && CatalogEntryIsValid(c_gameCatalogBehavior, lv_reviveBehavior)) {
+        UnitBehaviorAdd(lv_reviver, lv_reviveBehavior, lv_reviver, 1);
+    }
+
+    // 复活信标显示名称使用英雄单位名称
+    lv_heroUnitType = libE0EAE146_gf_CommanderHeroUnitType(lv_commander);
+    if ((lv_heroUnitType != "") && CatalogEntryIsValid(c_gameCatalogUnit, lv_heroUnitType)) {
+        UnitSetInfoTip(lv_reviver, UnitTypeGetName(lv_heroUnitType));
+    }
+
+    libE0EAE146_gf_CommanderHeroReviveAfterDelay(lv_player, lv_commander, lv_hero, lv_reviver, lv_duration);
+    return true;
+}
+
+void libE0EAE146_gt_CommanderHeroDied_Init () {
+    if (libE0EAE146_gv_commanderHeroReviveInitialized == true) {
+        return;
+    }
+
+    libE0EAE146_gv_commanderHeroReviveInitialized = true;
+    libE0EAE146_gt_CommanderHeroDied = TriggerCreate("libE0EAE146_gt_CommanderHeroDied_Func");
+    TriggerAddEventUnitDied(libE0EAE146_gt_CommanderHeroDied, null);
+}

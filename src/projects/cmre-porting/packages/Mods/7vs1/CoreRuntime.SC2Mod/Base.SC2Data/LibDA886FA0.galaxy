@@ -1,0 +1,71 @@
+include "TriggerLibs/NativeLib"
+include "Lib67C0F0E7"
+
+include "LibDA886FA0_h"
+
+//--------------------------------------------------------------------------------------------------
+// Library: Mira
+//--------------------------------------------------------------------------------------------------
+// External Library Initialization
+void libDA886FA0_InitLibraries () {
+    libNtve_InitVariables();
+    lib67C0F0E7_InitVariables();
+}
+
+// Functions
+void libDA886FA0_gf_InitlizeMira (int lp_player) {
+    // Automatic Variable Declarations
+    // Implementation
+    if (libDA886FA0_gt_BomberPlatformMira == null) {
+        libDA886FA0_gt_BomberPlatformMira = TriggerCreate("libDA886FA0_gt_BomberPlatformMira_Func");
+        TriggerEnable(libDA886FA0_gt_BomberPlatformMira, false);
+    }
+    if (CatalogEntryIsValid(c_gameCatalogAbil, "MagneticMinesMira") == true) {
+        lib67C0F0E7_gf_SOATargetingOrder(AbilityCommand("MagneticMinesMira", 0));
+    }
+    if (CatalogEntryIsValid(c_gameCatalogEffect, "BomberPlatformHangarMira") == true) {
+        TriggerAddEventPlayerEffectUsed(libDA886FA0_gt_BomberPlatformMira,lp_player,"BomberPlatformHangarMira");
+        TriggerEnable(libDA886FA0_gt_BomberPlatformMira,true);
+    }
+}
+
+// Triggers
+//--------------------------------------------------------------------------------------------------
+// Trigger: BomberPlatformMira
+//--------------------------------------------------------------------------------------------------
+bool libDA886FA0_gt_BomberPlatformMira_Func (bool testConds, bool runActions) {
+    // Automatic Variable Declarations
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    lib67C0F0E7_gf_AddCasterGroup(EventPlayerEffectUsedUnitOwner(c_effectPlayerCaster), EventPlayerEffectUsedUnit(c_effectUnitCaster));
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libDA886FA0_gt_BomberPlatformMira_Init () {
+    libDA886FA0_gt_BomberPlatformMira = TriggerCreate("libDA886FA0_gt_BomberPlatformMira_Func");
+    TriggerEnable(libDA886FA0_gt_BomberPlatformMira, false);
+}
+
+void libDA886FA0_InitTriggers () {
+    libDA886FA0_gt_BomberPlatformMira_Init();
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool libDA886FA0_InitLib_completed = false;
+
+void libDA886FA0_InitLib () {
+    if (libDA886FA0_InitLib_completed) {
+        return;
+    }
+
+    libDA886FA0_InitLib_completed = true;
+
+    libDA886FA0_InitLibraries();
+    libDA886FA0_InitTriggers();
+}

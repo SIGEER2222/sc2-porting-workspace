@@ -1,0 +1,610 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CBehaviorBuff id="MutatorScorchedEarthFireBeam">
+    <Alignment value="Negative" />
+    <InfoIcon value="Assets\Textures\firefight_coop.dds" />
+    <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+    <TimeScaleSource Value="Global" />
+    <Duration value="0.625" />
+    <Period value="0.5" />
+    <PeriodicEffect value="MutatorScorchedEarthFireBeamDamage" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorHardenedWill">
+    <Duration value="1.25" />
+    <DamageResponse ClampMaximum="10" Minimum="10">
+      <Chance value="1" />
+    </DamageResponse>
+    <InfoIcon value="Assets\Textures\hardenedwill_coop.dds" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonArtanisResurgenceRegen">
+    <Alignment value="Positive" />
+    <Duration value="5.1" />
+    <Period value="0.5" />
+    <PeriodicEffect value="MutatorAmonArtanisResurgenceRegenMU" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorTempDamageRegenShields">
+    <InfoFlags index="Hidden" value="1" />
+    <Duration value="0.1" />
+    <Modification>
+      <VitalRegenArray index="Shields" value="10" />
+    </Modification>
+    <BehaviorCategories index="User13" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonArtanisResurgenceDisable">
+    <Alignment value="Negative" />
+    <InfoIcon value="Assets\Textures\btn-ability-protoss-resurgence.dds" />
+    <Duration value="60" />
+    <Modification>
+      <BehaviorLinkDisableArray value="MutatorAmonArtanisResurgence" />
+    </Modification>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="OracleRevelation">
+    <RemoveValidatorArray index="0" value="NotOracleStasisTrappedCombine" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorMasterController">
+    <InfoFlags index="Hidden" value="1" />
+    <RemoveValidatorArray value="TargetIsNonHumanPlayer" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonDehakaHealBig">
+    <InfoIcon value="Assets\Textures\btn-ability-zerg-transfusion-color.dds" />
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Duration value="15" />
+    <Modification>
+      <VitalRegenArray index="Life" value="5" />
+    </Modification>
+    <BehaviorCategories index="User13" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorImmunetoPlayer1Visual">
+    <InfoFlags index="Hidden" value="1" />
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <DisableValidatorArray value="NotHidden" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="DrakkenLaserDrillDisablePulseCannon">
+    <InfoFlags index="Hidden" value="1" />
+    <Modification>
+      <AbilLinkDisableArray value="DrakkenLaserDrillNuke" />
+    </Modification>
+    <Duration value="300" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorPurifierBeamAOE">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Period value="0.25" />
+    <PeriodicEffect value="MutatorPurifierBeamDamage" />
+    <InfoFlags index="Hidden" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="ZagaraVoidCoopMassFrenzyTarget">
+    <Alignment value="Positive" />
+    <EditorCategories value="AbilityorEffectType:Units,Race:Protoss" />
+    <Duration value="15" />
+    <Modification MoveSpeedMultiplier="1.25" AttackSpeedMultiplier="1.25" />
+    <InfoIcon value="Assets\Textures\btn-upgrade-zerg-frenzy.dds" />
+    <BehaviorCategories index="Fast" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonArtanisResurgence">
+    <InfoFlags index="Hidden" value="1" />
+    <EditorCategories value="AbilityorEffectType:Units,Race:Protoss" />
+    <DamageResponse Fatal="1" Handled="MutatorAmonArtanisResurgenceSet" ModifyFraction="0">
+      <Chance value="1" />
+    </DamageResponse>
+    <InfoIcon value="Assets\Textures\btn-ability-protoss-resurgence.dds" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorStormCloudBlizzardDisable">
+    <InfoFlags index="Hidden" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorSpawn id="SpawnLarva">
+    <InfoArray index="0" MaxCount="6" StartCount="3" Delay="15" />
+    <InfoArray index="1" MaxCount="18" />
+    <Limit value="18" />
+  </CBehaviorSpawn>
+  <CBehaviorBuff id="DragStunC">
+    <Alignment value="Negative" />
+    <InfoIcon value="Assets\Textures\btn-ability-terran-ultrasonicpulse.dds" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Duration value="5" />
+    <Modification>
+      <StateFlags index="Stun" value="1" />
+      <LifeArmorBonus value="-5" />
+    </Modification>
+    <BehaviorCategories index="Stun" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorGiftHealing">
+    <InfoIcon value="Assets\Textures\btn-ability-zerg-transfusion-color.dds" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Duration value="60" />
+    <Period value="1" />
+    <PeriodicEffect value="MutatorGiftHealingSecondaryHealer" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorLongRangeSight">
+    <Alignment value="Positive" />
+    <BehaviorFlags index="Permanent" value="1" />
+    <InfoIcon value="Assets\Textures\btn-upgrade-swann-vehiclerangeincrease.dds" />
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Modification SightBonus="3" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorConcussiveAttacks">
+    <Alignment value="Negative" />
+    <InfoIcon value="Assets\Textures\btn-ability-terran-slow.dds" />
+    <Duration value="6" />
+    <Modification MoveSpeedMultiplier="0.5">
+      <BehaviorLinkDisableArray value="HeroCCImmunity" />
+    </Modification>
+    <BehaviorCategories index="Slow" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="DrakkenLaserDrillDisableAttackInitial">
+    <InfoFlags index="Hidden" value="1" />
+    <Modification>
+      <AbilLinkDisableArray value="attack" />
+    </Modification>
+    <Duration value="3" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorJustDie">
+    <Duration value="1" />
+    <InitialEffect value="FullHealCaster" />
+    <FinalEffect value="MutatorJustDieRB" />
+    <Modification>
+      <StateFlags index="Invulnerable" value="1" />
+      <StateFlags index="Stun" value="1" />
+    </Modification>
+    <InfoFlags index="Hidden" value="1" />
+    <TimeScaleSource Value="Global" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="VorazunCloakedShieldRegenPermanent">
+    <Name value="Behavior/Name/VorazunCloakedShieldRegen" />
+    <Alignment value="Positive" />
+    <InfoIcon value="Assets\Textures\Talent-Vorazun-Level07-ImprovedShieldRegeneration.dds" />
+    <EditorCategories value="AbilityorEffectType:Units,Race:Protoss" />
+    <DisableValidatorArray value="IsCloaked" />
+    <DisableValidatorArray value="HaveVorazunCloakShieldRegen" />
+    <DisableValidatorArray value="ShieldsNotFull" />
+    <DisableValidatorArray value="NotHaveVorazunCloakedShieldRegenActive" />
+    <TimeScaleSource Value="Global" />
+    <Modification>
+      <VitalRegenMultiplier index="Shields" value="4" />
+    </Modification>
+    <BehaviorCategories index="User13" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonPrologueVoidArmor">
+    <Alignment value="Positive" />
+    <InfoIcon value="Assets\Textures\btn-ability-protoss-gravitonbeam.dds" />
+    <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+    <RemoveValidatorArray value="ShieldGZero" />
+    <Duration value="10" />
+    <Modification>
+      <VitalMaxArray index="Shields" value="100" />
+    </Modification>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonKaraxPowerSourceSummoner">
+    <Alignment value="Positive" />
+    <InfoFlags index="Hidden" value="1" />
+    <EditorCategories value="AbilityorEffectType:Units,Race:Protoss" />
+    <TimeScaleSource Value="Global" />
+    <Duration value="0.0625" />
+    <Period value="0.0625" />
+    <InitialEffect value="MutatorAmonInvisPowerSourceCU" />
+    <FinalEffect value="MutatorAmonInvisPowerSourceCU" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonPhaseCannonInitialStun">
+    <InfoFlags index="Hidden" value="1" />
+    <BehaviorCategories index="Invulnerable" value="1" />
+    <BehaviorCategories index="Stun" value="1" />
+    <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+    <Duration value="1.5" />
+    <ExpireEffect value="MutatorAmonPhaseCannonTimedLife" />
+    <Modification>
+      <ModifyFlags index="DisableWeapons" value="1" />
+      <StateFlags index="Invulnerable" value="1" />
+      <StateFlags index="Stun" value="1" />
+    </Modification>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="VoidShade">
+    <InfoFlags index="Hidden" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorFear">
+    <Alignment value="Negative" />
+    <InfoIcon value="Assets\Textures\fearex3_coop.dds" />
+    <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+    <Duration value="10" />
+    <DurationOverride>
+      <Duration value="5" />
+      <ValidatorArray value="IsHeroic" />
+    </DurationOverride>
+    <Modification>
+      <ModifyFlags index="DisableWeapons" value="1" />
+      <StateFlags index="HideWaypoints" value="1" />
+      <StateFlags index="Uncommandable" value="1" />
+    </Modification>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="NoScrapDrop">
+    <InfoFlags index="Hidden" value="1" />
+    <BehaviorFlags index="Permanent" value="1" />
+    <BehaviorFlags index="EnabledWhileDead" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonDehakaRegenAura">
+    <InfoFlags index="Hidden" value="1" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Period value="2" />
+    <PeriodicEffect value="MutatorAmonDehakaRegenAuraSearch" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="DrakkenLaserDrillDisableAttack">
+    <InfoFlags index="Hidden" value="1" />
+    <Modification>
+      <AbilLinkDisableArray value="attack" />
+    </Modification>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorHouseHunters">
+    <InfoFlags index="Hidden" value="1" />
+    <BuffFlags index="DisableWhileUnderConstruction" value="1" />
+    <DamageResponse Fatal="1" Handled="MutatorHouseHuntersDummy" ModifyFraction="0">
+      <Chance value="1" />
+    </DamageResponse>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorMissilePointDefenseScan">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <PeriodicEffect value="MutatorMissilePointDefenseInitialSet" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="DrakkenLaserDrillPreventDestroy">
+    <Alignment value="Positive" />
+    <InfoFlags index="Hidden" value="1" />
+    <DamageResponse Fatal="1" Handled="BrokenDrakkenLaserDrillIssueOrder" ModifyFraction="0">
+      <Chance value="1" />
+    </DamageResponse>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="HyperionVoidCoopSecondaryWeapons">
+    <InfoFlags index="Hidden" value="1" />
+    <EditorCategories value="Race:Terran,AbilityorEffectType:Units" />
+    <Period value="0.1" />
+    <PeriodicEffect value="HyperionVoidCoopSecondaryWeaponSearch" />
+    <DisableValidatorArray value="CasterNotStunnedorStasised" />
+  </CBehaviorBuff>
+  <CBehaviorResource id="MutatorVespeneRawLowYield">
+    <Cost>
+      <Charge Link="Behavior/RawVespeneGeyserGas" />
+      <Cooldown Link="Behavior/RawVespeneGeyserGas" />
+    </Cost>
+    <InfoFlags index="Hidden" value="1" />
+    <InfoIcon value="Assets\Textures\icon-gas.dds" />
+    <Capacity value="32000" />
+    <Contents value="2500" />
+    <HarvestAmount value="1" />
+    <DepletionVariationCount value="4" />
+    <CarryResourceBehavior value="CarryRawVespeneGeyserGas" />
+  </CBehaviorResource>
+  <CBehaviorBuff id="MutatorTornadoAOE">
+    <InfoIcon value="Assets\Textures\tornadoes_coop.dds" />
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Period value="0.25" />
+    <PeriodicEffect value="MutatorTornadoAOESearch" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorSideStep">
+    <InfoFlags index="Hidden" value="1" />
+    <Duration value="2" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorShrunk">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <InfoFlags index="Hidden" value="1" />
+    <DisplayDuration index="Self" value="1" />
+    <DisplayDuration index="Ally" value="1" />
+    <Duration value="60" />
+    <Modification>
+      <DamageDealtFraction index="Spell" value="-0.5" />
+      <DamageDealtFraction index="Melee" value="-0.5" />
+      <DamageDealtFraction index="Ranged" value="-0.5" />
+      <DamageDealtFraction index="Splash" value="-0.5" />
+      <DamageDealtFraction index="NoProc" value="-0.5" />
+      <VitalMaxFractionArray index="Life" value="-0.5" />
+      <VitalMaxFractionArray index="Shields" value="-0.5" />
+    </Modification>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="DragStunB">
+    <Alignment value="Negative" />
+    <InfoIcon value="Assets\Textures\btn-ability-terran-ultrasonicpulse.dds" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Duration value="5" />
+    <Modification>
+      <StateFlags index="Stun" value="1" />
+      <LifeArmorBonus value="-5" />
+    </Modification>
+    <BehaviorCategories index="Stun" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorPlagueCloudTimedLife" parent="TimedLife">
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Duration value="15" />
+    <PeriodicEffect value="MutatorPlagueCloudSearch" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorPropagateDestroy">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Duration value="1.5" />
+    <FinalEffect value="MutatorPropagateDamageSwitch" />
+    <Modification>
+      <ModifyFlags index="DisableAbils" value="1" />
+      <ModifyFlags index="DisableWeapons" value="1" />
+      <StateFlags index="Invulnerable" value="1" />
+      <StateFlags index="Stun" value="1" />
+      <StateFlags index="Uncommandable" value="1" />
+      <StateFlags index="Unselectable" value="1" />
+      <StateFlags index="Untargetable" value="1" />
+    </Modification>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorLongRangeWeaponAndSight">
+    <Alignment value="Positive" />
+    <BehaviorFlags index="Permanent" value="1" />
+    <InfoIcon value="Assets\Textures\btn-upgrade-swann-vehiclerangeincrease.dds" />
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Modification SightBonus="3" RangedWeaponRange="3" />
+    <Duration value="999" />
+    <FinalEffect value="MutatorLongRangeSightAB" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonArtanisResurgenceInvulnerable">
+    <Alignment value="Positive" />
+    <InfoIcon value="Assets\Textures\btn-ability-protoss-resurgence.dds" />
+    <DisplayDuration index="Self" value="1" />
+    <Duration value="3" />
+    <Period value="3" />
+    <PeriodicEffect value="MutatorAmonArtanisResurgenceExplodeSet" />
+    <DamageResponse ModifyFraction="0" ModifyMinimumDamage="1">
+      <Chance value="1" />
+    </DamageResponse>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorInfestedTurkeyTerrifyingGobble">
+    <Alignment value="Negative" />
+    <InfoIcon value="Assets\Textures\fearex3_coop.dds" />
+    <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+    <Duration value="10" />
+    <Modification>
+      <ModifyFlags index="DisableWeapons" value="1" />
+      <StateFlags index="HideWaypoints" value="1" />
+      <StateFlags index="Uncommandable" value="1" />
+    </Modification>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorMomentOfSilence">
+    <Alignment value="Negative" />
+    <Duration value="12" />
+    <Modification>
+      <ModifyFlags index="DisableAbils" value="1" />
+      <ModifyFlags index="DisableWeapons" value="1" />
+      <ModifyFlags index="EnableMove" value="1" />
+      <AbilClassEnableArray index="CAbilMorph" value="1" />
+      <AbilClassEnableArray index="CAbilMorphPlacement" value="1" />
+      <AbilClassDisableArray index="CAbilAttack" value="1" />
+      <AbilLinkEnableArray value="TorrasqueChrysalis" />
+      <AbilLinkEnableArray value="TorrasqueCorpse" />
+      <AbilLinkEnableArray value="ZealotPurifierReviveDeath" />
+      <AbilLinkEnableArray value="ZealotPurifierReviveRebuild" />
+      <BehaviorLinkDisableArray value="HyperionVoidCoopSecondaryWeapons" />
+    </Modification>
+    <InfoIcon value="Assets\Textures\momentofsilence_coop.dds" />
+    <BuffFlags index="DisableWhileUnderConstruction" value="1" />
+    <BuffFlags index="UpdateDurationWhileDisabled" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonDehakaMirrorImageTimedLife" parent="TimedLife">
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Duration value="30" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="NoBiomassDrop">
+    <BehaviorFlags index="Permanent" value="1" />
+    <BehaviorFlags index="EnabledWhileDead" value="1" />
+    <InfoFlags index="Hidden" value="1" />
+    <EditorCategories value="AbilityorEffectType:Units" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonDehakaDragTentacle">
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <InfoFlags index="Hidden" value="1" />
+    <Duration value="2" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonArtanisResurgenceReviveSupressed">
+    <Alignment value="Negative" />
+    <Cost>
+      <Cooldown TimeStart="60" />
+    </Cost>
+    <InfoIcon value="Assets\Textures\btn-ability-protoss-resurgence.dds" />
+    <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+    <Duration value="60" />
+    <InfoFlags index="Hidden" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorHybridImmortalDontDie">
+    <Alignment value="Positive" />
+    <InfoFlags index="Hidden" value="1" />
+    <DamageResponse Fatal="1" Handled="MutatorHybridImmortalDeathMorphIO" ModifyFraction="0">
+      <Chance value="1" />
+    </DamageResponse>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonZagaraMassFrenzyTarget">
+    <Alignment value="Positive" />
+    <InfoIcon value="Assets\Textures\btn-upgrade-zerg-frenzy.dds" />
+    <EditorCategories value="AbilityorEffectType:Units,Race:Protoss" />
+    <Duration value="15" />
+    <Modification MoveSpeedMultiplier="1.25" AttackSpeedMultiplier="1.15" />
+    <BehaviorCategories index="Fast" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="DrakkenLaserDrillBirth">
+    <InfoFlags index="Hidden" value="1" />
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Duration value="1" />
+    <Modification>
+      <StateFlags index="NoDraw" value="1" />
+    </Modification>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorShuttleOvercharge">
+    <Alignment value="Positive" />
+    <InfoIcon value="Assets\Textures\coop_mutators_photonoverlord.dds" />
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Period value="0.25" />
+    <PeriodicEffect value="MutatorPhotonOverchargeSearch" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorInspirationSearch">
+    <Period value="1" />
+    <PeriodicEffect value="MutatorInspirationSearch" />
+    <InfoFlags index="Hidden" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorPlagueBehavior">
+    <InfoIcon value="Assets\Textures\btn-ability-zerg-defilerplague.dds" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Period value="0.5" />
+    <PeriodicEffect value="MutatorPlagueBehaviorDPS" />
+    <Modification>
+      <DeathResponse Chance="1" Effect="MutatorPlagueDeath" />
+    </Modification>
+    <BehaviorFlags index="Permanent" value="1" />
+    <BehaviorFlags index="EnabledWhileDead" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonKerriganPsiStrikeWalkSpeed">
+    <InfoFlags index="Hidden" value="1" />
+    <Duration value="1" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Modification MoveSpeedMultiplier="4">
+      <StateFlags index="SuppressCollision" value="1" />
+      <StateFlags index="Uncommandable" value="1" />
+    </Modification>
+    <Period value="0.0625" />
+    <PeriodicEffect value="MutatorAmonKerriganPsiStrikeWalkSpeedSet" />
+    <FinalEffect value="PsiStrikeStopSearch" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorBarrier">
+    <Alignment value="Positive" />
+    <InfoIcon value="Assets\Textures\barrier_coop.dds" />
+    <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+    <Duration value="5" />
+    <DamageResponse ModifyFraction="0" ModifyLimit="100" ModifyMinimumDamage="1">
+      <Chance value="1" />
+    </DamageResponse>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorBarrier50">
+    <Alignment value="Positive" />
+    <InfoIcon value="Assets\Textures\barrier_coop.dds" />
+    <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+    <Duration value="5" />
+    <DamageResponse ModifyFraction="0" ModifyLimit="50" ModifyMinimumDamage="1">
+      <Chance value="1" />
+    </DamageResponse>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="VorazunCloakedShieldRegen">
+    <Alignment value="Positive" />
+    <InfoIcon value="Assets\Textures\Talent-Vorazun-Level07-ImprovedShieldRegeneration.dds" />
+    <EditorCategories value="AbilityorEffectType:Units,Race:Protoss" />
+    <RemoveValidatorArray value="IsCloaked" />
+    <RemoveValidatorArray value="HaveVorazunCloakShieldRegen" />
+    <RemoveValidatorArray value="ShieldsNotFull" />
+    <RemoveValidatorArray value="NotHaveVorazunCloakedShieldRegenPermanent" />
+    <TimeScaleSource Value="Global" />
+    <Modification>
+      <VitalRegenMultiplier index="Shields" value="4" />
+    </Modification>
+    <BehaviorCategories index="User13" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonArtanisResurgenceStun">
+    <InfoFlags index="Hidden" value="1" />
+    <Duration value="3" />
+    <Modification>
+      <StateFlags index="Stun" value="1" />
+    </Modification>
+    <InfoIcon value="Assets\Textures\btn-ability-protoss-resurgence.dds" />
+    <BehaviorCategories index="Stun" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorStormCloudDamage">
+    <Alignment value="Negative" />
+    <InfoIcon value="Assets\Textures\blizzard_coop.dds" />
+    <Duration value="1.1" />
+    <Period value="0.2" />
+    <PeriodicEffect value="MutatorStormCloudDamage" />
+    <Modification>
+      <BehaviorLinkDisableArray value="HeroCCImmunity" />
+    </Modification>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="QueenSpawnLarvaHiddenStack">
+    <Alignment value="Positive" />
+    <InfoFlags index="Hidden" value="1" />
+    <MaxStackCount value="65535" />
+    <FinalEffect value="SpawnLarvaDelay" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonProdigalEngineer">
+    <Tooltip value="Behavior/Tooltip/MutatorAmonProdigalEngineerProductionTarget" />
+    <Alignment value="Positive" />
+    <InfoFlags index="Hidden" value="1" />
+    <InfoIcon value="Assets\Textures\btn-ability-protoss-prodigalengineer.dds" />
+    <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+    <TimeScaleSource Value="Global" />
+    <Period value="1" />
+    <PeriodicEffect value="MutatorAmonMasterPhasesmithSearch" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorTempDamageRegenLife">
+    <InfoFlags index="Hidden" value="1" />
+    <Duration value="0.1" />
+    <Modification>
+      <VitalRegenArray index="Life" value="10" />
+    </Modification>
+    <BehaviorCategories index="User13" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="DragStun">
+    <Duration value="3" />
+  </CBehaviorBuff>
+  <CBehaviorResource id="MutatorMineralsLowYield">
+    <Cost>
+      <Charge Link="Behavior/MineralFieldMinerals" />
+      <Cooldown Link="Behavior/MineralFieldMinerals" />
+    </Cost>
+    <InfoFlags index="Hidden" value="1" />
+    <InfoIcon value="Assets\Textures\icon-mineral.dds" />
+    <Capacity value="1500" />
+    <Contents value="1500" />
+    <HarvestTime value="2.786" />
+    <HarvestAmount value="1" />
+    <Flags index="RemoveWhenEmpty" value="1" />
+    <ReturnDelay value="0.5" />
+    <ExhaustedAlert value="ResourceExhausted_Mineral" />
+    <DepletionThreshold value="750" />
+    <DepletionVariationCount value="4" />
+    <CarryResourceBehavior value="CarryMineralFieldMinerals" />
+    <IdealHarvesterCount value="3" />
+  </CBehaviorResource>
+  <CBehaviorBuff id="MutatorAmonProdigalEngineerProductionTarget">
+    <Alignment value="Positive" />
+    <InfoIcon value="Assets\Textures\btn-ability-protoss-prodigalengineer.dds" />
+    <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+    <DisableValidatorArray value="HasPower" />
+    <TimeScaleSource Value="Global" />
+    <Duration value="2" />
+    <Modification TimeScale="10" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorPermanentlyCloaked">
+    <InfoIcon value="Assets\Textures\btn-ability-terran-cloak.dds" />
+    <Modification>
+      <StateFlags index="Cloak" value="1" />
+    </Modification>
+    <RemoveValidatorArray value="TargetIsNonHumanPlayer" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonDehakaLeapStun">
+    <Alignment value="Negative" />
+    <InfoIcon value="Assets\Textures\btn-ability-terran-ultrasonicpulse.dds" />
+    <EditorCategories value="Race:Terran,AbilityorEffectType:Units" />
+    <Duration value="6" />
+    <Modification>
+      <ModifyFlags index="DisableAbils" value="1" />
+      <ModifyFlags index="Reveal" value="1" />
+      <ModifyFlags index="Detected" value="1" />
+      <StateFlags index="Stun" value="1" />
+    </Modification>
+    <BehaviorCategories index="Stun" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAmonZagaraSpawnHunterKillersTimedLife">
+    <InfoFlags index="Hidden" value="1" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <DisplayDuration index="Self" value="1" />
+    <DisplayDuration index="Ally" value="1" />
+    <DurationRandomMax value="0.5" />
+    <Duration value="20" />
+    <ExpireEffect value="TimedLifeFate" />
+    <Modification>
+      <StateFlags index="Summoned" value="1" />
+      <StateFlags index="SuppressFoodUsed" value="1" />
+    </Modification>
+    <KillCredit Value="Caster" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorInspiration">
+    <Duration value="1.25" />
+    <Modification AttackSpeedMultiplier="1.25">
+      <LifeArmorBonus value="3" />
+    </Modification>
+    <InfoIcon value="Assets\Textures\inspiration_coop.dds" />
+    <BehaviorCategories index="Fast" value="1" />
+  </CBehaviorBuff>
+</Catalog>

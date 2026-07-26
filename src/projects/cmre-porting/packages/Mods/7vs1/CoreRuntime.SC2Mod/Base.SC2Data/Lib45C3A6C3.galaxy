@@ -1,0 +1,166 @@
+include "TriggerLibs/NativeLib"
+
+include "Lib45C3A6C3_h"
+
+//--------------------------------------------------------------------------------------------------
+// Library: jimu
+//--------------------------------------------------------------------------------------------------
+// External Library Initialization
+void lib45C3A6C3_InitLibraries () {
+    libNtve_InitVariables();
+}
+
+// Triggers
+//--------------------------------------------------------------------------------------------------
+// Trigger: bug
+//--------------------------------------------------------------------------------------------------
+bool lib45C3A6C3_gt_bug_Func (bool testConds, bool runActions) {
+    // Variable Declarations
+    int lv_e78EA9E5AEB6;
+    unit lv_e58D95E4BD8D;
+
+    // Automatic Variable Declarations
+    playergroup auto68C294FA_g;
+
+    // Variable Initialization
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    auto68C294FA_g = PlayerGroupAll();
+    lv_e78EA9E5AEB6 = -1;
+    while (true) {
+        lv_e78EA9E5AEB6 = PlayerGroupNextPlayer(auto68C294FA_g, lv_e78EA9E5AEB6);
+        if (lv_e78EA9E5AEB6 < 0) { break; }
+        if ((PlayerType(lv_e78EA9E5AEB6) == c_playerTypeUser)) {
+            TechTreeUnitAllow(lv_e78EA9E5AEB6, "Barracks", true);
+        }
+
+    }
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void lib45C3A6C3_gt_bug_Init () {
+    lib45C3A6C3_gt_bug = TriggerCreate("lib45C3A6C3_gt_bug_Func");
+    TriggerAddEventTimeElapsed(lib45C3A6C3_gt_bug, 3.0, c_timeGame);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: ????????????
+//--------------------------------------------------------------------------------------------------
+bool lib45C3A6C3_gt_E5BC80E5B180E8B584E6BA90_Func (bool testConds, bool runActions) {
+    // Variable Declarations
+    int lv_e78EA9E5AEB6;
+
+    // Automatic Variable Declarations
+    playergroup autoE150305B_g;
+
+    // Variable Initialization
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    autoE150305B_g = PlayerGroupAll();
+    lv_e78EA9E5AEB6 = -1;
+    while (true) {
+        lv_e78EA9E5AEB6 = PlayerGroupNextPlayer(autoE150305B_g, lv_e78EA9E5AEB6);
+        if (lv_e78EA9E5AEB6 < 0) { break; }
+        if ((PlayerType(lv_e78EA9E5AEB6) == c_playerTypeUser)) {
+            PlayerModifyPropertyInt(1, c_playerPropMinerals, c_playerPropOperAdd, (500 - PlayerGetPropertyInt(1, c_playerPropMinerals)));
+            PlayerModifyPropertyInt(1, c_playerPropVespene, c_playerPropOperAdd, (250 - PlayerGetPropertyInt(1, c_playerPropVespene)));
+        }
+
+    }
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void lib45C3A6C3_gt_E5BC80E5B180E8B584E6BA90_Init () {
+    lib45C3A6C3_gt_E5BC80E5B180E8B584E6BA90 = TriggerCreate("lib45C3A6C3_gt_E5BC80E5B180E8B584E6BA90_Func");
+    TriggerAddEventTimeElapsed(lib45C3A6C3_gt_E5BC80E5B180E8B584E6BA90, 0.1, c_timeGame);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: ????????????
+//--------------------------------------------------------------------------------------------------
+bool lib45C3A6C3_gt_E4B88DE58DA0E4BABAE58FA3_Func (bool testConds, bool runActions) {
+    // Variable Declarations
+    int lv_e78EA9E5AEB6;
+    unit lv_e58D95E4BD8D;
+    bool lv_zeroSupplyEnabled;
+    int lv_supplyLimit;
+
+    // Automatic Variable Declarations
+    playergroup autoDB482E3C_g;
+    unitgroup autoBD71835F_g;
+    int autoBD71835F_u;
+
+    // Variable Initialization
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    BankLoad("CampaignXCore", 1);
+    lv_zeroSupplyEnabled = (BankValueGetAsInt(BankLastCreated(), "GenericBonuses", "Selected.ZeroSupply") > 0);
+    if (!lv_zeroSupplyEnabled) {
+        return true;
+    }
+    lv_supplyLimit = 200;
+    if ((BankValueGetAsInt(BankLastCreated(), "GenericBonuses", "Selected.MaxSupply50") > 0)) {
+        lv_supplyLimit = 250;
+    }
+
+    autoDB482E3C_g = PlayerGroupAll();
+    lv_e78EA9E5AEB6 = -1;
+    while (true) {
+        lv_e78EA9E5AEB6 = PlayerGroupNextPlayer(autoDB482E3C_g, lv_e78EA9E5AEB6);
+        if (lv_e78EA9E5AEB6 < 0) { break; }
+        if ((PlayerType(lv_e78EA9E5AEB6) == c_playerTypeUser) && (PlayerGetPropertyInt(lv_e78EA9E5AEB6, c_playerPropSuppliesUsed) >= 1)) {
+            PlayerModifyPropertyInt(lv_e78EA9E5AEB6, c_playerPropSuppliesLimit, c_playerPropOperSetTo, lv_supplyLimit);
+            autoBD71835F_g = UnitGroup(null, lv_e78EA9E5AEB6, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+            autoBD71835F_u = UnitGroupCount(autoBD71835F_g, c_unitCountAll);
+            for (;; autoBD71835F_u -= 1) {
+                lv_e58D95E4BD8D = UnitGroupUnitFromEnd(autoBD71835F_g, autoBD71835F_u);
+                if (lv_e58D95E4BD8D == null) { break; }
+                UnitSetState(lv_e58D95E4BD8D, c_unitStateUsingSupply, false);
+            }
+        }
+
+    }
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void lib45C3A6C3_gt_E4B88DE58DA0E4BABAE58FA3_Init () {
+    lib45C3A6C3_gt_E4B88DE58DA0E4BABAE58FA3 = TriggerCreate("lib45C3A6C3_gt_E4B88DE58DA0E4BABAE58FA3_Func");
+    TriggerAddEventTimePeriodic(lib45C3A6C3_gt_E4B88DE58DA0E4BABAE58FA3, 30.0, c_timeGame);
+}
+
+void lib45C3A6C3_InitTriggers () {
+    lib45C3A6C3_gt_bug_Init();
+    lib45C3A6C3_gt_E5BC80E5B180E8B584E6BA90_Init();
+    lib45C3A6C3_gt_E4B88DE58DA0E4BABAE58FA3_Init();
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool lib45C3A6C3_InitLib_completed = false;
+
+void lib45C3A6C3_InitLib () {
+    if (lib45C3A6C3_InitLib_completed) {
+        return;
+    }
+
+    lib45C3A6C3_InitLib_completed = true;
+
+    lib45C3A6C3_InitLibraries();
+    lib45C3A6C3_InitTriggers();
+}

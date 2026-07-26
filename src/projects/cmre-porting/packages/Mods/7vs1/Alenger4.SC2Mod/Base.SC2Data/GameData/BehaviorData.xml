@@ -1,0 +1,801 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CBehaviorBuff id="41">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="4shifazheshengmingzhidiyu300"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="42">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="4shifazheshengmingzhidiyu200"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="43">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="4shifazheshengmingzhidiyu100"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4AllIn">
+        <InfoIcon value="Assets\Textures\4_shuniuchaozai_red.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="1"/>
+        <PeriodicEffect value="4AllInModify"/>
+        <Modification Food="200">
+            <AbilLinkDisableArray value="4AllIn"/>
+            <AbilLinkDisableArray value="4zheyuetanzhengtanji"/>
+            <WeaponArray Link="4siwangshexian"/>
+        </Modification>
+        <InitialEffect value="4AllInPowerApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4AllInProbe">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <AbilLinkDisableArray value="4jianzhuzheyue"/>
+            <WeaponArray Link="4xukongzhiren1"/>
+        </Modification>
+        <InfoIcon value="Assets\Textures\4_shuniuchaozai_red.dds"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4chongfengMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4liangzidantoufashechnengxu">
+        <InfoIcon value="Assets\Textures\4_liangzidantou_red.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="3"/>
+        <ExpireEffect value="4liangzidantouPersistent"/>
+        <InitialEffect value="4fennuApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4sanjidanwanjiasulichang">
+        <InfoIcon value="Assets\Textures\4_danwanjiasulichang_red.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification SightBonus="3" MoveSpeedBonus="-0.6015" WeaponRange="6">
+            <DamageDealtScaled index="Ranged" value="30"/>
+            <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+            <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+            <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            <VitalMaxArray index="Shields" value="-1200"/>
+            <AbilLinkDisableArray value="4zheyue4"/>
+            <BehaviorLinkDisableArray value="4yijidanwanjiasulichang"/>
+            <BehaviorLinkDisableArray value="4erjidanwanjiasulichang"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4shuniuchaozai">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4sijidanwanjiasulichang">
+        <InfoIcon value="Assets\Textures\4_danwanjiasulichang_red.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification SightBonus="5" MoveSpeedBonus="-1" WeaponRange="10">
+            <DamageDealtScaled index="Ranged" value="50"/>
+            <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+            <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+            <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            <VitalMaxArray index="Shields" value="-1600"/>
+            <AbilLinkDisableArray value="4zheyue4"/>
+            <BehaviorLinkDisableArray value="4yijidanwanjiasulichang"/>
+            <BehaviorLinkDisableArray value="4erjidanwanjiasulichang"/>
+            <BehaviorLinkDisableArray value="4sanjidanwanjiasulichang"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4siwangjiandui">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="180"/>
+        <Period value="6"/>
+        <PeriodicEffect value="4siwangjianduiOrder"/>
+        <ExpireEffect value="Suicide"/>
+        <Modification>
+            <StateFlags index="SuppressFoodMade" value="1"/>
+            <StateFlags index="SuppressFoodUsed" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4siwangchongfeng">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\4_chongfeng_red.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="ChargeMinDistance"/>
+        <BuffFlags index="Channeling" value="1"/>
+        <Duration value="3"/>
+        <FinalEffect value="4siwangchongfengDamagePersistent2"/>
+        <Modification MoveSpeedMultiplier="6">
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="SuppressCollision" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4yijidanwanjiasulichang">
+        <InfoIcon value="Assets\Textures\4_danwanjiasulichang_red.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification SightBonus="0.5" MoveSpeedBonus="-0.1015" WeaponRange="1">
+            <DamageDealtScaled index="Ranged" value="5"/>
+            <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+            <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+            <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            <VitalMaxArray index="Shields" value="-400"/>
+            <AbilLinkDisableArray value="4zheyue4"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4duikongzhongxingxukongpao">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="0.01"/>
+        <PeriodicEffect value="4duikongzhongxingxukongpaoSearch"/>
+        <KillCredit Value="Caster"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4fennu">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-deadlycharge1.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="9"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4fantaoyilichang">
+        <Face value="4fantaoyilichang"/>
+        <InfoIcon value="Assets\Textures\4_fantaoyilichang_red.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.25"/>
+        <PeriodicEffect value="4fantaoyilichangsearch"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4fantaoyilichangxiaoguo">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="0.5"/>
+        <ExpireEffect value="4fantaoyilichangjiansuapply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4gongfeng">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-alarak-empowermeslaves.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="4shifazheyounengliang"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="4gongfengsearch"/>
+        <Modification>
+            <VitalMaxArray index="Energy" value="299"/>
+            <VitalRegenArray index="Energy" value="-20"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4gongfengxiaoguo">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="50000"/>
+        <MaxStackCountPerCaster value="50000"/>
+        <Duration value="0.5"/>
+        <Period value="0.5"/>
+        <Modification>
+            <DamageDealtScaled index="Ranged" value="0.2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4gongfengyansuanti">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.75"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4heidong">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <ExpireEffect value="4hexintansuoSet"/>
+        <Modification>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <AbilLinkDisableArray value="4hexintansuo"/>
+            <AbilLinkDisableArray value="4gongfeng"/>
+            <AbilLinkDisableArray value="4shanxian5"/>
+            <BehaviorLinkDisableArray value="4fantaoyilichang"/>
+        </Modification>
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-blackhole-redcolor.dds"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Period value="2"/>
+        <PeriodicEffect value="4fennuApply"/>
+        <InitialEffect value="4hexintansuoPlayer"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4jingjipingzhang">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-stasisfield-taldarim-upgrade.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <DamageResponse>
+            <Exhausted value="4jingjipingzhangPlayer"/>
+            <Handled value="4jingjizhuangjiaSet"/>
+            <ModifyFraction value="0"/>
+            <ModifyLimit value="150"/>
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4jinyongjiasulichang">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Modification>
+            <AbilLinkDisableArray value="4yijidanwanjiasulichang"/>
+            <AbilLinkDisableArray value="4erjidanwanjiasulichang"/>
+            <AbilLinkDisableArray value="4sanjidanwanjiasulichang"/>
+            <AbilLinkDisableArray value="4sijidanwanjiasulichang"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4kongzhixinhe1">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1"/>
+        <FinalEffect value="4kongzhixinhe1Search"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4kuangbao">
+        <Tooltip value="Behavior/Tooltip/4狂暴"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-alarak-ascendantspermanentlybetter.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Period value="1.5"/>
+        <PeriodicEffect value="4kuangbaoSet"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="2">
+            <StateFlags index="Uncommandable" value="1"/>
+            <RateMultiplierArray index="Charge" value="1.5"/>
+            <RateMultiplierArray index="Cooldown" value="1.5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4lakexierguangshu1250">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="4shifazhezuidahudundayu1250"/>
+        <Modification RangedWeaponRange="1" ShieldArmorBonus="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4lakexierguangshu1500">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="4shifazhezuidahudundayu1500"/>
+        <Modification RangedWeaponRange="1" ShieldArmorBonus="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4lakexierguangshu1750">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="4shifazhezuidahudundayu1750"/>
+        <Modification RangedWeaponRange="1" ShieldArmorBonus="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4lakexierguangshu2000">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="4shifazhezuidahudundayu2000"/>
+        <Modification>
+            <RangedWeaponRange value="1"/>
+            <ShieldArmorBonus value="2"/>
+            <Detect value="10"/>
+            <Radar value="25"/>
+            <StateFlags index="UnitAttrOnHeroic" value="1"/>
+            <VitalMaxArray index="Life" value="450"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4lakexierguangshu500">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="4shifazhezuidahudundayu500"/>
+        <Modification RangedWeaponRange="1" ShieldArmorBonus="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4lakexierguangshu750">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="4shifazhezuidahudundayu750"/>
+        <Modification RangedWeaponRange="1" ShieldArmorBonus="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4lakexierguangshu1000">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="4shifazhezuidahudundayu1000"/>
+        <Modification RangedWeaponRange="1" ShieldArmorBonus="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4lakexierguangshuShield">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="50000"/>
+        <MaxStackCountPerCaster value="50000"/>
+        <Modification>
+            <VitalMaxArray index="Shields" value="2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4lakexierguangshu250">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="4shifazhezuidahudundayu250"/>
+        <Modification RangedWeaponRange="1" ShieldArmorBonus="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4linghunzhihuohuoyuan">
+        <Face value="4linghunhuoyan"/>
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-destructionwave1.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Period value="0.25"/>
+        <PeriodicEffect value="4linghunzhihuoSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4linghunzhihuo">
+        <Face value="4linghunhuoyan"/>
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-destructionwave1.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="4linghunzhihuoDamage"/>
+    </CBehaviorBuff>
+    <CBehaviorPowerSource id="4AllInPower">
+        <InfoIcon value="Assets\Textures\btn-unit-protoss-alarak-taldarim-pylon.dds"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Radius value="0.5"/>
+        <PowerLink value="PowerSource"/>
+    </CBehaviorPowerSource>
+    <CBehaviorBuff id="4nengliangzhendangqi">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-alarak-ascendant&apos;spsiorbtravelsfurther.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="9"/>
+        <MaxStackCountPerCaster value="9"/>
+        <Duration value="6"/>
+        <Modification>
+            <RateMultiplierArray index="Charge" value="1.1"/>
+            <RateMultiplierArray index="Cooldown" value="1.1"/>
+        </Modification>
+        <Requirements value="4nengliangzhendangqi"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4chuansongwudi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.25"/>
+        <DamageResponse ModifyFraction="0">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4jingjizhuangjia">
+        <Face value="4jingjizhuangjia"/>
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-stasisfield-taldarim-upgrade.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse Handled="4jingjizhuangjiaSet">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4jingjizhuangjiaMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4quxiaorenkou">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <StateFlags index="SuppressFoodUsed" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4shencengwasicaiji">
+        <InfoIcon value="Assets\Textures\btn-ability-spearofadun-orbitalassimilator.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="7"/>
+        <PeriodicEffect value="4shencengwasicaijiPlayer"/>
+        <DisableValidatorArray value="NotUnderConstruction"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4shikongsuilielingyu">
+        <Face value="4kongjiansilielingyu"/>
+        <InfoIcon value="Assets\Textures\shikongsuilielingyu_red.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="4kongjiansilielingyu"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.2"/>
+        <PeriodicEffect value="4kongjiansilielingyuSearch"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4kongjiansilie">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoFlags index="AlwaysUseGameText" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.75"/>
+        <Period value="0.25"/>
+        <PeriodicEffect value="4kongjiansilielingyuModify"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4shikongtisu">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <InfoIcon value="Assets\Textures\4_shikongjiasu_red.dds"/>
+        <Duration value="1.1"/>
+        <Modification TimeScale="1.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4shikongtisuyindao">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4siwanghongzhaMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="18"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4siwangshouge">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="2"/>
+        <InitialEffect value="4siwangshougeDamagesearch"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Undetectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4kongzhixinhe">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.1"/>
+        <FinalEffect value="4kongzhixinhePlayer"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4taoyizuduan">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-alarak-stunnonheroicenemies.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <InitialEffect value="4fantaoyilichangdamage"/>
+        <RefreshEffect value="4fantaoyilichangdamage"/>
+        <Modification MoveSpeedMultiplier="0.3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4jipin">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-alarak-rangeweapon.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="4xianxuejisi"/>
+        <Duration value="6"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="4xianxuejisiApply"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4xianxuejisi">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-alarak-rangeweapon.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="12"/>
+        <MaxStackCountPerCaster value="12"/>
+        <Modification>
+            <DamageDealtScaled index="Ranged" value="10"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4xianxuexintudenglu">
+        <InfoIcon value="Assets\Textures\btn-ability-alarak-massteleport.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="TargetIsEnemy"/>
+        <Duration value="1"/>
+        <Period value="0.25"/>
+        <RefreshEffect value="4xianxuexintudengluSet"/>
+        <PeriodicEffect value="4xianxuexintudengluDamage"/>
+        <ExpireEffect value="4xianxuexintudengluApply"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Benign" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="Daze" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="SuppressDetection" value="1"/>
+            <StateFlags index="SuppressRadar" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <DeathResponse Chance="1" Effect="4xianxuexintudengluCreate"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4xisheng">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-alarak-supplicantsacrifice.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <VitalMaxArray index="Life" value="2"/>
+            <VitalMaxArray index="Shields" value="2"/>
+        </Modification>
+        <MaxStackCount value="50000"/>
+        <MaxStackCountPerCaster value="50000"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4xixuegui">
+        <Face value="4xixuegui"/>
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-sacrifice.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <VitalDamageLeechArray index="Life">
+                <KindArray index="Spell" value="1"/>
+                <KindArray index="Melee" value="1"/>
+                <KindArray index="Ranged" value="1"/>
+                <KindArray index="Splash" value="1"/>
+                <KindArray index="NoProc" value="1"/>
+            </VitalDamageLeechArray>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4lizihuohua">
+        <InfoIcon value="Assets\Textures\4_zhinengfenjiepao_red.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="50000"/>
+        <MaxStackCountPerCaster value="50000"/>
+        <Duration value="3"/>
+        <DamageResponse ModifyFraction="1.05">
+            <Chance value="1"/>
+        </DamageResponse>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <FinalEffect value="4lizihuohuadamage"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4xukongguangzipaomarker1">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Caster"/>
+        <Duration value="0.25"/>
+        <InfoFlags index="Hidden" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4xukongguangzipaomarker2">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Caster"/>
+        <Duration value="0.25"/>
+        <InfoFlags index="Hidden" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4xukongguangzipaomarker3">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Caster"/>
+        <Duration value="0.25"/>
+        <InfoFlags index="Hidden" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4xukongliehenguanghsumarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Caster"/>
+        <Duration value="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4xukongyinying">
+        <InfoIcon value="Assets\Textures\4_xuying_red.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Modification MoveSpeedMultiplier="2">
+            <StateFlags index="Invulnerable" value="1"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+        </Modification>
+        <FinalEffect value="4fennuApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4erjidanwanjiasulichang">
+        <InfoIcon value="Assets\Textures\4_danwanjiasulichang_red.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification SightBonus="1.5" MoveSpeedBonus="-0.3007" WeaponRange="3">
+            <DamageDealtScaled index="Ranged" value="15"/>
+            <VitalMaxIncreaseAffectsCurrentArray index="Life" value="0"/>
+            <VitalMaxIncreaseAffectsCurrentArray index="Shields" value="0"/>
+            <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            <VitalMaxArray index="Shields" value="-800"/>
+            <AbilLinkDisableArray value="4zheyue4"/>
+            <BehaviorLinkDisableArray value="4yijidanwanjiasulichang"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4yizhizidongbianxing">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <BehaviorLinkDisableArray value="4zidongbianxingweichuansongmen"/>
+            <BehaviorLinkDisableArray value="4zidongbianxingweijixiezheyuetai"/>
+            <BehaviorLinkDisableArray value="4zidongbianxingweizheyuexingmen"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4zheyuezhong4">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="4shifazhezhengzaiyidong"/>
+        <Duration value="3"/>
+        <InitialEffect value="4fennuApply"/>
+        <ExpireEffect value="4zheyueDamageset4"/>
+        <Modification MoveSpeedMultiplier="8" AccelerationBonus="1000">
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <AbilClassDisableArray index="CAbil" value="1"/>
+            <AbilClassDisableArray index="CAbilProgress" value="1"/>
+            <AbilClassDisableArray index="CAbilEffect" value="1"/>
+            <AbilClassDisableArray index="CAbilQueueable" value="1"/>
+            <AbilClassDisableArray index="CAbilRedirect" value="1"/>
+            <AbilClassDisableArray index="CAbilArmMagazine" value="1"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+            <AbilClassDisableArray index="CAbilAugment" value="1"/>
+            <AbilClassDisableArray index="CAbilAttackModifier" value="1"/>
+            <AbilClassDisableArray index="CAbilBattery" value="1"/>
+            <AbilClassDisableArray index="CAbilBeacon" value="1"/>
+            <AbilClassDisableArray index="CAbilBehavior" value="1"/>
+            <AbilClassDisableArray index="CAbilBuild" value="1"/>
+            <AbilClassDisableArray index="CAbilBuildable" value="1"/>
+            <AbilClassDisableArray index="CAbilEffectInstant" value="1"/>
+            <AbilClassDisableArray index="CAbilEffectTarget" value="1"/>
+            <AbilClassDisableArray index="CAbilHarvest" value="1"/>
+            <AbilClassDisableArray index="CAbilInteract" value="1"/>
+            <AbilClassDisableArray index="CAbilInventory" value="1"/>
+            <AbilClassDisableArray index="CAbilLearn" value="1"/>
+            <AbilClassDisableArray index="CAbilMerge" value="1"/>
+            <AbilClassDisableArray index="CAbilMergeable" value="1"/>
+            <AbilClassDisableArray index="CAbilMorph" value="1"/>
+            <AbilClassDisableArray index="CAbilMorphPlacement" value="1"/>
+            <AbilClassDisableArray index="CAbilPawn" value="1"/>
+            <AbilClassDisableArray index="CAbilQueue" value="1"/>
+            <AbilClassDisableArray index="CAbilRally" value="1"/>
+            <AbilClassDisableArray index="CAbilRedirectInstant" value="1"/>
+            <AbilClassDisableArray index="CAbilRedirectTarget" value="1"/>
+            <AbilClassDisableArray index="CAbilResearch" value="1"/>
+            <AbilClassDisableArray index="CAbilRevive" value="1"/>
+            <AbilClassDisableArray index="CAbilSpecialize" value="1"/>
+            <AbilClassDisableArray index="CAbilTrain" value="1"/>
+            <AbilClassDisableArray index="CAbilTransport" value="1"/>
+            <AbilClassDisableArray index="CAbilWarpable" value="1"/>
+            <AbilClassDisableArray index="CAbilWarpTrain" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4zheyuezhong5">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="4shifazhezhengzaiyidong"/>
+        <Duration value="6"/>
+        <InitialEffect value="4fennuApply"/>
+        <ExpireEffect value="4zheyueDamageset52"/>
+        <Modification MoveSpeedMultiplier="8" AccelerationBonus="1000">
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <AbilClassDisableArray index="CAbil" value="1"/>
+            <AbilClassDisableArray index="CAbilProgress" value="1"/>
+            <AbilClassDisableArray index="CAbilEffect" value="1"/>
+            <AbilClassDisableArray index="CAbilQueueable" value="1"/>
+            <AbilClassDisableArray index="CAbilRedirect" value="1"/>
+            <AbilClassDisableArray index="CAbilArmMagazine" value="1"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+            <AbilClassDisableArray index="CAbilAugment" value="1"/>
+            <AbilClassDisableArray index="CAbilAttackModifier" value="1"/>
+            <AbilClassDisableArray index="CAbilBattery" value="1"/>
+            <AbilClassDisableArray index="CAbilBeacon" value="1"/>
+            <AbilClassDisableArray index="CAbilBehavior" value="1"/>
+            <AbilClassDisableArray index="CAbilBuild" value="1"/>
+            <AbilClassDisableArray index="CAbilBuildable" value="1"/>
+            <AbilClassDisableArray index="CAbilEffectInstant" value="1"/>
+            <AbilClassDisableArray index="CAbilEffectTarget" value="1"/>
+            <AbilClassDisableArray index="CAbilHarvest" value="1"/>
+            <AbilClassDisableArray index="CAbilInteract" value="1"/>
+            <AbilClassDisableArray index="CAbilInventory" value="1"/>
+            <AbilClassDisableArray index="CAbilLearn" value="1"/>
+            <AbilClassDisableArray index="CAbilMerge" value="1"/>
+            <AbilClassDisableArray index="CAbilMergeable" value="1"/>
+            <AbilClassDisableArray index="CAbilMorph" value="1"/>
+            <AbilClassDisableArray index="CAbilMorphPlacement" value="1"/>
+            <AbilClassDisableArray index="CAbilPawn" value="1"/>
+            <AbilClassDisableArray index="CAbilQueue" value="1"/>
+            <AbilClassDisableArray index="CAbilRally" value="1"/>
+            <AbilClassDisableArray index="CAbilRedirectInstant" value="1"/>
+            <AbilClassDisableArray index="CAbilRedirectTarget" value="1"/>
+            <AbilClassDisableArray index="CAbilResearch" value="1"/>
+            <AbilClassDisableArray index="CAbilRevive" value="1"/>
+            <AbilClassDisableArray index="CAbilSpecialize" value="1"/>
+            <AbilClassDisableArray index="CAbilTrain" value="1"/>
+            <AbilClassDisableArray index="CAbilTransport" value="1"/>
+            <AbilClassDisableArray index="CAbilWarpable" value="1"/>
+            <AbilClassDisableArray index="CAbilWarpTrain" value="1"/>
+            <BehaviorLinkDisableArray value="4fantaoyilichang"/>
+            <BehaviorLinkDisableArray value="4shikongsuilielingyu"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4zheyuezhunbei4">
+        <InfoIcon value="Assets\Textures\4_zheyue_red.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="3"/>
+        <ExpireEffect value="4zheyuezhongApply4"/>
+    </CBehaviorBuff>
+    <CBehaviorPowerSource id="4nengliangyuan8">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-protoss-alarak-taldarim-pylon.dds"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Radius value="8"/>
+        <PowerLink value="PowerSource"/>
+    </CBehaviorPowerSource>
+    <CBehaviorBuff id="4guidaoxinacangzidongcaiji">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="NotUnderConstruction"/>
+        <RemoveValidatorArray value="AutoHarvesterFinish"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Period value="2.1"/>
+        <PeriodicEffect value="4wasicaiji5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4quntitousong">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="CasterNotDead"/>
+        <Duration value="3"/>
+        <ExpireEffect value="4quntitousongBlink"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="SuppressPassenger" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+            <AbilClassDisableArray index="CAbilMove" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4zheyuezhunbei5">
+        <InfoIcon value="Assets\Textures\4_zheyue_red.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="3"/>
+        <ExpireEffect value="4zheyuezhongApply52"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4zhiliangzhuangji">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="1.5"/>
+        <Modification MoveSpeedMultiplier="4" DecelerationMultiplier="0.01">
+            <StateFlags index="SuppressCollision" value="1"/>
+            <StateFlags index="LineMovement" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4zidongbianxingweichuansongmen">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="4youzheyuemen"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Duration value="0.1"/>
+        <ExpireEffect value="4zidongbianxingweizheyuemen"/>
+        <FinalEffect value="4yizhizidongbianxingApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4shangci">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-sacrifice.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification>
+            <VitalDamageLeechArray index="Life">
+                <KindArray index="Spell" value="0.3"/>
+                <KindArray index="Melee" value="0.3"/>
+                <KindArray index="Ranged" value="0.3"/>
+                <KindArray index="Splash" value="0.3"/>
+                <KindArray index="NoProc" value="0.3"/>
+            </VitalDamageLeechArray>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4zidongbianxingweijixiezheyuetai">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="4youzheyuemen"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Duration value="0.1"/>
+        <ExpireEffect value="4zidongbianxingweijixiezheyuetai"/>
+        <FinalEffect value="4yizhizidongbianxingApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4zidongbianxingweizheyuexingmen">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="4youzheyuemen"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Duration value="0.1"/>
+        <FinalEffect value="4yizhizidongbianxingApply"/>
+        <ExpireEffect value="4zidongbianxingweizheyuexingmen"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4lingzhushixian">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-confusion.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <FinalEffect value="4lingzhushixianDestroy"/>
+        <ExpireEffect value="4lingzhushixianDestroy"/>
+        <Modification>
+            <ModifyFlags index="Reveal" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4jiancha" parent="Detector">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification Detect="10" Radar="32" RadarFilters="-;Player,Ally,RawResource,HarvestableResource,Missile,Buried,Cloaked,Dead,Hidden"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="4xianxuechongfeng">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\4_chongfeng_red.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="ChargeMinDistance"/>
+        <BuffFlags index="Channeling" value="1"/>
+        <Duration value="3"/>
+        <FinalEffect value="4xianxuechongfengDamagePersistent"/>
+        <Modification MoveSpeedMultiplier="6">
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="SuppressCollision" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+</Catalog>

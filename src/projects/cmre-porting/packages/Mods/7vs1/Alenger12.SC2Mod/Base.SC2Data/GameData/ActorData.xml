@@ -1,0 +1,2946 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CActorAction id="12chezaijipaoAttack1" parent="GenericAttack" effectAttack="12chezaijipaoDamage1">
+        <LaunchAttachQuery Methods="Weapon 1"/>
+        <LaunchAssets Model="GoliathGroundAttackLaunch" Sound="GoliathGroundAttackLaunch"/>
+        <Beam value="12chezaijipaoAttackBeam"/>
+        <ImpactMap index="None" Model="GoliathGroundAttackImpact" Sound="Goliath_GroundAttackImpact"/>
+        <ImpactPhysics Name="GatlingCannonImpact" MatchKeys="Basic" Physics="VikingAssaultAttackForce"/>
+    </CActorAction>
+    <CActorAction id="12gaosijipaoAttackRight" parent="GenericAttack" effectAttack="12gaosijipaoDamageRight">
+        <LaunchAttachQuery Methods="AMFilterWeaponRight"/>
+        <LaunchAssets Model="VikingAssaultAttackLaunch" Sound="VikingAssault_AttackLaunch"/>
+        <Beam value="12gaosijipaoAttackBeam"/>
+        <ImpactMap index="None" Model="VikingAssaultAttackImpact" Sound="Viking_AssaultAttackImpact"/>
+        <ImpactMap index="Flesh" ModelReaction="BloodTargetImpact"/>
+        <ImpactPhysics Name="GatlingCannonImpact" MatchKeys="Basic" Physics="VikingAssaultAttackForce"/>
+    </CActorAction>
+    <CActorBeamSimple id="12hangkongjipaoAttackBeam" parent="GenericAttackBeam">
+        <Model value="GhostSnipeAttackBeam"/>
+    </CActorBeamSimple>
+    <CActorBeamSimple id="12gaoshejipaoAttackBeam" parent="GenericAttackBeam">
+        <Model value="GhostSnipeAttackBeam"/>
+    </CActorBeamSimple>
+    <CActorAction id="12gaoshejipaoAttack2" parent="GenericAttack" effectAttack="12gaoshejipaoDamage2">
+        <LaunchAttachQuery Methods="Weapon 2"/>
+        <LaunchAssets Model="SpartanCompanyGroundAttackLaunch" Sound="GoliathGroundAttackLaunch"/>
+        <Beam value="12gaoshejipaoAttackBeam"/>
+        <ImpactMap index="None" Model="SpartanCompanyGroundAttackImpact" Sound="Goliath_GroundAttackImpact"/>
+        <ImpactPhysics Name="GatlingCannonImpact" MatchKeys="Basic" Physics="VikingAssaultAttackForce"/>
+    </CActorAction>
+    <CActorAction id="12gaoshejipaoAttack3" parent="GenericAttack" effectAttack="12gaoshejipaoDamage3">
+        <LaunchAttachQuery Methods="Weapon 3"/>
+        <LaunchAssets Model="SpartanCompanyGroundAttackLaunch" Sound="GoliathGroundAttackLaunch"/>
+        <Beam value="12gaoshejipaoAttackBeam"/>
+        <ImpactMap index="None" Model="SpartanCompanyGroundAttackImpact" Sound="Goliath_GroundAttackImpact"/>
+        <ImpactPhysics Name="GatlingCannonImpact" MatchKeys="Basic" Physics="VikingAssaultAttackForce"/>
+    </CActorAction>
+    <CActorAction id="12gaoshejipaoAttack4" parent="GenericAttack" effectAttack="12gaoshejipaoDamage4">
+        <LaunchAttachQuery Methods="Weapon 4"/>
+        <LaunchAssets Model="SpartanCompanyGroundAttackLaunch" Sound="GoliathGroundAttackLaunch"/>
+        <Beam value="12gaoshejipaoAttackBeam"/>
+        <ImpactMap index="None" Model="SpartanCompanyGroundAttackImpact" Sound="Goliath_GroundAttackImpact"/>
+        <ImpactPhysics Name="GatlingCannonImpact" MatchKeys="Basic" Physics="VikingAssaultAttackForce"/>
+    </CActorAction>
+    <CActorUnit id="12guidaokongzhijidi" parent="TerranBuildingFlyerEx" unitName="12guidaokongzhijidi">
+        <Macros value="MacroTownhallDeco_Terran"/>
+        <Macros value="TerranOrbitalCommandPlayerDecalMacro"/>
+        <AcceptedHostedPropTransfers index="Decal" value="0"/>
+        <On Terms="UnitBirth.12guidaokongzhijidi" Send="AnimGroupApply B {} {} Instant"/>
+        <On Terms="UnitBirth.12guidaokongzhijidiFlying" Send="AnimGroupApply B {} {} Instant"/>
+        <On Terms="Behavior.ColonyInfestation.On" Send="Create InfestationCommandCenter"/>
+        <On Terms="UnitDeathCustomize.12guidaokongzhijidiFlying" Send="DeathCustomize Flying"/>
+        <On Terms="UnitBirth.12guidaokongzhijidiFlying" Send="HideWorkerCount 1"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 12guidaokongzhijidiFlying; MorphTo 12guidaokongzhijidi" Send="HideWorkerCount"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 12guidaokongzhijidi; MorphTo 12guidaokongzhijidiFlying" Send="HideWorkerCount 1"/>
+        <On Terms="AbilMorph.*.Start; MorphFrom 12guidaokongzhijidi; MorphTo 12guidaokongzhijidiFlying" Target="PlayerLogoDoodadList" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 12guidaokongzhijidiFlying; MorphTo 12guidaokongzhijidi" Send="Create PlayerLogoDoodadList"/>
+        <On Terms="AbilMorph.*.Start; MorphFrom 12guidaokongzhijidi; MorphTo 12guidaokongzhijidiFlying" Target="TerranClanFlag" Send="Signal DestroyFlag"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 12guidaokongzhijidiFlying; MorphTo 12guidaokongzhijidi; PlayerHasClanDecal" Send="Create TerranClanFlag"/>
+        <On Terms="UnitBirth.12guidaokongzhijidi; PlayerHasClanDecal" Send="Create TerranClanFlag"/>
+        <On Terms="AbilMorph.*.Start; MorphFrom 12guidaokongzhijidi; MorphTo 12guidaokongzhijidiFlying" Target="TerranPlayerTrophy" Send="Signal DestroyFlag"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 12guidaokongzhijidiFlying; MorphTo 12guidaokongzhijidi; PlayerHasTrophy" Send="Create TerranPlayerTrophy"/>
+        <On Terms="UnitBirth.12guidaokongzhijidi; PlayerHasTrophy" Send="Create TerranPlayerTrophy"/>
+        <Model value="CommandCenter"/>
+        <DeathArray index="Normal" ModelLink="OrbitalCommandDeath"/>
+        <DeathArray index="UnderConstruction" ModelLink="TerranLargeBuildingDeath"/>
+        <DeathCustoms index="5" ModelLink="OrbitalCommandFlyDeath" SoundLink="12guidaokongzhijidi_Explode" Name="Flying"/>
+        <PortraitModel value="CommandCenterPortrait"/>
+        <BarOffset value="170"/>
+        <BarWidth value="200"/>
+        <GlossaryAnim value="Stand,B"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-OrbitalCommand.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-terran-surveillancestation.dds"/>
+        <NameOffset value="150"/>
+        <SoundArray index="Birth" value="CommandCenterBirth"/>
+        <SoundArray index="Ready" value="CommandCenter_Ready"/>
+        <SoundArray index="Help" value="CommandCenterHelp"/>
+        <SoundArray index="What" value="OrbitalCommand"/>
+        <SoundArray index="Yes" value="CommandCenterYes"/>
+        <SoundArray index="Attack" value="CommandCenterYes"/>
+        <SoundArray index="Pissed" value="CommandCenterPissed"/>
+        <StatusHarvesterData Text="UI/HarvesterCountMinerals" SearchFilters="HarvestableResource;Player,Ally,Enemy" SearchRadius="8"/>
+        <UnitFlags index="StandAnimBirthVariation" value="0"/>
+        <UnitIcon value="Assets\Textures\btn-building-terran-surveillancestation.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-OrbitalCommand.dds"/>
+        </Wireframe>
+        <BuildModel value="CommandCenter"/>
+    </CActorUnit>
+    <CActorBeamSimple id="12gaosijipaoAttackBeam" parent="GenericAttackBeam">
+        <Model value="GhostSnipeAttackBeam"/>
+    </CActorBeamSimple>
+    <CActorBeamSimple id="12chezaijipaoAttackBeam" parent="GenericAttackBeam">
+        <Model value="GhostSnipeAttackBeam"/>
+    </CActorBeamSimple>
+    <CActorAction id="12hangkongjipaoAttackRight" parent="GenericAttack" effectAttack="12hangkongjipaoDamageRight">
+        <LaunchAttachQuery Methods="Weapon 7"/>
+        <LaunchAssets Model="AutoTurretAttackLaunch" Sound="Raven_AutoTurretAttackLaunch"/>
+        <Beam value="12hangkongjipaoAttackBeam"/>
+        <ImpactMap index="None" Model="AutoTurretAttackImpact" Sound="Raven_AutoTurretAttackImpact"/>
+        <ImpactMap index="Flesh" ModelReaction="BloodTargetImpact"/>
+        <ImpactPhysics Name="GauseCannonImpact" MatchKeys="Basic" Physics="AutoTurretAttackDeathForce"/>
+    </CActorAction>
+    <CActorAction id="12jishuhuojianAttackRight" parent="GenericAttack" effectImpact="12jishuhuojianDamageSearch" effectLaunch="12jishuhuojianMissileRight">
+        <LaunchAttachQuery Methods="Hit 1"/>
+        <LaunchAssets Sound="Banshee_AttackLaunch2"/>
+        <Missile value="BansheeAttackMissile"/>
+        <ImpactMap index="None" Model="BansheeAttackImpact" Sound="Banshee_AttackImpact2"/>
+        <ImpactPhysics Name="BacklashRocketsImpact" MatchKeys="Basic" Physics="BansheeAttackForce"/>
+        <AcquisitionYawHalfArc value="15.000000"/>
+        <AcquisitionPitchHalfArc value="30.000000"/>
+        <ShieldRippleScaleFactor value="1.100000"/>
+    </CActorAction>
+    <CActorModel id="12kongtouGDropModel" parent="ModelAnimationStyleOneShotUNIT">
+        <On index="2" Terms="Behavior.12kongtouG.On" Send="Create"/>
+        <On Terms="AnimBracketState.*.AfterOpening; AnimName BSD" Send="Create DropPodUnload"/>
+        <HostSiteOps Ops="MercDropSOpShadow" HoldPosition="1" HoldRotation="1"/>
+        <Model value="DropPodFalling"/>
+        <AutoScaleFactor value="0.500000"/>
+    </CActorModel>
+    <CActorModel id="12chuantizijian" parent="ModelAnimationStyleOneShotUNIT">
+        <On Terms="Behavior.12chuantizijian.On" Send="Create"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+    </CActorModel>
+    <CActorModel id="12pojiaImpact" parent="ModelAnimationStyleOneShotUNIT">
+        <On index="2" Terms="Behavior.12pojia.On" Send="Create"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <Model value="RavenShredderMissileAttackImpactDebuff"/>
+    </CActorModel>
+    <CActorSound id="12kongtouGDropSound" parent="SoundOneShot">
+        <On Terms="Effect.12kongtouGApply.Start; At Target" Send="Create"/>
+        <On Terms="ActorCreation" Send="TimerSet 2.100000 DelayDropPod"/>
+        <On Terms="TimerExpired; TimerName DelayDropPod" Send="Create OrbitalCommand_CalldownMuleImpact"/>
+        <On Terms="TimerExpired; TimerName DelayDropPod" Send="Destroy"/>
+        <HostSiteOps Ops="MercDropSOpShadow"/>
+        <Sound value="OrbitalCommand_CalldownMuleDrop"/>
+    </CActorSound>
+    <CActorModel id="12pojialieshafeidanAttackImpactModel2" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.12pojialieshafeidanSearch.Start" Send="Create"/>
+        <Model value="12pojialieshafeidanAttackImpact2"/>
+    </CActorModel>
+    <CActorSimple id="12pojiaTint">
+        <On Terms="Behavior.12pojia.On" Send="Create"/>
+        <On Terms="ActorCreation" Target="_Unit" Send="SetTintColor 255,128,64 0.000000 OneShot 12pojia"/>
+        <On Terms="Behavior.12pojia.Off" Target="_Unit" Send="ClearTintColor 0.500000 12pojia"/>
+        <On Terms="Behavior.12pojia.Off" Send="Destroy"/>
+    </CActorSimple>
+    <CActorAction id="12polangfeidanAttackRight" parent="VikingFighterAttackBase" effectImpact="12polangfeidanDamage" effectLaunch="LanzerTorpedoesLM">
+        <On Terms="Effect.12polangfeidanMissileRight.Start; At Caster" Send="Create"/>
+        <LaunchAttachQuery Methods="Weapon 8"/>
+        <ImpactMap index="None" Model="VikingFighterRipWaveAttackImpact" Sound="Viking_RipwaveMissileImpact"/>
+    </CActorAction>
+    <CActorSound id="12shifangkuangluoDropSound22" parent="SoundOneShot">
+        <On Terms="Effect.12shifangkuangluoPersistent.Start; At Target" Send="Create"/>
+        <On Terms="ActorCreation" Send="TimerSet 2.100000 DelayDropPod"/>
+        <On Terms="TimerExpired; TimerName DelayDropPod" Send="Create OrbitalCommand_CalldownMuleImpact"/>
+        <On Terms="TimerExpired; TimerName DelayDropPod" Send="Destroy"/>
+        <Sound value="OrbitalCommand_CalldownMuleDrop"/>
+    </CActorSound>
+    <CActorAction id="12xiubolianhaoduikongzhongxingdenglizipaozuAttack2" parent="GenericAttack" effectImpact="12xiubolianhaoduikongzhongxingdenglizipaozuDamage2" effectLaunch="12xiubolianhaoduikongzhongxingdenglizipaozuMissile2">
+        <LaunchAttachQuery Methods="AMFilterWeaponSetA0 AMRandom"/>
+        <LaunchAssets Model="HyperionAttackLaunch" Sound="HyperionAttackLaunch"/>
+        <Missile value="12xiubolianhaozhongxingdenglizipaoAttackMissile"/>
+        <ImpactMap index="None" Model="HyperionAirAttackImpact" Sound="HyperionAirAttackImpact" ModelReaction="HyperionAirAttackImpactReaction"/>
+        <ImpactMap index="Shield" Sound="HyperionAirAttackImpactShield" ModelReaction="HyperionAirAttackImpactReactionShield"/>
+        <ImpactModel value="HyperionPlasmaAirAttackImpactModel"/>
+    </CActorAction>
+    <CActorModel id="12xiubolianhaozheyueLaunch" parent="ModelAnimationStyleOneShotUNIT">
+        <Flags index="SuppressCreationErrors" value="1"/>
+        <Inherits index="BaseModelScale" value="1"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <On Terms="Effect.12xiubolianhaozheyueBlink.Start; At Source" Send="Create"/>
+        <HostSiteOps Ops="SOpAttachCenter" HoldPosition="1" HoldRotation="1"/>
+        <Model value="SJHyperionBlinkModelOut"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+        <ModelFlags index="AutomateGlobalLoops" value="1"/>
+    </CActorModel>
+    <CActorModel id="12xixiangsaomiaoModel2" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.12xixiangsaomiaoPersistent2.Start" Send="Create"/>
+        <On Terms="Effect.12xixiangsaomiaoPersistent2.Stop" Send="AnimBracketStop BSD"/>
+        <On Terms="ActorCreation" Send="Create 12xixiangsaomiaoVisual2"/>
+        <On Terms="ActorDestruction" Target="12xixiangsaomiaoVisual2" Send="Destroy"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Model value="ScannerSweepModel"/>
+    </CActorModel>
+    <CActorRange id="12xixiangsaomiaoVisual2">
+        <Host Subject="12xixiangsaomiaoModel2"/>
+        <Range value="12.000000"/>
+        <Icon value="Assets\Textures\ScannerSweepRadius_Diffuse.dds"/>
+        <IconArcLength value="0.750000"/>
+    </CActorRange>
+    <CActorAction id="12yezhanfangkonghuojianAttackLeft" parent="GenericAttack" effectImpact="12yezhanfangkonghuojianDamage" effectLaunch="12yezhanfangkonghuojianMissileLeft">
+        <LaunchAttachQuery Methods="Weapon 6"/>
+        <LaunchAssets Model="GoliathAirAttackLaunch" Sound="VikingFighter_AttackLaunch"/>
+        <Missile value="GoliathAirAttackMissile"/>
+        <ImpactMap index="None" Model="GoliathAirAttackImpact" Sound="VikingFighter_AttackImpact"/>
+        <ImpactPhysics Name="JavelinImpact" MatchKeys="Basic" Physics="ThorAAAttackForce"/>
+    </CActorAction>
+    <CActorUnit id="12zhandihaozhu" parent="GenericUnitBase" unitName="12zhandihaozhu">
+        <Aliases value="_UnitSmall"/>
+        <Macros value="UnloadDropAnim"/>
+        <On Terms="Abil.attack.ReadyStart" Send="AnimGroupApply Ready"/>
+        <On Terms="WeaponStart.*.AttackStart; WeaponTargetElevation GE 20.000000" Send="AnimBracketStart Attack Attack,Superior"/>
+        <On Terms="WeaponStart.*.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="WeaponStop.*.AttackStop" Send="AnimBracketStop Attack"/>
+        <On Terms="Abil.attack.ReadyStop" Send="AnimGroupRemove Ready"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Marine_Land"/>
+        <Model value="WarPig"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="WarPig"/>
+        <DeathArray index="Normal" ModelLink="KelmorianMinerDeath" SoundLink="Marine_DeathFXBloodSpray"/>
+        <DeathArray index="Blast" ModelLink="MarineDeathBlast" SoundLink="Marine_DeathFXBlast"/>
+        <DeathArray index="Disintegrate" ModelLink="MarineDeathAcid" SoundLink="Marine_DeathFXFire"/>
+        <DeathArray index="Eat" AnimProps="Stand" ModelLink="MarineDeathEat" SoundLink="Marine_DeathFXEat"/>
+        <DeathArray index="Eviscerate" ModelLink="MarineDeathEviscerate" SoundLink="Marine_DeathFXEviscerate"/>
+        <DeathArray index="Fire" ModelLink="MarineDeathFire" SoundLink="Marine_DeathFXFire"/>
+        <DeathArray index="Silentkill" SoundLink="Marine_DeathFXSilentKill"/>
+        <DeathArray index="Squish" SoundLink="Marine_DeathFXBloodSpray"/>
+        <PlacementModel value="WarPig"/>
+        <PortraitModel value="MarineMercenaryPortrait"/>
+        <StandAnimTurnTime value="5"/>
+        <WalkAnimMoveSpeed value="2.25"/>
+        <BarOffset value="40"/>
+        <BarWidth value="36"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-terran-marine-mercenary.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="What" value="MarineGroupWhat"/>
+        <GroupSoundArray index="Yes" value="MarineGroupYes"/>
+        <GroupSoundArray index="Attack" value="MarineGroupAttack"/>
+        <GroupSoundArray index="Board" value="MarineGroupBoard"/>
+        <HeroIcon value="Assets\Textures\BTN-Unit-Terran-MarineMercenary.dds"/>
+        <HighlightTooltip value="Unit/Name/WarPig"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel0.dds"/>
+        <SoundArray index="Birth" value="MarineBirth"/>
+        <SoundArray index="Ready" value="Marine_Ready"/>
+        <SoundArray index="Help" value="Marine_Help"/>
+        <SoundArray index="What" value="Marine_What"/>
+        <SoundArray index="Yes" value="Marine_Yes"/>
+        <SoundArray index="Attack" value="Marine_Attack"/>
+        <SoundArray index="Pissed" value="Marine_Pissed"/>
+        <SoundArray index="Movement" value="MarineMovement"/>
+        <SoundArray index="Turning" value="MarineTurning"/>
+        <SoundArray index="Board" value="MarineBoard"/>
+        <SoundArray index="Click" value="MarineClick"/>
+        <SoundArray index="ClickError" value="MarineClickError"/>
+        <SoundArray index="Highlight" value="MarineHighlight"/>
+        <UnitIcon value="Assets\Textures\BTN-Unit-Terran-MarineMercenary.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-terran-marine-mercenary.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorSound id="12zhandihaozhuDeath" parent="SoundOneShot">
+        <Remove Terms="UnitDeath.Marine; PassChance 100.000000" Send="Create"/>
+        <On Terms="UnitDeath.Marine; PassChance 100.000000" Send="Create"/>
+        <On Terms="UnitDeath.12zhandihaozhu; PassChance 100.000000" Send="Create"/>
+        <On Terms="UnitDeath.MengskMarine; PassChance 100.000000" Send="Create"/>
+        <Sound value="Marine_Death"/>
+    </CActorSound>
+    <CActorUnit id="12shikebidetianshi" parent="GenericUnitStandard" unitName="12shikebidetianshi">
+        <Aliases value="_UnitSmall"/>
+        <Macros value="UnloadDropAnim"/>
+        <On Terms="Behavior.MercGroundDrop.Create" Send="Create MercMedicDropModel"/>
+        <On Terms="ActorCreation" Send="SetScale 1.100000"/>
+        <On Terms="Abil.MercMedicHeal.SourceChannelStart" Send="$Spell PlayForever"/>
+        <On Terms="Abil.MercMedicHeal.SourceChannelStop" Send="AnimClear Spell"/>
+        <Model value="MercMedic"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="MercMedic"/>
+        <DeathArray index="Normal" ModelLink="MercMedicDeath" SoundLink="Medic_Explode"/>
+        <DeathArray index="Blast" ModelLink="MercMedicDeath"/>
+        <PlacementModel value="MercMedic"/>
+        <PortraitModel value="MedicPortrait"/>
+        <WalkAnimMoveSpeed value="2.25"/>
+        <BarOffset value="20"/>
+        <BarWidth value="36"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-terran-medic-mercenary.dds"/>
+        </GroupIcon>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel0.dds"/>
+        <SoundArray index="Ready" value="Medic_Ready"/>
+        <SoundArray index="Help" value="Medic_Help"/>
+        <SoundArray index="What" value="Medic_What"/>
+        <SoundArray index="Yes" value="Medic_Yes"/>
+        <SoundArray index="Attack" value="Medic_Attack"/>
+        <SoundArray index="Pissed" value="Medic_Pissed"/>
+        <UnitIcon value="Assets\Textures\BTN-Unit-Terran-MedicMercenary.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-terran-medic-mercenary.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorSound id="12shikebidetianshiDeath" parent="SoundOneShot">
+        <On Terms="UnitDeath.12shikebidetianshi; PassChance 25.000000" Send="Create"/>
+        <Sound value="Medic_Death"/>
+    </CActorSound>
+    <CActorModel id="12xiubolianhaozheyueImpact" parent="ModelAnimationStyleOneShotUNIT">
+        <Inherits index="BaseModelScale" value="1"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <On Terms="Effect.12xiubolianhaozheyueBlink.Stop; At Caster" Send="Create"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <Model value="SJHyperionBlinkModelIn"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+        <ModelFlags index="AutomateGlobalLoops" value="1"/>
+    </CActorModel>
+    <CActorSound id="12xiubolianhaozheyueImpactSound" parent="SoundOneShot">
+        <On Terms="Effect.12xiubolianhaozheyueBlink.Stop; At Caster" Send="Create"/>
+        <Host Subject="_Unit"/>
+        <HostSiteOps Ops="SOpAttachOriginStationary"/>
+        <Sound value="Spell_HyperionJumpOut"/>
+    </CActorSound>
+    <CActorSound id="12xiubolianhaozheyueLaunchSound" parent="SoundOneShot">
+        <On Terms="Effect.12xiubolianhaozheyueBlink.Start; At Source" Send="Create"/>
+        <Sound value="Spell_HyperionJumpIn"/>
+    </CActorSound>
+    <CActorSimple id="12zheyue">
+        <On Terms="Behavior.12zheyue.On" Send="Create"/>
+        <On Terms="Behavior.12zheyue.Off" Send="Destroy"/>
+        <On Terms="ActorCreation" Target="_Unit" Send="SetTintColor {0,255,0 3.000000} 0.000000 OneShot 3zheyue"/>
+        <On Terms="ActorCreation" Target="_Unit" Send="HaloStart"/>
+        <On Terms="ActorCreation" Target="_Unit" Send="HaloSetColor 0,255,0"/>
+        <On Terms="ActorDestruction" Target="_Unit" Send="HaloStop"/>
+        <On Terms="ActorDestruction" Target="_Unit" Send="ClearTintColor 0.000000 3zheyue"/>
+    </CActorSimple>
+    <CActorSound id="12zhuangzaiLoadSound" parent="SoundOneShot">
+        <On Terms="AbilTransport.12zhuangzai4.TransportLoad" Send="Create"/>
+        <On Terms="AbilTransport.12zhuangzai.TransportLoad" Send="Create"/>
+        <On Terms="AbilTransport.12zhuangzai1.TransportLoad" Send="Create"/>
+        <On Terms="AbilTransport.12zhuangzai3.TransportLoad" Send="Create"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachOriginStationary"/>
+        <Sound value="Medivac_Load"/>
+    </CActorSound>
+    <CActorSound id="12zhuangzaiUnloadSound" parent="SoundOneShot">
+        <On Terms="AbilTransport.12zhuangzai4.TransportUnload" Send="Create"/>
+        <On Terms="AbilTransport.12zhuangzai.TransportUnload" Send="Create"/>
+        <On Terms="AbilTransport.12zhuangzai1.TransportUnload" Send="Create"/>
+        <On Terms="AbilTransport.12zhuangzai3.TransportUnload" Send="Create"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachOriginStationary"/>
+        <Sound value="Medivac_Unload"/>
+    </CActorSound>
+    <CActorUnit id="12sishuigongchengche" parent="GenericUnitStandard" unitName="12sishuigongchengche">
+        <Aliases value="_UnitSmall"/>
+        <Macros value="CarryAnim"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="MacroWorkerHat"/>
+        <Macros value="CarryTerrazineNodeAnim"/>
+        <Macros value="CarryAnimCampaign"/>
+        <Macros value="PhysicsDeathsSwarmGround"/>
+        <Macros value="PhysicsDeathsVoidGround"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <On Terms="Abil.SCVHarvest.Start" Send="TimerSet 0.000000,0.300000 Gather"/>
+        <On Terms="Abil.SCVHarvest.Stop" Send="AnimClear Gather"/>
+        <On Terms="Abil.SCVHarvest.Stop" Send="TimerKill Gather"/>
+        <On Terms="AnimDone.*.Complete; AnimName Gather" Send="TimerSet 0.000000,0.300000 Gather"/>
+        <On Terms="TimerExpired; TimerName Gather" Send="AnimPlay Gather Work NonLooping"/>
+        <On Terms="TimerExpired; TimerName Gather" Send="Create SCVGatherSound"/>
+        <On Terms="Abil.12xiuli.SourceChannelStart" Send="TimerSet 0.000000,0.300000 Repair"/>
+        <On Terms="Abil.12xiuli.SourceChannelStop" Send="TimerKill Repair"/>
+        <On Terms="Abil.12xiuli.SourceChannelStop" Send="AnimClear Repair"/>
+        <On Terms="AnimDone.*.Complete; AnimName Repair" Send="TimerSet 0.000000,0.300000 Repair"/>
+        <On Terms="TimerExpired; TimerName Repair" Send="AnimPlay Repair Work NonLooping"/>
+        <On Terms="TimerExpired; TimerName Repair" Send="Create SCVRepairSound"/>
+        <On Terms="Abil.*.WorkerStart" Send="TimerSet 0.000000,0.300000 Build"/>
+        <On Terms="Abil.*.WorkerStop" Send="TimerKill Build"/>
+        <On Terms="Abil.*.WorkerStop" Send="AnimClear Build"/>
+        <On Terms="Abil.*.WorkerCancel" Send="TimerKill Build"/>
+        <On Terms="Abil.*.WorkerCancel" Send="AnimClear Build"/>
+        <On Terms="AnimDone.*.Complete; AnimName Build" Send="TimerSet 0.000000,0.300000 Build"/>
+        <On Terms="TimerExpired; TimerName Build" Send="AnimPlay Build Work NonLooping"/>
+        <On Terms="TimerExpired; TimerName Build" Send="Create SCVBuildSound"/>
+        <On Terms="Abil.SCVHarvest.Start" Send="StatusSet CloakSound 1"/>
+        <On Terms="Behavior.CarryHarvestableVespeneGeyserGas.Create" Send="StatusSet CloakSound 1"/>
+        <On Terms="Confirmation.SCV.Start" Send="StatusSet CloakSound 0"/>
+        <On Terms="Behavior.CloakFieldEffect.Create; IsStatus CloakSound 0" Send="Create Worker_CloakFieldOn"/>
+        <On Terms="Behavior.CloakFieldEffect.Destroy; IsStatus CloakSound 0" Send="Create Worker_CloakFieldOff"/>
+        <On Terms="Abil.GatherSpecialObject.SourcePrepStart" Send="TimerSet 0.000000,0.300000 Gather"/>
+        <On Terms="Abil.GatherSpecialObject.SourceCastStop" Send="AnimClear Gather"/>
+        <On Terms="Abil.GatherSpecialObject.SourceCastStop" Send="TimerKill Gather"/>
+        <On Terms="AnimDone.*.Complete; AnimName Gather" Send="TimerSet 0.000000,0.300000 Gather"/>
+        <On Terms="TimerExpired; TimerName Gather" Send="AnimPlay Gather Work NonLooping"/>
+        <On Terms="TimerExpired; TimerName Gather" Send="Create SCVGatherSound"/>
+        <On Terms="Behavior.CarryChrysalisEgg.Create" Send="AnimGroupApply Gather"/>
+        <On Terms="Behavior.CarryChrysalisEgg.Destroy" Send="AnimGroupRemove Gather"/>
+        <On Terms="Behavior.OracleCloakFieldEffect.Create; IsStatus CloakSound 0" Send="Create Worker_CloakFieldOn"/>
+        <On Terms="Behavior.OracleCloakFieldEffect.Destroy; IsStatus CloakSound 0" Send="Create Worker_CloakFieldOff"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create SCV_Land"/>
+        <On Terms="Behavior.SCVFakeRepair.On" Send="AnimPlay Work,A Work,A"/>
+        <On Terms="AnimDone; AnimName Work,A; ValidateUnit HaveSCVFakeRepair" Send="AnimPlay Work,B Work,B"/>
+        <On Terms="AnimDone; AnimName Work,B; ValidateUnit HaveSCVFakeRepair" Send="AnimPlay Work,A Work,A"/>
+        <On Terms="Behavior.SCVFakeRepair.Off" Send="AnimClear Work,A"/>
+        <On Terms="Behavior.SCVFakeRepair.Off" Send="AnimClear Work,B"/>
+        <Model value="SCV"/>
+        <AnimBlendTime value="0.500000"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="SCV"/>
+        <DeathArray index="Normal" ModelLink="SCVDeath" SoundLink="SCV_Explode"/>
+        <DeathCustoms ModelLink="SCVDeathRagdoll" Name="RagdollBasic">
+            <BodySquibs Name="Basic" Model="TerranSquibDeathRagdoll"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollSiegeTank" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollBaneling" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollUltraUnburrow" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms ActorModel="SpineCrawlerHurlDeathRagdoll" ModelLink="SCVDeathRagdoll" Name="RagdollSpineCrawlerHurl">
+            <BodySquibs Name="Basic" Model="TerranSquibDeathRagdoll"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <PlacementModel value="SCV"/>
+        <PortraitModel value="SCVPortrait"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="0.600000"/>
+            <RangeDown value="0.600000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleSmall"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="2"/>
+        <BarOffset value="40"/>
+        <BarWidth value="42"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-SCV.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-scv.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel3.dds"/>
+        <SoundArray index="Ready" value="SCV_Ready"/>
+        <SoundArray index="Help" value="Alert_TerranEconomyUnderAttack"/>
+        <SoundArray index="What" value="SCV_What"/>
+        <SoundArray index="Yes" value="SCV_Yes"/>
+        <SoundArray index="Attack" value="SCV_Attack"/>
+        <SoundArray index="Pissed" value="SCV_Pissed"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-scv.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-SCV.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorAction id="12sishuigongchengcheAttack" parent="GenericAttack" effectAttack="12rongqiangDamage">
+        <LaunchAssets Model="SCVAttackLaunch"/>
+        <ShieldFlashType value="Header"/>
+    </CActorAction>
+    <CActorSplat id="12guidaokongzhijidiSplat" parent="TerranBuildingMorphSplat" unitName="12guidaokongzhijidi">
+        <Model value="OrbitalCommandSplat"/>
+    </CActorSplat>
+    <CActorSplat id="12xixiangsaomiaoCursorSplat" parent="CursorSplat" abil="12xixiangsaomiao">
+        <Model value="ScannerSweepCursorSplat"/>
+    </CActorSplat>
+    <CActorModel id="12xixiangsaomiaoModel" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.12xixiangsaomiaoPersistent.Start" Send="Create"/>
+        <On Terms="Effect.12xixiangsaomiaoPersistent.Stop" Send="AnimBracketStop BSD"/>
+        <On Terms="ActorCreation" Send="Create 12xixiangsaomiaoVisual"/>
+        <On Terms="ActorDestruction" Target="12xixiangsaomiaoVisual" Send="Destroy"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Model value="ScannerSweepModel"/>
+    </CActorModel>
+    <CActorSound id="12xixiangsaomiaoSound" parent="SoundContinuous">
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+        <On Terms="Effect.12xixiangsaomiaoPersistent.Start" Send="Create"/>
+        <On Terms="Effect.12xixiangsaomiaoPersistent.Stop" Send="Destroy"/>
+        <On Terms="Effect.12xixiangsaomiaoPersistent2.Start" Send="Create"/>
+        <On Terms="Effect.12xixiangsaomiaoPersistent2.Stop" Send="Destroy"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Sound value="OrbitalCommand_ScannerSweep"/>
+    </CActorSound>
+    <CActorSound id="12xixiangsaomiaoSoundOthers" parent="SoundContinuous">
+        <Filter index="Self" value="1"/>
+        <On Terms="Effect.12xixiangsaomiaoPersistent.Start" Send="Create"/>
+        <On Terms="Effect.12xixiangsaomiaoPersistent.Stop" Send="Destroy"/>
+        <On Terms="Effect.12xixiangsaomiaoPersistent2.Start" Send="Create"/>
+        <On Terms="Effect.12xixiangsaomiaoPersistent2.Stop" Send="Destroy"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Sound value="OrbitalCommand_ScannerSweep_Others"/>
+    </CActorSound>
+    <CActorRange id="12xixiangsaomiaoVisual">
+        <Host Subject="12xixiangsaomiaoModel"/>
+        <Range value="12.000000"/>
+        <Icon value="Assets\Textures\ScannerSweepRadius_Diffuse.dds"/>
+        <IconArcLength value="0.750000"/>
+    </CActorRange>
+    <CActorProgress id="12jianzaojincheng">
+        <On Terms="Abil.12jianzao.BuiltStart" Send="Create"/>
+        <On Terms="Abil.BarracksAddOns.BuiltStart" Send="Create"/>
+        <On Terms="Abil.FactoryAddOns.BuiltStart" Send="Create"/>
+        <On Terms="Abil.StarportAddOns.BuiltStart" Send="Create"/>
+        <On Terms="Abil.MachineShop.BuiltStart" Send="Create"/>
+        <On Terms="ProgressLevel.TerranConstruction.Start; Level 0" Send="SetTransferOverrideAnim Build,A,Stand"/>
+        <On Terms="ProgressLevel.TerranConstruction.Stop; Level 0" Send="SetTransferOverrideAnim"/>
+        <StageArray AnimProps="Build,A,Start" BlendTime="0.000000"/>
+        <StageArray AnimProps="Build,A,Stand"/>
+        <StageArray AnimProps="Build,B,Start"/>
+        <StageArray AnimProps="Build,B,Stand"/>
+        <StageArray AnimProps="Build,C,Start"/>
+        <StageArray AnimProps="Build,C,Stand"/>
+        <StageArray AnimProps="Build,D"/>
+    </CActorProgress>
+    <CActorModel id="12guidaokongzhijidiBuild" parent="TerranBuildingBuild">
+        <Model value="CommandCenterBuild"/>
+    </CActorModel>
+    <CActorModel id="12shifangkuangluoDropModel" parent="ModelAnimationStyleOneShotNoOrphan">
+        <On Terms="Effect.12shifangkuangluoPersistent.Start" Send="Create"/>
+        <On Terms="Effect.CalldownMULETimedLife.Start" Send="AnimBracketStop BSD"/>
+        <On Terms="AnimBracketState.*.AfterOpening; AnimName BSD" Send="Create DropPodUnload"/>
+        <HostSiteOps Ops="MercDropSOpShadow"/>
+        <Model value="DropPodFalling"/>
+    </CActorModel>
+    <CActorUnit id="12youqibingxunlianjidi" parent="TerranBuildingFlyerEx" unitName="12youqibingxunlianjidi">
+        <On Terms="Behavior.ColonyInfestation.On" Send="Create InfestationBarracks"/>
+        <On Terms="UnitDeathCustomize.BarracksFlying" Send="DeathCustomize Flying"/>
+        <Model value="Barracks"/>
+        <BuildModel value="Barracks"/>
+        <DeathArray index="Normal" ModelLink="BarracksDeath"/>
+        <DeathArray index="UnderConstruction" ModelLink="TerranLargeBuildingDeath" SoundLink="Barracks_Explode"/>
+        <DeathCustoms index="5" ModelLink="BarracksFlyDeath" SoundLink="Barracks_Explode" Name="Flying"/>
+        <PlacementModel value="BarracksPlacement"/>
+        <PortraitModel value="BarracksPortrait"/>
+        <BarOffset value="155"/>
+        <BarWidth value="160"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Barracks.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-terran-Barracks.dds"/>
+        <NameOffset value="110"/>
+        <SoundArray index="Ready" value="Barracks_Ready"/>
+        <SoundArray index="What" value="Barracks_What"/>
+        <SoundArray index="Movement" value="Barracks_Movement"/>
+        <UnitIcon value="Assets\Textures\btn-building-terran-Barracks.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Barracks.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorSplat id="12youqibingxunlianjidiSplat" parent="TerranBuildingMorphSplat" unitName="12youqibingxunlianjidi">
+        <Model value="BarracksSplat"/>
+    </CActorSplat>
+    <CActorUnit id="12xiubolianhuweijian" parent="GenericUnitStandard" unitName="12xiubolianhuweijian">
+        <Aliases value="_UnitHuge"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsSwarmAir"/>
+        <Macros value="PhysicsDeathsVoidAir"/>
+        <On Terms="ActorCreation" Send="AnimGroupApply A"/>
+        <On Terms="Abil.12dahepao.SourcePrepStart" Send="$Spell 0 -1.000000 -1.000000 0.750000 AsDuration"/>
+        <On Terms="Abil.12dahepao.SourcePrepStop" Send="AnimClear Spell"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Battlecruiser_Land"/>
+        <On Terms="ActorCreation" Send="Create BattlecruiserLookAt00"/>
+        <On Terms="ActorCreation" Send="Create BattlecruiserLookAt01"/>
+        <On Terms="ActorCreation" Send="Create BattlecruiserLookAt02"/>
+        <On Terms="ActorCreation" Send="Create BattlecruiserLookAt03"/>
+        <On Terms="ActorCreation" Send="Create BattlecruiserLookAt04"/>
+        <On Terms="ActorCreation" Send="Create BattlecruiserLookAt05"/>
+        <On Terms="ActorCreation" Send="Create BattlecruiserLookAt06"/>
+        <On Terms="ActorCreation" Send="Create BattlecruiserLookAt07"/>
+        <On Terms="WeaponStart.12kongduididenglizipaozu.AttackStart" Target="_BattlecruiserTurretATS" Send="LookAtEngage Continue"/>
+        <On Terms="WeaponStart.12kongduikongdenglizipaozu.AttackStart" Target="_BattlecruiserTurretATA" Send="LookAtEngage Continue"/>
+        <On Terms="Abil.attack.ReadyStop" Target="_BattlecruiserTurretATS" Send="LookAtDisengage"/>
+        <On Terms="Abil.attack.ReadyStop" Target="_BattlecruiserTurretATA" Send="LookAtDisengage"/>
+        <HostSiteOps Ops="SOpBankerBattlecruiser"/>
+        <Model value="Battlecruiser"/>
+        <Scale value="0.850000"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="Battlecruiser"/>
+        <DeathArray index="Normal" ModelLink="BattlecruiserDeathA" SoundLink=""/>
+        <DeathCustoms ModelLink="BattlecruiserDeathA" Name="Upgrade"/>
+        <DeathCustoms>
+            <ActorModel value="BattlecruiserDeathRagdoll"/>
+            <ModelLink value="BattlecruiserDeathRagdoll"/>
+            <Name value="RagdollBasic"/>
+            <PhysicsMatchKeysOrdered value="BasicAir,Basic"/>
+            <BodySquibs Name="Basic" Model="TerranSquibDeathRagdoll"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="FireHeavy"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="FireHeavy"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <DeathActorModel value="UnitDeathModelWithDeathMotionFlier"/>
+        <PhysicsMatchKeysOrdered value="BasicAir,Basic"/>
+        <PlacementModel value="Battlecruiser"/>
+        <PortraitModel value="BattlecruiserPortrait"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.250000,0.500000"/>
+            <RangeDown value="5.000000"/>
+            <RangeDownFade value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleMassive2"/>
+        </TerrainSquibs>
+        <BarOffset value="75"/>
+        <BarWidth value="130"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Battlecruiser.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-battlecruiser.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-shipplatinglevel0.dds"/>
+        <NameOffset value="110"/>
+        <SoundArray index="Ready" value="Battlecruiser_Ready"/>
+        <SoundArray index="Help" value="Battlecruiser_Help"/>
+        <SoundArray index="What" value="Battlecruiser_What"/>
+        <SoundArray index="Yes" value="Battlecruiser_Yes"/>
+        <SoundArray index="Attack" value="Battlecruiser_Attack"/>
+        <SoundArray index="Pissed" value="Battlecruiser_Pissed"/>
+        <SoundArray index="Movement" value="Battlecruiser_Movement"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-battlecruiser.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Battlecruiser.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorModel id="12dahepaoAttackChargeModel" parent="ModelAddition">
+        <On Terms="Abil.12dahepao.SourcePrepStart" Send="Create"/>
+        <On Terms="Abil.12dahepao.SourcePrepStop" Send="Destroy"/>
+        <HostSiteOps Ops="SOpAttachCustomA"/>
+        <Model value="BattlecruiserYamatoAttackChargeModel"/>
+    </CActorModel>
+    <CActorSound id="12dahepaoAttackChargeSound" parent="SoundContinuous">
+        <On Terms="Abil.12dahepao.SourcePrepStart" Send="Create"/>
+        <On Terms="Abil.12dahepao.SourcePrepStop" Send="Destroy"/>
+        <Host Subject="12dahepaoAttackChargeModel"/>
+        <Sound value="Battlecruiser_YamatoAttackChargeUp"/>
+    </CActorSound>
+    <CActorAction id="12kongduikongdenglizipaozuAirAttack" parent="GenericAttack" effectImpact="12denglizipaozuDamage" effectLaunch="12kongduikongdenglizipaozuMissile">
+        <LaunchAttachQuery Methods="AMFilterWeaponSetA0 AMRandomUniform"/>
+        <LaunchAssets Sound="Battlecruiser_AirAttackLaunch"/>
+        <Missile value="12denglizipaoAttackMissile"/>
+        <ImpactSiteOps Ops="SOpAttachHarness SOpAttachVolumeStandard SOpForwardLaunchGuide"/>
+        <ImpactMap index="None" Model="BattlecruiserAirAttackImpact" Sound="Battlecruiser_AirAttackImpact"/>
+        <ImpactPhysics Name="ATAImpact" MatchKeys="BasicAir" Physics="BattlecruiserAttackAirForce"/>
+        <ActionFlags index="LaunchForceSite" value="1"/>
+    </CActorAction>
+    <CActorAction id="12kongduididenglizipaozuAttack" parent="GenericAttack" effectImpact="12denglizipaozuDamage" effectLaunch="12kongduididenglizipaozuMissle">
+        <LaunchAttachQuery Methods="AMFilterWeaponSetA1 AMRandomUniform"/>
+        <LaunchAssets Sound="Battlecruiser_GroundAttackLaunch"/>
+        <Missile value="12denglizipaoAttackMissile"/>
+        <ImpactSiteOps Ops="SOpAttachHarness SOpAttachVolumeStandard SOpForwardLaunchGuide"/>
+        <ImpactMap index="None" Model="BattlecruiserGroundAttackImpact" Sound="Battlecruiser_GroundAttackImpact"/>
+        <ImpactPhysics Name="ATSImpact" MatchKeys="Basic" Physics="BattlecruiserAttackGroundForce"/>
+        <ActionFlags index="LaunchForceSite" value="1"/>
+    </CActorAction>
+    <CActorAction id="12dahepaoAttack" parent="GenericAttack" effectImpact="12dahepaoDamage" effectLaunch="12dahepaoMissile">
+        <LaunchAttachQuery Methods="AMFilterWeaponSetA2"/>
+        <LaunchAssets Sound="Battlecruiser_YamatoAttackLaunch"/>
+        <Missile value="BattlecruiserYamatoAttackMissile"/>
+        <ImpactSiteOps Ops="SOpAttachHarness SOpForwardLaunchGuide SOp2DRotation"/>
+        <ImpactAttachQuery Methods="Origin"/>
+        <ImpactMap index="None" Model="BattlecruiserYamatoAttackImpact" Sound="Battlecruiser_YamatoAttackImpact"/>
+        <ImpactMap index="Miss" Model="None"/>
+        <ImpactModel value="12dahepaoAttackImpactModel"/>
+        <ImpactPhysics Name="YamatoImpact" MatchKeys="Basic" Physics="BattlecruiserYamatoAttackForce"/>
+        <ImpactPhysics Name="YamatoImpactAir" MatchKeys="BasicAir" Physics="BattlecruiserYamatoAttackForce"/>
+        <ShieldFlashType value="Full"/>
+        <ActionFlags index="LaunchForceSite" value="1"/>
+    </CActorAction>
+    <CActorModel id="12dahepaoAttackImpactModel" parent="ModelAnimationStyleOneShotNoOrphan">
+        <Flags index="SuppressCreationErrors" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <HostSiteOps Ops="SOpAttachOrigin SOpForwardLaunchGuide SOp2DRotation" HoldPosition="1" HoldRotation="1"/>
+        <Model value="GenericAttackModel"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+    </CActorModel>
+    <CActorUnit id="12youqibingluzhanduiyuan" parent="GenericUnitBase" unitName="12youqibingluzhanduiyuan">
+        <Aliases value="_UnitSmall"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="PhysicsDeathsSwarmGround"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsVoidGround"/>
+        <On Terms="Abil.attack.ReadyStart" Send="AnimGroupApply Ready"/>
+        <On Terms="WeaponStart.*.AttackStart; WeaponTargetElevation GE 20.000000" Send="AnimBracketStart Attack Attack,Superior"/>
+        <On Terms="WeaponStart.*.AttackStart; WeaponTargetElevation LE -20.000000" Send="AnimBracketStart Attack Attack,Inferior"/>
+        <On Terms="WeaponStart.*.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="WeaponStop.*.AttackStop" Send="AnimBracketStop Attack"/>
+        <On Terms="Abil.attack.ReadyStop" Send="AnimGroupRemove Ready"/>
+        <On Terms="ModelEvent; ModelEventName SquibStart" Send="Create MarineCheerSquib"/>
+        <On Terms="ModelEvent; ModelEventName SquibStop" Target="MarineCheerSquib" Send="Destroy"/>
+        <On Terms="ModelEvent; ModelEventName SquibStop" Target="MarineCheerSquibSound" Send="Destroy"/>
+        <On Terms="AnimDone; AnimName Cheer" Target="MarineCheerSquib" Send="Destroy"/>
+        <On Terms="AnimDone; AnimName Cheer" Target="MarineCheerSquibSound" Send="Destroy"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Marine_Land"/>
+        <Model value="Marine"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="Marine"/>
+        <DeathArray index="Normal" ModelLink="MarineDeath" SoundLink="Marine_DeathFXBloodSpray"/>
+        <DeathArray index="Blast" ModelLink="MarineDeathBlast"/>
+        <DeathArray index="Disintegrate" ModelLink="MarineDeathAcid" SoundLink="Uni_DeathFXAcid"/>
+        <DeathArray index="Eat" AnimProps="Stand" ModelLink="MarineDeathEat" SoundLink="Marine_DeathFXEat"/>
+        <DeathArray index="Eviscerate" ModelLink="MarineDeathEviscerate" SoundLink="Marine_DeathFXEviscerate"/>
+        <DeathArray index="Fire" ModelLink="MarineDeathFire" SoundLink="Marine_DeathFXFire"/>
+        <DeathArray index="Silentkill" SoundLink="Uni_DeathFXSilentKill"/>
+        <DeathArray index="Squish" SoundLink="Marine_DeathFXBloodSpray"/>
+        <DeathCustoms ModelLink="TerranSmallBiologicalUnitDeathLow" Name="AntiGravTerran"/>
+        <DeathCustoms ModelLink="MarineDeathRagdoll" Name="RagdollBasic">
+            <BodySquibs Name="None"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollSiegeTank" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollBaneling" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollUltraUnburrow" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms ActorModel="SpineCrawlerHurlDeathRagdollBloodPrevent" ModelLink="MarineDeathRagdoll" Name="RagdollSpineCrawlerHurl">
+            <BodySquibs Name="None"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms ModelLink="MarineDeathFire" Name="Variation14"/>
+        <DeathCustoms>
+            <ModelLink value="DeathVoidShadowSmall"/>
+            <SoundLink value="ShadowUnit_DeathFX"/>
+            <VoiceLink value="ShadowUnit_DeathVox"/>
+            <Name value="Shadow"/>
+        </DeathCustoms>
+        <DeathActorModel value="UnitDeathModelWithDeathMotionGround"/>
+        <PlacementModel value="Marine"/>
+        <PortraitModel value="MarinePortrait"/>
+        <StandAnimTurnTime value="4"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="0.600000"/>
+            <RangeDown value="0.600000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleSmall"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="2.25"/>
+        <AbilSoundArray AbilCmd="12gailiangqianghuaji,255" Sound="Marine_StimPackVO"/>
+        <BarOffset value="40"/>
+        <BarWidth value="36"/>
+        <GlossaryAnim value="Spell"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Marine.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-marine.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel3.dds"/>
+        <SoundArray index="Ready" value="Marine_Ready"/>
+        <SoundArray index="Help" value="Marine_Help"/>
+        <SoundArray index="What" value="Marine_What"/>
+        <SoundArray index="Yes" value="Marine_Yes"/>
+        <SoundArray index="Attack" value="Marine_Attack"/>
+        <SoundArray index="Pissed" value="Marine_Pissed"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-marine.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Marine.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorAction id="12fuhedianciqiangAttack" parent="GenericAttack" effectAttack="12fuhedianciqiangDamage">
+        <LaunchAssets Model="MarineAttackLaunch" Sound="Marine_AttackLaunch"/>
+        <ContainerAssets Model="MarineBunkerAttackLaunch" Sound="Marine_BunkerAttackLaunch"/>
+        <ImpactMap index="None" Model="MarineAttackImpact" Sound="Marine_AttackImpact"/>
+        <ImpactMap index="Flesh" ModelReaction="BloodTargetImpact"/>
+        <ImpactPhysics Name="BulletImpact" MatchKeys="Basic" Physics="MarineAttackDeathForce"/>
+        <DamageMap index="None" Sound=""/>
+        <AcquisitionYawHalfArc value="10.000000"/>
+        <AcquisitionPitchHalfArc value="15.000000"/>
+        <AccuracyHalfArc value="5.000000"/>
+        <ContainerAttachQuery Methods="Center 0"/>
+    </CActorAction>
+    <CActorSound id="12gailiangqianghuajiSound" parent="SoundOneShot">
+        <On Terms="Abil.12gailiangqianghuaji.SourceCastStart" Send="Create"/>
+        <On Terms="Abil.12hourantuijinxitong.SourceCastStart" Send="Create"/>
+        <Sound value="Marine_Stimpack"/>
+    </CActorSound>
+    <CActorModel id="12youqibingxunlianjidiBuild" parent="TerranBuildingBuild">
+        <Model value="BarracksBuild"/>
+    </CActorModel>
+    <CActorUnit id="12qiyijunzhanchegongchang" parent="TerranBuildingFlyerEx" unitName="12qiyijunzhanchegongchang">
+        <On Terms="UnitDeathCustomize.FactoryFlying" Send="DeathCustomize Flying"/>
+        <On Terms="Behavior.ColonyInfestation.On" Send="Create InfestedVisual"/>
+        <Model value="Factory"/>
+        <BuildModel value="Factory"/>
+        <DeathArray index="Normal" ModelLink="FactoryDeath"/>
+        <DeathArray index="UnderConstruction" ModelLink="TerranBuildingDeath" SoundLink="Factory_Explode"/>
+        <DeathCustoms index="5" ModelLink="FactoryFlyDeath" SoundLink="Factory_Explode" Name="Flying"/>
+        <PlacementModel value="FactoryPlacement"/>
+        <PortraitModel value="FactoryPortrait"/>
+        <BarOffset value="150"/>
+        <BarWidth value="160"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Factory.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-terran-Factory.dds"/>
+        <NameOffset value="110"/>
+        <SoundArray index="Ready" value="Factory_Ready"/>
+        <SoundArray index="What" value="Factory_What"/>
+        <SoundArray index="Movement" value="Factory_Movement"/>
+        <UnitIcon value="Assets\Textures\btn-building-terran-Factory.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Factory.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorSplat id="12qiyijunzhanchegongchangSplat" parent="TerranBuildingMorphSplat" unitName="12qiyijunzhanchegongchang">
+        <Model value="FactorySplat"/>
+    </CActorSplat>
+    <CActorUnit id="12qiyijunjunxieku" parent="TerranBuildingEx" unitName="12qiyijunjunxieku">
+        <Aliases value="_UnitHuge"/>
+        <On Terms="Behavior.ColonyInfestation.On" Send="Create InfestationArmory"/>
+        <Model value="Armory"/>
+        <CreepHeightClass value="Small"/>
+        <BuildModel value="Armory"/>
+        <DeathArray index="Normal" ModelLink="ArmoryDeath"/>
+        <DeathArray index="UnderConstruction" ModelLink="TerranLargeBuildingDeath" SoundLink="Armory_Explode"/>
+        <PlacementModel value="ArmoryPlacement"/>
+        <PortraitModel value="ArmoryPortrait"/>
+        <BarOffset value="115"/>
+        <BarWidth value="135"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Armory.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-terran-Armory.dds"/>
+        <NameOffset value="100"/>
+        <SoundArray index="Ready" value="Armory_Ready"/>
+        <SoundArray index="What" value="Armory_What"/>
+        <UnitIcon value="Assets\Textures\btn-building-terran-Armory.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Armory.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorModel id="12qiyijunjunxiekuBuild" parent="TerranBuildingBuild">
+        <Model value="ArmoryBuild"/>
+    </CActorModel>
+    <CActorText id="12jingzhuncaijiText">
+        <On Terms="ActorCreation" Send="TimerSet 0.100000 StartMover"/>
+        <On Terms="ActorCreation" Send="TimerSet 2.000000 Die"/>
+        <On Terms="ActorCreation" Send="SetOpacity 0.000000 2.000000"/>
+        <On Terms="TimerExpired; TimerName StartMover" Send="Create AutomatedRefineryTextMover"/>
+        <On Terms="TimerExpired; TimerName Die" Send="Destroy"/>
+        <On Terms="Effect.12jingzhuncaijiPlayer.Start" Send="Create"/>
+        <Host Subject="_Unit"/>
+        <FixedSize value="28"/>
+        <AlignV value="Bottom"/>
+        <HeightOffset value="3.500000"/>
+        <Text value="Button/Tooltip/12jingzhuncaijiText"/>
+    </CActorText>
+    <CActorUnit id="12dibao" parent="TerranBuildingEx" unitName="12dibao">
+        <Aliases value="_UnitHuge"/>
+        <Macros value="BunkerTransportAnim"/>
+        <Model value="BunkerUpgrade"/>
+        <CreepHeightClass value="Small"/>
+        <BuildModel value="Bunker"/>
+        <DeathArray index="Normal" ModelLink="BunkerUpgradeDeath"/>
+        <DeathArray index="UnderConstruction" ModelLink="TerranBuildingDeath" SoundLink="Bunker_Explode"/>
+        <DeathCustoms ModelLink="BunkerUpgradeDeath" Name="Upgrade"/>
+        <DeathCustoms ModelLink="BunkerUpgradeDeathEmpty" Name="Empty"/>
+        <PlacementModel value="BunkerUpgradePlacement"/>
+        <PlacementActorModel value="BunkerPlacementModel"/>
+        <PlaceholderActorModel value="BunkerPlaceholderModel"/>
+        <PortraitModel value="BunkerPortrait"/>
+        <BarOffset value="80"/>
+        <BarWidth value="85"/>
+        <GlossaryAnim value="Stand,Work"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-terran-bunker-neosteelframe.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-terran-bunkerfortified.dds"/>
+        <NameOffset value="70"/>
+        <SoundArray index="Ready" value="Bunker_Ready"/>
+        <SoundArray index="What" value="Bunker_What"/>
+        <UnitFlags index="ShowBlobShadow" value="0"/>
+        <UnitIcon value="Assets\Textures\btn-building-terran-bunkerfortified.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-terran-bunker-neosteelframe.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorModel id="12dibaoBuild" parent="TerranBuildingBuild">
+        <Model value="BunkerBuild"/>
+    </CActorModel>
+    <CActorModel id="12qiyijunzhanchegongchangBuild" parent="TerranBuildingBuild">
+        <Model value="FactoryBuild"/>
+    </CActorModel>
+    <CActorSplat id="12dibaoSplat" parent="GenericUnitSplat" unitName="12dibao">
+        <Model value="BunkerSplat"/>
+    </CActorSplat>
+    <CActorUnit id="12youqibingfenshaozhe" parent="GenericUnitStandard" unitName="12youqibingfenshaozhe">
+        <Aliases value="_UnitMedium"/>
+        <Macros value="UnloadDropAnim"/>
+        <On Terms="Abil.attack.ReadyStop" Target="FirebatAttackModel" Send="SetOpacity 0.000000 0.250000"/>
+        <On Terms="UnitDeathCustomize; ValidateUnit HaveVoidShade" Send="DeathCustomize Shadow"/>
+        <On Terms="UnitDeathCustomize; ValidateUnit HaveTerrazineShadow" Send="DeathCustomize Shadow"/>
+        <Model value="Firebat"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="Firebat"/>
+        <DeathArray index="Normal" ModelLink="FirebatDeath" SoundLink="Firebat_Explode"/>
+        <DeathCustoms>
+            <ModelLink value="DeathVoidShadowMedium"/>
+            <SoundLink value="ShadowUnit_DeathFX"/>
+            <VoiceLink value="ShadowUnit_DeathVox"/>
+            <Name value="Shadow"/>
+        </DeathCustoms>
+        <PlacementModel value="Firebat"/>
+        <PortraitModel value="FirebatPortrait"/>
+        <WalkAnimMoveSpeed value="1.875"/>
+        <BarOffset value="77"/>
+        <BarWidth value="45"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-firebat.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-firebat.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel3.dds"/>
+        <SoundArray index="Ready" value="Firebat_Ready"/>
+        <SoundArray index="Help" value="Firebat_Help"/>
+        <SoundArray index="What" value="Firebat_What"/>
+        <SoundArray index="Yes" value="Firebat_Yes"/>
+        <SoundArray index="Attack" value="Firebat_Attack"/>
+        <SoundArray index="Pissed" value="Firebat_Pissed"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-firebat.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-firebat.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorAction id="12lieyanpensheqiAttack" parent="GenericAttackBase" effectAttack="12lieyanpensheqiPersistent">
+        <On Terms="Effect.12lieyanpensheqiPersistent.Start; At Caster" Send="Create"/>
+        <On Terms="Effect.12lieyanpensheqiDamage.Start; At Caster; FromEffectTreeDescendant" Send="ActionDamage"/>
+        <LaunchAssets Model="12lieyanpensheqiAttackModel" Sound="FirebatAttackLaunch"/>
+        <LaunchModel value="12lieyanpensheqiAttackModel"/>
+        <ImpactMap index="None" Sound="Firebat_AttackImpact"/>
+        <ContainerAttachQuery Methods="Center 0"/>
+        <ContainerAssets Model="12lieyanpensheqiAttackModel" Sound="FirebatAttackLaunch"/>
+        <ContainerModel value="12lieyanpensheqiAttackModel"/>
+    </CActorAction>
+    <CActorModel id="12lieyanpensheqiAttackModel" parent="ModelAnimationStyleOneShotNoOrphan">
+        <On Terms="ActorCreation" Send="SetScaleFromWeaponRange 0.000000,1.000000,0.000000"/>
+    </CActorModel>
+    <CActorFoliageFXSpawner id="12lieyanpensheqiFoliageFXSpawner" parent="FoliageFXSpawnerFire">
+        <On Terms="Effect.12lieyanpensheqiSearch.Start" Send="Create"/>
+    </CActorFoliageFXSpawner>
+    <CActorRegionCircle id="12lieyanpensheqiTreeKiller">
+        <On Terms="Effect.12lieyanpensheqiSearch.Start; At Effect" Send="Create"/>
+        <On Terms="ActorCreation" Send="QueryRegion ::Self TreeBurnQuery AgainstCenter"/>
+        <On Terms="Effect.12lieyanpensheqiSearch.Start; At Effect" Send="Destroy"/>
+        <Radius value="0.600000"/>
+    </CActorRegionCircle>
+    <CActorUnit id="12emoquan" parent="GenericUnitStandard" unitName="12emoquan">
+        <Aliases value="_UnitMedium"/>
+        <Macros value="UnloadDropAnim"/>
+        <On Terms="Behavior.MercGroundDrop.Create" Send="Create DevilDogDropModel"/>
+        <On Terms="Abil.attack.ReadyStop" Target="DevilDogAttackModel" Send="SetOpacity 0.000000 0.250000"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Marauder_Land"/>
+        <Model value="DevilDog"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="DevilDog"/>
+        <DeathArray index="Normal" ModelLink="DevilDogDeath" SoundLink="Firebat_Explode"/>
+        <PlacementModel value="DevilDog"/>
+        <PortraitModel value="FirebatMercenaryPortrait"/>
+        <WalkAnimMoveSpeed value="1.875"/>
+        <BarOffset value="77"/>
+        <BarWidth value="45"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-firebat-mercenary.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="What" value="FirebatGroupWhat"/>
+        <GroupSoundArray index="Yes" value="FirebatGroupYes"/>
+        <GroupSoundArray index="Attack" value="FirebatGroupAttack"/>
+        <GroupSoundArray index="Board" value="FirebatGroupBoard"/>
+        <HeroIcon value="Assets\Textures\BTN-Unit-Terran-FirebatMercenary.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel0.dds"/>
+        <SoundArray index="Birth" value="FirebatBirth"/>
+        <SoundArray index="Ready" value="Firebat_Ready"/>
+        <SoundArray index="Help" value="Firebat_Help"/>
+        <SoundArray index="What" value="Firebat_What"/>
+        <SoundArray index="Yes" value="Firebat_Yes"/>
+        <SoundArray index="Attack" value="Firebat_Attack"/>
+        <SoundArray index="Pissed" value="Firebat_Pissed"/>
+        <SoundArray index="Movement" value="FirebatMovement"/>
+        <SoundArray index="Turning" value="FirebatTurning"/>
+        <SoundArray index="Board" value="FirebatBoard"/>
+        <SoundArray index="Click" value="FirebatClick"/>
+        <SoundArray index="ClickError" value="FirebatClickError"/>
+        <SoundArray index="Highlight" value="FirebatHighlight"/>
+        <UnitIcon value="Assets\Textures\BTN-Unit-Terran-FirebatMercenary.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-firebat-mercenary.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorUnit id="12qiyijunbubingzhanche" parent="GenericUnitStandard" unitName="12qiyijunbubingzhanche">
+        <Aliases value="_UnitLarge"/>
+        <Macros value="UnloadDropAnim"/>
+        <On Terms="Abil.attack.ReadyStop" Target="DiamondbackAttackBeam" Send="SetOpacity 0.000000 0.250000"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Diamondback_Land"/>
+        <On Terms="UnitDeathCustomize; ValidateUnit HaveVoidShade" Send="DeathCustomize Shadow"/>
+        <On Terms="UnitDeathCustomize; ValidateUnit HaveTerrazineShadow" Send="DeathCustomize Shadow"/>
+        <Model value="Diamondback"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="Diamondback"/>
+        <DeathArray index="Normal" ModelLink="DiamondbackDeath" SoundLink="Diamondback_Explode"/>
+        <DeathCustoms>
+            <ModelLink value="DeathVoidShadowMedium"/>
+            <SoundLink value="ShadowUnit_DeathFX"/>
+            <VoiceLink value="ShadowUnit_DeathVox"/>
+            <Name value="Shadow"/>
+        </DeathCustoms>
+        <PlacementModel value="Diamondback"/>
+        <PortraitModel value="DiamondbackPortrait"/>
+        <BarOffset value="80"/>
+        <BarWidth value="102"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Diamondback.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="Birth" value="Diamondback_Birth"/>
+        <GroupSoundArray index="Ready" value="Diamondback_Ready"/>
+        <GroupSoundArray index="Help" value="Diamondback_Help"/>
+        <GroupSoundArray index="What" value="Diamondback_What"/>
+        <GroupSoundArray index="Yes" value="Diamondback_Yes"/>
+        <GroupSoundArray index="Attack" value="Diamondback_Attack"/>
+        <GroupSoundArray index="Pissed" value="SpiderMinePissed"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel0.dds"/>
+        <NameOffset value="40"/>
+        <SoundArray index="Ready" value="Diamondback_Ready"/>
+        <SoundArray index="Help" value="Diamondback_Help"/>
+        <SoundArray index="What" value="Diamondback_What"/>
+        <SoundArray index="Yes" value="Diamondback_Yes"/>
+        <SoundArray index="Attack" value="Diamondback_Attack"/>
+        <SoundArray index="Pissed" value="Diamondback_Pissed"/>
+        <SoundArray index="Movement" value="Diamondback_Movement"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-diamondback.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Diamondback.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorUnit id="12xiubolianhongzhaji" parent="GenericUnitStandard" unitName="12xiubolianhongzhaji">
+        <Aliases value="_UnitLarge"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsSwarmAir"/>
+        <Macros value="PhysicsDeathsVoidAir"/>
+        <On Terms="UnitPortrait.*.Configure; ValidateUnit Cloaked" Target="::PortraitGameSelf" Send="AnimBracketStart Visor Morph,Start Morph,Stand Morph,End Instant"/>
+        <On Terms="UnitPortrait.*.Configure; ValidateUnit NotCloaked" Target="::PortraitGameSelf" Send="AnimBracketStop Visor Instant"/>
+        <On Terms="Behavior.BansheeCloak.On" Send="StatusIncrement Cloaked"/>
+        <On Terms="Behavior.CloakFieldEffect.On" Send="StatusIncrement Cloaked"/>
+        <On Terms="Behavior.BansheeCloak.Off" Send="StatusDecrement Cloaked"/>
+        <On Terms="Behavior.CloakFieldEffect.Off" Send="StatusDecrement Cloaked"/>
+        <On Terms="Behavior.BansheeCloak.On; IsStatus Cloaked 1" Target="::PortraitGameSelf" Send="AnimBracketStart Visor Morph,Start Morph,Stand Morph,End"/>
+        <On Terms="Behavior.BansheeCloak.Off; IsStatus Cloaked 0" Target="::PortraitGameSelf" Send="AnimBracketStop Visor"/>
+        <On Terms="Behavior.CloakFieldEffect.On; IsStatus Cloaked 1" Target="::PortraitGameSelf" Send="AnimBracketStart Visor Morph,Start Morph,Stand Morph,End"/>
+        <On Terms="Behavior.CloakFieldEffect.Off; IsStatus Cloaked 0" Target="::PortraitGameSelf" Send="AnimBracketStop Visor"/>
+        <On Terms="Behavior.BansheeCloakCrossSpectrumDampeners.On" Target="::PortraitGameSelf" Send="AnimBracketStart Visor Morph,Start Morph,Stand Morph,End"/>
+        <On Terms="Behavior.BansheeCloakCrossSpectrumDampeners.Off" Target="::PortraitGameSelf" Send="AnimBracketStop Visor"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Banshee_Land"/>
+        <On Terms="UnitDeathCustomize; ValidateUnit HaveVoidShade" Send="DeathCustomize Shadow"/>
+        <On Terms="UnitDeathCustomize; ValidateUnit HaveTerrazineShadow" Send="DeathCustomize Shadow"/>
+        <HostSiteOps Ops="SOpBankerBanshee"/>
+        <Model value="Banshee"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <Baselines index="Walk" BlendIn="0.750000" BlendOut="1.000000"/>
+        <BuildModel value="Banshee"/>
+        <DeathArray index="Normal" ModelLink="BansheeDeath" SoundLink="Banshee_Explode"/>
+        <DeathCustoms>
+            <ActorModel value="BansheeDeathRagdoll"/>
+            <ModelLink value="BansheeDeathRagdoll"/>
+            <Name value="RagdollBasic"/>
+            <PhysicsMatchKeysOrdered value="BasicAir,Basic"/>
+            <BodySquibs Name="Basic" Model="TerranSquibDeathRagdoll"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms>
+            <ModelLink value="DeathVoidShadowMedium"/>
+            <SoundLink value="ShadowUnit_DeathFX"/>
+            <VoiceLink value="ShadowUnit_DeathVox"/>
+            <Name value="Shadow"/>
+        </DeathCustoms>
+        <DeathActorModel value="UnitDeathModelWithDeathMotionFlier"/>
+        <PhysicsMatchKeysOrdered value="BasicAir,Basic"/>
+        <PlacementModel value="Banshee"/>
+        <PortraitModel value="BansheePortrait"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.250000,0.500000"/>
+            <RangeDown value="5.000000"/>
+            <RangeDownFade value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleMassive15"/>
+        </TerrainSquibs>
+        <BarOffset value="60"/>
+        <BarWidth value="90"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Banshee.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-banshee.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-shipplatinglevel0.dds"/>
+        <NameOffset value="60"/>
+        <SoundArray index="Ready" value="Banshee_Ready"/>
+        <SoundArray index="Help" value="Banshee_Help"/>
+        <SoundArray index="What" value="Banshee_What"/>
+        <SoundArray index="Yes" value="Banshee_Yes"/>
+        <SoundArray index="Attack" value="Banshee_Attack"/>
+        <SoundArray index="Pissed" value="Banshee_Pissed"/>
+        <SoundArray index="Movement" value="Banshee_Movement"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-banshee.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Banshee.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorAction id="12fanzhuangjiadiancipaoAttack" parent="GenericAttack" effectAttack="12fanzhuangjiadiancipaoDamage">
+        <LaunchAttachQuery Methods="AMFilterWeapon"/>
+        <LaunchAssets Sound="Diamondback_AttackImpact"/>
+        <ImpactPhysics Name="RailgunImpact" MatchKeys="Basic" Physics="MengskDiamondbackAttackDeathForce"/>
+    </CActorAction>
+    <CActorBeamSimple id="12fanzhuangjiadiancipaoAttackBeam" parent="GenericAttackBeam">
+        <On Terms="ActorCreation; ValidateEffect DiamondbackCharged" Send="ModelSwap DiamondbackAttackBeamCharged"/>
+        <On Terms="ActorOrphan" Send="Destroy"/>
+        <Model value="DiamondbackAttackBeam"/>
+    </CActorBeamSimple>
+    <CActorAction id="12jishuhuojianAttackLeft" parent="GenericAttack" effectImpact="12jishuhuojianDamageSearch" effectLaunch="12jishuhuojianMissileLeft">
+        <LaunchAttachQuery Methods="Hit 5"/>
+        <LaunchAssets Sound="Banshee_AttackLaunch2"/>
+        <Missile value="BansheeAttackMissile"/>
+        <ImpactMap index="None" Model="BansheeAttackImpact" Sound="Banshee_AttackImpact2"/>
+        <ImpactPhysics Name="BacklashRocketsImpact" MatchKeys="Basic" Physics="BansheeAttackForce"/>
+        <AcquisitionYawHalfArc value="15.000000"/>
+        <AcquisitionPitchHalfArc value="30.000000"/>
+        <ShieldRippleScaleFactor value="1.100000"/>
+    </CActorAction>
+    <CActorModel id="12sanhuadanModel" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.12sanhuadanSearch.Start" Send="Create"/>
+        <Model value="BansheeCarpetBombImpact"/>
+    </CActorModel>
+    <CActorSound id="12sanhuadanSound" parent="SoundOneShot">
+        <On Terms="Effect.12sanhuadanSearch.Start" Send="Create"/>
+        <Sound value="BansheeCarpetBombImpact"/>
+    </CActorSound>
+    <CActorAction id="12hangkongjipaoAttackLeft" parent="GenericAttack" effectAttack="12hangkongjipaoDamageLeft">
+        <LaunchAttachQuery Methods="Weapon 3"/>
+        <LaunchAssets Model="AutoTurretAttackLaunch" Sound="Raven_AutoTurretAttackLaunch"/>
+        <Beam value="12hangkongjipaoAttackBeam"/>
+        <ImpactMap index="None" Model="AutoTurretAttackImpact" Sound="Raven_AutoTurretAttackImpact"/>
+        <ImpactMap index="Flesh" ModelReaction="BloodTargetImpact"/>
+        <ImpactPhysics Name="GauseCannonImpact" MatchKeys="Basic" Physics="AutoTurretAttackDeathForce"/>
+    </CActorAction>
+    <CActorModel id="12jianyihudunModel" parent="ModelAddition">
+        <Inherits index="TintColor" value="0"/>
+        <On Terms="Behavior.12jianyihudun.On" Send="Create"/>
+        <On Terms="Behavior.12jianyihudun.Off" Send="AnimBracketStop BSD"/>
+        <On Terms="ActorCreation; ValidateUnit IsColossus" Send="SetScale 1.000000,1.000000,3.000000"/>
+        <On Terms="ActorCreation; ValidateUnit IsVoidRay" Send="SetScale 1.200000,1.600000,1.200000"/>
+        <On Terms="ActorCreation; ValidateUnit IsBattlecruiser" Send="SetScale 1.200000,1.500000,1.000000"/>
+        <On Terms="ActorCreation; ValidateUnit IsThor" Send="SetScale 1.400000,1.200000,1.200000"/>
+        <On Terms="ActorCreation; ValidateUnit IsHerculesCombine" Send="SetScale 1.100000,1.700000,1.100000"/>
+        <On Terms="ActorCreation; ValidateUnit IsGoliath" Send="SetScale 1.300000"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <AutoScaleFactor value="1.000000"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+    </CActorModel>
+    <CActorUnit id="12jijiamoshiMorphModel" parent="GenericUnitBaseMorphTransition" unitName="FighterMorphModel">
+        <Aliases value="_UnitLarge"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 12xiubolianjianjizhanji" Send="Create"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 12xiubolianjianjizhanji" Send="AnimPlay End Morph,End PlayForever,NonLooping"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 12xiubolianjianjizhanji" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 12xiubolianjianjijijia" Send="Destroy"/>
+        <On Terms="UnitPortrait.*.Configure" Target="::PortraitGameSelf" Send="AnimPlay Visor Morph,Start PlayForever,NonLooping"/>
+        <On Terms="UnitPortrait.*.Configure" Target="::PortraitGameSelf" Send="PortraitAnimSetTimeFrom Visor MorphStart"/>
+        <Model value="VikingMorph"/>
+        <DeathArray index="Normal" ModelLink="VikingFighterDeath" SoundLink="Viking_Explode"/>
+        <PortraitModel value="VikingFighterPortrait"/>
+        <AbilSoundArray AbilCmd="12jijiamoshi,Execute" Sound="Viking_AssaultModeVO"/>
+        <BarOffset value="50"/>
+        <BarWidth value="70"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Viking-Fighter.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-vikingfighter.dds"/>
+        <HighlightTooltip value="Unit/Name/VikingFighter"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-shipplatinglevel0.dds"/>
+        <SoundArray index="Ready" value="Viking_Ready"/>
+        <SoundArray index="Help" value="Viking_Help"/>
+        <SoundArray index="What" value="Viking_What"/>
+        <SoundArray index="Yes" value="Viking_Yes"/>
+        <SoundArray index="Attack" value="Viking_Attack"/>
+        <SoundArray index="Pissed" value="Viking_Pissed"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-vikingfighter.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Viking-Fighter.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorUnit id="12zhanjimoshiMorphModel" parent="GenericUnitBaseMorphTransition" unitName="AssaultMorphModel">
+        <Aliases value="_UnitLarge"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 12xiubolianjianjijijia" Send="Create"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 12xiubolianjianjijijia" Send="AnimPlay Start Morph,Start PlayForever"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 12xiubolianjianjijijia" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 12xiubolianjianjizhanji" Send="Destroy"/>
+        <On Terms="UnitPortrait.*.Configure" Target="::PortraitGameSelf" Send="AnimPlay Visor Morph,End"/>
+        <On Terms="UnitPortrait.*.Configure" Target="::PortraitGameSelf" Send="PortraitAnimSetTimeFrom Visor MorphStart"/>
+        <Model value="VikingMorph"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <DeathArray index="Normal" ModelLink="VikingFighterDeath" SoundLink="Viking_Explode"/>
+        <PortraitModel value="VikingFighterPortrait"/>
+        <AbilSoundArray AbilCmd="12zhanjimoshi,Execute" Sound="Viking_FighterModeVO"/>
+        <BarOffset value="70"/>
+        <BarWidth value="70"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Viking-Assault.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-vikingassault.dds"/>
+        <HighlightTooltip value="Unit/Name/VikingAssault"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-shipplatinglevel0.dds"/>
+        <SoundArray index="Ready" value="Viking_Ready"/>
+        <SoundArray index="Help" value="Viking_Help"/>
+        <SoundArray index="What" value="Viking_What"/>
+        <SoundArray index="Yes" value="Viking_Yes"/>
+        <SoundArray index="Attack" value="Viking_Attack"/>
+        <SoundArray index="Pissed" value="Viking_Pissed"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-vikingassault.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Viking-Assault.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorSplat id="12qiyijunjunxiekuSplat" parent="GenericUnitSplat" unitName="12qiyijunjunxieku">
+        <Model value="ArmorySplat"/>
+    </CActorSplat>
+    <CActorUnit id="12xiubolianjubianxinti" parent="TerranBuildingEx" unitName="12xiubolianjubianxinti">
+        <Aliases value="_UnitHuge"/>
+        <Macros value="QueueAnim"/>
+        <Model value="FusionCore"/>
+        <CreepHeightClass value="Medium"/>
+        <BuildModel value="FusionCore"/>
+        <DeathArray index="Normal" ModelLink="FusionCoreDeath"/>
+        <DeathArray index="UnderConstruction" ModelLink="TerranBuildingDeath" SoundLink="FusionCore_Explode"/>
+        <PlacementModel value="FusionCorePlacement"/>
+        <PortraitModel value="FusionCorePortrait"/>
+        <BarOffset value="115"/>
+        <BarWidth value="135"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-FusionCore.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-terran-fusioncore.dds"/>
+        <NameOffset value="100"/>
+        <SoundArray index="Ready" value="FusionCore_Ready"/>
+        <SoundArray index="What" value="FusionCore_What"/>
+        <UnitFlags index="ShowBlobShadow" value="0"/>
+        <UnitIcon value="Assets\Textures\btn-building-terran-fusioncore.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-FusionCore.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorModel id="12xiubolianjubianxintiBuild" parent="TerranBuildingBuild">
+        <Model value="FusionCoreBuild"/>
+    </CActorModel>
+    <CActorSplat id="12xiubolianjubianxintiSplat" parent="GenericUnitSplat" unitName="12xiubolianjubianxinti">
+        <Model value="FusionCoreSplat"/>
+    </CActorSplat>
+    <CActorUnit id="12youhunxunlianying" parent="TerranBuildingEx" unitName="12youhunxunlianying">
+        <Aliases value="_UnitHuge"/>
+        <Macros value="QueueAnim"/>
+        <Model value="GhostAcademy"/>
+        <BuildModel value="GhostAcademy"/>
+        <DeathArray index="Normal" ModelLink="GhostAcademyDeath"/>
+        <DeathArray index="UnderConstruction" ModelLink="TerranBuildingDeath" SoundLink="GhostAcademy_Explode"/>
+        <PlacementModel value="GhostAcademyPlacement"/>
+        <PortraitModel value="GhostAcademyPortrait"/>
+        <BarOffset value="125"/>
+        <BarWidth value="155"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-GhostAcademy.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-terran-ghostacademy.dds"/>
+        <NameOffset value="100"/>
+        <SoundArray index="Ready" value="GhostAcademy_Ready"/>
+        <SoundArray index="What" value="GhostAcademy_What"/>
+        <UnitFlags index="ShowBlobShadow" value="0"/>
+        <UnitFlags index="StandAnimBirthVariation" value="0"/>
+        <UnitIcon value="Assets\Textures\btn-building-terran-ghostacademy.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-GhostAcademy.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorModel id="12youhunxunlianyingBuild" parent="TerranBuildingBuild">
+        <Model value="GhostAcademyBuild"/>
+    </CActorModel>
+    <CActorUnit id="12gaoshejipao" parent="TerranBuildingEx" unitName="12gaoshejipao">
+        <Aliases value="_UnitHuge"/>
+        <On index="65" Send="AnimBracketStart Attack Stand"/>
+        <Model value="MissileTurret"/>
+        <CreepHeightClass value="Small"/>
+        <BuildModel value="MissileTurret"/>
+        <DeathArray index="Normal" ModelLink="MissileTurretDeath"/>
+        <DeathArray index="UnderConstruction" ModelLink="TerranBuildingDeath" SoundLink="MissileTurret_Explode"/>
+        <DeathCustoms ModelLink="MissileTurretTitaniumHousingDeath" Name="Upgrade"/>
+        <PlacementModel value="MissileTurretPlacement"/>
+        <PlacementSound value="Terran_BuildingPlacementSmall"/>
+        <PlacementActorModel value="MissileTurretSkinnablePlacementModel"/>
+        <PortraitModel value="MissileTurretPortrait"/>
+        <BarOffset value="90"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-MissileTurret.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-terran-missileturret.dds"/>
+        <SoundArray index="Ready" value="MissileTurret_Ready"/>
+        <SoundArray index="What" value="MissileTurret_What"/>
+        <UnitFlags index="ShowBlobShadow" value="0"/>
+        <UnitIcon value="Assets\Textures\btn-building-terran-missileturret.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-MissileTurret.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorSplat id="12gaoshejipaoSplat" parent="GenericUnitSplat" unitName="12gaoshejipao">
+        <Model value="MissileTurretSplat"/>
+    </CActorSplat>
+    <CActorModel id="12gaoshejipaoBuild" parent="TerranBuildingBuildSmall">
+        <Model value="MissileTurretBuild"/>
+    </CActorModel>
+    <CActorUnit id="12youqibinghushi" parent="GenericUnitStandard" unitName="12youqibinghushi">
+        <Aliases value="_UnitSmall"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <On Terms="Abil.heal.SourceChannelStart" Send="$Spell PlayForever"/>
+        <On Terms="Abil.heal.SourceChannelStop" Send="AnimClear Spell"/>
+        <On Terms="Behavior.KillSquad.On" Send="ModelSwap MedicKillSquad"/>
+        <On Terms="UnitDeathCustomize; ValidateUnit IsKillSquad" Send="DeathCustomize Variation2"/>
+        <On Terms="UnitDeathCustomize; CanApplyActionPhysics RagdollBasic" Send="DeathCustomize RagdollBasic"/>
+        <On Terms="UnitDeathCustomize; CanApplyActionPhysics RagdollSiegeTank" Send="DeathCustomize RagdollSiegeTank"/>
+        <On Terms="UnitDeathCustomize; CanApplyActionPhysics RagdollUltraUnburrow" Send="DeathCustomize RagdollUltraUnburrow"/>
+        <Model value="Medic"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="Medic"/>
+        <DeathArray index="Normal" ModelLink="MedicDeath" SoundLink="Medic_Explode"/>
+        <DeathArray index="Blast" ModelLink="MedicDeath"/>
+        <DeathCustoms ModelLink="MedicKillSquadDeath" SoundLink="Medic_Death" Name="Variation2"/>
+        <DeathCustoms ModelLink="MedicDeathRagdoll" Name="RagdollBasic"/>
+        <DeathCustoms ModelLink="MedicDeathRagdoll" Name="RagdollSiegeTank"/>
+        <DeathCustoms ModelLink="MedicDeathRagdoll" Name="RagdollUltraUnburrow"/>
+        <DeathCustoms>
+            <ModelLink value="DeathVoidShadowSmall"/>
+            <SoundLink value="ShadowUnit_DeathFX"/>
+            <VoiceLink value="ShadowUnit_DeathVox"/>
+            <Name value="Shadow"/>
+        </DeathCustoms>
+        <PlacementModel value="Medic"/>
+        <PortraitModel value="MedicPortrait"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="0.400000"/>
+            <RangeDown value="0.400000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleMedium"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="2.25"/>
+        <BarOffset value="20"/>
+        <BarWidth value="36"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-medic.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\BTN-Unit-Terran-Medic.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel3.dds"/>
+        <SoundArray index="Ready" value="Medic_Ready"/>
+        <SoundArray index="Help" value="Medic_Help"/>
+        <SoundArray index="What" value="Medic_What"/>
+        <SoundArray index="Yes" value="Medic_Yes"/>
+        <SoundArray index="Attack" value="Medic_Attack"/>
+        <SoundArray index="Pissed" value="Medic_Pissed"/>
+        <UnitIcon value="Assets\Textures\BTN-Unit-Terran-Medic.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-medic.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorSound id="12youqibinghushiDeath" parent="SoundOneShot">
+        <On Terms="UnitDeath.12youqibinghushi; PassChance 25.000000" Send="Create"/>
+        <On Terms="UnitDeath.InfestedMedic; PassChance 25.000000" Send="Create"/>
+        <Sound value="Medic_Death"/>
+    </CActorSound>
+    <CActorBeamSimple id="12zhiliaoBeam" parent="BeamSimpleAnimationStyleContinuous">
+        <Inherits index="Visibility" value="1"/>
+        <On Terms="Effect.12zhiliaoPersistentHeal.TargetStart" Send="Create"/>
+        <On Terms="Effect.12zhiliaoPersistentHeal.TargetStop" Send="Destroy"/>
+        <HostForProps Subject="_Unit" Scope="Caster" Actor="Find"/>
+        <Model value="MedicHealBeam"/>
+        <HostLaunch Subject="_Unit" Scope="Caster" Actor="Find"/>
+        <HostLaunchSiteOps Ops="SOpAttachWeapon"/>
+        <HostImpact Subject="_Unit" Scope="Target" Actor="Find"/>
+        <HostImpactSiteOps Ops="SOpAttachCenter"/>
+    </CActorBeamSimple>
+    <CActorModel id="12zhiliaoModel" parent="ModelAnimationStyleContinuous">
+        <On Terms="ActorCreation" Send="$Birth PlayForever"/>
+        <On Terms="Effect.12zhiliaoPersistentHeal.TargetStart; At Target" Send="Create"/>
+        <On Terms="Effect.12zhiliaoPersistentHeal.TargetStop; At Target" Send="Destroy"/>
+        <On Terms="ActorOrphan" Send="Destroy"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachOverhead"/>
+        <Model value="MedicHealModel"/>
+    </CActorModel>
+    <CActorSound id="12zhiliaoSound" parent="SoundContinuous">
+        <On Terms="Abil.12zhiliao.TargetChannelStart" Send="Create"/>
+        <On Terms="Abil.12zhiliao.TargetChannelStop" Send="Destroy"/>
+        <On Terms="ActorOrphan" Send="Destroy"/>
+        <On Terms="ActorCreation" Send="Create MedicHealSoundStart"/>
+        <On Terms="ActorDestruction" Send="Create MedicHealSoundStop"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachOverhead"/>
+        <Sound value="Medic_Heal"/>
+    </CActorSound>
+    <CActorUnit id="12kuangluo" parent="GenericUnitStandard" unitName="12kuangluo">
+        <Aliases value="_UnitMedium"/>
+        <Macros value="CarryAnim"/>
+        <Macros value="PhysicsDeathsSwarmGround"/>
+        <Macros value="PhysicsDeathsVoidGround"/>
+        <On Terms="Abil.MULEGather.Start" Send="AnimBracketStart Work Work,Start Work Work,End"/>
+        <On Terms="Abil.MULEGather.Stop" Send="AnimBracketStop Work"/>
+        <On Terms="Abil.12xiuli.SourceChannelStart" Send="AnimBracketStart Work Work,Start Work Work,End"/>
+        <On Terms="Abil.12xiuli.SourceChannelStop" Send="AnimBracketStop Work"/>
+        <On Terms="Abil.12xiuli.SourceChannelStart" Send="TimerSet 0.000000,0.300000 Repair"/>
+        <On Terms="Abil.12xiuli.SourceChannelStop" Send="TimerKill Repair"/>
+        <On Terms="Abil.12xiuli.SourceChannelStop" Send="AnimClear Repair"/>
+        <On Terms="AnimDone.*.Complete; AnimName Repair" Send="TimerSet 0.000000,0.300000 Repair"/>
+        <On Terms="TimerExpired; TimerName Repair" Send="AnimPlay Repair Work NonLooping"/>
+        <On Terms="TimerExpired; TimerName Repair" Send="Create MULERepairSound"/>
+        <On Terms="Abil.MULEGather.Start" Send="StatusSet CloakSound 1"/>
+        <On Terms="Behavior.CarryHarvestableVespeneGeyserGas.Create" Send="StatusSet CloakSound 1"/>
+        <On Terms="Confirmation.MULE.Start" Send="StatusSet CloakSound 0"/>
+        <On Terms="Behavior.CloakFieldEffect.Create; IsStatus CloakSound 0" Send="Create Worker_CloakFieldOn"/>
+        <On Terms="Behavior.CloakFieldEffect.Destroy; IsStatus CloakSound 0" Send="Create Worker_CloakFieldOff"/>
+        <On Terms="Behavior.Precursor.Off" Send="Create MULEReadySound"/>
+        <On Terms="Behavior.OracleCloakFieldEffect.Create; IsStatus CloakSound 0" Send="Create Worker_CloakFieldOn"/>
+        <On Terms="Behavior.OracleCloakFieldEffect.Destroy; IsStatus CloakSound 0" Send="Create Worker_CloakFieldOff"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Mule_Land"/>
+        <Model value="MULE"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="MULE"/>
+        <DeathArray index="Normal" ModelLink="MULEDeath" SoundLink="Mule_Explode"/>
+        <DeathCustoms ModelLink="MULEDeathRagdoll" Name="RagdollBasic">
+            <BodySquibs Name="Basic" Model="TerranSquibDeathRagdoll"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollSiegeTank" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollBaneling" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollUltraUnburrow" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <PlacementModel value="MULE"/>
+        <PortraitModel value="MULEPortrait"/>
+        <BarOffset value="50"/>
+        <BarWidth value="42"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-mule.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="Help" value="Alert_TerranEconomyUnderAttack"/>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-mule.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel0.dds"/>
+        <SoundArray index="Birth" value=""/>
+        <SoundArray index="Ready" value=""/>
+        <SoundArray index="Help" value="Alert_TerranEconomyUnderAttack"/>
+        <SoundArray index="What" value="Mule_What"/>
+        <SoundArray index="Yes" value="Mule_Yes"/>
+        <SoundArray index="Attack" value="Mule_Yes"/>
+        <SoundArray index="Pissed" value="Mule_Pissed"/>
+        <SoundArray index="Movement" value="SCVMovement"/>
+        <SoundArray index="Turning" value="SCVTurning"/>
+        <SoundArray index="Board" value="SCVBoard"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-mule.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-mule.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorUnit id="12youqibingbaoposhou" parent="GenericUnitBase" unitName="12youqibingbaoposhou">
+        <Aliases value="_UnitMedium"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsSwarmGround"/>
+        <Macros value="PhysicsDeathsVoidGround"/>
+        <On Terms="Abil.attack.ReadyStart" Send="AnimGroupApply Ready"/>
+        <On Terms="ActorCreation" Send="StatusSet WeaponNext 1"/>
+        <On Terms="Effect.12qingzhuangliudanMissile.Start; At Caster" Send="StatusIncrement WeaponNext"/>
+        <On Terms="Effect.12qingzhuangliudanMissile.Start; At Caster; IsStatus WeaponNext 2" Send="StatusSet WeaponNext 0"/>
+        <On Terms="Effect.12qingzhuangliudanMissile.Start; At Caster; IsStatus WeaponNext 0" Send="AnimClear AttackRight"/>
+        <On Terms="Effect.12qingzhuangliudanMissile.Start; At Caster; IsStatus WeaponNext 0" Send="AnimPlay AttackLeft Attack,Left"/>
+        <On Terms="Effect.12qingzhuangliudanMissile.Start; At Caster; IsStatus WeaponNext 1" Send="AnimClear AttackLeft"/>
+        <On Terms="Effect.12qingzhuangliudanMissile.Start; At Caster; IsStatus WeaponNext 1" Send="AnimPlay AttackRight Attack,Right"/>
+        <On Terms="UnitMovementUpdate.*.Walk" Send="AnimClear AttackLeft"/>
+        <On Terms="UnitMovementUpdate.*.Walk" Send="AnimClear AttackRight"/>
+        <On Terms="ModelEvent; ModelEventName AnimClear" Send="AnimClear AttackLeft"/>
+        <On Terms="ModelEvent; ModelEventName AnimClear" Send="AnimClear AttackRight"/>
+        <On Terms="Abil.attack.ReadyStop" Send="AnimGroupRemove Ready"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Marauder_Land"/>
+        <On Terms="UnitDeathCustomize; PassChance 1.000000; ValidateUnit IsNotNeuralParasited" Send="Create Marauder_Death"/>
+        <On Terms="UnitDeathCustomize; PassChance 10.000000; !ValidateUnit IsNotNeuralParasited" Send="Create Marauder_Death_NP"/>
+        <Model value="Marauder"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="Marauder"/>
+        <DeathArray index="Normal" ModelLink="MarauderDeath" SoundLink="Marauder_Explode"/>
+        <DeathArray index="Eviscerate" ModelLink="MarauderDeathEviscerate" SoundLink="Uni_DeathFXEviscerate"/>
+        <DeathArray index="Silentkill" SoundLink="Uni_DeathFXSilentKill"/>
+        <DeathCustoms ActorModel="UnitDeathRagdollBloodPrevent" ModelLink="MarauderDeathRagdoll" Name="RagdollBasic">
+            <BodySquibs Name="None"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollSiegeTank" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollBaneling" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollUltraUnburrow" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms>
+            <ModelLink value="DeathVoidShadowMedium"/>
+            <SoundLink value="ShadowUnit_DeathFX"/>
+            <VoiceLink value="ShadowUnit_DeathVox"/>
+            <Name value="Shadow"/>
+        </DeathCustoms>
+        <DeathActorModel value="UnitDeathModelWithDeathMotionGround"/>
+        <PlacementModel value="Marauder"/>
+        <PortraitModel value="MarauderPortrait"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="0.800000"/>
+            <RangeDown value="0.800000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleLarge"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="2.25"/>
+        <BarOffset value="60"/>
+        <BarWidth value="50"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Marauder.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-marauder.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel3.dds"/>
+        <SoundArray index="Ready" value="Marauder_Ready"/>
+        <SoundArray index="Help" value="Marauder_Help"/>
+        <SoundArray index="What" value="Marauder_What"/>
+        <SoundArray index="Yes" value="Marauder_Yes"/>
+        <SoundArray index="Attack" value="Marauder_Attack"/>
+        <SoundArray index="Pissed" value="Marauder_Pissed"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-marauder.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Marauder.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorAction id="12qingzhuangliudanAttack" parent="MarauderAttackBase" effectImpact="12qingzhuangliudanDamage" effectLaunch="12sanlianzhuangliudanMissile">
+        <On Terms="Effect.12qingzhuangliudanMissile.Start; At Caster" Send="Create"/>
+        <LaunchAttachQuery Methods="12qingzhuangliudan"/>
+        <LaunchAssets Model="MarauderAttackLaunch"/>
+        <ImpactMap index="None" Model="MarauderUpgradedAttackImpact"/>
+        <ImpactPhysics Name="PunisherGrenadesImpact" MatchKeys="Basic" Physics="MarauderAttackDeathForce"/>
+        <ContainerAttachQuery Methods="Center 0"/>
+    </CActorAction>
+    <CActorBeamSimple id="12fuhedianciqiangAttackBeam" parent="GenericAttackBeam">
+        <Model value="GhostSnipeAttackBeam"/>
+        <ScopeBearingsTracking value="ForceOff"/>
+    </CActorBeamSimple>
+    <CActorAction id="12diyufengbaopaozuAttack" parent="GenericAttack" effectImpact="12diyufengbaopaozuSearch" effectLaunch="12diyufengbaopaozuMissile">
+        <LaunchAttachQuery Methods="12diyufengbaopaozu"/>
+        <LaunchAssets Sound="MissileTurret_HellstormAttackLaunch"/>
+        <Missile value="HailstormMissileVolleyMissile"/>
+        <ImpactMap index="None" Sound="MissileTurret_HellstormAttackImpact"/>
+    </CActorAction>
+    <CActorUnit id="12tiechuianbao" parent="GenericUnitBase" unitName="12tiechuianbao">
+        <Aliases value="_UnitMedium"/>
+        <Macros value="UnloadDropAnim"/>
+        <On Terms="ActorCreation" Send="StatusSet WeaponNext 0"/>
+        <On Terms="Effect.12qingzhuangliudanMissile.Start; At Caster" Send="StatusIncrement WeaponNext"/>
+        <On Terms="Effect.12qingzhuangliudanMissile.Start; At Caster; IsStatus WeaponNext 2" Send="StatusSet WeaponNext 0"/>
+        <On Terms="Effect.12qingzhuangliudanMissile.Start; At Caster; IsStatus WeaponNext 0" Send="AnimPlay AttackLeft Attack,Left"/>
+        <On Terms="Effect.12qingzhuangliudanMissile.Start; At Caster; IsStatus WeaponNext 1" Send="AnimPlay AttackRight Attack,Right"/>
+        <On Terms="UnitMovementUpdate.*.Walk" Send="AnimClear AttackLeft"/>
+        <On Terms="UnitMovementUpdate.*.Walk" Send="AnimClear AttackRight"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Marauder_Land"/>
+        <Model value="HammerSecurity"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="HammerSecurity"/>
+        <DeathArray index="Normal" ModelLink="MarauderMercenaryDeath" SoundLink="Marauder_Explode"/>
+        <PlacementModel value="HammerSecurity"/>
+        <PortraitModel value="MarauderMercenaryPortrait"/>
+        <WalkAnimMoveSpeed value="2.25"/>
+        <BarOffset value="60"/>
+        <BarWidth value="50"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Marauder-mercenary.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="What" value="MarauderGroupWhat"/>
+        <GroupSoundArray index="Yes" value="MarauderGroupYes"/>
+        <GroupSoundArray index="Attack" value="MarauderGroupAttack"/>
+        <GroupSoundArray index="Board" value="MarauderGroupBoard"/>
+        <HeroIcon value="Assets\Textures\BTN-Unit-Terran-MarauderMercenary.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel0.dds"/>
+        <SoundArray index="Birth" value="MarauderBirth"/>
+        <SoundArray index="Ready" value="Marauder_Ready"/>
+        <SoundArray index="Help" value="Marauder_Help"/>
+        <SoundArray index="What" value="Marauder_What"/>
+        <SoundArray index="Yes" value="Marauder_Yes"/>
+        <SoundArray index="Attack" value="Marauder_Attack"/>
+        <SoundArray index="Pissed" value="Marauder_Pissed"/>
+        <SoundArray index="Movement" value="MarauderMovement"/>
+        <SoundArray index="Turning" value="MarauderTurning"/>
+        <SoundArray index="Board" value="MarauderBoard"/>
+        <SoundArray index="Click" value="MarauderClick"/>
+        <SoundArray index="ClickError" value="MarauderClickError"/>
+        <SoundArray index="Highlight" value="MarauderHighlight"/>
+        <UnitIcon value="Assets\Textures\BTN-Unit-Terran-MarauderMercenary.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Marauder-mercenary.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorBeamSimple id="12namixiufuBeamRev1" parent="BeamSimpleAnimationStyleContinuous">
+        <Inherits index="Visibility" value="1"/>
+        <On Terms="Effect.12namixiufuHeal.TargetStart" Send="Create"/>
+        <On Terms="Effect.12namixiufuHeal.TargetStop" Send="Destroy"/>
+        <HostForProps Subject="_Unit" Scope="Caster" Actor="Find"/>
+        <Model value="NanoRepairBeam"/>
+        <HostLaunch Subject="_Unit" Scope="Caster" Actor="Find"/>
+        <HostLaunchSiteOps Ops="SOpAttachCenter"/>
+        <HostImpact Subject="_Unit" Scope="Target" Actor="Find"/>
+        <HostImpactSiteOps Ops="SOpAttachCenter"/>
+    </CActorBeamSimple>
+    <CActorModel id="12namixiufuModelRev1" parent="ModelAnimationStyleContinuous">
+        <On Terms="ActorCreation" Send="$Birth PlayForever"/>
+        <On Terms="Effect.12namixiufuHeal.TargetStart; At Target" Send="Create"/>
+        <On Terms="Effect.12namixiufuHeal.TargetStop; At Target" Send="Destroy"/>
+        <On Terms="ActorOrphan" Send="Destroy"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachOverhead"/>
+        <Model value="NanoRepairBeamImpact"/>
+    </CActorModel>
+    <CActorSound id="12namixiufuSoundRev1" parent="SoundContinuous">
+        <On Terms="Effect.12namixiufuHeal.TargetStart; At Target" Send="Create"/>
+        <On Terms="Effect.12namixiufuHeal.TargetStop; At Target" Send="Destroy"/>
+        <On Terms="ActorOrphan" Send="Destroy"/>
+        <On Terms="ActorCreation" Send="Create NanoRepairSoundStart"/>
+        <On Terms="ActorDestruction" Send="Create NanoRepairSoundStop"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachOverhead"/>
+        <Sound value="Medivac_HealLoop"/>
+    </CActorSound>
+    <CActorAction id="12pojialieshafeidanAttack" parent="GenericAttack" effectImpact="12pojialieshafeidanDamage" effectLaunch="12pojialieshafeidanMissile">
+        <ImpactSiteOps Ops="SOpTargetPoint SOp2DRotation"/>
+        <ImpactAttachQuery Methods="Origin"/>
+        <ImpactMap index="None" Model="Invisible" Sound="Raven_HunterSeekerAttackImpact"/>
+        <ImpactPhysics Name="HunterSeekerImpact" MatchKeys="Basic" Physics="HunterSeekerAttackForce"/>
+        <ImpactPhysics Name="HunterSeekerImpactAir" MatchKeys="BasicAir" Physics="HunterSeekerAttackForceAir"/>
+        <ShieldFlashType value="Full"/>
+    </CActorAction>
+    <CActorModel id="12pojialieshafeidanAttackImpactModel" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.12pojialieshafeidanDamage.Start" Send="Create"/>
+        <Model value="12pojialieshafeidanAttackImpact"/>
+    </CActorModel>
+    <CActorMissile id="12pojialieshafeidanAttackMissile" parent="GenericAttackMissile" unitName="12pojialieshafeidan">
+        <Model value="12pojialieshafeidanWeapon"/>
+    </CActorMissile>
+    <CActorRange id="12pojialieshafeidanRange" parent="RangeAbil" abil="12pojialieshafeidan">
+        <Icon value="Assets\Textures\RadarIcon2.dds"/>
+        <IconArcLength value="3.250000"/>
+    </CActorRange>
+    <CActorUnit id="12qiyijunwuzhuangjiqiren" parent="GenericUnitBase" unitName="12qiyijunwuzhuangjiqiren">
+        <Aliases value="_UnitLarge"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsSwarmGround"/>
+        <On Terms="WeaponStart.12chezaijipao.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="WeaponStop.12chezaijipao.AttackStop" Send="AnimBracketStop Attack"/>
+        <On Terms="WeaponStart.12yezhanfangkonghuojian.AttackStart" Send="AnimBracketStart Spell Spell"/>
+        <On Terms="WeaponStop.12yezhanfangkonghuojian.AttackStop" Send="AnimBracketStop Spell"/>
+        <On Terms="UnitBirth.12qiyijunwuzhuangjiqiren" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <Model value="Goliath"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="Goliath"/>
+        <DeathArray index="Normal" ModelLink="GoliathDeath" SoundLink="Goliath_Explode"/>
+        <DeathCustoms>
+            <ModelLink value="DeathVoidShadowMedium"/>
+            <SoundLink value="ShadowUnit_DeathFX"/>
+            <VoiceLink value="ShadowUnit_DeathVox"/>
+            <Name value="Shadow"/>
+        </DeathCustoms>
+        <DeathActorModel value="GoliathDeath"/>
+        <PlacementModel value="Goliath"/>
+        <PortraitModel value="GoliathPortrait"/>
+        <StandAnimTurnTime value="4"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="1.000000"/>
+            <RangeDown value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleMassive2"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="3.6093"/>
+        <BarOffset value="75"/>
+        <BarWidth value="66"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-goliath.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="Birth" value="Goliath_Birth"/>
+        <GroupSoundArray index="Ready" value="Goliath_Ready"/>
+        <GroupSoundArray index="Help" value="Goliath_Help"/>
+        <GroupSoundArray index="What" value="Goliath_What"/>
+        <GroupSoundArray index="Yes" value="Goliath_Yes"/>
+        <GroupSoundArray index="Attack" value="Goliath_Attack"/>
+        <GroupSoundArray index="Pissed" value="Goliath_Pissed"/>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-goliath.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel0.dds"/>
+        <SoundArray index="Ready" value="Goliath_Ready"/>
+        <SoundArray index="Help" value="Goliath_Help"/>
+        <SoundArray index="What" value="Goliath_What"/>
+        <SoundArray index="Yes" value="Goliath_Yes"/>
+        <SoundArray index="Attack" value="Goliath_Attack"/>
+        <SoundArray index="Pissed" value="Goliath_Pissed"/>
+        <SoundArray index="Movement" value="Goliath_Movement"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-goliath.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-goliath.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorAction id="12yezhanfangkonghuojianAttackRight" parent="GenericAttack" effectImpact="12yezhanfangkonghuojianDamage" effectLaunch="12yezhanfangkonghuojianMissileRight">
+        <LaunchAttachQuery Methods="Weapon 3"/>
+        <LaunchAssets Model="GoliathAirAttackLaunch" Sound="VikingFighter_AttackLaunch"/>
+        <Missile value="GoliathAirAttackMissile"/>
+        <ImpactMap index="None" Model="GoliathAirAttackImpact" Sound="VikingFighter_AttackImpact"/>
+        <ImpactPhysics Name="JavelinImpact" MatchKeys="Basic" Physics="ThorAAAttackForce"/>
+    </CActorAction>
+    <CActorAction id="12chezaijipaoAttack0" parent="GenericAttack" effectAttack="12chezaijipaoDamage0">
+        <LaunchAttachQuery Methods="Weapon 0"/>
+        <LaunchAssets Model="GoliathGroundAttackLaunch" Sound="GoliathGroundAttackLaunch"/>
+        <Beam value="12chezaijipaoAttackBeam"/>
+        <ImpactMap index="None" Model="GoliathGroundAttackImpact" Sound="Goliath_GroundAttackImpact"/>
+        <ImpactPhysics Name="GatlingCannonImpact" MatchKeys="Basic" Physics="VikingAssaultAttackForce"/>
+    </CActorAction>
+    <CActorSplat id="12youhunxunlianyingSplat" parent="GenericUnitSplat" unitName="12youhunxunlianying">
+        <Model value="GhostAcademySplat"/>
+    </CActorSplat>
+    <CActorSound id="12zheyueLaunchSound" parent="SoundOneShot">
+        <On Terms="Effect.12zheyueBlink.Start; At Source" Send="Create"/>
+        <Sound value="Battlecruiser_HyperJumpIn"/>
+    </CActorSound>
+    <CActorSound id="12zheyueImpactSound" parent="SoundOneShot">
+        <On Terms="Effect.12zheyueBlink.Stop; At Caster" Send="Create"/>
+        <Host Subject="_Unit"/>
+        <HostSiteOps Ops="SOpAttachOriginStationary"/>
+        <Sound value="Battlecruiser_HyperJumpOut"/>
+    </CActorSound>
+    <CActorMissile id="12denglizipaoAttackMissile" parent="GenericAttackMissile" unitName="12denglizipao">
+        <Model value="12xiubolianhuweijian"/>
+    </CActorMissile>
+    <CActorModel id="12gailiangqianghuajiEndImpact" parent="ModelAnimationStyleOneShot">
+        <Inherits index="CloakEffect" value="1"/>
+        <On Terms="Behavior.12gailiangqianghuaji.Off; ValidateUnit NotDead" Send="Create"/>
+        <On Terms="Behavior.12hourantuijinxitong.Off; ValidateUnit NotDead" Send="Create"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachOverhead"/>
+        <Model value="StimpackEndImpact"/>
+    </CActorModel>
+    <CActorModel id="12gailiangqianghuajiStartImpact" parent="ModelAnimationStyleOneShot">
+        <Inherits index="CloakEffect" value="1"/>
+        <On Terms="ActorCreation" Send="SetTintColor {255,255,255 2.000000}"/>
+        <On Terms="Abil.12gailiangqianghuaji.SourceCastStart" Send="Create"/>
+        <On Terms="Abil.12hourantuijinxitong.SourceCastStart" Send="Create"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachOverhead"/>
+        <Model value="StimpackStartImpact"/>
+    </CActorModel>
+    <CActorStateMonitor id="12FlamesMediumBuilding" parent="TerranFlames">
+        <On Terms="UnitCreation.Refinery" Send="Create"/>
+        <On Terms="UnitCreation.12youqibingxunlianjidi" Send="Create"/>
+        <On Terms="UnitCreation.12youqibingxunlianjidiFlying" Send="Create"/>
+        <On Terms="UnitCreation.EngineeringBay" Send="Create"/>
+        <On Terms="UnitCreation.Bunker" Send="Create"/>
+        <On Terms="UnitCreation.GhostAcademy" Send="Create"/>
+        <On Terms="UnitCreation.MercCompound" Send="Create"/>
+        <On Terms="UnitCreation.12qiyijunzhanchegongchang" Send="Create"/>
+        <On Terms="UnitCreation.12qiyijunzhanchegongchangFlying" Send="Create"/>
+        <On Terms="UnitCreation.Armory" Send="Create"/>
+        <On Terms="UnitCreation.12xiuboliankongjunpingtai" Send="Create"/>
+        <On Terms="UnitCreation.12xiuboliankongjunpingtaiFlying" Send="Create"/>
+        <On Terms="UnitCreation.FusionCore" Send="Create"/>
+        <On Terms="StateChange; StateValid Fire" Send="Create TerranFlameLoopMedium"/>
+        <On Terms="StateChange; !StateValid Fire" Target="TerranFlameLoopMedium" Send="Destroy"/>
+        <On Terms="UnitCreation.AutomatedRefinery" Send="Create"/>
+        <On Terms="UnitCreation.RefineryTerrazine" Send="Create"/>
+        <On Terms="UnitCreation.RefineryPipes" Send="Create"/>
+    </CActorStateMonitor>
+    <CActorRange id="12dahepaoRange" parent="RangeAbil" abil="12dahepao">
+        <Icon value="Assets\Textures\RadarIcon2.dds"/>
+        <IconArcLength value="3.250000"/>
+    </CActorRange>
+    <CActorStateMonitor id="12FlamesLargeBuilding" parent="TerranFlames">
+        <On Terms="UnitCreation.12guidaokongzhijidi" Send="Create"/>
+        <On Terms="UnitCreation.12guidaokongzhijidiFlying" Send="Create"/>
+        <On Terms="StateChange; StateValid Fire" Send="Create TerranFlameLoopLarge"/>
+        <On Terms="StateChange; !StateValid Fire" Target="TerranFlameLoopLarge" Send="Destroy"/>
+    </CActorStateMonitor>
+    <CActorModel id="12xiuboliankongjunpingtaiBuild" parent="TerranBuildingBuild">
+        <Model value="StarportBuild"/>
+    </CActorModel>
+    <CActorUnit id="12xiuboliankongjunpingtai" parent="TerranBuildingFlyerEx" unitName="12xiuboliankongjunpingtai">
+        <On Terms="UnitDeathCustomize.StarportFlying" Send="DeathCustomize Flying"/>
+        <On Terms="Behavior.ColonyInfestation.On" Send="Create InfestedVisual"/>
+        <Model value="Starport"/>
+        <BuildModel value="Starport"/>
+        <DeathArray index="Normal" ModelLink="StarportDeath"/>
+        <DeathArray index="UnderConstruction" ModelLink="TerranBuildingDeath" SoundLink="Starport_Explode"/>
+        <DeathCustoms index="5" ModelLink="StarportFlyDeath" SoundLink="Starport_Explode" Name="Flying"/>
+        <PlacementModel value="StarportPlacement"/>
+        <PortraitModel value="StarportPortrait"/>
+        <BarOffset value="155"/>
+        <BarWidth value="160"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Starport.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-terran-Starport.dds"/>
+        <NameOffset value="110"/>
+        <SoundArray index="Ready" value="Starport_Ready"/>
+        <SoundArray index="What" value="Starport_What"/>
+        <SoundArray index="Movement" value="Starport_Movement"/>
+        <UnitIcon value="Assets\Textures\btn-building-terran-Starport.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Starport.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorUnit id="12jinglianchang" parent="TerranBuildingEx" unitName="12jinglianchang">
+        <Aliases value="_UnitHuge"/>
+        <Macros value="ExtractAnim"/>
+        <On Terms="Behavior.HarvestableVespeneGeyserGas.Deplete" Send="SetTintColor 255,170,170"/>
+        <On Terms="Behavior.HarvestableVespeneGeyserGas.Deplete" Send="AnimGroupRemove D"/>
+        <On Terms="Behavior.HarvestableVespeneGeyserGas.Deplete" Send="AnimGroupApply B"/>
+        <On Terms="Behavior.HarvestableVespeneGeyserGas.Restore" Send="SetTintColor 255,255,255"/>
+        <On Terms="Behavior.HarvestableVespeneGeyserGas.Restore" Send="AnimGroupRemove B"/>
+        <On Terms="Behavior.HarvestableVespeneGeyserGas.Restore" Send="AnimGroupApply D"/>
+        <On Terms="Behavior.ColonyInfestation.On" Send="Create InfestationRefinery"/>
+        <On Terms="UnitDeathCustomize; ValidateUnit NoVespene" Send="DeathCustomize Empty"/>
+        <On Terms="UnitBirth.12jinglianchang" Send="TimerSet 0.100000 HideGeyser"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom Refinery" Send="Destroy"/>
+        <On Terms="UnitBirth.RefineryPipes" Send="Create"/>
+        <On Terms="UnitDeathCustomize; Option Model Low" Send="DeathCustomize Low"/>
+        <Model value="Refinery"/>
+        <CreepHeightClass value="Medium"/>
+        <BuildModel value="Refinery"/>
+        <DeathArray index="Normal" ModelLink="RefineryDeath"/>
+        <DeathArray index="UnderConstruction" ModelLink="TerranBuildingDeath" SoundLink="Refinery_Explode"/>
+        <DeathCustoms ModelLink="RefineryEmptyDeath" Name="Empty"/>
+        <DeathCustoms ModelLink="RefineryDeathLow" SoundLink="Terran_ExplosionMedium" Name="Low"/>
+        <PlacementModel value="RefineryPlacement"/>
+        <PlacementActorModel value="RefineryPlacementModel"/>
+        <PortraitModel value="RefineryPortrait"/>
+        <BarOffset value="160"/>
+        <BarWidth value="120"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Refinery.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-terran-refinery.dds"/>
+        <NameOffset value="110"/>
+        <SoundArray index="Ready" value="Refinery_Ready"/>
+        <SoundArray index="What" value="Refinery_What"/>
+        <StatusHarvesterData Text="UI/HarvesterCountVespene"/>
+        <UnitFlags index="ShowBlobShadow" value="0"/>
+        <UnitIcon value="Assets\Textures\btn-building-terran-refinery.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Refinery.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorSplat id="12jinglianchangSplat" parent="GenericUnitSplat" unitName="12jinglianchang">
+        <Model value="RefinerySplat"/>
+    </CActorSplat>
+    <CActorModel id="12jinglianchangBuild" parent="TerranBuildingBuildRefinery">
+        <Model value="RefineryBuild"/>
+    </CActorModel>
+    <CActorAction id="12gaoshejipaoAttack1" parent="GenericAttack" effectAttack="12gaoshejipaoDamage1">
+        <LaunchAttachQuery Methods="Weapon 1"/>
+        <LaunchAssets Model="SpartanCompanyGroundAttackLaunch" Sound="GoliathGroundAttackLaunch"/>
+        <Beam value="12gaoshejipaoAttackBeam"/>
+        <ImpactMap index="None" Model="SpartanCompanyGroundAttackImpact" Sound="Goliath_GroundAttackImpact"/>
+        <ImpactPhysics Name="GatlingCannonImpact" MatchKeys="Basic" Physics="VikingAssaultAttackForce"/>
+    </CActorAction>
+    <CActorText id="12huishouText" parent="PickupTextDefault">
+        <On Terms="Effect.12huishouPlayer.Start" Send="Create"/>
+    </CActorText>
+    <CActorUnit id="12leidaganyingta" parent="TerranBuildingEx" unitName="12leidaganyingta">
+        <Aliases value="_UnitMedium"/>
+        <Model value="SensorTower"/>
+        <BuildModel value="SensorTower"/>
+        <DeathArray index="Normal" ModelLink="SensorTowerDeath" SoundLink="SensorTower_Explode"/>
+        <DeathArray index="UnderConstruction" ModelLink="TerranBuildingDeath" SoundLink="SensorTower_Explode"/>
+        <PlacementModel value="SensorTowerPlacement"/>
+        <PlacementSound value="Terran_BuildingPlacementSmall"/>
+        <PlacementActorModel value="SensorTowerPlacement"/>
+        <PortraitModel value="SensorTowerPortrait"/>
+        <BarOffset value="130"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-SensorTower.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-terran-sensordome.dds"/>
+        <SoundArray index="Ready" value="SensorTower_Ready"/>
+        <SoundArray index="What" value="SensorTower_What"/>
+        <UnitFlags index="ShowBlobShadow" value="0"/>
+        <UnitIcon value="Assets\Textures\btn-building-terran-sensordome.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-SensorTower.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorModel id="12leidaganyingtaBuild" parent="TerranBuildingBuildSmall">
+        <Model value="SensorTowerBuild"/>
+    </CActorModel>
+    <CActorText id="12chongfendezhunbeiText" parent="PickupTextDefault">
+        <On Terms="Effect.12chongfendezhunbeiPlayer.Start" Send="Create"/>
+    </CActorText>
+    <CActorUnit id="12qiyijunzixinghuopao" parent="GenericUnitMorph" unitName="12qiyijunzixinghuopao">
+        <Aliases value="_UnitLarge"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsSwarmGround"/>
+        <Macros value="PhysicsDeathsVoidGround"/>
+        <Inherits index="ModelMaterials" value="1"/>
+        <AcceptedTransfers index="ModelMaterials" value="1"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create SiegeTank_Land"/>
+        <Model value="SiegeTank"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <CreepHeightClass value="Tiny"/>
+        <BuildModel value="SiegeTank"/>
+        <DeathArray index="Normal" ModelLink="SiegeTankDeath" SoundLink="SiegeTank_Explode"/>
+        <DeathCustoms ModelLink="TerranLargeUnitDeathLow" Name="AntiGravTerran"/>
+        <DeathCustoms ActorModel="SiegeTankDeathRagdoll" ModelLink="SiegeTankDeathRagdoll" Name="RagdollBasic">
+            <BodySquibs Name="Basic" Model="TerranSquibDeathRagdoll"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollSiegeTank" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollBaneling" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollUltraUnburrow" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms>
+            <ModelLink value="DeathVoidShadowMedium"/>
+            <SoundLink value="ShadowUnit_DeathFX"/>
+            <VoiceLink value="ShadowUnit_DeathVox"/>
+            <Name value="Shadow"/>
+        </DeathCustoms>
+        <DeathCustomData Name="RagdollBasic"/>
+        <DeathActorModel value="UnitDeathModelWithDeathMotionGround"/>
+        <PlacementModel value="SiegeTank"/>
+        <PortraitModel value="SiegeTankPortrait"/>
+        <StandAnimTurnTime value="3.33"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="1.000000"/>
+            <RangeDown value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleSiegeTank"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="1"/>
+        <AbilSoundArray AbilCmd="12gongchengmoshi,Execute" Sound="SiegeTank_SiegeModeVO"/>
+        <BarOffset value="80"/>
+        <BarWidth value="102"/>
+        <ErrorArray Error="CantSeeBuildLocation" Sound="UI_GenericError" GroupSound="UI_GenericError"/>
+        <ErrorArray Error="CantSeeLandLocation" Sound="UI_GenericError" GroupSound="UI_GenericError"/>
+        <ErrorArray Error="CantBuildLocationInvalid" Sound="UI_GenericError" GroupSound="UI_GenericError"/>
+        <ErrorArray Error="CantLandLocationInvalid" Sound="UI_GenericError" GroupSound="UI_GenericError"/>
+        <ErrorArray Error="CouldntReachTarget" Sound="UI_GenericError" GroupSound="UI_GenericError"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-SiegeTank-TankMode.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-siegetank.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel0.dds"/>
+        <SoundArray index="Ready" value="SiegeTank_Ready"/>
+        <SoundArray index="Help" value="SiegeTank_Help"/>
+        <SoundArray index="What" value="SiegeTank_What"/>
+        <SoundArray index="Yes" value="SiegeTank_Yes"/>
+        <SoundArray index="Attack" value="SiegeTank_Attack"/>
+        <SoundArray index="Pissed" value="SiegeTank_Pissed"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-siegetank.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-SiegeTank-TankMode.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorUnit id="12qiyijunzixinghuopao2" parent="GenericUnitMorph" unitName="12qiyijunzixinghuopao2">
+        <Aliases value="_UnitLarge"/>
+        <Aliases value="_CreepEngulfable"/>
+        <Macros value="PhysicsDeathsSwarmGround"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="PhysicsDeathsVoidGround"/>
+        <Inherits index="ModelMaterials" value="1"/>
+        <AcceptedTransfers index="ModelMaterials" value="1"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create SiegeTank_Land"/>
+        <Model value="SiegeTankSieged"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <CreepHeightClass value="Small"/>
+        <CreepRateGrow value="Grow"/>
+        <CreepRateShrink value="Shrink"/>
+        <BuildModel value="SiegeTankSieged"/>
+        <DeathArray index="Normal" ModelLink="SiegeTankSiegedDeath" SoundLink="SiegeTank_Explode"/>
+        <DeathCustoms ModelLink="TerranLargeUnitDeathLow" Name="AntiGravTerran"/>
+        <DeathCustoms ActorModel="SiegeTankDeathRagdoll" ModelLink="SiegeTankSiegedDeathRagdoll" Name="RagdollBasic">
+            <BodySquibs Name="Basic" Model="TerranSquibDeathRagdoll"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollSiegeTank" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollBaneling" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollUltraUnburrow" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms>
+            <ModelLink value="DeathVoidShadowMedium"/>
+            <SoundLink value="ShadowUnit_DeathFX"/>
+            <VoiceLink value="ShadowUnit_DeathVox"/>
+            <Name value="Shadow"/>
+        </DeathCustoms>
+        <PlacementModel value="SiegeTankSieged"/>
+        <PortraitModel value="SiegeTankPortrait"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="1.000000"/>
+            <RangeDown value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleSiegeTank"/>
+        </TerrainSquibs>
+        <BarOffset value="80"/>
+        <BarWidth value="102"/>
+        <ErrorArray Error="CantSeeBuildLocation" Sound="UI_GenericError" GroupSound="UI_GenericError"/>
+        <ErrorArray Error="CantSeeLandLocation" Sound="UI_GenericError" GroupSound="UI_GenericError"/>
+        <ErrorArray Error="CantBuildLocationInvalid" Sound="UI_GenericError" GroupSound="UI_GenericError"/>
+        <ErrorArray Error="CantLandLocationInvalid" Sound="UI_GenericError" GroupSound="UI_GenericError"/>
+        <ErrorArray Error="CouldntReachTarget" Sound="UI_GenericError" GroupSound="UI_GenericError"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-SiegeTank-SiegeMode.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-siegetanksiegemode.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel0.dds"/>
+        <SoundArray index="Ready" value="SiegeTank_Ready"/>
+        <SoundArray index="Help" value="SiegeTank_Help"/>
+        <SoundArray index="What" value="SiegeTank_What"/>
+        <SoundArray index="Yes" value="SiegeTank_Yes"/>
+        <SoundArray index="Attack" value="SiegeTank_Attack"/>
+        <SoundArray index="Pissed" value="SiegeTank_Pissed"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-siegetanksiegemode.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-SiegeTank-SiegeMode.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorAction id="12qingxingziweihuopaoAttack" parent="GenericAttack" effectAttack="12qingxingziweihuopaoDamage">
+        <LaunchAttachQuery Methods="AMPatternRollingStripe"/>
+        <LaunchAssets Model="SiegeTankAttackLaunch" Sound="SiegeTank_AttackLaunch"/>
+        <ImpactMap index="None" Model="SiegeTankAttackImpact" Sound="SiegeTank_AttackImpact"/>
+        <ImpactPhysics Name="90mmCannonImpact" MatchKeys="Basic" Physics="SiegeTankAttackForce"/>
+    </CActorAction>
+    <CActorUnit id="12quxiaogongchengmoshiMorphModel" parent="GenericUnitBaseMorphTransition" unitName="12quxiaogongchengmoshiMorphModel">
+        <Aliases value="_UnitLarge"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 12qiyijunzixinghuopao2" Send="Create"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 12qiyijunzixinghuopao2" Send="AnimPlay Start Morph,Start"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 12qiyijunzixinghuopao" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 12qiyijunzixinghuopao" Send="Destroy"/>
+        <Model value="SiegeTankSiegedMorph"/>
+        <DeathArray index="Normal" ModelLink="TerranLargeUnitDeath" SoundLink="SiegeTank_Explode" VoiceLink="12gongchengmoshiMorphModelDeathVoice"/>
+        <PortraitModel value="SiegeTankPortrait"/>
+        <BarOffset value="65"/>
+        <BarWidth value="102"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-SiegeTank-TankMode.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-siegetank.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel0.dds"/>
+        <NameOffset value="50"/>
+        <SoundArray index="Ready" value="SiegeTank_Ready"/>
+        <SoundArray index="Help" value="SiegeTank_Help"/>
+        <SoundArray index="What" value="SiegeTank_What"/>
+        <SoundArray index="Yes" value="SiegeTank_Yes"/>
+        <SoundArray index="Attack" value="SiegeTank_Attack"/>
+        <SoundArray index="Pissed" value="SiegeTank_Pissed"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-siegetank.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-SiegeTank-TankMode.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorAction id="12chuanzhenchongjipaoAttack" parent="GenericAttack" effectAttack="12chuanzhenchongjipaoDamage">
+        <LaunchAssets Model="SiegeTankSiegedAttackLaunch" Sound="SiegeTank_SiegedAttackLaunch"/>
+        <ImpactSiteOps Ops="SOpActionCenter SOpTargetUnitZ"/>
+        <ImpactMap index="None" Model="SiegeTankSiegedAttackImpact" Sound="SiegeTank_SiegedAttackImpact"/>
+        <ImpactPhysics Name="Explosion" MatchKeys="Basic" Physics="SiegeTankSiegedForce"/>
+        <ShieldFlashType value="Full"/>
+    </CActorAction>
+    <CActorUnit id="12xiubolianyujingji" parent="GenericUnitStandard" unitName="12xiubolianyujingji">
+        <Aliases value="_UnitLarge"/>
+        <Macros value="BuildAnim"/>
+        <Macros value="RavenSpellAnim"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsSwarmAir"/>
+        <Macros value="PhysicsDeathsVoidAir"/>
+        <On Terms="Abil.SeekerMissile.SourceCastStart" Send="$Spell"/>
+        <On Terms="Abil.PlacePointDefenseDrone.SourceCastStart" Send="$Spell"/>
+        <On Terms="Abil.BuildAutoTurret.SourceCastStart" Send="$Spell"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Raven_Land"/>
+        <On Terms="UnitDeathCustomize; ValidateUnit HaveVoidShade" Send="DeathCustomize Shadow"/>
+        <On Terms="UnitDeathCustomize; ValidateUnit HaveTerrazineShadow" Send="DeathCustomize Shadow"/>
+        <HostSiteOps Ops="SOpBankerRaven"/>
+        <Model value="Raven"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="Raven"/>
+        <DeathArray index="Normal" ModelLink="RavenDeath" SoundLink="Raven_Explode"/>
+        <DeathCustoms>
+            <ActorModel value="RavenDeathRagdoll"/>
+            <ModelLink value="RavenDeathRagdoll"/>
+            <Name value="RagdollBasic"/>
+            <PhysicsMatchKeysOrdered value="BasicAir,Basic"/>
+            <BodySquibs Name="Basic" Model="TerranSquibDeathRagdoll"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms>
+            <ModelLink value="DeathVoidShadowSmall"/>
+            <SoundLink value="ShadowUnit_DeathFX"/>
+            <VoiceLink value="ShadowUnit_DeathVox"/>
+            <Name value="Shadow"/>
+        </DeathCustoms>
+        <DeathActorModel value="UnitDeathModelWithDeathMotionFlier"/>
+        <PhysicsMatchKeysOrdered value="BasicAir,Basic"/>
+        <PlacementModel value="Raven"/>
+        <PortraitModel value="RavenPortrait"/>
+        <StandAnimTurnTime value="3"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.250000,0.500000"/>
+            <RangeDown value="5.000000"/>
+            <RangeDownFade value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleMassive15"/>
+        </TerrainSquibs>
+        <AbilSoundArray AbilCmd="12pojialieshafeidan,Execute" Sound="Raven_HunterSeekerVO"/>
+        <AbilSoundArray AbilCmd="12toufangdindianfangyubaji,Execute" Sound="Raven_TargetingDroneVO"/>
+        <BarOffset value="55"/>
+        <ErrorArray Error="CantBuildLocationInvalid" Sound="e_cmdBuildTechRequirementsNotMet_Terr"/>
+        <ErrorArray Error="CantFindPlacementLocation" Sound="e_cmdBuildTechRequirementsNotMet_Terr"/>
+        <ErrorArray Error="CantBuildOnThat" Sound="e_cmdBuildTechRequirementsNotMet_Terr"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Raven.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-raven.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-shipplatinglevel0.dds"/>
+        <SoundArray index="Ready" value="Raven_Ready"/>
+        <SoundArray index="Help" value="Raven_Help"/>
+        <SoundArray index="What" value="Raven_What"/>
+        <SoundArray index="Yes" value="Raven_Yes"/>
+        <SoundArray index="Pissed" value="Raven_Pissed"/>
+        <SoundArray index="Movement" value="Raven_Movement"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-raven.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Raven.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorSimple id="12pojialieshafeidanTint">
+        <Aliases value="_AngryTinter"/>
+        <On Terms="Behavior.12pojialieshafeidanTint.On" Send="Create"/>
+        <On Terms="ActorCreation" Target="_Unit" Send="SetTintColor 255,50,50 0.500000 OneShot SeekerTarget"/>
+        <On Terms="Behavior.12pojialieshafeidanTint.Off" Target="_Unit" Send="ClearTintColor 0.500000 SeekerTarget"/>
+        <On Terms="Behavior.12pojialieshafeidanTint.Off" Send="Destroy"/>
+    </CActorSimple>
+    <CActorUnit id="12dingdianfangyubaji" parent="GenericUnitBase" unitName="12dingdianfangyubaji">
+        <Aliases value="_UnitMedium"/>
+        <On Terms="Behavior.PointDefenseReady.On" Send="AnimBracketStart Work Work,Start Work Work,End"/>
+        <On Terms="Behavior.PointDefenseReady.Off" Send="AnimBracketStop Work"/>
+        <Model value="PointDefenseDrone"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="PointDefenseDrone"/>
+        <DeathArray index="Normal" ModelLink="PointDefenseDroneDeath" SoundLink="Raven_TargetingDroneExplode"/>
+        <PlacementModel value="PointDefenseDronePlacement"/>
+        <PlacementSound value="Terran_BuildingPlacement"/>
+        <PlacementActorModel value="PointDefenseDronePlacementModel"/>
+        <PlaceholderActorModel value="PointDefenseDronePlaceholderModel"/>
+        <PortraitModel value="AdjutantPortrait"/>
+        <BarOffset value="20"/>
+        <BarWidth value="36"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-PointDefenseDrone.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-targetingdrone.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-buildingarmor.dds"/>
+        <SoundArray index="What" value="Raven_PointDefenseDroneWhat"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-targetingdrone.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-PointDefenseDrone.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorRange id="12toufangdindianfangyubajiRange" parent="RangeAbil" abil="12toufangdindianfangyubaji"/>
+    <CActorUnit id="12xiubolianyunshuji" parent="GenericUnitStandard" unitName="12xiubolianyunshuji">
+        <Aliases value="_UnitLarge"/>
+        <Macros value="MedivacTransportAnim"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsSwarmAir"/>
+        <Macros value="PhysicsDeathsVoidAir"/>
+        <On Terms="AbilTransport.12zhuangzai4.TransportLoad; AbilTransport 12qiyijunbaolei" Send="Create ThorTransit"/>
+        <On Terms="Signal.*.ThorTransit" Send="RefSetFromMsg ::actor.Thor ::Sender"/>
+        <On Terms="UnitDeath" Target="::actor.Thor" Send="Signal Dead"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Medivac_Land"/>
+        <On Terms="Behavior.12hourantuijinxitong.On" Send="AnimPlay Turbo Spell,B"/>
+        <On Terms="Behavior.12hourantuijinxitong.On" Send="StatusSet Turbo 1"/>
+        <On Terms="Behavior.12hourantuijinxitong.Off" Send="StatusSet Turbo 0"/>
+        <On Terms="UnitMovementUpdate.*.Walk; IsStatus Turbo 1" Send="Create Medivac_MovementAfterburner"/>
+        <On Terms="AbilTransport.12zhuangzai4.TransportLoad; AbilTransport 12qiyijunbaolei2" Send="Create ThorTransit"/>
+        <On Terms="AbilTransport.12zhuangzai4.TransportUnload; AbilTransport 12qiyijunbaolei2" Target="::actor.Thor" Send="Destroy"/>
+        <On Terms="AbilTransport.12zhuangzai4.TransportUnload; AbilTransport 12qiyijunbaolei" Target="::actor.Thor" Send="Destroy"/>
+        <HostSiteOps Ops="SOpBankerMedivac"/>
+        <Model value="Medivac"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <Baselines index="Walk" BlendIn="1.500000" BlendOut="2.000000"/>
+        <BuildModel value="Medivac"/>
+        <DeathArray index="Normal" ModelLink="MedivacDeath" SoundLink="Medivac_Explode"/>
+        <DeathCustoms>
+            <ActorModel value="MedivacDeathRagdoll"/>
+            <ModelLink value="MedivacDeathRagdoll"/>
+            <Name value="RagdollBasic"/>
+            <PhysicsMatchKeysOrdered value="BasicAir,Basic"/>
+            <BodySquibs Name="Basic" Model="TerranSquibDeathRagdoll"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms>
+            <ModelLink value="DeathVoidShadowMedium"/>
+            <SoundLink value="ShadowUnit_DeathFX"/>
+            <VoiceLink value="ShadowUnit_DeathVox"/>
+            <Name value="Shadow"/>
+        </DeathCustoms>
+        <DeathActorModel value="UnitDeathModelWithDeathMotionFlier"/>
+        <PhysicsMatchKeysOrdered value="BasicAir,Basic"/>
+        <PlacementModel value="Medivac"/>
+        <PortraitModel value="MedivacPortrait"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.250000,0.500000"/>
+            <RangeDown value="5.000000"/>
+            <RangeDownFade value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleMassive15"/>
+        </TerrainSquibs>
+        <AbilSoundArray AbilCmd="12zhuangzai4,Load" Sound="Medivac_LoadVO"/>
+        <AbilSoundArray AbilCmd="12zhuangzai4,UnloadAt" Sound="Medivac_UnloadVO"/>
+        <BarOffset value="50"/>
+        <BarWidth value="80"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Medivac.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-medivac.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-shipplatinglevel0.dds"/>
+        <NameOffset value="50"/>
+        <SoundArray index="Ready" value="Medivac_Ready"/>
+        <SoundArray index="Help" value="Medivac_Help"/>
+        <SoundArray index="What" value="Medivac_What"/>
+        <SoundArray index="Yes" value="Medivac_Yes"/>
+        <SoundArray index="Attack" value="Medivac_Attack"/>
+        <SoundArray index="Pissed" value="Medivac_Pissed"/>
+        <SoundArray index="Movement" value="Medivac_Movement"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-medivac.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Medivac.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorSound id="12yingjituijinqi" parent="SoundOneShot">
+        <On Terms="Behavior.12yingjituijinqi.On" Send="Create"/>
+        <Sound value="Medivac_IgniteAfterburners2"/>
+    </CActorSound>
+    <CActorSound id="12yingjituijinqi2" parent="SoundOneShot">
+        <On Terms="Behavior.12yingjituijinqi.On" Send="Create"/>
+        <Sound value="Medivac_IgniteAfterburners"/>
+    </CActorSound>
+    <CActorModel id="12lingnengbianchiExplosion" parent="ModelAnimationStyleOneShotNoOrphan">
+        <On Terms="Effect.12lingnengbianchiDamage.Start; At Target" Send="Create"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <Model value="ObliterateExplosion"/>
+        <AutoScaleFactor value="0.500000"/>
+    </CActorModel>
+    <CActorSound id="12lingnengbianchiImpact" parent="SoundOneShot">
+        <On Terms="Effect.12lingnengbianchiDamage.Start" Send="Create"/>
+        <Sound value="Obliterate_Impact"/>
+    </CActorSound>
+    <CActorModel id="12chaoshengbomaichongStun" parent="ModelAnimationStyleContinuousUNIT">
+        <On Terms="ActorCreation" Send="AnimBracketStart GL_BSD GLbirth GLstand GLdeath"/>
+        <On Terms="Behavior.MindBlastStun.On" Send="Create"/>
+        <On Terms="Behavior.12chaoshengbomaichong.On" Send="Create"/>
+        <On Terms="ActorCreation" Send="AnimBracketStart $BSD"/>
+        <On Terms="Behavior.MindBlastStun.Off" Send="AnimBracketStop BSD"/>
+        <On Terms="Behavior.12chaoshengbomaichong.Off" Send="AnimBracketStop BSD"/>
+        <On Terms="Behavior.UltrasonicPulseEnhancedStun.On" Send="Create"/>
+        <On Terms="Behavior.UltrasonicPulseEnhancedStun.Off" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpAttachOverhead"/>
+        <Model value="MindBlastStun"/>
+        <ModelFlags index="AutomateGlobalLoops" value="1"/>
+    </CActorModel>
+    <CActorUnit id="12xiubolianhao" parent="GenericUnitStandard" unitName="12xiubolianhao">
+        <Aliases value="_UnitHuge"/>
+        <On Terms="ActorCreation" Send="AnimGroupApply A"/>
+        <On Terms="Abil.12xiubolianhaodahepao.SourcePrepStart" Send="$Spell 0 -1.000000 -1.000000 0.750000 AsDuration"/>
+        <On Terms="Behavior.12xiubolianhaozheyue.On" Send="SetOpacity"/>
+        <On Terms="Behavior.12xiubolianhaozheyue.Off" Send="SetOpacity 1.000000"/>
+        <On Terms="AnimDone; AnimName Spell" Send="AnimPlay SpellEnd Spell,End"/>
+        <EventDataFootprint index="0" Actor="UnitFootprint" Model=""/>
+        <DeathArray index="Normal" ModelLink="12xiubolianhaoDeath" SoundLink="Terran_ExplosionLarge" VoiceLink=""/>
+        <PortraitModel value="HornerPortrait"/>
+        <BarOffset value="120"/>
+        <BarWidth value="180"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-terran-battlecruiserhyperion.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="Birth" value="Hyperion-1Birth"/>
+        <GroupSoundArray index="Ready" value="Hyperion-1Ready"/>
+        <GroupSoundArray index="Help" value="Hyperion-1Help"/>
+        <GroupSoundArray index="What" value="Hyperion-1What"/>
+        <GroupSoundArray index="Yes" value="Hyperion-1Yes"/>
+        <GroupSoundArray index="Attack" value="Hyperion-1Yes"/>
+        <GroupSoundArray index="Pissed" value="Hyperion-1Pissed"/>
+        <GroupSoundArray index="Board" value="Hyperion-3_GroupBoard"/>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-hyperion.dds"/>
+        <HighlightTooltip value="Unit/Name/12xiubolianhao-1"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-shipplatinglevel0.dds"/>
+        <NameOffset value="80"/>
+        <SoundArray index="Birth" value="Hyperion-1Birth"/>
+        <SoundArray index="Ready" value="Hyperion-1Ready"/>
+        <SoundArray index="Help" value="Hyperion-1Help"/>
+        <SoundArray index="What" value="Hyperion-1What"/>
+        <SoundArray index="Yes" value="Hyperion-1Yes"/>
+        <SoundArray index="Attack" value="Hyperion-1Yes"/>
+        <SoundArray index="Pissed" value="Hyperion-1Pissed"/>
+        <SoundArray index="Movement" value="Hyperion-1Movement"/>
+        <SoundArray index="Turning" value="Hyperion-3_Turning"/>
+        <SoundArray index="Board" value="Hyperion-3_Board"/>
+        <SoundArray index="Click" value="Hyperion-3_Click"/>
+        <SoundArray index="ClickError" value="Hyperion-3_ClickError"/>
+        <SoundArray index="Highlight" value="Hyperion-3_Highlight"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-hyperion.dds"/>
+        <UnitKillRank Text="UnitKillRank/12xiubolianhao"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-terran-battlecruiserhyperion.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorAction id="12toufangdindianfangyubajiAttack" parent="GenericAttack" effectImpact="RemovePrecursor" effectLaunch="12toufangdindianfangyubajiMissile">
+        <LaunchAssets Sound="Raven_PointDefenseDroneReleaseLaunch"/>
+        <Missile value="PointDefenseDroneReleaseMissile"/>
+    </CActorAction>
+    <CActorUnit id="12youqibingyouhun" parent="GenericUnitStandard" unitName="12youqibingyouhun">
+        <Aliases value="_UnitSmall"/>
+        <Macros value="UnloadDropAnim"/>
+        <On Terms="Abil.SpectreNuke.SourceCastStart" Send="AnimPlay SpellA Spell,A"/>
+        <On Terms="Abil.SpectreNuke.SourceCastStop" Send="AnimClear SpellA"/>
+        <On Terms="Abil.SpectreNuke.SourceChannelStart" Send="AnimPlay SpellB Spell,B PlayForever"/>
+        <On Terms="Abil.SpectreNuke.SourceChannelStop" Send="AnimClear SpellB"/>
+        <On Terms="Abil.SpectreNuke.SourceFinishStart" Send="AnimPlay SpellC Spell,C"/>
+        <On Terms="Abil.SpectreNuke.SourceFinishStop" Send="AnimClear SpellC"/>
+        <On Terms="Abil.Obliterate.SourcePrepStart" Send="AnimPlay Charge Spell"/>
+        <On Terms="Abil.Obliterate.SourcePrepStart" Send="AnimSetTimeScale Charge 0.150000"/>
+        <On Terms="Abil.Obliterate.SourcePrepStop" Send="AnimClear Charge"/>
+        <On Terms="Abil.UltrasonicPulse.SourceCastStart" Send="AnimPlay Attack Attack 0 0.000000"/>
+        <On Terms="Abil.UltrasonicPulse.SourceCastStart" Send="AnimSetTimeScale Attack 2.500000"/>
+        <On Terms="Behavior.SpectreHoldFireB.On" Send="AnimGroupApply Cover"/>
+        <On Terms="Behavior.SpectreHoldFireB.On" Send="AnimPlay MorphStart Cover,Start"/>
+        <On Terms="Behavior.SpectreHoldFireB.On" Send="AnimClear MorphEnd"/>
+        <On Terms="Behavior.SpectreHoldFireB.Off" Send="AnimPlay MorphEnd Cover,End"/>
+        <On Terms="Behavior.SpectreHoldFireB.Off" Send="AnimClear MorphStart"/>
+        <On Terms="Behavior.SpectreHoldFireB.Off" Send="AnimGroupRemove Cover"/>
+        <On Terms="UnitPortrait.*.Configure; ValidateUnit IsCloaked" Target="::PortraitGameSelf" Send="AnimBracketStart Visor Morph,Start Morph,Stand Morph,End Instant"/>
+        <On Terms="UnitPortrait.*.Configure; ValidateUnit NotCloaked" Target="::PortraitGameSelf" Send="AnimBracketStop Visor Instant"/>
+        <On Terms="Behavior.SpectreCloaking.On" Target="::PortraitGameSelf" Send="AnimBracketStart Visor Morph,Start Morph,Stand Morph,End"/>
+        <On Terms="Behavior.SpectreCloaking.Off" Target="::PortraitGameSelf" Send="AnimBracketStop Visor"/>
+        <On Terms="Behavior.SpectreCloakingFree.On" Target="::PortraitGameSelf" Send="AnimBracketStart Visor Morph,Start Morph,Stand Morph,End"/>
+        <On Terms="Behavior.SpectreCloakingFree.Off" Target="::PortraitGameSelf" Send="AnimBracketStop Visor"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Ghost_Land"/>
+        <On Terms="Abil.UltrasonicPulseEnhanced.SourcePrepStart" Send="AnimPlay Prep Stand,Work"/>
+        <On Terms="Abil.UltrasonicPulseEnhanced.SourceCastStart" Send="AnimPlay Spell Attack 0 0.000000 -1.000000 2.500000 AsTimeScale"/>
+        <Model value="Spectre"/>
+        <AnimBlendTime value="-0.800000"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="Spectre"/>
+        <DeathArray index="Normal" ModelLink="SpecterDeath" SoundLink="Spectre_Explode"/>
+        <PlacementModel value="Spectre"/>
+        <PortraitModel value="SpectrePortrait"/>
+        <WalkAnimMoveSpeed value="3"/>
+        <BarOffset value="50"/>
+        <BarWidth value="42"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Spectre.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-spectre.dds"/>
+        <HighlightTooltip value="Unit/Name/Spectre"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel0.dds"/>
+        <SoundArray index="Ready" value="Spectre_Ready"/>
+        <SoundArray index="Help" value="Spectre_Help"/>
+        <SoundArray index="What" value="Spectre_What"/>
+        <SoundArray index="Yes" value="Spectre_Yes"/>
+        <SoundArray index="Attack" value="Spectre_Attack"/>
+        <SoundArray index="Pissed" value="Spectre_Pissed"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-spectre.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Spectre.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorAction id="12maichongbuqiangAttack" parent="GenericAttack" effectAttack="12maichongbuqiangDamage">
+        <LaunchAssets Model="SpecterAttackLaunch" Sound="Spectre_AttackLaunch"/>
+        <ContainerAssets Model="SpecterAttackLaunch" Sound="Spectre_AttackLaunch"/>
+        <ImpactMap index="None" Model="SpecterAttackImpact" Sound="Spectre_AttackImpact"/>
+    </CActorAction>
+    <CActorSplat id="12xiuboliankongjunpingtaiSplat" parent="TerranBuildingMorphSplat" unitName="12xiuboliankongjunpingtai">
+        <Model value="StarportSplat"/>
+    </CActorSplat>
+    <CActorUnit id="12xiubolianjianjijijia" parent="GenericUnitBase" unitName="12xiubolianjianjijijia">
+        <Aliases value="_UnitMedium"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsSwarmGround"/>
+        <Macros value="PhysicsDeathsVoidGround"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 12xiubolianjianjijijia" Send="Create"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 12xiubolianjianjijijia" Target="FlyerHelperSplat" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Start; MorphFrom 12xiubolianjianjijijia" Send="Destroy"/>
+        <On Terms="Abil.attack.ReadyStart" Send="AnimGroupApply Ready"/>
+        <On Terms="WeaponStart.*.AttackStart; WeaponTargetElevation GE 20.000000" Send="AnimBracketStart Attack Attack,Superior"/>
+        <On Terms="WeaponStart.*.AttackStart; WeaponTargetElevation LE -20.000000" Send="AnimBracketStart Attack Attack,Inferior"/>
+        <On Terms="WeaponStart.*.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="WeaponStop.*.AttackStop" Send="AnimBracketStop Attack"/>
+        <On Terms="Abil.attack.ReadyStop" Send="AnimGroupRemove Ready"/>
+        <On Terms="UnitPortrait.*.Configure" Target="::PortraitGameSelf" Send="AnimClear Visor 0.000000"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Viking_Land"/>
+        <Model value="VikingAssault"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="VikingAssault"/>
+        <DeathArray index="Normal" ModelLink="VikingAssaultDeath" SoundLink="Viking_Explode"/>
+        <DeathArray index="Blast" AnimProps="Death,Blast" ModelLink="VikingAssaultDeath"/>
+        <DeathCustoms ModelLink="VikingAssaultDeathRagdoll" Name="RagdollBasic">
+            <BodySquibs Name="Basic" Model="TerranSquibDeathRagdoll"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollSiegeTank" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollBaneling" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollUltraUnburrow" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <PlacementModel value="VikingAssault"/>
+        <PortraitModel value="VikingFighterPortrait"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="1.000000"/>
+            <RangeDown value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleLarge"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="2.5468"/>
+        <AbilSoundArray AbilCmd="12zhanjimoshi,Execute" Sound="Viking_FighterModeVO"/>
+        <BarOffset value="70"/>
+        <BarWidth value="70"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Viking-Assault.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-vikingassault.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-shipplatinglevel0.dds"/>
+        <SoundArray index="Ready" value="Viking_Ready"/>
+        <SoundArray index="Help" value="Viking_Help"/>
+        <SoundArray index="What" value="Viking_What"/>
+        <SoundArray index="Yes" value="Viking_Yes"/>
+        <SoundArray index="Attack" value="Viking_Attack"/>
+        <SoundArray index="Pissed" value="Viking_Pissed"/>
+        <UnitFlags index="StandAnimBirthVariation" value="0"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-vikingassault.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Viking-Assault.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorUnit id="12qiyijunbaolei" parent="GenericUnitBase" unitName="12qiyijunbaolei">
+        <Aliases value="_UnitHuge"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsSwarmGround"/>
+        <Macros value="PhysicsDeathsVoidGround"/>
+        <Remove Terms="AbilMorph.*.Finish; MorphTo 12qiyijunbaolei" Send="Create"/>
+        <Remove Terms="AbilMorph.*.Start; MorphFrom 12qiyijunbaolei" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 12qiyijunbaolei" Send="Create"/>
+        <On Terms="AbilMorph.*.Start; MorphFrom 12qiyijunbaolei" Send="Destroy"/>
+        <On Terms="Abil.attack.ReadyStart" Send="AnimGroupApply Ready"/>
+        <On Terms="ActorCreation" Send="AnimPlay CoverStand Cover,Stand PlayForever 0.000000"/>
+        <On Terms="WeaponStart.12fengchaohuojian.AttackStart" Send="TimerKill CoverDelay"/>
+        <On Terms="WeaponStart.12fengchaohuojian.AttackStart" Send="AnimClear CoverStand"/>
+        <On Terms="WeaponStart.12fengchaohuojian.AttackStart" Send="AnimPlay Cover Cover PlayForever"/>
+        <On Terms="WeaponStop.12fengchaohuojian.AttackStop" Send="TimerSet 2.500000 CoverDelay"/>
+        <On Terms="TimerExpired; TimerName CoverDelay" Send="AnimClear Cover"/>
+        <On Terms="TimerExpired; TimerName CoverDelay" Send="AnimPlay CoverStand Cover,Stand PlayForever"/>
+        <On Terms="WeaponStart.12zengchengjianongpao.AttackStart; WeaponTargetElevation GE 20.000000" Send="AnimBracketStart Attack Attack,Superior"/>
+        <On Terms="WeaponStart.12zengchengjianongpao.AttackStart; WeaponTargetElevation LE -20.000000" Send="AnimBracketStart Attack Attack,Inferior"/>
+        <On Terms="WeaponStart.12zengchengjianongpao.AttackStart; WeaponTargetDistance LE 1.000000" Send="AnimBracketStart Attack Spell,B"/>
+        <On Terms="WeaponStart.12zengchengjianongpao.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="WeaponStop.*.AttackStop" Send="AnimBracketStop Attack"/>
+        <On Terms="Abil.attack.ReadyStop" Send="AnimGroupRemove Ready"/>
+        <On Terms="AbilTransport.MedivacTransport.CargoUnload" Send="AnimPlay Unload Spell,A 0 0.000000"/>
+        <On Terms="WeaponStart.*.AttackStart; AnimPlaying Unload" Send="AnimClear Unload"/>
+        <On Terms="UnitMovementUpdate.*.Walk; AnimPlaying Unload" Send="AnimClear Unload"/>
+        <On Terms="AbilTransport.SpecOpsDropshipTransport.CargoUnload" Send="AnimPlay Unload Spell,A 0 0.000000"/>
+        <On Terms="AbilTransport.HerculesTransport.CargoUnload" Send="AnimPlay Unload Spell,A 0 0.000000"/>
+        <On Terms="AbilTransport.12zhuangzai4.CargoUnload" Send="AnimPlay Unload Spell,A 0 0.000000"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Thor_Land"/>
+        <On Terms="UnitBirth.12qiyijunbaolei2" Send="Create"/>
+        <On Terms="UnitBirth.12qiyijunbaolei2" Send="AnimBracketStart Morph IGNORE Morph,Stand Morph,End"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 12qiyijunbaolei2; MorphFrom 12qiyijunbaolei" Send="AnimBracketStart Morph Morph Morph,Stand Morph,End"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 12qiyijunbaolei; MorphFrom 12qiyijunbaolei2" Send="AnimBracketStop Morph"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 12qiyijunbaolei2; MorphFrom 12qiyijunbaolei" Send="Create 250mmStrikeCannonsUnMorph"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 12qiyijunbaolei; MorphFrom 12qiyijunbaolei2" Send="Create 250mmStrikeCannonsMorph"/>
+        <On Terms="ActorCreation" Send="StatusSet WeaponNext 0"/>
+        <On Terms="Effect.12chengfazhehuopaoDamage.Start; At Caster" Send="AnimPlay SpellD Spell,D"/>
+        <On Terms="Effect.12chengfazhehuopaoDamage.Start; At Caster" Send="StatusIncrement WeaponNext"/>
+        <On Terms="Effect.12chengfazhehuopaoDamage.Start; At Caster; IsStatus WeaponNext 4" Send="StatusSet WeaponNext 0"/>
+        <On Terms="Effect.12chengfazhehuopaoDamage.Start; At Caster; IsStatus WeaponNext 0" Send="AnimClear Attack3"/>
+        <On Terms="Effect.12chengfazhehuopaoDamage.Start; At Caster; IsStatus WeaponNext 0" Send="AnimPlay Attack4 Spell,C,02"/>
+        <On Terms="Effect.12chengfazhehuopaoDamage.Start; At Caster; IsStatus WeaponNext 1" Send="AnimClear Attack4"/>
+        <On Terms="Effect.12chengfazhehuopaoDamage.Start; At Caster; IsStatus WeaponNext 1" Send="AnimPlay Attack1 Spell,C,01"/>
+        <On Terms="Effect.12chengfazhehuopaoDamage.Start; At Caster; IsStatus WeaponNext 2" Send="AnimClear Attack1"/>
+        <On Terms="Effect.12chengfazhehuopaoDamage.Start; At Caster; IsStatus WeaponNext 2" Send="AnimPlay Attack2 Spell,C,03"/>
+        <On Terms="Effect.12chengfazhehuopaoDamage.Start; At Caster; IsStatus WeaponNext 3" Send="AnimClear Attack2"/>
+        <On Terms="Signal; IsStatus WeaponNext 3" Send="AnimPlay Attack3 Spell,C,00"/>
+        <Model value="Thor"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <EventDataFootprint index="0" Actor="" Model=""/>
+        <BuildModel value="Thor"/>
+        <DeathArray index="Normal" ModelLink="ThorDeath" SoundLink=""/>
+        <DeathCustoms ModelLink="ThorDeathLow" Name="AntiGravTerran"/>
+        <DeathCustoms ActorModel="ThorDeathRagdoll" ModelLink="ThorDeathRagdoll" Name="RagdollBasic">
+            <BodySquibs Name="Basic" Model="TerranSquibDeathRagdoll"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollSiegeTank" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="FireHeavy"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="FireHeavy"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollBaneling" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollUltraUnburrow" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms>
+            <ModelLink value="DeathVoidShadowLarge"/>
+            <SoundLink value="ShadowUnit_DeathFX"/>
+            <VoiceLink value="ShadowUnit_DeathVox"/>
+            <Name value="Shadow"/>
+        </DeathCustoms>
+        <PlacementModel value="Thor"/>
+        <PortraitModel value="ThorPortrait"/>
+        <StandAnimTurnTime value="5"/>
+        <StandAnimTurnTimeScaleMin value="0.850000"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.250000,0.500000"/>
+            <RangeDown value="5.000000"/>
+            <RangeDownFade value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleMassive2"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="1.8671"/>
+        <BarOffset value="120"/>
+        <BarWidth value="140"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Thor.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-thor.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel0.dds"/>
+        <NameOffset value="80"/>
+        <SoundArray index="Ready" value="Thor_Ready"/>
+        <SoundArray index="Help" value="Thor_Help"/>
+        <SoundArray index="What" value="Thor_What"/>
+        <SoundArray index="Yes" value="Thor_Yes"/>
+        <SoundArray index="Attack" value="Thor_Attack"/>
+        <SoundArray index="Pissed" value="Thor_Pissed"/>
+        <SoundArray index="Movement" value="Thor_Movement"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-thor.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Thor.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorUnit id="12gongchengmoshiMorphModel" parent="GenericUnitBaseMorphTransition" unitName="12gongchengmoshiMorphModel">
+        <Aliases value="_UnitLarge"/>
+        <Inherits index="ModelMaterials" value="1"/>
+        <AcceptedTransfers index="ModelMaterials" value="1"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 12qiyijunzixinghuopao" Send="Create"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 12qiyijunzixinghuopao" Send="AnimPlay End Morph,End"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 12qiyijunzixinghuopao" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 12qiyijunzixinghuopao2" Send="Destroy"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create SiegeTank_Land"/>
+        <Model value="SiegeTankSiegedMorph"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <CreepHeightClass value="Tiny"/>
+        <CreepRateGrow value="Grow"/>
+        <CreepRateShrink value="Shrink"/>
+        <DeathArray index="Normal" ModelLink="TerranLargeUnitDeath" SoundLink="SiegeTank_Explode"/>
+        <DeathCustoms ModelLink="TerranLargeUnitDeathLow" Name="AntiGravTerran"/>
+        <PortraitModel value="SiegeTankPortrait"/>
+        <AbilSoundArray AbilCmd="12gongchengmoshi,Execute" Sound="SiegeTank_SiegeModeVO"/>
+        <BarOffset value="80"/>
+        <BarWidth value="102"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-SiegeTank-TankMode.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-siegetank.dds"/>
+        <HighlightTooltip value="Unit/Name/SiegeTank"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel0.dds"/>
+        <SoundArray index="Ready" value="SiegeTank_Ready"/>
+        <SoundArray index="Help" value="SiegeTank_Help"/>
+        <SoundArray index="What" value="SiegeTank_What"/>
+        <SoundArray index="Yes" value="SiegeTank_Yes"/>
+        <SoundArray index="Attack" value="SiegeTank_Attack"/>
+        <SoundArray index="Pissed" value="SiegeTank_Pissed"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-siegetank.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-SiegeTank-TankMode.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorAction id="12fengchaohuojianAttack" parent="GenericAttack" effectImpact="12fengchaohuojianDamage" effectLaunch="12fengchaohuojianMissile">
+        <LaunchAttachQuery Methods="AMFilterWeaponSetA1 12fengchaohuojian"/>
+        <LaunchAssets Model="ThorAAAttackLaunch" Sound="Thor_AntiAirAttackLaunch"/>
+        <Missile value="ThorAAAttackMissile"/>
+        <ImpactMap index="None" Model="ThorAAAttackImpact" Sound="Thor_AntiAirAttackImpact"/>
+        <ImpactPhysics Name="JavelinImpact" MatchKeys="Basic" Physics="ThorAAAttackForce"/>
+    </CActorAction>
+    <CActorAction id="12zengchengjianongpao" parent="GenericAttack" effectAttack="12zengchengjianongpaoDamage">
+        <LaunchAttachQuery Methods="AMFilterWeaponSetA0 AMPatternThor"/>
+        <LaunchAssets Model="ThorHandGunAttackLaunch" Sound="Thor_HandGunAttackLaunch"/>
+        <ImpactMap index="None" Model="ThorHandGunAttackImpact" Sound="Thor_HandGunAttackImpact"/>
+        <ImpactPhysics Name="GunImpact" MatchKeys="Basic" Physics="ThorAttackForce"/>
+    </CActorAction>
+    <CActorUnit id="12xiubolianjianjizhanji" parent="GenericUnitMorph" unitName="12xiubolianjianjizhanji">
+        <Aliases value="_UnitMedium"/>
+        <Macros value="AssaultModeAnim"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsSwarmAir"/>
+        <Macros value="PhysicsDeathsVoidAir"/>
+        <AcceptedTransfers index="Status" value="0"/>
+        <On Terms="ActorDestruction; HasStatus FlyerHelper" Send="StatusDecrement FlyerHelper"/>
+        <On Terms="UnitPortrait.*.Configure" Target="::PortraitGameSelf" Send="AnimPlay Visor Morph,Stand PlayForever 0.000000"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create VikingFighter_Land"/>
+        <HostSiteOps Ops="SOpBankerViking"/>
+        <Model value="VikingFighter"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <Baselines index="Walk" BlendIn="1.500000" BlendOut="2.000000"/>
+        <BuildModel value="VikingFighter"/>
+        <DeathArray index="Normal" ModelLink="VikingFighterDeath" SoundLink="Viking_Explode"/>
+        <DeathCustoms>
+            <ActorModel value="UnitDeathRagdollFlier"/>
+            <ModelLink value="VikingFighterDeathRagdoll"/>
+            <Name value="RagdollBasic"/>
+            <PhysicsMatchKeysOrdered value="BasicAir,Basic"/>
+            <BodySquibs Name="Basic" Model="TerranSquibDeathRagdoll"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms>
+            <ModelLink value="DeathVoidShadowMedium"/>
+            <SoundLink value="ShadowUnit_DeathFX"/>
+            <VoiceLink value="ShadowUnit_DeathVox"/>
+            <Name value="Shadow"/>
+        </DeathCustoms>
+        <DeathActorModel value="UnitDeathModelWithDeathMotionFlier"/>
+        <PhysicsMatchKeysOrdered value="BasicAir,Basic"/>
+        <PlacementModel value="VikingFighter"/>
+        <PortraitModel value="VikingFighterPortrait"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.250000,0.500000"/>
+            <RangeDown value="5.000000"/>
+            <RangeDownFade value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleMassive15"/>
+        </TerrainSquibs>
+        <AbilSoundArray AbilCmd="12jijiamoshi,Execute" Sound="Viking_AssaultModeVO"/>
+        <BarOffset value="50"/>
+        <BarWidth value="70"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-Viking-Fighter.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-vikingfighter.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-shipplatinglevel0.dds"/>
+        <NameOffset value="50"/>
+        <SoundArray index="Ready" value="Viking_Ready"/>
+        <SoundArray index="Help" value="Viking_Help"/>
+        <SoundArray index="What" value="Viking_What"/>
+        <SoundArray index="Yes" value="Viking_Yes"/>
+        <SoundArray index="Attack" value="Viking_Attack"/>
+        <SoundArray index="Pissed" value="Viking_Pissed"/>
+        <SoundArray index="Movement" value="Viking_FighterMovement"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-vikingfighter.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-Viking-Fighter.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorAction id="12polangfeidanAttackLeft" parent="VikingFighterAttackBase" effectImpact="12polangfeidanDamage" effectLaunch="LanzerTorpedoesLM">
+        <On Terms="Effect.12polangfeidanMissileLeft.Start; At Caster" Send="Create"/>
+        <LaunchAttachQuery Methods="Weapon 12"/>
+        <ImpactMap index="None" Model="VikingFighterRipWaveAttackImpact" Sound="Viking_RipwaveMissileImpact"/>
+    </CActorAction>
+    <CActorAction id="12chengfazhehuopaoAttack" parent="GenericAttack" effectAttack="12chengfazhehuopaoDamage">
+        <LaunchAttachQuery Methods="AMFilterWeaponSetA2 AMPatternThorAALance"/>
+        <LaunchAssets Model="" Sound=""/>
+        <ImpactMap index="None" Model="ThorAAAttackImpactLance" Sound="250mmStrikeCannonsSound"/>
+        <ImpactPhysics Name="JavelinImpact" MatchKeys="Basic" Physics="ThorAAAttackForce"/>
+        <DamageMap index="None" Sound=""/>
+        <AcquisitionYawHalfArc value="10.000000"/>
+        <AcquisitionPitchHalfArc value="15.000000"/>
+        <AccuracyHalfArc value="5.000000"/>
+    </CActorAction>
+    <CActorAction id="12gaosijipaoAttackLeft" parent="GenericAttack" effectAttack="12gaosijipaoDamageLeft">
+        <LaunchAttachQuery Methods="AMFilterWeaponLeft"/>
+        <LaunchAssets Model="VikingAssaultAttackLaunch" Sound="VikingAssault_AttackLaunch"/>
+        <Beam value="12gaosijipaoAttackBeam"/>
+        <ImpactMap index="None" Model="VikingAssaultAttackImpact" Sound="Viking_AssaultAttackImpact"/>
+        <ImpactMap index="Flesh" ModelReaction="BloodTargetImpact"/>
+        <ImpactPhysics Name="GatlingCannonImpact" MatchKeys="Basic" Physics="VikingAssaultAttackForce"/>
+    </CActorAction>
+    <CActorModel id="12xiezai">
+        <Flags index="SuppressSaveLoad" value="1"/>
+        <Inherits index="BaseModelScale" value="1"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <On Terms="ActorCreation" Send="$Stand,00"/>
+        <On Terms="AnimDone; AnimName Stand" Send="Destroy"/>
+        <On Terms="AbilTransport.12zhuangzai4.CargoUnload" Send="Create"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachCenter SOpShadow"/>
+        <Model value="UnloadFX"/>
+        <AutoScaleFactor value="1.000000"/>
+    </CActorModel>
+    <CActorModel id="12zheyueLaunchImpact" parent="ModelAnimationStyleOneShotUNIT">
+        <Inherits index="BaseModelScale" value="1"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <On Terms="Behavior.12zheyue.On" Send="Create"/>
+        <On Terms="Behavior.12zheyue.Off" Send="Create"/>
+        <On Terms="ActorCreation" Send="SetTintColor {0,255,0 3.000000}"/>
+        <HostSiteOps Ops="SOpAttachCenter 0weizhicaozuozheyue" HoldPosition="1" HoldRotation="1"/>
+        <AutoScaleFactor value="1.000000"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+        <ModelFlags index="AutomateGlobalLoops" value="1"/>
+    </CActorModel>
+    <CActorSound id="12chaoshengbomaichongImpactSound" parent="SoundOneShot">
+        <On Terms="Effect.12chaoshengbomaichongSearch.Start" Send="Create"/>
+        <Sound value="Spectre_UltrasonicPulseImpact"/>
+    </CActorSound>
+    <CActorModel id="12lingnenghudun" parent="ModelAnimationStyleContinuousUNIT">
+        <On Terms="Behavior.12lingnenghudun0.On" Send="Create"/>
+        <On Terms="ActorCreation" Send="AnimBracketStart $BSD"/>
+        <On Terms="ActorCreation" Send="SetOpacity 0.500000"/>
+        <On Terms="Behavior.12lingnenghudun0.Off" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+    </CActorModel>
+    <CActorModel id="12pianzhuanlichang" parent="ModelAnimationStyleOneShotUNIT">
+        <On Terms="Behavior.12pianzhuanlichang.DamageHandled" Send="Create"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <Model value="WraithEvade"/>
+    </CActorModel>
+    <CActorAction id="12xiubolianhaoduidizhongxingdenglizipaozuAttack" parent="GenericAttack" effectImpact="12xiubolianhaoduidizhongxingdenglizipaozuDamage" effectLaunch="12xiubolianhaoduidizhongxingdenglizipaozuMissile">
+        <LaunchAttachQuery Methods="AMFilterWeaponSetA0 AMRandom"/>
+        <LaunchAssets Model="HyperionAttackLaunch" Sound="HyperionAttackLaunch"/>
+        <Missile value="12xiubolianhaozhongxingdenglizipaoAttackMissile"/>
+        <ImpactMap index="None" Model="HyperionAirAttackImpact" Sound="HyperionAirAttackImpact" ModelReaction="HyperionAirAttackImpactReaction"/>
+        <ImpactMap index="Shield" Sound="HyperionAirAttackImpactShield" ModelReaction="HyperionAirAttackImpactReactionShield"/>
+        <ImpactModel value="HyperionPlasmaAirAttackImpactModel"/>
+    </CActorAction>
+    <CActorSound id="12xiubolianhaozhongxingdenglizipaoEndSound" parent="SoundOneShot">
+        <On Terms="Effect.12xiubolianhaoduidizhongxingdenglizipaozuPersistent.Stop" Send="Create"/>
+        <On Terms="Effect.HyperionCreateAirPersistent.Stop" Send="Create"/>
+        <Sound value="HyperionAttackEndSound"/>
+    </CActorSound>
+    <CActorSound id="12xiubolianhaozhongxingdenglizipaoStartSound" parent="SoundOneShot">
+        <On Terms="Effect.12xiubolianhaoduidizhongxingdenglizipaozuPersistent.Start" Send="Create"/>
+        <On Terms="Effect.HyperionCreateAirPersistent.Start" Send="Create"/>
+        <Sound value="HyperionAttackStartSound"/>
+    </CActorSound>
+    <CActorUnit id="12tongxinzhan" parent="TerranBuildingEx" unitName="12tongxinzhan">
+        <Aliases value="_UnitHuge"/>
+        <Macros value="QueueAnim"/>
+        <On Terms="Behavior.ColonyInfestation.On" Send="Create InfestationEngineeringBay"/>
+        <Model value="EngineeringBay"/>
+        <CreepHeightClass value="Medium"/>
+        <BuildModel value="EngineeringBay"/>
+        <DeathArray index="Normal" ModelLink="EngineeringBayDeath"/>
+        <DeathArray index="UnderConstruction" ModelLink="TerranBuildingDeath" SoundLink="EngineeringBay_Explode"/>
+        <PlacementModel value="EngineeringBayPlacement"/>
+        <PortraitModel value="EngineeringBayPortrait"/>
+        <BarOffset value="110"/>
+        <BarWidth value="135"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-EngineeringBay.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-terran-engineeringbay.dds"/>
+        <NameOffset value="110"/>
+        <SoundArray index="Ready" value="EngineeringBay_Ready"/>
+        <SoundArray index="What" value="EngineeringBay_What"/>
+        <UnitIcon value="Assets\Textures\btn-building-terran-engineeringbay.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-EngineeringBay.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorSplat id="12tongxinzhanSplat" parent="GenericUnitSplat" unitName="12tongxinzhan">
+        <Model value="EngineeringBaySplat"/>
+    </CActorSplat>
+    <CActorModel id="12tongxinzhanBuild" parent="TerranBuildingBuild">
+        <Model value="EngineeringBayBuild"/>
+    </CActorModel>
+    <CActorAction id="HyperionDirectAttack2" parent="GenericAttack" effectImpact="HyperionDamageDirect2" effectLaunch="HyperionLMDirect2">
+        <LaunchAttachQuery Methods="AMFilterWeaponSetA0 AMPatternHyperionFlashyAttack"/>
+        <Missile value="12xiubolianhaozhongxingdenglizipaoAttackMissile"/>
+        <ImpactMap index="None" Model="HyperionDirectAttackImpact"/>
+        <ImpactModel value="HyperionPlasmaAttackImpactModel2"/>
+    </CActorAction>
+    <CActorMissile id="12xiubolianhaozhongxingdenglizipaoAttackMissile" parent="GenericAttackMissile" unitName="12xiubolianhaozhongxingdenglizipaoWeapon">
+        <Model value="HyperionALMWeapon"/>
+    </CActorMissile>
+    <CActorAction id="12xiubolianhaodahepaoAttack" parent="GenericAttack" effectImpact="12xiubolianhaodahepaoDamage" effectLaunch="12xiubolianhaodahepaoMissile">
+        <LaunchAttachQuery Methods="Weapon 9"/>
+        <LaunchAssets Sound="HyperionYamatoSpecialAttackLaunch"/>
+        <Missile value="HyperionYamatoSpecialAttackMissile"/>
+        <ImpactSiteOps HoldPosition="1"/>
+        <ImpactAttachQuery Methods="Origin"/>
+        <ImpactMap index="None" Model="HyperionYamatoSpecialAttackImpact" Sound="HyperionYamatoSpecialAttackImpact"/>
+    </CActorAction>
+    <CActorModel id="12xiubolianhaodahepaoAttackChargeModel" parent="ModelAddition">
+        <On Terms="Abil.12xiubolianhaodahepao.Start; At Caster" Send="Create"/>
+        <On Terms="Abil.12xiubolianhaodahepao.Stop" Send="Destroy"/>
+        <HostSiteOps Ops="SOpAttachWeapon09"/>
+        <Model value="HyperionYamatoSpecialAttackChargeModel"/>
+        <ModelFlags index="UseSyncSeed" value="0"/>
+    </CActorModel>
+    <CActorSound id="12xiubolianhaodahepaoAttackChargeSound" parent="SoundContinuous">
+        <On Terms="Abil.12xiubolianhaodahepao.Start; At Caster" Send="Create"/>
+        <On Terms="Abil.12xiubolianhaodahepao.Stop" Send="Destroy"/>
+        <Host Subject="12xiubolianhaodahepaoAttackChargeModel"/>
+        <Sound value="HyperionYamatoAttackChargeSound"/>
+    </CActorSound>
+</Catalog>

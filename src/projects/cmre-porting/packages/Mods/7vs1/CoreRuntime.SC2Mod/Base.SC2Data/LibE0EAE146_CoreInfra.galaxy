@@ -1,0 +1,76 @@
+// CoreInfra - 基础设施，替代 PVP 库的核心功能
+// 提供 MAXPLAYERS 常量、玩家组管理、Bank 读取、英雄建筑查询
+// 迁移自 LibKCOR.galaxy / LibKPVP_Commander.galaxy，前缀替换为 libE0EAE146_
+
+// ===== 常量 =====
+const int libE0EAE146_gv_MAXPLAYERS = 15;
+
+// ===== 全局变量 =====
+playergroup libE0EAE146_gv_commanderPlayers;
+playergroup libE0EAE146_gv_cOMMANDERS;
+string[libE0EAE146_gv_MAXPLAYERS + 1] libE0EAE146_gv_cCX_PlayerCommander;
+
+// ===== 函数实现 =====
+// 从 LibKCOR 迁移 gf_CommanderPlayers() — 返回指挥官玩家组
+playergroup libE0EAE146_gf_CommanderPlayers () {
+    // Variable Declarations
+    int lv_player;
+    playergroup lv_playerGroup;
+
+    // Automatic Variable Declarations
+    playergroup autoF1446F3B_g;
+
+    // Variable Initialization
+    lv_playerGroup = PlayerGroupEmpty();
+
+    // Implementation
+    autoF1446F3B_g = libE0EAE146_gv_cOMMANDERS;
+    lv_player = -1;
+    while (true) {
+        lv_player = PlayerGroupNextPlayer(autoF1446F3B_g, lv_player);
+        if (lv_player < 0) { break; }
+        PlayerGroupAdd(lv_playerGroup, lv_player);
+    }
+    return lv_playerGroup;
+}
+
+// 从 LibKCOR 迁移 gf_ActiveCommanderForPlayer(int) — 查询玩家当前指挥官
+string libE0EAE146_gf_ActiveCommanderForPlayer (int lp_player) {
+    // Variable Declarations
+    string lv_commanderInstance;
+
+    // Automatic Variable Declarations
+    // Variable Initialization
+    if ((lp_player < 0) || (lp_player > libE0EAE146_gv_MAXPLAYERS)) {
+        return "";
+    }
+    lv_commanderInstance = libE0EAE146_gv_cCX_PlayerCommander[lp_player];
+
+    // Implementation
+    return libE0EAE146_gv_cCX_PlayerCommander[lp_player];
+}
+
+// 从 LibKCOR 迁移 gf_CC_CommanderHeroStructureType(string) — 查询指挥官英雄建筑类型
+string libE0EAE146_gf_CC_CommanderHeroStructureType (string lp_commander) {
+    // Automatic Variable Declarations
+    // Implementation
+    return UserDataGetGameLink("PlayerCommanders", lp_commander, "HeroStructure", 1);
+}
+
+// 从 LibKPVP_Commander 迁移 gf_CodexPrimaryCommanderName() — Bank 读取主指挥官名
+string libE0EAE146_gf_CodexPrimaryCommanderName () {
+    string lv_bankKey;
+    string lv_slotKey;
+
+    lv_bankKey = "";
+    lv_slotKey = ("CommanderP" + IntToString(1));
+    BankLoad("CampaignXCore", 1);
+    if (BankKeyExists(BankLastCreated(), "XMRuntimeControl", lv_slotKey)) {
+        lv_bankKey = BankValueGetAsString(BankLastCreated(), "XMRuntimeControl", lv_slotKey);
+    }
+    if ((lv_bankKey == "") && BankKeyExists(BankLastCreated(), "XMRuntimeControl", "PrimaryCommander")) {
+        lv_bankKey = BankValueGetAsString(BankLastCreated(), "XMRuntimeControl", "PrimaryCommander");
+    }
+
+    return lv_bankKey;
+}

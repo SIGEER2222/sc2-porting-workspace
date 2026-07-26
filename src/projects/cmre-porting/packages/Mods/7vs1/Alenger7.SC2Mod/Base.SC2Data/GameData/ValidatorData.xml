@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CValidatorUnitCompareBehaviorCount id="7mubiaomeiyoufangyupingzhang">
+        <Behavior value="7fangyupingzhang"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="7mubiaomeiyouxingxingsuiliepao">
+        <Behavior value="7xingxingsuiliepao"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="7mubiaomeiyouxiaohaotaiyanghexinchongneng">
+        <Behavior value="7xiaohaotaiyanghexinchongneng"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="7mubiaoyouxiangweiguangpaoTimedLife">
+        <Value value="1"/>
+        <Behavior value="7xiangweiguangpaoTimedLife"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="7mubiaomeiyoushikongtisu">
+        <Behavior value="7shikongtisu"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="7mubiaomeiyouyongjiushikongtisu">
+        <Behavior value="7yongjiushikongtisu"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="7shifazhemeiyouhuishouCaster">
+        <WhichUnit Value="Caster"/>
+        <Behavior value="7huishouCaster"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="7shifazheyoufanzhonglichaozai">
+        <WhichUnit Value="Caster"/>
+        <Value value="1"/>
+        <Behavior value="7fanzhonglichaozai"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="7shifazheyoushikongtisuMarker">
+        <WhichUnit Value="Caster"/>
+        <Value value="1"/>
+        <Behavior value="7shikongtisuMarker"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="7mubiaomeiyouguangzichaozai">
+        <Behavior value="7guangzichaozai"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="7shifazheyouhuishouCaster">
+        <WhichUnit Value="Caster"/>
+        <Value value="1"/>
+        <Behavior value="7huishouCaster"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitState id="7yuandanweicunhuo">
+        <WhichUnit Value="Source"/>
+        <Enabled value="1"/>
+        <State value="Alive"/>
+    </CValidatorUnitState>
+    <CValidatorUnitFilters id="7guidaohongzhaStunTargetFilters">
+        <Filters value="-;Structure,Heroic,User1,Missile,Stasis,Dead,Hidden,Invulnerable,MapBoss,HeroUnit"/>
+    </CValidatorUnitFilters>
+    <CValidatorLocationComparePower id="7mubiaodianyounengliang">
+        <WhichPlayer Value="Caster"/>
+        <PowerLink value="PowerSource"/>
+        <Compare value="GE"/>
+        <Value value="1"/>
+    </CValidatorLocationComparePower>
+    <CValidatorLocationEnumArea id="7xiangweiguangpaomubiao">
+        <AreaArray Compare="GT" Radius="6" Validator="7mubiaoyouxiangweiguangpaoTimedLife"/>
+        <Compare value="LE"/>
+        <Count value="2"/>
+        <SearchFilters value="Visible;Ally,Neutral,Enemy,Missile,Stasis,Dead,Hidden"/>
+    </CValidatorLocationEnumArea>
+    <CValidatorUnitFilters id="7fanwuzhidanmuTargetFilters">
+        <WhichUnit Effect="7fanwuzhidanmuPersistent"/>
+        <Filters value="-;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+    </CValidatorUnitFilters>
+    <CValidatorCombine id="7fanwuzhidanmu">
+        <Type value="And"/>
+        <CombineArray value="CasterIsNotHidden"/>
+        <CombineArray value="CasterNotDead"/>
+        <CombineArray value="CasterNotStunned"/>
+        <CombineArray value="7fanwuzhidanmuTargetFilters"/>
+    </CValidatorCombine>
+</Catalog>

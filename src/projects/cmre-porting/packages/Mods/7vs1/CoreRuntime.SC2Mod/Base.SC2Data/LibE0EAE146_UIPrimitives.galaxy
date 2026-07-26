@@ -1,0 +1,189 @@
+// UIPrimitives - UI 控件抽象与 QuickLib 简写函数
+// 借鉴自 GXML B02 (FuzzYD) 与 QuickLib A03
+// 仅集成控件类型抽象与简写函数；不集成运行时 XML 解析（项目方向为生成时编译）
+// 命名约定：libE0EAE146_gv_* 变量 / libE0EAE146_gf_* 函数 / libE0EAE146_gc_* 常量
+
+// =====================================================================
+// 1. QuickLib 简写函数（迁移自 QuickLib.galaxy A03）
+//    提供资源路径包装与类型转换的极简 API
+// =====================================================================
+
+const string libE0EAE146_gc_AssetExt = ".dds";
+const fixed libE0EAE146_gc_timeStep = 0.0625;
+
+string libE0EAE146_gf_Asset (string lp_name) {
+    return ("Assets\\Textures\\" + lp_name + libE0EAE146_gc_AssetExt);
+}
+
+string libE0EAE146_gf_Char (string lp_name) {
+    return ("Assets\\Char\\" + lp_name + libE0EAE146_gc_AssetExt);
+}
+
+string libE0EAE146_gf_Music (string lp_name) {
+    return ("Assets\\Music\\" + lp_name + libE0EAE146_gc_AssetExt);
+}
+
+string libE0EAE146_gf_Sound (string lp_name) {
+    return ("Assets\\Sounds\\" + lp_name + libE0EAE146_gc_AssetExt);
+}
+
+string libE0EAE146_gf_UI (string lp_name) {
+    return ("Assets\\UI\\" + lp_name + libE0EAE146_gc_AssetExt);
+}
+
+// 类型转换简写
+int libE0EAE146_gf_f2i (fixed lp_value) {
+    return FixedToInt(lp_value);
+}
+
+int libE0EAE146_gf_s2i (string lp_value) {
+    return StringToInt(lp_value);
+}
+
+fixed libE0EAE146_gf_i2f (int lp_value) {
+    return IntToFixed(lp_value);
+}
+
+string libE0EAE146_gf_i2s (int lp_value) {
+    return IntToString(lp_value);
+}
+
+string libE0EAE146_gf_f2s (fixed lp_value, int lp_precision) {
+    return FixedToString(lp_value, lp_precision);
+}
+
+text libE0EAE146_gf_s2t (string lp_value) {
+    return StringToText(lp_value);
+}
+
+bool libE0EAE146_gf_i2b (int lp_value) {
+    return (lp_value != 0);
+}
+
+// 数值钳制
+int libE0EAE146_gf_iClamp (int lp_value, int lp_min, int lp_max) {
+    if (lp_value < lp_min) {
+        return lp_min;
+    }
+    if (lp_value > lp_max) {
+        return lp_max;
+    }
+    return lp_value;
+}
+
+fixed libE0EAE146_gf_fClamp (fixed lp_value, fixed lp_min, fixed lp_max) {
+    if (lp_value < lp_min) {
+        return lp_min;
+    }
+    if (lp_value > lp_max) {
+        return lp_max;
+    }
+    return lp_value;
+}
+
+// 点序列化（galaxy 无原生 point->string；提供用于调试日志）
+string libE0EAE146_gf_PointToString (point lp_loc) {
+    if (lp_loc == null) {
+        return "(null)";
+    }
+    return ("(" + FixedToString(PointGetX(lp_loc), 2) + "," + FixedToString(PointGetY(lp_loc), 2) + ")");
+}
+
+// 颜色序列化占位（galaxy 无原生 color 分量提取 native；保留 API 兼容性）
+string libE0EAE146_gf_ColorToString (color lp_color) {
+    return "{color}";
+}
+
+// =====================================================================
+// 2. 控件类型抽象（借鉴自 GXML 控件类型表）
+//    提供字符串到 DialogControlType 的标准化映射，供生成器与运行时共用
+//    GXML 原始类型字符: l i b c lb pd pb s e
+// =====================================================================
+
+// 控件类型字符串常量（与 GXML 字符一致，便于数据源 JSON 复用）
+const string libE0EAE146_gc_UIType_Label      = "l";
+const string libE0EAE146_gc_UIType_Image      = "i";
+const string libE0EAE146_gc_UIType_Button     = "b";
+const string libE0EAE146_gc_UIType_Checkbox   = "c";
+const string libE0EAE146_gc_UIType_Listbox    = "lb";
+const string libE0EAE146_gc_UIType_Pulldown   = "pd";
+const string libE0EAE146_gc_UIType_ProgressBar = "pb";
+const string libE0EAE146_gc_UIType_Slider     = "s";
+const string libE0EAE146_gc_UIType_Editbox    = "e";
+
+// 字符串类型 -> c_triggerControlType 常量映射
+int libE0EAE146_gf_UITypeToControlType (string lp_type) {
+    if (lp_type == libE0EAE146_gc_UIType_Label) {
+        return c_triggerControlTypeLabel;
+    }
+    if (lp_type == libE0EAE146_gc_UIType_Image) {
+        return c_triggerControlTypeImage;
+    }
+    if (lp_type == libE0EAE146_gc_UIType_Button) {
+        return c_triggerControlTypeButton;
+    }
+    if (lp_type == libE0EAE146_gc_UIType_Checkbox) {
+        return c_triggerControlTypeCheckBox;
+    }
+    if (lp_type == libE0EAE146_gc_UIType_Listbox) {
+        return c_triggerControlTypeListBox;
+    }
+    if (lp_type == libE0EAE146_gc_UIType_Pulldown) {
+        return c_triggerControlTypePulldown;
+    }
+    if (lp_type == libE0EAE146_gc_UIType_ProgressBar) {
+        return c_triggerControlTypeProgressBar;
+    }
+    if (lp_type == libE0EAE146_gc_UIType_Slider) {
+        return c_triggerControlTypeSlider;
+    }
+    if (lp_type == libE0EAE146_gc_UIType_Editbox) {
+        return c_triggerControlTypeEditBox;
+    }
+    return c_triggerControlTypeLabel;
+}
+
+// =====================================================================
+// 3. 控件属性简写构造器（生成时编译友好；非运行时 XML 解析）
+//    提供常用属性的快速设置，避免调用方重复书写 native 名
+// =====================================================================
+
+// 创建控件并绑定到对话框；返回创建的控件引用
+// 对所有玩家可见；调用方可后续通过 SetControlVisible 调整
+int libE0EAE146_gf_CreateControl (int lp_dialog, string lp_type, int lp_x, int lp_y, int lp_width, int lp_height) {
+    int lv_control;
+    lv_control = DialogControlCreate(lp_dialog, libE0EAE146_gf_UITypeToControlType(lp_type));
+    DialogControlSetPosition(lv_control, PlayerGroupAll(), c_anchorTopLeft, lp_x, lp_y);
+    DialogControlSetSize(lv_control, PlayerGroupAll(), lp_width, lp_height);
+    return lv_control;
+}
+
+// 设置控件文本（Label/Button/Editbox 通用）
+void libE0EAE146_gf_SetControlText (int lp_control, string lp_text) {
+    DialogControlSetPropertyAsString(lp_control, c_triggerControlPropertyText, PlayerGroupAll(), lp_text);
+}
+
+// 设置控件图片（Image/Button 背景通用）
+void libE0EAE146_gf_SetControlImage (int lp_control, string lp_imagePath) {
+    DialogControlSetPropertyAsString(lp_control, c_triggerControlPropertyImage, PlayerGroupAll(), lp_imagePath);
+}
+
+// 设置控件提示文本
+void libE0EAE146_gf_SetControlTooltip (int lp_control, string lp_tooltip) {
+    DialogControlSetPropertyAsString(lp_control, c_triggerControlPropertyTooltip, PlayerGroupAll(), lp_tooltip);
+}
+
+// 设置控件颜色
+void libE0EAE146_gf_SetControlColor (int lp_control, color lp_color) {
+    DialogControlSetPropertyAsColor(lp_control, c_triggerControlPropertyColor, PlayerGroupAll(), lp_color);
+}
+
+// 设置控件可见性
+void libE0EAE146_gf_SetControlVisible (int lp_control, bool lp_visible) {
+    DialogControlSetVisible(lp_control, PlayerGroupAll(), lp_visible);
+}
+
+// 设置控件启用状态
+void libE0EAE146_gf_SetControlEnabled (int lp_control, bool lp_enabled) {
+    DialogControlSetEnabled(lp_control, PlayerGroupAll(), lp_enabled);
+}

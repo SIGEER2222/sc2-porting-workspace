@@ -1,0 +1,221 @@
+// CommanderToolkit - 基线 Toolkit + 指挥官覆盖
+// 借鉴自 Cortex Toolkit + Forge v1.2 (Xethyr) 的 DefaultToolkit 可替换架构
+// 对照 CommanderBridge 接口（libE0EAE146_gf_CommanderRuntimeInit）扩展可选 hook 层
+// 设计原则：
+//   - DefaultToolkit 提供通用基线行为（日志 + 空操作）
+//   - 指挥官 mod 可在自身 RuntimeInit 中通过 RegisterToolkitOverride 注册覆盖
+//   - 分派器优先调用覆盖，无覆盖则回落到 Default
+//   - 与现有 CommanderRuntimeInit 分派正交，不改变既有流程
+// 实现：
+//   - galaxy 无原生 hashtable，使用全局 DataTable + 拼接字符串 key 模拟
+//   - key 格式: "Toolkit_<commander>_<hookId>" -> trigger
+
+// =====================================================================
+// 1. Hook 标识枚举
+// =====================================================================
+
+const int libE0EAE146_gc_ToolkitHook_OnCommanderInit       = 0;
+const int libE0EAE146_gc_ToolkitHook_OnCommanderTick       = 1;
+const int libE0EAE146_gc_ToolkitHook_OnUnitCreated         = 2;
+const int libE0EAE146_gc_ToolkitHook_OnUnitDeath           = 3;
+const int libE0EAE146_gc_ToolkitHook_OnHeroRevive          = 4;
+const int libE0EAE146_gc_ToolkitHook_OnUpgradeResearched   = 5;
+const int libE0EAE146_gc_ToolkitHook_Count                 = 6;
+
+// =====================================================================
+// 2. 上下文全局变量（TriggerExecute 无参；参数经 ctx 传递）
+// =====================================================================
+
+int    libE0EAE146_gv_toolkitCtx_player;
+string libE0EAE146_gv_toolkitCtx_commander;
+unit   libE0EAE146_gv_toolkitCtx_unit;
+string libE0EAE146_gv_toolkitCtx_upgrade;
+point  libE0EAE146_gv_toolkitCtx_secondUnit;
+bool   libE0EAE146_gv_toolkitCtx_createHero;
+
+bool   libE0EAE146_gv_toolkitInitialized;
+
+// =====================================================================
+// 3. DefaultToolkit 基线实现
+//    所有 hook 默认行为：日志 + 空操作（不强制业务逻辑）
+//    指挥官 mod 应在自身 RuntimeInit 中注册覆盖以注入业务行为
+// =====================================================================
+
+void libE0EAE146_gf_DefaultToolkit_OnCommanderInit (int lp_player, string lp_commander, point lp_secondUnit, bool lp_createHero) {
+    libE0EAE146_gf_RuntimeLog(1, "Toolkit", "Default.OnCommanderInit", lp_player, lp_commander, "", 0);
+}
+
+void libE0EAE146_gf_DefaultToolkit_OnCommanderTick (int lp_player, string lp_commander) {
+    // 基线：每 tick 无操作；指挥官可注册覆盖实现周期性逻辑（如能量恢复、CD 计数）
+}
+
+void libE0EAE146_gf_DefaultToolkit_OnUnitCreated (int lp_player, string lp_commander, unit lp_unit) {
+    // 基线：单位创建后无操作；指挥官可注册覆盖应用 buff、注册到 group、设置自定义值
+}
+
+void libE0EAE146_gf_DefaultToolkit_OnUnitDeath (int lp_player, string lp_commander, unit lp_unit) {
+    // 基线：单位死亡后无操作；指挥官可注册覆盖清理 group、触发复活逻辑
+}
+
+void libE0EAE146_gf_DefaultToolkit_OnHeroRevive (int lp_player, string lp_commander, unit lp_hero) {
+    // 基线：英雄复活后无操作；指挥官可注册覆盖重置技能 CD、应用复活 buff
+}
+
+void libE0EAE146_gf_DefaultToolkit_OnUpgradeResearched (int lp_player, string lp_commander, string lp_upgrade) {
+    // 基线：升级完成后无操作；指挥官可注册覆盖应用升级链式效果
+}
+
+// =====================================================================
+// 4. 内部工具：DataTable key 构造
+// =====================================================================
+
+string libE0EAE146_gf_ToolkitKey (string lp_commander, int lp_hookId) {
+    return ("Toolkit_" + lp_commander + "_" + IntToString(lp_hookId));
+}
+
+// =====================================================================
+// 5. 覆盖注册 API
+//    指挥官 mod 在 RuntimeInit 中调用以注册自身 hook 实现
+//    lp_hook 必须是无参 trigger；参数从 toolkitCtx_* 全局变量读取
+// =====================================================================
+
+void libE0EAE146_gf_RegisterToolkitOverride (string lp_commander, int lp_hookId, trigger lp_hook) {
+    DataTableSetTrigger(true, libE0EAE146_gf_ToolkitKey(lp_commander, lp_hookId), lp_hook);
+    libE0EAE146_gv_toolkitInitialized = true;
+}
+
+// 清除指挥官的所有覆盖（用于热重载或游戏重置）
+void libE0EAE146_gf_ClearToolkitOverrides (string lp_commander) {
+    int lv_hookId;
+    lv_hookId = 0;
+    while (lv_hookId < libE0EAE146_gc_ToolkitHook_Count) {
+        DataTableValueRemove(true, libE0EAE146_gf_ToolkitKey(lp_commander, lv_hookId));
+        lv_hookId = lv_hookId + 1;
+    }
+}
+
+// 查询某指挥官是否注册了指定 hook 的覆盖
+bool libE0EAE146_gf_HasToolkitOverride (string lp_commander, int lp_hookId) {
+    trigger lv_hook = DataTableGetTrigger(true, libE0EAE146_gf_ToolkitKey(lp_commander, lp_hookId));
+    return (lv_hook != null);
+}
+
+// =====================================================================
+// 6. 分派器（运行时调用入口）
+//    优先调用覆盖；无覆盖则调用 DefaultToolkit
+//    覆盖通过 TriggerExecute(waitUntilDone=true) 同步执行，确保 ctx 一致性
+// =====================================================================
+
+void libE0EAE146_gf_CommanderToolkit_OnCommanderInit (int lp_player, string lp_commander, point lp_secondUnit, bool lp_createHero) {
+    trigger lv_hook;
+    if (libE0EAE146_gv_toolkitInitialized == false) {
+        libE0EAE146_gf_DefaultToolkit_OnCommanderInit(lp_player, lp_commander, lp_secondUnit, lp_createHero);
+        return;
+    }
+    lv_hook = DataTableGetTrigger(true, libE0EAE146_gf_ToolkitKey(lp_commander, libE0EAE146_gc_ToolkitHook_OnCommanderInit));
+    if (lv_hook != null) {
+        libE0EAE146_gv_toolkitCtx_player = lp_player;
+        libE0EAE146_gv_toolkitCtx_commander = lp_commander;
+        libE0EAE146_gv_toolkitCtx_secondUnit = lp_secondUnit;
+        libE0EAE146_gv_toolkitCtx_createHero = lp_createHero;
+        TriggerExecute(lv_hook, true, false);
+    } else {
+        libE0EAE146_gf_DefaultToolkit_OnCommanderInit(lp_player, lp_commander, lp_secondUnit, lp_createHero);
+    }
+}
+
+void libE0EAE146_gf_CommanderToolkit_OnCommanderTick (int lp_player, string lp_commander) {
+    trigger lv_hook;
+    if (libE0EAE146_gv_toolkitInitialized == false) {
+        libE0EAE146_gf_DefaultToolkit_OnCommanderTick(lp_player, lp_commander);
+        return;
+    }
+    lv_hook = DataTableGetTrigger(true, libE0EAE146_gf_ToolkitKey(lp_commander, libE0EAE146_gc_ToolkitHook_OnCommanderTick));
+    if (lv_hook != null) {
+        libE0EAE146_gv_toolkitCtx_player = lp_player;
+        libE0EAE146_gv_toolkitCtx_commander = lp_commander;
+        TriggerExecute(lv_hook, true, false);
+    } else {
+        libE0EAE146_gf_DefaultToolkit_OnCommanderTick(lp_player, lp_commander);
+    }
+}
+
+void libE0EAE146_gf_CommanderToolkit_OnUnitCreated (int lp_player, string lp_commander, unit lp_unit) {
+    trigger lv_hook;
+    if (libE0EAE146_gv_toolkitInitialized == false) {
+        libE0EAE146_gf_DefaultToolkit_OnUnitCreated(lp_player, lp_commander, lp_unit);
+        return;
+    }
+    lv_hook = DataTableGetTrigger(true, libE0EAE146_gf_ToolkitKey(lp_commander, libE0EAE146_gc_ToolkitHook_OnUnitCreated));
+    if (lv_hook != null) {
+        libE0EAE146_gv_toolkitCtx_player = lp_player;
+        libE0EAE146_gv_toolkitCtx_commander = lp_commander;
+        libE0EAE146_gv_toolkitCtx_unit = lp_unit;
+        TriggerExecute(lv_hook, true, false);
+    } else {
+        libE0EAE146_gf_DefaultToolkit_OnUnitCreated(lp_player, lp_commander, lp_unit);
+    }
+}
+
+void libE0EAE146_gf_CommanderToolkit_OnUnitDeath (int lp_player, string lp_commander, unit lp_unit) {
+    trigger lv_hook;
+    if (libE0EAE146_gv_toolkitInitialized == false) {
+        libE0EAE146_gf_DefaultToolkit_OnUnitDeath(lp_player, lp_commander, lp_unit);
+        return;
+    }
+    lv_hook = DataTableGetTrigger(true, libE0EAE146_gf_ToolkitKey(lp_commander, libE0EAE146_gc_ToolkitHook_OnUnitDeath));
+    if (lv_hook != null) {
+        libE0EAE146_gv_toolkitCtx_player = lp_player;
+        libE0EAE146_gv_toolkitCtx_commander = lp_commander;
+        libE0EAE146_gv_toolkitCtx_unit = lp_unit;
+        TriggerExecute(lv_hook, true, false);
+    } else {
+        libE0EAE146_gf_DefaultToolkit_OnUnitDeath(lp_player, lp_commander, lp_unit);
+    }
+}
+
+void libE0EAE146_gf_CommanderToolkit_OnHeroRevive (int lp_player, string lp_commander, unit lp_hero) {
+    trigger lv_hook;
+    if (libE0EAE146_gv_toolkitInitialized == false) {
+        libE0EAE146_gf_DefaultToolkit_OnHeroRevive(lp_player, lp_commander, lp_hero);
+        return;
+    }
+    lv_hook = DataTableGetTrigger(true, libE0EAE146_gf_ToolkitKey(lp_commander, libE0EAE146_gc_ToolkitHook_OnHeroRevive));
+    if (lv_hook != null) {
+        libE0EAE146_gv_toolkitCtx_player = lp_player;
+        libE0EAE146_gv_toolkitCtx_commander = lp_commander;
+        libE0EAE146_gv_toolkitCtx_unit = lp_hero;
+        TriggerExecute(lv_hook, true, false);
+    } else {
+        libE0EAE146_gf_DefaultToolkit_OnHeroRevive(lp_player, lp_commander, lp_hero);
+    }
+}
+
+void libE0EAE146_gf_CommanderToolkit_OnUpgradeResearched (int lp_player, string lp_commander, string lp_upgrade) {
+    trigger lv_hook;
+    if (libE0EAE146_gv_toolkitInitialized == false) {
+        libE0EAE146_gf_DefaultToolkit_OnUpgradeResearched(lp_player, lp_commander, lp_upgrade);
+        return;
+    }
+    lv_hook = DataTableGetTrigger(true, libE0EAE146_gf_ToolkitKey(lp_commander, libE0EAE146_gc_ToolkitHook_OnUpgradeResearched));
+    if (lv_hook != null) {
+        libE0EAE146_gv_toolkitCtx_player = lp_player;
+        libE0EAE146_gv_toolkitCtx_commander = lp_commander;
+        libE0EAE146_gv_toolkitCtx_upgrade = lp_upgrade;
+        TriggerExecute(lv_hook, true, false);
+    } else {
+        libE0EAE146_gf_DefaultToolkit_OnUpgradeResearched(lp_player, lp_commander, lp_upgrade);
+    }
+}
+
+// =====================================================================
+// 7. 初始化
+// =====================================================================
+
+void libE0EAE146_gf_ToolkitInit () {
+    if (libE0EAE146_gv_toolkitInitialized) {
+        return;
+    }
+    libE0EAE146_gv_toolkitInitialized = true;
+    libE0EAE146_gf_RuntimeLog(1, "Toolkit", "Init", 0, "", "", 0);
+}

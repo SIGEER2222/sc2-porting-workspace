@@ -1,0 +1,621 @@
+// XMFinal split module: long-term achievement, challenge, and blessing rewards.
+
+string libE0EAE146_gf_XMProgression_BankString (int lp_player, string lp_section, string lp_key) {
+    BankLoad("CampaignXCore", lp_player);
+    return BankValueGetAsString(BankLastCreated(), lp_section, lp_key);
+}
+
+int libE0EAE146_gf_XMProgression_BankInt (int lp_player, string lp_section, string lp_key) {
+    BankLoad("CampaignXCore", lp_player);
+    return BankValueGetAsInt(BankLastCreated(), lp_section, lp_key);
+}
+
+void libE0EAE146_gf_XMProgression_SaveBank (int lp_player) {
+    BankLoad("CampaignXCore", lp_player);
+    BankSave(BankLastCreated());
+}
+
+bool XMAchievement_IsUnlocked (int lp_player, string lp_achievementId) {
+    return libE0EAE146_gf_XMProgression_BankInt(lp_player, "Achievement", lp_achievementId) > 0;
+}
+
+void XMAchievement_Unlock (int lp_player, string lp_achievementId) {
+    if (XMAchievement_IsUnlocked(lp_player, lp_achievementId)) {
+        return;
+    }
+    BankLoad("CampaignXCore", lp_player);
+    BankValueSetFromInt(BankLastCreated(), "Achievement", lp_achievementId, 1);
+    BankSave(BankLastCreated());
+}
+
+void XMAchievement_SetProgress (int lp_player, string lp_achievementId, int lp_value) {
+    BankLoad("CampaignXCore", lp_player);
+    BankValueSetFromInt(BankLastCreated(), "AchievementProgress", lp_achievementId, lp_value);
+    BankSave(BankLastCreated());
+}
+
+void XMAchievement_AddProgress (int lp_player, string lp_achievementId, int lp_delta) {
+    int lv_value;
+
+    lv_value = libE0EAE146_gf_XMProgression_BankInt(lp_player, "AchievementProgress", lp_achievementId);
+    XMAchievement_SetProgress(lp_player, lp_achievementId, lv_value + lp_delta);
+}
+
+bool XMBlessing_IsUnlocked (int lp_player, string lp_blessingId) {
+    return libE0EAE146_gf_XMProgression_BankInt(lp_player, "Blessing", lp_blessingId) > 0;
+}
+
+void XMBlessing_Unlock (int lp_player, string lp_blessingId) {
+    if (XMBlessing_IsUnlocked(lp_player, lp_blessingId)) {
+        return;
+    }
+    BankLoad("CampaignXCore", lp_player);
+    BankValueSetFromInt(BankLastCreated(), "Blessing", lp_blessingId, 1);
+    BankSave(BankLastCreated());
+}
+
+bool XMReward_IsUnlocked (int lp_player, string lp_rewardId) {
+    return libE0EAE146_gf_XMProgression_BankInt(lp_player, "Reward", lp_rewardId) > 0;
+}
+
+void XMReward_Unlock (int lp_player, string lp_rewardId) {
+    if (XMReward_IsUnlocked(lp_player, lp_rewardId)) {
+        return;
+    }
+    BankLoad("CampaignXCore", lp_player);
+    BankValueSetFromInt(BankLastCreated(), "Reward", lp_rewardId, 1);
+    BankSave(BankLastCreated());
+}
+
+bool XMUnlock_BonusIsUnlocked (int lp_player, string lp_bonusId) {
+    return libE0EAE146_gf_XMProgression_BankInt(lp_player, "UnlockedBonus", lp_bonusId) > 0;
+}
+
+void XMUnlock_Bonus (int lp_player, string lp_bonusId) {
+    if (lp_bonusId == "") {
+        return;
+    }
+    if (XMUnlock_BonusIsUnlocked(lp_player, lp_bonusId)) {
+        return;
+    }
+    BankLoad("CampaignXCore", lp_player);
+    BankValueSetFromInt(BankLastCreated(), "UnlockedBonus", lp_bonusId, 1);
+    BankSave(BankLastCreated());
+}
+
+bool XMUnlock_PrestigeIsUnlocked (int lp_player, string lp_commanderId, string lp_prestigeId) {
+    string lv_key;
+
+    lv_key = lp_commanderId + ":" + lp_prestigeId;
+    return libE0EAE146_gf_XMProgression_BankInt(lp_player, "UnlockedPrestige", lv_key) > 0;
+}
+
+void XMUnlock_Prestige (int lp_player, string lp_commanderId, string lp_prestigeId) {
+    string lv_key;
+
+    if ((lp_commanderId == "") || (lp_prestigeId == "")) {
+        return;
+    }
+    if (XMUnlock_PrestigeIsUnlocked(lp_player, lp_commanderId, lp_prestigeId)) {
+        return;
+    }
+    lv_key = lp_commanderId + ":" + lp_prestigeId;
+    BankLoad("CampaignXCore", lp_player);
+    BankValueSetFromInt(BankLastCreated(), "UnlockedPrestige", lv_key, 1);
+    BankSave(BankLastCreated());
+}
+
+string XMBlessing_Selected (int lp_player) {
+    return libE0EAE146_gv_xmProgressionSelectedBlessing[lp_player];
+}
+
+string XMChallenge_Active (int lp_player) {
+    return libE0EAE146_gv_xmProgressionActiveChallenge[lp_player];
+}
+
+void XMBlessing_SelectForNextRun (int lp_player, string lp_blessingId) {
+    if (lp_blessingId != "") {
+        XMBlessing_Unlock(lp_player, lp_blessingId);
+    }
+    BankLoad("CampaignXCore", lp_player);
+    BankValueSetFromString(BankLastCreated(), "Blessing", "Selected", lp_blessingId);
+    BankSave(BankLastCreated());
+    libE0EAE146_gv_xmProgressionSelectedBlessing[lp_player] = lp_blessingId;
+}
+
+void XMChallenge_SelectForNextRun (int lp_player, string lp_challengeId) {
+    BankLoad("CampaignXCore", lp_player);
+    BankValueSetFromString(BankLastCreated(), "Challenge", "Active", lp_challengeId);
+    BankSave(BankLastCreated());
+    libE0EAE146_gv_xmProgressionActiveChallenge[lp_player] = lp_challengeId;
+}
+
+void XMBlessing_LoadSelected (int lp_player) {
+    string lv_selected;
+
+    lv_selected = libE0EAE146_gf_XMProgression_BankString(lp_player, "Blessing", "Selected");
+    if ((lv_selected != "") && !XMBlessing_IsUnlocked(lp_player, lv_selected)) {
+        lv_selected = "";
+    }
+    libE0EAE146_gv_xmProgressionSelectedBlessing[lp_player] = lv_selected;
+}
+
+void XMChallenge_LoadActive (int lp_player) {
+    libE0EAE146_gv_xmProgressionActiveChallenge[lp_player] = libE0EAE146_gf_XMProgression_BankString(lp_player, "Challenge", "Active");
+}
+
+void XMChallenge_ResetRuntimeState (int lp_player) {
+    libE0EAE146_gv_xmChallengeRuntimeReady[lp_player] = true;
+    libE0EAE146_gv_xmChallengeLoneHeroFailed[lp_player] = false;
+}
+
+bool XMChallenge_ShouldTrackUnit (unit lp_unit, int lp_player) {
+    if (lp_unit == null) {
+        return false;
+    }
+    if (UnitGetOwner(lp_unit) != lp_player) {
+        return false;
+    }
+    if (!UnitFilterMatch(lp_unit, lp_player, UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32)) | (1 << (c_targetFilterInvulnerable - 32))))) {
+        return false;
+    }
+    return true;
+}
+
+bool XMChallenge_IsWorkerUnit (unit lp_unit, int lp_player) {
+    if (lp_unit == null) {
+        return false;
+    }
+    return UnitFilterMatch(lp_unit, lp_player, UnitFilter((1 << c_targetFilterWorker), 0, 0, 0));
+}
+
+bool XMChallenge_IsLoneHeroForbiddenUnit (unit lp_unit, int lp_player) {
+    string lv_unitType;
+
+    if (!XMChallenge_ShouldTrackUnit(lp_unit, lp_player)) {
+        return false;
+    }
+    lv_unitType = UnitGetType(lp_unit);
+    if (UnitTypeTestAttribute(lv_unitType, c_unitAttributeStructure)) {
+        return false;
+    }
+    if (XMChallenge_IsWorkerUnit(lp_unit, lp_player)) {
+        return false;
+    }
+    if (UnitTypeTestAttribute(lv_unitType, c_unitAttributeHeroic)) {
+        return false;
+    }
+    if (UnitTypeTestAttribute(lv_unitType, c_unitAttributeSummoned)) {
+        return false;
+    }
+    if (UnitWeaponCount(lp_unit) <= 0) {
+        return false;
+    }
+    return true;
+}
+
+int XMChallenge_CountCombatUnits (int lp_player, bool lp_mechanicalOnly) {
+    unitgroup lv_units;
+    unit lv_unit;
+    int lv_count;
+    string lv_unitType;
+
+    lv_units = UnitGroup(null, lp_player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32)) | (1 << (c_targetFilterInvulnerable - 32))), 0);
+    lv_unit = UnitGroupUnit(lv_units, 1);
+    lv_count = 0;
+    while (lv_unit != null) {
+        lv_unitType = UnitGetType(lv_unit);
+        if (!UnitTypeTestAttribute(lv_unitType, c_unitAttributeStructure) && !XMChallenge_IsWorkerUnit(lv_unit, lp_player) && (UnitWeaponCount(lv_unit) > 0)) {
+            if (!lp_mechanicalOnly || UnitTypeTestAttribute(lv_unitType, c_unitAttributeMechanical)) {
+                lv_count += 1;
+            }
+        }
+        UnitGroupRemove(lv_units, lv_unit);
+        lv_unit = UnitGroupUnit(lv_units, 1);
+    }
+    return lv_count;
+}
+
+bool libE0EAE146_gt_XMChallengeUnitCreated_Func (bool testConds, bool runActions) {
+    int lv_player;
+    unit lv_unit;
+
+    lv_unit = EventUnitCreatedUnit();
+    lv_player = UnitGetOwner(lv_unit);
+    if (testConds) {
+        if ((lv_player < 1) || (lv_player > 8)) {
+            return false;
+        }
+        if (!libE0EAE146_gv_xmChallengeRuntimeReady[lv_player]) {
+            return false;
+        }
+        if (XMChallenge_Active(lv_player) != "ChallengeLoneHero") {
+            return false;
+        }
+        if (!XMChallenge_IsLoneHeroForbiddenUnit(lv_unit, lv_player)) {
+            return false;
+        }
+    }
+    if (!runActions) {
+        return true;
+    }
+    libE0EAE146_gv_xmChallengeLoneHeroFailed[lv_player] = true;
+    return true;
+}
+
+bool libE0EAE146_gt_XMChallengeUnitTrainComplete_Func (bool testConds, bool runActions) {
+    int lv_player;
+    unit lv_unit;
+
+    lv_unit = EventUnitProgressUnit();
+    lv_player = UnitGetOwner(lv_unit);
+    if (testConds) {
+        if ((lv_player < 1) || (lv_player > 8)) {
+            return false;
+        }
+        if (!libE0EAE146_gv_xmChallengeRuntimeReady[lv_player]) {
+            return false;
+        }
+        if (XMChallenge_Active(lv_player) != "ChallengeLoneHero") {
+            return false;
+        }
+        if (!XMChallenge_IsLoneHeroForbiddenUnit(lv_unit, lv_player)) {
+            return false;
+        }
+    }
+    if (!runActions) {
+        return true;
+    }
+    libE0EAE146_gv_xmChallengeLoneHeroFailed[lv_player] = true;
+    return true;
+}
+
+bool libE0EAE146_gt_XMChallengeUnitConstructComplete_Func (bool testConds, bool runActions) {
+    int lv_player;
+    unit lv_unit;
+
+    lv_unit = EventUnitProgressUnit();
+    lv_player = UnitGetOwner(lv_unit);
+    if (testConds) {
+        if ((lv_player < 1) || (lv_player > 8)) {
+            return false;
+        }
+        if (!libE0EAE146_gv_xmChallengeRuntimeReady[lv_player]) {
+            return false;
+        }
+        if (XMChallenge_Active(lv_player) != "ChallengeLoneHero") {
+            return false;
+        }
+        if (!XMChallenge_IsLoneHeroForbiddenUnit(lv_unit, lv_player)) {
+            return false;
+        }
+    }
+    if (!runActions) {
+        return true;
+    }
+    libE0EAE146_gv_xmChallengeLoneHeroFailed[lv_player] = true;
+    return true;
+}
+
+bool libE0EAE146_gt_XMChallengeUnitMorphComplete_Func (bool testConds, bool runActions) {
+    int lv_player;
+    unit lv_unit;
+
+    lv_unit = EventUnit();
+    lv_player = UnitGetOwner(lv_unit);
+    if (testConds) {
+        if ((lv_player < 1) || (lv_player > 8)) {
+            return false;
+        }
+        if (!libE0EAE146_gv_xmChallengeRuntimeReady[lv_player]) {
+            return false;
+        }
+        if (XMChallenge_Active(lv_player) != "ChallengeLoneHero") {
+            return false;
+        }
+        if (!XMChallenge_IsLoneHeroForbiddenUnit(lv_unit, lv_player)) {
+            return false;
+        }
+    }
+    if (!runActions) {
+        return true;
+    }
+    libE0EAE146_gv_xmChallengeLoneHeroFailed[lv_player] = true;
+    return true;
+}
+
+void libE0EAE146_gf_XMProgression_HealPlayerUnits (int lp_player, bool lp_mechanicalOnly, bool lp_biologicalOnly, fixed lp_amount, string lp_event) {
+    unitgroup lv_units;
+    unit lv_unit;
+    fixed lv_life;
+    fixed lv_lifeMax;
+    bool lv_valid;
+
+    lv_units = UnitGroup(null, lp_player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    lv_unit = UnitGroupUnit(lv_units, 1);
+    while (lv_unit != null) {
+        lv_valid = true;
+        if (lp_mechanicalOnly && !UnitTypeTestAttribute(UnitGetType(lv_unit), c_unitAttributeMechanical)) {
+            lv_valid = false;
+        }
+        if (lp_biologicalOnly && !UnitTypeTestAttribute(UnitGetType(lv_unit), c_unitAttributeBiological)) {
+            lv_valid = false;
+        }
+        if (lv_valid) {
+            lv_life = UnitGetPropertyFixed(lv_unit, c_unitPropLife, c_unitPropCurrent);
+            lv_lifeMax = UnitGetPropertyFixed(lv_unit, c_unitPropLifeMax, c_unitPropCurrent);
+            if ((lv_life > 0.0) && (lv_life < lv_lifeMax)) {
+                lv_life = lv_life + lp_amount;
+                if (lv_life > lv_lifeMax) {
+                    lv_life = lv_lifeMax;
+                }
+                UnitSetPropertyFixed(lv_unit, c_unitPropLife, lv_life);
+            }
+        }
+        UnitGroupRemove(lv_units, lv_unit);
+        lv_unit = UnitGroupUnit(lv_units, 1);
+    }
+}
+
+void libE0EAE146_gf_XMProgression_AddPlayerResources (int lp_player, int lp_minerals, int lp_vespene) {
+    if (lp_minerals != 0) {
+        PlayerModifyPropertyInt(lp_player, c_playerPropMinerals, c_playerPropOperAdd, lp_minerals);
+    }
+    if (lp_vespene != 0) {
+        PlayerModifyPropertyInt(lp_player, c_playerPropVespene, c_playerPropOperAdd, lp_vespene);
+    }
+}
+
+void libE0EAE146_gf_XMProgression_GuardianShellBuffer (int lp_player) {
+    unitgroup lv_units;
+    unit lv_unit;
+    fixed lv_life;
+    fixed lv_lifeMax;
+    fixed lv_shields;
+    fixed lv_shieldsMax;
+
+    lv_units = UnitGroup(null, lp_player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    lv_unit = UnitGroupUnit(lv_units, 1);
+    while (lv_unit != null) {
+        lv_life = UnitGetPropertyFixed(lv_unit, c_unitPropLife, c_unitPropCurrent);
+        lv_lifeMax = UnitGetPropertyFixed(lv_unit, c_unitPropLifeMax, c_unitPropCurrent);
+        if ((lv_life > 0.0) && (lv_life < lv_lifeMax)) {
+            UnitSetPropertyFixed(lv_unit, c_unitPropLife, MinF(lv_lifeMax, lv_life + 25.0));
+        }
+
+        lv_shields = UnitGetPropertyFixed(lv_unit, c_unitPropShields, c_unitPropCurrent);
+        lv_shieldsMax = UnitGetPropertyFixed(lv_unit, c_unitPropShieldsMax, c_unitPropCurrent);
+        if ((lv_shieldsMax > 0.0) && (lv_shields < lv_shieldsMax)) {
+            UnitSetPropertyFixed(lv_unit, c_unitPropShields, MinF(lv_shieldsMax, lv_shields + 25.0));
+        }
+
+        UnitGroupRemove(lv_units, lv_unit);
+        lv_unit = UnitGroupUnit(lv_units, 1);
+    }
+}
+
+bool libE0EAE146_gt_XMProgressionPhaseRepair_Func (bool testConds, bool runActions) {
+    if (!runActions) {
+        return true;
+    }
+    libE0EAE146_gf_XMProgression_HealPlayerUnits(1, true, false, 3.0, "BLESSING_PHASE_REPAIR_TICK");
+    return true;
+}
+
+bool libE0EAE146_gt_XMProgressionCreepRegen_Func (bool testConds, bool runActions) {
+    if (!runActions) {
+        return true;
+    }
+    libE0EAE146_gf_XMProgression_HealPlayerUnits(1, false, true, 2.0, "BLESSING_CREEP_REGEN_TICK");
+    return true;
+}
+
+void libE0EAE146_gf_XMProgression_EnsureTriggers () {
+    if (libE0EAE146_gv_xmProgressionTriggersReady) {
+        return;
+    }
+    libE0EAE146_gv_xmProgressionTriggersReady = true;
+    libE0EAE146_gt_XMProgressionPhaseRepair = TriggerCreate("libE0EAE146_gt_XMProgressionPhaseRepair_Func");
+    TriggerAddEventTimePeriodic(libE0EAE146_gt_XMProgressionPhaseRepair, 2.0, c_timeGame);
+    TriggerEnable(libE0EAE146_gt_XMProgressionPhaseRepair, false);
+    libE0EAE146_gt_XMProgressionCreepRegen = TriggerCreate("libE0EAE146_gt_XMProgressionCreepRegen_Func");
+    TriggerAddEventTimePeriodic(libE0EAE146_gt_XMProgressionCreepRegen, 2.0, c_timeGame);
+    TriggerEnable(libE0EAE146_gt_XMProgressionCreepRegen, false);
+    libE0EAE146_gt_XMChallengeUnitCreated = TriggerCreate("libE0EAE146_gt_XMChallengeUnitCreated_Func");
+    TriggerAddEventUnitCreated(libE0EAE146_gt_XMChallengeUnitCreated, null, null, null);
+    TriggerEnable(libE0EAE146_gt_XMChallengeUnitCreated, true);
+    libE0EAE146_gt_XMChallengeUnitTrainComplete = TriggerCreate("libE0EAE146_gt_XMChallengeUnitTrainComplete_Func");
+    TriggerAddEventUnitTrainProgress(libE0EAE146_gt_XMChallengeUnitTrainComplete, null, c_unitProgressStageComplete);
+    TriggerEnable(libE0EAE146_gt_XMChallengeUnitTrainComplete, true);
+    libE0EAE146_gt_XMChallengeUnitConstructComplete = TriggerCreate("libE0EAE146_gt_XMChallengeUnitConstructComplete_Func");
+    TriggerAddEventUnitConstructProgress(libE0EAE146_gt_XMChallengeUnitConstructComplete, null, c_unitProgressStageComplete);
+    TriggerEnable(libE0EAE146_gt_XMChallengeUnitConstructComplete, true);
+    libE0EAE146_gt_XMChallengeUnitMorphComplete = TriggerCreate("libE0EAE146_gt_XMChallengeUnitMorphComplete_Func");
+    TriggerAddEventUnitAbility(libE0EAE146_gt_XMChallengeUnitMorphComplete, null, null, c_abilMorphStageUnitEnd, false);
+    TriggerEnable(libE0EAE146_gt_XMChallengeUnitMorphComplete, true);
+}
+
+void XMProgression_Init (int lp_player) {
+    libE0EAE146_gf_XMProgression_EnsureTriggers();
+    XMBlessing_LoadSelected(lp_player);
+    XMChallenge_LoadActive(lp_player);
+    XMChallenge_ResetRuntimeState(lp_player);
+}
+
+void XMBlessing_ApplySelected (int lp_player) {
+    string lv_selected;
+
+    libE0EAE146_gf_XMProgression_EnsureTriggers();
+    lv_selected = XMBlessing_Selected(lp_player);
+    TriggerEnable(libE0EAE146_gt_XMProgressionPhaseRepair, false);
+    TriggerEnable(libE0EAE146_gt_XMProgressionCreepRegen, false);
+
+    if (lv_selected == "BlessingPhaseRepair") {
+        TriggerEnable(libE0EAE146_gt_XMProgressionPhaseRepair, true);
+    }
+    else if (lv_selected == "BlessingCreepRegeneration") {
+        TriggerEnable(libE0EAE146_gt_XMProgressionCreepRegen, true);
+    }
+
+    if (libE0EAE146_gv_xmProgressionRunBlessingApplied[lp_player]) {
+        return;
+    }
+    libE0EAE146_gv_xmProgressionRunBlessingApplied[lp_player] = true;
+
+    if (lv_selected == "BlessingResourceRich") {
+        libE0EAE146_gf_XMProgression_AddPlayerResources(lp_player, 500, 200);
+    }
+    else if (lv_selected == "BlessingGoldenMinerals") {
+        libE0EAE146_gf_XMProgression_AddPlayerResources(lp_player, 1000, 0);
+    }
+    else if (lv_selected == "BlessingGuardianShell") {
+        libE0EAE146_gf_XMProgression_GuardianShellBuffer(lp_player);
+    }
+}
+
+void XMChallenge_RecordEvent (int lp_player, string lp_eventId, int lp_value) {
+    XMAchievement_AddProgress(lp_player, lp_eventId, lp_value);
+}
+
+void XMChallenge_EvaluateOnVictoryEx (int lp_player, string lp_mapId, string lp_commanderId, int lp_bonusScore, int lp_heroDeaths) {
+    string lv_challenge;
+    string lv_key;
+    int lv_clearTime;
+    int lv_bestTime;
+
+    lv_challenge = XMChallenge_Active(lp_player);
+    if (lv_challenge == "") {
+        return;
+    }
+
+    lv_key = lv_challenge + ":" + lp_mapId;
+    lv_clearTime = FixedToInt(AIGetTime());
+    lv_bestTime = libE0EAE146_gf_XMProgression_BankInt(lp_player, "ChallengeBest", lv_key);
+    BankLoad("CampaignXCore", lp_player);
+    if ((lv_bestTime <= 0) || (lv_clearTime < lv_bestTime)) {
+        BankValueSetFromInt(BankLastCreated(), "ChallengeBest", lv_key, lv_clearTime);
+    }
+    BankSave(BankLastCreated());
+
+    if (lv_challenge == "ChallengeResourceScarce") {
+        XMAchievement_Unlock(lp_player, "ACH_CHALLENGE_RESOURCE_SCARCE_CLEAR");
+        XMBlessing_Unlock(lp_player, "BlessingResourceRich");
+        XMReward_Unlock(lp_player, "RewardResourceRich");
+        XMUnlock_Bonus(lp_player, "RichResources");
+    }
+    else if (lv_challenge == "ChallengeSpeedClear") {
+        XMAchievement_Unlock(lp_player, "ACH_CHALLENGE_SPEED_CLEAR");
+        XMBlessing_Unlock(lp_player, "BlessingGoldenMinerals");
+        XMReward_Unlock(lp_player, "RewardGoldenMinerals");
+        XMUnlock_Bonus(lp_player, "DoubleMinerals");
+    }
+    else if (lv_challenge == "ChallengeFullBonus") {
+        if (lp_bonusScore >= 3) {
+            XMAchievement_Unlock(lp_player, "ACH_CHALLENGE_FULL_BONUS_CLEAR");
+            XMUnlock_Bonus(lp_player, "CreepRegeneration");
+        }
+    }
+    else if (lv_challenge == "ChallengeNoHeroDeath") {
+        if (lp_heroDeaths <= 0) {
+            XMAchievement_Unlock(lp_player, "ACH_CHALLENGE_NO_HERO_DEATH_CLEAR");
+            XMUnlock_Bonus(lp_player, "MechanicalRepair");
+        }
+    }
+    else if (lv_challenge == "ChallengeLoneHero") {
+        if (!libE0EAE146_gv_xmChallengeLoneHeroFailed[lp_player]) {
+            XMAchievement_Unlock(lp_player, "ACH_CHALLENGE_LONE_HERO_CLEAR");
+            XMBlessing_Unlock(lp_player, "BlessingGuardianShell");
+            XMReward_Unlock(lp_player, "RewardGuardianShell");
+            XMUnlock_Bonus(lp_player, "GuardianShell");
+        }
+    }
+    else if (lv_challenge == "ChallengeSteelTorrent") {
+        if (XMChallenge_CountCombatUnits(lp_player, true) >= 20) {
+            XMAchievement_Unlock(lp_player, "ACH_CHALLENGE_STEEL_TORRENT_CLEAR");
+            XMUnlock_Bonus(lp_player, "MechanicalRepair");
+        }
+    }
+    else if (lv_challenge == "ChallengeFirepowerCoverage") {
+        if (XMChallenge_CountCombatUnits(lp_player, false) >= 35) {
+            XMAchievement_Unlock(lp_player, "ACH_CHALLENGE_FIREPOWER_COVERAGE_CLEAR");
+            XMUnlock_Bonus(lp_player, "RichResources");
+        }
+    }
+}
+
+void XMChallenge_EvaluateOnVictory (int lp_player, string lp_mapId, string lp_commanderId) {
+    XMChallenge_EvaluateOnVictoryEx(lp_player, lp_mapId, lp_commanderId, 0, 0);
+}
+
+void XMProgression_RecordVictory (int lp_player, string lp_mapId, string lp_commanderId, int lp_bonusScore, int lp_heroDeaths) {
+    string lv_key;
+    string lv_bonusKey;
+    int lv_totalWins;
+    int lv_clearTime;
+    int lv_bestTime;
+    int lv_bestBonus;
+
+    lv_key = lp_commanderId + ":" + lp_mapId;
+    lv_bonusKey = lv_key;
+    lv_totalWins = libE0EAE146_gf_XMProgression_BankInt(lp_player, "Progression", "TotalWins") + 1;
+    lv_clearTime = FixedToInt(AIGetTime());
+    lv_bestTime = libE0EAE146_gf_XMProgression_BankInt(lp_player, "MapBest", lp_mapId);
+    lv_bestBonus = libE0EAE146_gf_XMProgression_BankInt(lp_player, "CommanderBonus", lv_bonusKey);
+
+    BankLoad("CampaignXCore", lp_player);
+    BankValueSetFromInt(BankLastCreated(), "Progression", "TotalWins", lv_totalWins);
+    BankValueSetFromInt(BankLastCreated(), "Progression", "LastClearTime", lv_clearTime);
+    BankValueSetFromString(BankLastCreated(), "Progression", "LastCommander", lp_commanderId);
+    BankValueSetFromString(BankLastCreated(), "Progression", "LastMap", lp_mapId);
+    BankValueSetFromInt(BankLastCreated(), "MapClear", lp_mapId, 1);
+    BankValueSetFromInt(BankLastCreated(), "CommanderClear", lv_key, 1);
+    if ((lv_bestTime <= 0) || (lv_clearTime < lv_bestTime)) {
+        BankValueSetFromInt(BankLastCreated(), "MapBest", lp_mapId, lv_clearTime);
+    }
+    if (lp_bonusScore > lv_bestBonus) {
+        BankValueSetFromInt(BankLastCreated(), "CommanderBonus", lv_bonusKey, lp_bonusScore);
+    }
+    BankValueSetFromInt(BankLastCreated(), "Reward", "RewardVictoryArchive", 1);
+    BankSave(BankLastCreated());
+
+    XMAchievement_Unlock(lp_player, "ACH_CLEAR_ANY_MISSION");
+    XMAchievement_Unlock(lp_player, "ACH_CLEAR_" + lp_mapId);
+    if (lp_commanderId != "") {
+        XMAchievement_Unlock(lp_player, "ACH_COMMANDER_" + lp_commanderId + "_CLEAR");
+    }
+    if (lp_bonusScore >= 3) {
+        XMAchievement_Unlock(lp_player, "ACH_FULL_BONUS_CLEAR");
+    }
+    if (lp_heroDeaths <= 0) {
+        XMAchievement_Unlock(lp_player, "ACH_NO_HERO_DEATH_CLEAR");
+    }
+    if (lv_totalWins >= 5) {
+        XMAchievement_Unlock(lp_player, "ACH_CLEAR_5_MISSIONS");
+        XMBlessing_Unlock(lp_player, "BlessingGuardianShell");
+        XMReward_Unlock(lp_player, "RewardGuardianShell");
+        XMUnlock_Bonus(lp_player, "GuardianShell");
+    }
+    XMChallenge_EvaluateOnVictoryEx(lp_player, lp_mapId, lp_commanderId, lp_bonusScore, lp_heroDeaths);
+}
+
+void XMProgression_Save (int lp_player) {
+    libE0EAE146_gf_XMProgression_SaveBank(lp_player);
+}
+
+void XMProgression_DebugUnlockFirstBatch (int lp_player) {
+    XMBlessing_Unlock(lp_player, "BlessingResourceRich");
+    XMBlessing_Unlock(lp_player, "BlessingGoldenMinerals");
+    XMBlessing_Unlock(lp_player, "BlessingGuardianShell");
+    XMBlessing_Unlock(lp_player, "BlessingPhaseRepair");
+    XMBlessing_Unlock(lp_player, "BlessingCreepRegeneration");
+    XMUnlock_Bonus(lp_player, "RichResources");
+    XMUnlock_Bonus(lp_player, "DoubleMinerals");
+    XMUnlock_Bonus(lp_player, "GuardianShell");
+    XMUnlock_Bonus(lp_player, "MechanicalRepair");
+    XMUnlock_Bonus(lp_player, "CreepRegeneration");
+    XMAchievement_Unlock(lp_player, "ACH_ARTANIS_CLEAR_KEY_MISSION");
+    XMAchievement_Unlock(lp_player, "ACH_KARAX_CLEAR_KEY_MISSION");
+    XMAchievement_Unlock(lp_player, "ACH_KERRIGAN_CREEP_CLEAR");
+    XMAchievement_Unlock(lp_player, "ACH_CHALLENGE_RESOURCE_SCARCE_CLEAR");
+    XMAchievement_Unlock(lp_player, "ACH_CHALLENGE_SPEED_CLEAR");
+}

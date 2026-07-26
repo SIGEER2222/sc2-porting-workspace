@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CBehaviorBuff id="MutatorHybridImmortalStatBuff">
+    <InfoFlags index="Hidden" value="1" />
+    <BehaviorFlags index="Permanent" value="1" />
+    <BehaviorFlags index="EnabledWhileDead" value="1" />
+    <MaxStackCount value="100" />
+    <Modification>
+      <AdditiveAttackSpeedFactor value="0.2" />
+      <VitalMaxArray index="Life" value="100" />
+    </Modification>
+    <BehaviorCategories index="Fast" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorTimeWarpUnit">
+    <Alignment value="Negative" />
+    <InfoIcon value="Assets\Textures\timewarp_coop.dds" />
+    <BehaviorCategories index="Slow" value="1" />
+    <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+    <TimeScaleSource Value="Global" />
+    <Duration value="0.125" />
+    <Modification TimeScale="0.3332">
+      <BehaviorLinkDisableArray value="HeroCCImmunity" />
+    </Modification>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="CarryMineralFieldMinerals">
+    <BehaviorCategories index="User6" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorCloakedMineWeaponSearch">
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Period value="0.125" />
+    <PeriodicEffect value="MutatorCloakedMineWeaponSearch" />
+    <InfoFlags index="Hidden" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorStormCloudBlizzard">
+    <InfoFlags index="Hidden" value="1" />
+    <Period value="0.25" />
+    <PeriodicEffect value="MutatorStormCloudSearch" />
+    <DisableValidatorArray value="MutatorStormCloudBlizzardDisable" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorAvenger">
+    <BehaviorFlags index="Permanent" value="1" />
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <MaxStackCount value="10" />
+    <Modification MoveSpeedMultiplier="1.1" AttackSpeedMultiplier="1.1">
+      <LifeArmorBonus value="0.3" />
+      <VitalMaxAdditiveMultiplierArray index="Life" value="0.1" />
+      <VitalMaxAdditiveMultiplierArray index="Shields" value="0.1" />
+      <VitalRegenArray index="Life" value="1" />
+      <VitalRegenArray index="Shields" value="1" />
+    </Modification>
+    <BehaviorCategories index="Fast" value="1" />
+    <BehaviorCategories index="User13" value="1" />
+    <InfoIcon value="Assets\Textures\avenger_coop.dds" />
+    <RemoveValidatorArray value="NotDead" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorMissileSplitterDR">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <DamageResponse Fatal="1" Handled="MutatorMissileSplitterDeathSet">
+      <Chance value="1" />
+    </DamageResponse>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorWidowMineAnimationController">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Duration value="40" />
+    <DisableValidatorArray value="NotStasis" />
+    <DisableValidatorArray value="NotVortexd" />
+    <DisableValidatorArray value="NotGravitonBeamd" />
+    <DisableValidatorArray value="NotThunderCannond" />
+    <InfoFlags index="Hidden" value="1" />
+    <DisplayDuration index="Self" value="1" />
+    <DisplayDuration index="Ally" value="1" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorImmunetoPlayer2">
+    <InfoFlags index="Hidden" value="1" />
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <DamageResponse ModifyFraction="0" ModifyMinimumDamage="1">
+      <ValidatorArray value="MutatorAttackerIsPlayer2" />
+      <Chance value="1" />
+    </DamageResponse>
+    <InitialEffect value="MutatorImmunetoPlayer2VisualAB" />
+    <FinalEffect value="MutatorImmunetoPlayer2VisualRB" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorSilentDetector11" parent="Detector">
+    <Alignment value="Positive" />
+    <InfoFlags index="Hidden" value="1" />
+    <InfoIcon value="Assets\Textures\btn-status-detector.dds" />
+    <Modification Detect="11" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorMustbeActivated">
+    <InfoFlags index="Hidden" value="1" />
+    <EditorCategories value="AbilityorEffectType:Units" />
+  </CBehaviorBuff>
+  <CBehaviorBuff id="MutatorWorkerSleep">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Modification>
+      <ModifyFlags index="DisableAbils" value="1" />
+      <ModifyFlags index="DisableWeapons" value="1" />
+      <ModifyFlags index="SuppressMoving" value="1" />
+      <AbilLinkEnableArray value="MutatorRemoveWorkerSleep" />
+    </Modification>
+  </CBehaviorBuff>
+  <CUpgrade id="MutatorLongRange">
+    <LeaderAlias value="" />
+  </CUpgrade>
+  <CUpgrade id="MutatorJustDie">
+    <EffectArray Operation="Set" Reference="Behavior,MutatorMasterController,DamageResponse.Chance" Value="1" />
+    <EffectArray Operation="Set" Reference="Behavior,MutatorMasterController,DamageResponse.Fatal" Value="1" />
+    <EffectArray Operation="Set" Reference="Behavior,MutatorMasterController,DamageResponse.ModifyFraction" Value="0" />
+    <EffectArray Operation="Set" Reference="Behavior,MutatorMasterController,DamageResponse.Handled" Value="MutatorJustDieAB" />
+    <LeaderAlias value="" />
+  </CUpgrade>
+  <CUpgrade id="DrakkenLaserDrillBFG">
+    <Icon value="Assets\Textures\BTN-Ability-ConcentratedBeam.dds" />
+    <EffectArray Reference="Effect,LaserDrillTripodDamageCoop,Amount" Value="1" />
+    <EffectArray Reference="Effect,LaserDrillTripodCoopFakeDamage,Amount" Value="10" />
+    <EffectArray Operation="Set" Reference="Button,DrakkenLaserDrillAttack,Tooltip" Value="Button/Tooltip/SwannCasterDrakkenLaserDrillAttackLevel1" />
+    <EffectArray Operation="Set" Reference="Button,DrakkenLaserDrillAttack,AlertTooltip" Value="Button/Tooltip/SwannCasterDrakkenLaserDrillAttackLevel1" />
+    <EditorCategories value="Race:Terran,UpgradeType:Talents" />
+    <AffectedUnitArray value="DrakkenLaserDrillCoop" />
+  </CUpgrade>
+  <CUpgrade id="DrakkenLaserDrillNuke">
+    <Icon value="Assets\Textures\BTN-Upgrade-Swann-PulseCannon.dds" />
+    <EffectArray Reference="Effect,LaserDrillTripodDamageCoop,Amount" Value="2" />
+    <EffectArray Reference="Effect,LaserDrillTripodCoopFakeDamage,Amount" Value="20" />
+    <EffectArray Operation="Set" Reference="Button,DrakkenLaserDrillAttack,Tooltip" Value="Button/Tooltip/SwannCasterDrakkenLaserDrillAttackLevel2" />
+    <EffectArray Operation="Set" Reference="Button,DrakkenLaserDrillAttack,AlertTooltip" Value="Button/Tooltip/SwannCasterDrakkenLaserDrillAttackLevel2" />
+    <EditorCategories value="Race:Terran,UpgradeType:Talents" />
+    <AffectedUnitArray value="DrakkenLaserDrillCoop" />
+  </CUpgrade>
+  <CUpgrade id="MutatorIsPlayer2">
+    <LeaderAlias value="" />
+  </CUpgrade>
+  <CUpgrade id="NovaSnipeRefund">
+    <Icon value="Assets\Textures\btn-upgrade-terran-nova-snipeenergyrefund.dds" />
+    <EffectArray Operation="Set" Reference="Button,NovaWeaponImprovedCanisterRifleSnipe,Tooltip" Value="Button/Tooltip/NovaWeaponImprovedCanisterRifleSnipeRefund" />
+    <EditorCategories value="Race:Terran,UpgradeType:Talents" />
+    <AffectedUnitArray value="NovaCoop" />
+  </CUpgrade>
+  <CUpgrade id="OracleStasisWardUpgrade">
+    <Flags index="TechTreeCheat" value="1" />
+    <Icon value="Assets\Textures\btn-ability-protoss-oracle-stasiscalibration.dds" />
+    <Alert value="ResearchComplete" />
+    <Race value="Prot" />
+    <ScoreResult value="BuildOrder" />
+    <EffectArray Operation="Set" Reference="Effect,OracleStasisTrapActivateAB,Behavior" Value="OracleStasisTrapStunTarget" />
+    <EffectArray Operation="Set" Reference="Button,OracleBuildStasisTrap,Tooltip" Value="Button/Tooltip/OracleBuildStasisTrapUpgraded" />
+    <EditorCategories value="Race:Protoss,UpgradeType:SpellResearch" />
+    <AffectedUnitArray value="Oracle" />
+  </CUpgrade>
+  <CUpgrade id="VorazunCloakShieldRegen">
+    <Flags index="UpgradeCheat" value="0" />
+    <LeaderAlias value="" />
+  </CUpgrade>
+  <CUpgrade id="BoomBotDefuseDummy">
+    <Alert value="" />
+    <LeaderAlias value="" />
+  </CUpgrade>
+  <CUpgrade id="MutatorIsPlayer1">
+    <LeaderAlias value="" />
+  </CUpgrade>
+  <CUpgrade id="CorsairPermanentCloak">
+    <Icon value="Assets\Textures\btn-upgrade-vorazun-corsairpermanentlycloaked.dds" />
+    <EditorCategories value="Race:Terran,UpgradeType:Talents" />
+    <AffectedUnitArray value="CorsairMP" />
+  </CUpgrade>
+  <CUpgrade id="CommanderLevel">
+    <Flags index="UpgradeCheat" value="0" />
+    <EditorCategories value="UpgradeType:Talents" />
+    <MaxLevel value="15" />
+    <LeaderAlias value="" />
+  </CUpgrade>
+  <CUpgrade id="PlayerCommander">
+    <LeaderAlias value="" />
+  </CUpgrade>
+  <CUpgrade id="MutatorWorkerTimedLife">
+    <LeaderAlias value="" />
+  </CUpgrade>
+  <CUpgrade id="KaraxTurretRange">
+    <Icon value="Assets\Textures\btn-upgrade-karax-turretrange.dds" />
+    <Alert value="ResearchComplete" />
+    <Race value="Prot" />
+    <ScoreResult value="BuildOrder" />
+    <EffectArray Reference="Weapon,PhotonCannon,Range" Value="2" />
+    <EffectArray Reference="Weapon,KhaydarinBeam,Range" Value="2" />
+    <EffectArray Reference="Weapon,KhaydarinBeam1,Range" Value="2" />
+    <EffectArray Reference="Weapon,KhaydarinBeam3,Range" Value="2" />
+    <EffectArray Reference="Weapon,KhaydarinBeam1Upgraded,Range" Value="2" />
+    <EffectArray Reference="Weapon,KhaydarinBeam3Upgraded,Range" Value="2" />
+    <EffectArray Reference="Abil,ShieldBatteryRechargeChanneled,Range[0]" Value="2" />
+    <EffectArray Reference="Abil,ShieldBatteryRechargeChanneled,AutoCastRange" Value="2" />
+    <EffectArray Reference="Abil,ShieldBatteryStructureBarrier,Range[0]" Value="2" />
+    <EffectArray Reference="Abil,ShieldBatteryStructureBarrier,AutoCastRange" Value="2" />
+    <EditorCategories value="Race:Protoss,UpgradeType:SpellResearch" />
+    <AffectedUnitArray value="PhotonCannon" />
+    <AffectedUnitArray value="ShieldBattery" />
+    <AffectedUnitArray value="KhaydarinMonolith" />
+  </CUpgrade>
+  <CUpgrade id="MutatorShortSighted">
+    <LeaderAlias value="" />
+  </CUpgrade>
+  <CUpgrade id="KaraxTurretAttackSpeed">
+    <Icon value="Assets\Textures\btn-upgrade-karax-turretattackspeed.dds" />
+    <Alert value="ResearchComplete" />
+    <Race value="Prot" />
+    <ScoreResult value="BuildOrder" />
+    <EffectArray Reference="Weapon,PhotonCannon,RateMultiplier" Value="0.25" />
+    <EffectArray Reference="Weapon,KhaydarinBeam,RateMultiplier" Value="0.25" />
+    <EffectArray Reference="Weapon,KhaydarinBeam1,RateMultiplier" Value="0.25" />
+    <EffectArray Reference="Weapon,KhaydarinBeam3,RateMultiplier" Value="0.25" />
+    <EffectArray Reference="Weapon,KhaydarinBeam1Upgraded,RateMultiplier" Value="0.25" />
+    <EffectArray Reference="Weapon,KhaydarinBeam3Upgraded,RateMultiplier" Value="0.25" />
+    <EditorCategories value="Race:Protoss,UpgradeType:SpellResearch" />
+    <AffectedUnitArray value="PhotonCannon" />
+    <AffectedUnitArray value="KhaydarinMonolith" />
+  </CUpgrade>
+</Catalog>

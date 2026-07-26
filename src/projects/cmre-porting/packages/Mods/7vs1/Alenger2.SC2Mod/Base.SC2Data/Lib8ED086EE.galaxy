@@ -1,0 +1,93 @@
+include "TriggerLibs/NativeLib"
+
+include "Lib8ED086EE_h"
+
+//--------------------------------------------------------------------------------------------------
+// Library: 2??????????????????
+//--------------------------------------------------------------------------------------------------
+// External Library Initialization
+void lib8ED086EE_InitLibraries () {
+    libNtve_InitVariables();
+}
+
+// Triggers
+//--------------------------------------------------------------------------------------------------
+// Trigger: ????????????
+//--------------------------------------------------------------------------------------------------
+bool lib8ED086EE_gt_E5889DE5A78BE69BBFE68DA2_Func (bool testConds, bool runActions) {
+    // Automatic Variable Declarations
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void lib8ED086EE_gt_E5889DE5A78BE69BBFE68DA2_Init () {
+    lib8ED086EE_gt_E5889DE5A78BE69BBFE68DA2 = TriggerCreate("lib8ED086EE_gt_E5889DE5A78BE69BBFE68DA2_Func");
+    TriggerAddEventChatMessage(lib8ED086EE_gt_E5889DE5A78BE69BBFE68DA2, c_playerAny, "beiximosi", true);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: ?????????
+//--------------------------------------------------------------------------------------------------
+bool lib8ED086EE_gt_E7A791E68A80E6A091_Func (bool testConds, bool runActions) {
+    // Automatic Variable Declarations
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    if ((TechTreeUnitIsAllowed(1, "6zhanglang") == true)) {
+        TechTreeUpgradeAllow(1, "6fushinianye", true);
+    }
+
+    if ((TechTreeUnitIsAllowed(1, "6buyuchonghou") == true)) {
+        TechTreeUnitAllow(1, "6jizhenpachong", true);
+        TechTreeUnitAllow(1, "6baozipachong", true);
+        TechTreeUnitAllow(1, "6juduzhongliu", true);
+        TechTreeUpgradeAllow(1, "6shengzhangcuihuaji", true);
+        TechTreeUpgradeAllow(1, "6genxilianjie", true);
+    }
+
+    if ((TechTreeUnitIsAllowed(1, "6huozhanglang") == true)) {
+        TechTreeUpgradeAllow(1, "6ercpenyong", true);
+    }
+
+    if ((TechTreeUnitIsAllowed(1, "Mutalisk2") == true)) {
+        TechTreeUpgradeAllow(1, "6zuzhikuozeng", true);
+    }
+
+    if ((TechTreeUnitIsAllowed(1, "6chongqunsuzhu") == true)) {
+        TechTreeUnitAllow(1, "6danzhipensheti", true);
+        TechTreeUnitAllow(1, "6baowenchaoxue", true);
+        TechTreeUpgradeAllow(1, "6jiayaxianti", true);
+    }
+
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void lib8ED086EE_gt_E7A791E68A80E6A091_Init () {
+    lib8ED086EE_gt_E7A791E68A80E6A091 = TriggerCreate("lib8ED086EE_gt_E7A791E68A80E6A091_Func");
+    TriggerAddEventTimePeriodic(lib8ED086EE_gt_E7A791E68A80E6A091, 30.0, c_timeAI);
+}
+
+void lib8ED086EE_InitTriggers () {
+    lib8ED086EE_gt_E5889DE5A78BE69BBFE68DA2_Init();
+    lib8ED086EE_gt_E7A791E68A80E6A091_Init();
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool lib8ED086EE_InitLib_completed = false;
+
+void lib8ED086EE_InitLib () {
+    if (lib8ED086EE_InitLib_completed) {
+        return;
+    }
+
+    lib8ED086EE_InitLib_completed = true;
+
+    lib8ED086EE_InitLibraries();
+    lib8ED086EE_InitTriggers();
+}
+

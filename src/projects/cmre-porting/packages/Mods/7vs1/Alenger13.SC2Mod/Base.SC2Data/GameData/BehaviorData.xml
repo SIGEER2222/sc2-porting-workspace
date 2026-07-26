@@ -1,0 +1,816 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CBehaviorBuff id="13AIzengqiang">
+        <InfoIcon value="Assets\Textures\btn-progression-protoss-fenix-15-networksuperiority.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <StateFlags index="Uncommandable" value="1"/>
+            <DamageTotalMultiplier index="Spell" value="1"/>
+            <DamageTotalMultiplier index="Melee" value="1"/>
+            <DamageTotalMultiplier index="Ranged" value="1"/>
+            <DamageTotalMultiplier index="Splash" value="1"/>
+            <DamageTotalMultiplier index="NoProc" value="1"/>
+            <VitalMaxAdditiveMultiplierArray index="Life" value="1"/>
+            <VitalMaxAdditiveMultiplierArray index="Shields" value="1"/>
+            <BehaviorLinkDisableArray value="13jijie"/>
+            <BehaviorLinkDisableArray value="13jijie5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13buxiuzhezidongshuaxinhudun">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="CasterShieldsLT10"/>
+        <DamageResponse Handled="13hudunshuaxinOrder">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13buxiuzhezhanjiazidongshuaxinhudun">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="CasterShieldsLT10"/>
+        <DamageResponse Handled="13hudunshuaxinOrder5">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13chonggouguangshu">
+        <InfoIcon value="Assets\Textures\btn-ability-spearofadun-reconstructionbeam.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="NotFullLife"/>
+        <RemoveValidatorArray value="NotHidden"/>
+        <RemoveValidatorArray value="NotStasis"/>
+        <Duration value="0.15"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13ewaiwasi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="7"/>
+        <PeriodicEffect value="13ewaiwasi3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13fenziwanzhengxinglingyu">
+        <InfoIcon value="Assets\Textures\btn-progression-protoss-fenix-6-forgeresearch.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+        <Modification>
+            <LifeArmorBonus value="3"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.85">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13fenziwanzhengxinglingyuCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="13fenziwanzhengxinglingyuSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13fuchouxieyi">
+        <InfoIcon value="Assets\Textures\btn-progression-protoss-fenix-11-championtransferbuff.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="50000"/>
+        <MaxStackCountPerCaster value="50000"/>
+        <Modification>
+            <VitalMaxArray index="Life" value="25"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13gaojijiaozhunchengxu">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-fenix-arbitersuit-weapon.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="13danweishizhanzhengshizhe"/>
+        <Modification RangedWeaponRange="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13guwushanxian">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse Handled="13guwushanxianPersistent" ModifyFraction="0">
+            <Kind index="Spell" value="0"/>
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13huifulichangCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="13huifulichangSearch"/>
+        <TimeScaleSource Value="Global"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13huifulichang2">
+        <InfoIcon value="Assets\Textures\13 huifulichang.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1"/>
+        <Period value="0.25"/>
+        <PeriodicEffect value="13huifulichangModify"/>
+        <TimeScaleSource Value="Global"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13jinghuadaji">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-fenix-purificationblast.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.75"/>
+        <Period value="1.5"/>
+        <PeriodicEffect value="13jinghuadajiSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13jinghuaxinbiaoMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.25"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13jinghuaxinbiaoTimedLife">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="15.1"/>
+        <Period value="0.15"/>
+        <InitialEffect value="13jinghuaxinbiaoMarkerSearch"/>
+        <PeriodicEffect value="13jinghuaxinbiaoMarkerSearch"/>
+        <FinalEffect value="TimedLifeFate"/>
+        <Modification>
+            <StateFlags index="Stasis" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13jinghuaxinbiaoStart">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <Period value="0.15"/>
+        <InitialEffect value="13jinghuaxinbiaoMarkerSearch"/>
+        <PeriodicEffect value="13jinghuaxinbiaoMarkerSearch"/>
+        <FinalEffect value="13jinghuaxinbiaoTimedLifeApply"/>
+        <Modification>
+            <StateFlags index="Stasis" value="1"/>
+            <AbilLinkDisableArray value="13jinghuaxinxing"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13jueduifangyulingyu">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-fenix-stasisfield.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Caster"/>
+        <Duration value="1"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13jueduifangyulingyuCaster">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="CasterLifeGT30Percent"/>
+        <TimeScaleSource Value="Caster"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="13jueduifangyulingyuPersistent"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13kalasi">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification SightBonus="4" Detect="12" UnitNameOverride="Behavior/Name/13kalasi">
+            <RateMultiplierArray index="Charge" value="3"/>
+            <RateMultiplierArray index="Cooldown" value="3"/>
+            <RateMultiplierArray index="Queueable" value="3"/>
+        </Modification>
+        <InfoIcon value="Assets\Textures\13 kalasi.dds"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13kuangnu">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-chronobeam.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="13danweishikaerdalisi"/>
+        <Modification AttackSpeedMultiplier="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13liangzijuzhenguangbo">
+        <InfoIcon value="Assets\Textures\btn-progression-protoss-fenix-15-networksuperiority.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <Duration value="15"/>
+        <Period value="2.25"/>
+        <PeriodicEffect value="13liangzijuzhenguangboPersistent"/>
+        <Modification>
+            <SightBonus value="0.3"/>
+            <MoveSpeedMultiplier value="1.1"/>
+            <AccelerationMultiplier value="1.1"/>
+            <AttackSpeedMultiplier value="1.1"/>
+            <RangedWeaponRange value="0.3"/>
+            <DamageTotalMultiplier index="Melee" value="0.1"/>
+            <DamageTotalMultiplier index="Ranged" value="0.1"/>
+            <DamageTotalMultiplier index="Splash" value="0.1"/>
+            <DamageTotalMultiplier index="NoProc" value="0.1"/>
+            <RateMultiplierArray index="Charge" value="1.1"/>
+            <RateMultiplierArray index="Cooldown" value="1.1"/>
+            <RateMultiplierArray index="Morph" value="1.1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13liangzijuzhenguangbo1">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <MaxStackCount value="12"/>
+        <MaxStackCountPerCaster value="12"/>
+        <Modification>
+            <DamageTotalMultiplier index="Melee" value="0.03"/>
+            <DamageTotalMultiplier index="Ranged" value="0.03"/>
+            <DamageTotalMultiplier index="Splash" value="0.03"/>
+            <DamageTotalMultiplier index="NoProc" value="0.03"/>
+        </Modification>
+        <InfoFlags index="Hidden" value="1"/>
+        <RemoveValidatorArray value="13mubiaoyouliangzijuzhenguangbo"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13liangzijuzhenguangbo2">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="13mubiaoyouliangzijuzhenguangbo"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <MaxStackCount value="12"/>
+        <MaxStackCountPerCaster value="12"/>
+        <Modification AttackSpeedMultiplier="1.03"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13liangzijuzhenguangbo3">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="13mubiaoyouliangzijuzhenguangbo"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <MaxStackCount value="12"/>
+        <MaxStackCountPerCaster value="12"/>
+        <Modification RangedWeaponRange="0.15"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13liangzijuzhenguangbo4">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="13mubiaoyouliangzijuzhenguangbo"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <MaxStackCount value="12"/>
+        <MaxStackCountPerCaster value="12"/>
+        <Modification MoveSpeedMultiplier="1.03" AccelerationMultiplier="1.03"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13liangzijuzhenguangbo5">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="13mubiaoyouliangzijuzhenguangbo"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <MaxStackCount value="12"/>
+        <MaxStackCountPerCaster value="12"/>
+        <Modification SightBonus="0.15"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13liangzijuzhenguangbo6">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="13mubiaoyouliangzijuzhenguangbo"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <MaxStackCount value="12"/>
+        <MaxStackCountPerCaster value="12"/>
+        <Modification>
+            <RateMultiplierArray index="Charge" value="1.05"/>
+            <RateMultiplierArray index="Cooldown" value="1.05"/>
+            <RateMultiplierArray index="Morph" value="1.05"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13liangzijuzhenguangboCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="1.5"/>
+        <PeriodicEffect value="13liangzijuzhenguangboSearch"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <AbilLinkDisableArray value="move"/>
+            <BehaviorLinkEnableArray value="13liangzijuzhenguangboRange"/>
+        </Modification>
+        <InitialEffect value="13liangzijuzhenguangboSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13liangzijuzhenguangboRangeMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <MaxStackCount value="600"/>
+        <MaxStackCountPerCaster value="600"/>
+        <Duration value="1.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13liangzijuzhenguangboRange">
+        <BehaviorFlags index="Disabled" value="1"/>
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="1"/>
+        <PeriodicEffect value="13liangzijuzhenguangboRangeMarkerApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13lingnengyizhilichang1">
+        <InfoIcon value="Assets\Textures\13 lingnengyizhilingyu.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+        <Modification MoveSpeedMultiplier="0.85" AttackSpeedMultiplier="0.85"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13lingnengyizhilichangGas">
+        <BehaviorFlags index="Disabled" value="1"/>
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="13lingnengyizhilichangPlayer"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13quanxiangfuzhi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="15"/>
+        <InitialEffect value="13AIzengqiangApply"/>
+        <FinalEffect value="TimedLifeFate"/>
+        <Modification>
+            <StateFlags index="SuppressFoodMade" value="1"/>
+            <StateFlags index="SuppressFoodUsed" value="1"/>
+            <BehaviorLinkDisableArray value="13jijie"/>
+            <BehaviorLinkDisableArray value="13jijie5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13shouweizheStart">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="NoDraw" value="1"/>
+        </Modification>
+        <InfoFlags index="Hidden" value="1"/>
+        <InitialEffect value="13AIzengqiangApply"/>
+        <FinalEffect value="13shouweizheTimedLife1Apply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13guwuzheStart">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <InitialEffect value="13AIzengqiangApply"/>
+        <FinalEffect value="13guwuzheTimedLifeApply"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="NoDraw" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13shouweizheTimedLife1">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <RemoveValidatorArray value="13mubiaoshishouweizhe"/>
+        <Duration value="7.5"/>
+        <InitialEffect value="13zheyueshouweizheOrder"/>
+        <FinalEffect value="13chonggouOrder"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13guwuzheTimedLife">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="15"/>
+        <InitialEffect value="13zheyueguwuzheOrder"/>
+        <FinalEffect value="TimedLifeFate"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13shouweizheTimedLife2">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="7.5"/>
+        <FinalEffect value="TimedLifeFate"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13taerdalin">
+        <InfoIcon value="Assets\Textures\btn-unit-protoss-champion-immortal-purifier.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification Detect="6" UnitNameOverride="Behavior/Name/13taerdalin"/>
+        <DamageResponse Location="Attacker" ModifyFraction="2" TargetFilters="Ground;-">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13wuqichaozai">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="13wuqichaozai"/>
+        <DisableValidatorArray value="CasterLifeGT50Percent"/>
+        <Modification RangedWeaponRange="3">
+            <DamageTotalMultiplier index="Melee" value="0.5"/>
+            <DamageTotalMultiplier index="Ranged" value="0.5"/>
+            <DamageTotalMultiplier index="Splash" value="0.5"/>
+            <DamageTotalMultiplier index="NoProc" value="0.5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13xiaoxingxiangweizhuangjia">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse Handled="13xiangweiApply" ModifyFraction="0">
+            <Chance value="1"/>
+            <Cost>
+                <Cooldown Link="13 相位装甲 逐光者" TimeUse="5"/>
+            </Cost>
+        </DamageResponse>
+        <Requirements value="13xiaoxingxiangweihujia"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13zhanzhngshizhe">
+        <InfoIcon value="Assets\Textures\btn-unit-protoss-champion-colossus-purifier.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification SightBonus="5" Detect="9" UnitNameOverride="Behavior/Name/13zhanzhngshizhe">
+            <DamageDealtAttributeMultiplier index="Structure" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13tilate">
+        <InfoIcon value="Assets\Textures\btn-unit-protoss-champion-adept-purifier.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification SightBonus="4" Detect="12" UnitNameOverride="Behavior/Name/13tilate"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13moyue">
+        <InfoIcon value="Assets\Textures\btn-unit-protoss-champion-scout-purifier.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification SightBonus="2" Detect="9" UnitNameOverride="Behavior/Name/13moyue"/>
+        <DamageResponse Location="Attacker" ModifyFraction="2" TargetFilters="Air;-">
+            <Chance value="1"/>
+            <Cost>
+                <Charge Link="Behavior/13taerdalin"/>
+                <Cooldown Link="Behavior/13taerdalin"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13wajieyoushan">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Caster"/>
+        <Duration value="0.25"/>
+        <Modification>
+            <StateFlags index="Benign" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13xiangweitongbulichangCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="13danweishimoyue"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="13xiangweitongbulichangSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13xiangweitongbulichang">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-fenix-dragoonsuit-weapon.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1"/>
+        <Modification MoveSpeedMultiplier="1.3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13yazhi">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-fenix-immortalchampionchargeexplode.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <Modification>
+            <StateFlags index="Stun" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13yingxiongbuxiu">
+        <InfoIcon value="Assets\Textures\btn-progression-protoss-fenix-12-immortalandscoutchampions-research.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="13danweishitaerdalin"/>
+        <DamageResponse Fatal="1" Handled="13yingxiongbuxiuModify" ModifyFraction="0">
+            <Chance value="1"/>
+            <Cost>
+                <Charge>
+                    <CountMax value="3"/>
+                    <CountStart value="1"/>
+                    <CountUse value="1"/>
+                    <Link value="13 英雄不朽 塔尔达林"/>
+                    <TimeStart value="45"/>
+                    <TimeUse value="45"/>
+                </Charge>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13yonghengyasuoxitong">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-fenix-arbitersuit-platearmor.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="13danweishitaerdalin"/>
+        <Modification>
+            <VitalMaxAdditiveMultiplierArray index="Shields" value="2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13zhanjiatouyingTimedLIfeApply">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="24"/>
+        <InitialEffect value="13zhanjiatouyingOrder"/>
+        <ExpireEffect value="TimedLifeFate"/>
+        <Modification RangedWeaponRange="-2"/>
+        <KillCredit Value="Caster"/>
+        <InfoFlags index="Hidden" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13wuweikuangrezhe">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-fenix-fenixweapondamage.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="50000"/>
+        <MaxStackCountPerCaster value="50000"/>
+        <Modification>
+            <VitalMaxArray index="Life" value="3"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13wuweikuangrezheStart">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="13danweishikaerdalisi"/>
+        <DamageResponse Handled="13wuweikuangrezheApply" TargetFilters="-;Player,Ally">
+            <Chance value="1"/>
+            <Cost>
+                <Cooldown Link="13 无畏狂热者 Start 卡尔达利斯" TimeUse="1"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13yongshengchengxu">
+        <InfoIcon value="Assets\Textures\btn-progression-protoss-fenix-11-championtransferbuff.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="50000"/>
+        <MaxStackCountPerCaster value="50000"/>
+        <Modification>
+            <VitalMaxArray index="Life" value="150"/>
+            <VitalMaxArray index="Shields" value="50"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13gangyihudun">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-shieldcapacitor.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="CasterShieldsGE1"/>
+        <DamageResponse ClampMaximum="10" Minimum="10" ModifyMinimumDamage="1">
+            <Kind index="Spell" value="0"/>
+            <Chance value="1"/>
+        </DamageResponse>
+        <Requirements value="13gangyihudun"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13jijie">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="13jijieSearch"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13jijie5">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="13jijieSearch5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorPowerSource id="13jinghuazhenengliangyuan">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-protoss-fenix-purifier-pylon.dds"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Radius value="8"/>
+        <PowerLink value="PowerSource"/>
+    </CBehaviorPowerSource>
+    <CBehaviorBuff id="13kaerdalisi">
+        <InfoIcon value="Assets\Textures\btn-unit-protoss-champion-zealot-purifier.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMultiplier="1.5" Detect="6" UnitNameOverride="Behavior/Name/13kaerdalisi">
+            <DamageTotalMultiplier index="Melee" value="0.5"/>
+            <ResourceHarvestAmountMultiplier index="Minerals" value="2"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.5">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13lingnengyizhilichang2">
+        <InfoIcon value="Assets\Textures\13 lingnengyizhilingyu.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+        <Modification MoveSpeedMultiplier="0.55" AttackSpeedMultiplier="0.55">
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="EnableAttack" value="1"/>
+            <ModifyFlags index="EnableMove" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13lingnengyizhilichangCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="13lingnengyizhilichangSet"/>
+        <RemoveValidatorArray value="13youwasi"/>
+        <Modification>
+            <BehaviorLinkEnableArray value="13lingnengyizhilichangGas"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13niuqulichang">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-fenix-immortalchampionvortex.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Modification MoveSpeedMultiplier="0.3" AttackSpeedMultiplier="0.3"/>
+        <DurationOverride>
+            <Duration value="1"/>
+            <ValidatorArray value="IsHeroic"/>
+        </DurationOverride>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13shuairuoxitong">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-fenix-adeptchampionbounceattack.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <DamageResponse Handled="13shuairuoxitongDamage">
+            <Kind index="Spell" value="0"/>
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13touyingTimedLIfeApply">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="12"/>
+        <InitialEffect value="13touyingOrder"/>
+        <ExpireEffect value="TimedLifeFate"/>
+        <Modification RangedWeaponRange="-2"/>
+        <KillCredit Value="Caster"/>
+        <InfoFlags index="Hidden" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13wajie">
+        <InfoIcon value="Assets\Textures\13 wajie.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Caster"/>
+        <Period value="0.45"/>
+        <PeriodicEffect value="13wajiePersistent2"/>
+        <Duration value="0.25"/>
+        <RemoveValidatorArray value="0mubiaobushiwudide"/>
+        <RemoveValidatorArray value="0mubiaobushiyoujun"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13ganraomaichong">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-fenix-dragoonsolariteflare.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.75"/>
+        <Modification>
+            <ModifyFlags index="DisableWeapons" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13xiangweiSpeed">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="IsBiological"/>
+        <Duration value="3.05"/>
+        <Period value="0.1"/>
+        <PeriodicEffect value="13xiangweiDamage"/>
+        <Modification MoveSpeedMultiplier="0.3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13xiangweitousheqi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="5"/>
+        <InitialEffect value="13xiangweiApplyTarget"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13keluolaliang">
+        <InfoIcon value="Assets\Textures\btn-unit-protoss-champion-carrier-purifier.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification SightBonus="5" Detect="9" UnitNameOverride="Behavior/Name/13keluolaliang">
+            <DamageTotalMultiplier index="Spell" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13zhimangguangshu">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-fenix-carrier-solarbeam.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="50000"/>
+        <MaxStackCountPerCaster value="50000"/>
+        <Modification RangedWeaponRange="-0.15"/>
+        <Duration value="6"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13tiaoji">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13zidongcaijigaonengwasi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="AutoHarvesterFinish"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Period value="2.1"/>
+        <PeriodicEffect value="AutoHarvestVespene4"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13xiangwei">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-phasingarmor.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+        </Modification>
+        <InitialEffect value="13xiangweiSpeedApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13xiangweizhuangjia">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse Handled="13xiangweiApply" ModifyFraction="0">
+            <Chance value="1"/>
+            <Cost>
+                <Cooldown Link="13 相位装甲 逐光者" TimeUse="5"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13shikongtisu">
+        <Alignment value="Positive"/>
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-chronobeam.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification TimeScale="1.3">
+            <AbilLinkDisableArray value="13bianxingweijinghuazhehexin2"/>
+            <BehaviorLinkDisableArray value="13jijie"/>
+        </Modification>
+        <InitialEffect value="13AIzengqiangApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13chonggou">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-reconstruction.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse Fatal="1" Handled="13chonggouOrder" ModifyFraction="0">
+            <Chance value="1"/>
+            <Cost>
+                <Charge>
+                    <CountMax value="1"/>
+                    <CountStart value="1"/>
+                    <CountUse value="1"/>
+                    <Link value="13 重构 守卫者"/>
+                </Charge>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13zhandouchuanganleida">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification Detect="10" Radar="32" RadarFilters="-;Player,Ally,Missile,Buried,Cloaked,Dead,Hidden"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13quntifengyin">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-forcefield-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisplayDuration index="Neutral" value="1"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <Duration value="15"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="SuppressDetection" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13lengjingjujiao">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <MaxStackCount value="30"/>
+        <MaxStackCountPerCaster value="30"/>
+        <Duration value="9"/>
+        <Modification MoveSpeedBonus="0.0507" AccelerationBonus="0.0625"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13jinghuaguangshuTimedLife">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="30"/>
+        <Period value="0.1"/>
+        <PeriodicEffect value="13jinghuaguangshuSearch"/>
+        <FinalEffect value="Suicide"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13jinghuaguangshuStart">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <ExpireEffect value="13jinghuaguangshuTimedLifeApply"/>
+        <Modification>
+            <WeaponDisableArray value="13jinghuaguangshu"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13jinghuaguangshu">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13quntizheyueEnd">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="2"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+            <AbilClassDisableArray index="CAbilMove" value="1"/>
+            <AbilLinkEnableArray value="VolatileBurstBuilding"/>
+            <AbilLinkEnableArray value="GhostCloak"/>
+            <AbilLinkEnableArray value="BansheeCloak"/>
+            <AbilLinkEnableArray value="CarrierRepairDroneHanger"/>
+            <AbilLinkEnableArray value="BroodLordHangar"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13quntizheyueStart">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1"/>
+        <ExpireEffect value="13quntizheyueBlink"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+            <AbilClassDisableArray index="CAbilMove" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="13caijijiasu">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <ResourceHarvestAmountMultiplier index="Minerals" value="4"/>
+        </Modification>
+    </CBehaviorBuff>
+</Catalog>

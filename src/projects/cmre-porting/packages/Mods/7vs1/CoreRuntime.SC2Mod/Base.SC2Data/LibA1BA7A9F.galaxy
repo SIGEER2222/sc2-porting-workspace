@@ -1,0 +1,31 @@
+include "TriggerLibs/NativeLib"
+
+bool libA1BA7A9F_InitLib_completed = false;
+bool libA1BA7A9F_InitVariables_completed = false;
+int libA1BA7A9F_gv_abathurPlayer;
+
+void libA1BA7A9F_InitLibraries () {
+    libNtve_InitVariables();
+}
+
+void libA1BA7A9F_InitVariables () {
+    if (libA1BA7A9F_InitVariables_completed) {
+        return;
+    }
+    libA1BA7A9F_InitVariables_completed = true;
+    libA1BA7A9F_gv_abathurPlayer = 1;
+}
+
+void libA1BA7A9F_InitTriggers () {
+}
+
+void libA1BA7A9F_InitLib () {
+    if (libA1BA7A9F_InitLib_completed) {
+        return;
+    }
+    libA1BA7A9F_InitLib_completed = true;
+
+    libA1BA7A9F_InitLibraries();
+    libA1BA7A9F_InitVariables();
+    libA1BA7A9F_InitTriggers();
+}

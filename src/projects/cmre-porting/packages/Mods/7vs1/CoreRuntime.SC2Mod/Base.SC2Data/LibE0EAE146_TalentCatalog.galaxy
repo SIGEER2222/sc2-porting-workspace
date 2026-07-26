@@ -1,0 +1,1256 @@
+// ============================================================================
+// AUTO-GENERATED FILE. DO NOT EDIT MANUALLY.
+// Source: Shared/Talents/*.json
+// Generator: scripts/build-talent-catalog.ps1
+// ============================================================================
+
+include "LibE0EAE146_h"
+
+// ---- Bank key helpers ----
+
+// Read talent level from Bank: <Commander>.<TalentId> in CommanderTalents section
+int libE0EAE146_gf_TalentBankValue (string lp_commander, string lp_talentId) {
+    bank lv_bank = BankLoad("CampaignXCore", 1);
+    string lv_key = lp_commander + "." + lp_talentId;
+    if (BankKeyExists(lv_bank, "CommanderTalents", lv_key)) {
+        return BankValueGetAsInt(lv_bank, "CommanderTalents", lv_key);
+    }
+    return 0;
+}
+
+bool libE0EAE146_gf_TalentBankEnabled (string lp_commander, string lp_talentId) {
+    return (libE0EAE146_gf_TalentBankValue(lp_commander, lp_talentId) > 0);
+}
+
+// Read extra option flag: <Commander>.<TalentId>.<OptionId>
+bool libE0EAE146_gf_TalentExtraOptionEnabled (string lp_commander, string lp_talentId, string lp_optionId) {
+    bank lv_bank = BankLoad("CampaignXCore", 1);
+    string lv_key = lp_commander + "." + lp_talentId + "." + lp_optionId;
+    if (BankKeyExists(lv_bank, "CommanderTalents", lv_key)) {
+        return (BankValueGetAsInt(lv_bank, "CommanderTalents", lv_key) > 0);
+    }
+    return false;
+}
+
+// ---- Per-commander talent apply functions ----
+
+// ZergAbathur: 9 talents
+void libE0EAE146_gf_ApplyAbathurTalents (int lp_player) {
+    string lv_cmd = "ZergAbathur";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 精华贮藏者 (CommanderPrestigeAbathurBiomass)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeAbathurBiomass")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeAbathurBiomass", 1);
+    }
+
+    // [1] switch: 深隧惊惧 (CommanderPrestigeAbathurDeepTunnel)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeAbathurDeepTunnel")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeAbathurDeepTunnel", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeAbathurDeepTunnelLevel12", 1);
+    }
+
+    // [2] switch: 无限进化 (CommanderPrestigeAbathurUltimateEvo)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeAbathurUltimateEvo")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeAbathurUltEvo", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeAbathurUltEvoLevel15", 1);
+    }
+
+    // [3] level: 剧毒巢穴伤害 (AbathurMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "AbathurMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryAbathurToxicNestDamageAndRespawn", lv_lvl_0);
+    }
+
+    // [4] level: 愈合治疗持续时间 (AbathurMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "AbathurMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryAbathurMendHeal", lv_lvl_1);
+    }
+
+    // [5] level: 共生体技能强化 (AbathurMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "AbathurMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryAbathurSymbioteCarapace", lv_lvl_2);
+    }
+
+    // [6] level: 双倍生物质几率 (AbathurMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "AbathurMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryAbathurDoubleBiomass", lv_lvl_3);
+    }
+
+    // [7] level: 剧毒巢穴最大充能数和冷却时间 (AbathurMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "AbathurMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryAbathurToxicNestCharge", lv_lvl_4);
+    }
+
+    // [8] level: 建筑变异和研究时间 (AbathurMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "AbathurMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryAbathurTechFastBuild", lv_lvl_5);
+    }
+}
+
+// ZergAbathurReborn: no talents (empty config)
+void libE0EAE146_gf_ApplyAbathurRebornTalents (int lp_player) {
+    // No talents defined for this commander
+}
+
+// ProtossAlarak: 9 talents
+void libE0EAE146_gf_ApplyAlarakTalents (int lp_player) {
+    string lv_cmd = "ProtossAlarak";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 灵魂巧匠 (CommanderPrestigeAlarakMech)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeAlarakMech")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeAlarakMech", 1);
+    }
+
+    // [1] switch: 暴君晋升者 (CommanderPrestigeAlarakEmpowerMe)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeAlarakEmpowerMe")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeAlarakEmpowerMe", 1);
+    }
+
+    // [2] switch: 死亡阴影 (CommanderPrestigeAlarakDeathFleet)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeAlarakDeathFleet")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeAlarakDeathFleet", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeAlarakDeathFleetPerk", 1);
+    }
+
+    // [3] level: 阿拉纳克自动攻击伤害 (AlarakMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "AlarakMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryAlarakAutoAttackDamage", lv_lvl_0);
+    }
+
+    // [4] level: 单位攻击速度 (AlarakMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "AlarakMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryAlarakUnitAttackSpeed", lv_lvl_1);
+    }
+
+    // [5] level: 供奉我奴仆们持续时间 (AlarakMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "AlarakMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryAlarakEmpowerMeSlavesDuration", lv_lvl_2);
+    }
+
+    // [6] level: 死亡舰队冷却时间缩短 (AlarakMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "AlarakMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryAlarakDeathFleetCDR", lv_lvl_3);
+    }
+
+    // [7] level: 建筑超载额外护盾与伤害 (AlarakMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "AlarakMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryAlarakOverchargeShieldsDamage", lv_lvl_4);
+    }
+
+    // [8] level: 时空提速效能 (AlarakMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "AlarakMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryAlarakChronoBoost", lv_lvl_5);
+    }
+}
+
+// TerranAlenger3: no talents (empty config)
+void libE0EAE146_gf_ApplyAlenger3Talents (int lp_player) {
+    // No talents defined for this commander
+}
+
+// ProtossArtanis: 9 talents
+void libE0EAE146_gf_ApplyArtanisTalents (int lp_player) {
+    string lv_cmd = "ProtossArtanis";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 勇敢激励者 (CommanderPrestigeArtanisCombatAbilities)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeArtanisCombatAbilities")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeArtanisCombatAbilities", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeArtanisCombatAbilitiesImmortalBarrierUpgrade", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeArtanisCombatAbilitiesMasteryEnergyRegenCooldown", 1);
+    }
+
+    // [1] switch: 星灵使节 (CommanderPrestigeArtanisPowerField)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeArtanisPowerField")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeArtanisPowerField", 1);
+    }
+
+    // [2] switch: 方舟指挥官 (CommanderPrestigeArtanisOrbitalStrikes)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeArtanisOrbitalStrikes")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeArtanisOrbitalStrikes", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeArtanisOrbitalStrikesShared", 1);
+    }
+
+    // [3] level: 护盾超载持续时间与强度 (ArtanisMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ArtanisMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryArtanisShieldOvercharge", lv_lvl_0);
+    }
+
+    // [4] level: 守护之壳快速治疗 (ArtanisMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ArtanisMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryArtanisGuardianShellHeal", lv_lvl_1);
+    }
+
+    // [5] level: 能量回复速度与冷却时间缩减 (ArtanisMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ArtanisMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryArtanisEnergyRegenCooldown", lv_lvl_2);
+    }
+
+    // [6] level: 折跃的单位获得初始急速 (ArtanisMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ArtanisMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryArtanisSoAPowerFieldHaste", lv_lvl_3);
+    }
+
+    // [7] level: 时空提速速度 (ArtanisMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ArtanisMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryArtanisChronoBoost", lv_lvl_4);
+    }
+
+    // [8] level: 亚顿之矛初始和最大能量 (ArtanisMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ArtanisMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryArtanisStartingAndMaxSoAEnergy", lv_lvl_5);
+    }
+}
+
+// ZergDehaka: 9 talents
+void libE0EAE146_gf_ApplyDehakaTalents (int lp_player) {
+    string lv_cmd = "ZergDehaka";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 吞噬者 (CommanderPrestigeDehakaDevour)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeDehakaDevour")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeDehakaDevour", 1);
+    }
+
+    // [1] switch: 原始竞争者 (CommanderPrestigeDehakaPackLeaders)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeDehakaPackLeaders")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeDehakaPackLeaders", 1);
+    }
+
+    // [2] switch: 原生双雄 (CommanderPrestigeDehakaClone)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeDehakaClone")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeDehakaClone", 1);
+    }
+
+    // [3] level: 提升吞食治疗 (DehakaMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "DehakaMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryDehakaConsumeHealing", lv_lvl_0);
+    }
+
+    // [4] level: 吞噬加成持续时间 (DehakaMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "DehakaMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryDehakaConsumeDuration", lv_lvl_1);
+    }
+
+    // [5] level: 原始蠕虫冷却时间缩短 (DehakaMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "DehakaMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryDehakaPrimalWurmCDR", lv_lvl_2);
+    }
+
+    // [6] level: 原始首领生命计时持续时间 (DehakaMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "DehakaMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryDehakaBossTimedLife", lv_lvl_3);
+    }
+
+    // [7] level: 基因突变几率 (DehakaMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "DehakaMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryDehakaGeneMutation", lv_lvl_4);
+    }
+
+    // [8] level: 德哈卡攻击速度 (DehakaMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "DehakaMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryDehakaAttackSpeed", lv_lvl_5);
+    }
+}
+
+// ProtossFenix: 9 talents
+void libE0EAE146_gf_ApplyFenixTalents (int lp_player) {
+    string lv_cmd = "ProtossFenix";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 阿昆德拉 (CommanderPrestigeFenixSuitSwap)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeFenixSuitSwap")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeFenixSuitSwap", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeFenixSuitSwapMastery", 1);
+    }
+
+    // [1] switch: 网络管理员 (CommanderPrestigeFenixDataWeb)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeFenixDataWeb")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeFenixDataWeb", 1);
+    }
+
+    // [2] switch: 不屈意志 (CommanderPrestigeFenixAvenger)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeFenixAvenger")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeFenixAvenger", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeFenixAvengerMastery", 1);
+    }
+
+    // [3] level: 菲尼克斯战甲武器攻击速度 (FenixMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "FenixMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryFenixSuitAttackSpeed", lv_lvl_0);
+    }
+
+    // [4] level: 菲尼克斯战甲离线能量恢复 (FenixMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "FenixMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryFenixSuitEnergyRegen", lv_lvl_1);
+    }
+
+    // [5] level: 智能人格英雄的攻击速度 (FenixMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "FenixMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryFenixChampionAttackSpeed", lv_lvl_2);
+    }
+
+    // [6] level: 智能人格英雄的生命值和护盾加成 (FenixMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "FenixMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryFenixChampionLifeShieldBuff", lv_lvl_3);
+    }
+
+    // [7] level: 时空提速速度 (FenixMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "FenixMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryFenixChronoBoostExtra", lv_lvl_4);
+    }
+
+    // [8] level: 额外起始补给 (FenixMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "FenixMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryFenixExtraStartingSupply", lv_lvl_5);
+    }
+}
+
+// TerranHorner: 9 talents
+void libE0EAE146_gf_ApplyHornerTalents (int lp_player) {
+    string lv_cmd = "TerranHorner";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 混沌模范夫妻 (CommanderPrestigeHornerMagMines)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeHornerMagMines")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeHornerMagMines", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeHornerMagMinesMastery", 1);
+    }
+
+    // [1] switch: 银翼指挥官 (CommanderPrestigeHornerStarport)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeHornerStarport")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeHornerStarport", 1);
+    }
+
+    // [2] switch: 星系军火走私者 (CommanderPrestigeHornerBombingPlatforms)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeHornerBombingPlatforms")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeHornerBombingPlatforms", 1);
+    }
+
+    // [3] level: 攻击战斗机的效果范围 (HornerMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "HornerMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryHornerBomberRadius", lv_lvl_0);
+    }
+
+    // [4] level: 优化亡语 (HornerMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "HornerMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryHornerBetterDeathRattle", lv_lvl_1);
+    }
+
+    // [5] level: 我的显著加成 (HornerMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "HornerMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryHornerMSOBonus", lv_lvl_2);
+    }
+
+    // [6] level: 回收几率翻倍 (HornerMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "HornerMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryHornerDoubleSalvageChance", lv_lvl_3);
+    }
+
+    // [7] level: 空袭距离 (HornerMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "HornerMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryHornerAirStrikeDistance", lv_lvl_4);
+    }
+
+    // [8] level: 麦格天雷升级 (HornerMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "HornerMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryHornerMagMineUpgrades", lv_lvl_5);
+    }
+}
+
+// Izsha: no talents (empty config)
+void libE0EAE146_gf_ApplyIzshaTalents (int lp_player) {
+    // No talents defined for this commander
+}
+
+// ProtossKarax: 9 talents
+void libE0EAE146_gf_ApplyKaraxTalents (int lp_player) {
+    string lv_cmd = "ProtossKarax";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 战争建筑师 (CommanderPrestigeKaraxStructures)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeKaraxStructures")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeKaraxStructures", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeKaraxStructuresPerk", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeKaraxStructuresMastery", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeKaraxStructuresMasteryChronoBoostSpeed", 1);
+    }
+
+    // [1] switch: 圣堂表象 (CommanderPrestigeKaraxArmy)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeKaraxArmy")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeKaraxArmy", 1);
+    }
+
+    // [2] switch: 天界太阳能 (CommanderPrestigeKaraxTopBar)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeKaraxTopBar")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeKaraxTopBar", 1);
+    }
+
+    // [3] level: 战斗单位的生命值与护盾 (KaraxMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "KaraxMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryKaraxUnitVital", lv_lvl_0);
+    }
+
+    // [4] level: 建筑生命值与护盾 (KaraxMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "KaraxMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryKaraxBuildingVital", lv_lvl_1);
+    }
+
+    // [5] level: 修理光束治疗 (KaraxMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "KaraxMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryKaraxRepairBeamHeal", lv_lvl_2);
+    }
+
+    // [6] level: 亚顿之矛的能量回复速度在超级提速期间加快（净 +1能量，持续20秒） (KaraxMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "KaraxMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryKaraxSoAChronoRegen", lv_lvl_3);
+    }
+
+    // [7] level: 时空提速速度 (KaraxMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "KaraxMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryKaraxChronoBoostSpeed", lv_lvl_4);
+    }
+
+    // [8] level: 亚顿之矛初始和最大能量 (KaraxMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "KaraxMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryKaraxStartingAndMaxSoAEnergy", lv_lvl_5);
+    }
+}
+
+// ZergKerrigan: 9 talents
+void libE0EAE146_gf_ApplyKerriganTalents (int lp_player) {
+    string lv_cmd = "ZergKerrigan";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 恶毒族长 (CommanderPrestigeKerriganCreep)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeKerriganCreep")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeKerriganCreep", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeKerriganCreepPerk", 1);
+    }
+
+    // [1] switch: 人类的愚行 (CommanderPrestigeKerriganAbilities)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeKerriganAbilities")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeKerriganAbilities", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeKerriganAbilitiesPerk", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeKerriganAbilitiesMasteryPrimary", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeKerriganAbilitiesMasteryImmobilizationWave", 1);
+    }
+
+    // [2] switch: 荒寂女王 (CommanderPrestigeKerriganAssimilationAura)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeKerriganAssimilationAura")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeKerriganAssimilationAura", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeKerriganAssimilationAuraShared", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "KerriganGhostCosmetic", 1);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("PsionicLift", 0), true);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("MindBolt", 0), true);
+    }
+
+    // [3] level: 能量恢复 (KerriganMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "KerriganMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryKerriganEnergyRegen", lv_lvl_0);
+    }
+
+    // [4] level: 自动攻击伤害 (KerriganMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "KerriganMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryKerriganAutoAttackDamage", lv_lvl_1);
+    }
+
+    // [5] level: 部队瓦斯消耗 (KerriganMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "KerriganMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryKerriganArmyGasCost", lv_lvl_2);
+    }
+
+    // [6] level: 定身波伤害 (KerriganMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "KerriganMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryKerriganImmobilizationWaveDamage", lv_lvl_3);
+    }
+
+    // [7] level: 研究速度和消耗降低 (KerriganMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "KerriganMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryKerriganResearchSpeedandCost", lv_lvl_4);
+    }
+
+    // [8] level: 主要技能伤害和攻击速度 (KerriganMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "KerriganMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryKerriganPrimarySpeedDamage", lv_lvl_5);
+    }
+}
+
+// TerranMengsk: 9 talents
+void libE0EAE146_gf_ApplyMengskTalents (int lp_player) {
+    string lv_cmd = "TerranMengsk";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 毒性暴君 (CommanderPrestigeMengskArtillery)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeMengskArtillery")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeMengskArtillery", 1);
+    }
+
+    // [1] switch: 底层的力量 (CommanderPrestigeMengskRoyalGuard)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeMengskRoyalGuard")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeMengskRoyalGuard", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeMengskRoyalGuardMastery", 1);
+    }
+
+    // [2] switch: 死亡贩子 (CommanderPrestigeMengskTroopers)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeMengskTroopers")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeMengskTroopers", 1);
+    }
+
+    // [3] level: 冲锋队 天命皇权 产生率 (MengskMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "MengskMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryMengskTrooperImperialMandateRegeneration", lv_lvl_0);
+    }
+
+    // [4] level: 皇家卫队 天命皇权 产生率 (MengskMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "MengskMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryMengskRoyalGuardImperialMandateRegeneration", lv_lvl_1);
+    }
+
+    // [5] level: 成吨伤害 (MengskMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "MengskMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryMengskTopPanelPower", lv_lvl_2);
+    }
+
+    // [6] level: 皇家卫队费用 (MengskMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "MengskMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryMengskRoyalGuardCost", lv_lvl_3);
+    }
+
+    // [7] level: 起始天命皇权 (MengskMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "MengskMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryMengskStartingImperialMandate", lv_lvl_4);
+    }
+
+    // [8] level: 皇家卫队经验获取率 (MengskMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "MengskMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryMengskRoyalGuardExperienceGainRate", lv_lvl_5);
+    }
+}
+
+// TerranNova: 9 talents
+void libE0EAE146_gf_ApplyNovaTalents (int lp_player) {
+    string lv_cmd = "TerranNova";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 雇佣兵 (CommanderPrestigeNovaBio)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeNovaBio")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeNovaBio", 1);
+    }
+
+    // [1] switch: 战术调度员 (CommanderPrestigeNovaAirlift)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeNovaAirlift")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeNovaAirlift", 1);
+    }
+
+    // [2] switch: 渗透专家 (CommanderPrestigeNovaSuperCloak)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeNovaSuperCloak")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeNovaSuperCloak", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeNovaSuperCloakMastery", 1);
+    }
+
+    // [3] level: 聚变打击和全息诱饵冷却时间 (NovaMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "NovaMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryNovaNukeAndHoloDecoyCooldown", lv_lvl_0);
+    }
+
+    // [4] level: 狮鹫号轰炸突袭消耗减少 (NovaMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "NovaMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryNovaGriffinCost", lv_lvl_1);
+    }
+
+    // [5] level: 诺娃的主要技能强化 (NovaMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "NovaMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryNovaPrimaryAbilityImprovement", lv_lvl_2);
+    }
+
+    // [6] level: 部队单位攻击速度 (NovaMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "NovaMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryNovaArmyAttackSpeed", lv_lvl_3);
+    }
+
+    // [7] level: 诺娃复活缩减 (NovaMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "NovaMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryNovaEnergyRegen", lv_lvl_4);
+    }
+
+    // [8] level: 部队单位脱战后生命回复 (NovaMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "NovaMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryNovaArmyOOCRegenSpeed", lv_lvl_5);
+    }
+}
+
+// TerranRaynor: 9 talents
+void libE0EAE146_gf_ApplyRaynorTalents (int lp_player) {
+    string lv_cmd = "TerranRaynor";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 死水元帅 (CommanderPrestigeRaynorBio)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeRaynorBio")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeRaynorBio", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeRaynorBioMarineUpgrade", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeRaynorBioFirebatUpgrade", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeRaynorBioUpgradeTerranInfantryArmorLevel1", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeRaynorBioUpgradeTerranInfantryArmorLevel2", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeRaynorBioUpgradeTerranInfantryArmorLevel3", 1);
+        if (libE0EAE146_gf_TalentExtraOptionEnabled(lv_cmd, "CommanderPrestigeRaynorBio", "BioSuperStim")) {
+            libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeRaynorBioSuperStim", 1);
+        }
+    }
+
+    // [1] switch: 狂暴骑手 (CommanderPrestigeRaynorMechAfterburners)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeRaynorMechAfterburners")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeRaynorMechAfterburners", 1);
+    }
+
+    // [2] switch: 起义军游骑兵 (CommanderPrestigeRaynorAir)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeRaynorAir")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeRaynorAir", 1);
+    }
+
+    // [3] level: 资源费用 (RaynorMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "RaynorMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryRaynorResearchCost", lv_lvl_0);
+    }
+
+    // [4] level: 空投舱急速 (RaynorMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "RaynorMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryRaynorDropPodHaste", lv_lvl_1);
+    }
+
+    // [5] level: 休伯利安号冷却时间 (RaynorMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "RaynorMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryRaynorHyperionCooldown", lv_lvl_2);
+    }
+
+    // [6] level: 女妖冷却时间 (RaynorMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "RaynorMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryRaynorDuskWingCooldown", lv_lvl_3);
+    }
+
+    // [7] level: 医疗兵额外目标治疗 (RaynorMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "RaynorMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryRaynorMedicSecondaryHeal", lv_lvl_4);
+    }
+
+    // [8] level: 机械部队攻击速度 (RaynorMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "RaynorMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryRaynorMechAttackSpeed", lv_lvl_5);
+    }
+}
+
+// TerranRaynorX: no talents (empty config)
+void libE0EAE146_gf_ApplyRaynorXTalents (int lp_player) {
+    // No talents defined for this commander
+}
+
+// ZergStetmann: 9 talents
+void libE0EAE146_gf_ApplyStetmannTalents (int lp_player) {
+    string lv_cmd = "ZergStetmann";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 信号专家 (CommanderPrestigeStetmannStetellites)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeStetmannStetellites")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeStetmannStetellites", 1);
+    }
+
+    // [1] switch: 最佳伙伴 (CommanderPrestigeStetmannGary)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeStetmannGary")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeStetmannGary", 1);
+    }
+
+    // [2] switch: 石油大王 (CommanderPrestigeStetmannCombatBuff)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeStetmannCombatBuff")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeStetmannCombatBuff", 1);
+    }
+
+    // [3] level: 升级资源费用 (StetmannMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "StetmannMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryStetmannUpgradeResearchCost", lv_lvl_0);
+    }
+
+    // [4] level: 盖瑞技能冷却时间 (StetmannMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "StetmannMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryStetmannGaryAbilityCooldown", lv_lvl_1);
+    }
+
+    // [5] level: “爱心区域”加成效果 (StetmannMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "StetmannMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryStetmannStetzoneBonuses", lv_lvl_2);
+    }
+
+    // [6] level: 艾能池上限 (StetmannMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "StetmannMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryStetmannMaximumEgonergyPool", lv_lvl_3);
+    }
+
+    // [7] level: 部署艾星冷却时间 (StetmannMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "StetmannMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryStetmannDeployStetelliteCooldown", lv_lvl_4);
+    }
+
+    // [8] level: 建筑变形速度 (StetmannMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "StetmannMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryStetmannStructureMorphRate", lv_lvl_5);
+    }
+}
+
+// ZergStukov: 9 talents
+void libE0EAE146_gf_ApplyStukovTalents (int lp_player) {
+    string lv_cmd = "ZergStukov";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 惊人血肉焊机 (CommanderPrestigeStukovMech)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeStukovMech")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeStukovMech", 1);
+    }
+
+    // [1] switch: 瘟疫守望者 (CommanderPrestigeStukovBanshees)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeStukovBanshees")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeStukovBanshees", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeStukovBansheesMastery", 1);
+        if (libE0EAE146_gf_TalentExtraOptionEnabled(lv_cmd, "CommanderPrestigeStukovBanshees", "P2SpawnInfestedMarineInBanshee")) {
+            libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeStukovP2SpawnInfestedMarineInBanshee", 1);
+        }
+    }
+
+    // [2] switch: 尸群领主 (CommanderPrestigeStukovBunkers)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeStukovBunkers")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeStukovBunkers", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeStukovBunkersPerk", 1);
+    }
+
+    // [3] level: 平民孵化易爆感染体的几率 (StukovMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "StukovMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryStukovVolatileChance", lv_lvl_0);
+    }
+
+    // [4] level: 感染建筑冷却时间缩短 (StukovMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "StukovMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryStukovInfestStructureCDR", lv_lvl_1);
+    }
+
+    // [5] level: 亚历山大号冷却时间缩短 (StukovMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "StukovMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryStukovAleksanderCDR", lv_lvl_2);
+    }
+
+    // [6] level: 末日巨兽冷却时间缩短 (StukovMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "StukovMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryStukovApocaliskCDR", lv_lvl_3);
+    }
+
+    // [7] level: Extend infested civ/marine timed life (StukovMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "StukovMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryStukovTimedLife", lv_lvl_4);
+    }
+
+    // [8] level: 重工厂和星港单位的攻击速度加快 (StukovMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "StukovMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryStukovMechAttackSpeed", lv_lvl_5);
+    }
+}
+
+// TerranSwann: 9 talents
+void libE0EAE146_gf_ApplySwannTalents (int lp_player) {
+    string lv_cmd = "TerranSwann";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 重武器专家 (CommanderPrestigeSwannDrill)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeSwannDrill")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeSwannDrill", 1);
+    }
+
+    // [1] switch: 机械修理工 (CommanderPrestigeSwannTurrets)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeSwannTurrets")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeSwannTurrets", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeSwannTurretsArmor", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeSwannTurretsRange", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeSwannTurretsAttackSpeed", 1);
+    }
+
+    // [2] switch: 运载总监 (CommanderPrestigeSwannHercules)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeSwannHercules")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeSwannHercules", 1);
+    }
+
+    // [3] level: 汇聚射线的伤害和宽度 (SwannMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "SwannMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasterySwannConcentratedBeam", lv_lvl_0);
+    }
+
+    // [4] level: 战斗空投的持续时间和生命值 (SwannMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "SwannMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasterySwannCombatDrop", lv_lvl_1);
+    }
+
+    // [5] level: 永生程序的消耗与用时 (SwannMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "SwannMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasterySwannImmortalityProtocol", lv_lvl_2);
+    }
+
+    // [6] level: 建筑生命值 (SwannMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "SwannMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasterySwannBuildingHealth", lv_lvl_3);
+    }
+
+    // [7] level: 减少瓦斯采集器消耗 (SwannMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "SwannMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasterySwannVespeneHarvesterCost", lv_lvl_4);
+    }
+
+    // [8] level: 激光钻机建造时间、升级时间以及升级费用 (SwannMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "SwannMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasterySwannLaserDrillBuildTime", lv_lvl_5);
+    }
+}
+
+// TestZerg: no talents (empty config)
+void libE0EAE146_gf_ApplyTestZergTalents (int lp_player) {
+    // No talents defined for this commander
+}
+
+// TerranTychus: 9 talents
+void libE0EAE146_gf_ApplyTychusTalents (int lp_player) {
+    string lv_cmd = "TerranTychus";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 技术招聘专员 (CommanderPrestigeTychusSquadAbilities)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeTychusSquadAbilities")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeTychusSquadAbilities", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeTychusSquadAbilitiesMastery", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeTychusSquadAbilitiesMasteryGrenadeCooldown", 1);
+    }
+
+    // [1] switch: 独狼 (CommanderPrestigeTychusLoneWolf)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeTychusLoneWolf")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeTychusLoneWolf", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeTychusLoneWolfPerk", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeTychusLoneWolfRecruitment", 1);
+    }
+
+    // [2] switch: 忠诚遛狗师 (CommanderPrestigeTychusOdin)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeTychusOdin")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeTychusOdin", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeTychusOdinMastery", 1);
+    }
+
+    // [3] level: 泰凯斯攻击速度 (TychusMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "TychusMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryTychusCommanderAttackSpeed", lv_lvl_0);
+    }
+
+    // [4] level: 泰凯斯粉碎者手雷冷却时间 (TychusMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "TychusMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryTychusGrenadeCooldown", lv_lvl_1);
+    }
+
+    // [5] level: 三种不法之徒研究强化 (TychusMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "TychusMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryTychusUpgradesIncrease", lv_lvl_2);
+    }
+
+    // [6] level: 不法之徒可用性 (TychusMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "TychusMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryTychusHeroCooldown", lv_lvl_3);
+    }
+
+    // [7] level: 医疗运输机空运冷却时间 (TychusMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "TychusMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryTychusMedivacBuff", lv_lvl_4);
+    }
+
+    // [8] level: 奥丁冷却时间 (TychusMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "TychusMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryTychusOdinCooldown", lv_lvl_5);
+    }
+}
+
+// ProtossVorazun: 9 talents
+void libE0EAE146_gf_ApplyVorazunTalents (int lp_player) {
+    string lv_cmd = "ProtossVorazun";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 精神休憩 (CommanderPrestigeVorazunEmergencyRecall)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeVorazunEmergencyRecall")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeVorazunEmergencyRecall", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeVorazunEmergencyRecallSeekPylon", 1);
+    }
+
+    // [1] switch: 凋零虹吸 (CommanderPrestigeVorazunStasis)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeVorazunStasis")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeVorazunStasis", 1);
+    }
+
+    // [2] switch: 暗影守护者 (CommanderPrestigeVorazunTimeStop)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeVorazunTimeStop")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeVorazunTimeStop", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeVorazunTimeStopMastery", 1);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("CommanderPrestigeVorazunTimeStop", 0), true);
+    }
+
+    // [3] level: 黑暗水晶塔范围 (VorazunMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "VorazunMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryVorazunDarkPylonRadius", lv_lvl_0);
+    }
+
+    // [4] level: 黑洞持续时间 (VorazunMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "VorazunMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryVorazunBlackHoleDuration", lv_lvl_1);
+    }
+
+    // [5] level: 暗影卫队持续时间 (VorazunMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "VorazunMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryVorazunShadowGuardDuration", lv_lvl_2);
+    }
+
+    // [6] level: 时间停止急速 (VorazunMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "VorazunMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryVorazunTimeStopHaste", lv_lvl_3);
+    }
+
+    // [7] level: 时空提速速度 (VorazunMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "VorazunMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryVorazunChronoBoostSpeed", lv_lvl_4);
+    }
+
+    // [8] level: 亚顿之矛初始和最大能量 (VorazunMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "VorazunMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryVorazunStartingAndMaxSoAEnergy", lv_lvl_5);
+    }
+}
+
+// ZergZagara: 9 talents
+void libE0EAE146_gf_ApplyZagaraTalents (int lp_player) {
+    string lv_cmd = "ZergZagara";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 爆蚊虫后 (CommanderPrestigeZagaraMaxSupply)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeZagaraMaxSupply")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeZagaraMaxSupply", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeZagaraMaxSupplyScourgeCostUpgrade", 1);
+    }
+
+    // [1] switch: 构造体之母 (CommanderPrestigeZagaraCorruptorsAberrations)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeZagaraCorruptorsAberrations")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeZagaraCorruptorsAberrations", 1);
+    }
+
+    // [2] switch: 顶级掠食者 (CommanderPrestigeZagaraZagara)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeZagaraZagara")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeZagaraZagara", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeZagaraZagaraMastery", 1);
+        TechTreeAbilityAllow(lp_player, AbilityCommand("CommanderPrestigeZagaraZagaraDeepTunnel", 0), true);
+    }
+
+    // [3] level: 生命值和能量回复速度 (ZagaraMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ZagaraMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryZagaraHealthAndEnergyRegen", lv_lvl_0);
+    }
+
+    // [4] level: 自动攻击伤害 (ZagaraMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ZagaraMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryZagaraAutoAttackDamage", lv_lvl_1);
+    }
+
+    // [5] level: 群体狂暴速度提升 (ZagaraMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ZagaraMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryZagaraMassFrenzySpeedBoost", lv_lvl_2);
+    }
+
+    // [6] level: 跳虫躲闪几率 (ZagaraMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ZagaraMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryZagaraZerglingDodgeChance", lv_lvl_3);
+    }
+
+    // [7] level: 空投蟑螂伤害和生命值 (ZagaraMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ZagaraMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryZagaraRoachDropDamageAndHealth", lv_lvl_4);
+    }
+
+    // [8] level: 爆虫伤害 (ZagaraMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ZagaraMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryZagaraBanelingsDamage", lv_lvl_5);
+    }
+}
+
+// ProtossZeratul: 9 talents
+void libE0EAE146_gf_ApplyZeratulTalents (int lp_player) {
+    string lv_cmd = "ProtossZeratul";
+    int lv_lvl_0;
+    int lv_lvl_1;
+    int lv_lvl_2;
+    int lv_lvl_3;
+    int lv_lvl_4;
+    int lv_lvl_5;
+
+    // [0] switch: 黎明使徒 (CommanderPrestigeZeratulVoidSeeker)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeZeratulVoidSeeker")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeZeratulVoidSeeker", 1);
+    }
+
+    // [1] switch: 知识探求者 (CommanderPrestigeZeratulArtifactFragments)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeZeratulArtifactFragments")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeZeratulArtifactFragments", 1);
+    }
+
+    // [2] switch: 虚空先驱 (CommanderPrestigeZeratulTornadoes)
+    if (libE0EAE146_gf_TalentBankEnabled(lv_cmd, "CommanderPrestigeZeratulTornadoes")) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeZeratulTornadoes", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeZeratulTornadoesShadowCleave1", 1);
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "CommanderPrestigeZeratulTornadoesShadowCleave2", 1);
+    }
+
+    // [3] level: 泽拉图攻击速度 (ZeratulMastery1)
+    lv_lvl_0 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ZeratulMastery1");
+    if (lv_lvl_0 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryZeratulZeratulAttackSpeed", lv_lvl_0);
+    }
+
+    // [4] level: 战斗单位攻击速度 (ZeratulMastery2)
+    lv_lvl_1 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ZeratulMastery2");
+    if (lv_lvl_1 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryZeratulCombatUnitAttackSpeed", lv_lvl_1);
+    }
+
+    // [5] level: 神器碎片刷新速度 (ZeratulMastery3)
+    lv_lvl_2 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ZeratulMastery3");
+    if (lv_lvl_2 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryZeratulArtifactFragmentSpawnRate", lv_lvl_2);
+    }
+
+    // [6] level: 支援力量冷却时间缩减 (ZeratulMastery4)
+    lv_lvl_3 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ZeratulMastery4");
+    if (lv_lvl_3 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryZeratulSupportCalldownCooldownReduction", lv_lvl_3);
+    }
+
+    // [7] level: 传奇军团费用 (ZeratulMastery5)
+    lv_lvl_4 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ZeratulMastery5");
+    if (lv_lvl_4 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryZeratulLegendaryLegionCost", lv_lvl_4);
+    }
+
+    // [8] level: 化身冷却时间 (ZeratulMastery6)
+    lv_lvl_5 = libE0EAE146_gf_TalentBankValue(lv_cmd, "ZeratulMastery6");
+    if (lv_lvl_5 > 0) {
+        libE0EAE146_gf_CommanderPowerSetUpgradeAtLeast(lp_player, "MasteryZeratulAvatarCooldown", lv_lvl_5);
+    }
+}
+
+// ---- Dispatcher ----
+bool libE0EAE146_gf_ApplyTalentsForCommander (int lp_player, string lp_commander) {
+    if (lp_commander == "ZergAbathur") { libE0EAE146_gf_ApplyAbathurTalents(lp_player); return true; }
+    if (lp_commander == "ZergAbathurReborn") { libE0EAE146_gf_ApplyAbathurRebornTalents(lp_player); return true; }
+    if (lp_commander == "ProtossAlarak") { libE0EAE146_gf_ApplyAlarakTalents(lp_player); return true; }
+    if (lp_commander == "TerranAlenger3") { libE0EAE146_gf_ApplyAlenger3Talents(lp_player); return true; }
+    if (lp_commander == "ProtossArtanis") { libE0EAE146_gf_ApplyArtanisTalents(lp_player); return true; }
+    if (lp_commander == "ZergDehaka") { libE0EAE146_gf_ApplyDehakaTalents(lp_player); return true; }
+    if (lp_commander == "ProtossFenix") { libE0EAE146_gf_ApplyFenixTalents(lp_player); return true; }
+    if (lp_commander == "TerranHorner") { libE0EAE146_gf_ApplyHornerTalents(lp_player); return true; }
+    if (lp_commander == "Izsha") { libE0EAE146_gf_ApplyIzshaTalents(lp_player); return true; }
+    if (lp_commander == "ProtossKarax") { libE0EAE146_gf_ApplyKaraxTalents(lp_player); return true; }
+    if (lp_commander == "ZergKerrigan") { libE0EAE146_gf_ApplyKerriganTalents(lp_player); return true; }
+    if (lp_commander == "TerranMengsk") { libE0EAE146_gf_ApplyMengskTalents(lp_player); return true; }
+    if (lp_commander == "TerranNova") { libE0EAE146_gf_ApplyNovaTalents(lp_player); return true; }
+    if (lp_commander == "TerranRaynor") { libE0EAE146_gf_ApplyRaynorTalents(lp_player); return true; }
+    if (lp_commander == "TerranRaynorX") { libE0EAE146_gf_ApplyRaynorXTalents(lp_player); return true; }
+    if (lp_commander == "ZergStetmann") { libE0EAE146_gf_ApplyStetmannTalents(lp_player); return true; }
+    if (lp_commander == "ZergStukov") { libE0EAE146_gf_ApplyStukovTalents(lp_player); return true; }
+    if (lp_commander == "TerranSwann") { libE0EAE146_gf_ApplySwannTalents(lp_player); return true; }
+    if (lp_commander == "TestZerg") { libE0EAE146_gf_ApplyTestZergTalents(lp_player); return true; }
+    if (lp_commander == "TerranTychus") { libE0EAE146_gf_ApplyTychusTalents(lp_player); return true; }
+    if (lp_commander == "ProtossVorazun") { libE0EAE146_gf_ApplyVorazunTalents(lp_player); return true; }
+    if (lp_commander == "ZergZagara") { libE0EAE146_gf_ApplyZagaraTalents(lp_player); return true; }
+    if (lp_commander == "ProtossZeratul") { libE0EAE146_gf_ApplyZeratulTalents(lp_player); return true; }
+    return false;
+}
+

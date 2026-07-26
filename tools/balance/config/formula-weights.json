@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "description": "平衡公式 v4 权重常量。与设计文档 1.x 节一致；可在迭代时调整。",
+  "cost": {
+    "minerals_coeff": 1.0,
+    "vespene_coeff": 3.0,
+    "supply_squared_coeff": 0.5,
+    "buildtime_coeff": 0.05
+  },
+  "ehp": {
+    "armor_dr_per_point": 0.05,
+    "structure_penalty": 0.6
+  },
+  "range_factor": {
+    "per_range_above_3": 0.05,
+    "reference_range": 3
+  },
+  "splash_factor": {
+    "brackets": [
+      { "max_radius": 1.0, "factor": 1.00, "label": "single-target" },
+      { "max_radius": 2.0, "factor": 1.15, "label": "small-aoe" },
+      { "max_radius": 3.5, "factor": 1.30, "label": "medium-aoe" },
+      { "max_radius": "infinity", "factor": 1.45, "label": "large-aoe" }
+    ]
+  },
+  "role_modifier": {
+    "ground_ground_only": 1.00,
+    "ground_dual": 1.05,
+    "air_ground_only": 1.10,
+    "air_air_only": 1.05,
+    "air_dual": 1.20,
+    "hero": 0.5,
+    "worker": 0.3,
+    "structure": 0.5
+  },
+  "scenario_discount": {
+    "specialized": 0.85,
+    "tank": 0.85
+  },
+  "skill_value": {
+    "cloak": 50,
+    "heal": 25,
+    "blink": 25,
+    "summon": 30,
+    "stun": 30,
+    "revive": 80
+  },
+  "skill_keywords": {
+    "cloak": ["Cloak", "cloaked", "yinshen", "隐身", "YinShen", "Stealth"],
+    "heal":  ["Heal", "heal", "zhiliao", "治疗", "ZhiLiao", "Medic", "Repair"],
+    "blink": ["Blink", "blink", "shunyi", "瞬移", "ShunYi", "Teleport"],
+    "summon": ["Summon", "summon", "zhaohuan", "召唤", "ZhaoHuan", "BroodLord", "Broodlord", "SwarmHost"],
+    "stun":   ["Stun", "stun", "xuanyun", "眩晕", "XuanYun", "Stasis", "Fungal"]
+  },
+  "outlier": {
+    "z_threshold": 2.0
+  },
+  "tank_role": {
+    "ehp_to_cost_ratio_factor": 1.5,
+    "dps_to_cost_ratio_factor": 0.6
+  },
+  "specialized_role": {
+    "dps_ratio_threshold": 1.5,
+    "anti_air_ground_dps_threshold_pct": 0.10
+  },
+  "patch_suggestion": {
+    "z_decay_coeff": 0.15,
+    "clamp_min": 0.70,
+    "clamp_max": 1.30
+  },
+  "counter_matrix": {
+    "severity_extreme_sigma": 3.0,
+    "top_n": 10
+  },
+  "group_keys": {
+    "races": ["Terr", "Prot", "Zerg"],
+    "roles": ["splash", "anti_light", "anti_armored", "anti_air", "anti_massive", "tank", "generalist"]
+  }
+}

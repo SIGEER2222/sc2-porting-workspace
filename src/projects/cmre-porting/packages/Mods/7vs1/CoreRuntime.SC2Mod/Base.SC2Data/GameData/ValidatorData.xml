@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<Catalog>
+    <CValidatorLocationEnumArea id="ProphecyArtifactNearby">
+        <SearchFilters value="-;Ally,Neutral,Enemy,Missile,Dead"/>
+    </CValidatorLocationEnumArea>
+    <CValidatorPlayerRequirement id="CommanderPowerNovaSuperCloakFusion">
+        <WhichPlayer Value="Creator"/>
+        <Find value="1"/>
+        <UnitSelectionNotRequired value="1"/>
+        <Value value="CommanderPowerNovaSuperCloakFusion"/>
+    </CValidatorPlayerRequirement>
+    <CValidatorUnitCompareBehaviorCount id="BiomassBuff1CountGE1">
+        <Behavior value="BiomassBuff1"/>
+        <Compare value="GE"/>
+        <Value value="1"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="BiomassBuff10CountGE1">
+        <Behavior value="BiomassBuff10"/>
+        <Compare value="GE"/>
+        <Value value="1"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="BiomassBuff100CountGE1">
+        <Behavior value="BiomassBuff100"/>
+        <Compare value="GE"/>
+        <Value value="1"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorCombine id="BiomassUICheck3">
+        <Type value="And"/>
+        <CombineArray value="BiomassBuff100CountGE1"/>
+    </CValidatorCombine>
+    <CValidatorCombine id="BiomassUICheck2">
+        <Type value="And"/>
+        <CombineArray value="BiomassBuff100CountLT1"/>
+        <CombineArray value="BiomassBuff10CountGE1"/>
+    </CValidatorCombine>
+    <CValidatorCombine id="BiomassUICheck1">
+        <Type value="And"/>
+        <CombineArray value="BiomassBuff10CountLT1"/>
+        <CombineArray value="BiomassBuff1CountGE1"/>
+    </CValidatorCombine>
+    <CValidatorUnitCompareBehaviorCount id="BiomassBuff1CountGE10">
+        <Behavior value="BiomassBuff1"/>
+        <Compare value="GE"/>
+        <Value value="10"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="BiomassBuff10CountGE10">
+        <Behavior value="BiomassBuff10"/>
+        <Compare value="GE"/>
+        <Value value="10"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="BiomassBuff100CountLT1">
+        <Compare value="LT"/>
+        <Value value="2"/>
+        <Behavior value="BiomassBuff100"/>
+        <ResultFailed value="Error,Error/MaxBiomass"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="BiomassBuff10CountLT1">
+        <Compare value="LT"/>
+        <Value value="1"/>
+        <Behavior value="BiomassBuff10"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorCombine id="BiomassBuffTargetLow">
+        <Type value="And"/>
+        <CombineArray value="BiomassBuff100CountLT1"/>
+        <CombineArray value="BiomassBuff10CountLT1"/>
+    </CValidatorCombine>
+    <CValidatorCombine id="BiomassBuffTargetMed">
+        <Type value="And"/>
+        <CombineArray value="BiomassBuff100CountLT1"/>
+    </CValidatorCombine>
+    <!-- ===== SOAStickyPoint 框架验证器（移植自 0.81 XMCore）===== -->
+    <CValidatorUnitFilters id="IsUncommandable">
+        <Filters value="Uncommandable;-"/>
+    </CValidatorUnitFilters>
+    <CValidatorCombine id="MinorGoalAndUncommandable">
+        <Type value="And"/>
+        <CombineArray value="MinorGoal"/>
+        <CombineArray value="IsUncommandable"/>
+    </CValidatorCombine>
+    <CValidatorUnitCompareBehaviorCount id="NotMinorGoal">
+        <Behavior value="MinorGoal"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="MinorGoal">
+        <Compare value="GT"/>
+        <Behavior value="MinorGoal"/>
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorCombine id="SOAPointFilter">
+        <CombineArray value="NotMinorGoal"/>
+        <CombineArray value="MinorGoalAndUncommandable"/>
+    </CValidatorCombine>
+</Catalog>

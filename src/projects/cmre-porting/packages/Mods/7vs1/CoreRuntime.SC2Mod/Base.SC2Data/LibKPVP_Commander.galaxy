@@ -1,0 +1,144 @@
+include "LibKPVP_h"
+include "LibKPVP_Swann"
+
+//--------------------------------------------------------------------------------------------------
+// Commander attribute resolution: resolve from bank first, fallback to GameAttributePlayerValue
+//--------------------------------------------------------------------------------------------------
+string libKPVP_gf_codex_commander_attribute_from_bank_key (string lp_bankKey) {
+    if (lp_bankKey == "Abathur") {
+        return "0001";
+    }
+    else if (lp_bankKey == "AbathurReborn") {
+        return "0018";
+    }
+    else if (lp_bankKey == "Alarak") {
+        return "0002";
+    }
+    else if (lp_bankKey == "Artanis") {
+        return "0003";
+    }
+    else if (lp_bankKey == "Dehaka") {
+        return "0004";
+    }
+    else if (lp_bankKey == "Fenix") {
+        return "0005";
+    }
+    else if (lp_bankKey == "Horner") {
+        return "0006";
+    }
+    else if (lp_bankKey == "Karax") {
+        return "0007";
+    }
+    else if (lp_bankKey == "Kerrigan") {
+        return "0008";
+    }
+    else if (lp_bankKey == "Nova") {
+        return "0009";
+    }
+    else if (lp_bankKey == "Raynor") {
+        return "0010";
+    }
+    else if (lp_bankKey == "Stukov") {
+        return "0011";
+    }
+    else if (lp_bankKey == "Swann") {
+        return "0012";
+    }
+    else if (lp_bankKey == "Vorazun") {
+        return "0013";
+    }
+    else if (lp_bankKey == "Zagara") {
+        return "0014";
+    }
+    else if (lp_bankKey == "Tychus") {
+        return "0016";
+    }
+    else if (lp_bankKey == "Zeratul") {
+        return "0017";
+    }
+    else if (lp_bankKey == "Stetmann") {
+        return "0018";
+    }
+    else if (lp_bankKey == "Mengsk") {
+        return "0019";
+    }
+    else if (lp_bankKey == "Alenger3") {
+        return "0020";
+    }
+    else if (lp_bankKey == "Alenger1") {
+        return "0021";
+    }
+    else if (lp_bankKey == "Alenger6") { return "0022"; }
+    else if (lp_bankKey == "Alenger8") { return "0023"; }
+    else if (lp_bankKey == "Alenger9") { return "0024"; }
+    else if (lp_bankKey == "Alenger12") { return "0025"; }
+    else if (lp_bankKey == "Alenger13") { return "0026"; }
+    else if (lp_bankKey == "Alenger2") { return "0027"; }
+    else if (lp_bankKey == "Alenger7") { return "0028"; }
+    else if (lp_bankKey == "Alenger10") { return "0029"; }
+    else if (lp_bankKey == "Alenger11") { return "002A"; }
+
+    return "";
+}
+
+string libKPVP_gf_codex_commander_attribute_for_runtime_player (int lp_player) {
+    string lv_bankKey;
+    string lv_bankAttribute;
+    string lv_slotKey;
+
+    lv_bankKey = "";
+    lv_slotKey = ("CommanderP" + IntToString(lp_player));
+    BankLoad("CampaignXCore", 1);
+    if (BankKeyExists(BankLastCreated(), "XMRuntimeControl", lv_slotKey)) {
+        lv_bankKey = BankValueGetAsString(BankLastCreated(), "XMRuntimeControl", lv_slotKey);
+    }
+    if ((lv_bankKey == "") && BankKeyExists(BankLastCreated(), "XMRuntimeControl", "PrimaryCommander")) {
+        lv_bankKey = BankValueGetAsString(BankLastCreated(), "XMRuntimeControl", "PrimaryCommander");
+    }
+    lv_bankAttribute = libKPVP_gf_codex_commander_attribute_from_bank_key(lv_bankKey);
+    if (lv_bankAttribute != "") {
+        return lv_bankAttribute;
+    }
+
+    return GameAttributePlayerValue("[bnet:local/0.0/223536]1", lp_player);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Post-lobby initialization for commander-specific runtime logic
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gf_codex_post_lobby_init () {
+    int lv_player;
+    string lv_commander;
+    playergroup autoCodexCommanders_g;
+
+    autoCodexCommanders_g = libKCOR_gf_CommanderPlayers();
+    lv_player = -1;
+    while (true) {
+        lv_player = PlayerGroupNextPlayer(autoCodexCommanders_g, lv_player);
+        if (lv_player < 0) { break; }
+        lv_commander = libKCOR_gf_ActiveCommanderForPlayer(lv_player);
+        if (lv_commander == "TerranSwann") {
+            libKPVP_gf_codex_swann_init(lv_player);
+        }
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+// Get primary commander name from runtime bank (for LibE0EAE146)
+//--------------------------------------------------------------------------------------------------
+string libKPVP_gf_CodexPrimaryCommanderName () {
+    string lv_bankKey;
+    string lv_slotKey;
+
+    lv_bankKey = "";
+    lv_slotKey = ("CommanderP" + IntToString(1));
+    BankLoad("CampaignXCore", 1);
+    if (BankKeyExists(BankLastCreated(), "XMRuntimeControl", lv_slotKey)) {
+        lv_bankKey = BankValueGetAsString(BankLastCreated(), "XMRuntimeControl", lv_slotKey);
+    }
+    if ((lv_bankKey == "") && BankKeyExists(BankLastCreated(), "XMRuntimeControl", "PrimaryCommander")) {
+        lv_bankKey = BankValueGetAsString(BankLastCreated(), "XMRuntimeControl", "PrimaryCommander");
+    }
+
+    return lv_bankKey;
+}

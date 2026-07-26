@@ -1,0 +1,1744 @@
+// XMFinal split module: runtime initialization safety helpers.
+
+string libE0EAE146_gf_CodexTestPrimaryCommander () {
+    return libE0EAE146_gf_CodexPrimaryCommanderName();
+}
+
+string libE0EAE146_gf_RuntimePrimaryCommander () {
+    string lv_primaryCommander;
+
+    lv_primaryCommander = libE0EAE146_gf_CodexTestPrimaryCommander();
+    if (lv_primaryCommander != "") {
+        if (lv_primaryCommander == "Alenger3") {
+            return "Alenger3";
+        }
+        return lv_primaryCommander;
+    }
+
+    lv_primaryCommander = BankValueGetAsString(BankLastCreated(), "XMRuntimeControl", "PrimaryCommander");
+    if (lv_primaryCommander != "") {
+        if (lv_primaryCommander == "Alenger3") {
+            return "Alenger3";
+        }
+        return lv_primaryCommander;
+    }
+
+    lv_primaryCommander = BankValueGetAsString(BankLastCreated(), "Ach", "Commander");
+    if (lv_primaryCommander == "Alenger3") {
+        return "Alenger3";
+    }
+    return lv_primaryCommander;
+}
+
+void libE0EAE146_gf_RuntimeLog (int lp_level, string lp_category, string lp_event, int lp_player, string lp_valueA, string lp_valueB, int lp_valueInt) {
+    string lv_category;
+    string lv_event;
+    string lv_prefix;
+    int lv_count;
+
+    lv_category = lp_category;
+    if (lv_category == "") {
+        lv_category = "General";
+    }
+    lv_event = lp_event;
+    if (lv_event == "") {
+        lv_event = "Unnamed";
+    }
+
+    lv_prefix = ("XMRuntimeLog_" + lv_category + "_" + lv_event);
+    lv_count = (DataTableGetInt(true, (lv_prefix + "_Count")) + 1);
+    DataTableSetInt(true, (lv_prefix + "_Count"), lv_count);
+    DataTableSetInt(true, (lv_prefix + "_Level"), lp_level);
+    DataTableSetInt(true, (lv_prefix + "_Player"), lp_player);
+    DataTableSetString(true, (lv_prefix + "_ValueA"), lp_valueA);
+    DataTableSetString(true, (lv_prefix + "_ValueB"), lp_valueB);
+    DataTableSetInt(true, (lv_prefix + "_ValueInt"), lp_valueInt);
+
+    if ((lp_level >= 3) || (lv_count <= 3) || (ModI(lv_count, 10) == 0)) {
+        BankLoad("CampaignXCore", 1);
+        BankValueSetFromString(BankLastCreated(), "XMRuntimeLog", "LastCategory", lv_category);
+        BankValueSetFromString(BankLastCreated(), "XMRuntimeLog", "LastEvent", lv_event);
+        BankValueSetFromInt(BankLastCreated(), "XMRuntimeLog", "LastLevel", lp_level);
+        BankValueSetFromInt(BankLastCreated(), "XMRuntimeLog", "LastPlayer", lp_player);
+        BankValueSetFromString(BankLastCreated(), "XMRuntimeLog", "LastValueA", lp_valueA);
+        BankValueSetFromString(BankLastCreated(), "XMRuntimeLog", "LastValueB", lp_valueB);
+        BankValueSetFromInt(BankLastCreated(), "XMRuntimeLog", "LastValueInt", lp_valueInt);
+        BankValueSetFromInt(BankLastCreated(), "XMRuntimeLog", (lv_category + "_" + lv_event + "_Count"), lv_count);
+        BankValueSetFromString(BankLastCreated(), "XMRuntimeLog", "RunId", BankValueGetAsString(BankLastCreated(), "XMRuntimeControl", "TestRunId"));
+        BankValueSetFromString(BankLastCreated(), "XMRuntimeLog", "Commander", libE0EAE146_gv_commander);
+        BankValueSetFromString(BankLastCreated(), "XMRuntimeLog", "MapId", libE0EAE146_gv_currentMapId);
+        BankSave(BankLastCreated());
+    }
+}
+
+void libE0EAE146_gf_SeedDefaultCommanderBankIfEmpty (string lp_defaultCommander) {
+    string lv_testRunId;
+    string lv_primaryCommander;
+
+    if (lp_defaultCommander == "") {
+        return;
+    }
+
+    BankLoad("CampaignXCore", 1);
+    lv_testRunId = BankValueGetAsString(BankLastCreated(), "XMRuntimeControl", "TestRunId");
+    lv_primaryCommander = libE0EAE146_gf_RuntimePrimaryCommander();
+    if ((lv_testRunId != "") && (lv_primaryCommander != "")) {
+        BankValueSetFromString(BankLastCreated(), "Ach", "Commander", lv_primaryCommander);
+        BankSave(BankLastCreated());
+    }
+    else if (BankValueGetAsString(BankLastCreated(), "Ach", "Commander") == "") {
+        BankValueSetFromString(BankLastCreated(), "Ach", "Commander", lp_defaultCommander);
+        BankSave(BankLastCreated());
+    }
+}
+
+void libE0EAE146_gf_RuntimeCheckpoint (string lp_phase) {
+    libE0EAE146_gf_RuntimeLog(1, "Checkpoint", lp_phase, 1, libE0EAE146_gv_commander, libE0EAE146_gv_currentMapId, 0);
+    BankLoad("CampaignXCore", 1);
+    BankValueSetFromString(BankLastCreated(), "XMRuntimeDebug", "LastPhase", lp_phase);
+    BankValueSetFromString(BankLastCreated(), "XMRuntimeDebug", "Commander", libE0EAE146_gv_commander);
+    BankValueSetFromString(BankLastCreated(), "XMRuntimeDebug", "RunId", BankValueGetAsString(BankLastCreated(), "XMRuntimeControl", "TestRunId"));
+    BankValueSetFromString(BankLastCreated(), "XMRuntimeDebug", "PrimaryCommander", BankValueGetAsString(BankLastCreated(), "XMRuntimeControl", "PrimaryCommander"));
+    BankValueSetFromString(BankLastCreated(), "XMRuntimeDebug", "AchCommander", BankValueGetAsString(BankLastCreated(), "Ach", "Commander"));
+    BankSave(BankLastCreated());
+}
+
+void libE0EAE146_gf_RuntimeVisualProbe (string lp_source, int lp_player, string lp_valueA, string lp_valueB, int lp_valueInt) {
+    string lv_keyBase;
+    int lv_count;
+    int lv_playerColor;
+
+    lv_keyBase = ("XMRuntimeVisualProbe_" + lp_source);
+    lv_count = (DataTableGetInt(true, (lv_keyBase + "_Count")) + 1);
+    DataTableSetInt(true, (lv_keyBase + "_Count"), lv_count);
+    DataTableSetString(true, (lv_keyBase + "_ValueA"), lp_valueA);
+    DataTableSetString(true, (lv_keyBase + "_ValueB"), lp_valueB);
+    DataTableSetInt(true, (lv_keyBase + "_ValueInt"), lp_valueInt);
+    DataTableSetInt(true, (lv_keyBase + "_Player"), lp_player);
+    libE0EAE146_gf_RuntimeLog(1, "VisualProbe", lp_source, lp_player, lp_valueA, lp_valueB, lp_valueInt);
+    lv_playerColor = -1;
+    if (lp_player >= 0) {
+        lv_playerColor = PlayerGetColorIndex(lp_player, false);
+    }
+    DataTableSetInt(true, (lv_keyBase + "_PlayerColor"), lv_playerColor);
+    if ((lv_count <= 8) || (ModI(lv_count, 25) == 0)) {
+        BankLoad("CampaignXCore", 1);
+        BankValueSetFromString(BankLastCreated(), "XMRuntimeVisualProbe", "LastSource", lp_source);
+        BankValueSetFromInt(BankLastCreated(), "XMRuntimeVisualProbe", (lp_source + "_Count"), lv_count);
+        BankValueSetFromInt(BankLastCreated(), "XMRuntimeVisualProbe", (lp_source + "_Player"), lp_player);
+        BankValueSetFromInt(BankLastCreated(), "XMRuntimeVisualProbe", (lp_source + "_PlayerColor"), lv_playerColor);
+        BankValueSetFromString(BankLastCreated(), "XMRuntimeVisualProbe", (lp_source + "_ValueA"), lp_valueA);
+        BankValueSetFromString(BankLastCreated(), "XMRuntimeVisualProbe", (lp_source + "_ValueB"), lp_valueB);
+        BankValueSetFromInt(BankLastCreated(), "XMRuntimeVisualProbe", (lp_source + "_ValueInt"), lp_valueInt);
+        BankValueSetFromString(BankLastCreated(), "XMRuntimeVisualProbe", "RunId", BankValueGetAsString(BankLastCreated(), "XMRuntimeControl", "TestRunId"));
+        BankValueSetFromString(BankLastCreated(), "XMRuntimeVisualProbe", "Commander", libE0EAE146_gv_commander);
+        BankSave(BankLastCreated());
+    }
+}
+
+int libE0EAE146_gf_RuntimeUnitTypeCount (string lp_unitType) {
+    if (lp_unitType == "") {
+        return 0;
+    }
+
+    return UnitGroupCount(UnitGroup(lp_unitType, 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32))), 0), c_unitCountAlive);
+}
+
+void libE0EAE146_gf_RuntimeBaseCheckpoint (string lp_phase, string lp_townHallUnit, string lp_workerUnit, string lp_secondUnit) {
+    BankLoad("CampaignXCore", 1);
+    BankValueSetFromString(BankLastCreated(), "XMRuntimeDebug", "LastPhase", lp_phase);
+    BankValueSetFromString(BankLastCreated(), "XMRuntimeDebug", "Commander", libE0EAE146_gv_commander);
+    BankValueSetFromString(BankLastCreated(), "XMRuntimeDebug", "RunId", BankValueGetAsString(BankLastCreated(), "XMRuntimeControl", "TestRunId"));
+    BankValueSetFromString(BankLastCreated(), "XMRuntimeDebug", "PrimaryCommander", BankValueGetAsString(BankLastCreated(), "XMRuntimeControl", "PrimaryCommander"));
+    BankValueSetFromString(BankLastCreated(), "XMRuntimeDebug", "AchCommander", BankValueGetAsString(BankLastCreated(), "Ach", "Commander"));
+    BankValueSetFromString(BankLastCreated(), "XMRuntimeDebug", "TownHallUnit", lp_townHallUnit);
+    BankValueSetFromString(BankLastCreated(), "XMRuntimeDebug", "WorkerUnit", lp_workerUnit);
+    BankValueSetFromString(BankLastCreated(), "XMRuntimeDebug", "SecondUnit", lp_secondUnit);
+    BankValueSetFromInt(BankLastCreated(), "XMRuntimeDebug", "TownHallCount", libE0EAE146_gf_RuntimeUnitTypeCount(lp_townHallUnit));
+    BankValueSetFromInt(BankLastCreated(), "XMRuntimeDebug", "WorkerCount", libE0EAE146_gf_RuntimeUnitTypeCount(lp_workerUnit));
+    BankValueSetFromInt(BankLastCreated(), "XMRuntimeDebug", "SecondUnitCount", libE0EAE146_gf_RuntimeUnitTypeCount(lp_secondUnit));
+    BankSave(BankLastCreated());
+}
+
+void libE0EAE146_gf_RuntimeBaseProbe (string lp_key, int lp_value) {
+    BankLoad("CampaignXCore", 1);
+    BankValueSetFromInt(BankLastCreated(), "XMRuntimeDebug", lp_key, lp_value);
+    BankSave(BankLastCreated());
+}
+
+void libE0EAE146_gf_DumpStartUnits (int lp_player) {
+    unitgroup lv_ug;
+    int lv_count;
+    int lv_i;
+    unit lv_u;
+    string lv_type;
+    string lv_msg;
+
+    lv_ug = UnitGroup(null, lp_player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    lv_count = UnitGroupCount(lv_ug, c_unitCountAll);
+
+    lv_msg = ("[DumpStartUnits] P" + IntToString(lp_player) + " units=" + IntToString(lv_count));
+    UIDisplayMessage(PlayerGroupAll(), c_messageAreaSubtitle, StringToText(lv_msg));
+    TriggerDebugOutput(1, StringToText(lv_msg), true);
+
+    BankLoad("CampaignXCore", 1);
+    BankValueSetFromInt(BankLastCreated(), "StartUnits", "Count", lv_count);
+    lv_i = 1;
+    for ( ; lv_i <= lv_count ; lv_i += 1 ) {
+        lv_u = UnitGroupUnit(lv_ug, lv_i);
+        if (lv_u == null) { break; }
+        lv_type = UnitGetType(lv_u);
+        lv_msg = ("[StartUnit] #" + IntToString(lv_i) + " " + lv_type);
+        TriggerDebugOutput(1, StringToText(lv_msg), false);
+        BankValueSetFromString(BankLastCreated(), "StartUnits", ("SU_" + IntToString(lv_i)), lv_type);
+        UIDisplayMessage(PlayerGroupAll(), c_messageAreaSubtitle, StringToText(lv_msg));
+    }
+    BankSave(BankLastCreated());
+}
+
+string libE0EAE146_gf_CatalogUnitOrEmpty (string lp_unitType) {
+    if ((lp_unitType != "") && CatalogEntryIsValid(c_gameCatalogUnit, lp_unitType)) {
+        return lp_unitType;
+    }
+
+    return "";
+}
+
+bool libE0EAE146_gf_IsAllowedConsoleSkin (string lp_consoleSkin) {
+    if (lp_consoleSkin == "ConsoleTerran_Default") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleZerg_Default") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleZerg_Abathur") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleZerg_Zagara") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleProtoss_Forged") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleProtoss_Default") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleProtoss_Fenix") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleProtoss_Ihanrii") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleZerg_Classic") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleZerg_Dehaka") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleTerran_Classic") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleTerran_Horner") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleTerran_CovertOps") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleTerran_Imperial") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleTerran_Swann") {
+        return true;
+    }
+    if (lp_consoleSkin == "ConsoleZerg_Mecha") {
+        return true;
+    }
+
+    return false;
+}
+
+string libE0EAE146_gf_BankConsoleSkinOverride () {
+    string lv_consoleSkin;
+
+    if (!BankSectionExists(BankLastCreated(), "Cosmetics")) {
+        return "";
+    }
+    if (!BankKeyExists(BankLastCreated(), "Cosmetics", "ConsoleSkin")) {
+        return "";
+    }
+
+    lv_consoleSkin = BankValueGetAsString(BankLastCreated(), "Cosmetics", "ConsoleSkin");
+    if ((lv_consoleSkin == "") || (lv_consoleSkin == "Auto")) {
+        return "";
+    }
+    if (!libE0EAE146_gf_IsAllowedConsoleSkin(lv_consoleSkin)) {
+        return "";
+    }
+    if (!CatalogEntryIsValid(c_gameCatalogConsoleSkin, lv_consoleSkin)) {
+        return "";
+    }
+
+    return lv_consoleSkin;
+}
+
+void libE0EAE146_gf_ApplyConsoleSkinOverride (int lp_player) {
+    string lv_consoleSkin;
+
+    lv_consoleSkin = libE0EAE146_gf_BankConsoleSkinOverride();
+    if (lv_consoleSkin != "") {
+        libE0EAE146_gf_RuntimeVisualProbe("RuntimeSafety_ConsoleOverride", lp_player, lv_consoleSkin, "BankOverride", 1);
+        lib67C0F0E7_gf_PlayerSetCommanderConsoleSkin(lp_player, lv_consoleSkin);
+    }
+}
+
+string libE0EAE146_gf_CommanderOfficialPlayerCommanderInstance (string lp_commander) {
+    if (lp_commander == "Raynor") {
+        return "TerranRaynor";
+    }
+    if (lp_commander == "RaynorX") {
+        return "TerranRaynorX";
+    }
+    if (lp_commander == "Swann") {
+        return "TerranSwann";
+    }
+    if (lp_commander == "Nova") {
+        return "TerranNova";
+    }
+    if ((lp_commander == "Mira") || (lp_commander == "Horner") || (lp_commander == "HanHorner") || (lp_commander == "HanAndHorner")) {
+        return "TerranHorner";
+    }
+    if (lp_commander == "Tychus") {
+        return "TerranTychus";
+    }
+    if (lp_commander == "Mengsk") {
+        return "TerranMengsk";
+    }
+    if (lp_commander == "Kerrigan") {
+        return "ZergKerrigan";
+    }
+    if (lp_commander == "Zagara") {
+        return "ZergZagara";
+    }
+    if ((lp_commander == "Abathur") || (lp_commander == "AbathurCustom")) {
+        return "ZergAbathur";
+    }
+    if (lp_commander == "AbathurReborn") {
+        return "ZergAbathurReborn";
+    }
+    if (lp_commander == "Stukov") {
+        return "ZergStukov";
+    }
+    if (lp_commander == "Dehaka") {
+        return "ZergDehaka";
+    }
+    if (lp_commander == "Stetmann") {
+        return "ZergStetmann";
+    }
+    if (lp_commander == "Artanis") {
+        return "ProtossArtanis";
+    }
+    if (lp_commander == "Karax") {
+        return "ProtossKarax";
+    }
+    if (lp_commander == "Vorazun") {
+        return "ProtossVorazun";
+    }
+    if (lp_commander == "Alarak") {
+        return "ProtossAlarak";
+    }
+    if (lp_commander == "Fenix") {
+        return "ProtossFenix";
+    }
+    if (lp_commander == "Zeratul") {
+        return "ProtossZeratul";
+    }
+    if (lp_commander == "Alenger3") {
+        return "TerranAlenger3";
+    }
+    if (lp_commander == "Alenger1") {
+        return "TerranAlenger1";
+    }
+    if (lp_commander == "Alenger6") { return "ZergAlenger6"; }
+    if (lp_commander == "Alenger8") { return "ZergAlenger8"; }
+    if (lp_commander == "Alenger9") { return "TerranAlenger9"; }
+    if (lp_commander == "Alenger12") { return "TerranAlenger12"; }
+    if (lp_commander == "Alenger13") { return "ProtossAlenger13"; }
+    if (lp_commander == "Alenger2") { return "ZergAlenger2"; }
+    if (lp_commander == "Alenger7") { return "ProtossAlenger7"; }
+    if (lp_commander == "Alenger10") { return "TerranAlenger10"; }
+    if (lp_commander == "Alenger11") { return "TerranAlenger11"; }
+
+    return "";
+}
+
+string libE0EAE146_gf_CommanderShortName (string lp_commander) {
+    if (lp_commander == "TerranRaynor") {
+        return "Raynor";
+    }
+    if (lp_commander == "TerranRaynorX") {
+        return "RaynorX";
+    }
+    if (lp_commander == "TerranSwann") {
+        return "Swann";
+    }
+    if (lp_commander == "TerranNova") {
+        return "Nova";
+    }
+    if (lp_commander == "TerranHorner") {
+        return "Horner";
+    }
+    if (lp_commander == "TerranTychus") {
+        return "Tychus";
+    }
+    if (lp_commander == "TerranMengsk") {
+        return "Mengsk";
+    }
+    if ((lp_commander == "ZergKerrigan") || (lp_commander == "TestZerg")) {
+        return "Kerrigan";
+    }
+    if (lp_commander == "ZergZagara") {
+        return "Zagara";
+    }
+    if (lp_commander == "ZergAbathur") {
+        return "Abathur";
+    }
+    if (lp_commander == "ZergAbathurReborn") {
+        return "AbathurReborn";
+    }
+    if (lp_commander == "ZergStukov") {
+        return "Stukov";
+    }
+    if (lp_commander == "ZergDehaka") {
+        return "Dehaka";
+    }
+    if (lp_commander == "ZergStetmann") {
+        return "Stetmann";
+    }
+    if (lp_commander == "ProtossArtanis") {
+        return "Artanis";
+    }
+    if (lp_commander == "ProtossKarax") {
+        return "Karax";
+    }
+    if (lp_commander == "ProtossVorazun") {
+        return "Vorazun";
+    }
+    if (lp_commander == "ProtossAlarak") {
+        return "Alarak";
+    }
+    if (lp_commander == "ProtossFenix") {
+        return "Fenix";
+    }
+    if (lp_commander == "ProtossZeratul") {
+        return "Zeratul";
+    }
+    if (lp_commander == "TerranAlenger3") {
+        return "Alenger3";
+    }
+    if (lp_commander == "TerranAlenger1") {
+        return "Alenger1";
+    }
+    if (lp_commander == "ZergAlenger6") { return "Alenger6"; }
+    if (lp_commander == "ZergAlenger8") { return "Alenger8"; }
+    if (lp_commander == "TerranAlenger9") { return "Alenger9"; }
+    if (lp_commander == "TerranAlenger12") { return "Alenger12"; }
+    if (lp_commander == "ProtossAlenger13") { return "Alenger13"; }
+    if (lp_commander == "ZergAlenger2") { return "Alenger2"; }
+    if (lp_commander == "ProtossAlenger7") { return "Alenger7"; }
+    if (lp_commander == "TerranAlenger10") { return "Alenger10"; }
+    if (lp_commander == "TerranAlenger11") { return "Alenger11"; }
+    return lp_commander;
+}
+
+string libE0EAE146_gf_CommanderDefaultSkin (string lp_commander) {
+    string lv_instance;
+
+    lv_instance = libE0EAE146_gf_CommanderOfficialPlayerCommanderInstance(lp_commander);
+    if (lv_instance == "") {
+        return "";
+    }
+
+    return UserDataGetGameLink("PlayerCommanders", lib67C0F0E7_gf_StrToUserinstance(lv_instance), "CommanderSkin", 1);
+}
+
+void libE0EAE146_gf_ApplyDefaultCommanderSkin (int lp_player, string lp_commander) {
+    string lv_skin;
+
+    lv_skin = libE0EAE146_gf_CommanderDefaultSkin(lp_commander);
+    if (((lv_skin != "") && CatalogEntryIsValid(c_gameCatalogSkin, lv_skin)) && (libE0EAE146_gf_ShouldApplyPlayerSkins() == true)) {
+        libE0EAE146_gf_RuntimeVisualProbe("RuntimeSafety_DefaultCommanderSkin", lp_player, lv_skin, lp_commander, 1);
+        PlayerApplySkin(lp_player, lv_skin, true);
+    }
+}
+
+bool libE0EAE146_gf_CommanderUseOriginal7v1SharedOpeners () {
+    return true;
+}
+
+bool libE0EAE146_gf_CommanderUsePrivateTechFilter (string lp_commander) {
+    lp_commander = libE0EAE146_gf_CommanderShortName(lp_commander);
+    return ((lp_commander == "Kerrigan") || (lp_commander == "Raynor") || (lp_commander == "RaynorX"));
+}
+
+void libE0EAE146_gf_AllowUnitIfPresent (int lp_player, string lp_unit) {
+    if ((lp_unit == "") || (!CatalogEntryIsValid(c_gameCatalogUnit, lp_unit))) {
+        return;
+    }
+    TechTreeUnitAllow(lp_player, lp_unit, true);
+}
+
+void libE0EAE146_gf_AllowAbilityIfPresent (int lp_player, string lp_abil, int lp_cmdIndex) {
+    if ((lp_abil == "") || (!CatalogEntryIsValid(c_gameCatalogAbil, lp_abil))) {
+        return;
+    }
+    TechTreeAbilityAllow(lp_player, AbilityCommand(lp_abil, lp_cmdIndex), true);
+}
+
+void libE0EAE146_gf_AllowAbilityCommandsIfPresent (int lp_player, string lp_abil, int lp_maxCmdIndex) {
+    int lv_i;
+
+    if ((lp_abil == "") || (!CatalogEntryIsValid(c_gameCatalogAbil, lp_abil))) {
+        return;
+    }
+    lv_i = 0;
+    for ( ; ( lv_i <= lp_maxCmdIndex ) ; lv_i += 1 ) {
+        TechTreeAbilityAllow(lp_player, AbilityCommand(lp_abil, lv_i), true);
+    }
+}
+
+void libE0EAE146_gf_ApplyOriginal7v1OpenerTech (int lp_player, string lp_commander) {
+    lp_commander = libE0EAE146_gf_CommanderShortName(lp_commander);
+    if (libE0EAE146_gf_CommanderUsePrivateTechFilter(lp_commander)) {
+        return;
+    }
+
+    if ((lp_commander == "Raynor") || (lp_commander == "Swann") || (lp_commander == "Nova")) {
+        if (lp_commander == "Swann") {
+            libE0EAE146_gf_AllowUnitIfPresent(lp_player, "CommandCenterSwann");
+            libE0EAE146_gf_AllowUnitIfPresent(lp_player, "CommandCenterSwannFlying");
+            libE0EAE146_gf_AllowUnitIfPresent(lp_player, "OrbitalCommandSwann");
+            libE0EAE146_gf_AllowUnitIfPresent(lp_player, "OrbitalCommandSwannFlying");
+            libE0EAE146_gf_AllowUnitIfPresent(lp_player, "PlanetaryFortressSwann");
+            libE0EAE146_gf_AllowUnitIfPresent(lp_player, "SCVSwann");
+            libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "CommandCenterTrainSwann", 0);
+            libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "CommandCenterLiftOffSwann", 0);
+            libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "CommandCenterLandSwann", 0);
+            libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "UpgradeToOrbitalSwann", 0);
+            libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "UpgradeToPlanetaryFortressSwann", 0);
+            libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "TerranBuildSwann", 31);
+        }
+        if (lp_commander == "Nova") {
+            libE0EAE146_gf_AllowUnitIfPresent(lp_player, "CommandCenterNova");
+            libE0EAE146_gf_AllowUnitIfPresent(lp_player, "CommandCenterNovaFlying");
+            libE0EAE146_gf_AllowUnitIfPresent(lp_player, "OrbitalCommandNova");
+            libE0EAE146_gf_AllowUnitIfPresent(lp_player, "OrbitalCommandNovaFlying");
+            libE0EAE146_gf_AllowUnitIfPresent(lp_player, "PlanetaryFortressNova");
+            libE0EAE146_gf_AllowUnitIfPresent(lp_player, "SCVNova");
+            libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "CommandCenterTrainNova", 0);
+            libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "CommandCenterLiftOffNova", 0);
+            libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "CommandCenterLandNova", 0);
+            libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "UpgradeToOrbitalNova", 0);
+            libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "UpgradeToPlanetaryFortressNova", 0);
+            libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "TerranBuildNova", 31);
+        }
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "CommandCenter");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "CommandCenterFlying");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "OrbitalCommand");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "OrbitalCommandFlying");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "SCV");
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "CommandCenterTrain", 0);
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "UpgradeToOrbital", 0);
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "UpgradeToOrbitalCoop", 0);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "TerranBuild", 31);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "TerranBuildAdvanced", 31);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "TBl1", 31);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "TBl2", 31);
+    }
+    if (lp_commander == "Mengsk") {
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "CommandCenterMengsk");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "CommandCenterMengskFlying");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "SCVMengsk");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "TrooperMengsk");
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "CommandCenterMengskTrain", 0);
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "CommandCenterMengskLiftOff", 0);
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "CommandCenterMengskLand", 0);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "TerranBuild", 31);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "TerranBuildAdvanced", 31);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "TBl1", 31);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "TBl2", 31);
+    }
+    if ((lp_commander == "Mira") || (lp_commander == "Horner") || (lp_commander == "HanHorner") || (lp_commander == "HanAndHorner")) {
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "HHCommandCenter");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "HHCommandCenterFlying");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "HHSCV");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "HHMercStarportNoArmy");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "HHMercStarportUpgraded");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "HHBomberPlatform");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "CoopCasterHorner");
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "HHCommandCenterTrain", 0);
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "HHMercStarportMorph", 0);
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "SummonHornerMercenaries", 0);
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "HHBomberPlatformAreaBombTopBarOrder", 0);
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "HHBomberPlatformAreaBombTopBarDummyTimer", 0);
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "HHTrainTopBar", 0);
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "HHSummonMercenarySpaceStation", 0);
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "HornerAirFleetActivate", 0);
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "HornerAirFleetTargetingDummy", 0);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "HHBuild", 31);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "HHBuildStarport", 31);
+    }
+    if (lp_commander == "Tychus") {
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "TychusCommandCenter");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "TychusCommandCenterFlying");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "TychusSCV");
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "TychusCommandCenterTrain", 0);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "TychusTerranBuild", 31);
+    }
+    if ((lp_commander == "Kerrigan") || (lp_commander == "Zagara") || (lp_commander == "Abathur") || (lp_commander == "AbathurCustom") || (lp_commander == "Stetmann")) {
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "Hatchery");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "Lair");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "Hive");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "Drone");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "Larva");
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "LarvaTrain", 0);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "DroneBuild", 31);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "DroneBuildAdvanced", 31);
+    }
+    if (lp_commander == "Stukov") {
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "SICommandCenter");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "SICommandCenterUprooted");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "SISCV");
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "SICommandCenterTrain", 0);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "SIBasicBuild", 31);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "SIAdvancedBuild", 31);
+    }
+    if (lp_commander == "Dehaka") {
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "DehakaHatchery");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "DehakaHatcheryUprooted");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "DehakaDrone");
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "DehakaTownHallTrain", 0);
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "DehakaHatcheryTrainEgg", 0);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "DehakaDroneMorph", 31);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "DehakaHatcheryBuild", 31);
+    }
+    if ((lp_commander == "Artanis") || (lp_commander == "Karax") || (lp_commander == "Vorazun") || (lp_commander == "Alarak") || (lp_commander == "Fenix") || (lp_commander == "Zeratul")) {
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "Nexus");
+        libE0EAE146_gf_AllowUnitIfPresent(lp_player, "Probe");
+        libE0EAE146_gf_AllowAbilityIfPresent(lp_player, "NexusTrain", 0);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "ProbeBuild", 31);
+        libE0EAE146_gf_AllowAbilityCommandsIfPresent(lp_player, "ProbeBuildAdvanced", 31);
+    }
+}
+
+string libE0EAE146_gf_CommanderAchUnit (string lp_field) {
+    string lv_commander;
+    string lv_unit;
+
+    lv_commander = libE0EAE146_gv_commander;
+    if (lv_commander == "") {
+        lv_commander = libE0EAE146_gf_RuntimePrimaryCommander();
+    }
+    lv_commander = libE0EAE146_gf_CommanderShortName(lv_commander);
+
+    if (libE0EAE146_gf_CommanderUsePrivateTechFilter(lv_commander)) {
+        if (lv_commander == "Raynor") {
+            if (lp_field == "CommandCenter") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenterRaynor");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+            }
+            if (lp_field == "Worker") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SCVRaynor");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+            }
+            if (lp_field == "SecondUnit") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("MarineRaynor");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+            }
+        }
+        if (lv_commander == "RaynorX") {
+            if (lp_field == "CommandCenter") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenterRaynorX");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+            }
+            if (lp_field == "Worker") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SCVRaynorX");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+            }
+            if (lp_field == "SecondUnit") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("MarineRaynorX");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+            }
+        }
+        if ((lv_commander == "Mira") || (lv_commander == "Horner") || (lv_commander == "HanHorner") || (lv_commander == "HanAndHorner")) {
+            if (lp_field == "CommandCenter") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HHCommandCenter");
+                if (lv_unit != "") { return lv_unit; }
+            }
+            if (lp_field == "Worker") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HHSCV");
+                if (lv_unit != "") { return lv_unit; }
+            }
+            if (lp_field == "SecondUnit") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HHStarport");
+                if (lv_unit != "") { return lv_unit; }
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HHMercStarportNoArmy");
+                if (lv_unit != "") { return lv_unit; }
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HHMercStarportUpgraded");
+                if (lv_unit != "") { return lv_unit; }
+            }
+        }
+    }
+
+    if (libE0EAE146_gf_CommanderUseOriginal7v1SharedOpeners()) {
+        if (lv_commander == "Mengsk") {
+            if (lp_field == "CommandCenter") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenterMengsk");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+            }
+            if (lp_field == "Worker") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SCVMengsk");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+            }
+            if (lp_field == "SecondUnit") {
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+            }
+        }
+        if ((lv_commander == "Raynor") || (lv_commander == "Swann") || (lv_commander == "Nova")) {
+            if (lp_field == "CommandCenter") {
+                if (lv_commander == "Swann") {
+                    lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenterSwann");
+                    if (lv_unit != "") { return lv_unit; }
+                }
+                if (lv_commander == "Nova") {
+                    lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenterNova");
+                    if (lv_unit != "") { return lv_unit; }
+                }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+            }
+            if (lp_field == "Worker") {
+                if (lv_commander == "Swann") {
+                    lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SCVSwann");
+                    if (lv_unit != "") { return lv_unit; }
+                }
+                if (lv_commander == "Nova") {
+                    lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SCVNova");
+                    if (lv_unit != "") { return lv_unit; }
+                }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+            }
+            if (lp_field == "SecondUnit") {
+                if (lv_commander == "Nova") {
+                    lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("MarineNova");
+                    if (lv_unit != "") { return lv_unit; }
+                }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+            }
+        }
+        if ((lv_commander == "Mira") || (lv_commander == "Horner") || (lv_commander == "HanHorner") || (lv_commander == "HanAndHorner")) {
+            if (lp_field == "CommandCenter") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HHCommandCenter");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+            }
+            if (lp_field == "Worker") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HHSCV");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+            }
+            if (lp_field == "SecondUnit") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HHStarport");
+                if (lv_unit != "") { return lv_unit; }
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ReaperHH");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Reaper");
+            }
+        }
+        if (lv_commander == "Tychus") {
+            if (lp_field == "CommandCenter") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("TychusCommandCenter");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+            }
+            if (lp_field == "Worker") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("TychusSCV");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+            }
+            if (lp_field == "SecondUnit") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("Tychus");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+            }
+        }
+        if ((lv_commander == "Kerrigan") || (lv_commander == "Zagara") || (lv_commander == "Abathur") || (lv_commander == "AbathurCustom") || (lv_commander == "AbathurReborn")) {
+            if (lp_field == "CommandCenter") {
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Hatchery");
+            }
+            if (lp_field == "Worker") {
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Drone");
+            }
+            if (lp_field == "SecondUnit") {
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Overlord");
+            }
+        }
+        if (lv_commander == "Stukov") {
+            if (lp_field == "CommandCenter") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SICommandCenter");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("InfestedCommandCenter");
+            }
+            if (lp_field == "Worker") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SISCV");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("InfestedSCV");
+            }
+            if (lp_field == "SecondUnit") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SIInfestedTrooper");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("InfestedMarine");
+            }
+        }
+        if (lv_commander == "Dehaka") {
+            if (lp_field == "CommandCenter") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("DehakaHatchery");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Hatchery");
+            }
+            if (lp_field == "Worker") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("DehakaDrone");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Drone");
+            }
+            if (lp_field == "SecondUnit") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("PrimalZergling");
+                if (lv_unit != "") { return lv_unit; }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Zergling");
+            }
+        }
+        if ((lv_commander == "Artanis") || (lv_commander == "Karax") || (lv_commander == "Vorazun") || (lv_commander == "Alarak") || (lv_commander == "Fenix") || (lv_commander == "Zeratul")) {
+            if (lp_field == "CommandCenter") {
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Nexus");
+            }
+            if (lp_field == "Worker") {
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Probe");
+            }
+            if (lp_field == "SecondUnit") {
+                if (lv_commander == "Zeratul") {
+                    lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ZealotZeratul");
+                    if (lv_unit != "") { return lv_unit; }
+                }
+                return libE0EAE146_gf_CatalogUnitOrEmpty("Zealot");
+            }
+        }
+    }
+
+    // Generic XMCore opener slots can win in some runtime paths, so private openers must win before UserData lookup.
+    if ((lv_commander == "Abathur") || (libE0EAE146_gv_commander == "Abathur")) {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HatcheryAbathur");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("DroneAbathur");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("OverlordAbathur");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    if (lv_commander == "Zagara") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HatcheryZagara");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("DroneZagara");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("OverlordZagara");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    if (lv_commander == "Izsha") {
+        if (lp_field == "CommandCenter") {
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Hatchery");
+        }
+        if (lp_field == "Worker") {
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Drone");
+        }
+        if (lp_field == "SecondUnit") {
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Overlord");
+        }
+    }
+
+    if (lv_commander == "Kerrigan") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HatcheryKerrigan");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("DroneKerrigan");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("OverlordKerrigan");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    if (lv_commander == "Stetmann") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HatcheryStetmann");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("Hatchery");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("DroneStetmann");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("Drone");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("OverlordStetmann");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("Overlord");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    if (lv_commander == "Raynor") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenterRaynor");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SCVRaynor");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("MarineRaynor");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    if (lv_commander == "RaynorX") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenterRaynorX");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SCVRaynorX");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("MarineRaynorX");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    if (lv_commander == "Swann") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenterSwann");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SCVSwann");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("MarineSwann");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    if (lv_commander == "Nova") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenterNova");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SCVNova");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("MarineNova");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    if (lv_commander == "Stukov") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SICommandCenter");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("InfestedCommandCenter");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("InfestedSCV");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("InfestedMarine");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    if (lv_commander == "Alarak") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("NexusAlarak");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ProbeAlarak");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("Supplicant");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    if (lv_commander == "Artanis") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("NexusArtanis");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ProbeArtanis");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ZealotAiur");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    if (lv_commander == "Fenix") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("NexusFenix");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ProbeFenix");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ZealotPurifier");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    if (lv_commander == "Karax") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("NexusKarax");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("Nexus");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ProbeKarax");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ZealotPurifier");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    if (lv_commander == "Vorazun") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("NexusVorazun");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ProbeVorazun");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ZealotShakuras");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    if (lv_commander == "Zeratul") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("NexusZeratul");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ProbeZeratul");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ZeratulSummonZealot");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+        }
+    }
+
+    lv_unit = UserDataGetUnit("CommanderAch", lib67C0F0E7_gf_StrToUserinstance(lv_commander), lp_field, 1);
+    if (lv_unit != "") {
+        return lv_unit;
+    }
+
+    if (((lv_commander == "Raynor") || (lv_commander == "RaynorX") || (lv_commander == "Swann") || (lv_commander == "Nova") || (lv_commander == "Mengsk") || (lv_commander == "Tychus") || (lv_commander == "Mira") || (lv_commander == "Horner") || (lv_commander == "HanHorner") || (lv_commander == "HanAndHorner"))) {
+        if (lp_field == "CommandCenter") {
+            if ((lv_commander == "Mira") || (lv_commander == "Horner") || (lv_commander == "HanHorner") || (lv_commander == "HanAndHorner")) {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HHCommandCenter");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Mengsk") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenterMengsk");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+        }
+        if (lp_field == "Worker") {
+            if ((lv_commander == "Mira") || (lv_commander == "Horner") || (lv_commander == "HanHorner") || (lv_commander == "HanAndHorner")) {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HHSCV");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Mengsk") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SCVMengsk");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+        }
+        if (lp_field == "SecondUnit") {
+            if ((lv_commander == "Mira") || (lv_commander == "Horner") || (lv_commander == "HanHorner") || (lv_commander == "HanAndHorner")) {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HHStarport");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HHMercStarportNoArmy");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HHMercStarportUpgraded");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+        }
+    }
+
+    if (((lv_commander == "Kerrigan") || (lv_commander == "Zagara") || (lv_commander == "Abathur") || (lv_commander == "Stukov") || (lv_commander == "Dehaka") || (lv_commander == "Stetmann"))) {
+        if (lp_field == "CommandCenter") {
+            if (lv_commander == "Kerrigan") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HatcheryKerrigan");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Zagara") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HatcheryZagara");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Abathur") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("HatcheryAbathur");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Stukov") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("SICommandCenter");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Hatchery");
+        }
+        if (lp_field == "Worker") {
+            if (lv_commander == "Kerrigan") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("DroneKerrigan");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Zagara") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("DroneZagara");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Abathur") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("DroneAbathur");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Drone");
+        }
+        if (lp_field == "SecondUnit") {
+            if (lv_commander == "Kerrigan") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("OverlordKerrigan");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Zagara") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("OverlordZagara");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Abathur") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("OverlordAbathur");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Overlord");
+        }
+    }
+
+    if (((lv_commander == "Artanis") || (lv_commander == "Karax") || (lv_commander == "Vorazun") || (lv_commander == "Alarak") || (lv_commander == "Fenix") || (lv_commander == "Zeratul"))) {
+        if (lp_field == "CommandCenter") {
+            if (lv_commander == "Artanis") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("NexusArtanis");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Karax") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("NexusKarax");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Vorazun") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("NexusVorazun");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Alarak") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("NexusAlarak");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Fenix") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("NexusFenix");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Zeratul") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("NexusZeratul");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Nexus");
+        }
+        if (lp_field == "Worker") {
+            if (lv_commander == "Artanis") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ProbeArtanis");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Karax") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ProbeKarax");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Vorazun") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ProbeVorazun");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Alarak") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ProbeAlarak");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Fenix") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ProbeFenix");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Zeratul") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ProbeZeratul");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Probe");
+        }
+        if (lp_field == "SecondUnit") {
+            if (lv_commander == "Artanis") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ZealotAiur");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if ((lv_commander == "Karax") || (lv_commander == "Fenix")) {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ZealotPurifier");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Vorazun") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ZealotShakuras");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Alarak") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("Supplicant");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            if (lv_commander == "Zeratul") {
+                lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("ZeratulSummonZealot");
+                if (lv_unit != "") {
+                    return lv_unit;
+                }
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Zealot");
+        }
+    }
+
+    // Alenger3 (3疯批帝国): 使用 mod 自带单位作为开局基础
+    if (lv_commander == "Alenger3") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("3diguoqianshaojidi");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("3diguolaogong");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("3diguojianzhengzhe");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+        }
+    }
+
+    // Alenger1 (1钢铁): 使用 mod 自带单位作为开局基础
+    if (lv_commander == "Alenger1") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("1gangtieyaosai");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("1gangtiegongchengche");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("1gangtietaitan");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+        }
+    }
+
+    // Alenger6 (6阿巴瑟): 使用 mod 自带单位作为开局基础
+    if (lv_commander == "Alenger6") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("6fuhuachang");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Hatchery");
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("6gongfeng");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Drone");
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("6junwangliweitan");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Zergling");
+        }
+    }
+
+    // Alenger8 (8扎加拉): 使用 mod 自带单位作为开局基础
+    if (lv_commander == "Alenger8") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("8fuhuachang");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Hatchery");
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("8gongfeng");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Drone");
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("8zhajiala");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Zergling");
+        }
+    }
+
+    // Alenger9 (9海盗): 使用 mod 自带单位作为开局基础
+    if (lv_commander == "Alenger9") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("9qianxianzhihuizhongxin");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("9shihuangzhe");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("9chenmomalihao");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+        }
+    }
+
+    // Alenger12 (12游骑兵): 使用 mod 自带单位作为开局基础
+    if (lv_commander == "Alenger12") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("12guidaokongzhijidi");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("12sishuigongchengche");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("12xiubolianhao");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+        }
+    }
+
+    // Alenger13 (13净化者): 使用 mod 自带单位作为开局基础
+    if (lv_commander == "Alenger13") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("13jinghuazheshuniu");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Nexus");
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("13tanji");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Probe");
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("13tianwangjuzhen");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Zealot");
+        }
+    }
+
+    // Alenger2 (2贝希摩斯虫群): 使用 mod 自带单位作为开局基础
+    if (lv_commander == "Alenger2") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("2chujichaoxue");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Hatchery");
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("2gongchong");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Drone");
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("2chonghou");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Zergling");
+        }
+    }
+
+    // Alenger7 (7卡莱): 使用 mod 自带单位作为开局基础
+    if (lv_commander == "Alenger7") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("7xiangweishuniu");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Nexus");
+        }
+        if (lp_field == "Worker") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("7xiangweitanji");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Probe");
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("7mujianhexin");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Zealot");
+        }
+    }
+
+    // Alenger10 (10埃蒙): 无传统基地/工人，使用种族默认 fallback
+    if (lv_commander == "Alenger10") {
+        if (lp_field == "CommandCenter") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("10xukongliexi");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+        }
+        if (lp_field == "Worker") {
+            return libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("10hunhetiliulangzhe");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+        }
+    }
+
+    // Alenger11 (11群友): 无传统基地/工人，使用种族默认 fallback
+    if (lv_commander == "Alenger11") {
+        if (lp_field == "CommandCenter") {
+            return libE0EAE146_gf_CatalogUnitOrEmpty("CommandCenter");
+        }
+        if (lp_field == "Worker") {
+            return libE0EAE146_gf_CatalogUnitOrEmpty("SCV");
+        }
+        if (lp_field == "SecondUnit") {
+            lv_unit = libE0EAE146_gf_CatalogUnitOrEmpty("11xiaojianguo");
+            if (lv_unit != "") {
+                return lv_unit;
+            }
+            return libE0EAE146_gf_CatalogUnitOrEmpty("Marine");
+        }
+    }
+
+    return lv_unit;
+}

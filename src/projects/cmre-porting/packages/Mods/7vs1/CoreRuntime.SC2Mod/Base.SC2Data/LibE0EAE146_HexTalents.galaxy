@@ -1,0 +1,220 @@
+//--------------------------------------------------------------------------------------------------
+// 海克斯天赋系统（与 WebUI StartTalentMask 对接）
+// 架构：单一核心 buff TNX_Ability_total + 升级叠加效果
+//--------------------------------------------------------------------------------------------------
+
+const int libE0EAE146_kc_hexTalentBit_healthBonus = 3;
+const int libE0EAE146_kc_hexTalentBit_damageBonus = 4;
+const int libE0EAE146_kc_hexTalentBit_moveSpeedBonus = 5;
+const int libE0EAE146_kc_hexTalentBit_armorBonus = 6;
+const int libE0EAE146_kc_hexTalentBit_sightRangeBonus = 7;
+const int libE0EAE146_kc_hexTalentBit_energyBonus = 8;
+const int libE0EAE146_kc_hexTalentBit_lifeLeech = 9;
+const int libE0EAE146_kc_hexTalentBit_attackSpeedBonus1 = 10;
+const int libE0EAE146_kc_hexTalentBit_energyRegen = 11;
+const int libE0EAE146_kc_hexTalentBit_structureDamage = 12;
+const int libE0EAE146_kc_hexTalentBit_regenBonus = 13;
+const int libE0EAE146_kc_hexTalentBit_weaponRangeBonus = 14;
+const int libE0EAE146_kc_hexTalentBit_noArmorType = 15;
+const int libE0EAE146_kc_hexTalentBit_spellDamageLeech = 16;
+const int libE0EAE146_kc_hexTalentBit_berserker = 17;
+const int libE0EAE146_kc_hexTalentBit_detector = 18;
+const int libE0EAE146_kc_hexTalentBit_astralBody = 19;
+const int libE0EAE146_kc_hexTalentBit_strongRegen = 20;
+const int libE0EAE146_kc_hexTalentBit_glassCannon = 21;
+const int libE0EAE146_kc_hexTalentBit_lifeFountain = 22;
+const int libE0EAE146_kc_hexTalentBit_heroic = 23;
+const int libE0EAE146_kc_hexTalentBit_telescope = 24;
+const int libE0EAE146_kc_hexTalentBit_bladesOfDestroyer = 25;
+const int libE0EAE146_kc_hexTalentBit_quickShooter = 26;
+
+string libE0EAE146_kc_hexTalentBehavior = "TNX_Ability_total";
+
+string[32] libE0EAE146_kc_hexTalentUpgrade;
+
+int[16] libE0EAE146_gv_hexTalents_startMask;
+
+//--------------------------------------------------------------------------------------------------
+void libE0EAE146_hexTalents_InitVariables () {
+    int lv_i;
+
+    lv_i = 0;
+    while (lv_i <= 15) {
+        libE0EAE146_gv_hexTalents_startMask[lv_i] = 0;
+        lv_i += 1;
+    }
+
+    lv_i = 0;
+    while (lv_i <= 31) {
+        libE0EAE146_kc_hexTalentUpgrade[lv_i] = "";
+        lv_i += 1;
+    }
+
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_healthBonus] = "TNX_012";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_damageBonus] = "TNX_00";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_moveSpeedBonus] = "TNX_01";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_armorBonus] = "TNX_013";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_sightRangeBonus] = "TNX_019";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_energyBonus] = "TNX_014";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_lifeLeech] = "TNX_015";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_attackSpeedBonus1] = "TNX_016";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_energyRegen] = "TNX_017";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_structureDamage] = "TNX_018";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_regenBonus] = "TNX_0110";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_weaponRangeBonus] = "TNX_0111";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_noArmorType] = "TNX_0112";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_spellDamageLeech] = "TNX_0113";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_berserker] = "TNX_0114";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_detector] = "TNX_0115";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_astralBody] = "TNX_0116";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_strongRegen] = "TNX_0117";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_glassCannon] = "TNX_0118";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_lifeFountain] = "TNX_0119";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_heroic] = "TNX_01122";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_telescope] = "TNX_01112";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_bladesOfDestroyer] = "TNX_002";
+    libE0EAE146_kc_hexTalentUpgrade[libE0EAE146_kc_hexTalentBit_quickShooter] = "TNX_0162";
+}
+
+//--------------------------------------------------------------------------------------------------
+bool libE0EAE146_gf_HexTalentsIsCasterUnit (string lp_unitType) {
+    if ((lp_unitType == "CoopCasterAbathur") || (lp_unitType == "CoopCasterAlarak") ||
+        (lp_unitType == "CoopCasterDehaka") || (lp_unitType == "CoopCasterFenix") ||
+        (lp_unitType == "CoopCasterHorner") || (lp_unitType == "CoopCasterKarax") ||
+        (lp_unitType == "CoopCasterKerrigan") || (lp_unitType == "CoopCasterMengsk") ||
+        (lp_unitType == "CoopCasterNova") || (lp_unitType == "CoopCasterRaynor") ||
+        (lp_unitType == "CoopCasterStetmann") || (lp_unitType == "CoopCasterStukov") ||
+        (lp_unitType == "CoopCasterSwann") || (lp_unitType == "CoopCasterTychus") ||
+        (lp_unitType == "CoopCasterVorazun") || (lp_unitType == "CoopCasterZagara") ||
+        (lp_unitType == "CoopCasterZeratul") || (lp_unitType == "SoACasterArtanis") ||
+        (lp_unitType == "SoACasterKarax") || (lp_unitType == "SoACasterFenix") ||
+        (lp_unitType == "SoACasterVorazun") || (lp_unitType == "CoopCasterZeratulSpecialization")) {
+        return true;
+    }
+    return false;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libE0EAE146_gf_HexTalentsApplyToUnit (unit lp_unit, int lp_player) {
+    string lv_unitType;
+
+    if (libE0EAE146_gv_hexTalents_startMask[lp_player] == 0) {
+        return;
+    }
+
+    lv_unitType = UnitGetType(lp_unit);
+
+    if (libE0EAE146_gf_HexTalentsIsCasterUnit(lv_unitType) == true) {
+        return;
+    }
+
+    if ((lv_unitType == "InvisibleTargetDummy") || (lv_unitType == "DehakaCoopClone") ||
+        (lv_unitType == "EssencePickup") || (lv_unitType == "DNAPickup") ||
+        (lv_unitType == "BiomassPickup")) {
+        return;
+    }
+
+    if (UnitBehaviorCount(lp_unit, libE0EAE146_kc_hexTalentBehavior) == 0) {
+        UnitBehaviorAddPlayer(lp_unit, libE0EAE146_kc_hexTalentBehavior, lp_player, 1);
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void libE0EAE146_gf_HexTalentsApplyUpgradesForPlayer (int lp_player, int lp_mask) {
+    int lv_bit;
+    string lv_upgrade;
+
+    lv_bit = 0;
+    while (lv_bit <= 31) {
+        if (lib67C0F0E7_gf_BitMaskTrueIndexIs(lp_mask, lv_bit) == true) {
+            lv_upgrade = libE0EAE146_kc_hexTalentUpgrade[lv_bit];
+            if (lv_upgrade != "") {
+                TechTreeUpgradeAddLevel(lp_player, lv_upgrade, 1);
+            }
+        }
+        lv_bit += 1;
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void libE0EAE146_gf_HexTalentsPlayerInit (int lp_player) {
+    string lv_commander;
+    int lv_mask;
+
+    libE0EAE146_gv_hexTalents_startMask[lp_player] = 0;
+
+    lv_commander = libE0EAE146_gv_commander;
+    if (lv_commander == "") {
+        return;
+    }
+
+    lv_mask = libE0EAE146_gf_CommanderPowerBankIntOrDefault(lv_commander, "StartTalentMask", 0);
+    libE0EAE146_gv_hexTalents_startMask[lp_player] = lv_mask;
+
+    if (lv_mask != 0) {
+        libE0EAE146_gf_HexTalentsApplyUpgradesForPlayer(lp_player, lv_mask);
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+bool libE0EAE146_gt_HexTalentsUnitCreated_Func (bool testConds, bool runActions) {
+    unit lv_unit;
+    int lv_player;
+
+    lv_unit = EventUnit();
+    lv_player = UnitGetOwner(lv_unit);
+
+    if (testConds) {
+        if (!((PlayerStatus(lv_player) == c_playerStatusActive))) {
+            return false;
+        }
+        if (!((UnitIsAlive(lv_unit) == true))) {
+            return false;
+        }
+    }
+
+    if (!runActions) {
+        return true;
+    }
+
+    libE0EAE146_gf_HexTalentsApplyToUnit(lv_unit, lv_player);
+
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+bool libE0EAE146_gt_HexTalentsGameStart_Func (bool testConds, bool runActions) {
+    int lv_player;
+
+    if (!runActions) {
+        return true;
+    }
+
+    lv_player = 0;
+    while (lv_player <= 15) {
+        if (PlayerStatus(lv_player) == c_playerStatusActive) {
+            libE0EAE146_gf_HexTalentsPlayerInit(lv_player);
+        }
+        lv_player += 1;
+    }
+
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libE0EAE146_gt_HexTalentsUnitCreated_Init () {
+    libE0EAE146_gt_HexTalentsUnitCreated = TriggerCreate("libE0EAE146_gt_HexTalentsUnitCreated_Func");
+    TriggerAddEventUnitCreated(libE0EAE146_gt_HexTalentsUnitCreated, null, null, null);
+}
+
+//--------------------------------------------------------------------------------------------------
+void libE0EAE146_gt_HexTalentsGameStart_Init () {
+    libE0EAE146_gt_HexTalentsGameStart = TriggerCreate("libE0EAE146_gt_HexTalentsGameStart_Func");
+    TriggerAddEventMapInit(libE0EAE146_gt_HexTalentsGameStart);
+}
+
+//--------------------------------------------------------------------------------------------------
+void libE0EAE146_hexTalents_InitTriggers () {
+    libE0EAE146_gt_HexTalentsUnitCreated_Init();
+    libE0EAE146_gt_HexTalentsGameStart_Init();
+}

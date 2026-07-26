@@ -1,0 +1,80 @@
+include "TriggerLibs/NativeLib"
+include "Lib67C0F0E7"
+
+include "Lib4B62E36B_h"
+
+//--------------------------------------------------------------------------------------------------
+// Library: swann
+//--------------------------------------------------------------------------------------------------
+// External Library Initialization
+void lib4B62E36B_InitLibraries () {
+    libNtve_InitVariables();
+    lib67C0F0E7_InitVariables();
+}
+
+// Functions
+void lib4B62E36B_gf_DrakkenLaserDrillUnit (unit lp_u, int lp_p) {
+    // Automatic Variable Declarations
+    // Implementation
+    DataTableSetUnitGroup(true, ("DrakkenLaserDrill" + IntToString(lp_p)), libNtve_gf_ConvertUnitToUnitGroup(lp_u));
+    TriggerEnable(lib4B62E36B_gt_DrakkenLaserDrillBFGAb, true);
+}
+
+void lib4B62E36B_gf_DrakkenLaserDrillAddCasterGroup (int lp_p) {
+    // Automatic Variable Declarations
+    // Implementation
+    lib67C0F0E7_gf_AddCasterGroup(lp_p, UnitGroupUnit(DataTableGetUnitGroup(true, ("DrakkenLaserDrill" + IntToString(lp_p))), 1));
+}
+
+// Triggers
+//--------------------------------------------------------------------------------------------------
+// Trigger: DrakkenLaserDrillBFGAb
+//--------------------------------------------------------------------------------------------------
+bool lib4B62E36B_gt_DrakkenLaserDrillBFGAb_Func (bool testConds, bool runActions) {
+    // Variable Declarations
+    point lv_p;
+    int lv_r;
+
+    // Automatic Variable Declarations
+    // Variable Initialization
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    lv_p = lib67C0F0E7_gf_EdgeInstersection(UnitGetPosition(EventUnit()), EventUnitTargetPoint(), RegionPlayableMap());
+    lv_r = FixedToInt(DistanceBetweenPoints(UnitGetPosition(EventUnit()), lv_p));
+    CatalogFieldValueModify(c_gameCatalogEffect, "DrakkenLaserDrillBFGCP", "PeriodicOffsetArray[" + IntToString(0) + "]", EventPlayer(), ("0, -" + IntToString((lv_r / 2)) + ", 0"), c_upgradeOperationSet);
+    CatalogFieldValueModify(c_gameCatalogEffect, "DrakkenLaserDrillBFGSearch", "AreaArray[" + IntToString(0) + "].RectangleHeight", EventPlayer(), IntToString(lv_r), c_upgradeOperationSet);
+    UnitCreateEffectPoint(EventUnit(), "DrakkenLaserDrillBFGSet", lv_p);
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void lib4B62E36B_gt_DrakkenLaserDrillBFGAb_Init () {
+    lib4B62E36B_gt_DrakkenLaserDrillBFGAb = TriggerCreate("lib4B62E36B_gt_DrakkenLaserDrillBFGAb_Func");
+    TriggerEnable(lib4B62E36B_gt_DrakkenLaserDrillBFGAb, false);
+    TriggerAddEventUnitAbility(lib4B62E36B_gt_DrakkenLaserDrillBFGAb, null, AbilityCommand("DrakkenLaserDrillBFG", 0), c_unitAbilStageComplete, false);
+}
+
+void lib4B62E36B_InitTriggers () {
+    lib4B62E36B_gt_DrakkenLaserDrillBFGAb_Init();
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool lib4B62E36B_InitLib_completed = false;
+
+void lib4B62E36B_InitLib () {
+    if (lib4B62E36B_InitLib_completed) {
+        return;
+    }
+
+    lib4B62E36B_InitLib_completed = true;
+
+    lib4B62E36B_InitLibraries();
+    lib4B62E36B_InitTriggers();
+}
+

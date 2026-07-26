@@ -1,0 +1,288 @@
+include "TriggerLibs/NativeLib"
+include "Lib67C0F0E7"
+
+include "Lib81FF3B49_h"
+
+//--------------------------------------------------------------------------------------------------
+// Library: Tychus
+//--------------------------------------------------------------------------------------------------
+// External Library Initialization
+void lib81FF3B49_InitLibraries () {
+    libNtve_InitVariables();
+    lib67C0F0E7_InitVariables();
+}
+
+// Functions
+void lib81FF3B49_gf_InitializeTychusEvent () {
+    // Automatic Variable Declarations
+    // Implementation
+    lib67C0F0E7_gf_SOAStickyPoint(1, "TychusMedicTransport");
+    if (CatalogEntryIsValid(c_gameCatalogEffect, "ReviveAbility1Tychus")) {
+        TriggerAddEventPlayerEffectUsed(lib81FF3B49_gt_ReviveTychusSquad, 1, "ReviveAbility1Tychus");
+    }
+    if (CatalogEntryIsValid(c_gameCatalogEffect, "ReviveAbility2Tychus")) {
+        TriggerAddEventPlayerEffectUsed(lib81FF3B49_gt_ReviveTychusSquad, 1, "ReviveAbility2Tychus");
+    }
+    if (CatalogEntryIsValid(c_gameCatalogEffect, "ReviveAbility3Tychus")) {
+        TriggerAddEventPlayerEffectUsed(lib81FF3B49_gt_ReviveTychusSquad, 1, "ReviveAbility3Tychus");
+    }
+    if (CatalogEntryIsValid(c_gameCatalogEffect, "ReviveAbility4Tychus")) {
+        TriggerAddEventPlayerEffectUsed(lib81FF3B49_gt_ReviveTychusSquad, 1, "ReviveAbility4Tychus");
+    }
+    if (CatalogEntryIsValid(c_gameCatalogEffect, "ReviveAbility5Tychus")) {
+        TriggerAddEventPlayerEffectUsed(lib81FF3B49_gt_ReviveTychusSquad, 1, "ReviveAbility5Tychus");
+    }
+    if (CatalogEntryIsValid(c_gameCatalogEffect, "ReviveAbility6Tychus")) {
+        TriggerAddEventPlayerEffectUsed(lib81FF3B49_gt_ReviveTychusSquad, 1, "ReviveAbility6Tychus");
+    }
+    if (CatalogEntryIsValid(c_gameCatalogEffect, "ReviveAbility7Tychus")) {
+        TriggerAddEventPlayerEffectUsed(lib81FF3B49_gt_ReviveTychusSquad, 1, "ReviveAbility7Tychus");
+    }
+    if (CatalogEntryIsValid(c_gameCatalogEffect, "ReviveAbility8Tychus")) {
+        TriggerAddEventPlayerEffectUsed(lib81FF3B49_gt_ReviveTychusSquad, 1, "ReviveAbility8Tychus");
+    }
+    if (CatalogEntryIsValid(c_gameCatalogEffect, "ReviveAbility9Tychus")) {
+        TriggerAddEventPlayerEffectUsed(lib81FF3B49_gt_ReviveTychusSquad, 1, "ReviveAbility9Tychus");
+    }
+    TriggerEnable(lib81FF3B49_gt_ReviveTychusSquad,true);
+    if (CatalogEntryIsValid(c_gameCatalogEffect, "TychusMedicTransportUnit")) {
+        TriggerAddEventPlayerEffectUsed(lib81FF3B49_gt_TychusMedicTransportUnit, 1, "TychusMedicTransportUnit");
+    }
+    TriggerEnable(lib81FF3B49_gt_TychusMedicTransportUnit,true);
+}
+
+void lib81FF3B49_gf_ReviveUnit (unit lp_reviveUnit, unit lp_caster, int lp_player) {
+    // Automatic Variable Declarations
+    // Implementation
+    UnitRevive(lp_reviveUnit);
+    UnitSetPropertyFixed(lp_reviveUnit, c_unitPropLife, UnitGetPropertyFixed(lp_reviveUnit, c_unitPropLife, c_unitPropNormal));
+    UnitSetPosition(lp_reviveUnit, UnitTypePlacementTestsFromUnit(UnitGetType(lp_reviveUnit), lp_player, lp_caster, 5.0, c_placementTestCliffMask), false);
+    UnitIssueOrder(lp_reviveUnit, OrderTargetingPoint(AbilityCommand("move", 0), UnitRallyPointTargetPoint(lp_caster, 1, 1)), c_orderQueueReplace);
+}
+
+// Triggers
+//--------------------------------------------------------------------------------------------------
+// Trigger: ReviveTychusSquad
+//--------------------------------------------------------------------------------------------------
+bool lib81FF3B49_gt_ReviveTychusSquad_Func (bool testConds, bool runActions) {
+    // Variable Declarations
+    unit lv_caster;
+    int lv_player;
+
+    // Automatic Variable Declarations
+    string auto5BD5FAEC_val;
+    unitgroup autoB1107795_g;
+    int autoB1107795_u;
+    unit autoB1107795_var;
+    unitgroup autoE765A21A_g;
+    int autoE765A21A_u;
+    unit autoE765A21A_var;
+    unitgroup autoFF25F13C_g;
+    int autoFF25F13C_u;
+    unit autoFF25F13C_var;
+    unitgroup auto7A6C40A0_g;
+    int auto7A6C40A0_u;
+    unit auto7A6C40A0_var;
+    unitgroup auto44E90B39_g;
+    int auto44E90B39_u;
+    unit auto44E90B39_var;
+    unitgroup autoF7829ECD_g;
+    int autoF7829ECD_u;
+    unit autoF7829ECD_var;
+    unitgroup autoBE6F5A77_g;
+    int autoBE6F5A77_u;
+    unit autoBE6F5A77_var;
+    unitgroup auto1B42B5EB_g;
+    int auto1B42B5EB_u;
+    unit auto1B42B5EB_var;
+    unitgroup auto263D279B_g;
+    int auto263D279B_u;
+    unit auto263D279B_var;
+
+    // Variable Initialization
+    lv_caster = EventPlayerEffectUsedUnit(c_effectUnitCaster);
+    lv_player = EventPlayerEffectUsedUnitOwner(c_effectPlayerCaster);
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    auto5BD5FAEC_val = EventPlayerEffectUsed();
+    if (auto5BD5FAEC_val == "ReviveAbility1Tychus") {
+        autoB1107795_g = lib67C0F0E7_gv_tychusSquadUnit;
+        autoB1107795_u = UnitGroupCount(autoB1107795_g, c_unitCountAll);
+        for (;; autoB1107795_u -= 1) {
+            autoB1107795_var = UnitGroupUnitFromEnd(autoB1107795_g, autoB1107795_u);
+            if (autoB1107795_var == null) { break; }
+            if ((UnitGetType(autoB1107795_var) == "TychusCoop")) {
+                lib81FF3B49_gf_ReviveUnit(autoB1107795_var, lv_caster, lv_player);
+                PlayerAddChargeUsed(lv_player, "Abil/ReviveAbility1Tychus", -1.0);
+                break;
+            }
+
+        }
+    }
+    else if (auto5BD5FAEC_val == "ReviveAbility2Tychus") {
+        autoE765A21A_g = lib67C0F0E7_gv_tychusSquadUnit;
+        autoE765A21A_u = UnitGroupCount(autoE765A21A_g, c_unitCountAll);
+        for (;; autoE765A21A_u -= 1) {
+            autoE765A21A_var = UnitGroupUnitFromEnd(autoE765A21A_g, autoE765A21A_u);
+            if (autoE765A21A_var == null) { break; }
+            if ((UnitGetType(autoE765A21A_var) == "TychusReaper")) {
+                lib81FF3B49_gf_ReviveUnit(autoE765A21A_var, lv_caster, lv_player);
+                PlayerAddChargeUsed(lv_player, "Abil/ReviveAbility2Tychus", -1.0);
+                break;
+            }
+
+        }
+    }
+    else if (auto5BD5FAEC_val == "ReviveAbility3Tychus") {
+        autoFF25F13C_g = lib67C0F0E7_gv_tychusSquadUnit;
+        autoFF25F13C_u = UnitGroupCount(autoFF25F13C_g, c_unitCountAll);
+        for (;; autoFF25F13C_u -= 1) {
+            autoFF25F13C_var = UnitGroupUnitFromEnd(autoFF25F13C_g, autoFF25F13C_u);
+            if (autoFF25F13C_var == null) { break; }
+            if ((UnitGetType(autoFF25F13C_var) == "TychusWarhound")) {
+                lib81FF3B49_gf_ReviveUnit(autoFF25F13C_var, lv_caster, lv_player);
+                PlayerAddChargeUsed(lv_player, "Abil/ReviveAbility3Tychus", -1.0);
+                break;
+            }
+
+        }
+    }
+    else if (auto5BD5FAEC_val == "ReviveAbility4Tychus") {
+        auto7A6C40A0_g = lib67C0F0E7_gv_tychusSquadUnit;
+        auto7A6C40A0_u = UnitGroupCount(auto7A6C40A0_g, c_unitCountAll);
+        for (;; auto7A6C40A0_u -= 1) {
+            auto7A6C40A0_var = UnitGroupUnitFromEnd(auto7A6C40A0_g, auto7A6C40A0_u);
+            if (auto7A6C40A0_var == null) { break; }
+            if ((UnitGetType(auto7A6C40A0_var) == "TychusFirebat")) {
+                lib81FF3B49_gf_ReviveUnit(auto7A6C40A0_var, lv_caster, lv_player);
+                PlayerAddChargeUsed(lv_player, "Abil/ReviveAbility4Tychus", -1.0);
+                break;
+            }
+
+        }
+    }
+    else if (auto5BD5FAEC_val == "ReviveAbility5Tychus") {
+        auto44E90B39_g = lib67C0F0E7_gv_tychusSquadUnit;
+        auto44E90B39_u = UnitGroupCount(auto44E90B39_g, c_unitCountAll);
+        for (;; auto44E90B39_u -= 1) {
+            auto44E90B39_var = UnitGroupUnitFromEnd(auto44E90B39_g, auto44E90B39_u);
+            if (auto44E90B39_var == null) { break; }
+            if ((UnitGetType(auto44E90B39_var) == "TychusHERC")) {
+                lib81FF3B49_gf_ReviveUnit(auto44E90B39_var, lv_caster, lv_player);
+                PlayerAddChargeUsed(lv_player, "Abil/ReviveAbility5Tychus", -1.0);
+                break;
+            }
+
+        }
+    }
+    else if (auto5BD5FAEC_val == "ReviveAbility6Tychus") {
+        autoF7829ECD_g = lib67C0F0E7_gv_tychusSquadUnit;
+        autoF7829ECD_u = UnitGroupCount(autoF7829ECD_g, c_unitCountAll);
+        for (;; autoF7829ECD_u -= 1) {
+            autoF7829ECD_var = UnitGroupUnitFromEnd(autoF7829ECD_g, autoF7829ECD_u);
+            if (autoF7829ECD_var == null) { break; }
+            if ((UnitGetType(autoF7829ECD_var) == "TychusMarauder")) {
+                lib81FF3B49_gf_ReviveUnit(autoF7829ECD_var, lv_caster, lv_player);
+                PlayerAddChargeUsed(lv_player, "Abil/ReviveAbility6Tychus", -1.0);
+                break;
+            }
+
+        }
+    }
+    else if (auto5BD5FAEC_val == "ReviveAbility7Tychus") {
+        autoBE6F5A77_g = lib67C0F0E7_gv_tychusSquadUnit;
+        autoBE6F5A77_u = UnitGroupCount(autoBE6F5A77_g, c_unitCountAll);
+        for (;; autoBE6F5A77_u -= 1) {
+            autoBE6F5A77_var = UnitGroupUnitFromEnd(autoBE6F5A77_g, autoBE6F5A77_u);
+            if (autoBE6F5A77_var == null) { break; }
+            if ((UnitGetType(autoBE6F5A77_var) == "TychusGhost")) {
+                lib81FF3B49_gf_ReviveUnit(autoBE6F5A77_var, lv_caster, lv_player);
+                PlayerAddChargeUsed(lv_player, "Abil/ReviveAbility7Tychus", -1.0);
+                break;
+            }
+
+        }
+    }
+    else if (auto5BD5FAEC_val == "ReviveAbility8Tychus") {
+        auto1B42B5EB_g = lib67C0F0E7_gv_tychusSquadUnit;
+        auto1B42B5EB_u = UnitGroupCount(auto1B42B5EB_g, c_unitCountAll);
+        for (;; auto1B42B5EB_u -= 1) {
+            auto1B42B5EB_var = UnitGroupUnitFromEnd(auto1B42B5EB_g, auto1B42B5EB_u);
+            if (auto1B42B5EB_var == null) { break; }
+            if ((UnitGetType(auto1B42B5EB_var) == "TychusSpectre")) {
+                lib81FF3B49_gf_ReviveUnit(auto1B42B5EB_var, lv_caster, lv_player);
+                PlayerAddChargeUsed(lv_player, "Abil/ReviveAbility8Tychus", -1.0);
+                break;
+            }
+
+        }
+    }
+    else if (auto5BD5FAEC_val == "ReviveAbility9Tychus") {
+        auto263D279B_g = lib67C0F0E7_gv_tychusSquadUnit;
+        auto263D279B_u = UnitGroupCount(auto263D279B_g, c_unitCountAll);
+        for (;; auto263D279B_u -= 1) {
+            auto263D279B_var = UnitGroupUnitFromEnd(auto263D279B_g, auto263D279B_u);
+            if (auto263D279B_var == null) { break; }
+            if ((UnitGetType(auto263D279B_var) == "TychusMedic")) {
+                lib81FF3B49_gf_ReviveUnit(auto263D279B_var, lv_caster, lv_player);
+                PlayerAddChargeUsed(lv_player, "Abil/ReviveAbility9Tychus", -1.0);
+                break;
+            }
+
+        }
+    }
+    else {
+    }
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void lib81FF3B49_gt_ReviveTychusSquad_Init () {
+    lib81FF3B49_gt_ReviveTychusSquad = TriggerCreate("lib81FF3B49_gt_ReviveTychusSquad_Func");
+    TriggerEnable(lib81FF3B49_gt_ReviveTychusSquad, false);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: TychusMedicTransportUnit
+//--------------------------------------------------------------------------------------------------
+bool lib81FF3B49_gt_TychusMedicTransportUnit_Func (bool testConds, bool runActions) {
+    // Automatic Variable Declarations
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    lib67C0F0E7_gf_AddCasterGroup(EventPlayerEffectUsedUnitOwner(c_effectPlayerCaster), EventPlayerEffectUsedUnit(c_effectUnitCaster));
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void lib81FF3B49_gt_TychusMedicTransportUnit_Init () {
+    lib81FF3B49_gt_TychusMedicTransportUnit = TriggerCreate("lib81FF3B49_gt_TychusMedicTransportUnit_Func");
+    TriggerEnable(lib81FF3B49_gt_TychusMedicTransportUnit, false);
+}
+
+void lib81FF3B49_InitTriggers () {
+    lib81FF3B49_gt_ReviveTychusSquad_Init();
+    lib81FF3B49_gt_TychusMedicTransportUnit_Init();
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool lib81FF3B49_InitLib_completed = false;
+
+void lib81FF3B49_InitLib () {
+    if (lib81FF3B49_InitLib_completed) {
+        return;
+    }
+
+    lib81FF3B49_InitLib_completed = true;
+
+    lib81FF3B49_InitLibraries();
+    lib81FF3B49_InitTriggers();
+}

@@ -1,0 +1,884 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CEffectCreatePersistent id="7dengliziguangpaoMissileLeftPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="SourceUnit"/>
+        <Flags index="PersistUntilDestroyed" value="1"/>
+        <InitialDelay value="0.15"/>
+        <PeriodicValidator value="7yuandanweicunhuo"/>
+        <PeriodicEffectArray value="7dengliziguangpaoDamageSearchLeft"/>
+        <PeriodicPeriodArray value="0.0625"/>
+    </CEffectCreatePersistent>
+    <CEffectCreatePersistent id="7dengliziguangpaoMissileLeftPersistentDummy">
+        <EditorCategories value=""/>
+        <WhichLocation Value="SourceUnit"/>
+        <Flags index="PersistUntilDestroyed" value="1"/>
+        <InitialDelay value="0.15"/>
+        <PeriodicValidator value="7yuandanweicunhuo"/>
+        <PeriodicEffectArray value="7dengliziguangpaoFirePersistent"/>
+        <PeriodicPeriodArray value="0.15"/>
+    </CEffectCreatePersistent>
+    <CEffectCreatePersistent id="7dengliziguangpaoMissileRightPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="SourceUnit"/>
+        <Flags index="PersistUntilDestroyed" value="1"/>
+        <InitialDelay value="0.15"/>
+        <PeriodicValidator value="7yuandanweicunhuo"/>
+        <PeriodicEffectArray value="7dengliziguangpaoDamageSearchRight"/>
+        <PeriodicPeriodArray value="0.0625"/>
+    </CEffectCreatePersistent>
+    <CEffectCreatePersistent id="7dengliziguangpaoMissileRightPersistentDummy">
+        <EditorCategories value=""/>
+        <WhichLocation Value="SourceUnit"/>
+        <Flags index="PersistUntilDestroyed" value="1"/>
+        <InitialDelay value="0.15"/>
+        <PeriodicValidator value="7yuandanweicunhuo"/>
+        <PeriodicEffectArray value="7dengliziguangpaoFirePersistent"/>
+        <PeriodicPeriodArray value="0.15"/>
+    </CEffectCreatePersistent>
+    <CEffectCreatePersistent id="7duikongkaidalinguangshuzuPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <ExpireEffect value="7duikongkaidalinguangshuDamage"/>
+        <FinalEffect value="7duikongkaidalinguangshuDamage"/>
+    </CEffectCreatePersistent>
+    <CEffectDamage id="7duikongkaidalinguangshuDamage" parent="DU_WEAP_MISSILE">
+        <EditorCategories value=""/>
+        <KindSplash value="Splash"/>
+        <Amount value="90"/>
+        <AreaArray Radius="0.5" Fraction="0.75"/>
+        <AreaArray Radius="1" Fraction="0.5"/>
+        <AreaArray Radius="1.5" Fraction="0.25"/>
+        <ExcludeArray Value="Target"/>
+        <SearchFilters value="Air;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+    </CEffectDamage>
+    <CEffectCreatePersistent id="7duikongkaidalinguangshuPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <ExpireEffect value="7duikongkaidalinguangshuDamage"/>
+    </CEffectCreatePersistent>
+    <CEffectCreatePersistent id="7fanwuzhidanmuMissilePersistent">
+        <ValidatorArray value="7fanwuzhidanmuTargetFilters"/>
+        <EditorCategories value=""/>
+        <WhichLocation Value="CasterUnit"/>
+        <InitialEffect value="7fanwuzhidanmuMissile2"/>
+        <ExpireEffect value="7fanwuzhidanmuMissile3"/>
+    </CEffectCreatePersistent>
+    <CEffectLaunchMissile id="7fanwuzhidanmuMissile3">
+        <EditorCategories value=""/>
+        <LaunchLocation Value="CasterUnit"/>
+        <ImpactLocation Effect="7fanwuzhidanmuPersistent"/>
+        <ImpactEffect value="7fanwuzhidanmuDamage"/>
+        <AmmoUnit value="7fanwuzhidanmuMissile"/>
+    </CEffectLaunchMissile>
+    <CEffectCreatePersistent id="7fanwuzhidanmuPersistentStart">
+        <EditorCategories value=""/>
+        <InitialEffect value="7xiaohaotaiyanghexinchongnengApply"/>
+        <ExpireEffect value="7fanwuzhidanmuTurretStartModify"/>
+        <FinalEffect value="7fanwuzhidanmuStartApply"/>
+    </CEffectCreatePersistent>
+    <CEffectApplyBehavior id="7fanzhonglichaozaiApply">
+        <EditorCategories value=""/>
+        <Behavior value="7fanzhonglichaozai"/>
+    </CEffectApplyBehavior>
+    <CEffectCreatePersistent id="7fanzhonglichaozaiPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <InitialEffect value="7fanzhonglichaozaiApply"/>
+        <PeriodCount value="6"/>
+        <PeriodicPeriodArray value="0.15"/>
+    </CEffectCreatePersistent>
+    <CEffectEnumArea id="7guangzidanmuSearch">
+        <EditorCategories value=""/>
+        <ExcludeArray Effect="7guangzipaoPersistent" Value="Target"/>
+        <SearchFilters value="Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray MaxCount="1" Radius="3" Effect="7guangzidanmuMissile"/>
+    </CEffectEnumArea>
+    <CEffectDamage id="7guangzidanmuDamage" parent="DU_WEAP_MISSILE">
+        <EditorCategories value=""/>
+        <Amount value="40"/>
+        <Fraction value="0.5"/>
+    </CEffectDamage>
+    <CEffectCreatePersistent id="7guangzipaoDamagePersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <InitialEffect value="7guangzipaoMissile"/>
+    </CEffectCreatePersistent>
+    <CEffectLaunchMissile id="7guangzidanmuMissile">
+        <ValidatorArray index="0" value="noMarkers"/>
+        <EditorCategories value=""/>
+        <ImpactEffect value="7guangzidanmuDamage"/>
+        <AmmoUnit value="7guangzidanmu"/>
+    </CEffectLaunchMissile>
+    <CEffectApplyBehavior id="7guidaohongzhaApply">
+        <ValidatorArray index="0" value="7guidaohongzhaStunTargetFilters"/>
+        <EditorCategories value=""/>
+        <Behavior value="7guidaohongzha"/>
+    </CEffectApplyBehavior>
+    <CEffectCreatePersistent id="7guidaohongzhaDamagePersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <InitialEffect value="7guidaohongzhaDamage"/>
+        <ExpireEffect value="7guidaohongzhaApply"/>
+    </CEffectCreatePersistent>
+    <CEffectCreatePersistent id="7guidaotancePersistent">
+        <EditorCategories value=""/>
+        <PeriodCount value="150"/>
+        <PeriodicPeriodArray value="0.3"/>
+        <RevealRadius value="24"/>
+        <RevealFlags index="Unfog" value="1"/>
+        <RevealFlags index="Detect" value="1"/>
+    </CEffectCreatePersistent>
+    <CEffectApplyBehavior id="7juzhenchongnengqiApply">
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="7juzhenchongnengqi"/>
+    </CEffectApplyBehavior>
+    <CEffectDamage id="7duidikaidalinguangshuDamage" parent="DU_WEAP_MISSILE">
+        <EditorCategories value=""/>
+        <KindSplash value="Splash"/>
+        <Amount value="90"/>
+        <AreaArray Radius="0.5" Fraction="0.75"/>
+        <AreaArray Radius="1" Fraction="0.5"/>
+        <AreaArray Radius="1.5" Fraction="0.25"/>
+        <ExcludeArray Value="Target"/>
+        <SearchFilters value="Ground;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+    </CEffectDamage>
+    <CEffectCreatePersistent id="7duidikaidalinguangshuPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <ExpireEffect value="7duidikaidalinguangshuDamage"/>
+    </CEffectCreatePersistent>
+    <CEffectSet id="7pingzhangSet">
+        <EditorCategories value=""/>
+        <EffectArray value="7pingzhangApply"/>
+        <EffectArray value="7pingzhangchaozaiUnitSearch"/>
+    </CEffectSet>
+    <CEffectCreatePersistent id="7qidianStartPersistent">
+        <EditorCategories value=""/>
+        <ExpireEffect value="0heidongPersistentMedium"/>
+        <PeriodCount value="10"/>
+        <PeriodicPeriodArray value="0.3"/>
+    </CEffectCreatePersistent>
+    <CEffectTeleport id="7dantizhaohuiTeleport">
+        <EditorCategories value=""/>
+        <ClearQueuedOrders value="0"/>
+        <SourceLocation Value="TargetUnit"/>
+        <TeleportFlags index="TestCliff" value="1"/>
+        <TeleportFlags index="TestZone" value="1"/>
+    </CEffectTeleport>
+    <CEffectApplyBehavior id="7shanxianLaunchApply">
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="7shanxianLaunch"/>
+    </CEffectApplyBehavior>
+    <CEffectCreatePersistent id="7zhiyuanliaojiguangshuPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <TimeScaleSource Value="Caster"/>
+        <InitialEffect value="7zhiyuanliaojiguangshuDamage"/>
+        <PeriodCount value="1"/>
+        <PeriodicPeriodArray value="0.15"/>
+    </CEffectCreatePersistent>
+    <CEffectApplyBehavior id="7xingxingsuiliepaoApply">
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="7xingxingsuiliepao"/>
+    </CEffectApplyBehavior>
+    <CEffectDamage id="7xingxingsuiliepaoDamage">
+        <EditorCategories value=""/>
+        <Amount value="45"/>
+    </CEffectDamage>
+    <CEffectDamage id="7xingxingsuiliepaoDamage2">
+        <EditorCategories value=""/>
+        <Amount value="30"/>
+    </CEffectDamage>
+    <CEffectDamage id="7xingxingsuiliepaoDamage3">
+        <EditorCategories value=""/>
+        <Amount value="15"/>
+    </CEffectDamage>
+    <CEffectCreatePersistent id="7xingxingsuiliepaoPersistent">
+        <EditorCategories value=""/>
+        <InitialEffect value="7xingxingsuiliepaoApply"/>
+    </CEffectCreatePersistent>
+    <CEffectEnumArea id="7xingxingsuiliepaoSearch">
+        <EditorCategories value=""/>
+        <LaunchLocation Value="CasterUnit"/>
+        <ImpactLocation Value="CasterUnit"/>
+        <SearchFilters value="-;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray RectangleWidth="3" RectangleHeight="20" Effect="7xingxingsuiliepaoDamage"/>
+        <AreaArray RectangleWidth="4" RectangleHeight="20" Effect="7xingxingsuiliepaoDamage2"/>
+        <AreaArray RectangleWidth="5" RectangleHeight="20" Effect="7xingxingsuiliepaoDamage3"/>
+        <AreaRelativeOffset value="0,-9"/>
+    </CEffectEnumArea>
+    <CEffectCreateHealer id="7xiuliHeal">
+        <ValidatorArray value="noMarkers"/>
+        <ValidatorArray value="NotFullLife"/>
+        <ValidatorArray value="HiddenCompareAB"/>
+        <ValidatorArray value="HiddenCompareBA"/>
+        <ValidatorArray value="NotVortexd"/>
+        <ValidatorArray value="SourceNotHidden"/>
+        <EditorCategories value=""/>
+        <PeriodicValidator value="NotFullLife"/>
+        <RechargeVitalRate value="9"/>
+    </CEffectCreateHealer>
+    <CEffectRemoveBehavior id="7huishouCasterRemove">
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <BehaviorLink value="7huishouCaster"/>
+    </CEffectRemoveBehavior>
+    <CEffectApplyBehavior id="7huishouTarget2Apply">
+        <EditorCategories value=""/>
+        <Behavior value="7huishou2"/>
+    </CEffectApplyBehavior>
+    <CEffectCreatePersistent id="7duidikaidalinguangshuzuPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <InitialEffect value="7xiangweiganshePersistent"/>
+        <ExpireEffect value="7duidikaidalinguangshuDamage"/>
+        <FinalEffect value="7duidikaidalinguangshuDamage"/>
+    </CEffectCreatePersistent>
+    <CEffectLaunchMissile id="7qingxingguangzipaoMissile">
+        <EditorCategories value=""/>
+        <ImpactEffect value="7guangzipaoDamage"/>
+        <AmmoUnit value="7guangzipao"/>
+    </CEffectLaunchMissile>
+    <CEffectLaunchMissile id="7xiaoxingguangzipaoMissile">
+        <EditorCategories value=""/>
+        <ImpactEffect value="7guangzipaoDamage"/>
+        <AmmoUnit value="7guangzipao"/>
+    </CEffectLaunchMissile>
+    <CEffectApplyBehavior id="7quntizhuangjiachonggouApply">
+        <EditorCategories value=""/>
+        <Behavior value="7quntizhuangjiachonggou"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="7quntizhuangjiachonggouCasterApply">
+        <EditorCategories value=""/>
+        <Behavior value="7quntizhuangjiachonggouCaster"/>
+    </CEffectApplyBehavior>
+    <CEffectModifyUnit id="7quntizhuangjiachonggouModify">
+        <EditorCategories value=""/>
+        <VitalArray index="Life">
+            <Change value="30"/>
+            <ChangeFraction value="0.03"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectEnumArea id="7quntizhuangjiachonggouSearch">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="CasterPoint"/>
+        <SearchFilters value="Mechanical;Neutral,Enemy,Missile,Stasis,UnderConstruction,Dead"/>
+        <AreaArray Radius="6" Effect="7quntizhuangjiachonggouApply"/>
+    </CEffectEnumArea>
+    <CEffectApplyBehavior id="7taiyanglieyanApply">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <Behavior value="7taiyanglieyan"/>
+    </CEffectApplyBehavior>
+    <CEffectDamage id="7taiyanglieyanDamage">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <EditorCategories value=""/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoGain" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoScaledTakenBonus" value="1"/>
+        <Flags index="NoFractionTakenBonus" value="1"/>
+        <Flags index="NoUnscaledTakenBonus" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Flags index="NoVitalGainLife" value="1"/>
+        <Flags index="NoVitalGainShields" value="1"/>
+        <Flags index="NoVitalGainEnergy" value="1"/>
+        <Amount value="5.4"/>
+    </CEffectDamage>
+    <CEffectDamage id="7dengliziguangpaoDamage">
+        <EditorCategories value=""/>
+        <Amount value="30"/>
+        <Death value="Fire"/>
+    </CEffectDamage>
+    <CEffectDamage id="7dengliziguangpaoDamage2">
+        <EditorCategories value=""/>
+        <Amount value="15"/>
+        <Death value="Fire"/>
+    </CEffectDamage>
+    <CEffectEnumArea id="7dengliziguangpaoDamageSearchLeft">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="SourcePoint"/>
+        <SearchFilters value="Ground;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray RectangleWidth="3" RectangleHeight="2" Effect="7dengliziguangpaoDamage"/>
+        <AreaArray RectangleWidth="5" RectangleHeight="2" Effect="7dengliziguangpaoDamage2"/>
+    </CEffectEnumArea>
+    <CEffectEnumArea id="7dengliziguangpaoDamageSearchRight">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="SourcePoint"/>
+        <SearchFilters value="Ground;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray RectangleWidth="3" RectangleHeight="2" Effect="7dengliziguangpaoDamage"/>
+        <AreaArray RectangleWidth="5" RectangleHeight="2" Effect="7dengliziguangpaoDamage2"/>
+    </CEffectEnumArea>
+    <CEffectLaunchMissile id="7dengliziguangpaoDummyMissileRight">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <LaunchOffset value="-0.5,0,0"/>
+        <ImpactOffset value="-0.5,0,0"/>
+        <Flags index="2D" value="1"/>
+        <AmmoUnit value="7dengliziguangpaoDummyMissileWeapon"/>
+        <LaunchEffect value="7dengliziguangpaoMissileRightPersistentDummy"/>
+    </CEffectLaunchMissile>
+    <CEffectCreatePersistent id="7dengliziguangpaoFirePersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="SourcePoint"/>
+        <PeriodCount value="50"/>
+        <PeriodicEffectArray value="7dengliziguangpaoGroundFireSearch"/>
+        <PeriodicPeriodArray value="0.3"/>
+        <ValidatorArray value="Pathable"/>
+    </CEffectCreatePersistent>
+    <CEffectEnumArea id="7dengliziguangpaoGroundFireSearch">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <SearchFilters value="Ground;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="1" Effect="0dianranApply"/>
+    </CEffectEnumArea>
+    <CEffectLaunchMissile id="7dengliziguangpaoMissileRight">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <ImpactOffset value="0.5,-1,0"/>
+        <Flags index="2D" value="1"/>
+        <AmmoUnit value="7dengliziguangpaoWeapon"/>
+        <LaunchEffect value="7dengliziguangpaoMissileRightPersistent"/>
+    </CEffectLaunchMissile>
+    <CEffectLaunchMissile id="7dengliziguangpaoDummyMissileLeft">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <LaunchOffset value="0.5,0,0"/>
+        <ImpactOffset value="0.5,0,0"/>
+        <Flags index="2D" value="1"/>
+        <AmmoUnit value="7dengliziguangpaoDummyMissileWeapon"/>
+        <LaunchEffect value="7dengliziguangpaoMissileLeftPersistentDummy"/>
+    </CEffectLaunchMissile>
+    <CEffectCreatePersistent id="7dengliziguangpaoPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="CasterPoint"/>
+        <OffsetVectorStartLocation Value="CasterUnit"/>
+        <ExpireEffect value="7dengliziguangpaoTurretModifyEnd"/>
+        <PeriodCount value="4"/>
+        <PeriodicEffectArray value="7dengliziguangpaoDummyMissileLeft"/>
+        <PeriodicEffectArray value="7dengliziguangpaoDummyMissileRight"/>
+        <PeriodicEffectArray value="7dengliziguangpaoMissileLeft"/>
+        <PeriodicEffectArray value="7dengliziguangpaoMissileRight"/>
+        <PeriodicOffsetArray value="0,-13,0"/>
+        <PeriodicOffsetArray value="0,-13,0"/>
+        <PeriodicOffsetArray value="0.5,-13,0.5"/>
+        <PeriodicOffsetArray value="-0.5,-13,0.5"/>
+    </CEffectCreatePersistent>
+    <CEffectCreatePersistent id="7dengliziguangpaoPersistentStart">
+        <EditorCategories value=""/>
+        <InitialEffect value="7xiaohaotaiyanghexinchongnengApply"/>
+        <ExpireEffect value="7dengliziguangpaoTurretModify"/>
+    </CEffectCreatePersistent>
+    <CEffectModifyUnit id="7dengliziguangpaoTurretModifyEnd">
+        <EditorCategories value=""/>
+        <ImpactUnit Value="Caster"/>
+        <ModifyTurret Action="ClearTarget" Turret="Immortal"/>
+    </CEffectModifyUnit>
+    <CEffectLaunchMissile id="7duidiguangzipaoMissile">
+        <EditorCategories value=""/>
+        <ImpactEffect value="7guangzipaoDamage"/>
+        <AmmoUnit value="7guangzipao"/>
+    </CEffectLaunchMissile>
+    <CEffectApplyBehavior id="7fangyupingzhangApply">
+        <ValidatorArray index="0" value="7mubiaomeiyoufangyupingzhang"/>
+        <EditorCategories value=""/>
+        <Behavior value="7fangyupingzhang"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="7guangzichaozaiApply2">
+        <EditorCategories value=""/>
+        <Behavior value="7guangzichaozai2"/>
+    </CEffectApplyBehavior>
+    <CEffectModifyUnit id="7guangzichaozaiModify">
+        <EditorCategories value=""/>
+        <VitalArray index="Shields">
+            <Change value="3.6"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectEnumArea id="7guangzichaozaiSearch">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="SourceUnit"/>
+        <SearchFilters value="Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <TargetSorts>
+            <SortArray value="TSRandom"/>
+        </TargetSorts>
+        <AreaArray MaxCount="1" Radius="12" Effect="7guangzichaozaiMissile"/>
+    </CEffectEnumArea>
+    <CEffectLaunchMissile id="7dengliziguangpaoMissileLeft">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <ImpactOffset value="-0.5,-1,0"/>
+        <Flags index="2D" value="1"/>
+        <AmmoUnit value="7dengliziguangpaoWeapon"/>
+        <LaunchEffect value="7dengliziguangpaoMissileLeftPersistent"/>
+    </CEffectLaunchMissile>
+    <CEffectCreatePersistent id="7guangzipaoPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <Flags index="RandomEffect" value="1"/>
+        <PeriodCount value="2"/>
+        <PeriodicEffectArray value="7guangzidanmuSearch"/>
+        <InitialEffect value="7guangzipaoMissile"/>
+        <PeriodicPeriodArray value="0.15"/>
+    </CEffectCreatePersistent>
+    <CEffectCreatePersistent id="7duidiguangzipaoPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <Flags index="RandomEffect" value="1"/>
+        <PeriodCount value="1"/>
+        <PeriodicEffectArray value="7duidiguangzipaoMissile"/>
+        <PeriodicEffectArray value="7duidizhongxingguangzipaoMissile"/>
+        <PeriodicEffectArray value="7duidiguangzipaoMissile"/>
+    </CEffectCreatePersistent>
+    <CEffectModifyUnit id="7hudunhuichongModify">
+        <EditorCategories value=""/>
+        <ImpactUnit Value="Caster"/>
+        <VitalArray index="Shields">
+            <ChangeFraction value="0.15"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectCreatePersistent id="7hudunhuichongPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="CasterUnit"/>
+        <PeriodCount value="10"/>
+        <PeriodicEffectArray value="7hudunhuichongModify"/>
+        <PeriodicPeriodArray value="0.15"/>
+    </CEffectCreatePersistent>
+    <CEffectApplyBehavior id="7jingzhihudunApply">
+        <EditorCategories value=""/>
+        <Behavior value="7jingzhihudun"/>
+    </CEffectApplyBehavior>
+    <CEffectTeleport id="7shanxianTeleport">
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <TargetLocation Value="TargetPoint"/>
+        <TeleportEffect value="7shanxianLaunchApply"/>
+    </CEffectTeleport>
+    <CEffectApplyBehavior id="7xiaohaotaiyanghexinchongnengApply">
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="7xiaohaotaiyanghexinchongneng"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="7yinghuajuzhenApply">
+        <ValidatorArray index="0" value="0mubiaohudunxiaoyu30"/>
+        <EditorCategories value=""/>
+        <Behavior value="7yinghuajuzhen"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="7yinghuajuzhenRemove">
+        <EditorCategories value=""/>
+        <Behavior value="7yinghuajuzhen"/>
+    </CEffectApplyBehavior>
+    <CEffectCreatePersistent id="7yinghuajuzhenPersistent">
+        <ValidatorArray value="0mubiaohudunxiaoyu30"/>
+        <ValidatorArray value="noMarkers"/>
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <TimeScaleSource Value="Caster"/>
+        <Flags index="Channeled" value="1"/>
+        <Flags index="PersistUntilDestroyed" value="1"/>
+        <InitialEffect value="7yinghuajuzhenApply"/>
+        <FinalEffect value="7yinghuajuzhenRemove"/>
+        <PeriodicValidator value="TargetLifeNotFull"/>
+        <PeriodicPeriodArray value="0.15"/>
+    </CEffectCreatePersistent>
+    <CEffectDamage id="7zhongxingguangzipaoDamage" parent="DU_WEAP">
+        <EditorCategories value=""/>
+        <Kind value="Ranged"/>
+        <Amount value="60"/>
+        <AreaArray Radius="1.5" Fraction="0.5"/>
+        <ExcludeArray Value="Target"/>
+        <SearchFilters value="-;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+    </CEffectDamage>
+    <CEffectLaunchMissile id="7zhongxingguangzipaoMissile">
+        <EditorCategories value=""/>
+        <ImpactEffect value="7zhongxingguangzipaoDamage"/>
+        <AmmoUnit value="7zhongxingguangzipao"/>
+    </CEffectLaunchMissile>
+    <CEffectModifyUnit id="7kalaizhuangjiagongchengModify">
+        <EditorCategories value=""/>
+        <ImpactUnit Value="Caster"/>
+        <VitalArray index="Life">
+            <Change value="0.9"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectEnumArea id="7shikongyongdongSearch">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="CasterPoint"/>
+        <SearchFilters value="Structure,Visible;Neutral,Enemy,Missile,Stasis,Dead,Hidden"/>
+        <AreaArray Radius="500" Effect="7shikongyongdongApply"/>
+    </CEffectEnumArea>
+    <CEffectApplyBehavior id="7tonghepinghangyizhiApply">
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="7tonghepingzhangyizhi"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="7tonghepinghangBuffApply">
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="7tonghepingzhangBuff"/>
+    </CEffectApplyBehavior>
+    <CEffectSet id="7tonghepingzhangSet">
+        <EditorCategories value=""/>
+        <EffectArray value="7tonghepinghangBuffApply"/>
+        <EffectArray value="7tonghepinghangyizhiApply"/>
+    </CEffectSet>
+    <CEffectModifyPlayer id="7xiangweicuiqujuzhenPlayer">
+        <EditorCategories value=""/>
+        <WhichPlayer Value="Caster"/>
+        <Resources index="Vespene" value="3"/>
+    </CEffectModifyPlayer>
+    <CEffectModifyUnit id="7zheyuejuzhenchongneng">
+        <EditorCategories value=""/>
+        <ImpactUnit Value="Caster"/>
+        <Cost Abil="7zheyuejianzao,Build1" ChargeCountUse="-1" CooldownOperation="Add">
+            <Player Value="Caster"/>
+        </Cost>
+    </CEffectModifyUnit>
+    <CEffectModifyUnit id="7taiyanghexinchongneng">
+        <EditorCategories value=""/>
+        <ImpactUnit Value="Caster"/>
+        <Cost Abil="7guidaohongzha,Execute" ChargeCountUse="-1" CooldownOperation="Add">
+            <Player Value="Caster"/>
+        </Cost>
+        <Chance value="0.03"/>
+    </CEffectModifyUnit>
+    <CEffectCreatePersistent id="7guidaohongzhaPersistent">
+        <EditorCategories value=""/>
+        <InitialDelay value="0.75"/>
+        <InitialEffect value="7guidaohongzhaImpactDummyDamage"/>
+        <ExpireDelay value="0.125"/>
+        <ExpireEffect value="7guidaohongzhaDamageSearch"/>
+        <RevealRadius value="1"/>
+        <RevealFlags index="Unfog" value="1"/>
+    </CEffectCreatePersistent>
+    <CEffectDamage id="7guidaohongzhaDamage">
+        <EditorCategories value=""/>
+        <AttributeBonus index="Armored" value="50"/>
+        <Amount value="50"/>
+    </CEffectDamage>
+    <CEffectLaunchMissile id="7guangzichaozaiMissile">
+        <EditorCategories value=""/>
+        <ImpactEffect value="7guangzichaozaiDamage"/>
+        <AmmoUnit value="7guangzichaozaiWeapon"/>
+    </CEffectLaunchMissile>
+    <CEffectDamage id="7guangzichaozaiDamage" parent="DU_WEAP_MISSILE">
+        <EditorCategories value=""/>
+        <ImpactLocation Effect="7guangzichaozaiMissile" Value="TargetUnit"/>
+        <Amount value="60"/>
+    </CEffectDamage>
+    <CEffectDamage id="7xiangweisuiliepaoDamage" parent="DU_WEAP_MISSILE">
+        <EditorCategories value=""/>
+        <AttributeFactor index="Armored" value="1"/>
+        <Amount value="40"/>
+    </CEffectDamage>
+    <CEffectLaunchMissile id="7duidizhongxingguangzipaoMissile">
+        <EditorCategories value=""/>
+        <ImpactEffect value="7zhongxingguangzipaoDamage"/>
+        <AmmoUnit value="7zhongxingguangzipao"/>
+    </CEffectLaunchMissile>
+    <CEffectModifyUnit id="7zhuangjiazaishengModify">
+        <EditorCategories value=""/>
+        <ImpactUnit Value="Caster"/>
+        <VitalArray index="Life">
+            <Change value="30"/>
+        </VitalArray>
+        <ValidatorArray value="CasterLifeNotFull"/>
+    </CEffectModifyUnit>
+    <CEffectModifyUnit id="7zidongcaijigaonengwasiModify">
+        <EditorCategories value=""/>
+        <Resources value="-4"/>
+        <ResourcesHarvestedFraction value="1"/>
+    </CEffectModifyUnit>
+    <CEffectApplyBehavior id="7shikongyongdongApply">
+        <EditorCategories value=""/>
+        <Behavior value="7shikongyongdong"/>
+    </CEffectApplyBehavior>
+    <CEffectLaunchMissile id="7guangzipaoMissile">
+        <EditorCategories value=""/>
+        <ImpactEffect value="7guangzipaoDamage"/>
+        <AmmoUnit value="7guangzipao"/>
+    </CEffectLaunchMissile>
+    <CEffectDamage id="7guangzipaoDamage" parent="DU_WEAP_MISSILE">
+        <EditorCategories value=""/>
+        <Amount value="40"/>
+    </CEffectDamage>
+    <CEffectEnumArea id="7guidaohongzhaDamageSearch">
+        <EditorCategories value=""/>
+        <LaunchLocation Value="TargetPoint"/>
+        <SearchFilters value="-;Self,Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="1.5" Effect="7guidaohongzhaDamagePersistent"/>
+    </CEffectEnumArea>
+    <CEffectCreateHealer id="7hudunchongnengHeal">
+        <ValidatorArray value="noMarkers"/>
+        <ValidatorArray value="ShieldsNotFull"/>
+        <ValidatorArray value="NotWarpingIn"/>
+        <ValidatorArray value="HiddenCompareAB"/>
+        <ValidatorArray value="HiddenCompareBA"/>
+        <ValidatorArray value="NotVortexd"/>
+        <ValidatorArray value="SourceNotHidden"/>
+        <ValidatorArray value="NotInterceptor"/>
+        <EditorCategories value=""/>
+        <PeriodicValidator value="ShieldsNotFull"/>
+        <RechargeVital value="Shields"/>
+        <RechargeVitalRate value="18"/>
+    </CEffectCreateHealer>
+    <CEffectCreatePersistent id="7shikongtisuPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <InitialEffect value="7shikongtisuMarkerRemove"/>
+        <ExpireEffect value="7shikongtisuMarkerApply"/>
+        <FinalEffect value="7shikongtisuApply"/>
+        <ValidatorArray value="7mubiaomeiyoushikongtisu"/>
+        <ValidatorArray value="7mubiaomeiyouyongjiushikongtisu"/>
+    </CEffectCreatePersistent>
+    <CEffectApplyBehavior id="7shikongtisuMarkerApply">
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="7shikongtisuMarker"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="7shikongtisuApply">
+        <EditorCategories value=""/>
+        <Behavior value="7shikongtisu"/>
+    </CEffectApplyBehavior>
+    <CEffectRemoveBehavior id="7shikongtisuMarkerRemove">
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <BehaviorLink value="7shikongtisuMarker"/>
+    </CEffectRemoveBehavior>
+    <CEffectApplyBehavior id="7guangzichaozaiApply">
+        <ValidatorArray index="0" value="7mubiaomeiyouguangzichaozai"/>
+        <EditorCategories value=""/>
+        <Behavior value="7guangzichaozai"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="7quntizhaohuiApply">
+        <ValidatorArray index="0" value=""/>
+        <EditorCategories value=""/>
+        <Behavior value="7quntizhaohui"/>
+    </CEffectApplyBehavior>
+    <CEffectCreatePersistent id="7quntizhaohuiPersistent">
+        <ValidatorArray value="NotLarvaEgg"/>
+        <ValidatorArray value="NotLarva"/>
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <InitialEffect value="7quntizhaohuiTeleport"/>
+        <ExpireEffect value="7quntizhaohuiApply"/>
+    </CEffectCreatePersistent>
+    <CEffectEnumArea id="7quntizhaohuiSearch">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <SearchFilters value="-;Self,Neutral,Enemy,Structure,Worker,Missile,Item,Stasis,Dead,Hidden"/>
+        <AreaArray Radius="8" Effect="7quntizhaohuiPersistent"/>
+    </CEffectEnumArea>
+    <CEffectTeleport id="7quntizhaohuiTeleport">
+        <EditorCategories value=""/>
+        <PlacementAround Effect="7quntizhaohuiSearch" Value="SourcePoint"/>
+        <SourceLocation Effect="7quntizhaohuiSearch" Value="TargetPoint"/>
+        <TargetLocation Effect="7quntizhaohuiSearch" Value="SourcePoint"/>
+        <TeleportFlags index="TestCliff" value="1"/>
+        <TeleportFlags index="TestFog" value="0"/>
+    </CEffectTeleport>
+    <CEffectCreatePersistent id="7dongnenglichangPersistent">
+        <EditorCategories value=""/>
+        <InitialEffect value="TemporalFieldSearchAreaImpactDummy"/>
+        <PeriodCount value="160"/>
+        <PeriodicEffectArray value="TemporalFieldSearchArea"/>
+        <PeriodicEffectArray value="TemporalFieldSearchArea"/>
+        <PeriodicPeriodArray value="0.0625"/>
+        <PeriodicPeriodArray value="0.0625"/>
+    </CEffectCreatePersistent>
+    <CEffectDamage id="7guidaohongzhaImpactDummyDamage">
+        <EditorCategories value=""/>
+    </CEffectDamage>
+    <CEffectApplyBehavior id="7pingzhangApply">
+        <EditorCategories value=""/>
+        <WhichUnit Value="Source"/>
+        <Behavior value="7pingzhang"/>
+    </CEffectApplyBehavior>
+    <CEffectModifyUnit id="7dengliziguangpaoTurretModify">
+        <EditorCategories value=""/>
+        <ImpactUnit Value="Caster"/>
+        <ModifyTurret Turret="Immortal">
+            <Target Effect="7dengliziguangpaoPersistentStart" Value="TargetPoint"/>
+            <Flags index="Tracking" value="1"/>
+        </ModifyTurret>
+    </CEffectModifyUnit>
+    <CEffectCreatePersistent id="7wajieguangshuPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <TimeScaleSource Value="Caster"/>
+        <InitialEffect value="7wajieguangshuDamage"/>
+        <PeriodicPeriodArray value="0.15"/>
+        <PeriodCount value="1"/>
+    </CEffectCreatePersistent>
+    <CEffectDamage id="7wajieguangshuDamage" parent="DU_WEAP_MISSILE">
+        <EditorCategories value=""/>
+        <Amount value="8"/>
+    </CEffectDamage>
+    <CEffectCreateUnit id="7xiangweiguangpaoCreate">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetPoint"/>
+        <CreateFlags index="Birth" value="0"/>
+        <CreateFlags index="ProvideFood" value="0"/>
+        <CreateFlags index="UseFood" value="0"/>
+        <SpawnEffect value="7xiangweiguangpaoWarpInApply"/>
+        <SpawnUnit value="7zhongxingguangzipaotaiTimedLife"/>
+    </CEffectCreateUnit>
+    <CEffectApplyBehavior id="7xiangweiguangpaoWarpInApply">
+        <EditorCategories value=""/>
+        <Behavior value="7xiangweiguangpaoWarpIn"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="7xiangweiguangpaoTimedLifeApply">
+        <EditorCategories value=""/>
+        <Behavior value="7xiangweiguangpaoTimedLife"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="7huishouTargetApply">
+        <EditorCategories value=""/>
+        <Behavior value="7huishou"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="7huishouCasterApply">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="7huishouCaster"/>
+    </CEffectApplyBehavior>
+    <CEffectCreatePersistent id="7huishouPersistent">
+        <ValidatorArray value="NotWarpingIn"/>
+        <ValidatorArray value="HasNoCargo"/>
+        <ValidatorArray value="7shifazhemeiyouhuishouCaster"/>
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <InitialEffect value="7huishouCasterApply"/>
+        <ExpireEffect value="7huishouTargetApply"/>
+    </CEffectCreatePersistent>
+    <CEffectCreatePersistent id="7lizipaoPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <PeriodCount value="2"/>
+        <PeriodicEffectArray value="7lizipaoMissileLeft"/>
+        <PeriodicEffectArray value="7lizipaoMissileRight"/>
+        <PeriodicPeriodArray value="0"/>
+        <PeriodicPeriodArray value="0"/>
+    </CEffectCreatePersistent>
+    <CEffectLaunchMissile id="7lizipaoMissileLeft">
+        <EditorCategories value=""/>
+        <ImpactEffect value="7lizipaoDamage"/>
+        <AmmoUnit value="7lizipaoWeapon"/>
+        <Movers Link="MissileDefault" IfRangeLTE="1"/>
+        <Movers Link="IonCannonsWeaponLeft" IfRangeLTE="6"/>
+    </CEffectLaunchMissile>
+    <CEffectLaunchMissile id="7lizipaoMissileRight">
+        <EditorCategories value=""/>
+        <ImpactEffect value="7lizipaoDamage"/>
+        <AmmoUnit value="7lizipaoWeapon"/>
+        <Movers Link="MissileDefault" IfRangeLTE="1"/>
+        <Movers Link="IonCannonsWeaponRight" IfRangeLTE="6"/>
+    </CEffectLaunchMissile>
+    <CEffectDamage id="7lizipaoDamage" parent="DU_WEAP_MISSILE">
+        <EditorCategories value=""/>
+        <Visibility value="Visible"/>
+        <Amount value="18"/>
+    </CEffectDamage>
+    <CEffectCreateHealer id="7hudunhuifuHeal">
+        <ValidatorArray value="noMarkers"/>
+        <ValidatorArray value="ShieldsNotFull"/>
+        <ValidatorArray value="NotWarpingIn"/>
+        <ValidatorArray value="HiddenCompareAB"/>
+        <ValidatorArray value="HiddenCompareBA"/>
+        <ValidatorArray value="NotVortexd"/>
+        <ValidatorArray value="SourceNotHidden"/>
+        <EditorCategories value=""/>
+        <PeriodicValidator value="ShieldsNotFull"/>
+        <RechargeVital value="Shields"/>
+        <RechargeVitalRate value="15"/>
+    </CEffectCreateHealer>
+    <CEffectDamage id="7qingxingguangpaozuDamage" parent="DU_WEAP">
+        <EditorCategories value=""/>
+        <AttributeFactor index="Light" value="0.5"/>
+        <Kind value="Ranged"/>
+        <Amount value="12"/>
+    </CEffectDamage>
+    <CEffectCreatePersistent id="7qingxingguangshupaozuPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <TimeScaleSource Value="Caster"/>
+        <InitialEffect value="7qingxingguangpaozuDamage"/>
+        <ExpireEffect value="7qingxingguangpaozuDamage"/>
+    </CEffectCreatePersistent>
+    <CEffectUseMagazine id="7qingxingguangshuwurenjiMagazine">
+        <EditorCategories value=""/>
+        <TargetLocation Value="TargetPoint"/>
+    </CEffectUseMagazine>
+    <CEffectApplyBehavior id="7fanwuzhidanmuApply">
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="7fanwuzhidanmu"/>
+    </CEffectApplyBehavior>
+    <CEffectDamage id="7fanwuzhidanmuDamage">
+        <EditorCategories value=""/>
+        <ResponseFlags index="Acquire" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Amount value="150"/>
+        <SearchFlags index="CallForHelp" value="1"/>
+        <SearchFlags index="OffsetByUnitRadius" value="1"/>
+        <SearchFlags index="OffsetAreaByAngle" value="1"/>
+        <AreaArray Radius="1" Fraction="0.75"/>
+        <AreaArray Radius="2" Fraction="0.5"/>
+        <AreaArray Radius="3" Fraction="0.25"/>
+        <ExcludeArray Effect="7fanwuzhidanmuPersistent" Value="Target"/>
+        <SearchFilters value="-;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+    </CEffectDamage>
+    <CEffectApplyBehavior id="7fanwuzhidanmuStartApply">
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="7fanwuzhidanmuStart"/>
+        <Duration value="1.5"/>
+    </CEffectApplyBehavior>
+    <CEffectLaunchMissile id="7fanwuzhidanmuMissile2">
+        <EditorCategories value=""/>
+        <LaunchLocation Value="CasterUnit"/>
+        <ImpactLocation Effect="7fanwuzhidanmuPersistent"/>
+        <ImpactEffect value="7fanwuzhidanmuDamage"/>
+        <AmmoUnit value="7fanwuzhidanmuMissile"/>
+    </CEffectLaunchMissile>
+    <CEffectCreatePersistent id="7fanwuzhidanmuPersistent">
+        <EditorCategories value=""/>
+        <WhichLocation Value="TargetUnit"/>
+        <Flags index="Channeled" value="1"/>
+        <InitialEffect value="7fanwuzhidanmuApply"/>
+    </CEffectCreatePersistent>
+    <CEffectModifyUnit id="7fanwuzhidanmuTurretStartModify">
+        <EditorCategories value=""/>
+        <ImpactUnit Value="Caster"/>
+        <ModifyTurret Turret="Colossus">
+            <Target Effect="7fanwuzhidanmuPersistentStart" Value="TargetUnit"/>
+            <Flags index="Tracking" value="1"/>
+        </ModifyTurret>
+    </CEffectModifyUnit>
+    <CEffectModifyUnit id="7fanwuzhidanmuTurretClearModify">
+        <EditorCategories value=""/>
+        <ImpactUnit Value="Caster"/>
+        <ModifyTurret Action="ClearTarget" Turret="Colossus"/>
+    </CEffectModifyUnit>
+    <CEffectDamage id="7zhiyuanliaojiguangshuDamage">
+        <EditorCategories value=""/>
+        <ResponseFlags index="Acquire" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Amount value="3"/>
+        <SearchFlags index="CallForHelp" value="1"/>
+        <SearchFlags index="OffsetByUnitRadius" value="1"/>
+        <SearchFlags index="OffsetAreaByAngle" value="1"/>
+    </CEffectDamage>
+    <CEffectModifyUnit id="jingzhihudunModify">
+        <EditorCategories value=""/>
+        <VitalArray index="Shields">
+            <Change value="30"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+</Catalog>

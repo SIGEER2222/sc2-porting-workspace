@@ -1,0 +1,561 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CBehaviorBuff id="8fushujiaqiaoStart">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="8youfushujiaqiao"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="0.0625"/>
+        <InitialEffect value="8fushujiaqiaoApply"/>
+        <Modification>
+            <VitalMaxArray index="Shields" value="30"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8suanxingyichu">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="4.5"/>
+        <Period value="0.6"/>
+        <PeriodicEffect value="8suanxingRemove"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8baochongchaoxuesiwang">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8baochongchaoxuesiwangPersistent">
+                <Type index="Remove" value="0"/>
+            </DeathResponse>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8baowenchaoxuesiwang">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8baowenchaoxuesiwangPersistent">
+                <Type index="Remove" value="0"/>
+            </DeathResponse>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8baochongfuhua">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8baochongfuhuaCreate"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8baozaifan">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8baozaifanSearch"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8buye">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-transfusion-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Period value="0.15"/>
+        <PeriodicEffect value="8buyeModify2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8chongci">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.3"/>
+        <Modification MoveSpeedMultiplier="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8chongcizidongshifa">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8ebianjuntan">
+        <InfoIcon value="Assets\Textures\btn-ability-kerrigan-malignantcreep.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="OnCreep"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8gouzaotijiaqiao">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-pathogenglands.dds"/>
+        <Modification MoveSpeedMultiplier="1.3">
+            <LifeArmorBonus value="2"/>
+            <VitalMaxArray index="Life" value="150"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8guanghezuoyong">
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-visciousdischarge.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Period value="7"/>
+        <PeriodicEffect value="8guanghezuoyonModify"/>
+        <Modification>
+            <BehaviorLinkEnableArray value="8guanghezuoyongyizhiCaster"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8guanghezuoyongyizhiCaster">
+        <BehaviorFlags index="Disabled" value="1"/>
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="1"/>
+        <PeriodicEffect value="8guanghezuoyongSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8jianzhusiwangMedium">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8jianzhusiwangPersistentMedium">
+                <Type index="Remove" value="0"/>
+            </DeathResponse>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8jisuyunyu">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8jisuyunyuMoveSpeed">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="8wanjiabujixiaoyudengyu100"/>
+        <Duration value="6"/>
+        <Modification MoveSpeedMultiplier="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8jisuzaisheng">
+        <InfoIcon value="Assets\Textures\BTN-ability-zerg-rapidregeneration-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="CasterLifeNotFull"/>
+        <Modification>
+            <VitalRegenArray index="Life" value="12"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8juntanzhongliuyinxing">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8minibaochongsiwang">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8minibaochongsiwangPersistent">
+                <Type index="Remove" value="0"/>
+            </DeathResponse>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8baowensiwang">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8baowensiwangPersistent">
+                <Type index="Remove" value="0"/>
+            </DeathResponse>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8shencaojici">
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-groovedspines.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="1">
+            <DamageDealtAttributeMultiplier index="Armored" value="0.5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8suanxing">
+        <Tooltip value="Behavior/Tooltip/0酸性"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-abathur-devourer-corrosivespray.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="9999"/>
+        <MaxStackCountPerCaster value="9999"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="8suanxingDamage"/>
+        <Modification>
+            <LifeArmorBonus value="-0.5"/>
+        </Modification>
+        <InitialEffect value="8suanxingyichuApply"/>
+        <FinalEffect value="8suanxingyichuApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8chunbaihuajia">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="8youchunbaihuajia"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8fuhuapao2">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Period value="2"/>
+        <PeriodicEffect value="8suanxingApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8jianzhusiwangLarge">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8jianzhusiwangPersistentLarge2">
+                <Type index="Remove" value="0"/>
+            </DeathResponse>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8kongtouminibaochongTimedLife">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <ExpireEffect value="TimedLifeFate"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8fuhuaTimedLife">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="15"/>
+        <InitialEffect value="8baochongBurrowedOrder"/>
+        <ExpireEffect value="TimedLifeFate"/>
+        <Modification>
+            <StateFlags index="SuppressFoodMade" value="1"/>
+            <StateFlags index="SuppressFoodUsed" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8quntikuangbao">
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5">
+            <VitalMaxArray index="Shields" value="200"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8shenshangxianti">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification AttackSpeedMultiplier="2"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-adrenalglands.dds"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8silielizhua">
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-dehaka-tenderize.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <DamageResponse Handled="8silielizhuaDamage">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8suanyeduiLarge">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8suanyeduiPersistent"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8suanyeduiSmall">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8suanyeduiSmallPersistent"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8suanyeyun">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8suanyeyunPersistent"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8suanyeqinshi">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-acidspores.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Period value="1"/>
+        <InitialEffect value="8suanxingApply"/>
+        <PeriodicEffect value="8suanyeqinshiDamagePersistent"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8wasihecheng">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Period value="7"/>
+        <PeriodicEffect value="8wasihechengPlayer"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8weixianyunyuGround">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8weixianyunyuCreateGround"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8weixianyunyuAir">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8weixianyunyuCreateAir"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8yantigouzaoCasterAir">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="8yantigouzaoSearchAir"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8yinghuaguban">
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-stukov-apocolisk_04.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="2"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.7">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8yingyonggangyi">
+        <InfoIcon value="Assets\Textures\btn-ability-kerrigan-heroicfortitude.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse ModifyFraction="0.6">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8guanghezuoyongyizhi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <Modification>
+            <AbilLinkDisableArray value="8guanghezuoyong"/>
+            <BehaviorLinkDisableArray value="8guanghezuoyongyizhiCaster"/>
+            <BehaviorLinkDisableArray value="8guanghezuoyong"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorCreepSource id="8youleishoujuntan">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Requirements value="8huoxingxianti"/>
+        <Period value="0.3"/>
+        <Build value="CreepGen7"/>
+        <Start value="CreepGen7"/>
+        <Birth value="CreepGen7"/>
+        <Grown value="CreepGen7"/>
+    </CBehaviorCreepSource>
+    <CBehaviorSpawn id="8fuhuachao">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray Unit="8youchong" MaxCount="12" Delay="4"/>
+        <Center value="0,-3"/>
+        <Offset value="0,-3"/>
+        <Offset value="1,-3"/>
+        <Offset value="2,-3"/>
+        <Offset value="3,-3"/>
+        <Offset value="3,-2"/>
+        <Offset value="3,-1"/>
+        <Offset value="3,0"/>
+        <Offset value="3,1"/>
+        <Offset value="3,2"/>
+        <Offset value="3,3"/>
+        <Offset value="2,3"/>
+        <Offset value="1,3"/>
+        <Offset value="0,3"/>
+        <Offset value="-1,3"/>
+        <Offset value="-2,3"/>
+        <Offset value="-3,3"/>
+        <Offset value="-3,2"/>
+        <Offset value="-3,1"/>
+        <Offset value="-3,0"/>
+        <Offset value="-3,-1"/>
+        <Offset value="-3,-2"/>
+        <Offset value="-3,-3"/>
+        <Offset value="-2,-3"/>
+        <Offset value="-1,-3"/>
+        <Slop value="1"/>
+        <Range value="1"/>
+        <Limit value="12"/>
+        <ConjoinedLink value="SpawnLarvaConjoined"/>
+    </CBehaviorSpawn>
+    <CBehaviorBuff id="8fushujiaqiao">
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-hardenedcarapace.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="CasterShieldsGE1"/>
+        <Modification ShieldArmorBonus="2">
+            <VitalMaxArray index="Shields" value="30"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.85" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8lingqiaoshanbi">
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-zagara-zerglingdodge.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse ModifyFraction="0">
+            <Kind index="Spell" value="0"/>
+            <Chance value="0.4"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8yantigouzao">
+        <InfoIcon value="Assets\Textures\BTN-Ability-Zerg-Towering.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="0.7"/>
+        <DamageResponse ModifyFraction="0.5">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8yantigouzaoCasterGround">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Period value="0.3"/>
+        <PeriodicEffect value="8yantigouzaoSearchGround"/>
+    </CBehaviorBuff>
+    <CBehaviorSpawn id="8fuhuachangyouchong">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <InfoArray Unit="8youchong" MaxCount="6" Delay="8"/>
+        <Center value="0,-3"/>
+        <Offset value="0,-3"/>
+        <Offset value="1,-3"/>
+        <Offset value="2,-3"/>
+        <Offset value="3,-3"/>
+        <Offset value="3,-2"/>
+        <Offset value="3,-1"/>
+        <Offset value="3,0"/>
+        <Offset value="3,1"/>
+        <Offset value="3,2"/>
+        <Offset value="3,3"/>
+        <Offset value="2,3"/>
+        <Offset value="1,3"/>
+        <Offset value="0,3"/>
+        <Offset value="-1,3"/>
+        <Offset value="-2,3"/>
+        <Offset value="-3,3"/>
+        <Offset value="-3,2"/>
+        <Offset value="-3,1"/>
+        <Offset value="-3,0"/>
+        <Offset value="-3,-1"/>
+        <Offset value="-3,-2"/>
+        <Offset value="-3,-3"/>
+        <Offset value="-2,-3"/>
+        <Offset value="-1,-3"/>
+        <Slop value="1"/>
+        <Range value="1"/>
+        <Limit value="6"/>
+        <ConjoinedLink value="SpawnLarvaConjoined"/>
+    </CBehaviorSpawn>
+    <CBehaviorBuff id="8kuangbao">
+        <InfoIcon value="Assets\Textures\btn-upgrade-zerg-frenzy.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="6"/>
+        <Modification AttackSpeedMultiplier="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8zhengfuzhiyi">
+        <InfoIcon value="Assets\Textures\talent-zagara-level04-scourgeresearchbundle.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMultiplier="1.3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8zibaomubiao">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <WeaponEnableArray value="8zibao2"/>
+            <WeaponEnableArray value="8zibao2Small"/>
+            <WeaponDisableArray value="8zibao"/>
+            <WeaponDisableArray value="8zibaoSmall"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8shibukedang">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\BTN-Upgrade-Zerg-BurrowCharge.dds"/>
+        <BehaviorCategories index="Stun" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8wuran">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-contaminate-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="15"/>
+        <DurationOverride>
+            <Duration value="6"/>
+            <ValidatorArray value="IsHeroic"/>
+        </DurationOverride>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="EnableMove" value="1"/>
+            <BehaviorClassDisableArray index="CBehaviorSpawn" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8fuhua">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-corruption-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Period value="2"/>
+        <PeriodicEffect value="8suanxingApply"/>
+        <DamageResponse ModifyFraction="1.35">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8quntibuye">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-transfusion-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Period value="0.25"/>
+        <PeriodicEffect value="8quntibuyeModifyS"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8quntibuye2">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-transfusion-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="8quntibuyeModifyS"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8fuhuapao">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-explode-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Period value="0.3"/>
+        <InitialEffect value="8fuhuapao2Apply"/>
+        <PeriodicEffect value="8fuhuapaoDamage"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8jianzhusiwangSmall">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8jianzhusiwangPersistentSmall">
+                <Type index="Remove" value="0"/>
+            </DeathResponse>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8baochongsiwang">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="8baochongsiwangPersistent">
+                <Type index="Remove" value="0"/>
+            </DeathResponse>
+        </Modification>
+        <FinalEffect value="8baochongfenlieCreate"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8fuhuagaodu">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.625"/>
+        <Modification Height="0.75">
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+            <HeightTime index="Start" value="0.15"/>
+            <HeightTime index="Stop" value="0.15"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="8ebianjuntanCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+</Catalog>

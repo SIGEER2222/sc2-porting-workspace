@@ -1,0 +1,172 @@
+// XMFinal split module: commander hero-structure startup anchors.
+
+string libE0EAE146_gf_CommanderHeroStructureUnitType (string lp_commander) {
+    if (lp_commander == "Fenix") {
+        return "FenixAltarOfPsiStorms";
+    }
+    else if (lp_commander == "Karax") {
+        return "SolarForgeKarax";
+    }
+    else if (lp_commander == "Swann") {
+        return "UnfinishedDrakkenLaserDrillCoop";
+    }
+    else if (lp_commander == "Zeratul") {
+        return "ZeratulACArtifact";
+    }
+
+    return "";
+}
+
+unit libE0EAE146_gf_FindCommanderHeroStructure (int lp_player, string lp_unitType) {
+    unitgroup lv_units;
+
+    if ((lp_unitType == "") || (!CatalogEntryIsValid(c_gameCatalogUnit, lp_unitType))) {
+        return null;
+    }
+
+    lv_units = UnitGroup(lp_unitType, lp_player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    if (UnitGroupCount(lv_units, c_unitCountAlive) > 0) {
+        return UnitGroupUnit(lv_units, 1);
+    }
+
+    return null;
+}
+
+point libE0EAE146_gf_CommanderHeroStructurePoint (int lp_player, string lp_unitType) {
+    point lv_origin;
+    point lv_candidate;
+    point lv_placement;
+    int lv_angleIndex;
+    int lv_radiusIndex;
+    fixed lv_angle;
+    fixed lv_radius;
+    fixed[6] lv_angles;
+    fixed[4] lv_radii;
+
+    lv_origin = libE0EAE146_gf_CommanderEffectiveBaseAnchor(lp_player, libE0EAE146_gv_commander);
+    if (lv_origin == null) {
+        lv_origin = PlayerStartLocation(lp_player);
+    }
+
+    if ((libE0EAE146_gv_currentMapId == "thanson01_7vs1") && (lp_unitType == "SolarForgeKarax")) {
+        lv_candidate = PointWithOffsetPolar(lv_origin, 16.0, 90.0);
+        lv_placement = UnitTypePlacementFromPoint(lp_unitType, lp_player, lv_candidate, 12.0);
+        if (lv_placement != null) {
+            return lv_placement;
+        }
+        return lv_candidate;
+    }
+
+    if (libE0EAE146_gv_currentMapId == "thanson01_7vs1") {
+        lv_angles[0] = 45.0;
+        lv_angles[1] = 90.0;
+        lv_angles[2] = 0.0;
+        lv_angles[3] = 135.0;
+        lv_angles[4] = 315.0;
+        lv_angles[5] = 180.0;
+        lv_radii[0] = 12.0;
+        lv_radii[1] = 14.0;
+        lv_radii[2] = 16.0;
+        lv_radii[3] = 18.0;
+    }
+    else {
+        lv_angles[0] = 225.0;
+        lv_angles[1] = 315.0;
+        lv_angles[2] = 135.0;
+        lv_angles[3] = 45.0;
+        lv_angles[4] = 270.0;
+        lv_angles[5] = 180.0;
+        lv_radii[0] = 10.0;
+        lv_radii[1] = 12.0;
+        lv_radii[2] = 14.0;
+        lv_radii[3] = 16.0;
+    }
+
+    lv_candidate = lv_origin;
+    for (lv_radiusIndex = 0; lv_radiusIndex < 4; lv_radiusIndex += 1) {
+        lv_radius = lv_radii[lv_radiusIndex];
+        for (lv_angleIndex = 0; lv_angleIndex < 6; lv_angleIndex += 1) {
+            lv_angle = lv_angles[lv_angleIndex];
+            lv_candidate = PointWithOffsetPolar(lv_origin, lv_radius, lv_angle);
+            lv_placement = UnitTypePlacementFromPoint(lp_unitType, lp_player, lv_candidate, 12.0);
+            if (lv_placement != null) {
+                return lv_placement;
+            }
+        }
+    }
+
+    return lv_candidate;
+}
+
+void libE0EAE146_gf_RelocateCommanderHeroStructureOffStartLocation (int lp_player) {
+    string lv_unitType;
+    unit lv_structure;
+    point lv_relocatePoint;
+    point lv_startPoint;
+
+    if (libE0EAE146_gv_currentMapId != "thanson01_7vs1") {
+        return;
+    }
+
+    lv_unitType = libE0EAE146_gf_CC_CommanderHeroStructureType(libE0EAE146_gf_ActiveCommanderForPlayer(lp_player));
+    if ((lv_unitType == "") || (!CatalogEntryIsValid(c_gameCatalogUnit, lv_unitType))) {
+        return;
+    }
+
+    lv_structure = libE0EAE146_gf_FindCommanderHeroStructure(lp_player, lv_unitType);
+    if (UnitIsValid(lv_structure) == false) {
+        return;
+    }
+
+    lv_startPoint = PlayerStartLocation(lp_player);
+    if (lv_startPoint == null) {
+        return;
+    }
+    if (DistanceBetweenPoints(UnitGetPosition(lv_structure), lv_startPoint) > 6.0) {
+        return;
+    }
+
+    lv_relocatePoint = libE0EAE146_gf_CommanderHeroStructurePoint(lp_player, lv_unitType);
+    if (lv_relocatePoint == null) {
+        return;
+    }
+
+    UnitSetPosition(lv_structure, lv_relocatePoint, false);
+}
+
+unit libE0EAE146_gf_CreateCommanderHeroStructure (int lp_player, string lp_commander) {
+    string lv_unitType;
+    unit lv_structure;
+    unit lv_townHall;
+    point lv_point;
+
+    lv_unitType = libE0EAE146_gf_CommanderHeroStructureUnitType(lp_commander);
+    if ((lv_unitType == "") || (!CatalogEntryIsValid(c_gameCatalogUnit, lv_unitType))) {
+        return null;
+    }
+
+    lv_townHall = libE0EAE146_gf_CommanderPrimaryTownHall(lp_player, lp_commander);
+    if (UnitIsValid(lv_townHall) == false) {
+        return null;
+    }
+
+    lv_structure = libE0EAE146_gf_FindCommanderHeroStructure(lp_player, lv_unitType);
+    if (UnitIsValid(lv_structure) == true) {
+        return lv_structure;
+    }
+
+    lv_point = libE0EAE146_gf_CommanderHeroStructurePoint(lp_player, lv_unitType);
+    UnitCreate(1, lv_unitType, 0, lp_player, lv_point, 225.0);
+    lv_structure = UnitLastCreated();
+    if (((UnitIsValid(lv_structure) == true) && (UnitGetOwner(lv_structure) == lp_player)) && (UnitGetType(lv_structure) == lv_unitType)) {
+        return lv_structure;
+    }
+
+    UnitCreate(1, lv_unitType, c_unitCreateIgnorePlacement, lp_player, lv_point, 225.0);
+    lv_structure = UnitLastCreated();
+    if (((UnitIsValid(lv_structure) == true) && (UnitGetOwner(lv_structure) == lp_player)) && (UnitGetType(lv_structure) == lv_unitType)) {
+        return lv_structure;
+    }
+
+    return null;
+}

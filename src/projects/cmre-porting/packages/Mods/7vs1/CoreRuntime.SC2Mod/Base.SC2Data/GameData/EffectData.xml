@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<Catalog>
+    <CEffectDamage id="CycloneAttackWeaponDamage"/>
+    <CEffectSet id="LockOnGroundAirSet">
+        <EffectArray value="LockOnAirInitialSet"/>
+    </CEffectSet>
+    <CEffectDamage id="ParticleDisruptorsU">
+        <AttributeBonus index="Armored" value="4"/>
+        <Amount value="10"/>
+    </CEffectDamage>
+    <CEffectEnumArea id="ProphecyArtifactRevealSearch">
+        <SearchFilters value="-;Ally,Neutral,Enemy,Missile,Dead"/>
+    </CEffectEnumArea>
+    <CEffectDamage id="PunisherGrenadesU"/>
+    <CEffectSet id="SpawnLarvaExpireSet">
+        <EffectArray index="2" removed="1"/>
+        <EffectArray index="3" removed="1"/>
+    </CEffectSet>
+    <CEffectSet id="SpawnLarvaSet">
+        <ValidatorArray index="2" removed="1"/>
+        <EffectArray index="2" removed="1"/>
+        <EffectArray index="3" removed="1"/>
+    </CEffectSet>
+    <CEffectApplyBehavior id="SOARepairBeamAB">
+        <ValidatorArray index="5" removed="1"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="SpawnMutantLarvaApplySpawnBehavior">
+        <Count value="4"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="SpawnMutantLarvaHiddenAB">
+        <ValidatorArray index="3" removed="1"/>
+        <ValidatorArray index="4" removed="1"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="BiomassBuff1To10AB">
+        <EditorCategories value=""/>
+        <Behavior value="BiomassBuff10"/>
+    </CEffectApplyBehavior>
+    <CEffectRemoveBehavior id="BiomassBuff1To10RB">
+        <EditorCategories value=""/>
+        <BehaviorLink value="BiomassBuff1"/>
+        <Count value="10"/>
+    </CEffectRemoveBehavior>
+    <CEffectSet id="BiomassBuff1To10Set">
+        <EditorCategories value=""/>
+        <EffectArray value="BiomassBuff1To10AB"/>
+        <EffectArray value="BiomassBuff1To10RB"/>
+    </CEffectSet>
+    <CEffectSwitch id="BiomassBuff1To10Switch">
+        <EditorCategories value=""/>
+        <CaseArray Validator="BiomassBuff1CountGE10" Effect="BiomassBuff1To10Set"/>
+    </CEffectSwitch>
+    <CEffectRemoveBehavior id="BiomassBuff10To100RB">
+        <EditorCategories value=""/>
+        <BehaviorLink value="BiomassBuff10"/>
+        <Count value="10"/>
+    </CEffectRemoveBehavior>
+    <CEffectApplyBehavior id="BiomassBuff10To100AB">
+        <EditorCategories value=""/>
+        <Behavior value="BiomassBuff100"/>
+    </CEffectApplyBehavior>
+    <CEffectSet id="BiomassBuff10To100Set">
+        <EditorCategories value=""/>
+        <EffectArray value="BiomassBuff10To100AB"/>
+        <EffectArray value="BiomassBuff10To100RB"/>
+    </CEffectSet>
+    <CEffectSwitch id="BiomassBuff10To100Switch">
+        <EditorCategories value=""/>
+        <CaseArray Validator="BiomassBuff10CountGE10" Effect="BiomassBuff10To100Set"/>
+    </CEffectSwitch>
+    <CEffectDamage id="ThermalLancesFriendlyDamage">
+        <AttributeBonus index="Light" value="0"/>
+        <Amount value="15"/>
+    </CEffectDamage>
+    <CEffectDamage id="ThermalLancesMU">
+        <AttributeBonus index="Light" value="0"/>
+        <Amount value="15"/>
+    </CEffectDamage>
+    <CEffectEnumArea id="peaceTimeAuraSearch">
+        <EditorCategories value=""/>
+        <SearchFilters value="-;Ally,Neutral,Enemy,Missile,Dead"/>
+        <AreaArray Radius="20" Effect="peaceTimeAuraSearchAB"/>
+    </CEffectEnumArea>
+    <CEffectApplyBehavior id="peaceTimeAuraSearchAB">
+        <EditorCategories value=""/>
+        <Behavior value="peaceTimeAuraBuff"/>
+    </CEffectApplyBehavior>
+    <!-- ===== 虚空裂隙 VoidRift 开始 ===== -->
+    <CEffectLaunchMissile id="VoidRiftTrainLMMalash">
+        <ImpactEffect value="VoidRiftTrainPrecursorRBMalash"/>
+        <AmmoUnit value="VoidRiftTrainMissile"/>
+        <Movers Link="VoidRiftTrainMissile"/>
+    </CEffectLaunchMissile>
+    <CEffectApplyBehavior id="VoidRiftTrainPrecursorABMalash">
+        <Behavior value="VoidRiftTrainPrecursorMalash"/>
+    </CEffectApplyBehavior>
+    <CEffectRemoveBehavior id="VoidRiftTrainPrecursorRBMalash">
+        <BehaviorLink value="VoidRiftTrainPrecursorMalash"/>
+    </CEffectRemoveBehavior>
+    <CEffectSet id="VoidRiftTrainSetMalash">
+        <EffectArray value="VoidRiftTrainPrecursorABMalash"/>
+        <EffectArray value="VoidRiftTrainLMMalash"/>
+        <EffectArray value="GlazeShadowStart"/>
+    </CEffectSet>
+    <!-- ===== 虚空裂隙 VoidRift 结束 ===== -->
+    <!-- ===== SOAPoint 框架效果（移植自 0.81 XMCore）===== -->
+    <CEffectAddTrackedUnit id="SOAPointAT">
+        <EditorCategories value=""/>
+        <BehaviorLink value="SOAStickyPointT"/>
+        <TrackedUnit Value="Target"/>
+    </CEffectAddTrackedUnit>
+    <CEffectApplyBehavior id="SOAPointFinAB">
+        <ValidatorArray index="0" value=""/>
+        <EditorCategories value="Race:Protoss"/>
+        <Behavior value="SOAPointFin"/>
+    </CEffectApplyBehavior>
+    <CEffectSet id="SOAPointFinSet">
+        <EditorCategories value=""/>
+        <EffectArray value="SOAPointT"/>
+        <EffectArray value="SOAPointRB"/>
+        <EffectArray value="SOAPointFinAB"/>
+        <EffectArray value="SOAPointRT"/>
+    </CEffectSet>
+    <CEffectApplyBehavior id="SOAPointPreAB">
+        <EditorCategories value="Race:Protoss"/>
+        <Behavior value="SOAPointPre"/>
+    </CEffectApplyBehavior>
+    <CEffectSet id="SOAPointFinPoint">
+        <EditorCategories value=""/>
+        <EffectArray value="SOAPointTT"/>
+        <TargetLocationType value="Point"/>
+    </CEffectSet>
+    <CEffectEnumArea id="SOAPointPreS">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <SearchFilters value="-;Ally,Neutral,Enemy,Structure,Missile,Stasis,Dead,Hidden"/>
+        <AreaArray Radius="5" Effect="SOAPointPreSet"/>
+        <MinCount value="1"/>
+    </CEffectEnumArea>
+    <CEffectSet id="SOAPointPreSet">
+        <ValidatorArray value="SOAPointFilter"/>
+        <EditorCategories value=""/>
+        <EffectArray value="SOAPointAT"/>
+        <EffectArray value="SOAPointPreAB"/>
+    </CEffectSet>
+    <CEffectRemoveBehavior id="SOAPointRB">
+        <EditorCategories value=""/>
+        <BehaviorLink value="SOAPointPre"/>
+    </CEffectRemoveBehavior>
+    <CEffectRemoveTrackedUnit id="SOAPointRT">
+        <EditorCategories value=""/>
+        <BehaviorLink value="SOAStickyPointT"/>
+        <TrackedUnit Value="Target"/>
+    </CEffectRemoveTrackedUnit>
+    <CEffectTeleport id="SOAPointT">
+        <EditorCategories value=""/>
+        <PlacementArc value="360"/>
+        <PlacementAround Effect="SOAPointFinPoint"/>
+        <SourceLocation Value="CasterPoint"/>
+        <TargetLocation Effect="SOAPointFinPoint" Value="TargetPoint"/>
+    </CEffectTeleport>
+    <CEffectEnumTrackedUnits id="SOAPointTT">
+        <EditorCategories value=""/>
+        <BehaviorLink value="SOAStickyPointT"/>
+        <Effect value="SOAPointFinSet"/>
+    </CEffectEnumTrackedUnits>
+</Catalog>

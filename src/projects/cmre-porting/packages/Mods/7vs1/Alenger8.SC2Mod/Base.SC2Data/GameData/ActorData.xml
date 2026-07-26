@@ -1,0 +1,2300 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CActorModel id="8suanxingBuffStructure" parent="ModelAnimationStyleContinuousUNIT">
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <Inherits index="WarpGroup" value="1"/>
+        <On Terms="Effect.8suanxingApply.Start; ValidateUnitType IsStructureTarget; At Target" Send="Create"/>
+        <On Terms="Behavior.8suanxing.Off" Send="Destroy"/>
+        <HostSiteOps Ops="SOpAttachRandomDamage"/>
+        <Model value="8suanxing"/>
+        <AutoScaleFactor value="0.500000"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+    </CActorModel>
+    <CActorModel id="8suanxingBuff2" parent="ModelAnimationStyleContinuousUNIT">
+        <Inherits index="BaseModelScale" value="1"/>
+        <Inherits index="CastShadows" value="1"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <Inherits index="WarpGroup" value="1"/>
+        <On Terms="Behavior.8suanxing.On; ValidateUnitType NotStructureTarget" Send="Create"/>
+        <On Terms="Behavior.8suanxing.Off" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <Model value="8suanxing"/>
+        <AutoScaleFactor value="1.200000"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+    </CActorModel>
+    <CActorModel id="8baochongzubaoDamage" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.8baochongzibaoDamageSearch.Start" Send="Create"/>
+        <Model value="8fushibaochongRuptureExplosion"/>
+    </CActorModel>
+    <CActorAction id="8danzhijianongpaoAttack" parent="GenericAttack" effectImpact="8danzhijianongpaoDamage" effectLaunch="8danzhjianongpaoMissile">
+        <LaunchAssets Sound="SporeCrawler_AttackLaunch"/>
+        <Missile value="8danzhipaoAttackMissile"/>
+        <ImpactMap index="None" Model="8danzhipaoAttackImpact" Sound="SporeCrawler_AttackImpact"/>
+        <ImpactPhysics Name="AcidSpewImpact" MatchKeys="Basic" Physics="SporeCrawlerAttackForce"/>
+    </CActorAction>
+    <CActorAction id="8duikongdanzhipaoAttack" parent="GenericAttack" effectImpact="8duikongdanzhipaoDamage" effectLaunch="8duikongdanzhipaoMissile">
+        <LaunchAssets Sound="SporeCrawler_AttackLaunch"/>
+        <Missile value="8danzhipaoAttackMissile"/>
+        <ImpactMap index="None" Model="8danzhipaoAttackImpact" Sound="SporeCrawler_AttackImpact"/>
+        <ImpactPhysics Name="AcidSpewImpact" MatchKeys="Basic" Physics="SporeCrawlerAttackForce"/>
+    </CActorAction>
+    <CActorText id="8juxinglizhuaText" parent="PickupTextDefault">
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+        <On Terms="Effect.8juxinglizhuaPlayer.Start" Send="Create"/>
+    </CActorText>
+    <CActorModel id="8baozaifan" parent="ModelAnimationStyleOneShotUNIT">
+        <Inherits index="BaseModelScale" value="1"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <On Terms="Effect.8baozaifanModify.Start; At Target" Send="Create"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+    </CActorModel>
+    <CActorModel id="8dinxiangbaolieSmallDamage" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.8dinxiangbaolieSmallDamage.Start" Send="Create"/>
+        <Model value="8minibaochongCorrosiveExplosion"/>
+    </CActorModel>
+    <CActorText id="8bianzhuanglizhuaText" parent="PickupTextDefault">
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+        <On Terms="Effect.8bianzhuanglizhuaPlayer.Start" Send="Create"/>
+    </CActorText>
+    <CActorText id="8jicichushouText" parent="PickupTextDefault">
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+        <On Terms="Effect.8jicichushouPlayer.Start; At Target" Send="Create"/>
+    </CActorText>
+    <CActorText id="8lianrenText" parent="PickupTextDefault">
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+        <On Terms="Effect.8lianrenPlayer.Start" Send="Create"/>
+    </CActorText>
+    <CActorModel id="8minibaochongzubaoDamage" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.8minibaochongzibaoDamageSearch.Start" Send="Create"/>
+        <Model value="8minibaochongRuptureExplosion"/>
+    </CActorModel>
+    <CActorModel id="8dinxiangbaolieLargeDamage" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.8dinxiangbaolieLargeDamage.Start; At Caster" Send="Create"/>
+        <Model value="8fushibaochongCorrosiveExplosion"/>
+    </CActorModel>
+    <CActorModel id="8jisuzaishengBuff" parent="ModelAnimationStyleContinuous">
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <On Terms="ActorCreation" Send="$Birth PlayForever"/>
+        <On Terms="Behavior.8jisuzaisheng.On" Send="Create"/>
+        <On Terms="Behavior.8jisuzaisheng.Off" Send="Destroy"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachCenter SOpForwardNorth" HoldRotation="1"/>
+    </CActorModel>
+    <CActorAction id="8jiciAttack" parent="GenericAttack" effectImpact="8jiciDamage" effectLaunch="8jiciMissile">
+        <LaunchAttachQuery Methods="Weapon"/>
+        <LaunchAssets Sound="AcidSpines_AttackLaunch"/>
+        <ImpactMap index="None" Sound="AcidSpines_AttackImpact"/>
+        <ShieldFlashType value="Header"/>
+    </CActorAction>
+    <CActorMissile id="8jiciAttackMissile" parent="GenericAttackMissile" unitName="8jiciWeapon">
+        <Model value="8jiciMissile"/>
+    </CActorMissile>
+    <CActorModel id="8buyeBuff" parent="ModelAnimationStyleContinuous">
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <On Terms="ActorCreation" Send="$Birth PlayForever"/>
+        <On Terms="Behavior.8buye.On" Send="Create"/>
+        <On Terms="Behavior.8buye.Off" Send="Destroy"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachCenter SOpForwardNorth" HoldRotation="1"/>
+    </CActorModel>
+    <CActorAction id="8meidushazhirenAttack" parent="GenericAttack" effectImpact="8meidushazhirenDamage" effectLaunch="8meidushazhirenMissile">
+        <LaunchAttachQuery Methods="Weapon"/>
+        <LaunchAssets Sound="AcidSpines_AttackLaunch"/>
+        <Missile value="8qiangsuanjiciAttackMissile"/>
+        <ImpactMap index="None" Sound="AcidSpines_AttackImpact"/>
+        <ShieldFlashType value="Header"/>
+    </CActorAction>
+    <CActorMissile id="8meidushazhirenAttackMissile" parent="GenericAttackMissile" unitName="8meidushazhirenWeapon">
+        <Model value="8meidushazhirenMissile"/>
+    </CActorMissile>
+    <CActorModel id="8quntibuyeLaunch" parent="ModelAnimationStyleOneShotUNIT">
+        <Flags index="SuppressSaveLoad" value="0"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <On Terms="Effect.8quntibuyeSearch.Start" Send="Create"/>
+        <HostSiteOps Ops="SOpAttachOrigin" HoldRotation="1"/>
+    </CActorModel>
+    <CActorModel id="8lingqiaoshanbi" parent="ModelAnimationStyleOneShotUNIT">
+        <Inherits index="BaseModelScale" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <On Terms="Behavior.8lingqiaoshanbi.DamageHandled" Send="Create"/>
+        <On Terms="ActorCreation" Send="AnimPlay Dodge Stand,Victory"/>
+        <On Terms="ActorCreation" Send="AnimSetTime Dodge 0.500000"/>
+        <!--On Terms="ActorCreation" Send="AnimHookSet BaseWalk ::Main ::Baseline"/>
+        <On Terms="ActorCreation" Send="AnimSetPausedAll 1"/>
+        <On Terms="ActorCreation" Send="AnimHookClear BaseWalk"/-->
+        <On Terms="ActorCreation" Send="SetOpacity 0.800000"/>
+        <On Terms="ActorCreation" Send="SetOpacity 0.000000 2.000000"/>
+        <On Terms="ActorCreation" Send="TimerSet 1.500000 DelayDestroy"/>
+        <On Terms="ActorCreation" Send="SetScale 1.500000 1.500000"/>
+        <On Terms="TimerExpired; TimerName DelayDestroy" Send="Destroy"/>
+        <On Terms="ActorCreation" Send="SetTintColor {107,70,255 2.000000}"/>
+        <HostSiteOps Ops="SOpAttachOrigin" HoldPosition="1" HoldRotation="1"/>
+    </CActorModel>
+    <CActorRange id="8shencaochongdaoRange" parent="RangeAbil" abil="8shencaochongdao"/>
+    <CActorUnit id="8gouzaojibianti" parent="GenericUnitBase" unitName="8gouzaojibianti">
+        <Aliases value="_UnitLarge"/>
+        <Macros value="ZergBurrowStandardAnimMacro"/>
+        <Macros value="ZergLargeBurrowEffects"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <On Terms="UnitBirth.InfestedAbominationBurrowed" Send="Create"/>
+        <On Terms="UnitBirth.InfestedAbominationBurrowed" Send="AnimBracketStart Burrow Burrow IGNORE Unburrow ClosingFull,OpeningPlayForever,Instant"/>
+        <On Terms="WeaponStart.8yixingzhuangji.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="WeaponStop.8yixingzhuangji.AttackStop" Send="AnimBracketStop Attack"/>
+        <On Terms="AbilMorph.*.Start; AbilKey BurrowDown" Send="Create BurrowDownAberration"/>
+        <On Terms="AbilMorph.*.Cancel; MorphFrom InfestedAbomination; MorphTo InfestedAbominationBurrowed" Send="AnimClear Burrow"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo InfestedAbomination; MorphFrom InfestedAbominationBurrowed" Send="AnimBracketStop Burrow"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo InfestedAbomination; MorphFrom InfestedAbominationBurrowed" Send="AnimClear Burrow"/>
+        <On Terms="UnitMovementUpdate.*.Walk; AnimPlaying Birth" Send="AnimClear Birth"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Aberration_Land"/>
+        <On Terms="UnitBirth.8gouzaojibianti" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo InfestedAbomination" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo InfestedAbominationBurrowed" Send="TerrainSquibDeactivate"/>
+        <AnimBlendTime value="0.300000"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <DeathArray index="Normal" ModelLink="8gouzaojibiantiDeath" SoundLink="Aberration_Death"/>
+        <DeathCustoms ModelLink="ZergLargeUnitDeathLow" Name="AntiGravZerg"/>
+        <PortraitModel value="AberrationPortrait"/>
+        <TerrainSquibs>
+            <GroupName value="RippleStandard"/>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="2.000000"/>
+            <RangeDown value="2.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleInfestor"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="2.9375"/>
+        <BarOffset value="120"/>
+        <BarWidth value="102"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\8 Wireframe-zerg-aberration-webby-collection.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="Ready" value="UltraliskReady"/>
+        <GroupSoundArray index="Help" value="UltraliskHelp"/>
+        <GroupSoundArray index="What" value="UltraliskWhat"/>
+        <GroupSoundArray index="Yes" value="UltraliskYes"/>
+        <GroupSoundArray index="Attack" value="UltraliskYes"/>
+        <GroupSoundArray index="Pissed" value="UltraliskPissed"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level3.dds"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds"/>
+        <SoundArray index="Ready" value="Aberration_Ready"/>
+        <SoundArray index="Help" value="UltraliskHelp"/>
+        <SoundArray index="What" value="Aberration_What"/>
+        <SoundArray index="Yes" value="Aberration_Yes"/>
+        <SoundArray index="Attack" value="Aberration_Attack"/>
+        <SoundArray index="Pissed" value="UltraliskPissed"/>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <UnitIcon value="Assets\Textures\8 btn-unit-zerg-aberration-webby-collection.dds"/>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <VitalNames index="Shields" value="Vital/ZergShields"/>
+        <Wireframe>
+            <Image value="Assets\Textures\8 Wireframe-zerg-aberration-webby-collection.dds"/>
+        </Wireframe>
+        <WireframeShieldColor value="255,128,0,255"/>
+        <HeroIcon value="Assets\Textures\8 btn-unit-zerg-aberration-webby-collection.dds"/>
+    </CActorUnit>
+    <CActorAction id="8jizhenfengbaoAttack" parent="GenericAttack" effectImpact="8jizhenfengbaoDamage" effectLaunch="8jizhenfengbaoMissile">
+        <LaunchSiteOps Ops="SOpAttachHarness SOpForwardImpactGuide"/>
+        <LaunchAttachQuery Methods="AMFilterWeapon AMRandomUniform"/>
+        <LaunchAssets Model="HunterKillerAttackLaunch" Sound="HunterKiller_AttackLaunchRanged"/>
+        <ImpactMap index="None" Sound="HunterKiller_AttackImpactRanged"/>
+        <ImpactModel value=""/>
+    </CActorAction>
+    <CActorMissile id="8jizhenfengbaoAttackMissile" parent="GenericAttackMissile" unitName="8jizhenfengbao">
+        <Model value="8jizhenfengbaoWeapon"/>
+    </CActorMissile>
+    <CActorText id="8lizhuaText" parent="PickupTextDefault">
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+        <On Terms="Effect.8lizhuaPlayer.Start" Send="Create"/>
+    </CActorText>
+    <CActorText id="8jianruixiaeText" parent="PickupTextDefault">
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+        <On Terms="Effect.8jianruixiaePlayer.Start" Send="Create"/>
+    </CActorText>
+    <CActorModel id="8kongtoubaochong" parent="ModelAnimationStyleOneShot">
+        <On index="0" Terms="ActorCreation" Send="AnimBracketStart BSD Birth Stand Death ContentPlayOnce 2.000000 AsTimeScale"/>
+        <On Terms="Effect.8kongtoubaochongPersistent.Start" Send="Create"/>
+        <On Terms="ActorCreation" Send="Create ZergDropPod_Drop"/>
+        <On Terms="ActorCreation" Send="TimerSet 1.350000 DelayDropPod"/>
+        <On Terms="TimerExpired; TimerName DelayDropPod" Send="TimerSet 5.000000 DelayDropPodB"/>
+        <On Terms="TimerExpired; TimerName DelayDropPod" Send="Create ZergDropPodImpact"/>
+        <On Terms="TimerExpired; TimerName DelayDropPodB" Send="AnimBracketStop BSD"/>
+        <Model value="ZergDropPod"/>
+    </CActorModel>
+    <CActorRange id="8kongtoubaochongRange" parent="RangeAbil" abil="8kongtoubaochong"/>
+    <CActorModel id="8yantigouzaoCasterGround" parent="ModelAnimationStyleContinuousUNIT">
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <On Terms="Behavior.8yantigouzaoCasterGround.On" Send="Create"/>
+        <On Terms="Behavior.8yantigouzaoCasterGround.Off" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <Model value="8yantigouzaoCaster"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+        <ModelFlags index="UseSyncSeed" value="1"/>
+    </CActorModel>
+    <CActorModel id="8suanyedui" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.8suanyeduiPersistent.Start" Send="Create"/>
+        <On Terms="Effect.8suanyeduiPersistent.Stop" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpShadow"/>
+    </CActorModel>
+    <CActorModel id="8suanyeyun" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.8suanyeyunPersistent.Start" Send="Create"/>
+        <On Terms="Effect.8suanyeyunPersistent.Stop" Send="AnimBracketStop BSD"/>
+        <On Terms="ActorCreation" Send="SetTintColor 174,6,255"/>
+    </CActorModel>
+    <CActorRange id="8tianjiangchonghaiRange" parent="RangeAbil" abil="8tianjiangchonghai"/>
+    <CActorModel id="8suanyeduiSmall" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.8suanyeduiSmallPersistent.Start" Send="Create"/>
+        <On Terms="Effect.8suanyeduiSmallPersistent.Stop" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpShadow"/>
+    </CActorModel>
+    <CActorAction id="8jianruixiaeAttack" parent="GenericAttack" effectAttack="8yixingzhuangjiDamage">
+        <On index="0" Terms="Effect.8jianruixiaeDamage.Stop; FromEffectTreeDescendant" Send="ActionImpactPhysics"/>
+        <On index="5" Terms="Effect.8jianruixiaeDamage.Start; At Caster" Send="Create"/>
+        <ImpactMap index="None" Sound="InfestedAbominationAttackImpact"/>
+        <ImpactPhysics>
+            <Name value="Attack00"/>
+            <MatchKeys value="Basic"/>
+            <AttackAnimProps value="00"/>
+            <Physics value="InfestedAbominationAttackForce00"/>
+        </ImpactPhysics>
+        <ImpactPhysics>
+            <Name value="Attack01"/>
+            <MatchKeys value="Basic"/>
+            <AttackAnimProps value="01"/>
+            <Physics value="InfestedAbominationAttackForce01"/>
+        </ImpactPhysics>
+        <ShieldFlashType value="Header"/>
+    </CActorAction>
+    <CActorModel id="8yantigouzaoCasterAir" parent="ModelAnimationStyleContinuousUNIT">
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <On Terms="Behavior.8yantigouzaoCasterAir.On" Send="Create"/>
+        <On Terms="Behavior.8yantigouzaoCasterAir.Off" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <Model value="8yantigouzaoCaster"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+        <ModelFlags index="UseSyncSeed" value="1"/>
+    </CActorModel>
+    <CActorText id="8yixingzhuangjiText" parent="PickupTextDefault">
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+        <On Terms="Effect.8yixingzhuangjiPlayer.Start" Send="Create"/>
+    </CActorText>
+    <CActorText id="8youjihuishou1Text" parent="PickupTextDefault">
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+        <On Terms="Effect.8youjihuishou1Player.Start" Send="Create"/>
+        <FogVisibility value="Visible"/>
+    </CActorText>
+    <CActorText id="8zhanglangjinzhanzhuaText" parent="PickupTextDefault">
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+        <On Terms="Effect.8zhanglangjinzhanPlayer.Start" Send="Create"/>
+    </CActorText>
+    <CActorModel id="8shibukedang" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.8shibukedangSearch" Send="Create"/>
+    </CActorModel>
+    <CActorModel id="8baowenchaoxueBuild" parent="ZergBuildingBuild">
+        <Model value="HydraliskDenBuild"/>
+    </CActorModel>
+    <CActorAction id="8yixingzhuangjiAttack" parent="GenericAttack" effectAttack="8yixingzhuangjiDamage">
+        <ImpactMap index="None" Sound="InfestedAbominationAttackImpact"/>
+        <ImpactPhysics>
+            <Name value="Attack00"/>
+            <MatchKeys value="Basic"/>
+            <AttackAnimProps value="00"/>
+            <Physics value="InfestedAbominationAttackForce00"/>
+        </ImpactPhysics>
+        <ImpactPhysics>
+            <Name value="Attack01"/>
+            <MatchKeys value="Basic"/>
+            <AttackAnimProps value="01"/>
+            <Physics value="InfestedAbominationAttackForce01"/>
+        </ImpactPhysics>
+        <ShieldFlashType value="Header"/>
+    </CActorAction>
+    <CActorSound id="8yixingzhuangjiAttackSoundStart" parent="SoundOneShot">
+        <On Terms="WeaponStart.8yixingzhuangji.AttackStart" Send="Create"/>
+        <Sound value="InfestedAbominationAttackStart"/>
+    </CActorSound>
+    <CActorUnit id="8fushibaochong" parent="GenericBurrowerStandard" unitName="8fushibaochong">
+        <Aliases value="_UnitSmall"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="ZergBurrowStandardAnimMacro"/>
+        <Macros value="ZergSmallBurrowEffects"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <AcceptedHostedPropTransfers index="Scale" value="0"/>
+        <On Terms="UnitMovementUpdate.8fushibaochong" Send="AnimClear Birth"/>
+        <On Terms="ActorCreation" Send="AnimGroupApply Superior"/>
+        <On Terms="ActorCreation" Send="SetWalkAnimMoveSpeed 3"/>
+        <On Terms="UnitBirth.8fushibaochong" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8fushibaochongBurrowed" Send="TerrainSquibDeactivate"/>
+        <On Terms="AbilMorph.*.Cancel; MorphFrom 8fushibaochong; MorphTo 8fushibaochongBurrowed" Send="AnimClear Burrow"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8fushibaochong; MorphFrom 8fushibaochongBurrowed" Send="AnimBracketStop Burrow"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8fushibaochong; MorphFrom 8fushibaochongBurrowed" Send="AnimClear Burrow"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Baneling_Land"/>
+        <On Terms="UnitMovementUpdate.*.Walk; AnimPlaying Birth" Send="AnimClear Birth"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <DeathArray index="Normal" ModelLink="8fushibaochongDeath" SoundLink="BanelingDeathNormalSound"/>
+        <PortraitModel value="8fushibaochongPortrait"/>
+        <TerrainSquibs>
+            <GroupName value="RippleStandard"/>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="1.000000"/>
+            <RangeDown value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleSmall"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="2"/>
+        <BarOffset value="35"/>
+        <BarWidth value="36"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-collection-webby-baneling.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-collection-webby-baneling.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level3.dds"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds"/>
+        <SoundArray index="Birth" value="Baneling_Birth"/>
+        <SoundArray index="Ready" value="Baneling_Ready"/>
+        <SoundArray index="Help" value="Baneling_Help"/>
+        <SoundArray index="What" value="Baneling_What"/>
+        <SoundArray index="Yes" value="Baneling_Yes"/>
+        <SoundArray index="Attack" value="Baneling_Attack"/>
+        <SoundArray index="Pissed" value="Baneling_Pissed"/>
+        <SoundArray index="Movement" value="Baneling_Movement"/>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <UnitIcon value="Assets\Textures\btn-unit-collection-webby-baneling.dds"/>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <VitalNames index="Shields" value="Vital/ZergShields"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-collection-webby-baneling.dds"/>
+        </Wireframe>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorText id="8qianziText" parent="PickupTextDefault">
+        <On Terms="Effect.8qianziPlayer.Start" Send="Create"/>
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+    </CActorText>
+    <CActorText id="8tuliezhejinzhanzhuaText" parent="PickupTextDefault">
+        <On Terms="Effect.8tuliezhejinzhanPlayer.Start" Send="Create"/>
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+    </CActorText>
+    <CActorForceSphere id="8zibaoAttackForce">
+        <On Terms="Effect.3zibaoSearch.Start; At Caster" Send="Create"/>
+        <On Terms="ActorCreation" Send="Create BanelingAttackForceUp"/>
+        <HostSiteOps Ops="SOpShadow SOpRandomPointInCircleDot25"/>
+        <Duration value="0.300000"/>
+        <Magnitude value="24.000000,12.000000"/>
+        <Radius value="3.000000,0.300000"/>
+    </CActorForceSphere>
+    <CActorUnit id="8xunjielieshou" parent="GenericBurrowerStandard" unitName="8xunjielieshou">
+        <Aliases value="_UnitSmall"/>
+        <Macros value="ZergBurrowStandardAnimMacro"/>
+        <Macros value="ZergSmallBurrowEffects"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="PhysicsDeathsVoidGround"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsSwarmGround"/>
+        <Macros value="GrabbedAnimationMacro"/>
+        <On Terms="AbilMorph.MorphZerglingToBaneling.Finish; MorphTo Zergling; !AbilKey BurrowUp" Send="Create"/>
+        <On Terms="AbilMorph.MorphZerglingToBaneling.Start; MorphFrom Zergling; !AbilKey BurrowDown" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Cancel; MorphFrom Zergling; MorphTo ZerglingBurrowed" Send="AnimClear Burrow"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo Zergling; MorphFrom ZerglingBurrowed" Send="AnimBracketStop Burrow"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo Zergling; MorphFrom ZerglingBurrowed" Send="AnimClear Burrow"/>
+        <On Terms="UnitMovementUpdate.*.Walk; AnimPlaying Birth" Send="AnimClear Birth"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo Zergling; MorphFrom ZerglingBurrowed" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo ZerglingBurrowed; MorphFrom Zergling" Send="TerrainSquibDeactivate"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Zergling_Land"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <DeathArray index="Normal" ModelLink="8xunjielieshouDeath" SoundLink="Zergling_Explode"/>
+        <DeathArray index="Disintegrate" ModelLink="8xunjielieshouDeathAcid" SoundLink="Uni_DeathFXAcid"/>
+        <DeathArray index="Eviscerate" ModelLink="8xunjielieshouDeathEviscerate" SoundLink="Zergling_DeathFXEviscerate"/>
+        <DeathArray index="Fire" ModelLink="8xunjielieshouDeathFire" SoundLink="Zergling_DeathFXFire"/>
+        <DeathActorModel value="UnitDeathModelWithDeathMotionGround"/>
+        <PortraitModel value="8xunjielieshouPortrait"/>
+        <TerrainSquibs>
+            <GroupName value="RippleStandard"/>
+            <MovementDistance value="0.250000,0.250000"/>
+            <IdlePeriod value="0.200000,0.400000"/>
+            <RangeUp value="1.000000"/>
+            <RangeDown value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleTiny"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="3.1328"/>
+        <BarOffset value="30"/>
+        <BarWidth value="36"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-collection-webby-zerglingupgrade.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-collection-webby-zerglingupgrade.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level3.dds"/>
+        <MovementHerdNode value="HerdNode_ZergSmall"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds"/>
+        <SoundArray index="Ready" value="Zergling_Ready"/>
+        <SoundArray index="What" value="Zergling_What"/>
+        <SoundArray index="Yes" value="Zergling_Yes"/>
+        <SoundArray index="Attack" value="Zergling_Attack"/>
+        <SoundArray index="Pissed" value="Zergling_Pissed"/>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <UnitIcon value="Assets\Textures\btn-unit-collection-webby-zerglingupgrade.dds"/>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <VitalNames index="Shields" value="Vital/ZergShields"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-collection-webby-zerglingupgrade.dds"/>
+        </Wireframe>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorSound id="8xunjielieshouDeath" parent="SoundOneShot">
+        <On Terms="UnitDeath.8xunjielieshou; PassChance 25.000000" Send="Create"/>
+        <On Terms="UnitDeath.ZerglingBurrowed; PassChance 25.000000" Send="Create"/>
+        <Sound value="Zergling_Death"/>
+    </CActorSound>
+    <CActorAction id="8lizhuaAttack" parent="GenericAttack" effectAttack="8lizhuaDamage">
+        <ImpactAttachQuery Methods="AMFilterTargetVolumes"/>
+        <ImpactMap index="None" Sound="Zergling_AttackImpact"/>
+        <ShieldFlashType value="Header"/>
+    </CActorAction>
+    <CActorSound id="8lizhuaAttackStart" parent="SoundOneShot">
+        <On Terms="WeaponStart.8lizhua.AttackStart" Send="Create"/>
+        <Sound value="Zergling_AttackLaunch"/>
+    </CActorSound>
+    <CActorUnit id="8gongfeng" parent="GenericBurrowerStandard" unitName="8gongfeng">
+        <Aliases value="_UnitSmall"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="CarryAnim"/>
+        <Macros value="BuildAnim"/>
+        <Macros value="ZergBurrowStandardAnimMacro"/>
+        <Macros value="ZergSmallBurrowEffects"/>
+        <Macros value="MacroWorkerHat"/>
+        <Macros value="CarryTerrazineNodeAnim"/>
+        <Macros value="CarryAnimCampaign"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsSwarmGround"/>
+        <Macros value="PhysicsDeathsVoidGround"/>
+        <On Terms="Abil.DroneHarvest.Start" Send="AnimPlay Work Work PlayForever"/>
+        <On Terms="Abil.DroneHarvest.Stop" Send="AnimClear Work"/>
+        <On Terms="AbilMorph.*.Cancel; MorphFrom Drone; MorphTo DroneBurrowed" Send="AnimClear Burrow"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo Drone; MorphFrom DroneBurrowed" Send="AnimBracketStop Burrow"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo Drone; MorphFrom DroneBurrowed" Send="AnimClear Burrow"/>
+        <On Terms="Abil.DroneHarvest.Start" Send="StatusSet CloakSound 1"/>
+        <On Terms="Behavior.CarryHarvestableVespeneGeyserGasZerg.Create" Send="StatusSet CloakSound 1"/>
+        <On Terms="Confirmation.Drone.Start" Send="StatusSet CloakSound 0"/>
+        <On Terms="Behavior.CloakFieldEffect.Create; IsStatus CloakSound 0" Send="Create Worker_CloakFieldOn"/>
+        <On Terms="Behavior.CloakFieldEffect.Destroy; IsStatus CloakSound 0" Send="Create Worker_CloakFieldOff"/>
+        <On Terms="UnitBirth.8gongfeng" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo Drone; MorphFrom DroneBurrowed" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo DroneBurrowed; MorphFrom Drone" Send="TerrainSquibDeactivate"/>
+        <On Terms="Behavior.OracleCloakFieldEffect.Create; IsStatus CloakSound 0" Send="Create Worker_CloakFieldOn"/>
+        <On Terms="Behavior.OracleCloakFieldEffect.Destroy; IsStatus CloakSound 0" Send="Create Worker_CloakFieldOff"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Drone_Land"/>
+        <On Terms="Abil.DroneCarcassHarvest.SourceCastStart" Send="AnimPlay Work Pickup PlayForever -1.000000 -1.000000 4.000000 AsDuration"/>
+        <On Terms="Abil.DroneCarcassHarvest.SourceCastStop" Send="AnimClear Work"/>
+        <On Terms="Abil.DroneCarcassHarvest.SourceCastCancel" Send="AnimClear Work"/>
+        <On Terms="Abil.DroneCarcassHarvest.SourceCastStart" Send="Create DroneEatingCast"/>
+        <On Terms="Abil.DroneCarcassHarvest.SourceCastStop" Target="DroneEatingCast" Send="Destroy"/>
+        <On Terms="Abil.DroneCarcassHarvest.SourceCastCancel" Target="DroneEatingCast" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo DroneFull; MorphFrom Drone" Send="Destroy"/>
+        <On Terms="ActorCreation" Send="HostSiteOpsSet ::Host SOpBasicScopeFollow"/>
+        <On Terms="Effect.CarryCarcassCreatePersistent.Start" Send="Create SOpMeatSite"/>
+        <On Terms="Effect.CarryCarcassCreatePersistent.Start" Send="HostSiteOpsSet ::Host SOpForwardMeatGuide"/>
+        <On Terms="Effect.CarryCarcassCreatePersistent.Stop" Send="HostSiteOpsSet ::Host SOpBasicScopeFollow"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <DeathArray index="Normal" ModelLink="DroneDeath2" SoundLink="Drone_Explode"/>
+        <DeathArray index="Disintegrate" ModelLink="8gongfengDeathAcid" SoundLink="Uni_DeathFXAcid"/>
+        <DeathArray index="Fire" ModelLink="8gongfengDeathFire" SoundLink="Uni_DeathFXFire"/>
+        <DeathCustoms ActorModel="DroneDeathRagdoll" ModelLink="DroneDeathRagdoll" Name="RagdollBasic">
+            <BodySquibs Name="FireOnMetal"/>
+            <BodySquibs Name="BloodReduced" IsFallback="1"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollSiegeTank" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollBaneling" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollUltraUnburrow" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms ActorModel="SpineCrawlerHurlDeathRagdoll" ModelLink="DroneDeathRagdoll" Name="RagdollSpineCrawlerHurl"/>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <PortraitModel value="8gongfengPortrait"/>
+        <TerrainSquibs>
+            <GroupName value="RippleStandard"/>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="1.000000"/>
+            <RangeDown value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleMedium"/>
+        </TerrainSquibs>
+        <BarOffset value="40"/>
+        <BarWidth value="42"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-collection-webby-drone.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-collection-webby-drone.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level3.dds"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds"/>
+        <SoundArray index="Ready" value="Drone_Ready"/>
+        <SoundArray index="Help" value="Alert_ZergEconomyUnderAttack"/>
+        <SoundArray index="What" value="Drone_What"/>
+        <SoundArray index="Yes" value="Drone_Yes"/>
+        <SoundArray index="Attack" value="Drone_Attack"/>
+        <SoundArray index="Pissed" value="Drone_Pissed"/>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <UnitIcon value="Assets\Textures\btn-unit-collection-webby-drone.dds"/>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <VitalNames index="Shields" value="Vital/ZergShields"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-collection-webby-drone.dds"/>
+        </Wireframe>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorUnit id="8youleishou" parent="GenericUnitBase" unitName="8youleishou">
+        <Aliases value="_UnitMedium"/>
+        <On Terms="WeaponStart.8lianren.AttackStart" Send="AnimBracketStart Attack Spell,A"/>
+        <On Terms="WeaponStop.8lianren.AttackStop" Send="AnimBracketStop Attack"/>
+        <On Terms="Abil.8shibukedang.SourcePrepStart" Send="$Spell 0 -1.000000 -1.000000 1.650000 AsDuration"/>
+        <AnimBlendTime value="0.300000"/>
+        <DeathArray index="Normal" SoundLink="Ultralisk_Explode" VoiceLink=""/>
+        <DeathArray index="Disintegrate" ModelLink="8youleishouDeathAcid" SoundLink="Uni_DeathFXAcid"/>
+        <DeathArray index="Fire" ModelLink="8youleishouDeathFire" SoundLink="Uni_DeathFXFireLarge"/>
+        <PortraitModel value="8youleishouPortrait"/>
+        <WalkAnimMoveSpeed value="2.9375"/>
+        <BarOffset value="20"/>
+        <BarWidth value="80"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-collection-webby-ultralisk.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-collection-webby-ultralisk.dds"/>
+        <HighlightTooltip value="Unit/Name/Pygalisk"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level3.dds"/>
+        <SoundArray index="Ready" value="Ultralisk_Ready"/>
+        <SoundArray index="What" value="Ultralisk_What"/>
+        <SoundArray index="Yes" value="Ultralisk_Yes"/>
+        <SoundArray index="Attack" value="Ultralisk_Attack"/>
+        <SoundArray index="Pissed" value="Ultralisk_Pissed"/>
+        <UnitIcon value="Assets\Textures\btn-unit-collection-webby-ultralisk.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-collection-webby-ultralisk.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorAction id="8lianrenAttack" parent="GenericAttack" effectLaunch="8lianrenDamage">
+        <ImpactMap index="None" Sound="Ultralisk_AttackImpact"/>
+        <ShieldFlashType value="Header"/>
+    </CActorAction>
+    <CActorAction id="8qianziAttack" parent="GenericAttack" effectAttack="8qianziDamage">
+        <ImpactMap index="None" Model="" Sound="Drone_AttackImpact"/>
+        <ShieldFlashType value="Header"/>
+    </CActorAction>
+    <CActorSound id="8gongfengDeath" parent="SoundOneShot">
+        <On Terms="UnitDeath.8gongfeng; PassChance 25.000000" Send="Create"/>
+        <On Terms="UnitDeath.DroneBurrowed; PassChance 25.000000" Send="Create"/>
+        <Sound value="Drone_Death"/>
+    </CActorSound>
+    <CActorUnit id="8fuhuachang" parent="ZergBuildingEx" unitName="8fuhuachang">
+        <Aliases value="_ZergLairMorph"/>
+        <Aliases value="_UnitHuge"/>
+        <Macros value="MacroTownhallDeco_Zerg"/>
+        <Macros value="ZergHatcheryPlayerDecalMacro"/>
+        <Macros value="SprayHelperMacro"/>
+        <Macros value="ZerglingRespawnAnim"/>
+        <AcceptedHostedPropTransfers index="Decal" value="0"/>
+        <On Terms="AbilMorph.*.Start; MorphFrom 8fuhuachang; MorphTo 8fuhuachao" Send="Create ZergHatcheryToLair"/>
+        <On Terms="AbilMorph.*.Start; MorphFrom 8fuhuachang; MorphTo 8fuhuachao" Send="AnimGroupApply B"/>
+        <On Terms="AbilMorph.*.Cancel; MorphFrom 8fuhuachang; MorphTo 8fuhuachao" Send="AnimGroupRemove B"/>
+        <On Terms="AbilMorph.*.Cancel; MorphFrom 8fuhuachang; MorphTo 8fuhuachao" Send="AnimClearAllBut Stand"/>
+        <On Terms="AbilMorph.*.Cancel; MorphFrom 8fuhuachang; MorphTo 8fuhuachao" Send="AnimBaselineStart"/>
+        <On Terms="AbilMorph.*.Cancel; MorphFrom 8fuhuachang; MorphTo 8fuhuachao" Send="AnimPlay MorphCancel Cover,End,A"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 8fuhuachang; MorphTo 8fuhuachao" Send="Destroy"/>
+        <On Terms="UnitBirth.8fuhuachang" Send="Create PlayerLogoDoodadList"/>
+        <On Terms="UnitBirth.8fuhuachang; PlayerHasClanDecal" Send="Create ZergClanFlag"/>
+        <On Terms="UnitBirth.8fuhuachang; PlayerHasTrophy" Send="Create ZergPlayerTrophy"/>
+        <Model value="Hatchery"/>
+        <BuildModel value="Hatchery"/>
+        <DeathArray index="Normal" ModelLink="HatcheryDeath" SoundLink=""/>
+        <DeathArray index="UnderConstruction" ModelLink="HatcheryDeathUnderConstruction" SoundLink="Hatchery_Explode"/>
+        <DeathCustoms ModelLink="ZergGenericBuildingDeath" Name="Detached"/>
+        <PlacementModel value="HatcheryPlacement"/>
+        <PortraitModel value="HatcheryPortrait"/>
+        <BarOffset value="135"/>
+        <BarWidth value="200"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Zerg-Hatchery.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-zerg-hatchery.dds"/>
+        <NameOffset value="130"/>
+        <SoundArray index="Ready" value="Hatchery_Ready"/>
+        <SoundArray index="What" value="Hatchery_What"/>
+        <StatusHarvesterData Text="UI/HarvesterCountMinerals" SearchFilters="HarvestableResource;Player,Ally,Enemy" SearchRadius="8"/>
+        <UnitIcon value="Assets\Textures\btn-building-zerg-hatchery.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Zerg-Hatchery.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorUnit id="8youchong" parent="GenericUnitMorph" unitName="8youchong">
+        <Aliases value="_UnitSmall"/>
+        <Model value="Larva"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="Larva"/>
+        <DeathArray index="Normal" ModelLink="LarvaDeath" SoundLink="Larva_Explode"/>
+        <DeathArray index="TrainingComplete" SoundLink="Uni_DeathFXSilentKill"/>
+        <PlacementModel value="Larva"/>
+        <PortraitModel value="LarvaPortrait"/>
+        <WalkAnimMoveSpeed value="0.3984"/>
+        <BarOffset value="5"/>
+        <BarWidth value="30"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Zerg-Larva.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-zerg-larva.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level0.dds"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds"/>
+        <SoundArray index="What" value="Larva_What"/>
+        <SoundArray index="Pissed" value="Larva_Pissed"/>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <UnitIcon value="Assets\Textures\btn-unit-zerg-larva.dds"/>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <VitalNames index="Shields" value="Vital/ZergShields"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Zerg-Larva.dds"/>
+        </Wireframe>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorSound id="8youchongDeath" parent="SoundOneShot">
+        <On Terms="UnitDeath.8youchong; PassChance 25.000000" Send="Create"/>
+        <Sound value="Larva_Death"/>
+    </CActorSound>
+    <CActorUnit id="8fuhuachao" parent="ZergBuildingEx" unitName="8fuhuachao">
+        <Aliases value="_ZergHiveMorph"/>
+        <Aliases value="_UnitHuge"/>
+        <Macros value="MacroTownhallDeco_Zerg"/>
+        <Macros value="ZergLairPlayerDecalMacro"/>
+        <Macros value="ZerglingRespawnAnim"/>
+        <AcceptedHostedPropTransfers index="Decal" value="0"/>
+        <On Terms="ActorCreation" Send="AnimGroupApply B"/>
+        <On Terms="AbilMorph.*.Finish; MorphFrom 8fuhuachang; MorphTo 8fuhuachao" Send="Create"/>
+        <On Terms="UnitBirth.8fuhuachao; PlayerHasClanDecal" Send="Create ZergClanFlag"/>
+        <On Terms="UnitBirth.8fuhuachao; PlayerHasTrophy" Send="Create ZergPlayerTrophy"/>
+        <Model value="Lair"/>
+        <BuildModel value="Lair"/>
+        <DeathArray index="Normal" ModelLink="LairDeath" SoundLink=""/>
+        <DeathCustoms ModelLink="ZergGenericBuildingDeath" Name="Detached"/>
+        <PortraitModel value="LairPortrait"/>
+        <BarOffset value="180"/>
+        <BarWidth value="230"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Zerg-Lair.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-zerg-lair.dds"/>
+        <NameOffset value="130"/>
+        <SoundArray index="Ready" value="Lair_Ready"/>
+        <SoundArray index="What" value="Lair_What"/>
+        <StatusHarvesterData Text="UI/HarvesterCountMinerals" SearchFilters="HarvestableResource;Player,Ally,Enemy" SearchRadius="8"/>
+        <UnitIcon value="Assets\Textures\btn-building-zerg-lair.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Zerg-Lair.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorSound id="8bianyiwanchengSound" parent="SoundOneShot">
+        <On Terms="AbilTrain.8youchongbianyi.Finish" Send="Create"/>
+        <Sound value="Egg_Ready"/>
+    </CActorSound>
+    <CActorProgress id="8youchongbianyi">
+        <On Terms="Abil.8youchongbianyi.Start" Send="Create"/>
+        <On Terms="Abil.8youchongbianyi.Stop" Send="Destroy"/>
+        <StageArray AnimProps="Stand" BlendTime="0.000000"/>
+        <StageArray AnimProps="Stand,Start"/>
+        <StageArray AnimProps="Stand"/>
+        <StageArray AnimProps="Stand,Start"/>
+        <StageArray AnimProps="Stand"/>
+        <StageArray AnimProps="Stand,Start"/>
+        <StageArray AnimProps="Stand,Work"/>
+    </CActorProgress>
+    <CActorUnit id="8chongluan" parent="GenericUnitStandard" unitName="8chongluan">
+        <Aliases value="_UnitSmall"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8chongluan" Send="Create"/>
+        <On Terms="AbilMorph.*.Cancel" Send="Destroy"/>
+        <On Terms="AbilTrain.8youchongbianyi.Finish" Send="Create 8chongluanDeath"/>
+        <On Terms="UnitDeathCustomize.8chongluan" Send="Create 8chongluanDeath"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <DeathArray index="Normal" ModelLink="ZergSmallUnitDeath" SoundLink="Egg_Explode"/>
+        <DeathArray index="TrainingComplete" SoundLink="Uni_DeathFXSilentKill"/>
+        <PortraitModel value="EggPortrait"/>
+        <BarOffset value="40"/>
+        <BarWidth value="36"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Zerg-Egg.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-zerg-egg.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level3.dds"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds"/>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <UnitIcon value="Assets\Textures\btn-unit-zerg-egg.dds"/>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <VitalNames index="Shields" value="Vital/ZergShields"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Zerg-Egg.dds"/>
+        </Wireframe>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorProgress id="8jianzhubianyijincheng">
+        <On Terms="Abil.8jianzhubianyi.BuiltStart" Send="Create"/>
+        <On Terms="Abil.8fuhuajuntanzhongliu.BuiltStart" Send="Create"/>
+        <On Terms="ProgressLevel.ZergConstruction.Start; Level 0" Send="SetTransferOverrideAnim Build,A,Stand"/>
+        <On Terms="ProgressLevel.ZergConstruction.Stop; Level 0" Send="SetTransferOverrideAnim"/>
+        <StageArray AnimProps="Build,A,Start" BlendTime="0.000000"/>
+        <StageArray AnimProps="Build,A,Stand"/>
+        <StageArray AnimProps="Build,B,Start"/>
+        <StageArray AnimProps="Build,B,Stand"/>
+        <StageArray AnimProps="Build,C,Start"/>
+        <StageArray AnimProps="Build,C,Stand"/>
+        <StageArray AnimProps="Build,D"/>
+    </CActorProgress>
+    <CActorSound id="8jianzhubianyiMorphStart" parent="SoundOneShot">
+        <On Terms="Abil.8jianzhubianyi.BuiltStart" Send="Create"/>
+        <On Terms="Abil.8fuhuajuntanzhongliu.BuiltStart" Send="Create"/>
+        <Sound value="Zerg_BuildingMorphStart"/>
+    </CActorSound>
+    <CActorModel id="8fuhuachangBuild" parent="ZergBuildingBuild">
+        <Model value="HatcheryBuild"/>
+    </CActorModel>
+    <CActorUnit id="8tuliezhe" parent="GenericUnitBase" unitName="8tuliezhe">
+        <Aliases value="_UnitMedium"/>
+        <Macros value="ZergBurrowStandardAnimMacro"/>
+        <Macros value="ZergMediumBurrowEffects"/>
+        <On Terms="Abil.attack.ReadyStart" Send="AnimGroupApply Ready"/>
+        <On Terms="WeaponStart.*.AttackStart; WeaponTargetElevation GE 20.000000" Send="AnimBracketStart Attack Attack,Superior"/>
+        <On Terms="WeaponStart.*.AttackStart; WeaponTargetElevation LE -20.000000" Send="AnimBracketStart Attack Attack,Inferior"/>
+        <On Terms="WeaponStart.*.AttackStart; WeaponTargetDistance LE 0.500000" Send="AnimBracketStart Attack Attack,Cover"/>
+        <On Terms="WeaponStart.*.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="WeaponStop.*.AttackStop" Send="AnimBracketStop Attack"/>
+        <On Terms="Abil.attack.ReadyStop" Send="AnimGroupRemove Ready"/>
+        <On Terms="WeaponStart.*.AttackStart; WeaponTargetDistance LE 0.500000; AnimPlaying AttackCover Cover,00" Send="TimerSet 0.400000 MeleeAttackLaunch"/>
+        <On Terms="WeaponStart.*.AttackStart; WeaponTargetDistance LE 0.500000; AnimPlaying AttackCover Cover,01" Send="TimerSet 0.100000 MeleeAttackLaunch"/>
+        <On Terms="TimerExpired; TimerName MeleeAttackLaunch" Send="Create HydraliskMeleeAttackLaunch"/>
+        <EventDataSound Name="HydraliskAttackImpactMelee" Actor="UnitSound" Sound="Hydralisk_AttackImpactMelee"/>
+        <DeathArray index="Normal" ModelLink="8tuliezheDeath" SoundLink="Hydralisk_Explode" VoiceLink="HydraliskDeathVoice"/>
+        <DeathArray index="Disintegrate" ModelLink="8tuliezheDeathAcid" SoundLink="Uni_DeathFXAcid"/>
+        <DeathArray index="Fire" ModelLink="8tuliezheDeathFire" SoundLink="Uni_DeathFXFire"/>
+        <PortraitModel value="8tuliezhePortrait"/>
+        <WalkAnimMoveSpeed value="2.086"/>
+        <BarOffset value="80"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-collection-webby-hydra.dds"/>
+        </GroupIcon>
+        <GroupSoundArray index="Ready" value="HydraliskReady"/>
+        <GroupSoundArray index="Help" value="HydraliskHelp"/>
+        <GroupSoundArray index="What" value="HydraliskWhat"/>
+        <GroupSoundArray index="Yes" value="HydraliskYes"/>
+        <GroupSoundArray index="Attack" value="HydraliskYes"/>
+        <GroupSoundArray index="Pissed" value="HydraliskPissed"/>
+        <HeroIcon value="Assets\Textures\btn-unit-collection-webby-hydra.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level3.dds"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds"/>
+        <SoundArray index="Ready" value="HunterKiller_Ready"/>
+        <SoundArray index="Help" value="HydraliskHelp"/>
+        <SoundArray index="What" value="HunterKiller_What"/>
+        <SoundArray index="Yes" value="HunterKiller_Yes"/>
+        <SoundArray index="Attack" value="HunterKiller_Attack"/>
+        <SoundArray index="Pissed" value="HunterKiller_Pissed"/>
+        <UnitIcon value="Assets\Textures\btn-unit-collection-webby-hydra.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-collection-webby-hydra.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorAction id="8jizhenAttack" parent="GenericAttack" effectImpact="8jizhenDamage" effectLaunch="8jizhenMissile">
+        <LaunchSiteOps Ops="SOpAttachHarness SOpForwardImpactGuide"/>
+        <LaunchAttachQuery Methods="AMFilterWeapon AMRandomUniform"/>
+        <LaunchAssets Model="HunterKillerAttackLaunch" Sound="HunterKiller_AttackLaunchRanged"/>
+        <ImpactMap index="None" Sound="HunterKiller_AttackImpactRanged" ModelReaction="8jizhenfengbaoAttackImpactReaction"/>
+        <ImpactMap index="Shield" Sound="8jizhenfengbaoAttackImpactShield" ModelReaction="8jizhenfengbaoAttackImpactReactionShield"/>
+        <ImpactModel value=""/>
+    </CActorAction>
+    <CActorAction id="8tuliezhejinzhanAttack" parent="GenericAttack" effectAttack="8tuliezhejinzhanDamage">
+        <ShieldFlashType value="Header"/>
+    </CActorAction>
+    <CActorModel id="8kuangbaoBirth" parent="ModelAnimationStyleOneShotUNIT">
+        <On Terms="Behavior.8kuangbao.On" Send="Create"/>
+        <On Terms="ActorCreation" Send="SetTintColor {125,48,254 2.000000}"/>
+        <HostSiteOps Ops="SOpAttachOrigin"/>
+    </CActorModel>
+    <CActorModel id="8kuangbao" parent="ModelAddition">
+        <On Terms="Behavior.8kuangbao.On" Send="Create"/>
+        <On Terms="Behavior.8kuangbao.Off" Send="AnimBracketStop BSD"/>
+        <On Terms="ActorCreation" Send="SetTintColor {125,48,254 2.000000}"/>
+        <HostSiteOps Ops="SOpAttachWeapon"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+    </CActorModel>
+    <CActorSound id="8kuangbaoSound" parent="SoundOneShot">
+        <On Terms="Behavior.8kuangbao.On" Send="Create"/>
+        <Sound value="Spell_Frenzy_Launch"/>
+    </CActorSound>
+    <CActorMissile id="8jizhenAttackMissile" parent="GenericAttackMissile" unitName="8jizhenWeapon"/>
+    <CActorStateMonitor id="8ZergBloodLargeBuilding" parent="ZergBlood">
+        <On Terms="UnitCreation.8fuhuachang" Send="Create"/>
+        <On Terms="UnitCreation.8fuhuachao" Send="Create"/>
+        <On Terms="StateChange; StateValid ZergBleedLight; StateChanged ZergNormal" Send="Create ZergBloodSetBleedSmall"/>
+        <On Terms="StateChange; StateValid ZergBleedHeavy; StateChanged ZergNormal" Send="Create ZergBloodSetBleedHeavy"/>
+        <On Terms="StateChange; StateValid ZergBleedProfusely; StateChanged ZergNormal" Send="Create ZergBloodSetBleedProfusely"/>
+        <On Terms="StateChange; StateValid ZergBleedLight; !StateChanged ZergNormal" Send="Create ZergBloodSetBleedSmall"/>
+        <On Terms="StateChange; StateValid ZergBleedHeavy; !StateChanged ZergNormal" Send="Create ZergBloodSetBleedHeavy"/>
+        <On Terms="StateChange; StateValid ZergBleedProfusely; !StateChanged ZergNormal" Send="Create ZergBloodSetBleedProfusely"/>
+        <On Terms="StateChange; StateValid ZergNormal; StateChanged ZergBleedLight" Target="ZergBloodSetBleedSmall" Send="Destroy"/>
+        <On Terms="StateChange; StateValid ZergBleedLight; StateChanged ZergBleedHeavy" Target="ZergBloodSetBleedHeavy" Send="Destroy"/>
+        <On Terms="StateChange; StateValid ZergBleedHeavy; StateChanged ZergBleedProfusely" Target="ZergBloodSetBleedProfusely" Send="Destroy"/>
+        <On Terms="StateChange; StateValid ZergNormal" Target="ZergBloodSetBleedSmall" Send="Destroy"/>
+        <On Terms="StateChange; StateValid ZergNormal" Target="ZergBloodSetBleedHeavy" Send="Destroy"/>
+        <On Terms="StateChange; StateValid ZergNormal" Target="ZergBloodSetBleedProfusely" Send="Destroy"/>
+    </CActorStateMonitor>
+    <CActorStateMonitor id="8ZergBloodMediumBuilding" parent="ZergBlood">
+        <On Terms="UnitCreation.NydusCanal" Send="Create"/>
+        <On Terms="UnitCreation.8leishouchaoxue" Send="Create"/>
+        <On Terms="UnitCreation.8baochongchaoxue" Send="Create"/>
+        <On Terms="UnitCreation.8fenliechi" Send="Create"/>
+        <On Terms="UnitCreation.8jinhuaqiang" Send="Create"/>
+        <On Terms="UnitCreation.8xiatiandechufang" Send="Create"/>
+        <On Terms="UnitCreation.8gouzaosuo" Send="Create"/>
+        <On Terms="UnitCreation.8tuliezhechaoxue" Send="Create"/>
+        <On Terms="UnitCreation.8wasicuiqufang" Send="Create"/>
+        <On Terms="UnitCreation.LurkerDenMP" Send="Create"/>
+        <On Terms="UnitCreation.Virophage" Send="Create"/>
+        <On Terms="UnitCreation.SporeCannon" Send="Create"/>
+        <On Terms="UnitCreation.ImpalerDen" Send="Create"/>
+        <On Terms="UnitCreation.LurkerDen" Send="Create"/>
+        <On Terms="UnitCreation.CarrionNest" Send="Create"/>
+        <On Terms="UnitCreation.PrimalSunkenColony" Send="Create"/>
+        <On Terms="UnitCreation.NydusCanalAttacker" Send="Create"/>
+        <On Terms="UnitCreation.KorhalSporeCannon" Send="Create"/>
+        <On Terms="UnitCreation.PrimalSunkenColony" Send="Create"/>
+        <On Terms="UnitCreation.ZergTowerArtillery" Send="Create"/>
+        <On Terms="UnitCreation.SunkenColony" Send="Create"/>
+    </CActorStateMonitor>
+    <CActorUnit id="8zhajiala" parent="GenericUnitBase" unitName="8zhajiala">
+        <Macros value="ZergBurrowStandardAnimMacro"/>
+        <Macros value="ZergLargeBurrowEffects"/>
+        <Macros value="UnloadDropAnim"/>
+        <On Terms="UnitBirth.8zhajiala.Normal" Send="AnimPlay Unburrow Unburrow 0 0.000000"/>
+        <On Terms="AnimDone; AnimName WorkStart" Send="AnimPlay WorkEnd Stand,Work,End"/>
+        <On Terms="Abil.Transfusion.SourceFinishStart" Send="AnimPlay SpellB Spell,B"/>
+        <On Terms="Abil.attack.ReadyStart" Send="AnimGroupApply Ready"/>
+        <On Terms="WeaponStart.8qiangsuanjici.AttackStart" Send="AnimBracketStart Attack Spell,C"/>
+        <On Terms="WeaponStart.8juxinglizhua.AttackStart; WeaponTargetDistance LE 1.000000" Send="AnimBracketStart Attack Attack,Cover"/>
+        <On Terms="WeaponStart.8juxinglizhua.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="WeaponStop.*.AttackStop" Send="AnimBracketStop Attack"/>
+        <On Terms="Abil.attack.ReadyStop" Send="AnimGroupRemove Ready"/>
+        <On Terms="Abil.8shencaochongdao.SourceCastStart" Send="Create ZagaraDeepBurrow"/>
+        <On Terms="Abil.8shencaochongdao.SourceCastStart" Send="Create ZagaraBurrowDownLarge"/>
+        <On Terms="Abil.8shencaochongdao.SourceCastStart" Send="AnimBracketStart Burrow Burrow IGNORE Unburrow ClosingFull,OpeningPlayForever"/>
+        <On Terms="Abil.8shencaochongdao.SourceCastStop; ValidateUnit IsNotBuried" Send="AnimBracketStop Burrow"/>
+        <On Terms="Abil.8shencaochongdao.SourceCastStop" Send="Create ZagaraDeepUnburrow"/>
+        <On Terms="Abil.8shencaochongdao.SourceCastStop" Send="Create BurrowUpLarge"/>
+        <On Terms="Behavior.ZagaraEnrage.On" Send="SetScale 1.500000 1.000000"/>
+        <On Terms="Behavior.ZagaraEnrage.Off" Send="SetScale 1.000000 1.000000"/>
+        <On Terms="Signal.*.CollectStart" Send="Create Spell_ZagaraEggCollection_Cast"/>
+        <On Terms="Signal.*.CollectStart" Send="Create Spell_ZagaraEggCollection_Loop"/>
+        <On Terms="Signal.*.CollectStop" Target="Spell_ZagaraEggCollection_Loop" Send="Destroy"/>
+        <On Terms="Signal.*.CollectStop" Send="Create Spell_ZagaraEggCollection_Death"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Queen_Land"/>
+        <On Terms="Behavior.8chunbaihuajia.On" Send="ModelSwap 8zhajiala2"/>
+        <DeathArray index="Normal" ModelLink="8zhajialaDeath" SoundLink="Queen_Explode"/>
+        <PortraitActor value="ZagaraPortrait"/>
+        <PortraitModel value="ZagaraPortrait"/>
+        <WalkAnimMoveSpeed value="1.7031"/>
+        <BarOffset value="75"/>
+        <CustomUnitStatusFrame value="HotS_UnitStatus/HeroUnitStatusFrameTemplate"/>
+        <ErrorArray Error="CantSeeBuildLocation" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantSeeLandLocation" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantBuildLocationInvalid" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantLandLocationInvalid" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\btn-unit-zerg-broodqueen.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-zerg-broodqueen.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level3.dds"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds"/>
+        <SoundArray index="Ready" value="QueenReady"/>
+        <SoundArray index="Help" value="QueenHelp"/>
+        <SoundArray index="What" value="QueenWhat"/>
+        <SoundArray index="Yes" value="QueenYes"/>
+        <UnitFlags index="SuppressDefaultStatusBar" value="1"/>
+        <UnitIcon value="Assets\Textures\btn-unit-zerg-broodqueen.dds"/>
+        <UnitKillRank Text="UnitKillRank/BroodMother"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-zerg-expeditionqueenlevel2.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorUnit id="8jinhuaqiang" parent="ZergBuildingEx" unitName="8jinhuaqiang">
+        <Aliases value="_UnitHuge"/>
+        <Model value="EvolutionChamber"/>
+        <BuildModel value="EvolutionChamber"/>
+        <DeathArray index="Normal" ModelLink="EvolutionChamberDeath" SoundLink="EvolutionChamber_Explode"/>
+        <DeathArray index="UnderConstruction" ModelLink="EvolutionChamberDeathUnderConstruction" SoundLink="EvolutionChamber_Explode"/>
+        <DeathCustoms ModelLink="ZergGenericBuildingDeath" Name="Detached"/>
+        <PlacementModel value="EvolutionChamberPlacement"/>
+        <PortraitModel value="EvolutionChamberPortrait"/>
+        <BarOffset value="95"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Zerg-EvolutionChamber.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-zerg-evolutionchamber.dds"/>
+        <SoundArray index="Ready" value="EvolutionChamber_Ready"/>
+        <SoundArray index="What" value="EvolutionChamber_What"/>
+        <UnitIcon value="Assets\Textures\btn-building-zerg-evolutionchamber.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Zerg-EvolutionChamber.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorModel id="8jinhuaqiangBuild" parent="ZergBuildingBuild">
+        <Model value="EvolutionChamberBuild"/>
+    </CActorModel>
+    <CActorUnit id="8baoliezhanglang" parent="GenericUnitBase" unitName="8baoliezhanglang">
+        <Aliases value="_UnitMedium"/>
+        <Macros value="ZergBurrowMobileAnimMacro"/>
+        <Macros value="ZergMediumBurrowEffects"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsSwarmGround"/>
+        <Macros value="PhysicsDeathsVoidGround"/>
+        <On Terms="UnitMovementUpdate.RoachBurrowed.Stand" Send="Create RoachBurrowedSplat"/>
+        <On Terms="UnitMovementUpdate.RoachBurrowed.Walk" Target="RoachBurrowedSplat" Send="Destroy"/>
+        <On Terms="Abil.attack.ReadyStart" Send="AnimGroupApply Ready"/>
+        <On Terms="WeaponStart.8suanxingtuoye.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="WeaponStop.8suanxingtuoye.AttackStop" Send="AnimBracketStop Attack"/>
+        <On Terms="WeaponStart.8zhanglangjinzhan.AttackStart" Send="AnimBracketStart AttackCover Attack,Cover"/>
+        <On Terms="WeaponStop.8zhanglangjinzhan.AttackStop" Send="AnimBracketStop AttackCover"/>
+        <On Terms="Abil.attack.ReadyStop" Send="AnimGroupRemove Ready"/>
+        <On Terms="UnitBirth.8baoliezhanglangBurrowed" Send="Create"/>
+        <On Terms="UnitBirth.8baoliezhanglangBurrowed" Send="AnimGroupApply Burrow Burrow Unburrow ClosingFull,Instant"/>
+        <On Terms="AbilMorph.*.Start; AbilKey BurrowDown" Send="Create BurrowDownMedium"/>
+        <On Terms="AbilMorph.*.Start; AbilKey BurrowDown" Send="AnimClear Fidget"/>
+        <On Terms="AbilMorph.*.Cancel; MorphFrom Roach; MorphTo 8jishengzhanglangBurrowed" Send="AnimClear Burrow"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo Roach; MorphFrom 8jishengzhanglangBurrowed" Send="AnimBracketStop Burrow"/>
+        <On Terms="UnitMovementUpdate.*.Walk; AnimPlaying Birth" Send="AnimClear Birth"/>
+        <On Terms="UnitBirth.8baoliezhanglang" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo Roach; MorphFrom 8jishengzhanglangBurrowed" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo RoachBurrowed; MorphFrom Roach" Send="TerrainSquibDeactivate"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Roach_Land"/>
+        <On Terms="Upgrade.Burrow.Add; ValidateUnit IsBuried" Send="AnimGroupApply Burrow Burrow Unburrow ClosingFull,Instant"/>
+        <On Terms="UnitMovementUpdate.*.Walk; ValidateUnit IsBuried" Send="Create ZergUnit_BurrowedMoveLoopSound"/>
+        <On Terms="UnitMovementUpdate.*.Stand" Target="ZergUnit_BurrowedMoveLoopSound" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Start; MorphTo Roach" Target="ZergUnit_BurrowedMoveLoopSound" Send="Destroy"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <DeathArray index="Normal" ModelLink="8baoliezhanglangDeath" SoundLink="Roach_Explode"/>
+        <DeathArray index="Disintegrate" ModelLink="8baoliezhanglangDeathAcid" SoundLink="Uni_DeathFXAcid"/>
+        <DeathArray index="Fire" ModelLink="8baoliezhanglangDeathFire" SoundLink="Uni_DeathFXFire"/>
+        <DeathCustoms ModelLink="8baoliezhanglangDeathRagdoll" Name="RagdollBasic">
+            <BodySquibs Name="FireOnMetal"/>
+            <BodySquibs Name="BloodReduced" IsFallback="1"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollSiegeTank" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollBaneling" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollUltraUnburrow" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <DeathActorModel value="UnitDeathModelWithDeathMotionGround"/>
+        <PortraitModel value="8baoliezhanglangPortrait"/>
+        <TerrainSquibs>
+            <GroupName value="RippleStandard"/>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="1.000000"/>
+            <RangeDown value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleLarge"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="2.25"/>
+        <BarOffset value="55"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-collection-webby-roach.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-collection-webby-roach.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level0.dds"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds"/>
+        <SoundArray index="Ready" value="Roach_Ready"/>
+        <SoundArray index="What" value="Roach_What"/>
+        <SoundArray index="Yes" value="Roach_Yes"/>
+        <SoundArray index="Attack" value="Roach_Attack"/>
+        <SoundArray index="Pissed" value="Roach_Pissed"/>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <UnitIcon value="Assets\Textures\btn-unit-collection-webby-roach.dds"/>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <VitalNames index="Shields" value="Vital/ZergShields"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-collection-webby-roach.dds"/>
+        </Wireframe>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorUnit id="9baochongchaoxue" parent="ZergBuildingEx" unitName="8baochongchaoxue">
+        <Aliases value="_UnitHuge"/>
+        <On Terms="UnitDeathCustomize; ValidateUnit HasZergGenericDeath" Send="DeathCustomize Detached"/>
+        <DeathArray index="Normal" SoundLink="BanelingNest_Explode"/>
+        <DeathArray index="UnderConstruction" ModelLink="BanelingNestDeathUnderConstruction" SoundLink="BanelingNest_Explode"/>
+        <DeathCustoms ModelLink="ZergGenericBuildingDeath" Name="Detached"/>
+        <PortraitModel value="BanelingNestPortrait"/>
+        <BarOffset value="180"/>
+        <BarWidth value="120"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Zerg-BanelingNest.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-zerg-banelingnest.dds"/>
+        <HighlightTooltip value="Unit/Name/9baochongchaoxue"/>
+        <SoundArray index="Ready" value="BanelingNest_Ready"/>
+        <SoundArray index="What" value="BanelingNest_What"/>
+        <UnitIcon value="Assets\Textures\btn-building-zerg-banelingnest.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Zerg-BanelingNest.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorModel id="8baochongchaoxueBuild" parent="ZergBuildingBuild">
+        <Model value="BanelingNestBuild"/>
+    </CActorModel>
+    <CActorSplat id="8shibukedangSplat" parent="ZergCursorSplat">
+        <On index="0" Terms="Abil.8shibukedang.Cursor" Send="Create"/>
+        <Scale value="2.000000"/>
+    </CActorSplat>
+    <CActorRange id="8shibukedangRange" parent="RangeAbil" abil="8shibukedang"/>
+    <CActorUnit id="8minibaochong" parent="GenericBurrowerStandard" unitName="8minibaochong">
+        <Aliases value="_UnitSmall"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="ZergBurrowStandardAnimMacro"/>
+        <Macros value="ZergSmallBurrowEffects"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <AcceptedHostedPropTransfers index="Scale" value="0"/>
+        <On Terms="UnitMovementUpdate.HotSSplitterling.Walk" Send="AnimClear Birth"/>
+        <On Terms="ActorCreation" Send="AnimGroupApply Superior"/>
+        <On Terms="ActorCreation" Send="SetWalkAnimMoveSpeed 3"/>
+        <On Terms="UnitBirth.8minibaochong" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Baneling_Land"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <DeathArray index="Normal" ModelLink="8minibaochongDeath" SoundLink="BanelingDeathNormalSound"/>
+        <PortraitModel value="8minibaochongPortrait"/>
+        <TerrainSquibs>
+            <GroupName value="RippleStandard"/>
+            <MovementDistance value="0.250000,0.250000"/>
+            <IdlePeriod value="0.200000,0.400000"/>
+            <RangeUp value="1.000000"/>
+            <RangeDown value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleTiny"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="2"/>
+        <BarOffset value="35"/>
+        <BarWidth value="36"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Zerg-splitterling.dds"/>
+        </GroupIcon>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level3.dds"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds"/>
+        <SoundArray index="Ready" value="HotSSplitterlingMedium_Ready"/>
+        <SoundArray index="Help" value="HotSSplitterlingMedium_Help"/>
+        <SoundArray index="What" value="HotSSplitterlingMedium_What"/>
+        <SoundArray index="Yes" value="HotSSplitterlingMedium_Yes"/>
+        <SoundArray index="Attack" value="HotSSplitterlingMedium_Attack"/>
+        <SoundArray index="Pissed" value="HotSSplitterlingMedium_Pissed"/>
+        <SoundArray index="Movement" value="HotSSplitterlingMedium_Movement"/>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <UnitIcon value="Assets\Textures\btn-unit-zerg-splitterling.dds"/>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <VitalNames index="Shields" value="Vital/ZergShields"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Zerg-splitterling.dds"/>
+        </Wireframe>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorAction id="8suanxingtuoyeAttack" parent="GenericAttack" effectImpact="8suanxingtuoyeDamage" effectLaunch="8suanxingtuoyeMissile">
+        <LaunchAttachQuery Methods="Head"/>
+        <LaunchAssets Sound="Roach_AttackLaunchRanged"/>
+        <ImpactMap index="None" Sound="Roach_AttackImpactRanged"/>
+        <ImpactPhysics Name="AcidSalivaImpact" MatchKeys="Basic" Physics="RoachAttackDeathForce"/>
+        <AcquisitionYawHalfArc value="10.000000"/>
+        <AcquisitionPitchHalfArc value="15.000000"/>
+        <AccuracyHalfArc value="15.000000"/>
+    </CActorAction>
+    <CActorUnit id="8baowen" parent="GenericUnitStandard" unitName="8baowen">
+        <Aliases value="_UnitSmall"/>
+        <On Terms="WeaponStart.Suicide.AttackStart" Send="StatusSet DeathSuicide 1"/>
+        <On Terms="UnitDeathCustomize; IsStatus DeathSuicide 0" Send="Create ScourgeDeathNormalSound"/>
+        <On Terms="UnitDeathCustomize; IsStatus DeathSuicide 1" Send="Create ScourgeDeathSuicideSound"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <DeathArray index="Normal" ModelLink="8baowenDeath" SoundLink=""/>
+        <PortraitModel value="8baowenPortrait"/>
+        <BarOffset value="30"/>
+        <BarWidth value="36"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\8 wireframe-zerg-scourge-webby.dds"/>
+        </GroupIcon>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-flyercarapace-level3.dds"/>
+        <UnitIcon value="Assets\Textures\8 btn-unit-zerg-scourge-webby.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\8 wireframe-zerg-scourge-webby.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorSound id="8zhanglangjinzhanStartSound" parent="SoundOneShot">
+        <On Terms="WeaponStart.8zhanglangjinzhan.AttackStart" Send="Create"/>
+        <Sound value="Roach_AttackLaunchMelee"/>
+    </CActorSound>
+    <CActorAction id="8zhanglangjinzhanAttack" parent="GenericAttack" effectAttack="8zhanglangjinzhanDamage">
+        <ImpactMap index="None" Model="8suanxingtuoyeAttackImpact" Sound="Roach_AttackImpactMelee"/>
+        <ImpactPhysics>
+            <Name value="Attack00"/>
+            <MatchKeys value="Basic"/>
+            <AttackAnimProps value="Cover,00"/>
+            <Physics value="RoachMeleeAttackRightBladeForce"/>
+        </ImpactPhysics>
+        <ImpactPhysics>
+            <Name value="Attack01"/>
+            <MatchKeys value="Basic"/>
+            <AttackAnimProps value="Cover,01"/>
+            <Physics value="RoachMeleeAttackRightBladeForce"/>
+        </ImpactPhysics>
+        <ImpactPhysics>
+            <Name value="Attack02"/>
+            <MatchKeys value="Basic"/>
+            <AttackAnimProps value="Cover,02"/>
+            <Physics value="RoachMeleeAttackForce02"/>
+        </ImpactPhysics>
+        <ImpactPhysics>
+            <Name value="Attack03"/>
+            <MatchKeys value="Basic"/>
+            <AttackAnimProps value="Cover,03"/>
+            <Physics value="RoachMeleeAttackForce03"/>
+        </ImpactPhysics>
+        <AttackAnimName value="AttackCover"/>
+    </CActorAction>
+    <CActorText id="8youjihuishou3Text" parent="PickupTextDefault">
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+        <On Terms="Effect.8youjihuishou3Player.Start" Send="Create"/>
+        <FogVisibility value="Visible"/>
+    </CActorText>
+    <CActorUnit id="8leishouchaoxue" parent="ZergBuildingEx" unitName="8leishouchaoxue">
+        <Aliases value="_UnitHuge"/>
+        <On Terms="UnitDeathCustomize; ValidateUnit HasZergGenericDeath" Send="DeathCustomize Detached"/>
+        <Model value="UltraliskCavern"/>
+        <BuildModel value="UltraliskCavern"/>
+        <DeathArray index="Normal" ModelLink="UltraliskCavernDeath" SoundLink="UltraliskCavern_Explode"/>
+        <DeathArray index="UnderConstruction" ModelLink="UltraliskCavernDeathUnderConstruction" SoundLink="UltraliskCavern_Explode"/>
+        <DeathCustoms ModelLink="ZergGenericBuildingDeath" Name="Detached"/>
+        <PlacementModel value="UltraliskCavernPlacement"/>
+        <PortraitModel value="UltraliskCavernPortrait"/>
+        <BarOffset value="135"/>
+        <BarWidth value="135"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Zerg-UltraliskCavern.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-zerg-ultraliskcavern.dds"/>
+        <NameOffset value="110"/>
+        <SoundArray index="Ready" value="UltraliskCavern_Ready"/>
+        <SoundArray index="What" value="UltraliskCavern_What"/>
+        <UnitIcon value="Assets\Textures\btn-building-zerg-ultraliskcavern.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Zerg-UltraliskCavern.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorModel id="8leishouchaoxueBuild" parent="ZergBuildingBuild">
+        <Model value="UltraliskCavernBuild"/>
+    </CActorModel>
+    <CActorModel id="8shibukedangImpact" parent="ModelAnimationStyleContinuous">
+        <On index="0" Terms="ActorCreation" Send="AnimBracketStart BSD Birth Stand Death Instant"/>
+        <On Terms="Behavior.8shibukedang.On" Send="Create"/>
+        <On Terms="Behavior.8shibukedang.Off" Send="AnimBracketStop BSD Instant"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachOverhead"/>
+        <Model value="BurrowChargeStun"/>
+    </CActorModel>
+    <CActorUnit id="8wasicuiqufang" parent="ZergBuildingEx" unitName="8wasicuiqufang">
+        <Aliases value="_UnitHuge"/>
+        <Macros value="ExtractAnim"/>
+        <On Terms="Behavior.HarvestableVespeneGeyserGasZerg.Deplete" Send="SetTintColor 255,170,170"/>
+        <On Terms="Behavior.HarvestableVespeneGeyserGasZerg.Deplete" Send="AnimGroupRemove D"/>
+        <On Terms="Behavior.HarvestableVespeneGeyserGasZerg.Deplete" Send="AnimGroupApply B"/>
+        <On Terms="Behavior.HarvestableVespeneGeyserGasZerg.Restore" Send="SetTintColor 255,255,255"/>
+        <On Terms="Behavior.HarvestableVespeneGeyserGasZerg.Restore" Send="AnimGroupRemove B"/>
+        <On Terms="Behavior.HarvestableVespeneGeyserGasZerg.Restore" Send="AnimGroupApply D"/>
+        <On Terms="UnitDeathCustomize; ValidateUnit NoVespene" Send="DeathCustomize Empty"/>
+        <On Terms="UnitBirth.8wasicuiqufang" Send="TimerSet 0.100000 HideGeyser"/>
+        <On Terms="TimerExpired; TimerName HideGeyser" Send="Create GeyserBuildFinishCovered"/>
+        <On Terms="Effect.8wasihechengPlayer.Start" Send="Create 8wasihechengText"/>
+        <Model value="Extractor"/>
+        <BuildModel value="Extractor"/>
+        <DeathArray index="Normal" ModelLink="ExtractorDeath" SoundLink="Extractor_Explode"/>
+        <DeathArray index="UnderConstruction" ModelLink="ExtractorDeathUnderConstruction" SoundLink="Extractor_Explode"/>
+        <DeathCustoms ModelLink="ExtractorEmptyDeath" Name="Empty"/>
+        <DeathCustoms ModelLink="ZergGenericBuildingDeath" Name="Detached"/>
+        <PlacementModel value="ExtractorPlacement"/>
+        <PortraitModel value="ExtractorPortrait"/>
+        <BarOffset value="140"/>
+        <BarWidth value="120"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Zerg-Extractor.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-zerg-extractor.dds"/>
+        <SoundArray index="Ready" value="Extractor_Ready"/>
+        <SoundArray index="What" value="Extractor_What"/>
+        <StatusHarvesterData Text="UI/HarvesterCountVespene"/>
+        <UnitIcon value="Assets\Textures\btn-building-zerg-extractor.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Zerg-Extractor.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorModel id="8wasicuiqufangBuild" parent="ModelConstruction">
+        <Aliases value="_ZergBuildModel"/>
+        <On Terms="ActorCreation" Send="Create ZergConstructionAttached"/>
+        <HostSiteOps Ops="SOpShadow ExtractorBuildFacing"/>
+        <Model value="ExtractorBuild"/>
+    </CActorModel>
+    <CActorText id="8wasihechengText" parent="PickupTextDefault">
+        <Host Subject="_Unit"/>
+        <HeightOffset value="3.500000"/>
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+    </CActorText>
+    <CActorUnit id="8baowenchaoxue" parent="ZergBuildingEx" unitName="8baowenchaoxue">
+        <Aliases value="_UnitHuge"/>
+        <AnimBlendTime value="0.400000"/>
+        <DeathArray index="Normal" SoundLink=""/>
+        <DeathArray index="UnderConstruction" ModelLink="" SoundLink=""/>
+        <PlacementSound value="Zerg_BuildingPlacementSmall"/>
+        <PortraitModel value="ZergBuildingEx2_Portrait"/>
+        <WalkAnimMoveSpeed value="1.25"/>
+        <BarOffset value="110"/>
+        <BarWidth value="85"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-zerg-ZergTowerArtillery.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-doodad-scourgenests.dds"/>
+        <NameOffset value="60"/>
+        <UnitIcon value="Assets\Textures\btn-doodad-scourgenests.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-zerg-ZergTowerArtillery.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorModel id="8qiangsuanbaoziImpact" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.8qiangsuanbaoziSearch.Start" Send="Create"/>
+    </CActorModel>
+    <CActorAction id="8wuranAttack" parent="GenericAttack" effectImpact="ContaminateDummy" effectLaunch="8wuranMissile">
+        <Missile value="ContaminateMissile"/>
+        <ImpactSiteOps Ops="SOpAttachHarness VoidRaySOpForwardLaunch SOpForwardLaunchGuide"/>
+        <AccuracyHalfArc value="10.000000"/>
+        <ShieldFlashType value="None"/>
+    </CActorAction>
+    <CActorSound id="8wuranEndSound" parent="SoundOneShot">
+        <On Terms="Behavior.8wuran.Off" Send="Create"/>
+        <Sound value="Corruptor_CorruptionEnd"/>
+    </CActorSound>
+    <CActorSound id="8wuranImpactSound" parent="SoundOneShot">
+        <On Terms="Behavior.8wuran.On" Send="Create"/>
+        <Sound value="Corruptor_CorruptionImpact"/>
+    </CActorSound>
+    <CActorSound id="8wuranLaunchSound" parent="SoundOneShot">
+        <On Terms="Abil.8wuran.SourceChannelStop" Send="Create"/>
+        <On Terms="Abil.8wuran.SourceCastStart" Send="Create"/>
+        <Sound value="Corruptor_CorruptionLaunch"/>
+    </CActorSound>
+    <CActorSound id="8wuranLoopSound" parent="SoundContinuous">
+        <On Terms="Abil.8wuran.SourceChannelStart" Send="Create"/>
+        <On Terms="Abil.8wuran.SourceChannelStop" Send="Destroy"/>
+        <Sound value="Corruptor_CorruptionLoop"/>
+    </CActorSound>
+    <CActorModel id="8wuran" parent="ModelAddition">
+        <Inherits index="TintColor" value="0"/>
+        <AcceptedHostedPropTransfers index="BaseModelScale" value="0"/>
+        <Remove Terms="ActorOrphan" Send="Destroy"/>
+        <On Terms="Behavior.8wuran.On" Send="Create"/>
+        <On Terms="Behavior.8wuran.Off" Send="AnimBracketStop BSD"/>
+        <On Terms="ActorOrphan" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpAttachCenterSoft"/>
+        <Model value="ContaminateModel"/>
+        <AutoScaleFactor value="0.500000"/>
+    </CActorModel>
+    <CActorRange id="8wuranRange" parent="RangeAbil" abil="8wuran">
+        <IconArcLength value="3.250000"/>
+    </CActorRange>
+    <CActorUnit id="8gouzaofuhuazhe" parent="GenericUnitMorph" unitName="8gouzaofuhuazhe">
+        <Aliases value="_UnitLarge"/>
+        <Macros value="PhysicsDeathsSwarmAir"/>
+        <Macros value="PhysicsDeathsVoidAir"/>
+        <On Terms="Abil.Corruption.SourceChannelStart" Send="$Spell"/>
+        <On Terms="Effect.InfestedVentSpawnCorruptorCreateCorruptor.Create" Send="$Birth 0 -1.000000 -1.000000 0.500000 AsDuration"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Corruptor_Land"/>
+        <On Terms="Effect.8fuhuapaoMissile.Start" Send="AnimPlay Attack Attack"/>
+        <HostSiteOps Ops="SOpBankerCorruptor"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <Baselines index="Stand" BlendIn="1.000000" BlendOut="1.000000"/>
+        <Baselines index="Walk" BlendIn="1.000000" BlendOut="1.000000"/>
+        <DeathArray index="Normal" ModelLink="8gouzaofuhuazheDeath" SoundLink="" VoiceLink="Corruptor_Death"/>
+        <DeathCustoms>
+            <ActorModel value="UnitDeathRagdollFlier"/>
+            <ModelLink value="8gouzaofuhuazheDeathRagdoll"/>
+            <Name value="RagdollBasic"/>
+            <PhysicsMatchKeysOrdered value="BasicAir,Basic"/>
+            <BodySquibs Name="FireOnMetal"/>
+            <BodySquibs Name="BloodReduced" IsFallback="1"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <DeathActorModel value="UnitDeathModelWithDeathMotionFlier"/>
+        <PhysicsMatchKeysOrdered value="BasicAir,Basic"/>
+        <PortraitModel value="8gouzaofuhuazhePortrait"/>
+        <BarOffset value="55"/>
+        <BarWidth value="78"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-collection-webby-corruptor.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-collection-webby-corruptor.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-flyercarapace-level3.dds"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds"/>
+        <SoundArray index="Ready" value="Corruptor_Ready"/>
+        <SoundArray index="What" value="Corruptor_What"/>
+        <SoundArray index="Yes" value="Corruptor_Yes"/>
+        <SoundArray index="Attack" value="Corruptor_Attack"/>
+        <SoundArray index="Pissed" value="Corruptor_Pissed"/>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <UnitIcon value="Assets\Textures\btn-unit-collection-webby-corruptor.dds"/>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <VitalNames index="Shields" value="Vital/ZergShields"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-collection-webby-corruptor.dds"/>
+        </Wireframe>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorUnit id="8wuranzhe" parent="GenericUnitMorph" unitName="8wuranzhe">
+        <Aliases value="_UnitLarge"/>
+        <Macros value="PhysicsDeathsSwarmAir"/>
+        <Macros value="PhysicsDeathsVoidAir"/>
+        <On Terms="AbilMorph.MorphToOverseer.Finish" Send="$Birth 0 0.000000 -1.000000 0.000000"/>
+        <On Terms="UnitBirth.OverseerSiegeMode" Send="Create"/>
+        <On Terms="UnitBirth.OverseerSiegeMode" Send="Create OverseerOversightEyeStalkAddition"/>
+        <On Terms="AbilMorph.*.Start; MorphTo OverseerSiegeMode" Send="Create OverseerOversightEyeStalkAddition"/>
+        <On Terms="AbilMorph.*.Start; MorphFrom OverseerSiegeMode" Target="OverseerOversightEyeStalkAddition" Send="AnimBracketStop BSD"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Overseer_Land"/>
+        <On Terms="Abil.SpawnChangeling.SourceCastStart" Send="$Spell"/>
+        <On Terms="Abil.SpawnChangelingTarget.SourceCastStart" Send="$Spell"/>
+        <On Terms="Abil.Contaminate.SourceCastStart" Send="$Spell"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <DeathArray index="Normal" ModelLink="8wuranzheDeath" SoundLink="Overseer_Death_Splat"/>
+        <DeathCustoms>
+            <ActorModel value="OverseerDeathRagdoll"/>
+            <ModelLink value="OverseerDeathRagdoll"/>
+            <Name value="RagdollBasic"/>
+            <PhysicsMatchKeysOrdered value="BasicAir,Basic"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms>
+            <ModelLink value="DeathVoidShadowLarge"/>
+            <SoundLink value="ShadowUnit_DeathFX"/>
+            <VoiceLink value="ShadowUnit_DeathVox"/>
+            <Name value="Shadow"/>
+        </DeathCustoms>
+        <DeathActorModel value="UnitDeathModelWithDeathMotionFlier"/>
+        <PhysicsMatchKeysOrdered value="BasicAir,Basic"/>
+        <PortraitModel value="8wuranzhePortrait"/>
+        <BarOffset value="70"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-collection-webby-overseer.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-collection-webby-overseer.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-flyercarapace-level3.dds"/>
+        <NameOffset value="70"/>
+        <SelectAbilCmd value="FungalGrowth,Execute"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds"/>
+        <SoundArray index="Ready" value="Overseer_Ready"/>
+        <SoundArray index="What" value="Overseer_What"/>
+        <SoundArray index="Yes" value="Overseer_Yes"/>
+        <SoundArray index="Pissed" value="Overseer_Pissed"/>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <UnitIcon value="Assets\Textures\btn-unit-collection-webby-overseer.dds"/>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <VitalNames index="Shields" value="Vital/ZergShields"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-collection-webby-overseer.dds"/>
+        </Wireframe>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorAction id="8suanyepensheAttack" parent="GenericAttack" effectImpact="8suanyepensheDamage" effectLaunch="8suanyepensheMissile">
+        <LaunchAssets Model="" Sound="Corruptor_AttackLaunch"/>
+        <ImpactMap index="None" Sound="Corruptor_AttackImpact" ModelReaction="CorruptorAttackImpactReaction"/>
+        <ImpactMap index="Shield" Sound="CorruptorAttackImpactShield" ModelReaction="CorruptorAttackImpactReactionShield"/>
+        <ImpactPhysics Name="ParasiteSporeImpact" MatchKeys="Basic" Physics="CorruptorAttackDeathForce"/>
+    </CActorAction>
+    <CActorMissile id="8suanyepensheAttackMissile" parent="GenericAttackMissile" unitName="8suanyepensheWeapon"/>
+    <CActorStateMonitor id="8ZergBloodSmallBuilding" parent="ZergBlood">
+        <On index="1" Terms="StateChange; StateValid ZergBleedLight; StateChanged ZergNormal" Target="" Send="Create ZergBloodSetBleedSmall"/>
+        <On index="2" Terms="StateChange; StateValid ZergBleedHeavy; StateChanged ZergNormal" Target="" Send="Create ZergBloodSetBleedHeavy"/>
+        <On index="3" Terms="StateChange; StateValid ZergBleedProfusely; StateChanged ZergNormal" Send="Create ZergBloodSetBleedProfusely"/>
+        <On index="4" Terms="StateChange; StateValid ZergBleedLight; !StateChanged ZergNormal" Target="" Send="Create ZergBloodSetBleedSmall"/>
+        <On index="5" Terms="StateChange; StateValid ZergBleedHeavy; !StateChanged ZergNormal" Target="" Send="Create ZergBloodSetBleedHeavy"/>
+        <On index="6" Terms="StateChange; StateValid ZergBleedProfusely; !StateChanged ZergNormal" Send="Create ZergBloodSetBleedProfusely"/>
+        <On index="7" Terms="StateChange; StateValid ZergNormal; StateChanged ZergBleedLight" Target="ZergBloodSetBleedSmall" Send="Destroy"/>
+        <On index="8" Terms="StateChange; StateValid ZergBleedLight; StateChanged ZergBleedHeavy" Target="ZergBloodSetBleedHeavy" Send="Destroy"/>
+        <On index="9" Terms="StateChange; StateValid ZergBleedHeavy; StateChanged ZergBleedProfusely" Target="ZergBloodSetBleedProfusely" Send="Destroy"/>
+        <On index="10" Terms="StateChange; StateValid ZergNormal" Target="ZergBloodSetBleedSmall" Send="Destroy"/>
+        <On index="11" Terms="StateChange; StateValid ZergNormal" Target="ZergBloodSetBleedHeavy" Send="Destroy"/>
+        <On index="12" Terms="StateChange; StateValid ZergNormal" Target="ZergBloodSetBleedProfusely" Send="Destroy"/>
+        <On index="13" Terms="UnitCreation.8danzhipaotai" Send="Create"/>
+        <On index="14" Terms="UnitCreation.8jicipachong" Send="Create"/>
+        <On index="15" Terms="UnitCreation.8jicipachongStand" Send="Create"/>
+        <On index="16" Terms="UnitCreation.8suanyepachong" Send="Create"/>
+        <On index="17" Terms="UnitCreation.8suanyepachongStand" Target="" Send="Create"/>
+        <On index="18" removed="1"/>
+        <On index="19" removed="1"/>
+        <On index="20" removed="1"/>
+        <On index="21" removed="1"/>
+        <On index="22" removed="1"/>
+    </CActorStateMonitor>
+    <CActorAction id="8qiangsuanjiciAttack" parent="GenericAttack" effectImpact="8qiangsuanjiciDamage" effectLaunch="8qiangsuanjiciMissile">
+        <LaunchAttachQuery Methods="Weapon"/>
+        <LaunchAssets Sound="AcidSpines_AttackLaunch"/>
+        <ImpactMap index="None" Sound="AcidSpines_AttackImpact"/>
+        <ShieldFlashType value="Header"/>
+    </CActorAction>
+    <CActorMissile id="8qiangsuanjiciAttackMissile" parent="GenericAttackMissile" unitName="8qiangsuanjiciWeapon">
+        <Model value="8qiangsuanjiciMissile"/>
+    </CActorMissile>
+    <CActorAction id="8fuhuaAttack" parent="GenericAttack" effectImpact="CorruptionDummy" effectLaunch="8fuhuaMissile">
+        <On index="1" Terms="Effect.8suanxingApply.Start; FromEffectTreeDescendant" Send="ActionImpact"/>
+        <On index="2" Terms="Effect.8suanxingApply.Stop; FromEffectTreeDescendant" Send="ActionImpactPhysics"/>
+        <ImpactSiteOps Ops="SOpAttachHarness VoidRaySOpForwardLaunch SOpForwardLaunchGuide"/>
+        <AccuracyHalfArc value="10.000000"/>
+        <ShieldFlashType value="None"/>
+    </CActorAction>
+    <CActorModel id="8fuhua" parent="ModelAddition">
+        <Inherits index="TintColor" value="0"/>
+        <On Terms="Behavior.8fuhua.On" Send="Create"/>
+        <On Terms="Behavior.8fuhua.Off" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpAttachCenterSoft"/>
+        <AutoScaleFactor value="1.000000"/>
+    </CActorModel>
+    <CActorRange id="8fuhuaRange" parent="RangeAbil" abil="8fuhua">
+        <IconArcLength value="3.250000"/>
+    </CActorRange>
+    <CActorModel id="8quntibuyeBuff" parent="ModelAnimationStyleContinuous">
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <On Terms="ActorCreation" Send="$Birth PlayForever"/>
+        <On Terms="Behavior.8quntibuye2.On" Send="Create"/>
+        <On Terms="Behavior.8quntibuye.On" Send="Create"/>
+        <On Terms="Behavior.8quntibuye2.Off" Send="Destroy"/>
+        <On Terms="Behavior.8quntibuye.Off" Send="Destroy"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachCenter SOpForwardNorth" HoldRotation="1"/>
+    </CActorModel>
+    <CActorAction id="8juxinglizhuaAttack" parent="GenericAttack" effectAttack="8juxinglizhuaDamage">
+        <LaunchAssets Sound="Queen_AttackLaunch"/>
+        <ImpactMap index="None" Sound="Queen_AttackImpact"/>
+        <ImpactPhysics Name="Attack" MatchKeys="Basic" Physics="QueenMeleeAttackForce"/>
+        <ShieldFlashType value="Header"/>
+    </CActorAction>
+    <CActorAction id="8fuhuapaoAttack" parent="GenericAttack" effectImpact="DevastatingShotSet2" effectLaunch="8fuhuapaoMissile">
+        <LaunchAttachQuery Methods="Weapon"/>
+        <LaunchAssets Sound="Spell_CorrosiveBlast_Launch"/>
+        <ImpactMap index="None" Sound="Spell_CorrosiveBlast_Impact"/>
+        <ShieldFlashType value="Full"/>
+    </CActorAction>
+    <CActorMissile id="8fuhuapaoAttackMissile" parent="GenericAttackMissile" unitName="8fuhuapaoWeapon"/>
+    <CActorRange id="8fuhuapaoRange" parent="RangeAbil" abil="8fuhuapao"/>
+    <CActorUnit id="8baoliewangchong" parent="GenericUnitMorph" unitName="8baoliewangchong">
+        <On Terms="Abil.OverlordTransport.TransportUnloadStart" Send="AnimPlay Work Stand,Work PlayForever"/>
+        <On Terms="Abil.OverlordTransport.TransportUnloadStop" Send="AnimClear Work"/>
+        <On Terms="ActorCreation" Send="$Birth 0 0.000000"/>
+        <On Terms="Behavior.makeCreep2x2Overlord.Delay" Send="Create OverlordGenerateCreepModel"/>
+        <On Terms="Behavior.makeCreep2x2Overlord.Delay" Send="Create OverlordGenerateCreepSound"/>
+        <On Terms="Behavior.makeCreep2x2Overlord.Cancel" Target="OverlordGenerateCreepModel" Send="Destroy"/>
+        <On Terms="Behavior.makeCreep2x2Overlord.Cancel" Target="OverlordGenerateCreepSound" Send="Destroy"/>
+        <On Terms="Behavior.makeCreep2x2Overlord.Off" Target="OverlordGenerateCreepModel" Send="Destroy"/>
+        <On Terms="Behavior.makeCreep2x2Overlord.Off" Target="OverlordGenerateCreepSound" Send="Destroy"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <DeathArray index="Normal" ModelLink="8baoliewangchongDeath" SoundLink=""/>
+        <PortraitModel value="8baoliewangchongPortrait"/>
+        <BarOffset value="70"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-collection-webby-overlordtransport.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-collection-webby-overlordtransport.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-flyercarapace-level3.dds"/>
+        <NameOffset value="70"/>
+        <SoundArray index="Birth" value="Overlord_Birth"/>
+        <SoundArray index="Ready" value="Overlord_Ready"/>
+        <SoundArray index="Help" value="Overlord_Help"/>
+        <SoundArray index="What" value="Overlord_What"/>
+        <SoundArray index="Yes" value="Overlord_Yes"/>
+        <SoundArray index="Pissed" value="Overlord_Pissed"/>
+        <SoundArray index="Movement" value="Overlord_Movement"/>
+        <SoundArray index="Turning" value="Overlord_Turning"/>
+        <SoundArray index="Board" value="Overlord_Board"/>
+        <SoundArray index="Click" value="Overlord_Click"/>
+        <SoundArray index="ClickError" value="Overlord_ClickError"/>
+        <SoundArray index="Highlight" value="Overlord_Highlight"/>
+        <UnitIcon value="Assets\Textures\btn-unit-collection-webby-overlordtransport.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-collection-webby-overlordtransport.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorSound id="8quntibuyeSound" parent="SoundOneShot">
+        <On Terms="Effect.8quntibuyeSearch.Start" Send="Create"/>
+        <Host Subject="_Selectable"/>
+        <Sound value="Spell_Mend_Launch"/>
+    </CActorSound>
+    <CActorModel id="8fuhuapao" parent="ModelAddition">
+        <On Terms="Behavior.8fuhuapao.On" Send="Create"/>
+        <On Terms="Behavior.8fuhuapao.Off" Send="AnimBracketStop BSD"/>
+        <On Terms="ActorCreation" Send="SetScale 1.400000 0.400000"/>
+        <On Terms="UnitDeath" Send="Destroy"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <Model value="8fuhuapaoModel"/>
+        <AutoScaleFactor value="1.000000"/>
+    </CActorModel>
+    <CActorModel id="8tianjiangchonghai" parent="ModelAnimationStyleOneShot">
+        <On index="0" Terms="ActorCreation" Send="AnimBracketStart BSD Birth Stand Death ContentPlayOnce 2.000000 AsTimeScale"/>
+        <On Terms="Effect.8tianjiangchonghaiPersistent2.Start" Send="Create"/>
+        <On Terms="ActorCreation" Send="Create ZergDropPod_Drop"/>
+        <On Terms="ActorCreation" Send="TimerSet 1.350000 DelayDropPod"/>
+        <On Terms="TimerExpired; TimerName DelayDropPod" Send="TimerSet 5.000000 DelayDropPodB"/>
+        <On Terms="TimerExpired; TimerName DelayDropPod" Send="Create ZergDropPodImpact"/>
+        <On Terms="TimerExpired; TimerName DelayDropPodB" Send="AnimBracketStop BSD"/>
+        <Model value="ZergDropPod"/>
+    </CActorModel>
+    <CActorSimple id="8quntikuangbao">
+        <On Terms="Behavior.8quntikuangbao.Off" Target="_Unit" Send="ClearScale 1.000000 8quntikuangbao"/>
+        <On Terms="Behavior.8quntikuangbao.Off" Send="Destroy"/>
+        <On Terms="Behavior.8quntikuangbao.On" Send="Create"/>
+        <On Terms="ActorCreation" Target="_Unit" Send="SetScale 1.250000 0.400000 8quntikuangbao"/>
+    </CActorSimple>
+    <CActorModel id="8quntikuangbaoBuff" parent="ModelAnimationStyleContinuousUNIT">
+        <On Terms="Behavior.8quntikuangbao.On" Send="Create"/>
+        <On Terms="Behavior.8quntikuangbao.Off" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpAttachOrigin"/>
+        <AutoScaleFactor value="1.500000"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+    </CActorModel>
+    <CActorModel id="8quntikuangbaoCast" parent="ModelAnimationStyleOneShotUNIT">
+        <On Terms="Abil.8quntikuangbao.SourceCastStart" Send="Create"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+    </CActorModel>
+    <CActorUnit id="8danzhipaotai" parent="ZergBuilding" unitName="8danzhipaotai">
+        <On Terms="Abil.KorhalSporeCannonBombardment.SourcePrepStart" Send="AnimPlay Spell Attack"/>
+        <On Terms="Abil.KorhalSporeCannonRoot.SourcePrepStart" Send="SetScale 0.500000"/>
+        <On Terms="Abil.KorhalSporeCannonRoot.SourcePrepStart" Send="SetScale 1.000000 20.000000"/>
+        <On Terms="Abil.KorhalSporeCannonRoot.SourcePrepStart" Send="AnimSetPausedAll"/>
+        <On Terms="Abil.KorhalSporeCannonRoot.SourceCastStart" Send="AnimSetPausedAll 0"/>
+        <On Terms="AbilMorph.KorhalSporeCannon.Start" Send="ModelSwap KorhalSporeCannon"/>
+        <On Terms="ActorCreation" Send="Create SoundEmitter Virophage_Stand"/>
+        <AnimBlendTime value="0.400000"/>
+        <DeathArray index="Normal" ModelLink="8danzhipaotaiDeath" SoundLink=""/>
+        <DeathArray index="UnderConstruction" ModelLink="ZergBuildingDeath" SoundLink="SporeCrawler_Explode"/>
+        <PlacementModel value="8danzhipaotaiPlacement"/>
+        <PlacementSound value="Zerg_BuildingPlacement"/>
+        <PortraitModel value="ZergBuildingEx2_Portrait"/>
+        <WalkAnimMoveSpeed value="1.25"/>
+        <BarOffset value="190"/>
+        <BarWidth value="85"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-zerg-sporecannon.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-zerg-sporecannon.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-armor-zerg-building.dds"/>
+        <NameOffset value="60"/>
+        <SoundArray index="Construction" value="Zerg_BuildingMorphWhat"/>
+        <UnitFlags index="ShowBlobShadow" value="0"/>
+        <UnitIcon value="Assets\Textures\btn-building-zerg-sporecannon.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-zerg-sporecannon.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorModel id="8danzhipaotaiBuild" parent="ZergBuildingBuild">
+        <Model value="ZergBuildingBirthSmall"/>
+    </CActorModel>
+    <CActorAction id="8duididanzhipaoAttack" parent="GenericAttack" effectImpact="8duididanzhipaoDamage" effectLaunch="8duididanzhipaoMissile">
+        <LaunchAssets Sound="SporeCrawler_AttackLaunch"/>
+        <Missile value="8danzhipaoAttackMissile"/>
+        <ImpactMap index="None" Model="8danzhipaoAttackImpact" Sound="SporeCrawler_AttackImpact"/>
+        <ImpactPhysics Name="AcidSpewImpact" MatchKeys="Basic" Physics="SporeCrawlerAttackForce"/>
+    </CActorAction>
+    <CActorMissile id="8danzhipaoAttackMissile" parent="GenericAttackMissile" unitName="8danzhipaoWeapon"/>
+    <CActorMissile id="8suanxingtuoyeAttackMissile" parent="GenericAttackMissile" unitName="8suanxingtuoyeWeapon"/>
+    <CActorMissile id="8fuhuaAttackMissile" parent="GenericAttackMissile" unitName="8fuhuaWeapon"/>
+    <CActorModel id="8xiezaiLaunch" parent="ModelAnimationStyleOneShot">
+        <On Terms="AbilTransport.8zhuangzai.TransportUnload" Send="Create"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <Model value="ZergUnloadLaunch"/>
+    </CActorModel>
+    <CActorModel id="8xiezai">
+        <Flags index="SuppressSaveLoad" value="1"/>
+        <Inherits index="BaseModelScale" value="1"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <On Terms="ActorCreation" Send="$Stand,00"/>
+        <On Terms="AnimDone; AnimName Stand" Send="Destroy"/>
+        <On Terms="AbilTransport.8zhuangzai.CargoUnload" Send="Create"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachCenter SOpShadow"/>
+        <Model value="UnloadFX"/>
+        <AutoScaleFactor value="1.000000"/>
+    </CActorModel>
+    <CActorModel id="8ebianjunytan" parent="ModelAddition">
+        <On Terms="Behavior.8ebianjuntanCaster.On" Send="Create"/>
+        <On Terms="Behavior.8ebianjuntanCaster.Off" Send="AnimBracketStop BSD"/>
+        <Model value="CreepFrenzy13CreepTumor"/>
+    </CActorModel>
+    <CActorUnit id="8juntanzhongliu" parent="ZergBuildingEx" unitName="8juntanzhongliu">
+        <Aliases value="_UnitSmall"/>
+        <Remove Terms="UnitConstruction.CreepTumor.Start" Send="Create CreepTumorBuild"/>
+        <On Terms="UnitConstruction.8juntanzhongliu.Start" Send="SetScale 0.100000"/>
+        <On Terms="UnitConstruction.8juntanzhongliu.Start" Send="SetScale 1.000000 3.000000"/>
+        <On Terms="UnitConstruction.8juntanzhongliu.Start" Send="TimerSet 13.333000 BurrowAnim"/>
+        <On Terms="UnitConstruction.8juntanzhongliu.Start" Send="AnimPlay MorphStart Stand,Morph,Start"/>
+        <On Terms="AnimDone.*.Complete; AnimName MorphStart" Send="AnimPlay Morph Stand,Morph PlayForever"/>
+        <On Terms="TimerExpired; TimerName BurrowAnim" Send="AnimPlay MorphEnd Stand,Morph,End PlayForever"/>
+        <On Terms="TimerExpired; TimerName BurrowAnim" Send="AnimClear Morph"/>
+        <On Terms="UnitBirth" Send="AnimClear MorphEnd"/>
+        <On Terms="Behavior.8guanghezuoyong.On" Send="AnimPlay Cover Cover PlayForever 0.000000 0.000000"/>
+        <On Terms="Behavior.8guanghezuoyong.Off" Send="AnimClear Cover"/>
+        <On Terms="Effect.8guanghezuoyonModify.Start" Send="Create 8guanghezuoyongText"/>
+        <Model value="CreepTumor"/>
+        <BuildModel value="CreepTumor"/>
+        <DeathArray index="Normal" ModelLink="CreepTumorDeath" SoundLink="CreepTumor_Explode"/>
+        <DeathArray index="UnderConstruction" SoundLink="CreepTumor_Explode"/>
+        <DeathActorModel value="UnitDeathModelUnscaled"/>
+        <PlacementModel value="CreepTumorPlacement"/>
+        <PlacementSound value="Zerg_BuildingPlacementSmall"/>
+        <PortraitModel value="CreepTumorPortrait"/>
+        <BarOffset value="20"/>
+        <BarWidth value="40"/>
+        <ErrorArray Error="CantSeeBuildLocation" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantSeeLandLocation" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantBuildLocationInvalid" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantLandLocationInvalid" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="TargetIsOutOfRange" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Zerg-CreepTumor.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-zerg-creeptumor.dds"/>
+        <SoundArray index="Ready" value="CreepTumor_Ready"/>
+        <SoundArray index="Help" value="Alert_ZergCreepTumorUnderAttack"/>
+        <SoundArray index="What" value="CreepTumor_What"/>
+        <UnitIcon value="Assets\Textures\btn-building-zerg-creeptumor.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Zerg-CreepTumor.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorStateMonitor id="8ZergBloodTinyBuilding">
+        <On Terms="UnitCreation.8juntanzhongliu" Send="Create"/>
+        <On Terms="StateChange; StateValid ZergBleedLight; StateChanged ZergNormal" Send="Create ZergBloodSetBleedTinySmall"/>
+        <On Terms="StateChange; StateValid ZergBleedHeavy; StateChanged ZergNormal" Send="Create ZergBloodSetBleedTinyHeavy"/>
+        <On Terms="StateChange; StateValid ZergBleedProfusely; StateChanged ZergNormal" Send="Create ZergBloodSetBleedTinyProfusely"/>
+        <On Terms="StateChange; StateValid ZergBleedLight; !StateChanged ZergNormal" Send="Create ZergBloodSetBleedTinySmall"/>
+        <On Terms="StateChange; StateValid ZergBleedHeavy; !StateChanged ZergNormal" Send="Create ZergBloodSetBleedTinyHeavy"/>
+        <On Terms="StateChange; StateValid ZergBleedProfusely; !StateChanged ZergNormal" Send="Create ZergBloodSetBleedTinyProfusely"/>
+        <On Terms="StateChange; StateValid ZergNormal; StateChanged ZergBleedLight" Target="ZergBloodSetBleedTinySmall" Send="Destroy"/>
+        <On Terms="StateChange; StateValid ZergBleedLight; StateChanged ZergBleedHeavy" Target="ZergBloodSetBleedTinyHeavy" Send="Destroy"/>
+        <On Terms="StateChange; StateValid ZergBleedHeavy; StateChanged ZergBleedProfusely" Target="ZergBloodSetBleedTinyProfusely" Send="Destroy"/>
+        <On Terms="StateChange; StateValid ZergNormal" Target="ZergBloodSetBleedTinySmall" Send="Destroy"/>
+        <On Terms="StateChange; StateValid ZergNormal" Target="ZergBloodSetBleedTinyHeavy" Send="Destroy"/>
+        <On Terms="StateChange; StateValid ZergNormal" Target="ZergBloodSetBleedTinyProfusely" Send="Destroy"/>
+        <StateArray Name="ZergNormal" Terms="ValidateUnit ZergBleedNormal"/>
+        <StateArray Name="ZergBleedLight" Terms="ValidateUnit ZergBleedLight"/>
+        <StateArray Name="ZergBleedHeavy" Terms="ValidateUnit ZergBleedHeavy"/>
+        <StateArray Name="ZergBleedProfusely" Terms="ValidateUnit ZergBleedProfusely"/>
+        <StateThinkInterval value="0.5"/>
+    </CActorStateMonitor>
+    <CActorText id="8guanghezuoyongText">
+        <On Terms="ActorCreation" Send="TimerSet 0.100000 StartMover"/>
+        <On Terms="ActorCreation" Send="TimerSet 2.000000 Die"/>
+        <On Terms="ActorCreation" Send="SetOpacity 0.000000 2.000000"/>
+        <On Terms="TimerExpired; TimerName StartMover" Send="Create AutomatedRefineryTextMover"/>
+        <On Terms="TimerExpired; TimerName Die" Send="Destroy"/>
+        <Host Subject="_Unit"/>
+        <FixedSize value="28"/>
+        <AlignV value="Bottom"/>
+        <HeightOffset value="3.500000"/>
+        <Text value="Button/Tooltip/8guanghezuoyongText"/>
+        <Filter index="Ally" value="1"/>
+        <Filter index="Neutral" value="1"/>
+        <Filter index="Enemy" value="1"/>
+    </CActorText>
+    <CActorUnit id="8suanyechonghou" parent="GenericUnitBase" unitName="8suanyechonghou">
+        <Aliases value="_UnitLarge"/>
+        <Macros value="ZergBurrowStandardAnimMacro"/>
+        <Macros value="ZergLargeBurrowEffects"/>
+        <Macros value="UnloadDropAnim"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Macros value="PhysicsDeathsSwarmGround"/>
+        <Macros value="PhysicsDeathsVoidGround"/>
+        <On Terms="Abil.8buye.SourceFinishStart" Send="AnimPlay SpellB Spell,B"/>
+        <On Terms="Abil.attack.ReadyStart" Send="AnimGroupApply Ready"/>
+        <On Terms="WeaponStart.8duikongjici.AttackStart" Send="AnimBracketStart Attack Spell,C"/>
+        <On Terms="WeaponStart.8bianzhuanglizhua.AttackStart; WeaponTargetDistance LE 1.000000" Send="AnimBracketStart Attack Attack,Cover"/>
+        <On Terms="WeaponStart.8bianzhuanglizhua.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="WeaponStop.*.AttackStop" Send="AnimBracketStop Attack"/>
+        <On Terms="Abil.attack.ReadyStop" Send="AnimGroupRemove Ready"/>
+        <On Terms="UnitBirth.8suanyechonghou" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <On Terms="UnitBirth.8suanyechonghou" Send="Create QueenCreepBirth"/>
+        <On Terms="UnitBirth.8suanyechonghou" Send="Create Queen_Birth"/>
+        <On Terms="UnitBirth.8suanyechonghou" Send="Create Queen_Birth2"/>
+        <On Terms="WeaponStart.8duidijici.AttackStart" Send="AnimBracketStart Attack Spell,C"/>
+        <On Terms="UnitHighlightLocal" Send="Create Queen_Land"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <DeathArray index="Normal" ModelLink="8suanyechonghouDeath" SoundLink="Queen_Explode"/>
+        <DeathArray index="Disintegrate" ModelLink="8suanyechonghouDeathAcid" SoundLink="Uni_DeathFXAcid"/>
+        <DeathArray index="Fire" ModelLink="8suanyechonghouDeathFire" SoundLink="Uni_DeathFXFire"/>
+        <DeathCustoms ModelLink="ZergLargeUnitDeathLow" Name="AntiGravZerg"/>
+        <DeathCustoms ActorModel="QueenDeathRagdoll" ModelLink="8suanyechonghouDeathRagdoll" Name="RagdollBasic"/>
+        <DeathCustoms Name="RagdollSiegeTank" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollNuke" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollFire" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Fire"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollAcid" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollBaneling" InheritsFrom="RagdollBasic">
+            <BodySquibs Name="Acid"/>
+        </DeathCustoms>
+        <DeathCustoms Name="RagdollUltraUnburrow" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDPRH" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollOverkillDOI" InheritsFrom="RagdollBasic"/>
+        <DeathCustoms Name="RagdollMidair" InheritsFrom="RagdollBasic"/>
+        <PortraitModel value="8suanyechonghouPortrait"/>
+        <TerrainSquibs>
+            <GroupName value="RippleStandard"/>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="2.000000"/>
+            <RangeDown value="2.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleQueen"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="1.7031"/>
+        <BarOffset value="75"/>
+        <ErrorArray Error="CantSeeBuildLocation" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantSeeLandLocation" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantBuildLocationInvalid" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantLandLocationInvalid" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-collection-webby-queen.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-collection-webby-queen.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level3.dds"/>
+        <MovementHerdNode value="HerdNode_ZergQueens"/>
+        <ShieldArmorIcon value="Assets\Textures\btn-upgrade-zerg-swarmfrenzy.dds"/>
+        <SoundArray index="Birth" value="Queen_Birth"/>
+        <SoundArray index="Ready" value="QueenReady"/>
+        <SoundArray index="Help" value="QueenHelp"/>
+        <SoundArray index="What" value="QueenWhat"/>
+        <SoundArray index="Yes" value="QueenYes"/>
+        <SoundArray index="Attack" value="Queen_Attack"/>
+        <SoundArray index="Pissed" value="Queen_Pissed"/>
+        <SoundArray index="Movement" value="zQueen_moveLoop"/>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <UnitFlags index="StandAnimBirthVariation" value="0"/>
+        <UnitIcon value="Assets\Textures\btn-unit-collection-webby-queen.dds"/>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <VitalNames index="Shields" value="Vital/ZergShields"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-collection-webby-queen.dds"/>
+        </Wireframe>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorSound id="8suanyechonghouDeath" parent="SoundOneShot">
+        <On Terms="UnitDeath.8suanyechonghou; PassChance 25.000000" Send="Create"/>
+        <On Terms="UnitDeath.QueenBurrowed; PassChance 25.000000" Send="Create"/>
+        <Sound value="Queen_Death"/>
+    </CActorSound>
+    <CActorAction id="8bianzhuanglizhuaAttack" parent="GenericAttack" effectAttack="8bianzhuanglizhuaDamage">
+        <LaunchAssets Model="" Sound="Queen_AttackLaunch"/>
+        <ImpactMap index="None" Sound="Queen_AttackImpact"/>
+        <ImpactPhysics Name="Attack" MatchKeys="Basic" Physics="QueenMeleeAttackForce"/>
+        <ShieldFlashType value="Header"/>
+    </CActorAction>
+    <CActorRange id="8buyeRange" parent="RangeAbil" abil="8buye"/>
+    <CActorUnit id="8jicipachong" parent="ZergBuildingEx" unitName="8jicipachong">
+        <Aliases value="_UnitLarge"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <Remove Terms="WeaponStart.*.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <Remove Terms="WeaponStop.*.AttackStop" Send="AnimBracketStop Attack"/>
+        <Remove Terms="Abil.attack.ReadyStop" Send="AnimGroupRemove Ready"/>
+        <On Terms="UnitBirth.8jicipachong" Send="AnimGroupApply Burrow {} {} Instant"/>
+        <On Terms="AbilMorph.*.Start; AbilKey Root" Send="Create LargeBurrowDownEffects"/>
+        <On Terms="AbilMorph.*.Start; AbilKey Root" Send="Create BurrowDownLarge"/>
+        <On Terms="AbilMorph.*.Start; AbilKey Uproot" Send="Create LargeBurrowUpEffects"/>
+        <On Terms="AbilMorph.*.Start; AbilKey Uproot" Send="Create BurrowUpLarge"/>
+        <On Terms="UnitBirth.8jicipachongStand" Send="Create"/>
+        <On Terms="UnitBirth.8jicipachongStand" Target="_BuildingTerrainFlatten" Send="Destroy"/>
+        <On Terms="UnitBirth.8jicipachongStand" Send="AnimBlendTimeApply 0.100000"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8jicipachongStand" Send="AnimGroupRemove Burrow"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8jicipachongStand" Send="AnimPlay Unburrow Unburrow"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8jicipachongStand" Target="_BuildingTerrainFlatten" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8jicipachongStand" Send="AnimClear Morph"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8jicipachongStand" Send="AnimGroupRemove Ready"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8jicipachongStand" Send="AnimBlendTimeApply 0.100000"/>
+        <On Terms="AbilMorph.*.Cancel; MorphTo 8jicipachong" Send="AnimBracketStop Morph Instant"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8jicipachong" Send="Create BuildingTerrainFlatten"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8jicipachong" Send="Create SpineCrawlerBurrowLoop"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8jicipachong" Send="AnimGroupApply Burrow"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8jicipachong" Send="AnimBracketStop Morph"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8jicipachong" Target="SpineCrawlerBurrowLoop" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Cancel; MorphTo 8jicipachong" Target="SpineCrawlerBurrowLoop" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Start; MorphFrom 8jicipachong" Send="AnimClear AttackEnd"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8jicipachong" Send="AnimBlendTimeApply 0.400000"/>
+        <On Terms="WeaponStart.8jicichushou.AttackStart; AnimPlaying Burrow" Send="AnimClear Burrow"/>
+        <On Terms="WeaponStart.8jicichushou.AttackStart" Send="AnimPlay Attack Attack PlayForever"/>
+        <On Terms="WeaponStop.8jicichushou.AttackStop; !MissileTentacleIsReturning TentacleAttack" Send="AnimClear Attack"/>
+        <On Terms="WeaponStop.8jicichushou.AttackStop; !MissileTentacleIsReturning TentacleAttack" Send="AnimGroupRemove Ready"/>
+        <On Terms="MissileTentacleRetracted" Send="AnimClear Attack"/>
+        <On Terms="MissileTentacleRetracted" Send="RefClear TentacleAttack"/>
+        <On Terms="MissileTentacleRetracted" Send="AnimGroupRemove Ready"/>
+        <On Terms="MissileTentacleRetracted; ValidateUnit 8mubiaoshijicipachong" Send="AnimPlay AttackEnd Attack,End 0 0.000000"/>
+        <On Terms="UnitDeathCustomize.8jicipachongStand" Send="DeathCustomize Uprooted"/>
+        <On Terms="UnitDeathCustomize; AnimPlaying Morph" Send="DeathCustomize Uprooted"/>
+        <On Terms="UnitDeathCustomize.8jicipachong" Send="AnimSetTimeScaleGlobal 1.000000"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8jicipachong" Send="AnimBracketStart Morph IGNORE Burrow,Superior Stand,Burrow ContentPlayOnce"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8jicipachong" Send="AnimBracketStart Morph IGNORE Burrow,Superior Stand,Burrow ContentPlayOnce"/>
+        <On Terms="UnitBirth.8jicipachongStand" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8jicipachongStand" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8jicipachong" Send="TerrainSquibDeactivate"/>
+        <Model value="SpineCrawler"/>
+        <AnimBlendTime value="0.400000"/>
+        <HostedAttaches Name="TentacleAttack">
+            <AttachQuery Methods="Weapon"/>
+        </HostedAttaches>
+        <EventDataSound Name="SpineCrawlerBurrowEnd" Actor="UnitSound" Sound="Zerg_BurrowLarge"/>
+        <BuildModel value="SpineCrawler"/>
+        <DeathArray index="Normal" ModelLink="SpineCrawler" SoundLink="SpineCrawler_Explode"/>
+        <DeathArray index="UnderConstruction" ModelLink="SpineCrawlerDeathUnderConstruction" SoundLink="SpineCrawler_Explode"/>
+        <DeathCustoms ModelLink="SpineCrawlerUnburrowedDeath" Name="Uprooted"/>
+        <DeathCustoms ModelLink="ZergGenericBuildingDeath" Name="Detached"/>
+        <PlacementModel value="SpineCrawlerPlacement"/>
+        <PlacementSound value="Zerg_BuildingPlacementSmall"/>
+        <PlacementActorModel value="SpineCrawlerPlacementModel"/>
+        <PlaceholderActorModel value="SpineCrawlerPlacementModel"/>
+        <PortraitModel value="SpineCrawlerPortrait"/>
+        <TerrainSquibs>
+            <GroupName value="RippleStandard"/>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="2.000000"/>
+            <RangeDown value="2.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleMassive15"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="0.7968"/>
+        <BarOffset value="110"/>
+        <BarWidth value="90"/>
+        <ErrorArray Error="CantSeeBuildLocation" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantSeeLandLocation" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantBuildLocationInvalid" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantLandLocationInvalid" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantBuildTooFarFromCreepSource" Sound="Alert_ZergPlaceOnCreep" GroupSound="Alert_ZergPlaceOnCreep"/>
+        <ErrorArray Error="CantLandTooFarFromCreepSource" Sound="Alert_ZergPlaceOnCreep" GroupSound="Alert_ZergPlaceOnCreep"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Zerg-SpineCrawler.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-zerg-spinecrawler.dds"/>
+        <NameOffset value="30"/>
+        <SoundArray index="Ready" value="SpineCrawler_Ready"/>
+        <SoundArray index="What" value="SpineCrawler_What"/>
+        <SoundArray index="Yes" value="SpineCrawler_Yes"/>
+        <SoundArray index="Attack" value="SpineCrawler_Attack"/>
+        <UnitIcon value="Assets\Textures\btn-building-zerg-spinecrawler.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Zerg-SpineCrawler.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorSplat id="8jicipachongSplat" parent="BurrowedSplatBase">
+        <On Terms="UnitBirth.8jicipachong" Send="Create"/>
+        <On Terms="AbilMorph.*.Start; MorphTo SpineCrawler" Send="Create"/>
+        <On Terms="AbilMorph.*.Start; MorphFrom SpineCrawler" Send="RefClear ::Host"/>
+        <On Terms="AbilMorph.*.Start; MorphFrom SpineCrawler" Send="TimerSet 5.000000 DelayDestroy"/>
+        <On Terms="TimerExpired; TimerName DelayDestroy" Send="Destroy"/>
+    </CActorSplat>
+    <CActorSound id="8jicipachongDeath" parent="SoundOneShot">
+        <On Terms="UnitDeath.8jicipachong; PassChance 25.000000" Send="Create"/>
+        <On Terms="UnitDeath.SpineCrawlerUprooted; PassChance 25.000000" Send="Create"/>
+        <Sound value="SpineCrawler_Death"/>
+    </CActorSound>
+    <CActorModel id="8jicipachongBuild" parent="ZergBuildingBuild">
+        <Model value="SpineCrawlerBuild"/>
+    </CActorModel>
+    <CActorModel id="8suanyepachongBuild" parent="ZergBuildingBuild">
+        <Model value="SporeCrawlerBuild"/>
+    </CActorModel>
+    <CActorAction id="8jicichushouAttack" parent="GenericAttack" effectImpact="8jicichushouDamage" effectLaunch="8jicichushouMissile">
+        <LaunchSiteOps Ops="SOpAttachHarnessStationary"/>
+        <LaunchAttachQuery Methods="Weapon"/>
+        <LaunchAssets Sound="SpineCrawler_AttackLaunch"/>
+        <ImpactSiteOps Ops="SOpAttachHarness SOpAttachVolumeStandard SOpForwardLaunchGuide"/>
+        <ImpactSiteOpsReaction Ops="SOp2DRotation SOp180" HoldPosition="1" HoldRotation="1"/>
+        <ImpactMap index="None" Sound="SpineCrawler_AttackImpact"/>
+        <ImpactMap index="LightArmor" ModelReaction="LightArmorTargetImpact"/>
+        <ImpactMap index="Metal" ModelReaction="MetalTargetImpact"/>
+        <ImpactPhysics Name="ImpalerTentacleHurl" MatchKeys="SpineCrawlerHurl" Physics="SpineCrawlerHurlDeathForce"/>
+        <ImpactPhysics Name="ImpalerTentacleImpact" MatchKeys="Basic" Physics="SpineCrawlerAttackDeathForce"/>
+        <AcquisitionYawHalfArc value="30.000000"/>
+        <AcquisitionPitchHalfArc value="60.000000"/>
+    </CActorAction>
+    <CActorUnit id="8suanyepachong" parent="ZergBuildingEx" unitName="8suanyepachong">
+        <Aliases value="_UnitLarge"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <On Terms="AbilMorph.*.Start; AbilKey Root" Send="Create LargeBurrowDownEffects"/>
+        <On Terms="AbilMorph.*.Start; AbilKey Root" Send="Create BurrowDownLarge"/>
+        <On Terms="AbilMorph.*.Start; AbilKey Uproot" Send="Create LargeBurrowUpEffects"/>
+        <On Terms="AbilMorph.*.Start; AbilKey Uproot" Send="Create BurrowUpLarge"/>
+        <On Terms="UnitBirth.8suanyepachongStand" Send="Create"/>
+        <On Terms="UnitBirth.8suanyepachongStand" Send="AnimGroupRemove Burrow"/>
+        <On Terms="UnitBirth.8suanyepachongStand" Target="_BuildingTerrainFlatten" Send="Destroy"/>
+        <On Terms="UnitBirth.8suanyepachongStand" Send="AnimBlendTimeApply 0.100000"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8suanyepachongStand" Send="AnimGroupRemove Burrow"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8suanyepachongStand" Send="AnimPlay Unburrow Unburrow"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8suanyepachongStand" Target="_BuildingTerrainFlatten" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8suanyepachongStand" Send="AnimClear Morph"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8suanyepachongStand" Send="AnimBlendTimeApply 0.100000"/>
+        <On Terms="AbilMorph.*.Cancel; MorphTo 8suanyepachong" Send="AnimBracketStop Morph Instant"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8suanyepachong" Send="AnimBracketStart Morph IGNORE Burrow Stand,Burrow ContentPlayOnce"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8suanyepachong" Send="Create BuildingTerrainFlatten"/>
+        <On Terms="AbilMorph.*.Start; MorphTo 8suanyepachong" Send="Create SporeCrawlerBurrowLoop"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8suanyepachong" Send="AnimGroupApply Burrow"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8suanyepachong" Send="AnimBracketStop Morph"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8suanyepachong" Target="SporeCrawlerBurrowLoop" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Cancel; MorphTo 8suanyepachong" Target="SporeCrawlerBurrowLoop" Send="Destroy"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8suanyepachong" Send="AnimBlendTimeApply 0.400000"/>
+        <On Terms="ActorCreation" Send="AnimGroupApply Burrow"/>
+        <On Terms="UnitDeathCustomize.8suanyepachongStand" Send="DeathCustomize Uprooted"/>
+        <On Terms="UnitDeathCustomize; AnimPlaying Morph" Send="DeathCustomize Uprooted"/>
+        <On Terms="UnitBirth.8suanyepachongStand" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8suanyepachongStand" Send="TerrainSquibActivateGroup RippleStandard"/>
+        <On Terms="AbilMorph.*.Finish; MorphTo 8suanyepachong" Send="TerrainSquibDeactivate"/>
+        <Model value="SporeCrawler"/>
+        <AnimBlendTime value="0.400000"/>
+        <EventDataSound Name="SporeCrawlerBurrowEnd" Actor="UnitSound" Sound="Zerg_BurrowLarge"/>
+        <BuildModel value="SporeCrawler"/>
+        <DeathArray index="Normal" ModelLink="SporeCrawlerDeath" SoundLink="SporeCrawler_Explode"/>
+        <DeathArray index="UnderConstruction" ModelLink="SporeCrawlerDeathUnderConstruction" SoundLink="SporeCrawler_Explode"/>
+        <DeathCustoms ModelLink="SporeCrawlerUnburrowedDeath" Name="Uprooted"/>
+        <DeathCustoms ModelLink="ZergGenericBuildingDeath" Name="Detached"/>
+        <PlacementModel value="SporeCrawlerPlacement"/>
+        <PlacementSound value="Zerg_BuildingPlacementSmall"/>
+        <PlacementActorModel value="SporeCrawlerPlacementModel"/>
+        <PlaceholderActorModel value="SporeCrawlerPlacementModel"/>
+        <PortraitModel value="SporeCrawlerPortrait"/>
+        <TerrainSquibs>
+            <GroupName value="RippleStandard"/>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="2.000000"/>
+            <RangeDown value="2.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleMassive15"/>
+        </TerrainSquibs>
+        <WalkAnimMoveSpeed value="0.7968"/>
+        <BarOffset value="60"/>
+        <BarWidth value="90"/>
+        <ErrorArray Error="CantSeeBuildLocation" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantSeeLandLocation" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantBuildLocationInvalid" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantLandLocationInvalid" Sound="Alert_ZergBuildError" GroupSound="Alert_ZergBuildError"/>
+        <ErrorArray Error="CantBuildTooFarFromCreepSource" Sound="Alert_ZergPlaceOnCreep" GroupSound="Alert_ZergPlaceOnCreep"/>
+        <ErrorArray Error="CantLandTooFarFromCreepSource" Sound="Alert_ZergPlaceOnCreep" GroupSound="Alert_ZergPlaceOnCreep"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Zerg-SporeCrawler.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-zerg-sporecrawler.dds"/>
+        <NameOffset value="30"/>
+        <SoundArray index="Ready" value="SporeCrawler_Ready"/>
+        <SoundArray index="What" value="SporeCrawler_What"/>
+        <SoundArray index="Yes" value="SporeCrawler_Yes"/>
+        <SoundArray index="Attack" value="SporeCrawler_Attack"/>
+        <UnitIcon value="Assets\Textures\btn-building-zerg-sporecrawler.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Zerg-SporeCrawler.dds"/>
+        </Wireframe>
+        <StatusColors index="Shields">
+            <ColorArray index="0" value="255,128,0,255"/>
+        </StatusColors>
+        <VitalColors index="Shields">
+            <ColorArray value="255,128,0,255"/>
+        </VitalColors>
+        <WireframeShieldColor value="255,128,0,255"/>
+    </CActorUnit>
+    <CActorSplat id="8suanyepachongSplat" parent="BurrowedSplatBase">
+        <On Terms="UnitBirth.8suanyepachong" Send="Create"/>
+        <On Terms="AbilMorph.*.Start; MorphTo SporeCrawler" Send="Create"/>
+        <On Terms="AbilMorph.*.Start; MorphFrom SporeCrawler" Send="RefClear ::Host"/>
+        <On Terms="AbilMorph.*.Start; MorphFrom SporeCrawler" Send="TimerSet 5.000000 DelayDestroy"/>
+        <On Terms="TimerExpired; TimerName DelayDestroy" Send="Destroy"/>
+        <AutoScaleFactor value="0.800000"/>
+    </CActorSplat>
+    <CActorSound id="8suanyepachongDeath" parent="SoundOneShot">
+        <On Terms="UnitDeath.8suanyepachong; PassChance 25.000000" Send="Create"/>
+        <On Terms="UnitDeath.SporeCrawlerUprooted; PassChance 25.000000" Send="Create"/>
+        <Sound value="SporeCrawler_Death"/>
+    </CActorSound>
+    <CActorMissile id="8jicichushouAttackMissile" parent="GenericTentacleMissile" unitName="8jicichushouWeapon">
+        <Supporter>
+            <Subject value="_Selectable"/>
+            <Scope value="Caster"/>
+            <Actor value="Find"/>
+            <Effect value="8jicichushouMissile"/>
+        </Supporter>
+        <Remove Terms="UnitBirth" Send="AnimBracketStart Lifetime Birth Stand"/>
+        <On Terms="UnitBirth" Send="AnimPlay Main Birth"/>
+        <On Terms="Effect.*.Return" Send="AnimPlay Main Back PlayForever"/>
+        <On Terms="SupporterDestruction" Send="$Death"/>
+        <On Terms="MotionPhaseStart; MotionPhase" Target="::Supporter" Send="RefSet TentacleAttack ::Self"/>
+        <Model value="Invisible"/>
+        <BarHeight value="1"/>
+        <BarWidth value="1"/>
+        <HostReturn>
+            <Subject value="_Selectable"/>
+            <Scope value="Caster"/>
+            <Actor value="Find"/>
+            <Effect value="8jicichushouMissile"/>
+        </HostReturn>
+        <HostReturnSiteOps Ops="SOpAttachHardPoint"/>
+    </CActorMissile>
+    <CActorAction id="8suanyebaoziAttack" parent="GenericAttack" effectImpact="8suanyebaoziDamage" effectLaunch="8suanyebaoziMissile">
+        <LaunchAssets Sound="SporeCrawler_AttackLaunch"/>
+        <ImpactMap index="None" Sound="SporeCrawler_AttackImpact"/>
+        <ImpactPhysics Name="AcidSpewImpact" MatchKeys="Basic" Physics="SporeCrawlerAttackForce"/>
+    </CActorAction>
+    <CActorMissile id="8suanyebaoziAttackMissile" parent="GenericAttackMissile" unitName="8suanyebaoziWeapon"/>
+    <CActorModel id="8chongluanDeath" parent="ModelAnimationStyleOneShotNoOrphan">
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachOriginStationary SOpShadow"/>
+    </CActorModel>
+</Catalog>

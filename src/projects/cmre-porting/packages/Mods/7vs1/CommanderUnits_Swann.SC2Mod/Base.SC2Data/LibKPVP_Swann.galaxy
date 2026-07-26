@@ -1,0 +1,26 @@
+// 迁移自 CoopZeroPop/CoreRuntime（Task 6）：已移除 LibKPVP_h 依赖，本文件仅使用 libNtve/native 调用，自包含。
+//--------------------------------------------------------------------------------------------------
+// Swann Kel-Morian Worker tech initialization
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gf_codex_apply_swann_worker_tech (int lp_player) {
+    int lv_build;
+
+    libNtve_gf_SetUpgradeLevelForPlayer(lp_player, "SwannCommander", 1);
+    libNtve_gf_SetUpgradeLevelForPlayer(lp_player, "CommanderLevel", 15);
+    TechTreeAbilityAllow(lp_player, AbilityCommand("KelMorianWorkerBuild", 0), true);
+    lv_build = 1;
+    while (lv_build <= 24) {
+        TechTreeAbilityAllow(lp_player, AbilityCommand("KelMorianWorkerBuild", lv_build), true);
+        lv_build = lv_build + 1;
+    }
+    TechTreeAbilityAllow(lp_player, AbilityCommand("KelMorianWorkerRepair", 0), true);
+    TechTreeAbilityAllow(lp_player, AbilityCommand("AdvancedConstructionAuto", 0), true);
+    UIDisplayMessage(PlayerGroupSingle(lp_player), c_messageAreaChat, StringToText(("Codex test init: TerranSwann KelMorianWorker tech enabled. Workers=" + IntToString(UnitGroupCount(UnitGroup("KelMorianWorker", lp_player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0), c_unitCountAlive)))));
+}
+
+//--------------------------------------------------------------------------------------------------
+// Swann post-lobby initialization
+//--------------------------------------------------------------------------------------------------
+void libKPVP_gf_codex_swann_init (int lp_player) {
+    libKPVP_gf_codex_apply_swann_worker_tech(lp_player);
+}

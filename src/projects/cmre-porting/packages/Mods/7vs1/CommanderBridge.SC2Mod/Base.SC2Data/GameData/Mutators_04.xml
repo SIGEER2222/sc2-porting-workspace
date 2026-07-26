@@ -1,0 +1,1791 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CEffectLaunchMissile id="MutatorAmonDehakaDragLaunchMissile">
+    <EditorCategories value="Race:Zerg" />
+    <AmmoUnit value="MutatorAmonDehakaDragMissile" />
+    <FinishEffect value="MutatorAmonDehakaDragSet" />
+    <ValidatorArray index="0" value="IsNotEggUnit" />
+    <ValidatorArray value="NotWarpingIn" />
+    <ValidatorArray value="IsNotLarva" />
+    <ValidatorArray value="NotFrenzied" />
+  </CEffectLaunchMissile>
+  <CEffectModifyUnit id="DrakkenLaserDrillNukePointTurretMU">
+    <EditorCategories value="" />
+    <ImpactUnit Value="Caster" />
+    <ModifyTurret Turret="LaserDrillTripod" AimCompleteEffect="DrakkenLaserDrillNukeAimCompleteDummyMU">
+      <Target Value="TargetPoint" />
+      <Flags index="Tracking" value="1" />
+    </ModifyTurret>
+  </CEffectModifyUnit>
+  <CEffectCreatePersistent id="MutatorEyeBeamsGroundReversePersistent">
+    <EditorCategories value="Race:Protoss" />
+    <Marker>
+      <MatchFlags index="Id" value="1" />
+    </Marker>
+    <WhichLocation Value="TargetUnit" />
+    <TimeScaleSource Value="Caster" />
+    <Flags index="Channeled" value="1" />
+    <ExpireDelay value="0.375" />
+    <ExpireEffect value="MutatorEyeBeamsGroundLineDamage" />
+    <PeriodCount value="5" />
+    <PeriodicEffectArray value="MutatorEyeBeamsGroundLineSearchReverse" />
+    <PeriodicOffsetArray value="1,0,0" />
+    <PeriodicOffsetArray value="0.5,0,0" />
+    <PeriodicOffsetArray value="0,0,0" />
+    <PeriodicOffsetArray value="-0.5,0,0" />
+    <PeriodicOffsetArray value="-1,0,0" />
+    <PeriodicPeriodArray value="0.0625" />
+  </CEffectCreatePersistent>
+  <CEffectSet id="MutatorAmonZagaraSpawnHunterKillersInitialSet">
+    <EffectArray value="MutatorAmonZagaraSpawnHunterKillersCU" />
+    <TargetLocationType value="Point" />
+    <ValidatorArray value="TargetIsPathable" />
+  </CEffectSet>
+  <CEffectCreatePersistent id="MutatorScorchedEarthFireBeamInitialCP">
+    <EditorCategories value="Race:Protoss" />
+    <TimeScaleSource Value="Caster" />
+    <PeriodCount value="60" />
+    <PeriodicEffectArray value="MutatorScorchedEarthFireBeamSearch" />
+    <PeriodicOffsetArray value="0,0,0" />
+    <PeriodicPeriodArray value="0.5" />
+  </CEffectCreatePersistent>
+  <CEffectDamage id="MutatorPurifierBeamDamage">
+    <EditorCategories value="" />
+    <Amount value="10" />
+    <ImpactUnitValidator value="TargetIsEnemy" />
+    <AreaArray Radius="1" Fraction="1" Validator="TargetisAnyCommander" />
+    <AreaArray Radius="2.2" Fraction="0.5" Validator="TargetisAnyCommander" />
+    <AreaArray Radius="2.8" Fraction="0.1" Validator="TargetisAnyCommander" />
+    <SearchFilters value="-;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable" />
+    <Flags index="Notification" value="1" />
+  </CEffectDamage>
+  <CEffectCreatePersistent id="MutatorAmonZagaraBanelingBarrageMissileScanPersistent">
+    <WhichLocation Value="SourceUnit" />
+    <PeriodCount value="80" />
+    <PeriodicEffectArray value="MutatorAmonZagaraBanelingBarrageMissileScan" />
+    <PeriodicPeriodArray value="0.0625" />
+  </CEffectCreatePersistent>
+  <CEffectSet id="MutatorPropagateKillOnlySet">
+    <EffectArray value="MutatorPropagateKillOnly" />
+    <EffectArray value="MutatorPropagateCU" />
+  </CEffectSet>
+  <CEffectModifyUnit id="MutatorAmonDehakaHealSmall">
+    <EditorCategories value="Race:Zerg" />
+    <VitalArray index="Life">
+      <Change value="50" />
+    </VitalArray>
+    <ValidatorArray value="LifeNotFull" />
+  </CEffectModifyUnit>
+  <CEffectDamage id="MutatorCloakedMineDie">
+    <ImpactLocation Value="SourceUnit" />
+    <Flags index="Kill" value="1" />
+    <Flags index="NoKillCredit" value="1" />
+    <Death value="Timeout" />
+  </CEffectDamage>
+  <CEffectApplyBehavior id="MutatorPropagateAB">
+    <EditorCategories value="" />
+    <Behavior value="MutatorPropagateDestroy" />
+  </CEffectApplyBehavior>
+  <CEffectEnumArea id="MutatorTimeWarpSearchArea">
+    <AreaArray Radius="3.5" Effect="MutatorTimeWarpApplyBehavior" />
+    <SearchFilters value="-;Player,Ally,Missile,Destructible,Dead,Invulnerable,Unstoppable" />
+  </CEffectEnumArea>
+  <CEffectCreatePersistent id="MutatorAmonNovaNukePersistent">
+    <EditorCategories value="Race:Terran" />
+    <Flags index="Channeled" value="1" />
+    <ExpireDelay value="4.75" />
+    <ExpireEffect value="MutatorAmonNovaNukeDetonate" />
+  </CEffectCreatePersistent>
+  <CEffectSwitch id="ZagaraVoidCoopMassFrenzySwitch">
+    <EditorCategories value="" />
+    <CaseArray Validator="CommanderPrestigeZagaraZagara" Effect="CommanderPrestigeZagaraZagaraFrenzySearch" />
+    <CaseDefault value="ZagaraVoidCoopMassFrenzySearch" />
+  </CEffectSwitch>
+  <CEffectSet id="PickupEnvelopeGas50Set">
+    <EditorCategories value="" />
+    <EffectArray value="PickupEnvelopeGas50" />
+    <EffectArray value="VoidPickupRemoveDelay" />
+  </CEffectSet>
+  <CEffectCreatePersistent id="DrakkenLaserDrillNukeCP">
+    <EditorCategories value="Race:Terran" />
+    <PeriodCount value="6" />
+    <PeriodicEffectArray value="DrakkenLaserDrillNukeSearch" />
+    <PeriodicPeriodArray value="0.0625" />
+    <FinalEffect value="DrakkenLaserDrillNukeFinalSet" />
+  </CEffectCreatePersistent>
+  <CEffectDamage id="LavaBurstDamageHero100">
+    <EditorCategories value="Race:Protoss" />
+    <Visibility value="Hidden" />
+    <Amount value="3" />
+    <Death value="Fire" />
+    <ValidatorArray value="TargetisAnyCommander" />
+    <ValidatorArray value="NotHaveLavaDamageCoopImmune" />
+  </CEffectDamage>
+  <CEffectApplyBehavior id="MutatorStormCloudDamageAB">
+    <EditorCategories value="Race:Protoss" />
+    <Behavior value="MutatorStormCloudDamage" />
+    <ValidatorArray value="NotInvulnerable" />
+  </CEffectApplyBehavior>
+  <CEffectDamage id="LavaBurstDamage">
+    <EditorCategories value="Race:Protoss" />
+    <Visibility value="Hidden" />
+    <Amount value="5" />
+    <Death value="Fire" />
+    <AttributeFactor index="Armored" value="2" />
+    <ValidatorArray value="TargetisAnyCommander" />
+    <ValidatorArray value="NotHaveLavaDamageCoopImmune" />
+  </CEffectDamage>
+  <CEffectCreatePersistent id="MutatorAmonZagaraMassRoachDropCP">
+    <EditorCategories value="Race:Protoss" />
+    <TimeScaleSource Value="Caster" />
+    <Flags index="RandomOffset" value="1" />
+    <Flags index="RandomPeriod" value="1" />
+    <InitialEffect value="MutatorAmonZagaraInfestedPodsCP" />
+    <PeriodCount value="9" />
+    <PeriodicEffectArray value="MutatorAmonZagaraInfestedPodsCP" />
+    <PeriodicOffsetArray value="3.75,1.5,0" />
+    <PeriodicOffsetArray value="3.75,-1.5,0" />
+    <PeriodicOffsetArray value="-3.75,1.5,0" />
+    <PeriodicOffsetArray value="-3.75,-1.5,0" />
+    <PeriodicOffsetArray value="1.75,4,0" />
+    <PeriodicOffsetArray value="1.75,-4,0" />
+    <PeriodicOffsetArray value="-1.75,4,0" />
+    <PeriodicOffsetArray value="-1.75,-4,0" />
+    <PeriodicOffsetArray value="0,0,0" />
+    <PeriodicPeriodArray value="0.125" />
+    <PeriodicPeriodArray value="0.1875" />
+    <OffsetRandMode value="Shuffle" />
+  </CEffectCreatePersistent>
+  <CEffectApplyBehavior id="DarkArchonMindControlOnDeathAB">
+    <Behavior value="AllUnitBehaviorController" />
+  </CEffectApplyBehavior>
+  <CEffectIssueOrder id="MutatorHybridImmortalDeathMorphIO">
+    <EditorCategories value="Race:Terran" />
+    <WhichUnit Value="Caster" />
+    <Abil value="MutatorHybridImmortalDeathMorph" />
+    <CmdFlags index="Preempt" value="1" />
+    <Player Value="Caster" />
+  </CEffectIssueOrder>
+  <CEffectModifyUnit id="MutatorAmonNovaWeaponImprovedCanisterRifleSnipeRefund">
+    <ImpactUnit Value="Caster" />
+    <VitalArray index="Energy">
+      <Change value="25" />
+    </VitalArray>
+  </CEffectModifyUnit>
+  <CEffectRemoveBehavior id="MutatorAmonDehakaDragRemoveTentacleBehavior">
+    <EditorCategories value="Race:Zerg" />
+    <WhichUnit Effect="MutatorAmonDehakaDragLaunchTarget" />
+    <BehaviorLink value="MutatorAmonDehakaDragTentacle" />
+  </CEffectRemoveBehavior>
+  <CEffectCreatePersistent id="MutatorAmonNovaNukeDetonate">
+    <EditorCategories value="Race:Terran" />
+    <InitialDelay value="1.25" />
+    <InitialEffect value="MutatorAmonNovaNukeDamage" />
+    <ExpireDelay value="8.25" />
+    <RevealRadius value="8" />
+    <RevealFlags index="Unfog" value="1" />
+  </CEffectCreatePersistent>
+  <CEffectApplyBehavior id="MutatorGravitonBombAB">
+    <ValidatorArray value="NotHeroic" />
+    <EditorCategories value="Race:Protoss" />
+    <Behavior value="MutatorGravitonBomb" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="MutatorAmonDehakaHeal">
+    <EditorCategories value="Race:Zerg" />
+    <EffectArray value="MutatorAmonDehakaHealBig" />
+    <EffectArray value="MutatorAmonDehakaHealBigAB" />
+    <EffectArray value="MutatorAmonDehakaHealSearch" />
+  </CEffectSet>
+  <CEffectCreatePersistent id="DrakkenLaserDrillResetTurretFacingCP">
+    <WhichLocation Value="CasterPoint" />
+    <InitialEffect value="DrakkenLaserDrillResetTurretFacingMU" />
+    <InitialOffset value="0,5,0" />
+    <FinalOffset value="0,5,0" />
+  </CEffectCreatePersistent>
+  <CEffectDamage id="LavaBurstDamageHero800">
+    <EditorCategories value="Race:Protoss" />
+    <Visibility value="Hidden" />
+    <Amount value="24" />
+    <Death value="Fire" />
+    <ValidatorArray value="TargetisAnyCommander" />
+    <ValidatorArray value="NotHaveLavaDamageCoopImmune" />
+  </CEffectDamage>
+  <CEffectApplyBehavior id="DragApplyStunBehaviorB">
+    <EditorCategories value="Race:Zerg" />
+    <Behavior value="DragStunB" />
+    <ValidatorArray value="TargetIsEnemyOrNeutral" />
+  </CEffectApplyBehavior>
+  <CEffectLaunchMissile id="MutatorAmonZagaraRangedLaunchMissile">
+    <EditorCategories value="Race:Zerg" />
+    <ImpactEffect value="MutatorAmonZagaraRangedDamageSet" />
+    <AmmoUnit value="MutatorAmonZagaraRangedWeapon" />
+    <Movers Link="ZagaraVoidCoopRangedWeapon" />
+  </CEffectLaunchMissile>
+  <CEffectApplyBehavior id="MutatorBoomBotRecoveryABNormal">
+    <EditorCategories value="" />
+    <WhichUnit Value="Caster" />
+    <Behavior value="MutatorBoomBotRecovery" />
+    <Flags index="UseDuration" value="1" />
+    <Duration value="8" />
+  </CEffectApplyBehavior>
+  <CEffectDamage id="MutatorHybridImmortalCleaveDamage" parent="DU_WEAP">
+    <Amount value="25" />
+    <Death value="Eviscerate" />
+  </CEffectDamage>
+  <CEffectDamage id="MutatatorNukeDamage">
+    <EditorCategories value="Race:Terran" />
+    <Amount value="750" />
+    <SearchFilters value="-;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable" />
+    <ValidatorArray value="TargetisAnyCommander" />
+    <AreaArray Radius="4" Fraction="1" Validator="TargetisAnyCommander" />
+    <AreaArray Radius="6" Fraction="0.5" Validator="TargetisAnyCommander" />
+    <AreaArray Radius="8" Fraction="0.25" Validator="TargetisAnyCommander" />
+    <AINotifyFlags index="HurtFriend" value="1" />
+    <AINotifyFlags index="HurtEnemy" value="1" />
+    <AttributeBonus index="Structure" value="200" />
+    <SearchFlags index="CallForHelp" value="1" />
+    <SearchFlags index="SameCliff" value="0" />
+    <ResponseFlags index="Acquire" value="1" />
+    <ResponseFlags index="Flee" value="1" />
+    <LaunchLocation Value="TargetPoint" />
+    <ImpactLocation Value="TargetPoint" />
+  </CEffectDamage>
+  <CEffectApplyBehavior id="MutatorMomentOfSilenceAB">
+    <Behavior value="MutatorMomentOfSilence" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="MutatorAmonMasterPhasesmithSet">
+    <EditorCategories value="" />
+    <EffectArray value="MutatorAmonMasterPhasesmithAttackAB" />
+    <EffectArray value="MutatorAmonMasterPhasesmithProductionAB" />
+  </CEffectSet>
+  <CEffectEnumArea id="MutatorTornadoAOESearch">
+    <EditorCategories value="" />
+    <SearchFilters value="-;Player,Ally,Neutral,Structure,Missile,Stasis,Dead,Hidden,Invulnerable" />
+    <AreaArray Radius="1.3" Effect="MutatorTornadoAOESearchSet" />
+  </CEffectEnumArea>
+  <CEffectDamage id="TimedLifeFate">
+    <ImpactLocation Value="SourceUnit" />
+    <Flags index="NoVitalAbsorbShields" value="1" />
+  </CEffectDamage>
+  <CEffectSet id="MutatorLaserDrillImpactSetStageB">
+    <EffectArray value="MutatorLaserDrillDamageStageB" />
+  </CEffectSet>
+  <CEffectCreatePersistent id="MutatorGravitonBombInitialCP">
+    <EditorCategories value="Race:Protoss" />
+    <ExpireEffect value="MutatorGravitonBombLM" />
+    <PeriodCount value="8" />
+    <PeriodicPeriodArray value="0.125" />
+  </CEffectCreatePersistent>
+  <CEffectSwitch id="MutatorBoomBotRecoverySwitch">
+    <EditorCategories value="" />
+    <CaseArray Validator="CasterDifficultyGE4" Effect="MutatorBoomBotRecoveryABBrutal" />
+    <CaseArray Validator="CasterDifficultyGE3" Effect="MutatorBoomBotRecoveryABHard" />
+    <CaseArray Validator="CasterDifficultyGE2" Effect="MutatorBoomBotRecoveryABCasual" />
+    <CaseDefault value="MutatorBoomBotRecoveryABCasual" />
+  </CEffectSwitch>
+  <CEffectCreateUnit id="MutatorPropagateCU">
+    <EditorCategories value="" />
+    <SpawnEffect value="MutatorPropagateModifyClone" />
+    <SpawnUnit value="MutatorPropagator" />
+    <CreateFlags index="OffsetByRadius" value="0" />
+    <CreateFlags index="Placement" value="0" />
+    <ValidatorArray value="NotInvulnerable" />
+  </CEffectCreateUnit>
+  <CEffectCreatePersistent id="MutatorStormCloudPersistent">
+    <EditorCategories value="Race:Protoss" />
+    <WhichLocation Value="SourceUnit" />
+    <Flags index="PersistUntilDestroyed" value="1" />
+    <PeriodicValidator value="SourceNotDead" />
+    <PeriodicEffectArray value="MutatorStormCloudSearch" />
+    <PeriodicPeriodArray value="0.25" />
+  </CEffectCreatePersistent>
+  <CEffectApplyBehavior id="MutatorDeathPullAB">
+    <EditorCategories value="" />
+    <Behavior value="MutatorDeathPullModifySpeed" />
+    <Flags index="UseDuration" value="1" />
+    <Duration value="0.2" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="MutatorEyeBeamsGroundSet">
+    <EditorCategories value="Race:Protoss" />
+    <EffectArray value="MutatorEyeBeamsGroundForwardPersistent" />
+    <EffectArray value="MutatorEyeBeamsGroundReversePersistent" />
+  </CEffectSet>
+  <CEffectApplyBehavior id="MutatorAmonZagaraMassFrenzyAB">
+    <EditorCategories value="" />
+    <Behavior value="MutatorAmonZagaraMassFrenzyTarget" />
+    <ValidatorArray index="0" value="NotWorker" />
+    <ValidatorArray value="NotLarva" />
+    <ValidatorArray value="NotLarvaEgg" />
+  </CEffectApplyBehavior>
+  <CEffectCreatePersistent id="MutatorCalldownMULECreatePersistent">
+    <EditorCategories value="Race:Terran" />
+    <WhichLocation Value="TargetUnitOrPoint" />
+    <ExpireDelay value="4" />
+    <FinalEffect value="MutatorCalldownMULEFinalSet" />
+  </CEffectCreatePersistent>
+  <CEffectApplyForce id="MutatorDeathPullForceWeak">
+    <WhichLocation Effect="MutatorDeathPullPersistentWeak" Value="TargetPoint" />
+    <Amount value="-1" />
+  </CEffectApplyForce>
+  <CEffectDamage id="MutatorDeathBot" parent="DU_WEAP">
+    <EditorCategories value="Race:Terran" />
+    <Kind value="Ranged" />
+    <Amount value="40" />
+  </CEffectDamage>
+  <CEffectSet id="MutatorGravitonBombTransportSet">
+    <EditorCategories value="Race:Protoss" />
+    <EffectArray value="MutatorGravitonBombAB" />
+    <EffectArray value="MutatorGravitonBombHeroicUnitAB" />
+  </CEffectSet>
+  <CEffectDamage id="MutatorAmonServitorStrikeDamageA" parent="DU_WEAP">
+    <EditorCategories value="Race:Protoss" />
+    <AttributeBonus index="Armored" value="15" />
+    <Amount value="30" />
+    <Death value="Fire" />
+  </CEffectDamage>
+  <CEffectSet id="MutatorAmonArtanisAstralWindOtherSet">
+    <EditorCategories value="Race:Zerg" />
+    <EffectArray value="MutatorAmonArtanisAstralWindOther" />
+  </CEffectSet>
+  <CEffectCreatePersistent id="MutatorAmonArtanisLightningDash">
+    <InitialEffect value="MutatorAmonArtanisLightningDashSwitch" />
+    <PeriodCount value="1" />
+    <Marker>
+      <MatchFlags index="Id" value="1" />
+    </Marker>
+  </CEffectCreatePersistent>
+  <CEffectApplyBehavior id="MutatorHybridImmortalRevivingAB">
+    <EditorCategories value="Race:Terran" />
+    <Behavior value="MutatorHybridImmortalReviving" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="MutatorAmonDehakaDragSet">
+    <EditorCategories value="Race:Zerg" />
+    <EffectArray value="MutatorAmonDehakaDragApplyTentacleBehavior" />
+    <EffectArray value="MutatorAmonDehakaDragApplyBehavior" />
+    <EffectArray value="MutatorAmonDehakaDragCreatePlaceholder" />
+    <EffectArray value="MutatorAmonDehakaDragApplyStunBehavior" />
+  </CEffectSet>
+  <CEffectCreateUnit id="UnitKnockbackBy8">
+    <ValidatorArray value="NoPreventKnockback" />
+  </CEffectCreateUnit>
+  <CEffectIssueOrder id="MutatorSpiderMineBurrowOrder">
+    <EditorCategories value="Race:Terran" />
+    <WhichUnit Value="Caster" />
+    <Abil value="MutatorSpiderMineBurrow" />
+    <CmdFlags index="Preempt" value="1" />
+  </CEffectIssueOrder>
+  <CEffectEnumArea id="MutatorMomentOfSilenceSearch">
+    <SearchFilters value="-;Self,Player,Ally,Neutral,Structure,Missile,Stasis,Dead,Hidden,Invulnerable,MapBoss" />
+    <AreaArray Radius="8" Effect="MutatorMomentOfSilenceAB" />
+  </CEffectEnumArea>
+  <CEffectLaunchMissile id="MutatorAmonDehakaLeapLMUnit">
+    <DeathType value="Unknown" />
+    <EditorCategories value="Race:Zerg" />
+    <LaunchLocation Value="CasterUnit" />
+    <Movers Link="DehakaLeapMissile" />
+    <Flags index="Placement" value="1" />
+    <Flags index="PlacementIgnoreCliffTest" value="1" />
+    <Flags index="PointFallback" value="0" />
+    <PlacementRange value="3" />
+    <FinishEffect value="MutatorAmonDehakaLeapSearch" />
+  </CEffectLaunchMissile>
+  <CEffectCreatePersistent id="MutatorLaserDrillStageCCP">
+    <EditorCategories value="Race:Terran" />
+    <WhichLocation Value="TargetUnit" />
+    <Flags index="Channeled" value="1" />
+    <Flags index="PersistUntilDestroyed" value="1" />
+    <PeriodicValidator value="LaserDrillCoopTargetingValidators" />
+    <PeriodicEffectArray value="MutatorLaserDrillImpactSetStageC" />
+    <PeriodicPeriodArray value="0.1" />
+  </CEffectCreatePersistent>
+  <CEffectLaunchMissile id="MutatorMissileStandardLaunch">
+    <ImpactEffect value="MutatorMissileStandardDamage" />
+    <AmmoUnit value="MutatorMissileStandard" />
+  </CEffectLaunchMissile>
+  <CEffectSet id="SpawnLarvaSet">
+    <EditorCategories value="Race:Zerg" />
+    <EffectArray value="SpawnMutantLarvaHiddenAB" />
+    <EffectArray value="SpawnMutantLarvaApplyTimerBehavior" />
+    <ValidatorArray value="IsHatcheryLairOrHive" />
+  </CEffectSet>
+  <CEffectEnumArea id="MutatorStormCloudSearch">
+    <AINotifyFlags index="HurtEnemy" value="1" />
+    <SearchFilters value="-;Self,Player,Ally,Neutral,Missile,Stasis,Dead,Hidden" />
+    <AreaArray Radius="5" Effect="MutatorStormCloudSet" />
+    <ValidatorArray value="MutatorStormCloudBlizzardDisable" />
+  </CEffectEnumArea>
+  <CEffectEnumArea id="MutatorCloakedMineWeaponSearchForDamage">
+    <EditorCategories value="Race:Terran" />
+    <SearchFilters value="-;Player,Ally,Neutral,Missile,Item,Stasis,Dead,Hidden,Invulnerable" />
+    <TargetSorts>
+      <SortArray value="TSDistanceToTarget" />
+    </TargetSorts>
+    <AreaArray Radius="2.5" Effect="MutatorCloakedMineWeaponSearchDamage" />
+  </CEffectEnumArea>
+  <CEffectApplyBehavior id="MutatorAmonTychusUnitKnockbackBy3AB">
+    <WhichUnit Effect="MutatorAmonTychusUnitKnockbackBy3" />
+    <Behavior value="UnitKnockback" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="ReanimateCleanupTargetBehaviorsSet">
+    <EditorCategories value="" />
+  </CEffectSet>
+  <CEffectDamage id="DrakkenLaserDrillNukeDamage">
+    <EditorCategories value="Race:Terran" />
+    <Amount value="100" />
+    <Kind value="Ranged" />
+    <Death value="Blast" />
+  </CEffectDamage>
+  <CEffectApplyBehavior id="MutatorScorchedEarthFireBeamAB">
+    <EditorCategories value="Race:Zerg" />
+    <Behavior value="MutatorScorchedEarthFireBeam" />
+  </CEffectApplyBehavior>
+  <CEffectLaunchMissile id="MutatorAmonDehakaDragLaunchTarget">
+    <EditorCategories value="Race:Zerg" />
+    <LaunchLocation Effect="MutatorAmonDehakaDragLaunchMissile" Value="TargetUnit" />
+    <ImpactLocation Effect="MutatorAmonDehakaDragDelayPersistent" />
+    <Movers Link="DragMover" />
+    <ImpactEffect value="MutatorAmonDehakaDragImpactDummy" />
+    <FinishEffect value="MutatorAmonDehakaDragImpactSet" />
+    <DeathType value="Unknown" />
+    <ValidatorArray value="NotHiddenDrag" />
+    <Flags index="2D" value="1" />
+  </CEffectLaunchMissile>
+  <CEffectLaunchMissile id="HybridImmortalConsumeFeedbackLM">
+    <EditorCategories value="Race:Zerg" />
+    <Movers Link="ConsumeDNAFeedback" />
+    <AmmoUnit value="HybridImmortalConsumeMissile" />
+    <LaunchLocation Value="TargetUnitOrPoint" />
+    <ImpactLocation Value="CasterUnit" />
+    <LaunchEffect value="HybridImmortalConsumeDamage" />
+    <ImpactEffect value="HybridImmortalConsumeImpactMU" />
+  </CEffectLaunchMissile>
+  <CEffectEnumArea id="MutatorPhotonOverchargeSearch">
+    <EditorCategories value="Race:Terran" />
+    <ImpactLocation Value="TargetUnit" />
+    <SearchFilters value="Visible;Self,Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable" />
+    <AreaArray MaxCount="1" Radius="10" Effect="MothershipCoreWeaponLM" />
+  </CEffectEnumArea>
+  <CEffectCreatePersistent id="MutatorOrbitalStrike">
+    <EditorCategories value="Race:Protoss" />
+    <Marker Link="Effect/SOAOrbitalStrikeCP" />
+    <InitialDelay value="0.75" />
+    <ExpireDelay value="0.125" />
+    <ExpireEffect value="MutatorOrbitalStrikeImpactSearch" />
+  </CEffectCreatePersistent>
+  <CEffectDamage id="MutatorLaserDrillFakeDamage" parent="DU_WEAP">
+    <EditorCategories value="Race:Terran" />
+    <ResponseFlags index="Acquire" value="0" />
+    <ArmorReduction value="0" />
+    <Kind value="Ranged" />
+    <Amount value="20" />
+    <Death value="Blast" />
+  </CEffectDamage>
+  <CEffectApplyBehavior id="DrakkenLaserDrillDisableAttackAB">
+    <EditorCategories value="Race:Terran" />
+    <WhichUnit Value="Caster" />
+    <Behavior value="DrakkenLaserDrillDisableAttack" />
+  </CEffectApplyBehavior>
+  <CEffectDamage id="MutatorHybridImmortalDamage" parent="DU_WEAP">
+    <Amount value="25" />
+    <Death value="Eviscerate" />
+  </CEffectDamage>
+  <CEffectTeleport id="MutatorAmonZeratulBlink">
+    <EditorCategories value="Race:Protoss" />
+    <WhichUnit Value="Caster" />
+    <ClearQueuedOrders value="0" />
+    <PlacementAround Value="CasterUnit" />
+    <PlacementRange value="8" />
+    <Range value="8" />
+    <TargetLocation Value="TargetPoint" />
+    <TeleportFlags index="TestCliff" value="1" />
+  </CEffectTeleport>
+  <CEffectSet id="ZagaraVoidCoopMassFrenzySet">
+    <EffectArray value="ZagaraVoidCoopMassFrenzyAB" />
+    <EffectArray value="ZagaraVoidCoopMassFrenzyIterateTransport" />
+  </CEffectSet>
+  <CEffectModifyUnit id="MutatorAmonArtanisAstralWindSelf">
+    <EditorCategories value="Race:Zerg" />
+    <VitalArray index="Life">
+      <Change value="300" />
+    </VitalArray>
+    <VitalArray index="Shields">
+      <Change value="200" />
+    </VitalArray>
+  </CEffectModifyUnit>
+  <CEffectCreateUnit id="MutatorAmonInvisPowerSourceCU">
+    <EditorCategories value="" />
+    <SpawnEffect value="MutatorAmonInvisPowerSourceCP" />
+    <SpawnUnit value="MutatorAmonKaraxInvisiblePylon" />
+  </CEffectCreateUnit>
+  <CEffectApplyBehavior id="MutatorAmonArtanisResurgenceDisableAB">
+    <EditorCategories value="" />
+    <WhichUnit Value="Caster" />
+    <Behavior value="MutatorAmonArtanisResurgenceDisable" />
+  </CEffectApplyBehavior>
+  <CEffectDamage id="MutatorCloakedMineWeaponSearchDamage" parent="DU_WEAP">
+    <EditorCategories value="Race:Terran" />
+    <Amount value="250" />
+    <Death value="Blast" />
+    <ValidatorArray value="TargetisAnyCommander" />
+  </CEffectDamage>
+  <CEffectModifyUnit id="MutatorBoomBotTrigger9">
+    <EditorCategories value="" />
+  </CEffectModifyUnit>
+  <CEffectCreatePersistent id="MutatorAmonTychusTossGrenadeDelay">
+    <EditorCategories value="Race:Terran" />
+    <ExpireDelay value="0.3125" />
+    <FinalEffect value="MutatorAmonTychusTossGrenadeLaunchMissile" />
+    <Flags index="Channeled" value="1" />
+  </CEffectCreatePersistent>
+  <CEffectLaunchMissile id="MutatorMissileSplitterChildLaunch">
+    <ImpactEffect value="MutatorMissileSplitterChildImpactDamage" />
+    <AmmoUnit value="MutatorMissileSplitterChild" />
+  </CEffectLaunchMissile>
+  <CEffectCreatePersistent id="PlagueDeathForceRemoveDelay">
+    <EditorCategories value="Race:Zerg" />
+    <ExpireDelay value="0.125" />
+    <FinalEffect value="MutatorPlagueBehaviorReviveRB" />
+  </CEffectCreatePersistent>
+  <CEffectSet id="MutatorAmonZagaraBanelingBarrageImpactDummySet">
+    <EffectArray value="MutatorAmonZagaraBanelingBarrageMissileScanPersistentDestroy" />
+    <EffectArray value="MutatorAmonZagaraBanelingBarrageExplodeSearchUnit" />
+    <EffectArray value="MutatorAmonZagaraBanelingBarrageExplodeSearchStructure" />
+    <TargetLocationType value="Point" />
+  </CEffectSet>
+  <CEffectApplyForce id="MutatorDeathPullForce">
+    <WhichLocation Effect="MutatorDeathPullPersistent" Value="TargetPoint" />
+    <Amount value="-1" />
+  </CEffectApplyForce>
+  <CEffectSet id="MutatorAmonZagaraNoPathSuicideSet">
+    <ValidatorArray value="SourceUnitNotOnPathable" />
+    <EffectArray value="MutatorAmonZagaraBanelingBarrageMissileScanPersistentDestroy" />
+    <EffectArray value="MutatorAmonZagaraBanelingBarrageExplodeSearchUnit" />
+    <EffectArray value="MutatorAmonZagaraBanelingBarrageExplodeSearchStructure" />
+    <EffectArray value="Suicide" />
+    <TargetLocationType value="Point" />
+  </CEffectSet>
+  <CEffectEnumArea id="MutatorScorchedEarthFireBeamLargeSearch">
+    <AINotifyFlags index="HurtEnemy" value="1" />
+    <SearchFilters value="Ground;Self,Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable" />
+    <AreaArray Radius="1.5" Effect="MutatorScorchedEarthFireLargeBeamABSet" />
+  </CEffectEnumArea>
+  <CEffectSet id="MutatorDeathPullSet">
+    <EditorCategories value="" />
+    <EffectArray value="MutatorDeathPullAB" />
+    <EffectArray value="MutatorDeathPullForce" />
+  </CEffectSet>
+  <CEffectApplyBehavior id="MutatorConcussiveAttacksAB">
+    <ValidatorArray index="0" value="NotFrenzied" />
+    <EditorCategories value="" />
+    <Behavior value="MutatorConcussiveAttacks" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="MutatorMissileSplitterDeathSet">
+    <EditorCategories value="" />
+    <DebugTrace value="1" />
+    <EffectArray value="MutatorMissileSplitterChildLaunch" />
+    <EffectArray value="MutatorMissileSplitterChildLaunch" />
+  </CEffectSet>
+  <CEffectModifyUnit id="MutatorBoomBotTrigger6">
+    <EditorCategories value="" />
+  </CEffectModifyUnit>
+  <CEffectApplyBehavior id="MutatorAmonPhaseCannonTimedLife">
+    <EditorCategories value="Race:Protoss" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="DragSetA">
+    <EditorCategories value="Race:Zerg" />
+    <EffectArray value="DragApplyTentacleBehavior" />
+    <EffectArray value="DragApplyBehavior" />
+    <EffectArray value="DragCreatePlaceholder" />
+    <EffectArray value="DragApplyStunBehaviorA" />
+  </CEffectSet>
+  <CEffectDamage id="MutatorTurkingPeckOfJudgementDamage" parent="DU_WEAP">
+    <Amount value="250" />
+    <AreaArray Radius="0.4" Fraction="1" />
+    <AttributeBonus index="Structure" value="250" />
+    <ExcludeArray Value="TargetOuter" />
+  </CEffectDamage>
+  <CEffectSet id="MutatorAmonDehakaDragImpactSet">
+    <EditorCategories value="Race:Zerg" />
+  </CEffectSet>
+  <CEffectDamage id="MutatorMissileSplitterChildImpactDamage" parent="DU_WEAP_SPLASH">
+    <EditorCategories value="Race:Terran" />
+    <Visibility value="Visible" />
+    <Kind value="Spell" />
+    <Amount value="75" />
+    <Flags index="Notification" value="0" />
+    <ImpactUnitValidator value="NotInvulnerable" />
+  </CEffectDamage>
+  <CEffectEnumArea id="MutatorDeathPullSearchWeak">
+    <SearchFilters value="-;Player,Ally,Neutral,Structure,Missile,Destructible,Stasis,Dead,Hidden,Invulnerable,Unstoppable" />
+    <AreaArray Radius="9" Effect="MutatorDeathPullSetWeak" />
+  </CEffectEnumArea>
+  <CEffectDamage id="MutatorAmonPrologueZeratul" parent="DU_WEAP">
+    <EditorCategories value="Race:Protoss" />
+    <AttributeBonus index="Armored" value="25" />
+    <Amount value="75" />
+    <Death value="Eviscerate" />
+  </CEffectDamage>
+  <CEffectLaunchMissile id="MutatorAmonKerriganPrimalSlashUpgradedLMWings">
+    <DeathType value="Unknown" />
+    <EditorCategories value="Race:Zerg" />
+    <LaunchLocation Value="CasterUnit" />
+    <Movers Link="PrimalSlashUpgradedMover" />
+    <Flags index="2D" value="1" />
+    <Flags index="Placement" value="1" />
+    <Flags index="PlacementIgnoreCliffTest" value="1" />
+    <Flags index="PointFallback" value="0" />
+    <PlacementRange value="3" />
+    <FinishEffect value="MutatorAmonKerriganPrimalSlashImpactSet" />
+  </CEffectLaunchMissile>
+  <CEffectModifyUnit id="MutatorLaserDrillSoundFinalEffect" />
+  <CEffectSet id="MutatorLaserDrillImpactSetStageC">
+    <EffectArray value="MutatorLaserDrillDamageStageC" />
+  </CEffectSet>
+  <CEffectLaunchMissile id="MutatorAmonDehakaLeapLMPoint">
+    <DeathType value="Unknown" />
+    <EditorCategories value="Race:Zerg" />
+    <LaunchLocation Value="CasterUnit" />
+    <Movers Link="DehakaLeapMissile" />
+    <Flags index="Placement" value="1" />
+    <Flags index="PlacementIgnoreCliffTest" value="1" />
+    <PlacementRange value="1" />
+    <ImpactLocation Value="TargetUnitOrPoint" />
+    <FinishEffect value="MutatorAmonDehakaLeapSearch" />
+  </CEffectLaunchMissile>
+  <CEffectRemoveBehavior id="MutatorImmunetoPlayer1VisualRB">
+    <EditorCategories value="" />
+    <BehaviorLink value="MutatorImmunetoPlayer1Visual" />
+  </CEffectRemoveBehavior>
+  <CEffectCreateUnit id="MutatorAmonPhaseCannon">
+    <EditorCategories value="Race:Protoss" />
+    <WhichLocation Value="TargetPoint" />
+    <CreateFlags index="Birth" value="0" />
+    <CreateFlags index="ProvideFood" value="0" />
+    <CreateFlags index="UseFood" value="0" />
+    <SpawnEffect value="MutatorAmonPhaseCannonInitialStun" />
+    <SpawnUnit value="MutatorAmonPhotonCannon" />
+  </CEffectCreateUnit>
+  <CEffectDamage id="LavaBurstDamageHero600">
+    <EditorCategories value="Race:Protoss" />
+    <Visibility value="Hidden" />
+    <Amount value="18" />
+    <Death value="Fire" />
+    <ValidatorArray value="TargetisAnyCommander" />
+    <ValidatorArray value="NotHaveLavaDamageCoopImmune" />
+  </CEffectDamage>
+  <CEffectEnumArea id="MutatorTimeWarpSearchAreaImpactDummy">
+    <AreaArray Radius="3.5" />
+  </CEffectEnumArea>
+  <CEffectLaunchMissile id="MutatorFireworksLM">
+    <EditorCategories value="Race:Terran" />
+    <ImpactLocation Value="TargetPoint" />
+    <ImpactEffect value="MutatorFireworksSearch" />
+    <AmmoUnit value="MutatorFireworksMissile" />
+  </CEffectLaunchMissile>
+  <CEffectCreatePersistent id="MutatorAmonReclamationCP">
+    <WhichLocation Value="TargetUnit" />
+    <InitialDelay value="0.4" />
+    <FinalEffect value="MutatorAmonReclamationMU" />
+  </CEffectCreatePersistent>
+  <CEffectDamage id="MutatorAmonKerriganPsiStrikeDamage" parent="DU_WEAP">
+    <EditorCategories value="Race:Zerg" />
+    <AINotifyFlags index="HurtEnemy" value="1" />
+    <ImpactLocation Value="TargetUnit" />
+    <ArmorReduction value="0" />
+    <Kind value="Splash" />
+    <Amount value="50" />
+    <Death value="Blast" />
+    <SearchFilters value="Ground;Self,Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable" />
+    <Marker Link="PsiStrike">
+      <MatchFlags index="Link" value="1" />
+    </Marker>
+    <ValidatorArray value="EnemyTarget" />
+    <ValidatorArray value="NotPsiStriked" />
+  </CEffectDamage>
+  <CEffectEnumArea id="MutatorAmonTychusTossGrenadeSearch">
+    <EditorCategories value="Race:Zerg" />
+    <ImpactLocation Value="TargetPoint" />
+    <SearchFilters value="Ground,Visible;Self,Player,Ally,Structure,Missile,Stasis,Dead,Hidden,Invulnerable" />
+    <AreaArray Radius="2" Effect="MutatorAmonTychusUnitKnockbackBy3" />
+  </CEffectEnumArea>
+  <CEffectCreatePersistent id="HybridImmortalConsumeInitialCP">
+    <EditorCategories value="Race:Terran" />
+    <WhichLocation Value="TargetUnit" />
+    <ExpireDelay value="4" />
+    <ExpireEffect value="HybridImmortalConsumeSearch" />
+    <Flags index="Channeled" value="1" />
+  </CEffectCreatePersistent>
+  <CEffectDamage id="MutatorMissileSplitterImpactDamage" parent="DU_WEAP_SPLASH">
+    <EditorCategories value="Race:Terran" />
+    <Visibility value="Visible" />
+    <Kind value="Spell" />
+    <Amount value="175" />
+    <Flags index="Notification" value="0" />
+    <ImpactUnitValidator value="NotInvulnerable" />
+  </CEffectDamage>
+  <CEffectCreateHealer id="DrakkenLaserDrillBuildHeal">
+    <EditorCategories value="Race:Terran" />
+    <Flags index="Channeled" value="0" />
+    <TimeFactor value="1" />
+    <RechargeVitalRate value="1" />
+    <InitialEffect value="SetMyHPto1" />
+  </CEffectCreateHealer>
+  <CEffectEnumArea id="MutatorCloakedMineWeaponSearch">
+    <EditorCategories value="Race:Terran" />
+    <SearchFilters value="-;Player,Ally,Neutral,Missile,Item,Stasis,Dead,Hidden,Invulnerable" />
+    <TargetSorts>
+      <SortArray value="TSDistanceToTarget" />
+    </TargetSorts>
+    <AreaArray MaxCount="1" Radius="0.5" Effect="MutatorCloakedMineWeaponSearchSet" />
+  </CEffectEnumArea>
+  <CEffectSet id="MutatorAmonDehakaHealSmallSet">
+    <EditorCategories value="Race:Zerg" />
+    <EffectArray value="MutatorAmonDehakaHealSmall" />
+    <EffectArray value="MutatorAmonDehakaHealSmallAB" />
+  </CEffectSet>
+  <CEffectSwitch id="LavaBurstDamageHeroSwitch">
+    <EditorCategories value="Race:Zerg" />
+    <CaseArray Validator="TargetLifeMaxGE2000" Effect="LavaBurstDamageHero2000" />
+    <CaseArray Validator="TargetLifeMaxGE1500" Effect="LavaBurstDamageHero1500" />
+    <CaseArray Validator="TargetLifeMaxGE1000" Effect="LavaBurstDamageHero1000" />
+    <CaseArray Validator="TargetLifeMaxGE800" Effect="LavaBurstDamageHero800" />
+    <CaseArray Validator="TargetLifeMaxGE600" Effect="LavaBurstDamageHero600" />
+    <CaseArray Validator="TargetLifeMaxGE500" Effect="LavaBurstDamageHero500" />
+    <CaseArray Validator="TargetLifeMaxGE400" Effect="LavaBurstDamageHero400" />
+    <CaseArray Validator="TargetLifeMaxGE300" Effect="LavaBurstDamageHero300" />
+    <CaseArray Validator="TargetLifeMaxGE250" Effect="LavaBurstDamageHero250" />
+    <CaseArray Validator="TargetLifeMaxGE200" Effect="LavaBurstDamageHero200" />
+    <CaseArray Validator="TargetLifeMaxGE150" Effect="LavaBurstDamageHero150" />
+    <CaseArray Validator="TargetLifeMaxGE100" Effect="LavaBurstDamageHero100" />
+    <CaseDefault value="LavaBurstDamage" />
+  </CEffectSwitch>
+  <CEffectCreatePersistent id="MutatorAmonArtanisLightningDashCUPoint">
+    <WhichLocation Value="TargetUnit" />
+    <PeriodCount value="2" />
+    <PeriodicEffectArray value="MakePrecursor" />
+    <PeriodicEffectArray value="MutatorAmonArtanisLightningDashLaunchMissile" />
+    <PeriodicPeriodArray value="0" />
+  </CEffectCreatePersistent>
+  <CEffectCreatePersistent id="MutatorAmonZagaraBanelingBarrageCP">
+    <EditorCategories value="Race:Protoss" />
+    <WhichLocation Value="CasterPoint" />
+    <TimeScaleSource Value="Caster" />
+    <Flags index="Channeled" value="1" />
+    <PeriodCount value="4" />
+    <PeriodicValidator value="CasterNotDead" />
+    <PeriodicEffectArray value="MutatorAmonZagaraBanelingBarrageLM" />
+    <PeriodicOffsetArray value="0,-10,0" />
+    <PeriodicPeriodArray value="0.25" />
+  </CEffectCreatePersistent>
+  <CEffectEnumArea id="MutatorGravitonBombSearch">
+    <EditorCategories value="Race:Protoss" />
+    <LaunchLocation Value="TargetPoint" />
+    <SearchFilters value="-;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable" />
+    <AreaArray Radius="1.5" Effect="MutatorGravitonBombABSet" />
+  </CEffectEnumArea>
+  <CEffectCreatePersistent id="MutatorEyeBeamsGroundLineDamageDelay">
+    <EditorCategories value="Race:Protoss" />
+    <WhichLocation Value="TargetUnit" />
+    <ExpireDelay value="0.25" />
+    <FinalEffect value="MutatorEyeBeamsGroundLineDamage" />
+  </CEffectCreatePersistent>
+  <CEffectSet id="MutatorCloakedMineWeaponSearchSet">
+    <EffectArray value="MutatorCloakedMineWeaponSearchForDamage" />
+    <EffectArray value="Suicide" />
+    <ValidatorArray value="TargetisAnyCommander" />
+  </CEffectSet>
+  <CEffectCreateUnit id="MutatorAmonKhaydarinMonolith">
+    <EditorCategories value="Race:Protoss" />
+    <WhichLocation Value="TargetPoint" />
+    <CreateFlags index="Birth" value="0" />
+    <CreateFlags index="ProvideFood" value="0" />
+    <CreateFlags index="UseFood" value="0" />
+    <SpawnEffect value="MutatorAmonPhaseCannonInitialStun" />
+    <SpawnUnit value="MutatorAmonKhaydarinMonolith" />
+  </CEffectCreateUnit>
+  <CEffectSet id="MutatorAmonZagaraSpawnHunterKillersCreateSet">
+    <EffectArray value="GravitonBeamUnburrow" />
+    <EffectArray value="MutatorAmonZagaraSpawnHunterKillersTimedLifeAB" />
+  </CEffectSet>
+  <CEffectSet id="HybridImmortalConsumeSet">
+    <ValidatorArray value="NotDead" />
+    <EditorCategories value="Race:Zerg" />
+    <EffectArray value="HybridImmortalConsumeImpactCP" />
+  </CEffectSet>
+  <CEffectSet id="MutatorAmonArtanisResurgenceExplodeSet">
+    <EffectArray value="MutatorAmonArtanisResurgenceHeal" />
+    <EffectArray value="MutatorAmonArtanisResurgenceSearch" />
+  </CEffectSet>
+  <CEffectModifyPlayer id="PickupMinerals50">
+    <EditorCategories value="" />
+    <Resources index="Minerals" value="50" />
+  </CEffectModifyPlayer>
+  <CEffectModifyUnit id="LaserDrillTripodCoopPointTurretMU">
+    <EditorCategories value="" />
+    <ImpactUnit Value="Caster" />
+    <ModifyTurret Turret="LaserDrillTripod">
+      <Target Value="TargetUnit" />
+      <Flags index="Tracking" value="1" />
+    </ModifyTurret>
+  </CEffectModifyUnit>
+  <CEffectCreatePersistent id="MutatorAmonNovaWeaponImprovedCanisterRifleSnipeRefundCP">
+    <FinalEffect value="MutatorAmonNovaWeaponImprovedCanisterRifleSnipeRefund" />
+    <PeriodCount value="1" />
+    <PeriodicPeriodArray value="0.0625" />
+  </CEffectCreatePersistent>
+  <CEffectCreatePersistent id="MutatorAmonRaynorSnipeCreatePersistent">
+    <ValidatorArray value="HasVision" />
+    <EditorCategories value="Race:Terran" />
+    <Marker>
+      <MatchFlags index="Id" value="1" />
+    </Marker>
+    <WhichLocation Value="CasterPoint" />
+    <OffsetVectorStartLocation Value="CasterPoint" />
+    <PeriodCount value="1" />
+    <PeriodicEffectArray value="MutatorAmonRaynorSnipeSearch" />
+    <PeriodicOffsetArray value="0,-13.75,0" />
+  </CEffectCreatePersistent>
+  <CEffectEnumArea id="MutatorScorchedEarthFireBeamSmallSearch">
+    <AINotifyFlags index="HurtEnemy" value="1" />
+    <SearchFilters value="Ground;Self,Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable" />
+    <AreaArray Radius="0.25" Effect="MutatorScorchedEarthFireSmallBeamABSet" />
+  </CEffectEnumArea>
+  <CEffectRemoveBehavior id="SpawnMutantLarvaRemoveHiddenBehavior">
+    <EditorCategories value="Race:Zerg" />
+    <BehaviorLink value="QueenSpawnLarvaHiddenStack" />
+    <Count value="1" />
+  </CEffectRemoveBehavior>
+  <CEffectApplyBehavior id="DrakkenLaserDrillBuildAB">
+    <EditorCategories value="Race:Terran" />
+    <Behavior value="DrakkenLaserDrillBuild" />
+  </CEffectApplyBehavior>
+  <CEffectDamage id="MutatorTempDamageReflect">
+    <Flags index="NoScaledDealtBonus" value="1" />
+    <Flags index="NoFractionDealtBonus" value="1" />
+    <Flags index="NoUnscaledDealtBonus" value="1" />
+    <Flags index="NoDealtMaximum" value="1" />
+    <Flags index="NoDealtMinimum" value="1" />
+    <Type value="Magic" />
+  </CEffectDamage>
+  <CEffectModifyUnit id="MutatorBoomBotTrigger7">
+    <EditorCategories value="" />
+  </CEffectModifyUnit>
+  <CEffectDamage id="MutatorTornadoAOESearchDamage">
+    <EditorCategories value="" />
+    <Amount value="25" />
+    <ValidatorArray value="NotInvulnerable" />
+    <ValidatorArray value="TargetisAnyCommander" />
+  </CEffectDamage>
+  <CEffectDamage id="MutatorAmonRaynorSnipeDamage">
+    <EditorCategories value="Race:Terran" />
+    <ImpactLocation Value="TargetUnit" />
+    <Kind value="Ranged" />
+    <Amount value="80" />
+    <Death value="Silentkill" />
+    <ValidatorArray value="noMarkers" />
+  </CEffectDamage>
+  <CEffectApplyBehavior id="MutatorInfestedTurkeyTerrifyingGobbleAB">
+    <EditorCategories value="" />
+    <Behavior value="MutatorInfestedTurkeyTerrifyingGobble" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="MutatorPropagateKillRemoveSet">
+    <EffectArray value="MutatorPropagateKillRemove" />
+    <EffectArray value="MutatorPropagateCU" />
+  </CEffectSet>
+  <CEffectCreatePersistent id="MutatorScorchedEarthFireBeamLargeInitialCP">
+    <EditorCategories value="Race:Protoss" />
+    <TimeScaleSource Value="Caster" />
+    <PeriodCount value="120" />
+    <PeriodicEffectArray value="MutatorScorchedEarthFireBeamLargeSearch" />
+    <PeriodicOffsetArray value="0,0,0" />
+    <PeriodicPeriodArray value="0.5" />
+  </CEffectCreatePersistent>
+  <CEffectDamage id="MutatorHungerDamage">
+    <Amount value="20" />
+    <Death value="Eat" />
+  </CEffectDamage>
+  <CEffectCreateUnit id="MutatorAmonArtanisLightningDashCUClosest">
+    <EditorCategories value="Race:Protoss" />
+    <WhichLocation Value="TargetPoint" />
+    <CreateFlags index="PlacementIgnoreBlockers" value="1" />
+    <SpawnEffect value="MutatorAmonArtanisLightningDashCUPoint" />
+    <SpawnRange value="8" />
+  </CEffectCreateUnit>
+  <CEffectEnumArea id="MutatorKerriganApocalypse">
+    <EditorCategories value="Race:Zerg" />
+    <SearchFilters value="-;Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Invulnerable" />
+    <AreaArray Radius="4" Effect="ApocalypseSet" />
+    <ImpactLocation Value="TargetPoint" />
+  </CEffectEnumArea>
+  <CEffectCreatePersistent id="MutatorHybridNukeDetonate2s">
+    <EditorCategories value="Race:Terran" />
+    <ExpireDelay value="2" />
+    <ExpireEffect value="HybridNukeDamage" />
+  </CEffectCreatePersistent>
+  <CEffectCreatePersistent id="MutatorEyeBeamsGroundForwardPersistent">
+    <EditorCategories value="Race:Protoss" />
+    <Marker>
+      <MatchFlags index="Id" value="1" />
+    </Marker>
+    <WhichLocation Value="TargetUnit" />
+    <TimeScaleSource Value="Caster" />
+    <Flags index="Channeled" value="1" />
+    <ExpireDelay value="0.375" />
+    <ExpireEffect value="MutatorEyeBeamsGroundLineDamage" />
+    <PeriodCount value="5" />
+    <PeriodicEffectArray value="MutatorEyeBeamsGroundLineSearch" />
+    <PeriodicOffsetArray value="-1,0,0" />
+    <PeriodicOffsetArray value="-0.5,0,0" />
+    <PeriodicOffsetArray value="0,0,0" />
+    <PeriodicOffsetArray value="0.5,0,0" />
+    <PeriodicOffsetArray value="1,0,0" />
+    <PeriodicPeriodArray value="0.0625" />
+  </CEffectCreatePersistent>
+  <CEffectSet id="MutatorStormCloudSet">
+    <EffectArray value="MutatorStormCloudDamageAB" />
+    <EffectArray value="MutatorStormCloudSlowAB" />
+  </CEffectSet>
+  <CEffectApplyBehavior id="MutatorAmonZagaraSpawnHunterKillersTimedLifeAB">
+    <EditorCategories value="Race:Protoss" />
+    <Behavior value="MutatorAmonZagaraSpawnHunterKillersTimedLife" />
+  </CEffectApplyBehavior>
+  <CEffectDamage id="DiffusionDummyImpact">
+    <EditorCategories value="Race:Zerg" />
+    <Marker Link="Effect/AttackDummyImpact" />
+    <Flags index="NoDamageTimerReset" value="1" />
+    <Type value="Magic" />
+  </CEffectDamage>
+  <CEffectLaunchMissile id="MutatorAmonDehakaAirLaunchMissile">
+    <EditorCategories value="Race:Zerg" />
+    <ImpactEffect value="MutatorAmonDehakaAirDamage" />
+    <AmmoUnit value="MutatorAmonDehakaAirWeapon" />
+  </CEffectLaunchMissile>
+  <CEffectApplyBehavior id="MutatorDeathPullABStrong">
+    <EditorCategories value="" />
+    <Behavior value="MutatorDeathPullModifySpeed" />
+    <Flags index="UseDuration" value="1" />
+    <Duration value="0.3" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="MutatorAmonArtanisSet">
+    <EffectArray value="MutatorAmonArtanisLM" />
+  </CEffectSet>
+  <CEffectEnumArea id="HybridImmortalShadowPullSearch">
+    <SearchFilters value="-;Self,Player,Ally,Neutral,Structure,Missile,Stasis,Dead,Hidden,Invulnerable" />
+    <AreaArray Arc="59.9963" Radius="10" Effect="YoinkStartCreatePlaceholder" />
+    <ImpactLocation Value="SourceUnit" />
+    <SearchFlags index="ExtendByUnitRadius" value="1" />
+  </CEffectEnumArea>
+  <CEffectSet id="MutatorHybridImmortalSet">
+    <EditorCategories value="Race:Terran" />
+    <EffectArray value="MutatorHybridImmortalDamage" />
+    <EffectArray value="MutatorHybridImmortalCleaveSearch" />
+  </CEffectSet>
+  <CEffectApplyBehavior id="MutatorScorchedEarthFireLargeBeamAB">
+    <EditorCategories value="Race:Zerg" />
+    <Behavior value="MutatorScorchedEarthFireBeam" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="MutatorDeathPullSetWeak">
+    <EditorCategories value="" />
+    <EffectArray value="MutatorDeathPullABWeak" />
+    <EffectArray value="MutatorDeathPullForceWeak" />
+  </CEffectSet>
+  <CEffectDamage id="MutatorFireworksDamage" parent="DU_WEAP">
+    <ImpactLocation Value="TargetUnit" />
+    <EditorCategories value="Race:Terran" />
+    <Amount value="50" />
+    <ArmorReduction value="0" />
+  </CEffectDamage>
+  <CEffectDestroyPersistent id="MutatorAmonZagaraBanelingBarrageMissileScanPersistentDestroy">
+    <WhichLocation Value="SourceUnitOrPoint" />
+    <Effect value="MutatorAmonZagaraBanelingBarrageMissileScanPersistent" />
+    <Count value="1" />
+    <Radius value="1" />
+  </CEffectDestroyPersistent>
+  <CEffectDamage id="HybridImmortalConsumeDamage">
+    <Amount value="50" />
+  </CEffectDamage>
+  <CEffectDamage id="MutatorLaserDrillInitialDamage" parent="DU_WEAP">
+    <EditorCategories value="Race:Terran" />
+    <ResponseFlags index="Acquire" value="0" />
+    <ResponseFlags index="Flee" value="0" />
+    <ArmorReduction value="0" />
+    <Flags index="NoBehaviorResponse" value="1" />
+    <Kind value="Ranged" />
+    <Death value="Blast" />
+  </CEffectDamage>
+  <CEffectCreateUnit id="MutatorAmonZagaraSpawnHunterKillersCU">
+    <EditorCategories value="Race:Zerg" />
+    <WhichLocation Value="TargetPoint" />
+    <SpawnEffect value="MutatorAmonZagaraSpawnHunterKillersCreateSet" />
+    <SpawnUnit value="HunterKillerBurrowed" />
+    <SpawnCount value="4" />
+    <SpawnRange value="5" />
+  </CEffectCreateUnit>
+  <CEffectIssueOrder id="BrokenDrakkenLaserDrillIssueOrder">
+    <EditorCategories value="Race:Terran" />
+    <WhichUnit Value="Caster" />
+    <Abil value="BrokenDrakkenLaserDrill" />
+    <CmdFlags index="Preempt" value="1" />
+    <Player Value="Caster" />
+  </CEffectIssueOrder>
+  <CAbilEffectTarget id="Drag">
+    <Cost index="0">
+      <Cooldown TimeUse="8" />
+    </Cost>
+    <Cost>
+      <Charge Link="Abil/Drag" />
+      <Cooldown Link="Drag" TimeUse="8" />
+    </Cost>
+    <Cost>
+      <Charge Link="Abil/Drag" />
+      <Cooldown Link="Drag" TimeUse="6" />
+    </Cost>
+    <Range index="0" value="9" />
+    <Range value="11" />
+    <Range value="11" />
+    <Effect index="0" value="DragInitialSet" />
+  </CAbilEffectTarget>
+  <CAbilMorph id="MutatorAmonKerriganBurrow">
+    <AbilSetId value="BrwD" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:MorphsandBurrows" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="BurrowDown">
+      <Flags index="ToSelection" value="1" />
+    </CmdButtonArray>
+    <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel" />
+    <ActorKey value="BurrowDown" />
+    <Flags index="Interruptible" value="1" />
+    <Flags index="IgnoreFacing" value="1" />
+    <Flags index="IgnorePlacement" value="0" />
+    <Flags index="WaitUntilStopped" value="0" />
+    <InfoArray Unit="MutatorAmonKerriganBurrowed" RandomDelayMax="0.25">
+      <SectionArray index="Actor">
+        <DurationArray index="Duration" value="1" />
+      </SectionArray>
+      <SectionArray index="Collide">
+        <DurationArray index="Delay" value="0.8332" />
+      </SectionArray>
+      <SectionArray index="Stats">
+        <DurationArray index="Delay" value="0.8332" />
+      </SectionArray>
+    </InfoArray>
+  </CAbilMorph>
+  <CAbilEffectTarget id="OracleRevelation">
+    <CmdButtonArray index="Execute" State="Restricted" />
+  </CAbilEffectTarget>
+  <CAbilEffectTarget id="MutatorCloakedMineAttack">
+    <Cost>
+      <Cooldown TimeUse="2.5" />
+    </Cost>
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Flags index="AutoCast" value="1" />
+    <Flags index="AutoCastOn" value="1" />
+    <Range value="200" />
+    <AutoCastFilters value="-;Self,Player,Ally,Neutral,Missile,Destructible,Stasis,Dead,Hidden,Invulnerable" />
+    <AutoCastRange value="5" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="Attack">
+      <Flags index="ShowInGlossary" value="0" />
+    </CmdButtonArray>
+    <PrepEffect value="MutatorCloakedMineAttackTargetDummy" />
+    <AutoCastValidatorArray value="TargetisAnyCommander" />
+  </CAbilEffectTarget>
+  <CAbilEffectTarget id="MutatorPickupMinerals25">
+    <Effect index="0" value="PickupMinerals25Set" />
+    <Flags index="AutoCast" value="1" />
+    <Flags index="AutoCastOn" value="1" />
+    <Flags index="ReExecutable" value="1" />
+    <Flags index="RequireTargetVision" value="0" />
+    <Cost>
+      <Cooldown TimeUse="0.5" />
+    </Cost>
+    <Range value="1" />
+    <Arc value="360" />
+    <AutoCastFilters value="Ground;Structure,Missile,Destructible,Stasis,Dead,Hidden,Benign" />
+    <AutoCastRange value="1" />
+    <AutoCastValidatorArray value="PickupCheck" />
+    <FinishTime value="3" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="PickupMinerals25" />
+  </CAbilEffectTarget>
+  <CAbilEffectInstant id="Suicide">
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="Suicide" />
+  </CAbilEffectInstant>
+  <CAbilEffectTarget id="SpawnLarva">
+    <Effect index="0" value="SpawnLarvaSet" />
+  </CAbilEffectTarget>
+  <CAbilMorph id="MutatorAmonKerriganUnburrow">
+    <AbilSetId value="BrwU" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:MorphsandBurrows" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="BurrowUp">
+      <Flags index="ToSelection" value="1" />
+    </CmdButtonArray>
+    <ActorKey value="BurrowUp" />
+    <Flags index="IgnoreFacing" value="1" />
+    <Flags index="SuppressMovement" value="1" />
+    <InfoArray Unit="MutatorAmonKerrigan" RandomDelayMax="0.5">
+      <SectionArray index="Actor">
+        <DurationArray index="Duration" value="1" />
+      </SectionArray>
+    </InfoArray>
+  </CAbilMorph>
+  <CAbilMorph id="BurrowMutatorAmonDehakaDown">
+    <AbilSetId value="BrwD" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:MorphsandBurrows" />
+    <ActorKey value="BurrowDown" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="BurrowDown">
+      <Flags index="ToSelection" value="1" />
+    </CmdButtonArray>
+    <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel" />
+    <Flags index="Interruptible" value="1" />
+    <Flags index="IgnoreFacing" value="1" />
+    <Flags index="IgnorePlacement" value="0" />
+    <InfoArray Unit="MutatorAmonDehakaBurrowed" RandomDelayMax="0.1">
+      <SectionArray index="Actor">
+        <DurationArray index="Duration" value="2" />
+      </SectionArray>
+      <SectionArray index="Collide">
+        <DurationArray index="Delay" value="2" />
+      </SectionArray>
+      <SectionArray index="Stats">
+        <DurationArray index="Delay" value="2" />
+      </SectionArray>
+    </InfoArray>
+  </CAbilMorph>
+  <CAbilInteract id="ACGlobalShareUnit">
+    <Flags index="AutoCast" value="1" />
+    <Flags index="ShareControl" value="1" />
+    <Flags index="ShareVision" value="1" />
+    <Range value="500" />
+    <AutoCastRange value="500" />
+  </CAbilInteract>
+  <CAbilEffectTarget id="MutatorAmonDehakaLeap">
+    <EditorCategories value="Race:Terran,AbilityorEffectType:Units" />
+    <Flags index="AbortOnAllianceChange" value="0" />
+    <Cost>
+      <Cooldown TimeUse="15" />
+    </Cost>
+    <Range value="7" />
+    <CursorEffect value="MutatorAmonDehakaLeapSearch" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="DehakaLeap" />
+    <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel" />
+  </CAbilEffectTarget>
+  <CAbilEffectInstant id="MutatorAmonPrologueVoidArmor">
+    <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+    <Effect index="0" value="MutatorAmonPrologueVoidArmorSearch" />
+    <Flags index="Transient" value="1" />
+    <Cost>
+      <Cooldown TimeUse="20" />
+    </Cost>
+    <CmdButtonArray index="Execute" DefaultButtonFace="MutatorAmonPrologueVoidArmor" />
+  </CAbilEffectInstant>
+  <CAbilMorph id="MutatorAmonZagaraBurrow">
+    <AbilSetId value="BrwD" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:MorphsandBurrows" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="BurrowDown">
+      <Flags index="ToSelection" value="1" />
+    </CmdButtonArray>
+    <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel" />
+    <ActorKey value="BurrowDown" />
+    <Flags index="Interruptible" value="1" />
+    <Flags index="IgnoreFacing" value="1" />
+    <Flags index="IgnorePlacement" value="0" />
+    <Flags index="WaitUntilStopped" value="0" />
+    <InfoArray Unit="MutatorAmonZagaraBurrowed" RandomDelayMax="0.25">
+      <SectionArray index="Actor">
+        <DurationArray index="Duration" value="1" />
+      </SectionArray>
+      <SectionArray index="Collide">
+        <DurationArray index="Delay" value="0.8332" />
+      </SectionArray>
+      <SectionArray index="Stats">
+        <DurationArray index="Delay" value="0.8332" />
+      </SectionArray>
+    </InfoArray>
+  </CAbilMorph>
+  <CAbilEffectInstant id="MutatorRemoveWorkerSleep">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Flags index="AllowMovement" value="1" />
+    <Flags index="Transient" value="1" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="MutatorWorkerSleep" Requirements="MutatorWorkerIsAsleep" />
+  </CAbilEffectInstant>
+  <CAbilEffectTarget id="MutatorReanimateStandard">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Effect index="0" value="MutatorReanimate" />
+    <UninterruptibleArray index="Cast" value="1" />
+    <UninterruptibleArray index="Channel" value="1" />
+    <UninterruptibleArray index="Finish" value="1" />
+    <Range value="6" />
+    <Arc value="90" />
+    <CastIntroTime value="4" />
+    <AINotifyEffect value="MutatorReanimate" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="MutatorReanimate" />
+  </CAbilEffectTarget>
+  <CAbilEffectTarget id="DrakkenLaserDrillBFG">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Effect index="0" value="DrakkenLaserDrillBFGDelayCP" />
+    <Flags index="RequireTargetVision" value="0" />
+    <Cost>
+      <Cooldown Location="Player" Operation="Set" TimeUse="180" />
+    </Cost>
+    <Range value="500" />
+    <Arc value="360" />
+    <FinishTime value="0.5" />
+    <CancelableArray index="Channel" value="1" />
+    <UninterruptibleArray index="Approach" value="1" />
+    <UninterruptibleArray index="Prep" value="1" />
+    <UninterruptibleArray index="Cast" value="1" />
+    <UninterruptibleArray index="Channel" value="1" />
+    <UninterruptibleArray index="Finish" value="1" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="DrakkenLaserDrillBFG" Requirements="HaveLaserDrillBFG" />
+  </CAbilEffectTarget>
+  <CAbilEffectTarget id="PrimalSlash">
+    <Cost index="0">
+      <Cooldown Location="Player" />
+    </Cost>
+    <Effect index="0" value="PrimalSlashInitialSet" />
+  </CAbilEffectTarget>
+  <CAbilQueue id="Queue1Passive">
+    <EditorCategories value="Race:Neutral,AbilityorEffectType:Structures" />
+    <QueueSize value="1" />
+    <Flags index="Passive" value="1" />
+    <CmdButtonArray index="CancelLast">
+      <Flags index="IgnoreUser" value="1" />
+    </CmdButtonArray>
+    <CmdButtonArray index="CancelSlot">
+      <Flags index="IgnoreUser" value="1" />
+    </CmdButtonArray>
+  </CAbilQueue>
+  <CAbilEffectInstant id="MutatorBuyCandy">
+    <EditorCategories value="Race:Terran,AbilityorEffectType:Units" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="MutatorBuyCandy" />
+    <Cost>
+      <Resource index="Minerals" value="25" />
+      <Charge CountMax="50" CountUse="-1" />
+    </Cost>
+  </CAbilEffectInstant>
+  <CAbilEffectTarget id="MutatorPickupMinerals50">
+    <Effect index="0" value="PickupMinerals50Set" />
+    <Flags index="AutoCast" value="1" />
+    <Flags index="AutoCastOn" value="1" />
+    <Flags index="ReExecutable" value="1" />
+    <Flags index="RequireTargetVision" value="0" />
+    <Cost>
+      <Cooldown TimeUse="0.5" />
+    </Cost>
+    <Range value="1" />
+    <Arc value="360" />
+    <AutoCastFilters value="Ground;Structure,Missile,Destructible,Stasis,Dead,Hidden,Benign" />
+    <AutoCastRange value="1" />
+    <AutoCastValidatorArray value="PickupCheck" />
+    <FinishTime value="3" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="PickupMinerals50" />
+  </CAbilEffectTarget>
+  <CAbilEffectTarget id="MutatorReanimateSlow">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Effect index="0" value="MutatorReanimate" />
+    <UninterruptibleArray index="Cast" value="1" />
+    <UninterruptibleArray index="Channel" value="1" />
+    <UninterruptibleArray index="Finish" value="1" />
+    <Range value="6" />
+    <Arc value="90" />
+    <CastIntroTime value="8" />
+    <AINotifyEffect value="MutatorReanimate" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="MutatorReanimate" />
+  </CAbilEffectTarget>
+  <CAbilEffectTarget id="MutatorAmonZagaraBanelingBarrage">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Effect index="0" value="MutatorAmonZagaraBanelingBarrageCP" />
+    <Cost>
+      <Vital index="Energy" value="50" />
+      <Cooldown Link="MutatorAmonZagaraBanelingBarrage" Location="Player" TimeUse="10" />
+    </Cost>
+    <CmdButtonArray index="Execute" DefaultButtonFace="ZagaraVoidCoopBanelingBarrage" />
+    <Range value="10" />
+    <Arc value="4.9987" />
+    <UninterruptibleArray index="Channel" value="1" />
+    <Flags index="RangeUseCasterRadius" value="0" />
+  </CAbilEffectTarget>
+  <CAbilEffectInstant id="MutatorAmonZagaraMassFrenzy">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Effect index="0" value="MutatorAmonZagaraMassFrenzySearch" />
+    <Cost>
+      <Vital index="Energy" value="25" />
+      <Cooldown Link="MutatorAmonZagaraMassFrenzy" Location="Player" TimeUse="120" />
+    </Cost>
+    <CmdButtonArray index="Execute" DefaultButtonFace="ZagaraVoidCoopMassFrenzy" />
+    <Flags index="Transient" value="1" />
+  </CAbilEffectInstant>
+  <CAbilResearch id="MutatorBoomBotDefuse">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <InfoArray index="Research1" Upgrade="BoomBotDefuseDummy">
+      <Cooldown Location="Unit" TimeUse="0.1" />
+      <Button DefaultButtonFace="MutatorBoomBot1" />
+    </InfoArray>
+    <InfoArray index="Research2" Upgrade="BoomBotDefuseDummy">
+      <Cooldown Location="Unit" TimeUse="0.1" />
+      <Button DefaultButtonFace="MutatorBoomBot2" />
+    </InfoArray>
+    <InfoArray index="Research3" Upgrade="BoomBotDefuseDummy">
+      <Cooldown Location="Unit" TimeUse="0.1" />
+      <Button DefaultButtonFace="MutatorBoomBot3" />
+    </InfoArray>
+    <InfoArray index="Research4" Upgrade="BoomBotDefuseDummy">
+      <Cooldown Location="Unit" TimeUse="0.1" />
+      <Button DefaultButtonFace="MutatorBoomBot4" />
+    </InfoArray>
+    <InfoArray index="Research5" Upgrade="BoomBotDefuseDummy">
+      <Cooldown Location="Unit" TimeUse="0.1" />
+      <Button DefaultButtonFace="MutatorBoomBot5" />
+    </InfoArray>
+    <InfoArray index="Research6" Upgrade="BoomBotDefuseDummy">
+      <Cooldown Location="Unit" TimeUse="0.1" />
+      <Button DefaultButtonFace="MutatorBoomBot6" />
+    </InfoArray>
+    <InfoArray index="Research7" Upgrade="BoomBotDefuseDummy">
+      <Cooldown Location="Unit" TimeUse="0.1" />
+      <Button DefaultButtonFace="MutatorBoomBot7" />
+    </InfoArray>
+    <InfoArray index="Research8" Upgrade="BoomBotDefuseDummy">
+      <Cooldown Location="Unit" TimeUse="0.1" />
+      <Button DefaultButtonFace="MutatorBoomBot8" />
+    </InfoArray>
+    <InfoArray index="Research9" Upgrade="BoomBotDefuseDummy">
+      <Cooldown Location="Unit" TimeUse="0.1" />
+      <Button DefaultButtonFace="MutatorBoomBot9" />
+    </InfoArray>
+  </CAbilResearch>
+  <CAbilEffectTarget id="MutatorAmonRaynorSnipe">
+    <EditorCategories value="Race:Terran,AbilityorEffectType:Units" />
+    <Effect index="0" value="MutatorAmonRaynorSnipeCreatePersistent" />
+    <Cost>
+      <Cooldown TimeUse="20" />
+    </Cost>
+    <Range value="12" />
+    <CastIntroTime value="0.66" />
+    <FinishTime value="1.66" />
+    <UninterruptibleArray index="Cast" value="1" />
+    <UninterruptibleArray index="Finish" value="1" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="RaynorSnipe" />
+  </CAbilEffectTarget>
+  <CAbilArmMagazine id="MutatorAmonMakeServitors">
+    <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+    <Launch value="ReleaseAtSource" />
+    <Flags index="AutoCreate" value="1" />
+    <Flags index="Retarget" value="1" />
+    <Leash value="0.1" />
+    <InfoArray index="Ammo1" CountStart="2" Manage="Recall" Unit="MutatorAmonKaraxServitorWeaponA">
+      <Charge HideCount="1" Link="KaraxMicroBotActivated" Location="Unit" />
+      <Button DefaultButtonFace="Servitors">
+        <Flags index="ToSelection" value="1" />
+      </Button>
+      <Flags index="AutoBuild" value="1" />
+      <Flags index="AutoBuildOn" value="1" />
+      <Flags index="External" value="1" />
+    </InfoArray>
+    <ExternalAngle value="0" />
+    <ExternalAngle value="45" />
+    <ExternalAngle value="90" />
+    <ExternalAngle value="135" />
+    <ExternalAngle value="180" />
+    <ExternalAngle value="225" />
+    <ExternalAngle value="270" />
+    <ExternalAngle value="315" />
+    <MaxCount value="2" />
+  </CAbilArmMagazine>
+  <CAbilMorph id="BurrowMutatorAmonDehakaUp">
+    <AbilSetId value="BrwU" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:MorphsandBurrows" />
+    <ActorKey value="BurrowUp" />
+    <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Air,Missile,Stasis,Dead,Hidden" />
+    <AutoCastRange value="2" />
+    <AutoCastCountMin value="1" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="BurrowUp">
+      <Flags index="ToSelection" value="1" />
+    </CmdButtonArray>
+    <Flags index="AutoCast" value="1" />
+    <Flags index="IgnoreFacing" value="1" />
+    <Flags index="SuppressMovement" value="1" />
+    <InfoArray Unit="MutatorAmonDehaka" RandomDelayMax="0.1">
+      <SectionArray index="Actor">
+        <DurationArray index="Duration" value="2" />
+      </SectionArray>
+      <SectionArray index="Stats">
+        <DurationArray index="Duration" value="2" />
+      </SectionArray>
+    </InfoArray>
+    <AutoCastValidatorArray value="TargetNotChangeling" />
+  </CAbilMorph>
+  <CAbilEffectInstant id="MutatorInfestedTurkeyTerrifyingGobble">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Effect index="0" value="MutatorInfestedTurkeyTerrifyingGobbleSE" />
+    <Flags index="AutoCast" value="1" />
+    <Flags index="AutoCastOn" value="1" />
+    <Cost>
+      <Cooldown TimeUse="30" />
+    </Cost>
+    <AutoCastRange value="11" />
+    <PrepTime value="2" />
+    <AutoCastFilters value="-;Player,Ally,Neutral,Structure,Missile,Destructible,Stasis,Dead,Hidden,Invulnerable" />
+    <ShowProgressArray index="Prep" value="1" />
+    <UninterruptibleArray index="Prep" value="1" />
+    <ProgressButtonArray index="Prep" value="MutatorInfestedTurkeyTerrifyingGobble" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="MutatorInfestedTurkeyTerrifyingGobble" />
+  </CAbilEffectInstant>
+  <CAbilMorph id="IndustrialShipLiftOff">
+    <EditorCategories value="Race:Terran,AbilityorEffectType:MorphsandBurrows" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="Lift" />
+    <ActorKey value="LiftOffLand" />
+    <Flags index="IgnoreFacing" value="1" />
+    <InfoArray Unit="IndustrialShipFlying">
+      <SectionArray index="Actor">
+        <DurationArray index="Duration" value="6" />
+      </SectionArray>
+      <SectionArray index="Collide">
+        <DurationArray index="Delay" value="1.5" />
+      </SectionArray>
+      <SectionArray index="Mover">
+        <DurationArray index="Delay" value="1.3" />
+        <DurationArray index="Duration" value="2.3" />
+      </SectionArray>
+    </InfoArray>
+  </CAbilMorph>
+  <CAbilEffectTarget id="MutatorAmonDehakaMirrorImage">
+    <Range value="5" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Cost>
+      <Cooldown Link="MutatorAmonDehakaMirrorImage" Location="Unit" TimeUse="45" />
+    </Cost>
+    <CmdButtonArray index="Execute" DefaultButtonFace="DehakaMirrorImage" />
+  </CAbilEffectTarget>
+  <CAbilEffectTarget id="HybridImmortalShadowPull">
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Effect index="0" value="HybridImmortalShadowPullSearch" />
+    <Flags index="AllowMovement" value="1" />
+    <Flags index="NoDeceleration" value="1" />
+    <TargetFilters value="Visible;Self,Structure,Heroic,Missile,Destructible,Stasis,Dead,Hidden,Invulnerable" />
+    <Range value="10" />
+    <UninterruptibleArray index="Cast" value="1" />
+    <UninterruptibleArray index="Channel" value="1" />
+    <UninterruptibleArray index="Finish" value="1" />
+    <AINotifyEffect value="FaceEmbrace" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="FaceEmbrace" />
+  </CAbilEffectTarget>
+  <CAbilEffectTarget id="MutatorPickupGas50">
+    <Effect index="0" value="MutatorPickupGas50Set" />
+    <Flags index="AutoCast" value="1" />
+    <Flags index="AutoCastOn" value="1" />
+    <Flags index="ReExecutable" value="1" />
+    <Flags index="RequireTargetVision" value="0" />
+    <Cost>
+      <Cooldown TimeUse="0.5" />
+    </Cost>
+    <Range value="1" />
+    <Arc value="360" />
+    <AutoCastFilters value="Ground;Structure,Missile,Destructible,Stasis,Dead,Hidden,Benign" />
+    <AutoCastRange value="1" />
+    <AutoCastValidatorArray value="PickupCheck" />
+    <FinishTime value="3" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="PickupGas50" />
+  </CAbilEffectTarget>
+  <CAbilEffectTarget id="DrakkenLaserDrillNuke">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Effect index="0" value="DrakkenLaserDrillNukeInitialSet" />
+    <Cost>
+      <Cooldown Location="Player" Operation="Set" TimeUse="300" />
+    </Cost>
+    <Range value="500" />
+    <Arc value="360" />
+    <FinishTime value="0.5" />
+    <CancelableArray index="Channel" value="1" />
+    <UninterruptibleArray index="Approach" value="1" />
+    <UninterruptibleArray index="Prep" value="1" />
+    <UninterruptibleArray index="Cast" value="1" />
+    <UninterruptibleArray index="Channel" value="1" />
+    <UninterruptibleArray index="Finish" value="1" />
+    <CursorEffect value="DrakkenLaserDrillNukeSearch" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="DrakkenLaserDrillNuke" Requirements="HaveLaserDrillNuke" />
+  </CAbilEffectTarget>
+  <CAbilEffectInstant id="MutatorAmonArtanisAstralWind">
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Flags index="Transient" value="1" />
+    <Cost>
+      <Cooldown TimeUse="15" />
+    </Cost>
+    <CmdButtonArray index="Execute" DefaultButtonFace="ArtanisAstralWind" />
+  </CAbilEffectInstant>
+  <CAbilMorph id="MutatorHybridImmortalReviveMorph">
+    <EditorCategories value="Race:Terran,AbilityorEffectType:Units" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="MutatorHybridImmortalDeath">
+      <Flags index="ToSelection" value="1" />
+    </CmdButtonArray>
+    <Flags index="Automatic" value="1" />
+    <Flags index="BestUnit" value="1" />
+    <Flags index="DisableAbils" value="1" />
+    <Flags index="FastBuild" value="1" />
+    <Flags index="IgnoreFacing" value="1" />
+    <Flags index="IgnoreUnitCost" value="1" />
+    <Flags index="ShowProgress" value="1" />
+    <Flags index="SuppressMovement" value="1" />
+    <InfoArray Score="1" Unit="MutatorHybridImmortal">
+      <SectionArray index="Abils">
+        <DurationArray index="Delay" value="180" />
+      </SectionArray>
+      <SectionArray index="Actor">
+        <DurationArray index="Delay" value="180" />
+      </SectionArray>
+      <SectionArray index="Collide">
+        <DurationArray index="Duration" value="180" />
+        <EffectArray index="Start" value="MutatorHybridImmortalRevivingSet" />
+        <EffectArray index="Finish" value="FullHeal" />
+      </SectionArray>
+      <SectionArray index="Stats">
+        <DurationArray index="Delay" value="180" />
+      </SectionArray>
+    </InfoArray>
+    <Activity value="UI/HybridImmortalRevive" />
+  </CAbilMorph>
+  <CAbilMorph id="MutatorSpiderMineUnburrow">
+    <EditorCategories value="Race:Terran,AbilityorEffectType:Units" />
+    <ActorKey value="BurrowUp" />
+    <Flags index="AutoCast" value="1" />
+    <Flags index="AutoCastOn" value="1" />
+    <Flags index="IgnoreFacing" value="1" />
+    <Flags index="SuppressMovement" value="1" />
+    <InfoArray Unit="MutatorSpiderMine">
+      <SectionArray index="Actor">
+        <DurationArray index="Duration" value="0.6" />
+      </SectionArray>
+      <SectionArray index="Mover">
+        <DurationArray index="Duration" value="0.6" />
+      </SectionArray>
+      <SectionArray index="Stats">
+        <DurationArray index="Duration" value="0.6" />
+        <EffectArray index="Start" value="SpiderMineInvulnerable" />
+      </SectionArray>
+    </InfoArray>
+    <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Structure,Worker,Missile,Stasis,Dead,Hidden,Invulnerable,Benign" />
+    <AutoCastRange value="5" />
+    <AutoCastCountMin value="1" />
+  </CAbilMorph>
+  <CAbilEffectTarget id="ZagaraVoidCoopSpawnHunterKillers">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Effect index="0" value="ZagaraVoidCoopSpawnHunterKillersInitialSet" />
+    <Cost>
+      <Vital index="Energy" value="60" />
+      <Cooldown Link="ZagaraVoidCoopSpawnHunterKillers" Location="Player" TimeUse="30" />
+    </Cost>
+    <CmdButtonArray index="Execute" DefaultButtonFace="ZagaraVoidCoopSpawnHunterKillers" State="Restricted" />
+    <Range value="9" />
+    <Arc value="4.9987" />
+  </CAbilEffectTarget>
+  <CAbilMorph id="MutatorWidowMineBurrow">
+    <EditorCategories value="Race:Terran,AbilityorEffectType:Units" />
+    <AbilSetId value="BrwD" />
+    <ActorKey value="BurrowDown" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="WidowMineBurrow">
+      <Flags index="ToSelection" value="1" />
+    </CmdButtonArray>
+    <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel" />
+    <Flags index="Interruptible" value="1" />
+    <Flags index="IgnoreFacing" value="1" />
+    <Flags index="IgnorePlacement" value="0" />
+    <Flags index="SuppressMovement" value="1" />
+    <InfoArray Unit="MutatorWidowMineBurrowed" RandomDelayMax="0.5">
+      <SectionArray index="Actor">
+        <DurationArray index="Duration" value="3" />
+      </SectionArray>
+      <SectionArray index="Collide">
+        <DurationArray index="Delay" value="0.5556" />
+      </SectionArray>
+      <SectionArray index="Stats">
+        <DurationArray index="Delay" value="3" />
+      </SectionArray>
+    </InfoArray>
+  </CAbilMorph>
+  <CAbilEffectTarget id="MutatorReanimateFast">
+    <EditorCategories value="AbilityorEffectType:Units" />
+    <Effect index="0" value="MutatorReanimate" />
+    <UninterruptibleArray index="Cast" value="1" />
+    <UninterruptibleArray index="Channel" value="1" />
+    <UninterruptibleArray index="Finish" value="1" />
+    <Range value="6" />
+    <Arc value="90" />
+    <CastIntroTime value="1.5" />
+    <AINotifyEffect value="MutatorReanimate" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="MutatorReanimate" />
+  </CAbilEffectTarget>
+  <CAbilEffectTarget id="Apocalypse">
+    <Cost index="0">
+      <Cooldown TimeStart="480" TimeUse="240" />
+    </Cost>
+  </CAbilEffectTarget>
+  <CAbilMorph id="BurrowMutatorAmonDehakaMirrorImageUp">
+    <AbilSetId value="BrwU" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:MorphsandBurrows" />
+    <ActorKey value="BurrowUp" />
+    <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Air,Missile,Stasis,Dead,Hidden" />
+    <AutoCastRange value="2" />
+    <AutoCastCountMin value="1" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="BurrowUp">
+      <Flags index="ToSelection" value="1" />
+    </CmdButtonArray>
+    <Flags index="AutoCast" value="1" />
+    <Flags index="IgnoreFacing" value="1" />
+    <Flags index="SuppressMovement" value="1" />
+    <InfoArray Unit="MutatorAmonDehakaMirrorImage" RandomDelayMax="0.1">
+      <SectionArray index="Actor">
+        <DurationArray index="Duration" value="2" />
+      </SectionArray>
+      <SectionArray index="Stats">
+        <DurationArray index="Duration" value="2" />
+      </SectionArray>
+    </InfoArray>
+    <AutoCastValidatorArray value="TargetNotChangeling" />
+  </CAbilMorph>
+  <CAbilEffectInstant id="HybridImmortalConsume">
+    <Alignment value="Negative" />
+    <EditorCategories value="Race:Terran,AbilityorEffectType:Units" />
+    <Effect index="0" value="HybridImmortalConsumeInitialCP" />
+    <Flags index="AbortOnAllianceChange" value="0" />
+    <Flags index="AllowMovement" value="1" />
+    <Flags index="BestUnit" value="1" />
+    <Flags index="NoDeceleration" value="1" />
+    <Cost>
+      <Cooldown TimeUse="15" />
+    </Cost>
+    <CastIntroTime value="0" />
+    <CastOutroTime value="4" />
+    <FinishTime value="0.25" />
+    <ShowProgressArray index="Channel" value="1" />
+    <UninterruptibleArray index="Cast" value="1" />
+    <UninterruptibleArray index="Channel" value="1" />
+    <CursorEffect value="HybridImmortalConsumeDamage" />
+    <ProgressButtonArray index="Channel" value="HybridImmortalConsume" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="HybridImmortalConsume" />
+    <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel" />
+  </CAbilEffectInstant>
+  <CAbilEffectTarget id="MutatorAmonKerriganPrimalSlash">
+    <PrepTime value="0.125" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Effect index="0" value="MutatorAmonKerriganPrimalSlashUpgraded" />
+    <Flags index="AbortOnAllianceChange" value="0" />
+    <Cost>
+      <Vital index="Energy" value="50" />
+      <Cooldown TimeUse="0.125" />
+    </Cost>
+    <Range value="6" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="PrimalSlash" />
+    <Alignment value="Negative" />
+    <TrackingArc value="360" />
+    <IgnoreFilters value="Ground;Self" />
+  </CAbilEffectTarget>
+  <CAbilEffectTarget id="MutatorAmonNovaWeaponImprovedCanisterRifleSnipe">
+    <EditorCategories value="AbilityorEffectType:Units,Race:Terran" />
+    <Effect index="0" value="MutatorAmonNovaWeaponImprovedCanisterRifleSnipeSet" />
+    <Cost>
+      <Vital index="Energy" value="50" />
+    </Cost>
+    <TargetFilters value="Visible;Self,Player,Ally,Structure,Destructible,Stasis,Dead,Hidden,Invulnerable" />
+    <Range value="10" />
+    <CastIntroTime value="0.5" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="MutatorAmonNovaWeaponImprovedCanisterRifleSnipe" />
+  </CAbilEffectTarget>
+  <CAbilMorph id="MutatorAmonZagaraUnburrow">
+    <AbilSetId value="BrwU" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:MorphsandBurrows" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="BurrowUp">
+      <Flags index="ToSelection" value="1" />
+    </CmdButtonArray>
+    <ActorKey value="BurrowUp" />
+    <Flags index="IgnoreFacing" value="1" />
+    <Flags index="SuppressMovement" value="1" />
+    <InfoArray Unit="MutatorAmonZagara" RandomDelayMax="0.5">
+      <SectionArray index="Actor">
+        <DurationArray index="Duration" value="1" />
+      </SectionArray>
+    </InfoArray>
+  </CAbilMorph>
+  <CAbilEffectTarget id="MutatorWidowMineAttack">
+    <Flags index="AutoCast" value="1" />
+    <Flags index="AutoCastOn" value="1" />
+    <Flags index="ReExecutable" value="1" />
+    <Flags index="Smart" value="1" />
+    <PrepTime value="1.5" />
+    <TargetFilters value="Visible;Player,Ally,Neutral,Structure,Missile,Item,Stasis,Dead,Hidden,Invulnerable" />
+    <AutoCastRange value="5" />
+    <Range value="5" />
+    <RangeSlop value="0" />
+    <Arc value="360" />
+    <AutoCastFilters value="Visible;Player,Ally,Neutral,Structure,Missile,Item,Stasis,Dead,Hidden,Invulnerable,Benign" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="WidowMineAttack">
+      <Flags index="ShowInGlossary" value="0" />
+    </CmdButtonArray>
+    <AutoCastValidatorArray value="IsNotDisguisedChangeling" />
+    <AutoCastValidatorArray value="NotHallucinationOrNotDetected" />
+    <AutoCastValidatorArray value="MutatorPolarityTargetCasterCheck" />
+    <Cost>
+      <Cooldown TimeUse="40" />
+    </Cost>
+  </CAbilEffectTarget>
+  <CAbilMorph id="MutatorSpiderMineBurrow">
+    <EditorCategories value="Race:Terran,AbilityorEffectType:Units" />
+    <ActorKey value="BurrowDown" />
+    <Flags index="AutoCast" value="1" />
+    <Flags index="AutoCastOn" value="1" />
+    <Flags index="IgnoreFacing" value="1" />
+    <Flags index="SuppressMovement" value="1" />
+    <InfoArray Unit="MutatorSpiderMineBurrowed">
+      <SectionArray index="Actor">
+        <DurationArray index="Delay" value="3.5332" />
+        <DurationArray index="Duration" value="1.067" />
+      </SectionArray>
+      <SectionArray index="Mover">
+        <DurationArray index="Delay" value="3.5332" />
+        <DurationArray index="Duration" value="1" />
+      </SectionArray>
+      <SectionArray index="Stats">
+        <DurationArray index="Delay" value="4.5332" />
+        <EffectArray index="Start" value="SpiderMineVulnerable" />
+      </SectionArray>
+    </InfoArray>
+    <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Structure,Worker,Missile,Stasis,Dead,Hidden,Invulnerable,Benign" />
+    <AutoCastRange value="5" />
+  </CAbilMorph>
+  <CAbilEffectTarget id="MutatorAmonReclamation">
+    <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+    <Effect index="0" value="MutatorAmonReclamationSet" />
+    <Flags index="AbortOnAllianceChange" value="0" />
+    <Cost>
+      <Cooldown TimeUse="5" />
+    </Cost>
+    <TargetFilters value="Visible;Player,Ally,Robotic,Heroic,Missile,Stasis,Dead,Invulnerable" />
+    <Range value="7" />
+    <AINotifyEffect value="ReclamationSet" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="Reclamation" />
+    <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel" />
+  </CAbilEffectTarget>
+  <CAbilEffectInstant id="MutatorAmonDehakaHeal">
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Flags index="Transient" value="1" />
+    <Cost>
+      <Cooldown Link="MutatorAmonDehakaHeal" Location="Unit" TimeUse="10" />
+    </Cost>
+    <CmdButtonArray index="Execute" DefaultButtonFace="DehakaHeal" />
+  </CAbilEffectInstant>
+  <CAbilEffectTarget id="MutatorEnvelopePickupMinerals50">
+    <Effect index="0" value="PickupEnvelopeMinerals50Set" />
+    <Flags index="AutoCast" value="1" />
+    <Flags index="AutoCastOn" value="1" />
+    <Flags index="ReExecutable" value="1" />
+    <Flags index="RequireTargetVision" value="0" />
+    <Cost>
+      <Cooldown TimeUse="0.5" />
+    </Cost>
+    <Range value="1" />
+    <Arc value="360" />
+    <AutoCastFilters value="Ground;Structure,Missile,Destructible,Stasis,Dead,Hidden,Benign" />
+    <AutoCastRange value="1" />
+    <AutoCastValidatorArray value="PickupCheck" />
+    <FinishTime value="3" />
+    <CmdButtonArray index="Execute" DefaultButtonFace="PickupMinerals50" />
+  </CAbilEffectTarget>
+</Catalog>

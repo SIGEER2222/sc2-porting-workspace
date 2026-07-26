@@ -1,0 +1,20 @@
+// ============================================================================
+// Talent system entry point.
+// Reads Bank-backed talent selections and dispatches to per-commander
+// apply functions generated in LibE0EAE146_TalentCatalog.galaxy.
+// ============================================================================
+
+include "LibE0EAE146_h"
+
+// Apply all talents for the given player/commander.
+// Calls the generated dispatcher; unknown commanders are silently ignored
+// (their talent configs are empty by design, e.g. Alenger3).
+void libE0EAE146_gf_ApplyTalents (int lp_player, string lp_commander) {
+    bool lv_applied;
+    libE0EAE146_gf_RuntimeCheckpoint("ApplyTalents.begin");
+    lv_applied = libE0EAE146_gf_ApplyTalentsForCommander(lp_player, lp_commander);
+    if (!lv_applied) {
+        libE0EAE146_gf_RuntimeLog(2, "TalentSystem", "NoTalentConfig", lp_player, lp_commander, "", 0);
+    }
+    libE0EAE146_gf_RuntimeCheckpoint("ApplyTalents.end");
+}

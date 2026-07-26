@@ -1,0 +1,500 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CBehaviorBuff id="12chuantizijian">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <InitialEffect value="12chuantizijianModify"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <StateFlags index="Resistant" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12gaojifuzhuxitong">
+        <InfoIcon value="Assets\Textures\btn-tips-starmap.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1"/>
+        <Modification AttackSpeedMultiplier="1.15">
+            <DamageDealtUnscaled index="Melee" value="2"/>
+            <DamageDealtUnscaled index="Ranged" value="2"/>
+            <DamageDealtUnscaled index="Splash" value="2"/>
+            <DamageDealtUnscaled index="NoProc" value="2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12gaojifuzhuxitongCaster">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="12gaojifuzhuxitongSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12hourantuijinxitong">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-emergencythrusters.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.75"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12gaojihuopaoqudongMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="2.25"/>
+        <Period value="3"/>
+        <PeriodicEffect value="12gaojihuopaoqudongApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12mianbanjinru">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="0.1"/>
+        <Modification Height="6" TimeScale="0.01">
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="NoDraw" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <HeightTime index="Stop" value="2.25"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12mianbanyichu">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="2.25"/>
+        <ExpireEffect value="KillRemove"/>
+        <Modification Height="6">
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <HeightTime index="Start" value="2.25"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12lingnenghudun0">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="CasterShieldsGE10"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12mianbanjineng">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="12"/>
+        <Period value="3"/>
+        <InitialEffect value="12hourantuijinxitongShortApply"/>
+        <PeriodicEffect value="12hourantuijinxitongShortApply"/>
+        <ExpireEffect value="12mianbanyichuApply"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="2" RangedWeaponRange="10">
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressFoodMade" value="1"/>
+            <StateFlags index="SuppressFoodUsed" value="1"/>
+            <StateFlags index="SuppressArmySelect" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <DamageDealtFraction index="Spell" value="2"/>
+            <DamageDealtFraction index="Melee" value="2"/>
+            <DamageDealtFraction index="Ranged" value="2"/>
+            <DamageDealtFraction index="Splash" value="2"/>
+            <DamageDealtFraction index="NoProc" value="2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12mianyichaoshengbomaichong">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Modification>
+            <StateFlags index="Stun" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12fujiazhuangjia">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-highcapacityfueltanks.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="2"/>
+            <VitalMaxArray index="Life" value="300"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12pojia">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-enhancedmunitions.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification LifeArmorMultiplier="0"/>
+        <Duration value="15"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisplayDuration index="Neutral" value="1"/>
+        <DisplayDuration index="Enemy" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12lingnenghudun">
+        <InfoIcon value="Assets\Textures\btn-tips-terran-psishield.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification ShieldArmorBonus="5">
+            <VitalMaxArray index="Shields" value="300"/>
+            <VitalRegenArray index="Shields" value="6"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12pojialieshafeidanMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12dahepaoMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12toufangdindianfangyubajiMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12yunxukongji">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Period value="3"/>
+        <InitialEffect value="12gailiangqianghuajiApply"/>
+        <PeriodicEffect value="12gailiangqianghuajiApply"/>
+        <Modification RangedWeaponRange="2">
+            <ModifyFlags index="EnableAttack" value="1"/>
+            <VitalRegenArray index="Life" value="3"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12tongbuwuqixitong">
+        <InfoIcon value="Assets\Textures\btn-upgrade-raynor-phobosclassweaponssystem.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="12shifazheyouhourantuijinxitong"/>
+        <Modification>
+            <WeaponEnableArray value="12hangkongjipao"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12wuqichaozai">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-explosiveshrapnelshells.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="12shifazheyouhourantuijinxitong"/>
+        <Modification>
+            <DamageDealtFraction index="Melee" value="0.2"/>
+            <DamageDealtFraction index="Ranged" value="0.2"/>
+            <DamageDealtFraction index="Splash" value="0.2"/>
+            <DamageDealtFraction index="NoProc" value="0.2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12xianjinzhuizongyi">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-detector.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="12shifazheyouhourantuijinxitong"/>
+        <Modification RangedWeaponRange="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12zengchenghuojian">
+        <InfoIcon value="Assets\Textures\btn-upgrade-raynor-ripwavemissiles.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12chaojidianrong">
+        <InfoIcon value="Assets\Textures\btn-research-terran-ultracapacitors.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification AttackSpeedMultiplier="1.3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12fangbaodunpai">
+        <InfoIcon value="Assets\Textures\btn-techupgrade-terran-combatshield-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="2"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.85">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12fanhejinban">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <InfoIcon value="Assets\Textures\btn-research-terran-vanadiumplating.dds"/>
+        <Modification>
+            <VitalMaxFractionArray index="Life" value="0.3"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.85">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12zhendangdan">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-punishergrenade-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Modification MoveSpeedMultiplier="0.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12gaojihuopaoqudong">
+        <InfoIcon value="Assets\Textures\btn-upgrade-raynor-improvedsiegemode.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <MaxStackCount value="5"/>
+        <MaxStackCountPerCaster value="5"/>
+        <Duration value="6"/>
+        <Modification AttackSpeedMultiplier="1.15"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12yingjihudun">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12ranliaogaijin">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-redlinereactor.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="12shifazheyouqianghuaji"/>
+        <Modification AttackSpeedMultiplier="1.15" RangedWeaponRange="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12sishuijunbei">
+        <InfoIcon value="Assets\Textures\talent-raynor-level01-infantryspecialist.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification HealTakenMultiplier="2">
+            <DamageDealtScaled index="NoProc" value="3"/>
+            <DamageDealtUnscaled index="Melee" value="2"/>
+            <DamageDealtUnscaled index="Ranged" value="2"/>
+            <DamageDealtUnscaled index="Splash" value="2"/>
+            <DamageDealtUnscaled index="NoProc" value="2"/>
+            <VitalMaxFractionArray index="Life" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12tierenzhuangjia">
+        <InfoIcon value="Assets\Textures\btn-upgrade-raynor-juggernautplating.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DamageResponse ModifyFraction="0.6">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12gongchengyouhua">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-neosteelframe.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="2"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.85">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12huishou">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="4.5"/>
+        <FinalEffect value="TimedLifeFate"/>
+        <ExpireEffect value="12huishouPlayer"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12jiexisaomiao">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-scannersweep-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+        <Modification ShieldArmorBonus="-3">
+            <LifeArmorBonus value="-3"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12jingzhuncaiji">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="NotUnderConstruction"/>
+        <Period value="7"/>
+        <PeriodicEffect value="12jingzhuncaijiPlayer"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12yongshengchengxu">
+        <InfoIcon value="Assets\Textures\ui_tipicon_campaign_space01-repair.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Period value="0.25"/>
+        <PeriodicEffect value="12yongshengchengxuModify"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12zhandimicai">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-cloak-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="12shifazheyouqianghuaji"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12xianquanjiasuqi">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-snipetripletap.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="12shifazheyouqianghuaji"/>
+        <Modification>
+            <DamageDealtScaled index="Ranged" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12xiubolianhaozheyue">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.6"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12zhihuizhongxinfanyingdui">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <MaxStackCount value="4"/>
+        <MaxStackCountPerCaster value="4"/>
+        <Modification>
+            <VitalMaxIncreaseAffectsCurrentArray index="Energy" value="0"/>
+            <VitalMaxFractionArray index="Energy" value="1"/>
+            <VitalRegenMultiplier index="Energy" value="1"/>
+        </Modification>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-corvidreactor.dds"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12gailiangqianghuaji">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-stimpack-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.75"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12kongtouG">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <Modification TimeScale="0.01">
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="NoDraw" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+        <TimeScaleSource Value="Global"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12wendingyiliaobao">
+        <InfoIcon value="Assets\Textures\btn-upgrade-raynor-stabilizermedpacks.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="1"/>
+        <DamageResponse ModifyFraction="0.6">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12shedanjiasuqi">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <Modification RangedWeaponRange="2">
+            <VitalRegenArray index="Life" value="3"/>
+        </Modification>
+        <Period value="3"/>
+        <InitialEffect value="12gailiangqianghuajiShortApply"/>
+        <PeriodicEffect value="12gailiangqianghuajiShortApply"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12xixiangsaomiao">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="NotUnderConstruction"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Duration value="0.1"/>
+        <ExpireEffect value="12xixiangsaomiaoPersistent2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12fuzhuguanmiao">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-ui-lazertargetingsystem.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="1"/>
+        <Modification RangedWeaponRange="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12leidaganyingta">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Structures"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification Radar="30" RadarFilters="-;Missile,Buried,Cloaked,Stasis"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12baozhafanyingzhuangjia">
+        <InfoIcon value="Assets\Textures\btn-research-zerg-fortifiedbunker.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="CasterLifeGT50Percent"/>
+        <DamageResponse ClampMaximum="20" Minimum="20">
+            <Kind index="Spell" value="0"/>
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12jianyihudun">
+        <InfoIcon value="Assets\Textures\btn-upgrade-protoss-shieldslevel3.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Modification ShieldArmorBonus="6">
+            <VitalMaxArray index="Shields" value="60"/>
+            <VitalRegenArray index="Shields" value="15"/>
+        </Modification>
+        <Requirements value="12shifazheyouhourantuijinxitong"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12kongtouA">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="0.1"/>
+        <Modification Height="6" TimeScale="0.01">
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="NoDraw" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <HeightTime index="Stop" value="3"/>
+        </Modification>
+        <TimeScaleSource Value="Global"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12pojialieshafeidanTint">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-huntermissile-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12yingjituijinqi">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-jotunboosters.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="12shifazheyouhourantuijinxitong"/>
+        <Modification MoveSpeedMultiplier="1.75" AccelerationBonus="500" DecelerationBonus="500"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12zhuangzaizixinghuopao">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="12shifazheshiqiyijunzixinghuopaoSiege"/>
+        <Modification>
+            <WeaponEnableArray value="12zhuangzaizixinghuopao"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12zhuangzaibubingzhanche">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="12shifazheshiyincangde"/>
+        <Period value="0.15"/>
+        <PeriodicEffect value="12zhuangzaibubingzhancheEnum"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12zhuangzaizixinghuopao2">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="12shifazheshiqiyijunzixinghuopaoSiege"/>
+        <Duration value="3"/>
+        <Modification>
+            <WeaponEnableArray value="12zhuangzaizixinghuopao"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12chaoshengbomaichong">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-emp-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Duration value="3"/>
+        <InitialEffect value="12mianyichaoshengbomaichongApply"/>
+        <Modification>
+            <StateFlags index="Stun" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12zheyue">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="DisableWeapons" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Cloak" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCollision" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="12pianzhuanlichang">
+        <InfoIcon value="Assets\Textures\btn-upgrade-swann-displacementfield.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Requirements value="12shifazheyouhourantuijinxitong"/>
+        <DamageResponse ModifyFraction="0" ModifyMinimumDamage="1">
+            <Chance value="0.3"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+</Catalog>

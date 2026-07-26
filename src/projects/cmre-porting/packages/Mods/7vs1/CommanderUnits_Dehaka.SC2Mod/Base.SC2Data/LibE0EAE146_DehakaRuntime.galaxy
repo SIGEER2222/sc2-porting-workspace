@@ -1,0 +1,87 @@
+void libE0EAE146_gf_DehakaAllowAbilityIfPresent (int lp_player, string lp_abil, int lp_cmdIndex) {
+    if ((lp_abil == "") || (!CatalogEntryIsValid(c_gameCatalogAbil, lp_abil))) {
+        return;
+    }
+    TechTreeAbilityAllow(lp_player, AbilityCommand(lp_abil, lp_cmdIndex), true);
+}
+
+void libE0EAE146_gf_DehakaApplyPrestigePenaltyBypass (int lp_player) {
+    int lv_prestigeMask;
+
+    lv_prestigeMask = libE0EAE146_gf_CommanderPowerPrestigeMask("Dehaka");
+    if (lib67C0F0E7_gf_BitMaskTrueIndexIs(lv_prestigeMask, 0) == true) {
+        libE0EAE146_gf_DehakaAllowAbilityIfPresent(lp_player, "DehakaLearn", 3);
+        libE0EAE146_gf_DehakaAllowAbilityIfPresent(lp_player, "MammothBreath", 0);
+    }
+}
+
+void libE0EAE146_gf_DehakaInitVariables () {
+    int init_i;
+
+    if (libE0EAE146_gv_dehakaVariablesInitialized == true) {
+        return;
+    }
+    libE0EAE146_gv_dehakaVariablesInitialized = true;
+
+    for (init_i = 0; init_i <= libKCOR_gv_cCC_MAXPLAYERS; init_i += 1) {
+        libE0EAE146_gv_cM_DehakaReviveEatTextTag[init_i] = c_textTagNone;
+    }
+    libE0EAE146_gv_c_DehakaConsumeLifeCooldownFactor = 0.1;
+    libE0EAE146_gv_c_DehakaConsumeCooldownFilter = UnitFilter(0, 0, (1 << c_targetFilterPlayer) | (1 << c_targetFilterAlly) | (1 << c_targetFilterNeutral), 0);
+    libE0EAE146_gv_dataDehakaLearnAbilCmdLink = AbilityCommand("DehakaLearn", 255);
+    libE0EAE146_gv_cM_DehakaEatReviveTimerAdjustment = -24.0;
+    for (init_i = 0; init_i <= libKCOR_gv_cCC_MAXPLAYERS; init_i += 1) {
+        libE0EAE146_gv_dehakaMurvarPukeAutocast[init_i] = true;
+    }
+    for (init_i = 0; init_i <= libKCOR_gv_cCC_MAXPLAYERS; init_i += 1) {
+        libE0EAE146_gv_dehakaMurvarSpawnCreepersAutocast[init_i] = true;
+    }
+    for (init_i = 0; init_i <= libKCOR_gv_cCC_MAXPLAYERS; init_i += 1) {
+        libE0EAE146_gv_cM_DehakaLevelsMax[init_i] = 10;
+    }
+    for (init_i = 0; init_i <= libKCOR_gv_cCC_MAXPLAYERS; init_i += 1) {
+        libE0EAE146_gv_cM_DehakaVeterencyBehavior[init_i] = "DehakaVeterancyCoopLow";
+    }
+    for (init_i = 0; init_i <= libKCOR_gv_cCC_MAXPLAYERS; init_i += 1) {
+        libE0EAE146_gv_cM_Dehaka_CurrentLevel[init_i] = 1;
+    }
+    libE0EAE146_gv_cM_Dehaka_EssenceAttribute = "DehakaAttEssence";
+    libE0EAE146_gv_cM_DehakaLevelMaxMusicPlayed = false;
+}
+
+void libE0EAE146_gf_DehakaRuntimeInit (int lp_player, point lp_heroPoint, bool lp_createHero) {
+    unit lv_hero;
+    string lv_panelCasterUnit;
+
+    libDF8E6945_InitLib();
+    libE0EAE146_gf_DehakaInitVariables();
+
+    if (libE0EAE146_gv_dehakaRuntimeInitialized == true) {
+        return;
+    }
+
+    libE0EAE146_gv_dehakaRuntimeInitialized = true;
+    libE0EAE146_gf_DehakaApplyPrestigePenaltyBypass(lp_player);
+    lv_panelCasterUnit = "";
+    if (CatalogEntryIsValid(c_gameCatalogUnit, "CoopCasterDehaka") == true) {
+        lv_panelCasterUnit = "CoopCasterDehaka";
+    }
+    else if (CatalogEntryIsValid(c_gameCatalogUnit, "CasterDehaka") == true) {
+        lv_panelCasterUnit = "CasterDehaka";
+    }
+    if (lv_panelCasterUnit != "") {
+        libNtve_gf_CreateUnitsWithDefaultFacing(1, lv_panelCasterUnit, c_unitCreateIgnorePlacement, lp_player, RegionGetBoundsMin(RegionEntireMap()));
+        lib67C0F0E7_gf_CU_GPInit(lp_player, "Dehaka", UnitLastCreated(), null);
+        lib67C0F0E7_gf_CU_GPShowHide(true, lp_player, c_transitionDurationImmediate);
+        lib67C0F0E7_gf_ShowChooseButton();
+    }
+    if (lp_createHero == true) {
+        lv_hero = libE0EAE146_gf_FindFirstPlayerUnitOfType(lp_player, "DehakaCoop");
+        if (lv_hero != null) {
+            libDF8E6945_gf_InitializeDehakaEvent(lp_player, lv_hero);
+        }
+        if (((lv_hero != null) && lib67C0F0E7_gf_BitMaskTrueIndexIs(libE0EAE146_gf_CommanderPowerPrestigeMask("Dehaka"), 2) == true)) {
+            libDF8E6945_gf_DehakaBroodbrother();
+        }
+    }
+}

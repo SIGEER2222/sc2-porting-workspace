@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CActorModel id="0suanxingBuffStructure" parent="ModelAnimationStyleContinuousUNIT">
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <Inherits index="WarpGroup" value="1"/>
+        <On Terms="Effect.0suanxingApply.Start; ValidateUnitType IsStructureTarget; At Target" Send="Create"/>
+        <On Terms="Behavior.0suanxing.Off" Send="Destroy"/>
+        <HostSiteOps Ops="SOpAttachRandomDamage"/>
+        <Model value="0suanxingBuff"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+        <AutoScaleFactor value="0.500000"/>
+    </CActorModel>
+    <CActorSquib id="0hedanExplodeLarge">
+        <On Terms="Effect.0hedanDamageLarge.Start; At Effect" Send="Create"/>
+        <HostSiteOps Ops="SOpTargetPointStationary SOpShadow"/>
+        <Map index="None" Sound="Ghost_NukeExplode"/>
+    </CActorSquib>
+    <CActorFoliageFXSpawner id="0hedanFoliageFXSpawnerLarge" parent="FoliageFXSpawnerFire">
+        <On Terms="Effect.0hedanDamageLarge.Start" Send="Create"/>
+        <Radius value="24.000000"/>
+    </CActorFoliageFXSpawner>
+    <CActorRegionCircle id="0hedanTreeKillerLarge">
+        <On Terms="Effect.0hedanDamageLarge.Start; At Effect" Send="Create"/>
+        <On Terms="ActorCreation" Send="QueryRegion ::Self TreeBurnQuery AgainstCenter"/>
+        <On Terms="ActorCreation" Send="QueryRegion ::Self NukedQuery AgainstCenter"/>
+        <On Terms="Effect.0hedanDamageLarge.Start; At Effect" Send="Destroy"/>
+        <Radius value="24.000000"/>
+    </CActorRegionCircle>
+    <CActorModel id="0heidongMedium" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.0heidongPersistentMedium.Start" Send="Create"/>
+        <On Terms="Effect.0heidongPersistentMedium.Stop" Send="AnimBracketStop BSD"/>
+        <On Terms="ActorCreation" Send="SetTintColor {64,64,64 -1.000000}"/>
+        <HostSiteOps Ops="SOpShadow"/>
+    </CActorModel>
+    <CActorModel id="0suanxingBuff" parent="ModelAnimationStyleContinuousUNIT">
+        <Inherits index="BaseModelScale" value="1"/>
+        <Inherits index="CastShadows" value="1"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <Inherits index="WarpGroup" value="1"/>
+        <On Terms="Behavior.0suanxing.On; ValidateUnitType NotStructureTarget" Send="Create"/>
+        <On Terms="Behavior.0suanxing.Off" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <AutoScaleFactor value="1.200000"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+    </CActorModel>
+    <CActorSquib id="0hedanExplodeMedium">
+        <On Terms="Effect.0hedanDamageMedium.Start; At Effect" Send="Create"/>
+        <HostSiteOps Ops="SOpTargetPointStationary SOpShadow"/>
+        <Map index="None" Sound="Ghost_NukeExplode"/>
+    </CActorSquib>
+    <CActorSquib id="0hedanExplodeSmall">
+        <On Terms="Effect.0hedanDamageSmall.Start; At Effect" Send="Create"/>
+        <HostSiteOps Ops="SOpTargetPointStationary SOpShadow"/>
+        <Map index="None" Sound="Ghost_NukeExplode"/>
+    </CActorSquib>
+    <CActorFoliageFXSpawner id="0hedanFoliageFXSpawnerMedium" parent="FoliageFXSpawnerFire">
+        <On Terms="Effect.0hedanDamageMedium.Start" Send="Create"/>
+        <Radius value="12.000000"/>
+    </CActorFoliageFXSpawner>
+    <CActorFoliageFXSpawner id="0hedanFoliageFXSpawnerSmall" parent="FoliageFXSpawnerFire">
+        <On Terms="Effect.0hedanDamageSmall.Start" Send="Create"/>
+        <Radius value="6.000000"/>
+    </CActorFoliageFXSpawner>
+    <CActorAction id="0hedanShieldHitter" parent="AoESplashShieldHitter">
+        <On Terms="Effect.0hedanDamageLarge.Start" Send="Create"/>
+        <On Terms="Effect.0hedanDamageLarge.Stop" Send="Destroy"/>
+        <On Terms="Effect.0hedanDamageMedium.Start" Send="Create"/>
+        <On Terms="Effect.0hedanDamageMedium.Stop" Send="Destroy"/>
+        <On Terms="Effect.0hedanDamageSmall.Start" Send="Create"/>
+        <On Terms="Effect.0hedanDamageSmall.Stop" Send="Destroy"/>
+    </CActorAction>
+    <CActorRegionCircle id="0hedanTreeKillerMedium">
+        <On Terms="Effect.0hedanDamageMedium.Start; At Effect" Send="Create"/>
+        <On Terms="ActorCreation" Send="QueryRegion ::Self TreeBurnQuery AgainstCenter"/>
+        <On Terms="ActorCreation" Send="QueryRegion ::Self NukedQuery AgainstCenter"/>
+        <On Terms="Effect.0hedanDamageMedium.Start; At Effect" Send="Destroy"/>
+        <Radius value="12.000000"/>
+    </CActorRegionCircle>
+    <CActorRegionCircle id="0hedanTreeKillerSmall">
+        <On Terms="Effect.0hedanDamageSmall.Start; At Effect" Send="Create"/>
+        <On Terms="ActorCreation" Send="QueryRegion ::Self TreeBurnQuery AgainstCenter"/>
+        <On Terms="ActorCreation" Send="QueryRegion ::Self NukedQuery AgainstCenter"/>
+        <On Terms="Effect.0hedanDamageSmall.Start; At Effect" Send="Destroy"/>
+        <Radius value="6.000000"/>
+    </CActorRegionCircle>
+    <CActorModel id="0hefusheSmall" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.0hefushePersistentSmall.Start" Send="Create"/>
+        <On Terms="Effect.0hefushePersistentSmall.Stop" Send="Destroy"/>
+        <On Terms="ActorCreation" Send="SetOpacity 0.450000"/>
+        <HostSiteOps Ops="SOpShadow"/>
+    </CActorModel>
+    <CActorModel id="0hefusheMedium" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.0hefushePersistentMedium.Start" Send="Create"/>
+        <On Terms="Effect.0hefushePersistentMedium.Stop" Send="Destroy"/>
+        <On Terms="ActorCreation" Send="SetOpacity 0.450000"/>
+        <HostSiteOps Ops="SOpShadow"/>
+    </CActorModel>
+    <CActorModel id="0hefusheBuff" parent="ModelAnimationStyleContinuousUNIT">
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <Inherits index="WarpGroup" value="1"/>
+        <On Terms="Behavior.0hefushe.On" Send="Create"/>
+        <On Terms="Behavior.0hefushe.Off" Send="Destroy"/>
+        <On Terms="ActorCreation" Send="SetOpacity 0.450000"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <AutoScaleFactor value="1.000000"/>
+    </CActorModel>
+    <CActorModel id="0heidongLarge" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.0heidongPersistentLarge.Start" Send="Create"/>
+        <On Terms="Effect.0heidongPersistentLarge.Stop" Send="AnimBracketStop BSD"/>
+        <On Terms="ActorCreation" Send="SetTintColor {64,64,64 -1.000000}"/>
+        <HostSiteOps Ops="SOpShadow SOpMoveUpBy2"/>
+    </CActorModel>
+    <CActorModel id="0heidongSmall" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.0heidongPersistentSmall.Start" Send="Create"/>
+        <On Terms="Effect.0heidongPersistentSmall.Stop" Send="AnimBracketStop BSD"/>
+        <On Terms="ActorCreation" Send="SetTintColor {64,64,64 -1.000000}"/>
+        <HostSiteOps Ops="SOpShadow"/>
+    </CActorModel>
+    <CActorSound id="0heidongbirthsound" parent="SoundOneShot">
+        <On Terms="Effect.0heidongPersistentLarge.Start" Send="Create"/>
+        <On Terms="Effect.0heidongPersistentMedium.Start" Send="Create"/>
+        <On Terms="Effect.0heidongPersistentSmall.Start" Send="Create"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Sound value="Mothership_VortexStart"/>
+    </CActorSound>
+    <CActorSound id="0heidongdeathsound" parent="SoundOneShot">
+        <On Terms="Effect.0heidongPersistentLarge.Stop" Send="Create"/>
+        <On Terms="Effect.0heidongPersistentMedium.Stop" Send="Create"/>
+        <On Terms="Effect.0heidongPersistentSmall.Stop" Send="Create"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Sound value="Mothership_VortexEnd"/>
+    </CActorSound>
+    <CActorSound id="0heidongloopsound" parent="SoundContinuous">
+        <On Terms="Effect.0heidongPersistentLarge.Start" Send="Create"/>
+        <On Terms="Effect.0heidongPersistentLarge.Stop" Send="Destroy"/>
+        <On Terms="Effect.0heidongPersistentMedium.Start" Send="Create"/>
+        <On Terms="Effect.0heidongPersistentMedium.Stop" Send="Destroy"/>
+        <On Terms="Effect.0heidongPersistentSmall.Start" Send="Create"/>
+        <On Terms="Effect.0heidongPersistentSmall.Stop" Send="Destroy"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Sound value="Mothership_VortexLoop"/>
+    </CActorSound>
+    <CActorModel id="0chixuranshaoBuff" parent="ModelAnimationStyleContinuousUNIT">
+        <On Terms="Behavior.0chixuranshao.On; ValidateUnitType NotStructureTarget" Send="Create"/>
+        <On Terms="Behavior.0chixuranshao.Off" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpAttachHead"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <Inherits index="WarpGroup" value="1"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+    </CActorModel>
+    <CActorModel id="0chixuranshaoBuffStructure" parent="ModelAnimationStyleContinuousUNIT">
+        <On Terms="Effect.0chixuranshaoApply.Start; ValidateUnitType IsStructureTarget; At Target" Send="Create"/>
+        <On Terms="ActorCreation" Send="TimerSet 6.000000 0chixuranshaoStructure"/>
+        <On Terms="TimerExpired; TimerName 0chixuranshaoStructure" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpAttachRandomDamage"/>
+        <Model value="0chixuranshaoBuff"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <Inherits index="WarpGroup" value="1"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+    </CActorModel>
+    <CActorModel id="0dianranUnitImpact" parent="ModelAnimationStyleContinuousUNIT">
+        <On Terms="Behavior.0dianran.On" Send="Create"/>
+        <On Terms="Behavior.0dianran.Off" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <Model value="6dianranUnitImpact"/>
+        <AutoScaleFactor value="1.000000"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+        <ModelFlags index="AutomateGlobalLoops" value="1"/>
+        <Inherits index="BaseModelScale" value="1"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="Scale" value="1"/>
+        <Inherits index="TimeScale" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <Inherits index="WarpGroup" value="1"/>
+    </CActorModel>
+    <CActorSiteOpRotator id="0weizhicaozuozheyue">
+        <LocalAxis value="1.000000,0.000000,0.000000"/>
+        <InitialAngle value="90.000000"/>
+    </CActorSiteOpRotator>
+    <CActorUnit id="0kengdaochong" parent="ZergBuildingEx" unitName="0kengdaochong">
+        <Aliases value="_UnitHuge"/>
+        <Macros value="BuildingFlattenTerrainMacro"/>
+        <Macros value="SnowVisualUnitMacroMP"/>
+        <On Terms="Abil.NydusCanalTransport.TransportUnloadStart" Send="AnimClear Birth"/>
+        <On Terms="Abil.NydusCanalTransport.TransportUnloadStart" Send="AnimBracketStart Unload Work,Start Work Work,End"/>
+        <On Terms="Abil.NydusCanalTransport.TransportUnloadStop" Send="AnimBracketStop Unload"/>
+        <On Terms="AbilTransport.NydusCanalTransport.TransportLoad; !AnimPlaying Pickup" Send="AnimPlay Pickup Pickup"/>
+        <On Terms="AbilTransport.NydusCanalTransport.TransportUnload" Send="$Spell"/>
+        <On Terms="Abil.NydusWormTransport.TransportUnloadStart" Send="AnimClear Birth"/>
+        <On Terms="Abil.NydusWormTransport.TransportUnloadStart" Send="AnimBracketStart Unload Work,Start Work Work,End"/>
+        <On Terms="Abil.NydusWormTransport.TransportUnloadStop" Send="AnimBracketStop Unload"/>
+        <On Terms="AbilTransport.NydusWormTransport.TransportLoad; !AnimPlaying Pickup" Send="AnimPlay Pickup Pickup"/>
+        <On Terms="AbilTransport.NydusWormTransport.TransportUnload" Send="$Spell"/>
+        <On Terms="Behavior.NydusWormInvuln.On" Send="SetScale 0.300000"/>
+        <On Terms="Behavior.NydusWormInvuln.On" Send="SetScale 1.000000 20.000000"/>
+        <On Terms="UnitDeathCustomize; ValidateUnit HasZergGenericDeath" Send="DeathCustomize Detached"/>
+        <On Terms="UnitDeathCustomize; IsStatus InAir 1" Send="DeathCustomize AntiGravZerg"/>
+        <On Terms="UnitDeathCustomize; IsStatus InAir 1; Option Physics High" Send="Create ModelRagdoll ZerglingDeathRagdoll"/>
+        <On Terms="UnitDeathCustomize; IsStatus InAir 1; Option Physics High; PassChance 50.000000" Send="Create ModelRagdoll HydraliskDeathRagdoll"/>
+        <On Terms="UnitDeathCustomize; IsStatus InAir 1; Option Physics High; PassChance 25.000000" Send="Create ModelRagdoll RoachDeathRagdoll"/>
+        <On Terms="UnitDeathCustomize; IsStatus InAir 1; Option Physics Ultra" Send="Create ModelRagdoll ZerglingDeathRagdoll"/>
+        <On Terms="UnitDeathCustomize; IsStatus InAir 1; Option Physics Ultra; PassChance 50.000000" Send="Create ModelRagdoll HydraliskDeathRagdoll"/>
+        <On Terms="UnitDeathCustomize; IsStatus InAir 1; Option Physics Ultra; PassChance 25.000000" Send="Create ModelRagdoll RoachDeathRagdoll"/>
+        <On Terms="UnitDeathCustomize; IsStatus InAir 1; Option Physics Extreme" Send="Create ModelRagdoll ZerglingDeathRagdoll"/>
+        <On Terms="UnitDeathCustomize; IsStatus InAir 1; Option Physics Extreme; PassChance 50.000000" Send="Create ModelRagdoll HydraliskDeathRagdoll"/>
+        <On Terms="UnitDeathCustomize; IsStatus InAir 1; Option Physics Extreme; PassChance 25.000000" Send="Create ModelRagdoll RoachDeathRagdoll"/>
+        <On Terms="UnitDeathCustomize; IsStatus InAir 1" Send="Create NydusCanalAirDeathForce"/>
+        <Model value="NydusCanal"/>
+        <BuildModel value="NydusRumble"/>
+        <DeathArray index="Normal" ModelLink="NydusCanalDeath" SoundLink=""/>
+        <DeathArray index="Disintegrate" ModelLink="NydusCanalDeathAcid" SoundLink="Uni_DeathFXAcid"/>
+        <DeathArray index="Fire" ModelLink="NydusCanalDeathFire" SoundLink="Uni_DeathFXFireLarge"/>
+        <DeathArray index="UnderConstruction" ModelLink="NydusCanalDeathUnderConstruction" SoundLink="Zerg_ExplosionLarge"/>
+        <DeathCustoms ModelLink="ZergGenericBuildingDeath" Name="Detached"/>
+        <DeathCustoms ModelLink="NydusCanalAirDeathLow" Name="AntiGravZerg"/>
+        <PlacementModel value="NydusCanalPlacement"/>
+        <PortraitModel value="NydusCanalPortrait"/>
+        <BarOffset value="115"/>
+        <BarWidth value="85"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Zerg-NydusWorm.dds"/>
+        </GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-building-zerg-nydusworm.dds"/>
+        <NameOffset value="70"/>
+        <SoundArray index="Birth" value=""/>
+        <SoundArray index="Ready" value="NydusWorm_Ready"/>
+        <SoundArray index="What" value="NydusWorm_What"/>
+        <SoundArray index="Yes" value="NydusWorm_What"/>
+        <SoundArray index="Construction" value="Zerg_RockBuildingMorph_What"/>
+        <UnitIcon value="Assets\Textures\btn-building-zerg-nydusworm.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Zerg-NydusWorm.dds"/>
+        </Wireframe>
+    </CActorUnit>
+    <CActorSound id="0kengdaochongBirth" parent="SoundOneShot">
+        <FogVisibility value="Visible"/>
+        <On Terms="UnitBirth.0kengdaochong.Normal" Send="Create"/>
+        <Sound value="NydusWorm_Birth"/>
+    </CActorSound>
+    <CActorSound id="0kengdaochongDeathCry" parent="SoundOneShot">
+        <On Terms="UnitDeathCustomize.0kengdaochong; PassChance 100.000000" Send="Create"/>
+        <Sound value="NydusWorm_DeathCry"/>
+    </CActorSound>
+</Catalog>

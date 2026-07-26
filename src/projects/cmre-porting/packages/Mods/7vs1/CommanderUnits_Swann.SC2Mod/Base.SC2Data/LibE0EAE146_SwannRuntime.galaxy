@@ -1,0 +1,44 @@
+void libE0EAE146_gf_SwannAllowAbilityIfPresent (int lp_player, string lp_abil, int lp_cmdIndex) {
+    if ((lp_abil == "") || (!CatalogEntryIsValid(c_gameCatalogAbil, lp_abil))) {
+        return;
+    }
+    TechTreeAbilityAllow(lp_player, AbilityCommand(lp_abil, lp_cmdIndex), true);
+}
+
+void libE0EAE146_gf_SwannApplyPrestigePenaltyBypass (int lp_player) {
+    int lv_prestigeMask;
+
+    lv_prestigeMask = libE0EAE146_gf_CommanderPowerPrestigeMask("Swann");
+    if (lib67C0F0E7_gf_BitMaskTrueIndexIs(lv_prestigeMask, 0) == true) {
+        libE0EAE146_gf_SwannAllowAbilityIfPresent(lp_player, "DrakkenLaserDrillConcentratedBeamIssueOrder", 0);
+    }
+}
+
+void libE0EAE146_gf_SwannRuntimeInit (int lp_player, point lp_heroPoint, bool lp_createHero) {
+    unit lv_structure;
+    unit lv_caster;
+
+    if (libE0EAE146_gv_swannRuntimeInitialized == true) {
+        return;
+    }
+
+    libE0EAE146_gv_swannRuntimeInitialized = true;
+    libE0EAE146_gf_SwannApplyPrestigePenaltyBypass(lp_player);
+    lv_structure = libE0EAE146_gf_CreateCommanderHeroStructure(lp_player, "Swann");
+    if (UnitIsValid(lv_structure) == true) {
+        lib4B62E36B_gf_DrakkenLaserDrillUnit(lv_structure, lp_player);
+    }
+    else {
+        lib4B62E36B_gf_DrakkenLaserDrillUnit(UnitLastCreated(), lp_player);
+    }
+    if (lp_createHero == true) {
+        libE0EAE146_gt_CommanderHeroDied_Init();
+        TriggerEnable(libKMIS_gt_CM_HeroDied, false);
+    }
+    libNtve_gf_CreateUnitsWithDefaultFacing(1, "CoopCasterSwann", c_unitCreateIgnorePlacement, lp_player, RegionGetBoundsMin(RegionEntireMap()));
+    lv_caster = UnitLastCreated();
+    lib67C0F0E7_gf_CU_GPInit(lp_player, "Swann", lv_caster, null);
+    lib67C0F0E7_gf_CU_GPShowHide(true, lp_player, c_transitionDurationDefault);
+    lib4B62E36B_gf_DrakkenLaserDrillAddCasterGroup(lp_player);
+    lib67C0F0E7_gf_ShowChooseButton();
+}

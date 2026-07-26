@@ -1,0 +1,404 @@
+// XMFinal split module: commander panel init and map start squads.
+void libE0EAE146_gf_CommanderPanelInit (string lp_casterUnit, string lp_gpCommander) {
+    libNtve_gf_CreateUnitsWithDefaultFacing(1, lp_casterUnit, c_unitCreateIgnorePlacement, 1, RegionGetBoundsMin(RegionEntireMap()));
+    lib67C0F0E7_gf_CU_GPInit(1, lp_gpCommander, UnitLastCreated(), null);
+    lib67C0F0E7_gf_CU_GPShowHide(true, 1, c_transitionDurationDefault);
+    lib67C0F0E7_gf_ShowChooseButton();
+}
+// Per-commander CreateMapStartSquad/CreateCargoSquad functions migrated to each CommanderUnits_* runtime file (Task 7).
+
+string libE0EAE146_gf_CommanderStartSquadsResolveUnit4 (string lp_primary, string lp_fallbackA, string lp_fallbackB, string lp_fallbackC) {
+    string lv_unitType;
+
+    lv_unitType = libE0EAE146_gf_CatalogUnitOrEmpty(lp_primary);
+    if (lv_unitType != "") {
+        return lv_unitType;
+    }
+
+    lv_unitType = libE0EAE146_gf_CatalogUnitOrEmpty(lp_fallbackA);
+    if (lv_unitType != "") {
+        return lv_unitType;
+    }
+
+    lv_unitType = libE0EAE146_gf_CatalogUnitOrEmpty(lp_fallbackB);
+    if (lv_unitType != "") {
+        return lv_unitType;
+    }
+
+    return libE0EAE146_gf_CatalogUnitOrEmpty(lp_fallbackC);
+}
+
+void libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4 (int lp_count, string lp_primary, string lp_fallbackA, string lp_fallbackB, string lp_fallbackC, int lp_player, point lp_point) {
+    string lv_unitType;
+
+    lv_unitType = libE0EAE146_gf_CommanderStartSquadsResolveUnit4(lp_primary, lp_fallbackA, lp_fallbackB, lp_fallbackC);
+    if (lv_unitType == "") {
+        return;
+    }
+
+    libNtve_gf_CreateUnitsWithDefaultFacing(lp_count, lv_unitType, 0, lp_player, lp_point);
+}
+
+void libE0EAE146_gf_CreateCommanderSupportSquad (int lp_player, point lp_point) {
+    string lv_commander;
+
+    if (lp_point == null) {
+        return;
+    }
+
+    lv_commander = libE0EAE146_gv_commander;
+    if (lv_commander == "Raynor") {
+        libE0EAE146_gf_RaynorCreateMapStartSquad("light", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "RaynorX") {
+        libE0EAE146_gf_RaynorCreateMapStartSquad("light", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "TerranRaynor") {
+        libE0EAE146_gf_RaynorCreateMapStartSquad("light", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Kerrigan") {
+        libE0EAE146_gf_KerriganCreateMapStartSquad("light", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "TestZerg") {
+        libE0EAE146_gf_KerriganCreateMapStartSquad("light", lp_player, lp_point);
+        return;
+    }
+    if ((lv_commander == "Abathur") || (lv_commander == "AbathurCustom")) {
+        libE0EAE146_gf_AbathurCreateMapStartSquad("light", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Zagara") {
+        libE0EAE146_gf_ZagaraCreateMapStartSquad("light", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Alarak") {
+        libE0EAE146_gf_AlarakCreateMapStartSquad("light", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Fenix") {
+        libE0EAE146_gf_FenixCreateMapStartSquad("light", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Vorazun") {
+        libE0EAE146_gf_VorazunCreateMapStartSquad("light", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Karax") {
+        libE0EAE146_gf_KaraxCreateMapStartSquad("light", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Artanis") {
+        libE0EAE146_gf_ArtanisCreateMapStartSquad("light", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Zeratul") {
+        libE0EAE146_gf_ZeratulCreateMapStartSquad("light", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Swann") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "MicrobotSwann", "ScienceVesselSwann", "Medic", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "GoliathSwann", "Goliath", "Marauder", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Stukov") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(4, "SIInfestedMarine", "InfestedMarine", "SIInfestedTrooper", "Marine", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Dehaka") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(4, "PrimalZergling", "Zergling", "", "", lp_player, lp_point);
+        return;
+    }
+    if ((lv_commander == "Mira") || (lv_commander == "Horner") || (lv_commander == "HanHorner") || (lv_commander == "HanAndHorner")) {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(3, "ReaperMira", "HellionMira", "Reaper", "Hellion", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(1, "MedicMira", "Medic", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Tychus") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(3, "Marine", "Marauder", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(1, "Medic", "", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Nova") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(4, "Marine_BlackOps", "Marine", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "Marauder_BlackOps", "Marauder", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Mengsk") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(1, "MarauderMengsk", "TrooperMengsk", "Marine", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "TrooperMengsk", "Marine", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(1, "MengskMedic", "Medic", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Alenger3") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "3diguojianzhengzhe", "Marine", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "3liequanbudui", "Marauder", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Alenger1") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "1gangtietaitan", "Marine", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "1gangtiezhiyi", "Marauder", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Alenger6") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "6junwangliweitan", "Zergling", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "6mangshou", "Zergling", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Alenger8") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "8zhajiala", "Zergling", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "8tuliezhe", "Zergling", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Alenger9") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "9chenmomalihao", "Marine", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "9youqibing", "Marauder", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Alenger12") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "12xiubolianhao", "Marine", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "12youqibingyouhun", "Marauder", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Alenger13") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "13tianwangjuzhen", "Zealot", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "13zhuguangzhe", "Zealot", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Alenger2") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "2chonghou", "Zergling", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "2gongchong", "Drone", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Alenger7") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "7mujianhexin", "Zealot", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "7xiangweitanji", "Probe", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Alenger10") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "10hunhetiliulangzhe", "Marine", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "10hunhetihuimiezhe", "Marauder", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Alenger11") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "11xiaojianguo", "Marine", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "11jibianti", "Marauder", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Stetmann") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(4, "ZerglingStetmann", "Zergling", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "HydraliskStetmann", "Hydralisk", "", "", lp_player, lp_point);
+        return;
+    }
+
+    libNtve_gf_CreateUnitsWithDefaultFacing(3, "Marine", 0, lp_player, lp_point);
+}
+
+void libE0EAE146_gf_CreateCommanderCinematicDropSquad (string lp_kind, int lp_player, point lp_point) {
+    string lv_commander;
+
+    lv_commander = libE0EAE146_gv_commander;
+    if (lv_commander == "Raynor") {
+        libE0EAE146_gf_RaynorCreateMapStartSquad(lp_kind, lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "RaynorX") {
+        libE0EAE146_gf_RaynorCreateMapStartSquad(lp_kind, lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "TerranRaynor") {
+        libE0EAE146_gf_RaynorCreateMapStartSquad(lp_kind, lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Kerrigan") {
+        libE0EAE146_gf_KerriganCreateMapStartSquad(lp_kind, lp_player, lp_point);
+        return;
+    }
+    if ((lv_commander == "Abathur") || (lv_commander == "AbathurCustom")) {
+        libE0EAE146_gf_AbathurCreateMapStartSquad(lp_kind, lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Zagara") {
+        libE0EAE146_gf_ZagaraCreateMapStartSquad(lp_kind, lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Alarak") {
+        libE0EAE146_gf_AlarakCreateMapStartSquad(lp_kind, lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Fenix") {
+        libE0EAE146_gf_FenixCreateMapStartSquad(lp_kind, lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Vorazun") {
+        libE0EAE146_gf_VorazunCreateMapStartSquad(lp_kind, lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Karax") {
+        libE0EAE146_gf_KaraxCreateMapStartSquad(lp_kind, lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Artanis") {
+        libE0EAE146_gf_ArtanisCreateMapStartSquad(lp_kind, lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Zeratul") {
+        libE0EAE146_gf_ZeratulCreateMapStartSquad(lp_kind, lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Swann") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(1, "Swann", "SwannSwann", "CoopCasterSwann", "CasterSwann", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "MicrobotSwann", "ScienceVesselSwann", "MarineSwann", "Marine", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Stukov") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(1, "InfestedStukovCoop", "CoopCasterStukov", "SIStukov", "StukovInfestedBanshee", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(3, "SIInfestedMarine", "InfestedMarine", "SIInfestedTrooper", "Marine", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Dehaka") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(1, "DehakaCoop", "DehakaCoopClone", "", "", lp_player, lp_point);
+        return;
+    }
+    if ((lv_commander == "Mira") || (lv_commander == "Horner") || (lv_commander == "HanHorner") || (lv_commander == "HanAndHorner")) {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(3, "ReaperMira", "HellionMira", "Reaper", "Hellion", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(1, "MedicMira", "Medic", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Tychus") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(1, "TychusCoop", "", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(1, "Medic", "Marine", "MarauderMengsk", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Nova") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(1, "NovaCoop", "", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Mengsk") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(1, "MarauderMengsk", "TrooperMengsk", "Marine", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "TrooperMengsk", "Marine", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(1, "MengskMedic", "Medic", "", "", lp_player, lp_point);
+        return;
+    }
+    if (lv_commander == "Stetmann") {
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(1, "GaryStetmann", "SuperGaryStetmann", "", "", lp_player, lp_point);
+        libE0EAE146_gf_CommanderStartSquadsCreateUnitsResolved4(2, "HydraliskStetmann", "Hydralisk", "", "", lp_player, lp_point);
+        return;
+    }
+
+    if ((lv_commander == "Mira") || (lv_commander == "Horner") || (lv_commander == "HanHorner") || (lv_commander == "HanAndHorner")) {
+        libNtve_gf_CreateUnitsWithDefaultFacing(3, "HellionMira", 0, lp_player, lp_point);
+        return;
+    }
+
+    libNtve_gf_CreateUnitsWithDefaultFacing(3, "Hellion", 0, lp_player, lp_point);
+}
+
+void libE0EAE146_gf_CreateCommanderCinematicTransportSquad (unit lp_container, string lp_kind, int lp_player, point lp_point) {
+    string lv_commander;
+
+    if (lp_container == null) {
+        return;
+    }
+
+    lv_commander = libE0EAE146_gv_commander;
+    if (lv_commander == "Raynor") {
+        libE0EAE146_gf_RaynorCreateCargoSquad(lp_container, lp_kind);
+        return;
+    }
+    if (lv_commander == "RaynorX") {
+        libE0EAE146_gf_RaynorCreateCargoSquad(lp_container, lp_kind);
+        return;
+    }
+    if (lv_commander == "Kerrigan") {
+        libE0EAE146_gf_KerriganCreateCargoSquad(lp_container, lp_kind);
+        return;
+    }
+    if ((lv_commander == "Abathur") || (lv_commander == "AbathurCustom")) {
+        libE0EAE146_gf_AbathurCreateCargoSquad(lp_container, lp_kind);
+        return;
+    }
+    if (lv_commander == "Zagara") {
+        libE0EAE146_gf_ZagaraCreateCargoSquad(lp_container, lp_kind);
+        return;
+    }
+    if (lv_commander == "Alarak") {
+        libE0EAE146_gf_AlarakCreateCargoSquad(lp_container, lp_kind);
+        return;
+    }
+    if (lv_commander == "Fenix") {
+        libE0EAE146_gf_FenixCreateCargoSquad(lp_container, lp_kind);
+        return;
+    }
+    if (lv_commander == "Vorazun") {
+        libE0EAE146_gf_VorazunCreateCargoSquad(lp_container, lp_kind);
+        return;
+    }
+    if (lv_commander == "Karax") {
+        libE0EAE146_gf_KaraxCreateCargoSquad(lp_container, lp_kind);
+        return;
+    }
+    if (lv_commander == "Artanis") {
+        libE0EAE146_gf_ArtanisCreateCargoSquad(lp_container, lp_kind);
+        return;
+    }
+    if (lv_commander == "Zeratul") {
+        libE0EAE146_gf_ZeratulCreateCargoSquad(lp_container, lp_kind);
+        return;
+    }
+    if (lv_commander == "Tychus") {
+        UnitCargoCreate(lp_container, "TychusFirebat", 1);
+        return;
+    }
+    if ((lv_commander == "Mira") || (lv_commander == "Horner") || (lv_commander == "HanHorner") || (lv_commander == "HanAndHorner")) {
+        UnitCargoCreate(lp_container, "HellionTankMira", 3);
+        return;
+    }
+    if (lv_commander == "Dehaka") {
+        if (lp_point != null) {
+            libNtve_gf_CreateUnitsWithDefaultFacing(1, "DehakaCoop", 0, lp_player, lp_point);
+            libDF8E6945_gf_InitializeDehakaEvent(lp_player, UnitLastCreated());
+            BankLoad("CampaignXCore", lp_player);
+            if ((lib67C0F0E7_gf_BitMaskTrueIndexIs(libE0EAE146_gf_CommanderPowerPrestigeMask("Dehaka"), 2) == true)) {
+                libDF8E6945_gf_DehakaBroodbrother();
+            }
+        }
+        return;
+    }
+    if (lv_commander == "Nova") {
+        if (lp_point != null) {
+            libNtve_gf_CreateUnitsWithDefaultFacing(1, "NovaCoop", 0, lp_player, lp_point);
+            lib0940FFB7_gf_NovaTrigger(UnitLastCreated());
+        }
+        UnitCargoCreate(lp_container, "HellbatBlackOps", 2);
+        return;
+    }
+    if (lv_commander == "Mengsk") {
+        UnitCargoCreate(lp_container, "TrooperMengskFlamethrower", 6);
+        return;
+    }
+    if (lv_commander == "Swann") {
+        UnitCargoCreate(lp_container, "PredatorSwann", 4);
+        return;
+    }
+    if (lv_commander == "Stetmann") {
+        UnitCargoCreate(lp_container, "LurkerStetmann", 3);
+        return;
+    }
+    if (lv_commander == "Stukov") {
+        if (lp_kind == "hero") {
+            libE0EAE146_gt_CommanderHeroDied_Init();
+            UnitCargoCreate(lp_container, "InfestedStukovCoop", 1);
+            UnitCargoCreate(lp_container, "StukovInfestedDiamondBack", 2);
+            return;
+        }
+        UnitCargoCreate(lp_container, "StukovInfestedDiamondBack", 2);
+        return;
+    }
+
+    UnitCargoCreate(lp_container, "Firebat", 3);
+    UnitCargoCreate(lp_container, "Medic", 2);
+}

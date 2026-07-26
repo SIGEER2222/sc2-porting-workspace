@@ -1,0 +1,60 @@
+include "TriggerLibs/NativeLib"
+include "TriggerLibs/CampaignLib"
+include "Lib67C0F0E7"
+include "LibC0F50AA6"
+include "Lib81FF3B49"
+include "LibDF8E6945"
+include "LibBE3BBD9F"
+include "Lib0940FFB7"
+include "Lib4B62E36B"
+include "Lib975E2FE9"
+
+include "LibE0EAE146_h"
+
+//--------------------------------------------------------------------------------------------------
+// Trigger: CoopZeroPopExcludeF2 - Toggle selected units from F2 selection
+//--------------------------------------------------------------------------------------------------
+trigger libE0EAE146_gt_CoopZeroPopExcludeF2;
+
+bool libE0EAE146_gt_CoopZeroPopExcludeF2_Func (bool testConds, bool runActions) {
+    unit lv_unit;
+    unitgroup lv_selGroup;
+    string lv_behavior;
+    int lv_i;
+    int lv_player;
+
+    if (!runActions) {
+        return true;
+    }
+
+    lv_player = EventPlayer();
+    lv_behavior = "CoopZeroPopExcludeF2";
+    lv_selGroup = UnitGroupSelected(lv_player);
+
+    lv_i = 1;
+    lv_unit = UnitGroupUnitFromEnd(lv_selGroup, lv_i);
+    while (lv_unit != null) {
+        if ((UnitFilterMatch(lv_unit, lv_player, UnitFilter(0, 0, (1 << c_targetFilterStructure) | (1 << c_targetFilterWorker) | (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)))) == false) && UnitIsAlive(lv_unit)) {
+            if (UnitHasBehavior2(lv_unit, lv_behavior)) {
+                UnitBehaviorRemove(lv_unit, lv_behavior, 1);
+            }
+            else {
+                UnitBehaviorAdd(lv_unit, lv_behavior, lv_unit, 1);
+            }
+        }
+        lv_i = lv_i + 1;
+        lv_unit = UnitGroupUnitFromEnd(lv_selGroup, lv_i);
+    }
+
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void libE0EAE146_gt_CoopZeroPopExcludeF2_Init () {
+    libE0EAE146_gt_CoopZeroPopExcludeF2 = TriggerCreate("libE0EAE146_gt_CoopZeroPopExcludeF2_Func");
+    TriggerAddEventUnitAbility(libE0EAE146_gt_CoopZeroPopExcludeF2, null, AbilityCommand("CoopZeroPopExcludeF2", 0), c_unitAbilStageExecute, false);
+}
+
+void libE0EAE146_excludeF2_InitTriggers () {
+    libE0EAE146_gt_CoopZeroPopExcludeF2_Init();
+}
