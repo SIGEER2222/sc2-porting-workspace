@@ -604,6 +604,44 @@ $marker
     BankSave(BankLastCreated());
     TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);
 "@
+
+        # === 3c. 在 SwarmSetup_Func 末尾（return true 之前）注入深度调试代码 ===
+        # 根因：InitLib 中 Wait 会阻塞库初始化，导致进程退出前深度调试代码未执行。
+        # 改在 SwarmSetup_Func 末尾注入，SwarmSetup 执行完所有逻辑后立即写入调试银行。
+        # SwarmSetup_Func 中有 Wait(1.0, c_timeGame) 调用，但在 InitLib 中直接
+        # TriggerExecute(SwarmSetup) 时游戏尚未暂停，Wait 能正常返回。
+        $swarmSetupEndMarker = '    TriggerExecute(lib48DF4533_gt_AllySettings, true, false);
+    return true;'
+        if (-not $content.Contains($swarmSetupEndMarker)) {
+            throw "Patch-RebornLibraryInit: SwarmSetup_Func end marker not found"
+        }
+        $deepDebugBlock = @"
+    TriggerExecute(lib48DF4533_gt_AllySettings, true, false);
+    // CMRE_PATCH_SWARMSETUP_DEEP_DEBUG
+    // SwarmSetup 执行完所有逻辑后写入深度调试指标，验证 Abathur 机制是否生效：
+    // 1. abathur_upgrade_count: CommanderStart 中 SetUpgradeLevel("Abathur", 1) 是否成功
+    // 2. hunterkiller_p1_count: K5Kerrigan→HunterKiller 替换后的数量
+    // 3. hydraliskimpaler_p1_count: HunterKiller 内部 ID 的数量
+    // 4. zerg_p1_total_units: P1 所有单位总数（验证单位多样性）
+    // 5. abathur_abilities_trigger_enabled: gt_Abathur_Func 末尾是否启用了 AbathurAbilities 触发器
+    BankLoad("CMRERebornDebug", 1);
+    BankValueSetFromInt(BankLastCreated(), "debug", "deep_debug_ran", 1);
+    BankValueSetFromInt(BankLastCreated(), "debug", "abathur_upgrade_count", TechTreeUpgradeCount(1, "Abathur", c_techCountCompleteOnly));
+    BankValueSetFromInt(BankLastCreated(), "debug", "k5kerrigan_p1_after_swarmsetup", UnitGroupCount(UnitGroup("K5Kerrigan", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_p1_count", UnitGroupCount(UnitGroup("HunterKiller", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "hydraliskimpaler_p1_count", UnitGroupCount(UnitGroup("HydraliskImpaler", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "zerg_p1_total_units", UnitGroupCount(UnitGroup(null, 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0), c_unitCountAlive));
+    if (TriggerIsEnabled(lib48DF4533_gt_AbathurAbilities) == true) {
+        BankValueSetFromInt(BankLastCreated(), "debug", "abathur_abilities_trigger_enabled", 1);
+    } else {
+        BankValueSetFromInt(BankLastCreated(), "debug", "abathur_abilities_trigger_enabled", 0);
+    }
+    BankSave(BankLastCreated());
+    return true;
+"@
+        $content = $content.Replace($swarmSetupEndMarker, $deepDebugBlock)
+        Write-Host "Patch-RebornLibraryInit: injected deep debug code at end of SwarmSetup_Func"
+
         # 只替换最后一次出现的 initLibMarker（即 InitLib 函数中的那个，不是 InitTriggers 函数定义）
         $content = [regex]::Replace($content, [regex]::Escape($initLibMarker) + '\s*\r?\n}', $initLibMarker + "`r`n" + $initLibInjectBlock + "`r`n}")
         Write-Host "Patch-RebornLibraryInit: injected direct K5Kerrigan spawn + SwarmSetup trigger into lib48DF4533_InitLib()"
