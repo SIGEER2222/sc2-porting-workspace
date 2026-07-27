@@ -30,6 +30,7 @@ ASSETS_CACHE_MUTATORS = WEBUI_DIR / "assets-cache" / "mutators"
 # 配置目录：sc2-porting-workspace/src/config/alenger-mods.json
 CONFIG_DIR = SCRIPT_DIR.parents[1] / "src" / "config"
 ALENGER_MODS_JSON = CONFIG_DIR / "alenger-mods.json"
+REBORN_COMMANDERS_JSON = CONFIG_DIR / "reborn-commanders.json"
 LAUNCH_SCRIPT = Path(__file__).resolve().parents[1] / "launchers" / "launch-cmre-alenger.ps1"
 
 # CMRE 框架运行时根目录（Maps/Mods/Shared/scripts）
@@ -190,10 +191,50 @@ def _resolve_cached_mutator_image(mutator_id: str) -> str:
 
 
 def _classify_commander(bank_commander: str, runtime_commander: str) -> str:
-    """将指挥官分类为 'official'（官方18个）或 'alenger'（起义狂潮自定义）。"""
+    """将指挥官分类为 'official'（官方18个）或 'alenger'（起义狂潮自定义）或 'reborn'（重生虫心）。"""
     if bank_commander.startswith("Alenger"):
         return "alenger"
     return "official"
+
+
+def load_reborn_commanders():
+    """从 reborn-commanders.json 读取重生虫心指挥官列表。
+
+    返回 [{id, label, bank, portrait, cachedImage, race, group, rebornName, expectedUnits, expectedBuildings}]。
+    每条记录的 id 形如 "ZergAbathur"（runtime commander），bank 为指挥官名（如 "Abathur"），
+    rebornName 用于 -RebornCommander 参数，expectedUnits/expectedBuildings 来自 galaxy 静态分析。
+    跳过 id 为 "Random" 的条目（不直接可选）。
+    """
+    if not REBORN_COMMANDERS_JSON.exists():
+        print(f"[warn] reborn-commanders.json 不存在: {REBORN_COMMANDERS_JSON}")
+        return []
+    try:
+        data = json.loads(REBORN_COMMANDERS_JSON.read_text(encoding="utf-8"))
+        commanders = []
+        for cmd in data.get("commanders", []):
+            cmd_id = cmd.get("id", "")
+            if not cmd_id or cmd_id == "Random":
+                continue
+            race = cmd.get("race", "") or "Zerg"
+            runtime_id = f"{race}{cmd_id}"
+            display = cmd.get("display_name", "") or cmd_id
+            commanders.append({
+                "id": runtime_id,
+                "label": display,
+                "bank": cmd_id,
+                "portrait": get_commander_portrait(runtime_id),
+                "cachedImage": _resolve_cached_commander_image(runtime_id),
+                "race": race,
+                "group": "reborn",
+                "rebornName": cmd_id,
+                "expectedUnits": cmd.get("expected_units", []),
+                "expectedBuildings": cmd.get("expected_buildings", []),
+            })
+        commanders.sort(key=lambda c: ({"Terran": 0, "Zerg": 1, "Protoss": 2}.get(c["race"], 9), c["label"]))
+        return commanders
+    except Exception as exc:
+        print(f"[warn] 读取 reborn-commanders.json 失败: {exc}")
+        return []
 
 
 def load_commanders():
@@ -274,8 +315,11 @@ def load_commanders():
                     "group": _classify_commander(bank, runtime),
                 })
             if commanders:
+                # 追加 Reborn 指挥官（重生虫心），从 reborn-commanders.json 加载
+                reborn_cmdrs = load_reborn_commanders()
+                commanders.extend(reborn_cmdrs)
                 def sort_key(c):
-                    group_order = {"official": 0, "alenger": 1}
+                    group_order = {"official": 0, "alenger": 1, "reborn": 2}
                     race_order = {"Terran": 0, "Zerg": 1, "Protoss": 2, "": 3}
                     return (group_order.get(c["group"], 9), race_order.get(c["race"], 9), c["label"])
                 commanders.sort(key=sort_key)
@@ -865,6 +909,11 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         # ApiMinimal: 跳过 commander UI/setup 但调用 libCOOC_gf_CC_CustomStartupLaunch()
         # 推进 SC2 从 Launched → in_game。用于 CMRE Coop 地图在 API 模式下避免 UI 阻塞。
         api_minimal = bool(body.get("apiMinimal", False))
+        # 重生虫心指挥官：WebUI 透传 enableReborn + rebornCommander，
+        # launcher 据此追加 -EnableReborn -RebornCommander <Name> 加载 5 个 Reborn mod 并应用
+        # K5Kerrigan 替换逻辑。commander 形如 "ZergAbathur"，rebornCommander 为 "Abathur"。
+        enable_reborn = bool(body.get("enableReborn", False))
+        reborn_commander = body.get("rebornCommander", "") or ""
         # Buff 补丁：仅对原版 18 指挥官生效。WebUI Buff 面板透传字段：
         # - enableBuffPatch: bool，是否启用补丁
         # - buffs: ["P1","P2","P3"] 子集，编码为 bitmask (P1=1, P2=2, P3=4)
@@ -992,6 +1041,11 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             args.extend(["-ListenPort", str(listen_port)])
         if api_minimal:
             args.append("-ApiMinimal")
+        # 重生虫心参数透传：launcher 据此加载 5 个 Reborn mod 包并应用 K5Kerrigan 替换逻辑。
+        # reborn_commander 必须是 reborn-commanders.json 中的 id（如 "Abathur"）。
+        if enable_reborn and reborn_commander:
+            args.append("-EnableReborn")
+            args.extend(["-RebornCommander", reborn_commander])
         # Buff 补丁参数透传：launcher 据此写 bank 字段，galaxy 端读取后应用。
         if enable_buff_patch:
             args.append("-EnableBuffPatch")

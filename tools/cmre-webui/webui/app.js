@@ -77,6 +77,7 @@ const RACE_CONFIG = {
 const GROUP_LABELS = {
   official: "官方",
   alenger: "起义",
+  reborn: "重生",
 };
 
 function $(id) { return document.getElementById(id); }
@@ -854,6 +855,12 @@ async function launchGame() {
     voicePack: s.voicePack, extraMods: s.extraMods,
   };
   if (s.apiMode) { body.listenPort = s.listenPort; body.apiMinimal = true; }
+  // 重生虫心指挥官：透传 reborn 标志和指挥官名，server.py 据此追加 -EnableReborn -RebornCommander
+  const cmdrMeta = state.commanders.find(c => c.id === s.commander);
+  if (cmdrMeta && cmdrMeta.group === "reborn") {
+    body.enableReborn = true;
+    body.rebornCommander = cmdrMeta.rebornName || cmdrMeta.bank || "";
+  }
   // Buff 补丁：仅当启用且当前指挥官在原版 18 之列时透传
   if (s.buffPatch.enabled && getCurrentBuffCommander()) {
     body.enableBuffPatch = true;

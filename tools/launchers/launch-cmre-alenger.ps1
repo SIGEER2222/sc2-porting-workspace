@@ -39,7 +39,12 @@ $isAlengerCommander = $false
 # 需要通过 alengerIdToName 映射回命名键。
 $alengerId = ''
 $alengerNames = 'SteelWall|Behemoth|Empire|TalDarim|Abathur|Khalai|Zagara|Pirate|Amon|Community|Ranger|Purifier'
-if ($Commander -match "^(Terran|Zerg|Protoss)?($alengerNames)$") {
+# -EnableReborn 模式下若指定了 -RebornCommander，强制走 Reborn 路径（else 分支），
+# 避免 Alenger mod（如 ZagaraAlenger + ZagaraAlengerAdapter）与 Reborn mod 同时加载
+# 导致 catalog/galaxy 冲突卡死（实测 Zagara 走 Alenger 路径会 600s 超时无 ScriptError）。
+# 其他 Alenger commander（Abathur/Mengsk/Stukov 等）在 Reborn 模式下也应走 Reborn 路径，
+# 保持与 Reborn mod 的兼容性。
+if (-not ($EnableReborn -and $RebornCommander -ne "") -and $Commander -match "^(Terran|Zerg|Protoss)?($alengerNames)$") {
     $isAlengerCommander = $true
     $alengerId = $Matches[2]
     if ($alenger.commanderToAlenger.PSObject.Properties.Name -notcontains $alengerId) { throw "No on-demand package mapping for $Commander" }
@@ -57,10 +62,15 @@ if ($Commander -match "^(Terran|Zerg|Protoss)?($alengerNames)$") {
     if ($alenger.commanderToAlenger.PSObject.Properties.Name -notcontains $alengerId) { throw "No on-demand package mapping for $Commander (resolved: $alengerId)" }
 } else {
     $validOfficial = @('Raynor','Nova','Swann','Mengsk','Tychus','Kerrigan','Abathur','Stukov','Zagara','Stetmann','Dehaka','Artanis','Vorazun','Karax','Alarak','Fenix','Zeratul','Talandar','Horner','MiraHan','Han','Horu')
+    # Reborn 专属指挥官（不在原版 official 列表中），仅在 -EnableReborn 时接受
+    $validReborn = @('Izsha','Karass','Naktul','Narud','Tosh','Urun','Warfield')
     if ($Commander -match '^(Terran|Zerg|Protoss)([A-Za-z]+)$') {
         $cmdrName = $Matches[2]
         if ($validOfficial -contains $cmdrName) {
             $alengerId = $cmdrName
+        } elseif ($EnableReborn -and $validReborn -contains $cmdrName) {
+            $alengerId = $cmdrName
+            Write-Host "Reborn-specific commander accepted: $Commander"
         } else {
             throw "Commander must be a configured Alenger or official commander ID: $Commander"
         }
@@ -627,10 +637,14 @@ $marker
     PlayerModifyPropertyInt(1, c_playerPropVespene, c_playerPropOperSetTo, 10000);
     PlayerModifyPropertyInt(2, c_playerPropMinerals, c_playerPropOperSetTo, 10000);
     PlayerModifyPropertyInt(2, c_playerPropVespene, c_playerPropOperSetTo, 10000);
-    // 只对虫族玩家创建虫族建筑（Abathur/Dehaka/Izsha/Zagara/Naktul/Kerrigan）
-    // 非虫族指挥官（Raynor/Stukov/Mengsk/Tosh/Warfield/Narud/Karass/Urun/Zeratul）跳过
-    // galaxy 支持 && 短路求值，PlayerRace 返回 "Zerg"/"Terr"/"Prot"
-    if ((PlayerRace(1) == "Zerg") && (PlayerStartLocation(1) != null)) {
+    // 只对虫族指挥官创建虫族建筑（Abathur/Dehaka/Izsha/Kerrigan/Naktul/Stukov/Zagara）
+    // 非虫族指挥官（Raynor/Mengsk/Tosh/Warfield/Narud/Karass/Urun/Zeratul）跳过
+    // 早期版本用 PlayerRace(1) == "Zerg" 判断，但 Reborn 代码中只有 Raynor 调用了
+    // PlayerSetRace，其他指挥官的 PlayerRace 不可靠（Izsha 是 Zerg 但被误判为非 Zerg，
+    // 导致 hatchery=0）。改为根据 RebornCommander 字符串字面量判断（PowerShell 在
+    // 注入时会替换 $RebornCommander 为实际值，galaxy 编译时字符串比较直接得出结果）。
+    // PlayerStartLocation != null 用于防御 PlayerStartLocation 在库初始化阶段返回 null 的情况。
+    if ((("$RebornCommander" == "Abathur") || ("$RebornCommander" == "Dehaka") || ("$RebornCommander" == "Izsha") || ("$RebornCommander" == "Kerrigan") || ("$RebornCommander" == "Naktul") || ("$RebornCommander" == "Stukov") || ("$RebornCommander" == "Zagara")) && (PlayerStartLocation(1) != null)) {
         UnitCreate(1, "Hatchery", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), 0.0, 8.0), 270.0);
         UnitCreate(1, "SpawningPool", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), 5.0, 5.0), 270.0);
         UnitCreate(1, "RoachWarren", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), -5.0, 5.0), 270.0);
@@ -648,11 +662,26 @@ $marker
     BankValueSetFromInt(BankLastCreated(), "debug", "deep_debug_ran", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "abathur_upgrade_count", TechTreeUpgradeCount(1, "Abathur", c_techCountCompleteOnly));
     BankValueSetFromInt(BankLastCreated(), "debug", "k5kerrigan_p1_after_swarmsetup", UnitGroupCount(UnitGroup("K5Kerrigan", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
-    // WarPig 是 Reborn mod 中 K5Kerrigan 的替换目标单位（Raynor 指挥官 hero）
-    // 替换逻辑见 Lib48DF4533.galaxy line 5095-5096: 每只 K5Kerrigan → 2 只 WarPig
+    // 通用替换单位检测：覆盖所有 15 个 Reborn 指挥官的 K5Kerrigan 替换目标
+    // 信源：Lib48DF4533.galaxy CommanderStart_Func line 5016-5178
+    // 每个指挥官对应一种或多种替换单位，运行时只会有其中之一（或 Kerrigan 不替换）
     BankValueSetFromInt(BankLastCreated(), "debug", "warpig_p1_count", UnitGroupCount(UnitGroup("WarPig", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
     BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_p1_count", UnitGroupCount(UnitGroup("HunterKiller", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
     BankValueSetFromInt(BankLastCreated(), "debug", "hydraliskimpaler_p1_count", UnitGroupCount(UnitGroup("HydraliskImpaler", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    // 14 个未测指挥官的替换单位检测（2026-07-27 批量验证）
+    BankValueSetFromInt(BankLastCreated(), "debug", "primalhydralisk2_p1_count", UnitGroupCount(UnitGroup("PrimalHydralisk2", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "primaligniter_p1_count", UnitGroupCount(UnitGroup("PrimalIgniter", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "siqueen_p1_count", UnitGroupCount(UnitGroup("SIQueen", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "higharchontemplar_p1_count", UnitGroupCount(UnitGroup("HighArchonTemplar", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "queen_p1_count", UnitGroupCount(UnitGroup("Queen", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "revenantgun_p1_count", UnitGroupCount(UnitGroup("RevenantGun", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "infestedmarine_p1_count", UnitGroupCount(UnitGroup("InfestedMarine", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "witch_p1_count", UnitGroupCount(UnitGroup("Witch", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "huntress_p1_count", UnitGroupCount(UnitGroup("Huntress", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "grizzly_p1_count", UnitGroupCount(UnitGroup("Grizzly", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "mengskmarauder_p1_count", UnitGroupCount(UnitGroup("MengskMarauder", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "infestedabomination_p1_count", UnitGroupCount(UnitGroup("InfestedAbomination", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "stalkershakuras_p1_count", UnitGroupCount(UnitGroup("StalkerShakuras", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
     BankValueSetFromInt(BankLastCreated(), "debug", "zerg_p1_total_units", UnitGroupCount(UnitGroup(null, 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0), c_unitCountAlive));
     // 虫族建筑验证
     BankValueSetFromInt(BankLastCreated(), "debug", "hatchery_p1_count", UnitGroupCount(UnitGroup("Hatchery", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
@@ -1759,8 +1788,14 @@ try {
     Set-MapDependencies -MapPath $liveMap -Dependencies $dependencies
     $roundtrip = Test-DocumentDependencyRoundtrip -HeaderPath (Join-Path $liveMap "DocumentHeader") -InfoPath (Join-Path $liveMap "DocumentInfo")
     if (-not $roundtrip.Valid) { throw "Document dependency roundtrip failed: $($roundtrip.Errors -join '; ')" }
-    Set-CampaignXCorePrimaryCommander -SelectedCommanders @($Commander)
-    Set-CampaignXCoreTestRunId -RunId "CMREAlenger"
+    # CampaignXCore 银行映射仅覆盖官方/Alenger 指挥官；Reborn 专属指挥官（Izsha/Karass/
+    # Naktul/Narud/Tosh/Urun/Warfield）不在映射表中，跳过成就银行写入而非抛异常中断。
+    try {
+        Set-CampaignXCorePrimaryCommander -SelectedCommanders @($Commander)
+        Set-CampaignXCoreTestRunId -RunId "CMREAlenger"
+    } catch {
+        Write-Host "WARN: CampaignXCore mapping skipped for $Commander (non-fatal for Reborn commanders): $_"
+    }
     # Reborn 模式：预写 cryswarmcoop.SC2Bank，让重生虫心 mod 读取指定指挥官并自动执行 SwarmSetup。
     # 必须在 -EnableReborn 模式下使用，且 RebornCommander 必须是重生虫心支持的指挥官名称。
     if ($EnableReborn -and $RebornCommander -ne "") {
