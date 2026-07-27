@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch)
 $ErrorActionPreference = "Stop"
 # 模式校验：PlayerMode 和 DebugMode 互斥；DebugMode 自动启用 ApiMinimal 并要求 ListenPort
@@ -481,6 +481,14 @@ ${donUpdateBlock}
         libPortingObserver_gf_PublishAlengerCommandCardDump();
         Wait(1.0, c_timeReal);
         libPortingObserver_gf_PublishAlengerWorkerBuildDump();
+        Wait(1.0, c_timeReal);
+        // Generic per-player inventory probe (does not hardcode any commander-specific unit IDs).
+        // Outputs "player_N_inventory" bank keys listing every unit type + count on the map for player N.
+        // This is the primary evidence for verifying Reborn commander SwarmSetup actually produced
+        // the expected Reborn-specific units/buildings.
+        libPortingObserver_gf_PublishPlayerInventory(1);
+        Wait(1.0, c_timeReal);
+        libPortingObserver_gf_PublishPlayerInventory(2);
         Wait(7.0, c_timeReal);
     }
     return true;
@@ -1388,7 +1396,10 @@ try {
         # 普通模式：地图路径作为位置参数传给 Switcher，SC2 启动后自动加载地图
         $args = @("`"$liveMap`"")
         Start-Process -FilePath $switcher -ArgumentList $args -WorkingDirectory (Split-Path -Parent $switcher)
-        $exitCode = Wait-GameReady -ScriptsRoot (Join-Path $LegacyRoot "scripts")
+        # StartupGraceSeconds=120: SC2Switcher 启动 SC2_x64 需要 1-3 分钟（patch 检查、auth、模块加载）。
+        # 默认 0 会在 SC2 未启动 10 秒后误判 crash。之前 08:14 测试 SC2 启动快（10 秒内）所以通过，
+        # 但 Battle.net auth 慢或 patch 检查时会超过 10 秒导致误判。
+        $exitCode = Wait-GameReady -ScriptsRoot (Join-Path $LegacyRoot "scripts") -StartupGraceSeconds 120
         if ($exitCode -ne 0) { throw "SC2 readiness check failed with exit code $exitCode" }
     }
 } finally {
