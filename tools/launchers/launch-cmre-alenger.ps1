@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch)
 $ErrorActionPreference = "Stop"
 # 模式校验：PlayerMode 和 DebugMode 互斥；DebugMode 自动启用 ApiMinimal 并要求 ListenPort
@@ -298,6 +298,393 @@ function Enable-CmreSavedProfileStartup {
     }
     [System.IO.File]::WriteAllText($path, $content, [System.Text.UTF8Encoding]::new($false))
     Write-Host "CMRE saved-profile startup patch applied to map: $path"
+}
+
+function Patch-RebornK5KerriganSpawn {
+    <#
+    .SYNOPSIS
+      Patch Reborn mod 的 Lib48DF4533.galaxy，在 SwarmSetup 触发前为 coop_group 中
+      每个玩家创建临时 K5Kerrigan 英雄单位。
+    .DESCRIPTION
+      Reborn 的 CommanderStart 期望玩家已有 K5Kerrigan 单位（来自战役），会将其
+      替换为对应指挥官的特有单位（Abathur→HunterKiller, Raynor→WarPig x2, 等）。
+      但 CMRE/Empire 体系不创建 K5Kerrigan，导致替换逻辑跳过，无 Reborn 单位出现。
+      本函数在 SwarmSetup 触发点之前注入创建 K5Kerrigan 的 galaxy 代码。
+    #>
+    param([Parameter(Mandatory = $true)][string]$ModsRoot)
+
+    $libPath = Join-Path $ModsRoot "reborn\crys_the_swarm_reborn.SC2Mod\Base.SC2Data\Lib48DF4533.galaxy"
+    if (-not (Test-Path -LiteralPath $libPath)) {
+        Write-Host "Patch-RebornK5KerriganSpawn: Reborn mod not found, skipping (EnableReborn=$EnableReborn)"
+        return
+    }
+
+    # 读取字节并显式剥离可能的 UTF-8 BOM。早期版本的 patch 函数曾用 [System.Text.Encoding]::UTF8
+    # 写入（带 BOM），导致 galaxy 编译器报 "触发器库无法初始化：lib48DF4533_InitLib (无法找到函数)"。
+    # 现在改为字节级读写，确保任何情况下都不会写入 BOM。
+    $bytes = [System.IO.File]::ReadAllBytes($libPath)
+    if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+        Write-Host "Patch-RebornK5KerriganSpawn: stripping existing UTF-8 BOM (this was the root cause of lib48DF4533_InitLib compile failure)"
+        $bytes = $bytes[3..($bytes.Length - 1)]
+    }
+    $content = [System.Text.Encoding]::UTF8.GetString($bytes)
+
+    # 在 SwarmSetup_Func 中 CommanderStart 调用前注入 K5Kerrigan 创建代码。
+    # 不在 Initialization_Func 中注入，因为那可能导致库编译顺序问题。
+    $marker = '    TriggerExecute(lib48DF4533_gt_CommanderStart, false, false);'
+    if (-not $content.Contains($marker)) {
+        Write-Host "Patch-RebornK5KerriganSpawn: CommanderStart trigger marker not found, skipping"
+        return
+    }
+
+    # 检查是否已 patch（幂等）— 仅控制是否注入 K5Kerrigan 代码块，BOM 剥离总是执行。
+    $patchMarker = '// CMRE_PATCH_K5KERRIGAN_SPAWN'
+    $alreadyPatched = $content.Contains($patchMarker)
+
+    if (-not $alreadyPatched) {
+        # 在 SwarmSetup 触发前注入 K5Kerrigan 创建代码。
+        # 为 coop_group 中所有可能的玩家（P1 和 P14）创建 K5Kerrigan，让 CommanderStart
+        # 能为每个玩家替换出对应指挥官的特有单位。
+        # 使用 Point(0,0) 作为创建位置（地图原点），避免 PlayerStartLocation 在库初始化时不可用。
+        # Galaxy 注释必须用纯英文（ASCII），中文注释会导致编译器失败。
+        $injectBlock = @"
+    // CMRE_PATCH_K5KERRIGAN_SPAWN: create temp K5Kerrigan hero for each coop player
+    // so CommanderStart can find and replace it with commander-specific unit.
+    // P1 is always in coop_group; P14 is added when PlayerType(14)==c_playerTypeUser.
+    libNtve_gf_CreateUnitsWithDefaultFacing(1, "K5Kerrigan", 0, 1, Point(0.0, 0.0));
+    if ((PlayerType(14) == c_playerTypeUser)) {
+        libNtve_gf_CreateUnitsWithDefaultFacing(1, "K5Kerrigan", 0, 14, Point(0.0, 0.0));
+    }
+$marker
+"@
+        $content = $content.Replace($marker, $injectBlock)
+        Write-Host "Patch-RebornK5KerriganSpawn: injected K5Kerrigan spawn before SwarmSetup in Lib48DF4533.galaxy"
+    } else {
+        Write-Host "Patch-RebornK5KerriganSpawn: patch already applied, only ensuring BOM-less encoding"
+    }
+
+    # 写回时显式用 BOM-less UTF8 编码转换为字节，再用 WriteAllBytes 写入（绕过 WriteAllText
+    # 在某些 PowerShell 版本中可能默认带 BOM 的行为）。
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    $outBytes = $utf8NoBom.GetBytes($content)
+    [System.IO.File]::WriteAllBytes($libPath, $outBytes)
+}
+
+function Patch-RebornBankAuthorization {
+    <#
+    .SYNOPSIS
+      将 cryswarmcoop 银行加入地图的 BankList.xml，让 Reborn galaxy 代码能通过
+      BankLoad("cryswarmcoop", player) 读取预写的指挥官选择。
+    .DESCRIPTION
+      SC2 的 BankLoad 要求地图在 BankList.xml 中显式声明授权的银行名和玩家号。
+      CMRE 地图原本只授权 COCampaign/CMCoopLaunchProfile/CMCoopGameHistory/NeuroIntegration，
+      不包含 cryswarmcoop。Reborn 的 CommanderStart_Func 调用 BankLoad("cryswarmcoop", p)
+      时返回 null，导致 BankValueGetAsString 读取 Commander 值为空字符串，
+      所有指挥官分支（Abathur/Kerrigan/Zagara 等）都不匹配，K5Kerrigan 替换被跳过。
+      本函数在地图 BankList.xml 中追加 cryswarmcoop 的 Player=1 和 Player=2 授权。
+    #>
+    param([Parameter(Mandatory = $true)][string]$MapPath)
+
+    $bankListPath = Join-Path $MapPath "BankList.xml"
+    if (-not (Test-Path -LiteralPath $bankListPath)) {
+        Write-Host "Patch-RebornBankAuthorization: BankList.xml not found at $bankListPath, skipping"
+        return
+    }
+
+    # 字节级读取并剥离可能的 BOM
+    $bytes = [System.IO.File]::ReadAllBytes($bankListPath)
+    if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+        $bytes = $bytes[3..($bytes.Length - 1)]
+    }
+    $content = [System.Text.Encoding]::UTF8.GetString($bytes)
+
+    # 幂等检查：已包含 cryswarmcoop 则跳过 cryswarmcoop 注入（但仍可能需要注入 CMRERebornDebug）
+    $needCryswarmcoop = -not $content.Contains('Name="cryswarmcoop"')
+    $needDebugBank = -not $content.Contains('Name="CMRERebornDebug"')
+
+    if (-not $needCryswarmcoop -and -not $needDebugBank) {
+        Write-Host "Patch-RebornBankAuthorization: cryswarmcoop + CMRERebornDebug already authorized, skipping"
+        return
+    }
+
+    # 在 </BankList> 前追加授权
+    # Reborn galaxy 代码中 coop_group 包含 Player 1（始终）和 Player 14（当 PlayerType(14)==c_playerTypeUser）
+    # 同时也授权 Player 2 以兼容 CMRE 的 player slot 配置
+    $insertion = ''
+    if ($needCryswarmcoop) {
+        $insertion += '  <Bank Name="cryswarmcoop" Player="1" />' + "`r`n" +
+                      '  <Bank Name="cryswarmcoop" Player="2" />' + "`r`n" +
+                      '  <Bank Name="cryswarmcoop" Player="14" />' + "`r`n"
+    }
+    if ($needDebugBank) {
+        # CMRERebornDebug: 调试银行，用于在 galaxy 代码中写入运行时证据（K5Kerrigan 创建计数等）
+        $insertion += '  <Bank Name="CMRERebornDebug" Player="1" />' + "`r`n" +
+                      '  <Bank Name="CMRERebornDebug" Player="2" />' + "`r`n" +
+                      '  <Bank Name="CMRERebornDebug" Player="14" />' + "`r`n"
+    }
+    $closingTag = '</BankList>'
+    if (-not $content.Contains($closingTag)) {
+        Write-Host "Patch-RebornBankAuthorization: </BankList> closing tag not found, skipping"
+        return
+    }
+    $content = $content.Replace($closingTag, $insertion + $closingTag)
+
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    $outBytes = $utf8NoBom.GetBytes($content)
+    [System.IO.File]::WriteAllBytes($bankListPath, $outBytes)
+    $added = @()
+    if ($needCryswarmcoop) { $added += 'cryswarmcoop' }
+    if ($needDebugBank) { $added += 'CMRERebornDebug' }
+    Write-Host "Patch-RebornBankAuthorization: added $($added -join ', ') to BankList.xml"
+
+    # Pre-create empty CMRERebornDebug bank files so BankLoad succeeds on first run.
+    # SC2's BankLoad returns null if the bank file doesn't exist on disk, even when authorized in BankList.xml.
+    $banksRoot = Join-Path $env:USERPROFILE "Documents\StarCraft II\Banks"
+    $debugBankXml = '<?xml version="1.0" encoding="utf-8"?>' + "`r`n" + '<Bank version="1">' + "`r`n" + '</Bank>'
+    $debugBankBytes = $utf8NoBom.GetBytes($debugBankXml)
+    foreach ($p in @('', '1', '14')) {
+        $dir = Join-Path $banksRoot $p
+        [System.IO.Directory]::CreateDirectory($dir) | Out-Null
+        $bankFile = Join-Path $dir 'CMRERebornDebug.SC2Bank'
+        if (-not (Test-Path -LiteralPath $bankFile)) {
+            [System.IO.File]::WriteAllBytes($bankFile, $debugBankBytes)
+            Write-Host "Patch-RebornBankAuthorization: pre-created empty CMRERebornDebug.SC2Bank at $bankFile"
+        }
+    }
+}
+
+function Patch-RebornLibraryInit {
+    <#
+    .SYNOPSIS
+      将 Reborn galaxy 库及其依赖复制到地图目录，并在 MapScript.galaxy 中注入
+      include 与 InitLib 调用，让 Reborn 的 Lib48DF4533 库在地图加载时被初始化。
+    .DESCRIPTION
+      根本原因：MapScript.galaxy 的 InitLibs() 没有调用 lib48DF4533_InitLib()，
+      所以 Reborn 整个 galaxy 库（含 CommanderStart/SwarmSetup/16 个指挥官子触发器）
+      从未执行，K5Kerrigan 创建和单位替换都不生效。
+
+      Lib48DF4533.galaxy include 了：
+        - TriggerLibs/NativeLib      (core.sc2mod, 已自动加载)
+        - TriggerLibs/LibertyLib     (liberty.sc2mod, 已自动加载)
+        - TriggerLibs/SwarmCampaignLib (SwarmStory.SC2Campaign, 需复制)
+        - Lib281DEC45                (swarmstoryutil.sc2mod, 需复制)
+        - Lib114935F5                (sibirens_sundries_swarm_reborn.SC2Mod, 已通过 DocumentInfo 依赖加载)
+        - Lib48DF4533_h              (自身头文件)
+
+      SwarmCampaignLib.galaxy 又 include 了：
+        - TriggerLibs/SwarmLib       (swarm.sc2mod, 已自动加载)
+        - TriggerLibs/SwarmCampaignLib_h
+
+      所以需要复制的文件：
+        地图 Base.SC2Data/ 目录:
+          - Lib48DF4533.galaxy, Lib48DF4533_h.galaxy  (来自 reborn mod)
+          - Lib281DEC45.galaxy, Lib281DEC45_h.galaxy  (来自 swarmstoryutil.sc2mod)
+        地图 Base.SC2Data/TriggerLibs/ 目录:
+          - SwarmCampaignLib.galaxy, SwarmCampaignLib_h.galaxy  (来自 SwarmStory.SC2Campaign)
+
+      然后在 MapScript.galaxy 中注入：
+        include "Lib48DF4533"        (在 include 块中)
+        lib48DF4533_InitLib();       (在 InitLibs() 末尾)
+    #>
+    param(
+        [Parameter(Mandatory = $true)][string]$Sc2Root,
+        [Parameter(Mandatory = $true)][string]$MapPath
+    )
+
+    $baseData = Join-Path $MapPath "Base.SC2Data"
+    if (-not (Test-Path -LiteralPath $baseData)) { throw "Map Base.SC2Data not found: $baseData" }
+
+    # === 1. 复制 Lib48DF4533 + Lib281DEC45 到地图 Base.SC2Data 根目录 ===
+    $rebornModLib = Join-Path $Sc2Root "Mods\reborn\crys_the_swarm_reborn.SC2Mod\Base.SC2Data"
+    $swarmStoryUtilLib = Join-Path $Sc2Root "Campaigns\swarmstoryutil.sc2mod\base.sc2data"
+    $filesToRoot = @(
+        @{ Src = Join-Path $rebornModLib "Lib48DF4533.galaxy";     Dst = "Lib48DF4533.galaxy" },
+        @{ Src = Join-Path $rebornModLib "Lib48DF4533_h.galaxy";   Dst = "Lib48DF4533_h.galaxy" },
+        @{ Src = Join-Path $swarmStoryUtilLib "Lib281DEC45.galaxy";   Dst = "Lib281DEC45.galaxy" },
+        @{ Src = Join-Path $swarmStoryUtilLib "Lib281DEC45_h.galaxy"; Dst = "Lib281DEC45_h.galaxy" }
+    )
+    foreach ($f in $filesToRoot) {
+        if (-not (Test-Path -LiteralPath $f.Src)) { throw "Patch-RebornLibraryInit: source not found: $($f.Src)" }
+        [System.IO.File]::Copy($f.Src, (Join-Path $baseData $f.Dst), $true)
+    }
+    Write-Host "Patch-RebornLibraryInit: copied $($filesToRoot.Count) lib files to Base.SC2Data"
+
+    # === 2. 复制 SwarmCampaignLib 到地图 Base.SC2Data/TriggerLibs/ ===
+    $triggerLibsDir = Join-Path $baseData "TriggerLibs"
+    [System.IO.Directory]::CreateDirectory($triggerLibsDir) | Out-Null
+    $swarmStoryLib = Join-Path $Sc2Root "Campaigns\SwarmStory.SC2Campaign\base.sc2data\TriggerLibs"
+    $filesToTriggerLibs = @(
+        @{ Src = Join-Path $swarmStoryLib "SwarmCampaignLib.galaxy";   Dst = "SwarmCampaignLib.galaxy" },
+        @{ Src = Join-Path $swarmStoryLib "SwarmCampaignLib_h.galaxy"; Dst = "SwarmCampaignLib_h.galaxy" }
+    )
+    foreach ($f in $filesToTriggerLibs) {
+        if (-not (Test-Path -LiteralPath $f.Src)) { throw "Patch-RebornLibraryInit: source not found: $($f.Src)" }
+        [System.IO.File]::Copy($f.Src, (Join-Path $triggerLibsDir $f.Dst), $true)
+    }
+    Write-Host "Patch-RebornLibraryInit: copied $($filesToTriggerLibs.Count) lib files to Base.SC2Data/TriggerLibs"
+
+    # === 3. 重新应用 K5Kerrigan spawn patch（因为刚复制的 Lib48DF4533.galaxy 是未 patch 的原始版本）===
+    # 注意：Patch-RebornK5KerriganSpawn 修改的是 mod 源文件（Mods/reborn/.../Lib48DF4533.galaxy），
+    # 但我们刚把原始文件复制到了地图目录。所以需要在地图副本上重新应用 K5Kerrigan spawn patch。
+    $libPath = Join-Path $baseData "Lib48DF4533.galaxy"
+    $bytes = [System.IO.File]::ReadAllBytes($libPath)
+    if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+        $bytes = $bytes[3..($bytes.Length - 1)]
+    }
+    $content = [System.Text.Encoding]::UTF8.GetString($bytes)
+
+    $marker = '    TriggerExecute(lib48DF4533_gt_CommanderStart, false, false);'
+    if (-not $content.Contains($marker)) {
+        throw "Patch-RebornLibraryInit: CommanderStart trigger marker not found in map copy of Lib48DF4533.galaxy"
+    }
+
+    # Strip any existing CMRE_PATCH_K5KERRIGAN_SPAWN block (V1 or any version) to ensure idempotent re-patch.
+    # The regex matches the patch marker comment block plus the K5Kerrigan creation lines, preserving the
+    # original TriggerExecute marker line so we can re-inject cleanly.
+    $oldPatchPattern = '(?ms)    // CMRE_PATCH_K5KERRIGAN_SPAWN[^\r\n]*\r?\n.*?libNtve_gf_CreateUnitsWithDefaultFacing\(1, "K5Kerrigan".*?\}\r?\n'
+    $strippedCount = ([regex]::Matches($content, $oldPatchPattern)).Count
+    if ($strippedCount -gt 0) {
+        $content = [regex]::Replace($content, $oldPatchPattern, '')
+        Write-Host "Patch-RebornLibraryInit: stripped $strippedCount old K5Kerrigan patch block(s) before re-applying"
+    }
+
+    # V2 patch: use PlayerStartLocation instead of Point(0,0).
+    # Root cause: Point(0.0, 0.0) is outside the playable map area on most coop maps (including Dead of Night),
+    # so libNtve_gf_CreateUnitsWithDefaultFacing silently fails to create K5Kerrigan. CommanderStart then finds
+    # zero K5Kerrigan units and the replacement loop (Abathur→HunterKiller, Raynor→WarPig, etc.) is skipped.
+    # PlayerStartLocation(1) returns the player's start point which is always inside the playable area.
+    # Also write a debug bank entry so we can verify from runtime evidence that the patch actually executed.
+    $injectBlock = @"
+    // CMRE_PATCH_K5KERRIGAN_SPAWN_V2: create temp K5Kerrigan hero at player start location
+    // (Point(0,0) is outside playable area on most coop maps, causing silent creation failure).
+    // Also write debug bank entry to verify patch execution from runtime evidence.
+    libNtve_gf_CreateUnitsWithDefaultFacing(1, "K5Kerrigan", 0, 1, PlayerStartLocation(1));
+    if ((PlayerType(14) == c_playerTypeUser)) {
+        libNtve_gf_CreateUnitsWithDefaultFacing(1, "K5Kerrigan", 0, 14, PlayerStartLocation(14));
+    }
+    BankLoad("CMRERebornDebug", 1);
+    BankValueSetFromInt(BankLastCreated(), "debug", "k5kerrigan_patch_ran", 1);
+    BankValueSetFromInt(BankLastCreated(), "debug", "k5kerrigan_p1_count", UnitGroupCount(UnitGroup("K5Kerrigan", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankSave(BankLastCreated());
+$marker
+"@
+    $content = $content.Replace($marker, $injectBlock)
+    Write-Host "Patch-RebornLibraryInit: injected V2 K5Kerrigan spawn (PlayerStartLocation + debug bank) into map copy of Lib48DF4533.galaxy"
+
+    # === 3b. 在 lib48DF4533_InitLib() 末尾注入 SwarmSetup 直接触发 ===
+    # 根因：lib48DF4533_gt_Initialization_Func 中有两处 Wait(1.0, c_timeGame)（行 4620/4684），
+    # 若游戏处于 pause 状态（CMRE 框架 GameSetMissionTimePaused(true)），Wait 永不返回，
+    # 导致 Initialization_Func 永远执行不到 TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false)。
+    # 结果：K5Kerrigan spawn + CommanderStart 替换逻辑（Abathur→HunterKiller 等）从未执行。
+    # 修复：在 lib48DF4533_InitLib() 末尾（lib48DF4533_InitTriggers() 之后）直接异步触发 SwarmSetup。
+    # 此时 SwarmSetup trigger 已通过 InitTriggers() 创建，TriggerExecute 不会阻塞 InitLib。
+    # 幂等性：SwarmSetup_Func 末尾有 TriggerEnable(TriggerGetCurrent(), false)，重复触发会被跳过。
+    $initLibMarker = '    lib48DF4533_InitTriggers();'
+    $initLibMarkerCount = ([regex]::Matches($content, [regex]::Escape($initLibMarker))).Count
+    if ($initLibMarkerCount -eq 0) {
+        throw "Patch-RebornLibraryInit: lib48DF4533_InitTriggers() marker not found in Lib48DF4533.galaxy"
+    }
+    # 检查是否已注入（幂等）
+    $initLibInjectMarker = '// CMRE_PATCH_SWARMSETUP_DIRECT_TRIGGER'
+    if (-not $content.Contains($initLibInjectMarker)) {
+        $initLibInjectBlock = @"
+    $initLibInjectMarker
+    // 直接异步触发 SwarmSetup，绕过 Initialization_Func 中的 Wait 卡死问题。
+    // SwarmSetup 会执行 K5Kerrigan spawn + CommanderStart（指挥官单位替换）+ UnitUnlocks。
+    // 同时在此直接创建 K5Kerrigan + 写 debug bank，作为 SwarmSetup 是否执行的独立验证。
+    // 如果 SwarmSetup 因 trigger 队列问题未执行，这里创建的 K5Kerrigan 仍能被后续
+    // CommanderStart（若被触发）替换为指挥官专属单位。
+    libNtve_gf_CreateUnitsWithDefaultFacing(1, "K5Kerrigan", 0, 1, PlayerStartLocation(1));
+    if ((PlayerType(14) == c_playerTypeUser)) {
+        libNtve_gf_CreateUnitsWithDefaultFacing(1, "K5Kerrigan", 0, 14, PlayerStartLocation(14));
+    }
+    BankLoad("CMRERebornDebug", 1);
+    BankValueSetFromInt(BankLastCreated(), "debug", "initlib_patch_ran", 1);
+    BankValueSetFromInt(BankLastCreated(), "debug", "initlib_k5kerrigan_p1_count", UnitGroupCount(UnitGroup("K5Kerrigan", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankSave(BankLastCreated());
+    TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);
+"@
+        # 只替换最后一次出现的 initLibMarker（即 InitLib 函数中的那个，不是 InitTriggers 函数定义）
+        $content = [regex]::Replace($content, [regex]::Escape($initLibMarker) + '\s*\r?\n}', $initLibMarker + "`r`n" + $initLibInjectBlock + "`r`n}")
+        Write-Host "Patch-RebornLibraryInit: injected direct K5Kerrigan spawn + SwarmSetup trigger into lib48DF4533_InitLib()"
+    } else {
+        Write-Host "Patch-RebornLibraryInit: direct SwarmSetup trigger already injected, skipping"
+    }
+
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    $outBytes = $utf8NoBom.GetBytes($content)
+    [System.IO.File]::WriteAllBytes($libPath, $outBytes)
+
+    # === 4. 在 MapScript.galaxy 中注入 include "Lib48DF4533" 和 lib48DF4533_InitLib() ===
+    $mapScriptPath = Join-Path $MapPath "MapScript.galaxy"
+    if (-not (Test-Path -LiteralPath $mapScriptPath)) { throw "Patch-RebornLibraryInit: MapScript.galaxy not found: $mapScriptPath" }
+    $mapBytes = [System.IO.File]::ReadAllBytes($mapScriptPath)
+    if ($mapBytes.Length -ge 3 -and $mapBytes[0] -eq 0xEF -and $mapBytes[1] -eq 0xBB -and $mapBytes[2] -eq 0xBF) {
+        $mapBytes = $mapBytes[3..($mapBytes.Length - 1)]
+    }
+    $mapScript = [System.Text.Encoding]::UTF8.GetString($mapBytes)
+
+    # 注入 include "Lib281DEC45" 和 "Lib48DF4533"（在最后一个 include 之后）
+    # 根因：之前正则 (?m)^include "[^"]+"[^\r\n]*$ 未匹配到现有 include 块，导致 include "Lib48DF4533"
+    # 被错误地插入到文件开头（第 1 行），而 NativeLib/LibertyLib/SwarmLib 在第 9-11 行才 include。
+    # Galaxy 编译器按 include 顺序解析符号，Lib48DF4533 在 NativeLib 之前 include 会导致
+    # libNtve_InitVariables() 等调用因 NativeLib 尚未声明而编译失败，整个 Lib48DF4533 库被跳过。
+    # 同时 Lib48DF4533 依赖 Lib281DEC45（swarmstoryutil），也必须先 include Lib281DEC45。
+    # 修复：先剥离任何已注入的 include "Lib48DF4533" / "Lib281DEC45"，然后统一在最后一个
+    # 现有 include 之后按正确顺序插入 include "Lib281DEC45" 和 include "Lib48DF4533"。
+    $mapScript = [regex]::Replace($mapScript, '(?m)^include "Lib48DF4533"\s*\r?\n', '')
+    $mapScript = [regex]::Replace($mapScript, '(?m)^include "Lib281DEC45"\s*\r?\n', '')
+    if (-not ($mapScript -match '(?m)^include "Lib48DF4533"')) {
+        $includeMatches = [regex]::Matches($mapScript, '(?m)^[ \t]*include "[^"]+"[^\r\n]*')
+        if ($includeMatches.Count -gt 0) {
+            $lastInclude = $includeMatches[$includeMatches.Count - 1]
+            $insertPos = $lastInclude.Index + $lastInclude.Length
+            $newIncludes = "`r`n" + 'include "Lib281DEC45"' + "`r`n" + 'include "Lib48DF4533"'
+            $mapScript = $mapScript.Substring(0, $insertPos) + $newIncludes + $mapScript.Substring($insertPos)
+            Write-Host "Patch-RebornLibraryInit: injected include ""Lib281DEC45"" + ""Lib48DF4533"" after last existing include"
+        } else {
+            # 罕见：地图没有 include 语句，在文件开头插入
+            $mapScript = 'include "Lib281DEC45"' + "`r`n" + 'include "Lib48DF4533"' + "`r`n" + $mapScript
+            Write-Host "Patch-RebornLibraryInit: no existing include found, prepended Lib281DEC45 + Lib48DF4533 at file start"
+        }
+    }
+
+    # 注入 lib281DEC45_InitLib() 和 lib48DF4533_InitLib() 到 InitLibs() 末尾
+    # 顺序：lib281DEC45_InitLib() 必须在 lib48DF4533_InitLib() 之前（依赖关系）
+    if (-not ($mapScript -match 'lib48DF4533_InitLib\s*\(\s*\)')) {
+        $initLibsPattern = '(?s)void InitLibs \(\) \{(.*?)\}'
+        $initLibsMatch = [regex]::Match($mapScript, $initLibsPattern)
+        if (-not $initLibsMatch.Success) {
+            throw "Patch-RebornLibraryInit: InitLibs() function not found in MapScript.galaxy"
+        }
+        $initLibsBody = $initLibsMatch.Groups[1].Value
+        $initCalls = [regex]::Matches($initLibsBody, '(?m)^    lib\w+_InitLib\(\);[^\r\n]*')
+        if ($initCalls.Count -gt 0) {
+            $lastCall = $initCalls[$initCalls.Count - 1]
+            $absStart = $initLibsMatch.Groups[1].Index + $lastCall.Index
+            $absEnd = $absStart + $lastCall.Length
+            $newCall = $lastCall.Value + "`r`n    lib281DEC45_InitLib();" + "`r`n    lib48DF4533_InitLib();"
+            $mapScript = $mapScript.Substring(0, $absStart) + $newCall + $mapScript.Substring($absEnd)
+            Write-Host "Patch-RebornLibraryInit: injected lib281DEC45_InitLib() + lib48DF4533_InitLib() into InitLibs()"
+        } else {
+            # fallback: 直接在 InitLibs 的 } 前插入
+            $closingBrace = $initLibsMatch.Value.LastIndexOf('}')
+            if ($closingBrace -le 0) {
+                throw "Patch-RebornLibraryInit: InitLibs() closing brace not found"
+            }
+            $absPos = $initLibsMatch.Index + $closingBrace
+            $mapScript = $mapScript.Substring(0, $absPos) + "    lib281DEC45_InitLib();" + "`r`n    lib48DF4533_InitLib();" + "`r`n" + $mapScript.Substring($absPos)
+            Write-Host "Patch-RebornLibraryInit: injected lib281DEC45_InitLib() + lib48DF4533_InitLib() before InitLibs closing brace"
+        }
+    } elseif (-not ($mapScript -match 'lib281DEC45_InitLib\s*\(\s*\)')) {
+        # lib48DF4533_InitLib 已注入但 lib281DEC45_InitLib 缺失，补上
+        $mapScript = $mapScript -replace '(    lib48DF4533_InitLib\(\);)', '    lib281DEC45_InitLib();' + "`r`n" + '$1'
+        Write-Host "Patch-RebornLibraryInit: added missing lib281DEC45_InitLib() before lib48DF4533_InitLib()"
+    }
+
+    $mapOutBytes = $utf8NoBom.GetBytes($mapScript)
+    [System.IO.File]::WriteAllBytes($mapScriptPath, $mapOutBytes)
+    Write-Host "Patch-RebornLibraryInit: MapScript.galaxy patched successfully"
 }
 
 function Install-CmreGalaxyHostOverlay {
@@ -1059,9 +1446,25 @@ function Set-RebornCommander {
         $doc.Bank.AppendChild($secMap) | Out-Null
     }
     $settings = [System.Xml.XmlWriterSettings]::new(); $settings.Indent = $true; $settings.Encoding = [System.Text.UTF8Encoding]::new($false)
-    $writer = [System.Xml.XmlWriter]::Create((Join-Path $banksRoot "cryswarmcoop.SC2Bank"), $settings)
-    try { $doc.Save($writer) } finally { $writer.Dispose() }
-    Write-Host "cryswarmcoop 银行已写入: Commander=$Commander, Difficulty=$Difficulty, Speed=$Speed, UnlockAllMaps=$([bool]$UnlockAllMaps)"
+    # SC2 银行路径规则：Banks\<PlayerID>\<BankName>.SC2Bank（PlayerID 子目录优先），
+    # 部分历史版本也接受 Banks\<BankName>.SC2Bank（根目录）。
+    # 为兼容两种路径，同时写入根目录、Banks\1\（P1）、Banks\14\（P14）三个位置。
+    # Reborn 的 coop_group 同时包含 P1 和 P14（当 P14 是 user 玩家时），
+    # CommanderStart_Func 会为每个玩家 BankLoad("cryswarmcoop", playerId) 并读取 Commander 值。
+    # 注意：必须用 string 类型写入 Commander 值，因为 Reborn 用 BankValueGetAsString 读取，
+    # 旧版 text 类型会被读取为空字符串。
+    $bankTargets = @(
+        (Join-Path $banksRoot "cryswarmcoop.SC2Bank"),
+        (Join-Path $banksRoot "1\cryswarmcoop.SC2Bank"),
+        (Join-Path $banksRoot "14\cryswarmcoop.SC2Bank")
+    )
+    foreach ($bankPath in $bankTargets) {
+        $parentDir = Split-Path -Parent $bankPath
+        if ($parentDir -and -not (Test-Path $parentDir)) { [System.IO.Directory]::CreateDirectory($parentDir) | Out-Null }
+        $writer = [System.Xml.XmlWriter]::Create($bankPath, $settings)
+        try { $doc.Save($writer) } finally { $writer.Dispose() }
+    }
+    Write-Host "cryswarmcoop 银行已写入: Commander=$Commander, Difficulty=$Difficulty, Speed=$Speed, UnlockAllMaps=$([bool]$UnlockAllMaps) (root + P1 + P14)"
 }
 
 $lock = Acquire-TestLock -TestType "cmre_alenger" -MapName $MapName -Commander $Commander
@@ -1248,6 +1651,16 @@ try {
     # 且实际崩溃根因是 -listen 与地图路径互斥，与 NeuroIntegration 注入无关。
     Install-CmreDynamicObserver -MapPath $liveMap
     Patch-CmreCoreRuntimeErrors -MapPath $liveMap
+    # Reborn 模式：三层 patch 确保 Reborn galaxy 库能被初始化并执行指挥官替换逻辑。
+    # 1. Patch-RebornK5KerriganSpawn: 修改 mod 源文件，注入 K5Kerrigan 创建代码（保留用于源同步）
+    # 2. Patch-RebornBankAuthorization: 授权地图 BankList.xml 加载 cryswarmcoop 银行
+    # 3. Patch-RebornLibraryInit: 复制 Reborn 依赖的 galaxy 库到地图目录，并在 MapScript.galaxy
+    #    中注入 include "Lib48DF4533" 和 lib48DF4533_InitLib() 调用（根本修复）
+    if ($EnableReborn) {
+        Patch-RebornK5KerriganSpawn -ModsRoot (Join-Path $Sc2Root "Mods")
+        Patch-RebornBankAuthorization -MapPath $liveMap
+        Patch-RebornLibraryInit -Sc2Root $Sc2Root -MapPath $liveMap
+    }
     Set-MapDependencies -MapPath $liveMap -Dependencies $dependencies
     $roundtrip = Test-DocumentDependencyRoundtrip -HeaderPath (Join-Path $liveMap "DocumentHeader") -InfoPath (Join-Path $liveMap "DocumentInfo")
     if (-not $roundtrip.Valid) { throw "Document dependency roundtrip failed: $($roundtrip.Errors -join '; ')" }
