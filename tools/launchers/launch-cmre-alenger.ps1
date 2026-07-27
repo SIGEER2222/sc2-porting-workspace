@@ -627,8 +627,10 @@ $marker
     PlayerModifyPropertyInt(1, c_playerPropVespene, c_playerPropOperSetTo, 10000);
     PlayerModifyPropertyInt(2, c_playerPropMinerals, c_playerPropOperSetTo, 10000);
     PlayerModifyPropertyInt(2, c_playerPropVespene, c_playerPropOperSetTo, 10000);
-    // 创建虫族建筑体系（用 c_unitCreateIgnorePlacement 忽略 creep 限制）
-    if (PlayerStartLocation(1) != null) {
+    // 只对虫族玩家创建虫族建筑（Abathur/Dehaka/Izsha/Zagara/Naktul/Kerrigan）
+    // 非虫族指挥官（Raynor/Stukov/Mengsk/Tosh/Warfield/Narud/Karass/Urun/Zeratul）跳过
+    // galaxy 支持 && 短路求值，PlayerRace 返回 "Zerg"/"Terr"/"Prot"
+    if ((PlayerRace(1) == "Zerg") && (PlayerStartLocation(1) != null)) {
         UnitCreate(1, "Hatchery", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), 0.0, 8.0), 270.0);
         UnitCreate(1, "SpawningPool", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), 5.0, 5.0), 270.0);
         UnitCreate(1, "RoachWarren", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), -5.0, 5.0), 270.0);
@@ -646,6 +648,9 @@ $marker
     BankValueSetFromInt(BankLastCreated(), "debug", "deep_debug_ran", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "abathur_upgrade_count", TechTreeUpgradeCount(1, "Abathur", c_techCountCompleteOnly));
     BankValueSetFromInt(BankLastCreated(), "debug", "k5kerrigan_p1_after_swarmsetup", UnitGroupCount(UnitGroup("K5Kerrigan", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    // WarPig 是 Reborn mod 中 K5Kerrigan 的替换目标单位（Raynor 指挥官 hero）
+    // 替换逻辑见 Lib48DF4533.galaxy line 5095-5096: 每只 K5Kerrigan → 2 只 WarPig
+    BankValueSetFromInt(BankLastCreated(), "debug", "warpig_p1_count", UnitGroupCount(UnitGroup("WarPig", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
     BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_p1_count", UnitGroupCount(UnitGroup("HunterKiller", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
     BankValueSetFromInt(BankLastCreated(), "debug", "hydraliskimpaler_p1_count", UnitGroupCount(UnitGroup("HydraliskImpaler", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
     BankValueSetFromInt(BankLastCreated(), "debug", "zerg_p1_total_units", UnitGroupCount(UnitGroup(null, 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0), c_unitCountAlive));

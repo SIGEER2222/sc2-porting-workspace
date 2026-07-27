@@ -516,3 +516,135 @@ if (UnitAbilityExists(UnitGroupUnitFromEnd(...), "HydraliskBroodlings")) {
 | 单位完整性 | ❌（之前不全）| 28 个单位（含工蜂/建筑/生产的单位）| ✅ **大幅改善** |
 
 **核心结论**：Abathur 的核心机制（单位技能购买升级 + 虫族建筑体系 + 单位生产）已在运行时验证通过。之前认为"单位不全"的根因（建筑体系不匹配）已通过 patch 创建虫族建筑解决。
+
+## 7. Raynor 运行时验证（WarPig 替换链路）
+
+### 7.1 背景
+
+Abathur 验证通过后，发现 launcher patch 中的 Zerg 建筑创建逻辑是无条件的，会对所有指挥官（包括非虫族 Raynor/Stukov/Mengsk 等）创建 Hatchery/SpawningPool 等 Zerg 建筑，导致种族不匹配。
+
+需要验证：
+1. 条件建筑 patch 修复后，Raynor（Terran）不再创建 Zerg 建筑
+2. K5Kerrigan → WarPig 替换链路在 Raynor 指挥官下运行时实证
+
+### 7.2 patch 修复
+
+**问题**：`launch-cmre-alenger.ps1` 的 `deep_debug` block 中无条件创建 Zerg 建筑体系：
+
+```powershell
+// 修复前：对所有指挥官创建 Zerg 建筑
+if (PlayerStartLocation(1) != null) {
+    UnitCreate(1, "Hatchery", ...);
+    ...
+}
+```
+
+**修复**：添加 `PlayerRace(1) == "Zerg"` 条件检查，只对虫族指挥官创建 Zerg 建筑：
+
+```powershell
+// 修复后：只对虫族玩家创建虫族建筑
+// galaxy 支持 && 短路求值，PlayerRace 返回 "Zerg"/"Terr"/"Prot"
+if ((PlayerRace(1) == "Zerg") && (PlayerStartLocation(1) != null)) {
+    UnitCreate(1, "Hatchery", ...);
+    ...
+}
+```
+
+**Galaxy 语法坑**：最初使用 `StringEqual(PlayerRace(1), "Zerg") == true` 触发编译错误 `错误的参数集数`，改为直接字符串比较 `PlayerRace(1) == "Zerg"` 后通过。
+
+**信源**：[launch-cmre-alenger.ps1#L630-L646](file:///e:/Code/MyMod/SC2VibeTools/sc2-porting-workspace/tools/launchers/launch-cmre-alenger.ps1#L630-L646)
+
+### 7.3 WarPig 检测增强
+
+为运行时实证 K5Kerrigan → WarPig 替换链路，在 `deep_debug` block 中添加 `warpig_p1_count` 检测：
+
+```c
+// WarPig 是 Reborn mod 中 K5Kerrigan 的替换目标单位（Raynor 指挥官 hero）
+// 替换逻辑见 Lib48DF4533.galaxy line 5095-5096: 每只 K5Kerrigan → 2 只 WarPig
+BankValueSetFromInt(BankLastCreated(), "debug", "warpig_p1_count",
+    UnitGroupCount(UnitGroup("WarPig", 1, RegionEntireMap(), ...), c_unitCountAlive));
+```
+
+**替换逻辑信源**：[Lib48DF4533.galaxy#L5092-L5098](file:///e:/Code/MyMod/SC2VibeTools/cmre-runtime/Mods/reborn/crys_the_swarm_reborn.SC2Mod/Base.SC2Data/Lib48DF4533.galaxy#L5092-L5098)
+
+```c
+for (;; auto11749A81_u -= 1) {
+    auto11749A81_var = UnitGroupUnitFromEnd(auto11749A81_g, auto11749A81_u);
+    if (auto11749A81_var == null) { break; }
+    libNtve_gf_CreateUnitsWithDefaultFacing(1, "WarPig", 0, auto4B26A745_var, UnitGetPosition(auto11749A81_var));
+    libNtve_gf_CreateUnitsWithDefaultFacing(1, "WarPig", 0, auto4B26A745_var, UnitGetPosition(auto11749A81_var));
+    UnitRemove(auto11749A81_var);
+}
+```
+
+### 7.4 运行时银行数据（Raynor 测试）
+
+**测试参数**：`-MapName '亡者之夜.SC2Map' -Commander 'TerranRaynor' -EnableReborn -RebornCommander 'Raynor'`
+
+**信源**：[CMRERebornDebug.SC2Bank.20260727-raynor-warpig-verified](file:///e:/Code/MyMod/SC2VibeTools/sc2-porting-workspace/src/projects/reborn-mods-cmre-integration/stages/03-mvp-feasible/evidence/CMRERebornDebug.SC2Bank.20260727-raynor-warpig-verified)
+
+| 银行 Key | Raynor 值 | Abathur 值（对照） | 说明 | 状态 |
+|----------|----------|-------------------|------|------|
+| `initlib_k5kerrigan_p1_count` | 1 | 1 | initlib 阶段创建 1 个 K5Kerrigan | ✅ 一致 |
+| `k5kerrigan_p1_after_swarmsetup` | **0** | 0 | SwarmSetup 后 K5Kerrigan 被替换 | ✅ 替换执行 |
+| `warpig_p1_count` | **1** | 0 | **WarPig 存在**（Raynor 特有）| ✅ **新验证** |
+| `hatchery_p1_count` | **0** | 1 | Raynor 不创建 Hatchery（条件 patch 生效）| ✅ **新验证** |
+| `spawningpool_p1_count` | **0** | 1 | Raynor 不创建 SpawningPool | ✅ **新验证** |
+| `roachwarren_p1_count` | **0** | 1 | Raynor 不创建 RoachWarren | ✅ **新验证** |
+| `hydraliskden_p1_count` | **0** | 1 | Raynor 不创建 HydraliskDen | ✅ **新验证** |
+| `drone_p1_count` | **0** | 1 | Raynor 不创建 Drone | ✅ **新验证** |
+| `hunterkiller_p1_count` | 0 | 1 | Raynor 不替换为 HunterKiller | ✅ 一致 |
+| `hydraliskimpaler_p1_count` | 0 | 1 | Raynor 不创建 HydraliskImpaler | ✅ 一致 |
+| `hunterkiller_has_broodlings` | 0 | 1 | Raynor 不注入 Abathur 技能 | ✅ 一致 |
+| `hunterkiller_has_cripple` | 0 | 1 | 同上 | ✅ 一致 |
+| `hunterkiller_has_mechanical` | 0 | 1 | 同上 | ✅ 一致 |
+| `hunterkiller_has_melee` | 0 | 1 | 同上 | ✅ 一致 |
+| `hunterkiller_has_range` | 0 | 1 | 同上 | ✅ 一致 |
+| `abathur_abilities_trigger_enabled` | 0 | 1 | Raynor 不启用 AbathurAbilities 触发器 | ✅ 一致 |
+| `abathur_upgrade_count` | 0 | 1 | Raynor 不设置 Abathur 升级 | ✅ 一致 |
+| `zerg_p1_total_units` | 21 | 28 | Raynor 阵营单位总数（含 WarPig + SCVRaynor + 建筑等）| ✅ 合理 |
+| `deep_debug_ran` | 1 | 1 | deep_debug 代码执行完成 | ✅ 一致 |
+
+### 7.5 ScriptError 分析
+
+**信源**：GameLogs/2026-07-27 15.33.19 ScriptError.txt（2355 字节，SC2 退出时已清理，内容已记录）
+
+仅 2 类 CMRE 框架非致命警告：
+
+1. **HeroSpawn 单位类型空**（2 次）：
+   ```
+   'libCOMI_gt_CM_HeroSpawn_Func'出现触发器错误：指定的单位类型无效: ''
+      Near line 18434 in libCOMI_gf_CM_HeroStructureCreateForPlayer()
+   ```
+   - 原因：Raynor 的 hero 单位类型在某些 CMRE 框架分支中为空字符串
+   - 影响：非致命，不影响 Reborn mod 替换逻辑
+
+2. **Bank 加载警告**（4 次）：
+   ```
+   'libCOMI_gt_CM_CampaignMissionIntroZoomIn_Func'出现触发器错误：无法从''的参数中获取'bank'
+      Near line 8306 in CMUIX_PlayerProfileOpenBank()
+   ```
+   - 原因：CMUIX 框架尝试加载玩家 profile bank 时返回 null
+   - 影响：非致命，不影响 deep_debug 银行写入
+
+**结论**：ScriptError 均为 CMRE 框架级别警告，不影响核心验证目标。SC2 进程退出是因为单次测试模式（无 API 客户端保持游戏运行），非崩溃。
+
+### 7.6 Raynor 验证总结
+
+| 验证项 | 静态分析 | 运行时信源 | 状态 |
+|--------|---------|----------|------|
+| 条件建筑 patch（Raynor 不创建 Zerg 建筑）| ✅ | hatchery/spawningpool/roachwarren/hydraliskden/drone=0 | ✅ **新验证** |
+| Galaxy 语法修复（PlayerRace == "Zerg"）| ✅ | 无编译错误 | ✅ **新验证** |
+| K5Kerrigan → WarPig 替换链路 | ✅（Lib48DF4533.galaxy#L5095-5096）| warpig_p1_count=1, k5kerrigan_p1_after_swarmsetup=0 | ✅ **新验证** |
+| Abathur 特有技能不注入 Raynor | ✅ | hunterkiller_has_*=0, abathur_abilities_trigger_enabled=0 | ✅ 一致 |
+| Abathur 升级不设置 Raynor | ✅ | abathur_upgrade_count=0 | ✅ 一致 |
+| Raynor 阵营单位总数合理 | N/A | zerg_p1_total_units=21（含 WarPig + SCVRaynor + 建筑等）| ✅ 合理 |
+| ScriptError 非致命 | N/A | 2355 字节，仅 CMRE 框架警告 | ✅ 不影响核心逻辑 |
+
+**核心结论**：
+1. 条件建筑 patch 修复成功，Raynor（Terran）不再被错误创建 Zerg 建筑
+2. K5Kerrigan → WarPig 替换链路在 Raynor 指挥官下运行时实证通过（warpig_p1_count=1）
+3. Abathur 特有逻辑（技能注入/升级设置）在 Raynor 下正确禁用
+
+**已知差距**：
+- Reborn mod 代码显示每只 K5Kerrigan 替换为 2 只 WarPig（line 5095-5096 两次 CreateUnitsWithDefaultFacing），但运行时 warpig_p1_count=1。可能原因：(a) 替换逻辑有条件分支；(b) 其中一只 WarPig 被移除或死亡；(c) UnitGroupCount 检测时机问题。需要后续排查。
