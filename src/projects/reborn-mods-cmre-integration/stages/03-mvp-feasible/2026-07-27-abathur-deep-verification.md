@@ -158,15 +158,15 @@ TechTreeAbilityAllow(player, AbilityCommand("RoachlingInfestation", 0), true);
 | 进化选择 | Evolutions/* | 银行已写入 9 个进化 | ✅ |
 | CommanderUnits 商店启用 | TechTreeAbilityAllow(CommanderUnits, 2, true) | 间接验证（abathur_upgrade_count=1 触发了 gt_Abathur_Func） | ✅ |
 
-### 4.2 ⚠️ 未完全验证
+### 4.2 ⚠️ 未完全验证（已在第 6 章实机验证中补齐）
 
-| 机制 | 静态分析 | 运行时状态 | 差距 |
-|------|---------|----------|------|
-| 单位技能添加 | UnitAbilityAdd(HunterKiller, HydraliskBroodlings/Cripple/Mechanical/Melee/Range) | AbathurAbilities 触发器已启用，但未直接验证技能是否添加到单位 | 需要进图手动检查 HunterKiller 的技能面板 |
-| CommanderUnits 技能购买 | 16 个可购买技能（NaturalCamouflage/Cliffjumper/...） | 商店已启用，但玩家无资源购买 | 需要给玩家资源后手动购买并验证 |
-| 虫族单位生产 | 40+ 种虫族单位（Zergling/Roach/Hydralisk/Baneling/Ultralisk/Mutalisk...） | **P1 只有 3 个 HunterKiller，没有其他虫族单位** | **核心差距：见 4.3** |
+| 机制 | 静态分析 | 运行时状态 | 差距 | 实机验证结果（第 6 章）|
+|------|---------|----------|------|----------------------|
+| 单位技能添加 | UnitAbilityAdd(HunterKiller, HydraliskBroodlings/Cripple/Mechanical/Melee/Range) | AbathurAbilities 触发器已启用 | 需要进图手动检查 HunterKiller 的技能面板 | ✅ 已验证：5 个技能全部注入（hunterkiller_has_*=1）|
+| CommanderUnits 技能购买 | 16 个可购买技能（NaturalCamouflage/Cliffjumper/...） | 商店已启用 | 需要给玩家资源后手动购买验证 | ⚠️ 资源已注入（10000 矿/气），但未手动购买验证 |
+| 虫族单位生产 | 40+ 种虫族单位 | P1 只有 HunterKiller（替换），无其他虫族单位 | 核心差距：见 4.3 | ✅ 已修复：zerg_p1_total_units=28（patch 创建虫族建筑后）|
 
-### 4.3 ❌ 核心差距：单位不全
+### 4.3 ❌ 核心差距：单位不全（已通过 patch 创建虫族建筑解决）
 
 **根本原因**：Reborn 的单位生产系统依赖虫族建筑体系，但 CMRE 给的是帝国建筑体系。
 
@@ -185,7 +185,7 @@ TechTreeAbilityAllow(player, AbilityCommand("RoachlingInfestation", 0), true);
 5. 虫族建筑需要 Drone（虫族工兵）建造，但 CMRE 给的是 `3diguolaogong`（帝国老工兵）
 6. **结果**：即使科技树解锁了所有虫族单位，玩家也无法生产，因为没有虫族建筑和工兵
 
-**P1 实际单位列表**：
+**P1 实际单位列表**（实机验证前）：
 - 3diguolaogong=12（帝国老工兵，不能建造虫族建筑）
 - HydraliskImpaler=3（HunterKiller，由 K5Kerrigan 替换而来，不是生产的）
 - 3diguoqianshaojidi=1（帝国前哨基地，不能训练虫族单位）
@@ -202,6 +202,129 @@ TechTreeAbilityAllow(player, AbilityCommand("RoachlingInfestation", 0), true);
 - BroodLord/IzshaGuardian/Devourer/Kraken（需要 GreaterSpire）
 - Infestor/Viper/DefilerMP（需要 InfestationPit）
 - Queen（需要 Lair）
+
+### 4.4 参考疯批帝国（Empire）的地图适配方式
+
+**信源**：[EmpireAlengerAdapter.SC2Mod/Base.SC2Data/LibA3ADAPTER.galaxy](file:///e:/Code/MyMod/SC2VibeTools/sc2-porting-workspace/src/projects/cmre-porting/packages/Mods/Commanders/EmpireAlengerAdapter.SC2Mod/Base.SC2Data/LibA3ADAPTER.galaxy) + [EmpireAlenger.SC2Mod/Base.SC2Data/GameData/UnitData.xml](file:///e:/Code/MyMod/SC2VibeTools/sc2-porting-workspace/src/projects/cmre-porting/packages/Mods/Commanders/EmpireAlenger.SC2Mod/Base.SC2Data/GameData/UnitData.xml)
+
+Empire（疯批帝国）是 Alenger 系列中和 CMRE 框架适配最完善的指挥官，其地图适配策略分三层：
+
+#### 4.4.1 策略 A：catalog 覆盖（核心，不替换建筑而是改造建筑）
+
+Empire mod 在 `UnitData.xml` 中重新定义了 `3diguoqianshaojidi`（CMRE 给的起始建筑），把它改造成 Empire 专属建筑：
+
+```xml
+<CUnit id="3diguoqianshaojidi">
+    <Race value="Terr"/>
+    <LifeMax value="2000"/>
+    <Food value="12"/>
+    <!-- 添加 Empire 特有的 abilities -->
+    <AbilArray Link="3xunlian1"/>                    <!-- 训练帝国老工兵 -->
+    <AbilArray Link="3shengkong1"/>                  <!-- 升空 -->
+    <AbilArray Link="3diguoqianshaojidiTransport"/>  <!-- 装载/卸载工兵 -->
+    <AbilArray Link="3bianxingweidiguozhihuizhongxin"/>  <!-- 变形为帝国指挥中心 -->
+    <AbilArray Link="3bianxingweihuangjiayaosai"/>       <!-- 变形为皇家要塞 -->
+    <!-- 添加 Empire 特有的 behaviors -->
+    <BehaviorArray Link="3shuangduilie"/>            <!-- 双队列 -->
+    <BehaviorArray Link="3xiaofangxitong"/>          <!-- 消防系统 -->
+    <BehaviorArray Link="3zhengzhaoxukeLarge"/>      <!-- 征召许可 -->
+    <!-- 建筑面板按钮（训练单位、变形、装载等）-->
+    <CardLayouts>
+        <LayoutButtons Face="3xunliandiguolaogong" AbilCmd="3xunlian1,Train1" Row="0" Column="0"/>
+        <LayoutButtons Face="3bianxingweidiguozhihuizhongxin" AbilCmd="3bianxingweidiguozhihuizhongxin,Execute" Row="0" Column="3"/>
+        ...
+    </CardLayouts>
+</CUnit>
+```
+
+**关键洞察**：Empire 不创建新建筑，而是通过 catalog 覆盖把 CMRE 给的 `3diguoqianshaojidi` 改造成可以训练 Empire 单位、变形为多种建筑的建筑。这样：
+- CMRE 创建 `3diguoqianshaojidi` → Empire mod 的 catalog 覆盖生效 → 建筑拥有 Empire abilities
+- 玩家直接用这个建筑训练 Empire 单位，无需替换
+
+**对比 Abathur（Reborn）**：
+- Reborn 没有通过 catalog 覆盖改造 `3diguoqianshaojidi`
+- Reborn 期望玩家有 `Hatchery`，但 CMRE 给 `3diguoqianshaojidi`
+- 导致生产链断裂
+
+#### 4.4.2 策略 B：数据驱动的 abilities 解锁（LibA3ADAPTER.galaxy）
+
+Empire adapter 在 `MapInit` 触发器中通过 `TechTreeAbilityAllow` 解锁所有 Empire 自定义能力：
+
+**信源**：[LibA3ADAPTER.galaxy#L28-L115](file:///e:/Code/MyMod/SC2VibeTools/sc2-porting-workspace/src/projects/cmre-porting/packages/Mods/Commanders/EmpireAlengerAdapter.SC2Mod/Base.SC2Data/LibA3ADAPTER.galaxy)
+
+```c
+// 解锁所有 Build 选项（数据驱动，从 Catalog.galaxy 读取列表）
+for (lv_i = 1; lv_i <= libA3ADAPTER_gv_buildAllowCount; lv_i += 1) {
+    TechTreeAbilityAllow(lp_player, AbilityCommand(lv_abil, lv_cmd), true);
+}
+// 解锁所有训练/研究/变形/升空/单位技能（硬编码 31 种 ability 前缀 × 32 个 cmd index）
+for (lv_i = 0; lv_i <= 31; lv_i += 1) {
+    TechTreeAbilityAllow(lp_player, AbilityCommand("3xunlian1", lv_i), true);  // 训练
+    TechTreeAbilityAllow(lp_player, AbilityCommand("3shengkong1", lv_i), true); // 升空
+    TechTreeAbilityAllow(lp_player, AbilityCommand("3zhanjimoshi", lv_i), true); // 战机模式
+    ...
+}
+```
+
+**数据驱动的升级列表**（Catalog.galaxy）：
+- 42 个 overload 升级（3kangchongjizujian/3zhonghuolizujian/...）
+- 12 个 standard 升级（3sishouxitong/3jinggongwuqi/...）
+- 15 个 buildAllow 解锁（3jianzao1/3jianzao2/...）
+
+通过 `TechTreeUpgradeAddLevel` 一次性升级所有科技，让玩家拥有"超标强制强度"。
+
+#### 4.4.3 策略 C：周期性重解锁（对抗 CMRE 封锁）
+
+**信源**：[LibA3ADAPTER.galaxy#L265-L283](file:///e:/Code/MyMod/SC2VibeTools/sc2-porting-workspace/src/projects/cmre-porting/packages/Mods/Commanders/EmpireAlengerAdapter.SC2Mod/Base.SC2Data/LibA3ADAPTER.galaxy)
+
+```c
+// 周期性重解锁，覆盖 CMRE DevStartupFinish 的封锁
+// 7vs1 框架的封锁在 MapInit 早期发生，3 秒 Wait 已够；
+// 亡者之夜（CMRE 框架）的封锁在 CMUIX_ReadyBeginCountdown 倒计时结束后
+// 触发（通常 10-15 秒），3 秒 Wait 不足以覆盖。改为 5 秒一次，共 8 次
+// （覆盖 40 秒），确保 CMRE 封锁后能再次解锁。
+for (lv_retry = 0; lv_retry < 8; lv_retry += 1) {
+    Wait(5.0, c_timeReal);
+    // 重新对所有玩家解锁所有 abilities
+    ...
+}
+```
+
+**关键洞察**：CMRE 框架在 `DevStartupFinish` / `CMUIX_ReadyBeginCountdown` 倒计时结束后会封锁 abilities，Empire adapter 通过周期性重解锁对抗这个封锁。这解决了"解锁后又被封锁"的问题。
+
+#### 4.4.4 Empire vs Abathur 适配方式对比
+
+| 维度 | Empire（疯批帝国）| Abathur（Reborn）|
+|------|------------------|------------------|
+| 起始建筑策略 | **catalog 覆盖**：改造 `3diguoqianshaojidi` 让它拥有 Empire abilities | **patch 创建**：在 SwarmSetup 末尾创建 Hatchery/SpawningPool 等虫族建筑 |
+| 种族匹配 | Terran（和 CMRE 给的帝国建筑一致）| Zerg（和 CMRE 给的帝国建筑冲突）|
+| 能力解锁 | TechTreeAbilityAllow 解锁 31×32 个 abilities | TechTreeUnitAllow 解锁 40+ 虫族单位 |
+| 升级策略 | TechTreeUpgradeAddLevel 升级 42+12 个升级 | SetUpgradeLevel("Abathur", 1) |
+| 对抗 CMRE 封锁 | 周期性重解锁（5 秒 × 8 次 = 40 秒）| 无（依赖 SwarmSetup 单次执行）|
+| 工兵 | 3diguolaogong（帝国老工兵，可建造 Empire 建筑）| Drone（虫族工兵，需 patch 创建）|
+| 生产链完整性 | ✅ 完整（建筑可训练 Empire 单位）| ❌ 需 patch 创建虫族建筑才能工作 |
+
+#### 4.4.5 对 Abathur 移植的启示
+
+Empire 的适配方式给 Abathur 移植提供了两种思路：
+
+**思路 1（当前 patch 做法）**：在 SwarmSetup 末尾创建虫族建筑
+- 优点：实现简单，直接用 `UnitCreate` 创建 Hatchery/SpawningPool 等
+- 缺点：需要 patch galaxy 代码，且建筑是"额外创建"的，和 CMRE 的帝国建筑并存
+- 实机验证结果：✅ 工作正常（zerg_p1_total_units=28）
+
+**思路 2（参考 Empire 的 catalog 覆盖做法）**：通过 catalog 覆盖改造 `3diguoqianshaojidi`
+- 优点：无需 patch galaxy 代码，纯数据驱动；建筑不冲突（改造而非创建）
+- 缺点：需要修改 Reborn mod 的 catalog 数据，把 `3diguoqianshaojidi` 改造成可以训练虫族单位的建筑
+- 实现方式：在 Reborn mod 的 UnitData.xml 中添加 `<CUnit id="3diguoqianshaojidi">` 覆盖，给它添加虫族 abilities（如 `TrainZergling`/`TrainRoach` 等）和 CardLayouts
+- 风险：可能和 Empire mod 的 catalog 覆盖冲突（如果同时加载）
+
+**思路 3（最彻底）**：让 Reborn mod 也用 CMRE 的帝国建筑体系
+- 把 Reborn 的 Abathur 分支改为不依赖 Hatchery，而是直接用 `3diguoqianshaojidi`
+- 需要修改 Reborn 的 UnitUnlocks_Func 和 CommanderStart_Func
+- 工作量大，但最彻底
+
+**推荐**：当前 patch 做法（思路 1）已通过实机验证，可作为短期方案。长期可考虑思路 2（catalog 覆盖），更符合 Empire 的成熟做法。
 
 ## 5. 结论
 
