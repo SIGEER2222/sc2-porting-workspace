@@ -1065,6 +1065,8 @@ try {
         if ($existing) {
             throw "检测到 SC2 已在运行（PID: $($existing.Id -join ',')）。PlayerMode 不会自动关闭已有游戏，请先手动关闭 SC2 再启动。"
         }
+        # 无 SC2 运行时清理 GameLogs，避免旧 Alerts.txt 被 wait-for-game-ready.ps1 误判为加载完成信号
+        Clear-GameLogs
     } elseif ($DebugMode) {
         # DebugMode：只清理自己上次启动的 SC2（按 PID 文件，禁止按进程名 kill 避免误杀玩家游戏）
         if (Test-Path $debugPidFile) {
