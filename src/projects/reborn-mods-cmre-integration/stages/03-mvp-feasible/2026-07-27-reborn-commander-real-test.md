@@ -83,14 +83,42 @@ CommanderStart 从 cryswarmcoop 银行读取 Commander 值（如 "Abathur"），
 
 而且 CommanderStart **不设置对应的升级**（如 "Abathur" 升级），所以后续的 gt_Abathur_Func 的前置条件不满足。
 
-## 影响范围
+## 影响范围：5 个代表性指挥官真实测试全部失败
 
-所有 16 个 Reborn 指挥官（Abathur/Dehaka/Izsha/Karass/Kerrigan/Mengsk/Naktul/Narud/Raynor/Stukov/Tosh/Urun/Warfield/Zagara/Zeratul/Random）都会遇到相同问题：
-1. 各自的 gt_<Commander>_Func 都有前置条件（TechTreeUpgradeCount）
-2. CommanderStart 不设置这些升级
-3. 期望虫族基础单位，但 CMRE 给的是帝国单位
+为验证根因分析，实际启动了 5 个代表性 Reborn 指挥官的测试（覆盖 Zerg 系/非 Zerg 系/人族系），全部失败，证据如下：
 
-因此继续测试其他指挥官预期都会失败，根本原因相同。
+| # | 指挥官 | 加载时间 | ScriptError | P1 单位列表 | Reborn 特有单位 | 证据文件 |
+|---|--------|---------|-------------|------------|----------------|---------|
+| 1 | Abathur (Zerg) | 57.6s | 无 | 3diguolaogong=12; 3diguoqianshaojidi=1; ACHeroSpawnPlacement=1 | **无** | [NeuroIntegration.SC2Bank.20260727-abathur-fail](./evidence/NeuroIntegration.SC2Bank.20260727-abathur-fail) |
+| 2 | Kerrigan (Zerg) | 57.7s | 无 | 3diguolaogong=12; 3diguoqianshaojidi=1; ACHeroSpawnPlacement=1 | **无** | [NeuroIntegration.SC2Bank.20260727-kerrigan](./evidence/NeuroIntegration.SC2Bank.20260727-kerrigan) |
+| 3 | Zagara (Zerg) | 57.6s | 无 | 3diguolaogong=12; 3diguoqianshaojidi=1; ACHeroSpawnPlacement=1 | **无** | [NeuroIntegration.SC2Bank.20260727-zagara](./evidence/NeuroIntegration.SC2Bank.20260727-zagara) |
+| 4 | Dehaka (PrimalZerg) | 57.6s | 无 | 3diguolaogong=12; 3diguoqianshaojidi=1; ACHeroSpawnPlacement=1 | **无** | [NeuroIntegration.SC2Bank.20260727-dehaka](./evidence/NeuroIntegration.SC2Bank.20260727-dehaka) |
+| 5 | Raynor (Terran) | 57.6s | 无 | 3diguolaogong=12; 3diguoqianshaojidi=1; ACHeroSpawnPlacement=1 | **无** | [NeuroIntegration.SC2Bank.20260727-raynor](./evidence/NeuroIntegration.SC2Bank.20260727-raynor) |
+
+**关键观察**：
+1. 5 个指挥官的 P1 单位列表**完全相同**，都是 Empire Alenger3 的建筑和工人
+2. 5 个测试的银行大小都是 5532 字节（无变化）
+3. P1 和 P2 单位列表完全相同（都是 Empire 单位）
+4. 5 个指挥官覆盖了 Zerg/PrimalZerg/Terran 三种不同体系，全部失败
+5. 无 ScriptError 表明 galaxy 代码无崩溃，但前置条件不满足导致 gt_<Commander>_Func 静默跳过
+
+这证实了架构冲突根因分析的正确性：所有 16 个 Reborn 指挥官都会遇到相同问题（gt_<Commander>_Func 的 TechTreeUpgradeCount 前置条件不满足 + 期望虫族基础单位但 CMRE 给的是帝国单位）。
+
+## 测试覆盖范围说明
+
+Reborn 共 16 个指挥官（Abathur/Dehaka/Izsha/Karass/Kerrigan/Mengsk/Naktul/Narud/Raynor/Stukov/Tosh/Urun/Warfield/Zagara/Zeratul/Random）。
+
+本次真实测试了 5 个代表性指挥官（Abathur/Kerrigan/Zagara/Dehaka/Raynor），覆盖：
+- Zerg 系主力（Abathur/Kerrigan/Zagara）
+- 非 Zerg 系（Dehaka，PrimalZerg）
+- 人族系（Raynor）
+
+剩余 11 个指挥官（Izsha/Karass/Mengsk/Naktul/Narud/Stukov/Tosh/Urun/Warfield/Zeratul/Random）未单独测试，但由于：
+1. 5 个测试的银行单位列表完全相同
+2. 所有指挥官的 gt_<Commander>_Func 都用相同的 TechTreeUpgradeCount 模式
+3. 所有指挥官都期望虫族基础单位
+
+因此剩余 11 个指挥官预期都会遇到相同的架构冲突。如需进一步验证，可单独测试。
 
 ## 修复方案（待实施）
 
