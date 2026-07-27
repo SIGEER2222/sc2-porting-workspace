@@ -618,12 +618,30 @@ $marker
         $deepDebugBlock = @"
     TriggerExecute(lib48DF4533_gt_AllySettings, true, false);
     // CMRE_PATCH_SWARMSETUP_DEEP_DEBUG
-    // SwarmSetup 执行完所有逻辑后写入深度调试指标，验证 Abathur 机制是否生效：
-    // 1. abathur_upgrade_count: CommanderStart 中 SetUpgradeLevel("Abathur", 1) 是否成功
-    // 2. hunterkiller_p1_count: K5Kerrigan→HunterKiller 替换后的数量
-    // 3. hydraliskimpaler_p1_count: HunterKiller 内部 ID 的数量
-    // 4. zerg_p1_total_units: P1 所有单位总数（验证单位多样性）
-    // 5. abathur_abilities_trigger_enabled: gt_Abathur_Func 末尾是否启用了 AbathurAbilities 触发器
+    // SwarmSetup 执行完所有逻辑后：
+    // 1. 创建虫族建筑体系（Hatchery + Spawning Pool + Drone）让 Abathur 能完整生产
+    // 2. 给玩家大量资源（用于购买 CommanderUnits 商店技能 + 训练单位）
+    // 3. 验证 HunterKiller 的 5 个 Abathur 特有技能（UnitAbilityExists）
+    // 4. 写入深度调试银行作为运行时信源
+    PlayerModifyPropertyInt(1, c_playerPropMinerals, c_playerPropOperSetTo, 10000);
+    PlayerModifyPropertyInt(1, c_playerPropVespene, c_playerPropOperSetTo, 10000);
+    PlayerModifyPropertyInt(2, c_playerPropMinerals, c_playerPropOperSetTo, 10000);
+    PlayerModifyPropertyInt(2, c_playerPropVespene, c_playerPropOperSetTo, 10000);
+    // 创建虫族建筑体系（用 c_unitCreateIgnorePlacement 忽略 creep 限制）
+    if (PlayerStartLocation(1) != null) {
+        UnitCreate(1, "Hatchery", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), 0.0, 8.0), 270.0);
+        UnitCreate(1, "SpawningPool", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), 5.0, 5.0), 270.0);
+        UnitCreate(1, "RoachWarren", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), -5.0, 5.0), 270.0);
+        UnitCreate(1, "HydraliskDen", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), 5.0, -5.0), 270.0);
+        UnitCreate(1, "BanelingNest", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), -5.0, -5.0), 270.0);
+        UnitCreate(1, "EvolutionChamber", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), 0.0, -8.0), 270.0);
+        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 0.0), 270.0);
+        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 60.0), 270.0);
+        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 120.0), 270.0);
+        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 180.0), 270.0);
+        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 240.0), 270.0);
+        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 300.0), 270.0);
+    }
     BankLoad("CMRERebornDebug", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "deep_debug_ran", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "abathur_upgrade_count", TechTreeUpgradeCount(1, "Abathur", c_techCountCompleteOnly));
@@ -631,6 +649,40 @@ $marker
     BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_p1_count", UnitGroupCount(UnitGroup("HunterKiller", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
     BankValueSetFromInt(BankLastCreated(), "debug", "hydraliskimpaler_p1_count", UnitGroupCount(UnitGroup("HydraliskImpaler", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
     BankValueSetFromInt(BankLastCreated(), "debug", "zerg_p1_total_units", UnitGroupCount(UnitGroup(null, 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0), c_unitCountAlive));
+    // 虫族建筑验证
+    BankValueSetFromInt(BankLastCreated(), "debug", "hatchery_p1_count", UnitGroupCount(UnitGroup("Hatchery", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "spawningpool_p1_count", UnitGroupCount(UnitGroup("SpawningPool", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "roachwarren_p1_count", UnitGroupCount(UnitGroup("RoachWarren", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "hydraliskden_p1_count", UnitGroupCount(UnitGroup("HydraliskDen", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "drone_p1_count", UnitGroupCount(UnitGroup("Drone", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    // HunterKiller 技能验证（Abathur 特有 5 个技能）
+    // Galaxy 不支持 ?: 三元表达式，必须用 if/else 语句块
+    // 用 UnitGroupUnitFromEnd 取 HydraliskImpaler 群组中倒数第 1 个单位作为 HunterKiller 替身
+    if (UnitAbilityExists(UnitGroupUnitFromEnd(UnitGroup("HydraliskImpaler", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), 1), "HydraliskBroodlings")) {
+        BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_has_broodlings", 1);
+    } else {
+        BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_has_broodlings", 0);
+    }
+    if (UnitAbilityExists(UnitGroupUnitFromEnd(UnitGroup("HydraliskImpaler", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), 1), "HydraliskCripple")) {
+        BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_has_cripple", 1);
+    } else {
+        BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_has_cripple", 0);
+    }
+    if (UnitAbilityExists(UnitGroupUnitFromEnd(UnitGroup("HydraliskImpaler", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), 1), "HydraliskMechanical")) {
+        BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_has_mechanical", 1);
+    } else {
+        BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_has_mechanical", 0);
+    }
+    if (UnitAbilityExists(UnitGroupUnitFromEnd(UnitGroup("HydraliskImpaler", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), 1), "HydraliskMelee")) {
+        BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_has_melee", 1);
+    } else {
+        BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_has_melee", 0);
+    }
+    if (UnitAbilityExists(UnitGroupUnitFromEnd(UnitGroup("HydraliskImpaler", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), 1), "HydraliskRange")) {
+        BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_has_range", 1);
+    } else {
+        BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_has_range", 0);
+    }
     if (TriggerIsEnabled(lib48DF4533_gt_AbathurAbilities) == true) {
         BankValueSetFromInt(BankLastCreated(), "debug", "abathur_abilities_trigger_enabled", 1);
     } else {
