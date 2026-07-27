@@ -856,10 +856,14 @@ async function launchGame() {
   };
   if (s.apiMode) { body.listenPort = s.listenPort; body.apiMinimal = true; }
   // 重生虫心指挥官：透传 reborn 标志和指挥官名，server.py 据此追加 -EnableReborn -RebornCommander
+  // 注意：state.selected.commander 是 "RebornZergAbathur" 形式（避免与原版 8 个重名指挥官冲突），
+  // 但 launcher 只接受 "ZergAbathur" 形式作为 -Commander，所以用 cmdrMeta.runtimeId 覆盖 body.commander。
+  // cmdrMeta.id 唯一（Reborn 前缀），find 能精确匹配；原版指挥官无 runtimeId 字段，保持 s.commander 不变。
   const cmdrMeta = state.commanders.find(c => c.id === s.commander);
   if (cmdrMeta && cmdrMeta.group === "reborn") {
     body.enableReborn = true;
     body.rebornCommander = cmdrMeta.rebornName || cmdrMeta.bank || "";
+    if (cmdrMeta.runtimeId) body.commander = cmdrMeta.runtimeId;
   }
   // Buff 补丁：仅当启用且当前指挥官在原版 18 之列时透传
   if (s.buffPatch.enabled && getCurrentBuffCommander()) {

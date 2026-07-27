@@ -200,8 +200,16 @@ def _classify_commander(bank_commander: str, runtime_commander: str) -> str:
 def load_reborn_commanders():
     """从 reborn-commanders.json 读取重生虫心指挥官列表。
 
-    返回 [{id, label, bank, portrait, cachedImage, race, group, rebornName, expectedUnits, expectedBuildings}]。
-    每条记录的 id 形如 "ZergAbathur"（runtime commander），bank 为指挥官名（如 "Abathur"），
+    返回 [{id, runtimeId, label, bank, portrait, cachedImage, race, group, rebornName, expectedUnits, expectedBuildings}]。
+
+    关键：id 加 "Reborn" 前缀（如 "RebornZergAbathur"）避免与原版 8 个重名指挥官冲突。
+    原版 Abathur/Kerrigan/Dehaka/Mengsk/Raynor/Stukov/Zagara/Zeratul 在 commander-power-metadata.json
+    和 reborn-commanders.json 中均存在，若 id 相同则前端 state.commanders.find() 永远返回 official 版本，
+    导致 cmdrMeta.group === "official" 不触发 enableReborn 透传，启动的是原版而非 Reborn mod。
+
+    runtimeId 字段保存实际传给 launcher 的形式（如 "ZergAbathur"，与原版一致），launch 时由
+    app.js 据此覆盖 body.commander。portrait/cachedImage 仍用 runtimeId 查找（与原版共用缓存图）。
+
     rebornName 用于 -RebornCommander 参数，expectedUnits/expectedBuildings 来自 galaxy 静态分析。
     跳过 id 为 "Random" 的条目（不直接可选）。
     """
@@ -217,9 +225,11 @@ def load_reborn_commanders():
                 continue
             race = cmd.get("race", "") or "Zerg"
             runtime_id = f"{race}{cmd_id}"
+            unique_id = f"Reborn{runtime_id}"  # 前端唯一 id，避免与原版重名
             display = cmd.get("display_name", "") or cmd_id
             commanders.append({
-                "id": runtime_id,
+                "id": unique_id,
+                "runtimeId": runtime_id,  # 实际传给 launcher 的 -Commander 值
                 "label": display,
                 "bank": cmd_id,
                 "portrait": get_commander_portrait(runtime_id),
