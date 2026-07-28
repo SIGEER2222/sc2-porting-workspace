@@ -628,6 +628,10 @@ $marker
     BankValueSetFromInt(BankLastCreated(), "debug", "initlib_k5kerrigan_p1_count", UnitGroupCount(UnitGroup("K5Kerrigan", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
     BankSave(BankLastCreated());
     TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);
+    // === 公共层：注册 DisableArmySelect 定时补加触发器 ===
+    // 在 InitLib 末尾注册（而非 SwarmSetup_Func），因为 Galaxy 不支持函数向前引用，
+    // gt_DisableArmySelectPoll_Init 定义在文件末尾，只有 InitLib（也在文件末尾）才能引用到。
+    gt_DisableArmySelectPoll_Init();
 "@
 
         # === 3c. 在 SwarmSetup_Func 末尾（return true 之前）注入深度调试代码 ===
@@ -656,25 +660,8 @@ $marker
         UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 270.0), 270.0);
     }
     // === 公共层：给所有单位动态添加移除部队选择技能（抽离自眼虫）===
-    // DisableArmySelect 原本只挂在 Overseer/LurkerBurrowed 上，现在抽离到公共层，
-    // 遍历所有玩家的所有单位，给每个单位添加 DisableArmySelect 能力。
-    // 注意：这只是初始化时的快照，新创建的单位需要后续完善（定时触发器或单位创建事件）。
-    {
-        int g_player;
-        for (g_player = 1; g_player <= 14; g_player++) {
-            unitgroup g_group = UnitGroup(null, g_player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
-            int g_count = UnitGroupCount(g_group, c_unitCountAlive);
-            int g_i;
-            for (g_i = 1; g_i <= g_count; g_i++) {
-                unit g_u = UnitGroupUnit(g_group, g_i);
-                if (g_u != null) {
-                    if (not UnitAbilityExists(g_u, "DisableArmySelect")) {
-                        UnitAbilityAdd(g_u, "DisableArmySelect", 0);
-                    }
-                }
-            }
-        }
-    }
+    // DisableArmySelect 的注册调用不在此处，而在 lib48DF4533_InitLib() 末尾，
+    // 因为 Galaxy 不支持函数向前引用（gt_DisableArmySelectPoll_Init 定义在文件末尾）。
     BankLoad("CMRERebornDebug", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "deep_debug_ran", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "abathur_upgrade_count", TechTreeUpgradeCount(1, "Abathur", c_techCountCompleteOnly));
@@ -752,9 +739,12 @@ $marker
         Write-Host "Patch-RebornLibraryInit: direct SwarmSetup trigger already injected, skipping"
     }
 
-    # === 3d. 在 lib48DF4533.galaxy 文件末尾追加 DisableArmySelect 定时补加触发器函数定义 ===
+    # === 3d. 在 lib48DF4533_InitLib() 函数之前注入 DisableArmySelect 定时补加触发器函数定义 ===
     # 任务2 完善：初始化时只能给已存在单位补加能力，新创建的单位（训练/变异/召唤）需要持续补加。
     # 该触发器每 2 秒扫描所有玩家的活体单位，给未携带 DisableArmySelect 的单位补加。
+    # 注意：Galaxy 不支持函数向前引用，函数定义必须在调用之前。
+    # lib48DF4533_InitLib() 在文件末尾，在其中调用 gt_DisableArmySelectPoll_Init()，
+    # 所以函数定义必须注入到 InitLib 之前。
     $pollFuncBlock = @"
 
 // CMRE_PATCH_DISABLEARMYSELECT_POLL: 公共层定时补加 DisableArmySelect 能力
@@ -775,8 +765,8 @@ bool gt_DisableArmySelectPoll_Func(bool testConds, bool runActions) {
         for (lv_i = 1; lv_i <= lv_count; lv_i += 1) {
             lv_u = UnitGroupUnit(lv_group, lv_i);
             if (lv_u != null) {
-                if (not UnitAbilityExists(lv_u, "DisableArmySelect")) {
-                    UnitAbilityAdd(lv_u, "DisableArmySelect", 0);
+                if (!UnitAbilityExists(lv_u, "DisableArmySelect")) {
+                    UnitAbilityAdd(lv_u, "DisableArmySelect");
                 }
             }
         }
@@ -789,10 +779,15 @@ void gt_DisableArmySelectPoll_Init() {
     TriggerAddEventTimePeriodic(gt_DisableArmySelectPoll, 2.0, c_timeGame);
 }
 "@
-    if (-not ($content -contains 'gt_DisableArmySelectPoll_Init')) {
-        if (-not ($content.Contains('gt_DisableArmySelectPoll_Init'))) {
-            $content = $content + $pollFuncBlock.Replace("`n", "`r`n")
-            Write-Host "Patch-RebornLibraryInit: appended DisableArmySelect poll trigger function to Lib48DF4533.galaxy"
+    $initLibFuncMarker = 'void lib48DF4533_InitLib () {'
+    if (-not $content.Contains('void gt_DisableArmySelectPoll_Init()')) {
+        $pollFuncBlockNormalized = $pollFuncBlock -replace "`r`n", "`n" -replace "`n", "`r`n"
+        if ($content.Contains($initLibFuncMarker)) {
+            $content = $content.Replace($initLibFuncMarker, $pollFuncBlockNormalized + "`r`n" + $initLibFuncMarker)
+            Write-Host "Patch-RebornLibraryInit: injected DisableArmySelect poll trigger function before lib48DF4533_InitLib()"
+        } else {
+            $content = $content + $pollFuncBlockNormalized
+            Write-Host "Patch-RebornLibraryInit: appended DisableArmySelect poll trigger function to end of Lib48DF4533.galaxy (InitLib marker not found)"
         }
     }
 
