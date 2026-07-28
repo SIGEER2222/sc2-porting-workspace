@@ -106,6 +106,21 @@ if ($profile) {
     if ($null -ne $profile.workerCount) { $workerCount = [int]$profile.workerCount }
     if ($null -ne $profile.vanillaRemovals) { $vanillaRemovals = @($profile.vanillaRemovals) }
 }
+# 通用层：Reborn 模式下覆盖起始单位为原版单位 ID（Alenger 自定义单位如 6fuhuachang 在 Reborn mod 中不存在）
+# 根据 $Commander 前缀（Zerg/Terran/Protoss）确定 race，用原版单位 ID
+if ($EnableReborn -and $RebornCommander -ne "") {
+    if ($Commander -match '^Zerg') {
+        $startingStructure = 'Hatchery'
+        $startingWorker = 'Drone'
+    } elseif ($Commander -match '^Terran') {
+        $startingStructure = 'CommandCenter'
+        $startingWorker = 'SCV'
+    } elseif ($Commander -match '^Protoss') {
+        $startingStructure = 'Nexus'
+        $startingWorker = 'Probe'
+    }
+    Write-Host "Reborn mode: startingStructure=$startingStructure, startingWorker=$startingWorker (race-based vanilla units)"
+}
 $mapSource = Join-Path $LegacyRoot "Maps\CMRE\$MapName"
 if (-not (Test-Path -LiteralPath $mapSource)) { throw "CMRE map source not found: $mapSource" }
 if ($isAlengerCommander) {
@@ -391,30 +406,15 @@ function Patch-RebornK5KerriganSpawn {
         return
     }
 
-    # 检查是否已 patch（幂等）— 仅控制是否注入 K5Kerrigan 代码块，BOM 剥离总是执行。
-    $patchMarker = '// CMRE_PATCH_K5KERRIGAN_SPAWN'
-    $alreadyPatched = $content.Contains($patchMarker)
-
-    if (-not $alreadyPatched) {
-        # 在 SwarmSetup 触发前注入 K5Kerrigan 创建代码。
-        # 为 coop_group 中所有可能的玩家（P1 和 P14）创建 K5Kerrigan，让 CommanderStart
-        # 能为每个玩家替换出对应指挥官的特有单位。
-        # 使用 Point(0,0) 作为创建位置（地图原点），避免 PlayerStartLocation 在库初始化时不可用。
-        # Galaxy 注释必须用纯英文（ASCII），中文注释会导致编译器失败。
-        $injectBlock = @"
-    // CMRE_PATCH_K5KERRIGAN_SPAWN: create temp K5Kerrigan hero for each coop player
-    // so CommanderStart can find and replace it with commander-specific unit.
-    // P1 is always in coop_group; P14 is added when PlayerType(14)==c_playerTypeUser.
-    libNtve_gf_CreateUnitsWithDefaultFacing(1, "K5Kerrigan", 0, 1, Point(0.0, 0.0));
-    if ((PlayerType(14) == c_playerTypeUser)) {
-        libNtve_gf_CreateUnitsWithDefaultFacing(1, "K5Kerrigan", 0, 14, Point(0.0, 0.0));
-    }
-$marker
-"@
-        $content = $content.Replace($marker, $injectBlock)
-        Write-Host "Patch-RebornK5KerriganSpawn: injected K5Kerrigan spawn before SwarmSetup in Lib48DF4533.galaxy"
+    # 2026-07-29: 移除 K5Kerrigan 注入逻辑（用户要求"不需要 k5keerigen"）。
+    # 只保留 BOM 剥离 + 清理旧注入（保证幂等，避免残留 K5Kerrigan 代码导致编译错误）。
+    $oldPatchPattern = '(?ms)    // CMRE_PATCH_K5KERRIGAN_SPAWN[^\r\n]*\r?\n.*?libNtve_gf_CreateUnitsWithDefaultFacing\(1, "K5Kerrigan".*?\}\r?\n'
+    $strippedCount = ([regex]::Matches($content, $oldPatchPattern)).Count
+    if ($strippedCount -gt 0) {
+        $content = [regex]::Replace($content, $oldPatchPattern, '')
+        Write-Host "Patch-RebornK5KerriganSpawn: stripped $strippedCount old K5Kerrigan patch block(s) (disabled by user request)"
     } else {
-        Write-Host "Patch-RebornK5KerriganSpawn: patch already applied, only ensuring BOM-less encoding"
+        Write-Host "Patch-RebornK5KerriganSpawn: no old K5Kerrigan patch found, BOM stripped only (injection disabled)"
     }
 
     # 写回时显式用 BOM-less UTF8 编码转换为字节，再用 WriteAllBytes 写入（绕过 WriteAllText
@@ -602,28 +602,10 @@ function Patch-RebornLibraryInit {
         Write-Host "Patch-RebornLibraryInit: stripped $strippedCount old K5Kerrigan patch block(s) before re-applying"
     }
 
-    # V2 patch: use PlayerStartLocation instead of Point(0,0).
-    # Root cause: Point(0.0, 0.0) is outside the playable map area on most coop maps (including Dead of Night),
-    # so libNtve_gf_CreateUnitsWithDefaultFacing silently fails to create K5Kerrigan. CommanderStart then finds
-    # zero K5Kerrigan units and the replacement loop (Abathur→HunterKiller, Raynor→WarPig, etc.) is skipped.
-    # PlayerStartLocation(1) returns the player's start point which is always inside the playable area.
-    # Also write a debug bank entry so we can verify from runtime evidence that the patch actually executed.
-    $injectBlock = @"
-    // CMRE_PATCH_K5KERRIGAN_SPAWN_V2: create temp K5Kerrigan hero at player start location
-    // (Point(0,0) is outside playable area on most coop maps, causing silent creation failure).
-    // Also write debug bank entry to verify patch execution from runtime evidence.
-    libNtve_gf_CreateUnitsWithDefaultFacing(1, "K5Kerrigan", 0, 1, PlayerStartLocation(1));
-    if ((PlayerType(14) == c_playerTypeUser)) {
-        libNtve_gf_CreateUnitsWithDefaultFacing(1, "K5Kerrigan", 0, 14, PlayerStartLocation(14));
-    }
-    BankLoad("CMRERebornDebug", 1);
-    BankValueSetFromInt(BankLastCreated(), "debug", "k5kerrigan_patch_ran", 1);
-    BankValueSetFromInt(BankLastCreated(), "debug", "k5kerrigan_p1_count", UnitGroupCount(UnitGroup("K5Kerrigan", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
-    BankSave(BankLastCreated());
-$marker
-"@
-    $content = $content.Replace($marker, $injectBlock)
-    Write-Host "Patch-RebornLibraryInit: injected V2 K5Kerrigan spawn (PlayerStartLocation + debug bank) into map copy of Lib48DF4533.galaxy"
+    # 2026-07-29: 移除 K5Kerrigan 注入（用户要求"不需要 k5keerigen"）。
+    # 保留 CommanderStart marker 行不注入任何 K5Kerrigan 创建代码。
+    # CommanderStart 仍会执行，但找不到 K5Kerrigan 会跳过替换逻辑。
+    Write-Host "Patch-RebornLibraryInit: K5Kerrigan injection skipped (disabled by user request)"
 
     # === 3b. 在 lib48DF4533_InitLib() 末尾注入 SwarmSetup 直接触发 ===
     # 根因：lib48DF4533_gt_Initialization_Func 中有两处 Wait(1.0, c_timeGame)（行 4620/4684），
@@ -650,17 +632,10 @@ $marker
         $initLibInjectBlock = @"
     $initLibInjectMarker
     // 直接异步触发 SwarmSetup，绕过 Initialization_Func 中的 Wait 卡死问题。
-    // SwarmSetup 会执行 K5Kerrigan spawn + CommanderStart（指挥官单位替换）+ UnitUnlocks。
-    // 同时在此直接创建 K5Kerrigan + 写 debug bank，作为 SwarmSetup 是否执行的独立验证。
-    // 如果 SwarmSetup 因 trigger 队列问题未执行，这里创建的 K5Kerrigan 仍能被后续
-    // CommanderStart（若被触发）替换为指挥官专属单位。
-    libNtve_gf_CreateUnitsWithDefaultFacing(1, "K5Kerrigan", 0, 1, PlayerStartLocation(1));
-    if ((PlayerType(14) == c_playerTypeUser)) {
-        libNtve_gf_CreateUnitsWithDefaultFacing(1, "K5Kerrigan", 0, 14, PlayerStartLocation(14));
-    }
+    // SwarmSetup 会执行 CommanderStart（指挥官单位替换）+ UnitUnlocks。
+    // 2026-07-29: 移除 K5Kerrigan 创建（用户要求"不需要 k5keerigen"）。
     BankLoad("CMRERebornDebug", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "initlib_patch_ran", 1);
-    BankValueSetFromInt(BankLastCreated(), "debug", "initlib_k5kerrigan_p1_count", UnitGroupCount(UnitGroup("K5Kerrigan", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
     BankSave(BankLastCreated());
     // === 修复黑屏（2026-07-28 真因定位）：CMRE 框架的 CC_DevStartupBegin 在
     //   SkipCountdown 模式下调用 GameSetMissionTimePaused(true) + ShowHideWorldCover(true)
@@ -701,18 +676,10 @@ $marker
         $deepDebugBlock = @"
     // CMRE_PATCH_SWARMSETUP_DEEP_DEBUG
     // SwarmSetup 执行完所有逻辑后：
-    // 1. 只给 1 个初始基地（Hatchery）+ 4 个工蜂，其他建筑和资源由玩家自行发展
+    // 1. 基地+工蜂创建已移至通用层 gt_CommanderStartingUnits_Func（Map Init + 5s Wait）
     // 2. 验证 HunterKiller 的 5 个 Abathur 特有技能（UnitAbilityExists）
     // 3. 写入深度调试银行作为运行时信源
-    // 只对虫族指挥官创建初始基地（Abathur/Dehaka/Izsha/Kerrigan/Naktul/Stukov/Zagara）
-    // 非虫族指挥官（Raynor/Mengsk/Tosh/Warfield/Narud/Karass/Urun/Zeratul）跳过
-    if ((("$RebornCommander" == "Abathur") || ("$RebornCommander" == "Dehaka") || ("$RebornCommander" == "Izsha") || ("$RebornCommander" == "Kerrigan") || ("$RebornCommander" == "Naktul") || ("$RebornCommander" == "Stukov") || ("$RebornCommander" == "Zagara")) && (PlayerStartLocation(1) != null)) {
-        UnitCreate(1, "Hatchery", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), 0.0, 8.0), 270.0);
-        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 0.0), 270.0);
-        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 90.0), 270.0);
-        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 180.0), 270.0);
-        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 270.0), 270.0);
-    }
+    // 基地替换由通用层统一处理（各 mod 通过 commander profile 个性化），不再在此处创建
     // === 公共层：给所有单位动态添加移除部队选择技能（抽离自眼虫）===
     // DisableArmySelect 的注册调用不在此处，而在 lib48DF4533_InitLib() 末尾，
     // 因为 Galaxy 不支持函数向前引用（gt_DisableArmySelectPoll_Init 定义在文件末尾）。
@@ -1242,8 +1209,14 @@ void gt_${alengerId}TrainProbe_Init() {
 
 "@
         } else {
+            # 通用层：生成原版单位移除代码块（各 mod 通过 $vanillaRemovals 配置实现个性化）
+            $vanillaRemoveBlockP1 = ""
+            foreach ($u in $vanillaRemovals) {
+                $vanillaRemoveBlockP1 += "    lv_removedP1 += gf_RemoveAllUnitsOfType(1, `"$u`");`r`n"
+            }
             $pollGlue = @"
 trigger gt_PortingObserverDeadOfNightPoll;
+trigger gt_CommanderStartingUnits;
 
 bool gt_PortingObserverDeadOfNightPoll_Func(bool testConds, bool runActions) {
     int lv_primaryState = -1;
@@ -1264,6 +1237,58 @@ void gt_PortingObserverDeadOfNightPoll_Init() {
     TriggerExecute(gt_PortingObserverDeadOfNightPoll, false, true);
 }
 
+// 通用层：移除指定类型的所有单位
+int gf_RemoveAllUnitsOfType(int lp_player, string lp_type) {
+    unitgroup lv_units;
+    int lv_count;
+    int lv_i;
+    if (lp_type == "") { return 0; }
+    if (!CatalogEntryIsValid(c_gameCatalogUnit, lp_type)) { return 0; }
+    lv_units = UnitGroup(lp_type, lp_player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    lv_count = UnitGroupCount(lv_units, c_unitCountAll);
+    for (lv_i = lv_count; lv_i >= 1; lv_i -= 1) {
+        UnitRemove(UnitGroupUnit(lv_units, lv_i));
+    }
+    return lv_count;
+}
+
+// 通用层：指挥官起始单位替换（Map Init + 5s Wait 后执行，等效于"倒计时结束时"）
+// 各 mod 通过 commander profile 的 startingStructure/startingWorker/workerCount/vanillaRemovals 实现个性化
+bool gt_CommanderStartingUnits_Func(bool testConds, bool runActions) {
+    point lv_p1Start = null;
+    int lv_i = 0;
+    unitgroup lv_beforeP1 = UnitGroupEmpty();
+    unitgroup lv_afterP1 = UnitGroupEmpty();
+    int lv_beforeCount = 0;
+    int lv_createdP1 = 0;
+    int lv_removedP1 = 0;
+    string lv_diag = "";
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    libPortingObserver_gf_Publish("commander_starting_units_begin", "creating commander starting units", false);
+    Wait(5.0, c_timeReal);
+    lv_p1Start = PlayerStartLocation(1);
+${vanillaRemoveBlockP1}    lv_beforeP1 = UnitGroup("$startingStructure", 1, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    lv_beforeCount = UnitGroupCount(lv_beforeP1, c_unitCountAll);
+    if (lv_p1Start != null) {
+        UnitCreate(1, "$startingStructure", c_unitCreateIgnorePlacement, 1, lv_p1Start, 270.0);
+        for (lv_i = 0; lv_i < $workerCount; lv_i += 1) {
+            UnitCreate(1, "$startingWorker", c_unitCreateIgnorePlacement, 1,
+                PointWithOffsetPolar(lv_p1Start, 3.0, (IntToFixed(lv_i) * 72.0)), 270.0);
+        }
+    }
+    lv_afterP1 = UnitGroup("$startingStructure", 1, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    lv_createdP1 = UnitGroupCount(lv_afterP1, c_unitCountAll) - lv_beforeCount;
+    lv_diag = "created_p1=" + IntToString(lv_createdP1) + "; removed_vanilla_p1=" + IntToString(lv_removedP1);
+    libPortingObserver_gf_Publish("commander_starting_units_done", lv_diag, false);
+    return true;
+}
+
+void gt_CommanderStartingUnits_Init() {
+    gt_CommanderStartingUnits = TriggerCreate("gt_CommanderStartingUnits_Func");
+    TriggerExecute(gt_CommanderStartingUnits, false, true);
+}
+
 "@
         }
         $mapScript = $mapScript.Replace($mapInitAnchor, $pollGlue.Replace("`n", "`r`n") + $mapInitAnchor)
@@ -1274,7 +1299,7 @@ void gt_PortingObserverDeadOfNightPoll_Init() {
         if ($isAlengerCommander) {
             $initMapReplacement = "    libDeadOfNightObserver_InitLib();`r`n    gt_PortingObserverDeadOfNightPoll_Init();`r`n    gt_${alengerId}StartingUnits_Init();`r`n    gt_${alengerId}TrainProbe_Init();`r`n" + $initAnchor
         } else {
-            $initMapReplacement = "    libDeadOfNightObserver_InitLib();`r`n    gt_PortingObserverDeadOfNightPoll_Init();`r`n" + $initAnchor
+            $initMapReplacement = "    libDeadOfNightObserver_InitLib();`r`n    gt_PortingObserverDeadOfNightPoll_Init();`r`n    gt_CommanderStartingUnits_Init();`r`n" + $initAnchor
         }
         $mapScript = $mapScript.Replace($initAnchor, $initMapReplacement)
     }
