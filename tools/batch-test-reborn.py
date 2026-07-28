@@ -36,18 +36,27 @@ EVIDENCE_DIR = WORKSPACE / "src" / "projects" / "reborn-mods-cmre-integration" /
 # test-lock.ps1 中 $script:ProjRoot 解析为 cmre-runtime 的父目录（即 SC2VibeTools），
 # 锁文件位于 SC2VibeTools/out/.test.lock
 TEST_LOCK_FILE = WORKSPACE.parent / "out" / ".test.lock"
-TIMESTAMP = "20260727-retry2"
+TIMESTAMP = "20260727-final"
 
 # (runtime_id, reborn_name, race, expected_unit_keys)
+# unit keys 必须用小写（bank XML 中 key 全为小写：siqueen_p1_count 等）
+# Kerrigan 特例：K5Kerrigan 本体不替换，k5kerrigan_p1_after_swarmsetup 期望 1（而非 0）
 COMMANDERS = [
-    ("ZergIzsha",      "Izsha",      "Zerg",    ["siqueen"]),
-    ("ZergNaktul",     "Naktul",     "Zerg",    ["queen"]),
-    ("ProtossKarass",  "Karass",     "Protoss", ["higharchontemplar"]),
-    ("ProtossNarud",   "Narud",      "Protoss", ["revenantgun"]),
-    ("TerranTosh",     "Tosh",       "Terran",  ["witch"]),
-    ("ProtossUrun",    "Urun",       "Protoss", ["huntress"]),
-    ("TerranWarfield", "Warfield",   "Terran",  ["grizzly"]),
-    ("ZergZagara",     "Zagara",     "Zerg",    ["infestedabomination"]),
+    ("ZergAbathur",      "Abathur",     "Zerg",    ["hydraliskimpaler"]),
+    ("ZergDehaka",       "Dehaka",      "Zerg",    ["primalhydralisk2", "primaligniter"]),
+    ("ZergIzsha",        "Izsha",       "Zerg",    ["siqueen"]),
+    ("ProtossKarass",    "Karass",      "Protoss", ["higharchontemplar"]),
+    ("ZergKerrigan",     "Kerrigan",    "Zerg",    ["k5kerrigan"]),
+    ("ZergNaktul",       "Naktul",      "Zerg",    ["queen"]),
+    ("ProtossNarud",     "Narud",       "Protoss", ["revenantgun"]),
+    ("TerranRaynor",     "Raynor",      "Terran",  ["warpig"]),
+    ("ZergStukov",       "Stukov",      "Zerg",    ["infestedmarine"]),
+    ("TerranTosh",       "Tosh",        "Terran",  ["witch"]),
+    ("ProtossUrun",      "Urun",        "Protoss", ["huntress"]),
+    ("TerranWarfield",   "Warfield",    "Terran",  ["grizzly"]),
+    ("TerranMengsk",     "Mengsk",      "Terran",  ["mengskmarauder"]),
+    ("ZergZagara",       "Zagara",      "Zerg",    ["infestedabomination"]),
+    ("ProtossZeratul",   "Zeratul",     "Protoss", ["stalkershakuras"]),
 ]
 
 
@@ -75,7 +84,7 @@ def kill_sc2() -> None:
         )
     except Exception:
         pass
-    time.sleep(5)
+    time.sleep(8)  # 增加 waiting time 确保进程完全退出 + 文件句柄释放
 
 
 def cleanup_lock() -> None:
@@ -88,13 +97,33 @@ def cleanup_lock() -> None:
             print(f"  Warn: cannot remove test lock: {exc}")
 
 
-def remove_bank() -> None:
-    """删除现有 bank 文件。"""
-    if BANK_FILE.exists():
+def remove_bank() -> bool:
+    """删除现有 bank 文件，带重试验证。
+
+    返回 True 表示 bank 文件不存在（删除成功或本来就无）。
+    文件句柄可能被 SC2 进程残留占用，重试 5 次（每次间隔 3s）。
+    """
+    if not BANK_FILE.exists():
+        return True
+    for retry in range(5):
         try:
             BANK_FILE.unlink()
+            break
+        except PermissionError as exc:
+            print(f"  Bank locked, retry {retry+1}/5: {exc}", flush=True)
+            time.sleep(3)
         except Exception as exc:
-            print(f"  Warn: cannot remove bank file: {exc}")
+            print(f"  Bank remove retry {retry+1}/5 failed: {exc}", flush=True)
+            time.sleep(3)
+    else:
+        print(f"  WARN: cannot remove bank file after 5 retries", flush=True)
+        return False
+    # 验证删除
+    if BANK_FILE.exists():
+        print(f"  WARN: bank file still exists after unlink", flush=True)
+        return False
+    print(f"  Bank file removed", flush=True)
+    return True
 
 
 def run_launcher(runtime_id: str, reborn_name: str) -> int:
@@ -228,31 +257,58 @@ def main() -> int:
     results: list[TestResult] = []
     for cmdr in cmdrs:
         runtime_id, name, race, expected_units = cmdr
-        print(f"\n========== Testing {name} ({runtime_id}) ==========")
+        print(f"\n========== Testing {name} ({runtime_id}) ==========", flush=True)
+        try:
+            kill_sc2()
+            cleanup_lock()
+            remove_bank()
 
-        kill_sc2()
-        cleanup_lock()
-        remove_bank()
+            exit_code = run_launcher(runtime_id, name)
+            # launcher 退出后 SC2 仍在运行 galaxy 代码（SwarmSetup_Func + deep debug）。
+            # 等待 bank 文件写入：空 bank 约 67 字节，有内容的 bank >2000 字节。
+            # 每 15s 轮询一次，最多 8 轮 = 120s（之前 4 轮 60s 不够，Abathur galaxy 代码
+            # 在 InitLib 阶段写 bank，但 SC2 加载后需要时间触发 InitLibs）。
+            print(f"  Waiting for SC2 to write bank...", flush=True)
+            bank_has_content = False
+            for wait_round in range(8):  # 8×15s = 120s max
+                time.sleep(15)
+                if BANK_FILE.exists():
+                    size = BANK_FILE.stat().st_size
+                    if size > 100:  # 空 bank 约 67 字节，有内容的 bank >2000 字节
+                        bank_has_content = True
+                        print(f"  Bank ready: {size} bytes (after {(wait_round+1)*15}s)", flush=True)
+                        break
+                print(f"  Bank not ready, waiting 15s more... (round {wait_round+1}/8)", flush=True)
+            kill_sc2()
 
-        exit_code = run_launcher(runtime_id, name)
-        time.sleep(8)
-        kill_sc2()
+            bank_exists = BANK_FILE.exists() and bank_has_content
+            bank_backup = EVIDENCE_DIR / f"CMRERebornDebug.SC2Bank.{TIMESTAMP}-{name}"
+            if bank_exists:
+                # kill_sc2 后文件句柄可能未立即释放，重试 3 次
+                for retry in range(3):
+                    try:
+                        shutil.copy2(BANK_FILE, bank_backup)
+                        print(f"  Bank backed up: {bank_backup}", flush=True)
+                        break
+                    except Exception as exc:
+                        print(f"  Backup retry {retry+1}/3 failed: {exc}", flush=True)
+                        time.sleep(3)
+                else:
+                    print(f"  Backup failed after 3 retries", flush=True)
+                    bank_exists = False
 
-        bank_exists = BANK_FILE.exists()
-        bank_backup = EVIDENCE_DIR / f"CMRERebornDebug.SC2Bank.{TIMESTAMP}-{name}"
-        if bank_exists:
-            try:
-                shutil.copy2(BANK_FILE, bank_backup)
-                print(f"  Bank backed up: {bank_backup}")
-            except Exception as exc:
-                print(f"  Backup failed: {exc}")
-                bank_exists = False
-
-        metrics = parse_bank(bank_backup) if bank_exists else {}
-        result = evaluate(cmdr, metrics, exit_code, bank_exists)
-        status = "PASS" if result.passed else "FAIL"
-        print(f"  >> {status}: {result.detail}")
-        results.append(result)
+            metrics = parse_bank(bank_backup) if bank_exists else {}
+            result = evaluate(cmdr, metrics, exit_code, bank_exists)
+            status = "PASS" if result.passed else "FAIL"
+            print(f"  >> {status}: {result.detail}", flush=True)
+            results.append(result)
+        except Exception as exc:
+            print(f"  >> FAIL: exception during test: {exc}", flush=True)
+            results.append(TestResult(
+                commander=name, race=race, exit_code=-1,
+                bank_fresh_write=False, passed=False,
+                detail=f"exception: {exc}"
+            ))
         time.sleep(5)
 
     # 汇总

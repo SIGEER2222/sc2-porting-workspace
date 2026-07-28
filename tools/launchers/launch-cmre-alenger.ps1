@@ -300,8 +300,23 @@ function Enable-CmreSavedProfileStartup {
             Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipPause mode appended CMUIX_ReadyBeginCountdown() + return"
         }
     } elseif ($SkipCountdown) {
-        $replacementBody += [Environment]::NewLine + '    // SkipCountdown (API mode): CMUIX_ReadyBeginCountdown() omitted to avoid Launched-state stall' + [Environment]::NewLine + '    return ;'
-        Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipCountdown=true (API mode, no CMUIX_ReadyBeginCountdown)"
+        # 黑屏修复（2026-07-28 真因）：CC_DevStartupBegin 中 libCOOC_gf_ShowHideWorldCover(true, ...)
+        # 隐藏了世界画面，但 CC_DevStartupFinish 不会在 SkipCountdown 模式下被调用，
+        # 导致世界永远被隐藏。在 return ; 之前手动恢复：解除暂停 + 显示世界 + 显示游戏 UI。
+        $blackScreenFixInDevStartup = [string]::Join([Environment]::NewLine, @(
+            '    // CMRE_PATCH_BLACK_SCREEN_FIX_IN_DEVSTARTUP',
+            '    // 恢复世界画面：CC_DevStartupBegin 隐藏了世界，但 DevStartupFinish 不会被调用',
+            '    GameSetMissionTimePaused(false);',
+            '    AITimePause(false);',
+            '    UnitPauseAll(false);',
+            '    libCOOC_gf_ShowHideWorldCover(false, 0.0, 1);',
+            '    if ((PlayerType(14) == c_playerTypeUser)) {',
+            '        libCOOC_gf_ShowHideWorldCover(false, 0.0, 14);',
+            '    }',
+            '    libNtve_gf_HideGameUI(false, PlayerGroupAll());'
+        ))
+        $replacementBody += [Environment]::NewLine + '    // SkipCountdown (API mode): CMUIX_ReadyBeginCountdown() omitted to avoid Launched-state stall' + [Environment]::NewLine + $blackScreenFixInDevStartup + [Environment]::NewLine + '    return ;'
+        Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipCountdown=true (API mode, no CMUIX_ReadyBeginCountdown) + black screen fix injected"
     } else {
         # This matches CMRE's native saved-profile path. ReadyBeginCountdown commits the
         # empty launcher draft and clears bank-provided Mode=2/3 mutators before game start.
@@ -609,9 +624,15 @@ $marker
     if ($initLibMarkerCount -eq 0) {
         throw "Patch-RebornLibraryInit: lib48DF4533_InitTriggers() marker not found in Lib48DF4533.galaxy"
     }
-    # 检查是否已注入（幂等）
+    # 检查是否已注入黑屏修复（幂等）—— 旧版注入只有 SwarmSetup 触发，没有黑屏修复，
+    # 必须用 black_screen_fix 标记做幂等检查，并在重新注入前移除旧块。
     $initLibInjectMarker = '// CMRE_PATCH_SWARMSETUP_DIRECT_TRIGGER'
-    if (-not $content.Contains($initLibInjectMarker)) {
+    $blackScreenFixMarker = '// CMRE_PATCH_BLACK_SCREEN_FIX'
+    if (-not $content.Contains($blackScreenFixMarker)) {
+        # 移除旧版注入块（从 CMRE_PATCH_SWARMSETUP_DIRECT_TRIGGER 到 gt_DisableArmySelectPoll_Init();）
+        # 保证重新注入最新代码（含黑屏修复）
+        $oldPatchPattern = '(?m)^    // CMRE_PATCH_SWARMSETUP_DIRECT_TRIGGER[\s\S]*?    gt_DisableArmySelectPoll_Init\(\);\r?\n'
+        $content = [regex]::Replace($content, $oldPatchPattern, '')
         $initLibInjectBlock = @"
     $initLibInjectMarker
     // 直接异步触发 SwarmSetup，绕过 Initialization_Func 中的 Wait 卡死问题。
@@ -626,6 +647,25 @@ $marker
     BankLoad("CMRERebornDebug", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "initlib_patch_ran", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "initlib_k5kerrigan_p1_count", UnitGroupCount(UnitGroup("K5Kerrigan", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankSave(BankLastCreated());
+    // === 修复黑屏（2026-07-28 真因定位）：CMRE 框架的 CC_DevStartupBegin 在
+    //   SkipCountdown 模式下调用 GameSetMissionTimePaused(true) + ShowHideWorldCover(true)
+    //   进入黑屏+暂停状态，但 CC_DevStartupFinish 通过 commander selection 关闭事件触发，
+    //   SkipCountdown 模式下 commander selection 未启动（line 4823-4824 直接 return），
+    //   DevStartupFinish 永远不会被调用，导致黑屏 + SwarmSetup 内部 Wait(c_timeGame) 永不返回。
+    //   这里在 SwarmSetup 触发之前手动恢复：解除暂停 + 显示世界，让 SwarmSetup 内部的
+    //   Wait(c_timeGame) 能正常返回，玩家也能看到游戏画面。
+    // CMRE_PATCH_BLACK_SCREEN_FIX
+    GameSetMissionTimePaused(false);
+    AITimePause(false);
+    UnitPauseAll(false);
+    libCOOC_gf_ShowHideWorldCover(false, 0.0, 1);
+    if ((PlayerType(14) == c_playerTypeUser)) {
+        libCOOC_gf_ShowHideWorldCover(false, 0.0, 14);
+    }
+    libNtve_gf_HideGameUI(true, PlayerGroupAll());
+    BankLoad("CMRERebornDebug", 1);
+    BankValueSetFromInt(BankLastCreated(), "debug", "black_screen_fix_ran", 1);
     BankSave(BankLastCreated());
     TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);
     // === 公共层：注册 DisableArmySelect 定时补加触发器 ===
@@ -662,16 +702,9 @@ $marker
     // === 公共层：给所有单位动态添加移除部队选择技能（抽离自眼虫）===
     // DisableArmySelect 的注册调用不在此处，而在 lib48DF4533_InitLib() 末尾，
     // 因为 Galaxy 不支持函数向前引用（gt_DisableArmySelectPoll_Init 定义在文件末尾）。
-    // === 修复黑屏：Reborn mod 的 UICreation 会进入电影模式（黑屏 fade）并创建 Dialog UI ===
-    // 如果 Dialog 未正确显示（比如在 API/SkipCountdown 模式下），玩家会卡在黑屏。
-    // 这里在 SwarmSetup 完成后，等待 3 秒让 Reborn UI 初始化，然后强制关闭电影模式，
-    // 确保游戏画面可见。如果 Reborn UI 正常显示，玩家可以手动点击关闭按钮。
-    Wait(3.0, c_timeGame);
-    if (lib48DF4533_gv_uIBase != c_invalidDialogId) {
-        DialogSetVisible(lib48DF4533_gv_uIBase, PlayerGroupAll(), false);
-    }
-    libNtve_gf_CinematicMode(false, PlayerGroupAll(), c_transitionDurationDefault);
-    CutsceneFade(true, 0.0, Color(0,0,0), 100.0, PlayerGroupAll(), true);
+    // === 黑屏修复已在 lib48DF4533_InitLib() 末尾完成（SwarmSetup 触发之前）：
+    //   解除 GameSetMissionTimePaused + ShowHideWorldCover(false)，确保 SwarmSetup
+    //   内部的 Wait(c_timeGame) 能正常返回。这里不再重复修复，直接写入调试银行。
     BankLoad("CMRERebornDebug", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "deep_debug_ran", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "abathur_upgrade_count", TechTreeUpgradeCount(1, "Abathur", c_techCountCompleteOnly));
@@ -744,9 +777,9 @@ $marker
 
         # 只替换最后一次出现的 initLibMarker（即 InitLib 函数中的那个，不是 InitTriggers 函数定义）
         $content = [regex]::Replace($content, [regex]::Escape($initLibMarker) + '\s*\r?\n}', $initLibMarker + "`r`n" + $initLibInjectBlock + "`r`n}")
-        Write-Host "Patch-RebornLibraryInit: injected direct K5Kerrigan spawn + SwarmSetup trigger into lib48DF4533_InitLib()"
+        Write-Host "Patch-RebornLibraryInit: injected direct K5Kerrigan spawn + SwarmSetup trigger + black screen fix into lib48DF4533_InitLib()"
     } else {
-        Write-Host "Patch-RebornLibraryInit: direct SwarmSetup trigger already injected, skipping"
+        Write-Host "Patch-RebornLibraryInit: black screen fix already injected, skipping"
     }
 
     # === 3d. 在 lib48DF4533_InitLib() 函数之前注入 DisableArmySelect 定时补加触发器函数定义 ===
