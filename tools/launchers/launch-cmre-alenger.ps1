@@ -313,7 +313,21 @@ function Enable-CmreSavedProfileStartup {
             '    if ((PlayerType(14) == c_playerTypeUser)) {',
             '        libCOOC_gf_ShowHideWorldCover(false, 0.0, 14);',
             '    }',
-            '    libNtve_gf_HideGameUI(false, PlayerGroupAll());'
+            '    libNtve_gf_HideGameUI(false, PlayerGroupAll());',
+            '    // 黑屏检测：写入对话框可见性到银行文件',
+            '    BankLoad("CMRERebornDebug", 1);',
+            '    if (DialogIsVisible(libCOOC_gv_cC_WorldCoverDlg, 1)) {',
+            '        BankValueSetFromInt(BankLastCreated(), "debug", "world_cover_dialog_visible_p1", 1);',
+            '    } else {',
+            '        BankValueSetFromInt(BankLastCreated(), "debug", "world_cover_dialog_visible_p1", 0);',
+            '    }',
+            '    BankValueSetFromInt(BankLastCreated(), "debug", "world_cover_dialog_id", libCOOC_gv_cC_WorldCoverDlg);',
+            '    if (GameIsMissionTimePaused()) {',
+            '        BankValueSetFromInt(BankLastCreated(), "debug", "game_mission_time_paused", 1);',
+            '    } else {',
+            '        BankValueSetFromInt(BankLastCreated(), "debug", "game_mission_time_paused", 0);',
+            '    }',
+            '    BankSave(BankLastCreated());'
         ))
         $replacementBody += [Environment]::NewLine + '    // SkipCountdown (API mode): CMUIX_ReadyBeginCountdown() omitted to avoid Launched-state stall' + [Environment]::NewLine + $blackScreenFixInDevStartup + [Environment]::NewLine + '    return ;'
         Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipCountdown=true (API mode, no CMUIX_ReadyBeginCountdown) + black screen fix injected"
