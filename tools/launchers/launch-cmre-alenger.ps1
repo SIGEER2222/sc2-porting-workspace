@@ -662,6 +662,16 @@ $marker
     // === 公共层：给所有单位动态添加移除部队选择技能（抽离自眼虫）===
     // DisableArmySelect 的注册调用不在此处，而在 lib48DF4533_InitLib() 末尾，
     // 因为 Galaxy 不支持函数向前引用（gt_DisableArmySelectPoll_Init 定义在文件末尾）。
+    // === 修复黑屏：Reborn mod 的 UICreation 会进入电影模式（黑屏 fade）并创建 Dialog UI ===
+    // 如果 Dialog 未正确显示（比如在 API/SkipCountdown 模式下），玩家会卡在黑屏。
+    // 这里在 SwarmSetup 完成后，等待 3 秒让 Reborn UI 初始化，然后强制关闭电影模式，
+    // 确保游戏画面可见。如果 Reborn UI 正常显示，玩家可以手动点击关闭按钮。
+    Wait(3.0, c_timeGame);
+    if (lib48DF4533_gv_uIBase != c_invalidDialogId) {
+        DialogSetVisible(lib48DF4533_gv_uIBase, PlayerGroupAll(), false);
+    }
+    libNtve_gf_CinematicMode(false, PlayerGroupAll(), c_transitionDurationDefault);
+    CutsceneFade(true, 0.0, Color(0,0,0), 100.0, PlayerGroupAll(), true);
     BankLoad("CMRERebornDebug", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "deep_debug_ran", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "abathur_upgrade_count", TechTreeUpgradeCount(1, "Abathur", c_techCountCompleteOnly));
