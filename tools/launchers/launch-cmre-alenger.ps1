@@ -1,5 +1,8 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch)
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "")
+# -MapCopySuffix: 可选的地图副本后缀，用于避免多会话同时操作同一 live 地图导致 DocumentInfo 冲突。
+# 例如 -MapCopySuffix "reborn" 会使用 Maps\亡者之夜.SC2Map.reborn\ 作为 live 地图。
+# 不指定时使用原始路径（向后兼容）。
 $ErrorActionPreference = "Stop"
 # 模式校验：PlayerMode 和 DebugMode 互斥；DebugMode 自动启用 ApiMinimal 并要求 ListenPort
 if ($PlayerMode -and $DebugMode) { throw "-PlayerMode 和 -DebugMode 互斥，不能同时使用" }
@@ -169,7 +172,8 @@ function Enable-CmreSavedProfileStartup {
         [Parameter(Mandatory = $true)][string]$Commander,
         [switch]$SkipCountdown,
         [switch]$ApiMinimal,
-        [switch]$SkipPause
+        [switch]$SkipPause,
+        [switch]$KeepPlayer1Vanilla
     )
     # Patch the map-level LibCOOC.galaxy (copied by Install-CmreGalaxyHostOverlay)
     # instead of the mod-source copy. The mod source is overwritten by Sync-ModSet
@@ -199,12 +203,23 @@ function Enable-CmreSavedProfileStartup {
             CMUIX_LaunchProfileApply(BankLastCreated());
         }
     }
+"@
+    # KeepPlayer1Vanilla: 跳过 P1 的指挥官设置，让 P1 保留 vanilla 单位（type_18 CC / type_45 SCV）。
+    # 用于 API 模式：API 以 P1 身份加入（P1=Participant），操作 vanilla 单位用标准 ability ID 训练/建造。
+    # P2 仍然设置指挥官（被 galaxy 触发器替换为指挥官单位），由 AI 控制。
+    if (-not $KeepPlayer1Vanilla) {
+        $replacementBody += @"
     libCOTF_gv_sELECTED_Commander[1] = "$Commander";
     libCOTF_gv_sELECTED_Commander_Random[1] = false;
     libCOOC_gf_CC_PlayerCommanderSet(1, "$Commander");
     libCOUI_gv_cU_CommanderSelection[1] = "$Commander";
     libCOUI_gv_cU_CommanderSelect_PlayerReady[1] = true;
     libCOUI_gf_CU_CommanderFinalizeStates(1);
+"@
+    } else {
+        Write-Host "DEBUG Enable-CmreSavedProfileStartup: KeepPlayer1Vanilla — skipping P1 commander setup (P1 keeps vanilla units for API control)"
+    }
+    $replacementBody += @"
     libCOTF_gv_sELECTED_Commander[2] = "$Commander";
     libCOTF_gv_sELECTED_Commander_Random[2] = false;
     libCOOC_gf_CC_PlayerCommanderSet(2, "$Commander");
@@ -626,37 +641,39 @@ $marker
             throw "Patch-RebornLibraryInit: SwarmSetup_Func end marker not found"
         }
         $deepDebugBlock = @"
-    TriggerExecute(lib48DF4533_gt_AllySettings, true, false);
     // CMRE_PATCH_SWARMSETUP_DEEP_DEBUG
     // SwarmSetup 执行完所有逻辑后：
-    // 1. 创建虫族建筑体系（Hatchery + Spawning Pool + Drone）让 Abathur 能完整生产
-    // 2. 给玩家大量资源（用于购买 CommanderUnits 商店技能 + 训练单位）
-    // 3. 验证 HunterKiller 的 5 个 Abathur 特有技能（UnitAbilityExists）
-    // 4. 写入深度调试银行作为运行时信源
-    PlayerModifyPropertyInt(1, c_playerPropMinerals, c_playerPropOperSetTo, 10000);
-    PlayerModifyPropertyInt(1, c_playerPropVespene, c_playerPropOperSetTo, 10000);
-    PlayerModifyPropertyInt(2, c_playerPropMinerals, c_playerPropOperSetTo, 10000);
-    PlayerModifyPropertyInt(2, c_playerPropVespene, c_playerPropOperSetTo, 10000);
-    // 只对虫族指挥官创建虫族建筑（Abathur/Dehaka/Izsha/Kerrigan/Naktul/Stukov/Zagara）
+    // 1. 只给 1 个初始基地（Hatchery）+ 4 个工蜂，其他建筑和资源由玩家自行发展
+    // 2. 验证 HunterKiller 的 5 个 Abathur 特有技能（UnitAbilityExists）
+    // 3. 写入深度调试银行作为运行时信源
+    // 只对虫族指挥官创建初始基地（Abathur/Dehaka/Izsha/Kerrigan/Naktul/Stukov/Zagara）
     // 非虫族指挥官（Raynor/Mengsk/Tosh/Warfield/Narud/Karass/Urun/Zeratul）跳过
-    // 早期版本用 PlayerRace(1) == "Zerg" 判断，但 Reborn 代码中只有 Raynor 调用了
-    // PlayerSetRace，其他指挥官的 PlayerRace 不可靠（Izsha 是 Zerg 但被误判为非 Zerg，
-    // 导致 hatchery=0）。改为根据 RebornCommander 字符串字面量判断（PowerShell 在
-    // 注入时会替换 $RebornCommander 为实际值，galaxy 编译时字符串比较直接得出结果）。
-    // PlayerStartLocation != null 用于防御 PlayerStartLocation 在库初始化阶段返回 null 的情况。
     if ((("$RebornCommander" == "Abathur") || ("$RebornCommander" == "Dehaka") || ("$RebornCommander" == "Izsha") || ("$RebornCommander" == "Kerrigan") || ("$RebornCommander" == "Naktul") || ("$RebornCommander" == "Stukov") || ("$RebornCommander" == "Zagara")) && (PlayerStartLocation(1) != null)) {
         UnitCreate(1, "Hatchery", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), 0.0, 8.0), 270.0);
-        UnitCreate(1, "SpawningPool", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), 5.0, 5.0), 270.0);
-        UnitCreate(1, "RoachWarren", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), -5.0, 5.0), 270.0);
-        UnitCreate(1, "HydraliskDen", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), 5.0, -5.0), 270.0);
-        UnitCreate(1, "BanelingNest", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), -5.0, -5.0), 270.0);
-        UnitCreate(1, "EvolutionChamber", c_unitCreateIgnorePlacement, 1, PointWithOffset(PlayerStartLocation(1), 0.0, -8.0), 270.0);
         UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 0.0), 270.0);
-        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 60.0), 270.0);
-        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 120.0), 270.0);
+        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 90.0), 270.0);
         UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 180.0), 270.0);
-        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 240.0), 270.0);
-        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 300.0), 270.0);
+        UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, 1, PointWithOffsetPolar(PlayerStartLocation(1), 3.0, 270.0), 270.0);
+    }
+    // === 公共层：给所有单位动态添加移除部队选择技能（抽离自眼虫）===
+    // DisableArmySelect 原本只挂在 Overseer/LurkerBurrowed 上，现在抽离到公共层，
+    // 遍历所有玩家的所有单位，给每个单位添加 DisableArmySelect 能力。
+    // 注意：这只是初始化时的快照，新创建的单位需要后续完善（定时触发器或单位创建事件）。
+    {
+        int g_player;
+        for (g_player = 1; g_player <= 14; g_player++) {
+            unitgroup g_group = UnitGroup(null, g_player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+            int g_count = UnitGroupCount(g_group, c_unitCountAlive);
+            int g_i;
+            for (g_i = 1; g_i <= g_count; g_i++) {
+                unit g_u = UnitGroupUnit(g_group, g_i);
+                if (g_u != null) {
+                    if (not UnitAbilityExists(g_u, "DisableArmySelect")) {
+                        UnitAbilityAdd(g_u, "DisableArmySelect", 0);
+                    }
+                }
+            }
+        }
     }
     BankLoad("CMRERebornDebug", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "deep_debug_ran", 1);
@@ -733,6 +750,50 @@ $marker
         Write-Host "Patch-RebornLibraryInit: injected direct K5Kerrigan spawn + SwarmSetup trigger into lib48DF4533_InitLib()"
     } else {
         Write-Host "Patch-RebornLibraryInit: direct SwarmSetup trigger already injected, skipping"
+    }
+
+    # === 3d. 在 lib48DF4533.galaxy 文件末尾追加 DisableArmySelect 定时补加触发器函数定义 ===
+    # 任务2 完善：初始化时只能给已存在单位补加能力，新创建的单位（训练/变异/召唤）需要持续补加。
+    # 该触发器每 2 秒扫描所有玩家的活体单位，给未携带 DisableArmySelect 的单位补加。
+    $pollFuncBlock = @"
+
+// CMRE_PATCH_DISABLEARMYSELECT_POLL: 公共层定时补加 DisableArmySelect 能力
+// 抽离自眼虫（Overseer）的 DisableArmySelect，让所有单位都能脱离部队选择。
+trigger gt_DisableArmySelectPoll;
+
+bool gt_DisableArmySelectPoll_Func(bool testConds, bool runActions) {
+    int lv_player;
+    unitgroup lv_group;
+    int lv_count;
+    int lv_i;
+    unit lv_u;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    for (lv_player = 1; lv_player <= 15; lv_player += 1) {
+        lv_group = UnitGroup(null, lv_player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+        lv_count = UnitGroupCount(lv_group, c_unitCountAlive);
+        for (lv_i = 1; lv_i <= lv_count; lv_i += 1) {
+            lv_u = UnitGroupUnit(lv_group, lv_i);
+            if (lv_u != null) {
+                if (not UnitAbilityExists(lv_u, "DisableArmySelect")) {
+                    UnitAbilityAdd(lv_u, "DisableArmySelect", 0);
+                }
+            }
+        }
+    }
+    return true;
+}
+
+void gt_DisableArmySelectPoll_Init() {
+    gt_DisableArmySelectPoll = TriggerCreate("gt_DisableArmySelectPoll_Func");
+    TriggerAddEventTimePeriodic(gt_DisableArmySelectPoll, 2.0, c_timeGame);
+}
+"@
+    if (-not ($content -contains 'gt_DisableArmySelectPoll_Init')) {
+        if (-not ($content.Contains('gt_DisableArmySelectPoll_Init'))) {
+            $content = $content + $pollFuncBlock.Replace("`n", "`r`n")
+            Write-Host "Patch-RebornLibraryInit: appended DisableArmySelect poll trigger function to Lib48DF4533.galaxy"
+        }
     }
 
     $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
@@ -1734,7 +1795,17 @@ try {
     if ($starCoopRemovedCount -gt 0) {
         Write-Host "StarCoop dependency removed from $starCoopRemovedCount Commanders mod(s)"
     }
-    $liveMap = Join-Path $Sc2Root "Maps\$MapName"
+    # MapCopySuffix: 使用独立的 live 地图副本，避免多会话同时操作同一地图导致 DocumentInfo 冲突。
+    # 例如 -MapCopySuffix "reborn" → Maps\reborn\亡者之夜.SC2Map\
+    # 注意：SC2 要求地图目录名以 .SC2Map 结尾，所以后缀作为子目录而非文件名扩展。
+    if ($MapCopySuffix -ne "") {
+        $liveMapDir = Join-Path $Sc2Root "Maps\$MapCopySuffix"
+        if (-not (Test-Path -LiteralPath $liveMapDir)) { [System.IO.Directory]::CreateDirectory($liveMapDir) | Out-Null }
+        $liveMap = Join-Path $liveMapDir $MapName
+        Write-Host "Using isolated map copy: $MapCopySuffix\$MapName"
+    } else {
+        $liveMap = Join-Path $Sc2Root "Maps\$MapName"
+    }
     if (Test-Path -LiteralPath $liveMap) { [System.IO.Directory]::Delete($liveMap, $true) }
     [System.IO.Directory]::CreateDirectory($liveMap) | Out-Null
     robocopy $mapSource $liveMap /MIR /NFL /NDL /NJH /NJS /NC /NS /NP | Out-Null
@@ -1761,6 +1832,11 @@ try {
         # DevStartupBegin 开头的 GameSetMissionTimePaused/AITimePause/UnitPauseAll，
         # 这三个调用会把游戏暂停，但不会影响 API 状态（状态由 CreateGame/JoinGame 控制）。
         if ($ListenPort -gt 0) {
+            # API 模式：P1 和 P2 都设置指挥官（CMRE 正常逻辑）。
+            # CMRE galaxy 触发器强制 P1=Participant（API 加入位置），P2=Computer（AI 队友）。
+            # API 以 P1 身份加入，操作 P1 的指挥官单位（type_4390/4386 CC / type_4382 SCV）。
+            # 这才是 CMRE 的"玩家队友"角色——有指挥官的单位，而非 vanilla 单位。
+            # ability ID 使用 CMRE 自定义值（17428/17514 训练 SCV，16/17/18 建造建筑）。
             Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -SkipPause
         } else {
             Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander
