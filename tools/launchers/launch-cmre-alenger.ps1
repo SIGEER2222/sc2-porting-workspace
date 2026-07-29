@@ -38,7 +38,7 @@ $cmre = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\cmre-alen
 $alenger = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\alenger-mods.json") -Raw | ConvertFrom-Json
 # 加载地图需求声明（map-requirements.json）：地图声明硬性需求（PreventDefeat、起始单位），
 # 由 launcher 读取并通知 mod adapter 中间层执行
-$mapRequirements = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\map-requirements.json") -Raw | ConvertFrom-Json
+$mapRequirements = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\map-requirements.json") -Raw -Encoding UTF8 | ConvertFrom-Json
 $mapRequirementKey = $MapName
 if (-not ($mapRequirements.maps.PSObject.Properties.Name -contains $mapRequirementKey)) {
     $mapRequirementKey = '_default'
@@ -341,7 +341,7 @@ function Enable-CmreSavedProfileStartup {
             '    if ((PlayerType(14) == c_playerTypeUser)) {',
             '        libCOOC_gf_ShowHideWorldCover(false, 0.0, 14);',
             '    }',
-            '    libNtve_gf_HideGameUI(false, PlayerGroupAll());',
+            '    libNtve_gf_HideGameUI(true, PlayerGroupAll()); // true=显示UI（HideGameUI函数名反直觉：lp_showHide=true 显示, false 隐藏）',
             '    // 黑屏检测：写入对话框可见性到银行文件',
             '    BankLoad("CMRERebornDebug", 1);',
             '    if (DialogIsVisible(libCOOC_gv_cC_WorldCoverDlg, 1)) {',
@@ -357,8 +357,8 @@ function Enable-CmreSavedProfileStartup {
             '    }',
             '    BankSave(BankLastCreated());'
         ))
-        $replacementBody += [Environment]::NewLine + '    // SkipCountdown (API mode): CMUIX_ReadyBeginCountdown() omitted to avoid Launched-state stall' + [Environment]::NewLine + $blackScreenFixInDevStartup + [Environment]::NewLine + '    return ;'
-        Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipCountdown=true (API mode, no CMUIX_ReadyBeginCountdown) + black screen fix injected"
+        $replacementBody += [Environment]::NewLine + '    // SkipCountdown (API mode): 调用 CC_DevStartupFinish() 完成完整 CMRE 初始化' + [Environment]::NewLine + $blackScreenFixInDevStartup + [Environment]::NewLine + '    // 调用 CC_DevStartupFinish()：应用 tech + 显示 UI（HideGameUI(true)）+ 执行 mission trigger' + [Environment]::NewLine + '    // 注意：HideGameUI(bool lp_showHide) 参数 true=显示UI, false=隐藏UI（函数名反直觉）' + [Environment]::NewLine + '    // 之前错误地跳过 DevStartupFinish 导致 UI 永久隐藏 + mission trigger 未执行' + [Environment]::NewLine + '    libCOOC_gf_CC_DevStartupFinish();' + [Environment]::NewLine + '    return ;'
+        Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipCountdown=true (API mode) + black screen fix + CC_DevStartupFinish() (full CMRE init)"
     } else {
         # This matches CMRE's native saved-profile path. ReadyBeginCountdown commits the
         # empty launcher draft and clears bank-provided Mode=2/3 mutators before game start.
@@ -687,7 +687,7 @@ function Patch-RebornLibraryInit {
     if ((PlayerType(14) == c_playerTypeUser)) {
         libCOOC_gf_ShowHideWorldCover(false, 0.0, 14);
     }
-    libNtve_gf_HideGameUI(true, PlayerGroupAll());
+    libNtve_gf_HideGameUI(true, PlayerGroupAll()); // true=显示UI（HideGameUI 函数名反直觉：lp_showHide=true 显示, false 隐藏）
     BankLoad("CMRERebornDebug", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "black_screen_fix_ran", 1);
     BankSave(BankLastCreated());
@@ -856,6 +856,35 @@ void gt_DisableArmySelectPoll_Init() {
         } else {
             $content = $content + $pollFuncBlockNormalized
             Write-Host "Patch-RebornLibraryInit: appended DisableArmySelect poll trigger function to end of Lib48DF4533.galaxy (InitLib marker not found)"
+        }
+    }
+
+    # === 3e. 修复 PingController_Func 的 EventUnit() 触发器错误 ===
+    # 根因：lib48DF4533_gt_PingController_Func 注册的是 TriggerAddEventPing（玩家小地图 ping 事件），
+    # 但条件检查中调用了 EventUnit()。Ping 事件只提供 EventPingPoint()，不提供 EventUnit()，
+    # 引擎在初始化触发器时即报错"事件响应函数'EventUnit'没有匹配的事件"。
+    # 修复：触发器已通过 TriggerAddEventPing(trig, 1) 限定为 player 1，条件检查冗余且无效，
+    # 直接跳过（if (false)），保留 Actions 部分的 EventPingPoint() 功能。
+    $pingControllerAnchor = '    if (testConds) {
+        if (!((UnitGetOwner(EventUnit()) == 1))) {
+            return false;
+        }
+    }'
+    $pingControllerPatch = '    if (testConds) {
+        if (false) { // CMRE patch: Ping event has no EventUnit(), trigger registered for player 1 only
+            return false;
+        }
+    }'
+    if ($content.Contains('lib48DF4533_gt_PingController_Func')) {
+        if (-not $content.Contains($pingControllerPatch)) {
+            if ($content.Contains($pingControllerAnchor)) {
+                $content = $content.Replace($pingControllerAnchor, $pingControllerPatch)
+                Write-Host "Patch-RebornLibraryInit: patched PingController_Func EventUnit() error"
+            } else {
+                Write-Host "Patch-RebornLibraryInit: WARNING - PingController_Func anchor not found, EventUnit patch skipped" -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "Patch-RebornLibraryInit: PingController patch already applied, skipping"
         }
     }
 
