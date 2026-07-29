@@ -1,0 +1,23 @@
+{
+  "consumer_id": "dead-of-night-terran-alenger3",
+  "map": "亡者之夜",
+  "commander": "TerranAlenger3",
+  "launcher": "tools/launchers/launch-cmre-alenger.ps1",
+  "description": "第一消费者：亡者之夜 × TerranAlenger3",
+  "map_specific": {
+    "start_location_known": true,
+    "has_neutral_buildings": false,
+    "mission_type": "defense",
+    "max_players": 2
+  },
+  "recipe": {
+    "recipe_id": "dead-of-night-default",
+    "steps": [
+      {"action": "reset", "request_id": "don-reset"},
+      {"action": "set_resource", "player": 1, "resource": "minerals", "value": 5000, "request_id": "don-set-min"},
+      {"action": "spawn", "unit_type": "Marine", "count": 3, "player": 1, "request_id": "don-spawn-marine"},
+      {"action": "assert", "kind": "count", "unit_type": "Marine", "player": 1, "expected": 3, "request_id": "don-spawn-marine", "id": "don-assert-01", "expected_verdict": "passed"}
+    ]
+  },
+  "adapter_notes": "亡者之夜是防守型地图，需要 PreventDefeat 单位。Launcher 已处理基地创建。"
+}

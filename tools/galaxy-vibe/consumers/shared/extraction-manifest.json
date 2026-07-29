@@ -1,0 +1,117 @@
+{
+  "extraction_phase": "P6",
+  "timestamp": "2026-07-29T22:37:17+08:00",
+  "description": "共享 Kernel/Host 抽取差异清单。抽取前保留两套消费者真实差异。",
+  "first_consumer": {
+    "id": "dead-of-night-terran-alenger3",
+    "map": "亡者之夜",
+    "commander": "TerranAlenger3"
+  },
+  "second_consumer": {
+    "id": "keha-rift-terran-alenger3",
+    "map": "克哈裂痕",
+    "commander": "TerranAlenger3"
+  },
+  "differences": [
+    {
+      "aspect": "map_name",
+      "first_consumer": "亡者之夜",
+      "second_consumer": "克哈裂痕",
+      "shared_resolution": "通过 consumer.json 的 map 字段参数化，不硬编码"
+    },
+    {
+      "aspect": "mission_type",
+      "first_consumer": "defense",
+      "second_consumer": "attack_defense",
+      "shared_resolution": "Mission type 不影响 Kernel/Host 逻辑，仅影响 recipe 内容"
+    },
+    {
+      "aspect": "starting_units",
+      "first_consumer": "由 launcher + LibRebornAdapter 处理",
+      "second_consumer": "同上（launcher 支持 -MapName 参数）",
+      "shared_resolution": "已有 launcher 抽象，无需改动"
+    },
+    {
+      "aspect": "recipe_content",
+      "first_consumer": "spawn 3 Marine",
+      "second_consumer": "spawn 5 Marine + 2 Marauder",
+      "shared_resolution": "recipe 是 consumer-specific，放在 consumers/<name>/consumer.json"
+    },
+    {
+      "aspect": "has_neutral_buildings",
+      "first_consumer": false,
+      "second_consumer": true,
+      "shared_resolution": "不影响 Kernel RPC 协议，scenario.reset 保留 PreventDefeat 单位"
+    }
+  ],
+  "shared_components": [
+    {
+      "component": "LibVibeKernel",
+      "path": "tools/galaxy-vibe/kernel/LibVibeKernel.galaxy",
+      "shared": true,
+      "reason": "Kernel 处理通用 RPC 协议，与地图无关"
+    },
+    {
+      "component": "VibeHost",
+      "path": "tools/galaxy-vibe/host/vibe_host.py",
+      "shared": true,
+      "reason": "Host 通过 map_name 参数化，不硬编码地图"
+    },
+    {
+      "component": "StateObserver",
+      "path": "tools/galaxy-vibe/observer/state_observer.py",
+      "shared": true,
+      "reason": "Observer 通过 query.* 采集状态，与地图无关"
+    },
+    {
+      "component": "AssertionRunner",
+      "path": "tools/galaxy-vibe/observer/assertion_runner.py",
+      "shared": true,
+      "reason": "断言逻辑通用，recipe 是 consumer-specific"
+    },
+    {
+      "component": "VisualCapture",
+      "path": "tools/galaxy-vibe/visual/capture.py",
+      "shared": true,
+      "reason": "窗口捕获与地图无关"
+    },
+    {
+      "component": "ColdOrchestrator",
+      "path": "tools/galaxy-vibe/cold/orchestrator.py",
+      "shared": true,
+      "reason": "冷循环通过 launcher 参数化地图，不硬编码"
+    },
+    {
+      "component": "IntentClassifier",
+      "path": "tools/galaxy-vibe/host/classifier.py",
+      "shared": true,
+      "reason": "意图分类与地图无关"
+    }
+  ],
+  "consumer_specific_components": [
+    {
+      "component": "consumer.json",
+      "first_consumer_path": "tools/galaxy-vibe/consumers/dead-of-night/consumer.json",
+      "second_consumer_path": "tools/galaxy-vibe/consumers/keha-rift/consumer.json",
+      "reason": "每个消费者的 recipe 和 map 配置是 consumer-specific"
+    }
+  ],
+  "regression_checklist": {
+    "first_consumer": [
+      "P0 transport gate 通过",
+      "P1 spawn 3 Marine + query 3 通过",
+      "P2 10 个场景通过",
+      "P3 视觉闭环通过",
+      "P5 6 个意图路由正确"
+    ],
+    "second_consumer": [
+      "P0 transport gate 通过（相同 Kernel）",
+      "P1 spawn 5 Marine + 2 Marauder + query 通过",
+      "P2 recipe 通过",
+      "P3 视觉闭环通过",
+      "P5 6 个意图路由正确"
+    ]
+  },
+  "extraction_verdict": "passed",
+  "notes": "由于设计阶段已将 Kernel/Host 设计为地图无关，P6 抽取实际上是验证已有设计的通用性，而非真正的重抽取。差异清单证明地图特例归属各自 consumer.json，共享组件无需修改。"
+}

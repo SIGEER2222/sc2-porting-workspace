@@ -1,0 +1,26 @@
+{
+  "consumer_id": "keha-rift-terran-alenger3",
+  "map": "克哈裂痕",
+  "commander": "TerranAlenger3",
+  "launcher": "tools/launchers/launch-cmre-alenger.ps1",
+  "description": "第二消费者：克哈裂痕 × TerranAlenger3（P6 抽取共享 Kernel/Host 的验证消费者）",
+  "map_specific": {
+    "start_location_known": true,
+    "has_neutral_buildings": true,
+    "mission_type": "attack_defense",
+    "max_players": 2
+  },
+  "recipe": {
+    "recipe_id": "keha-rift-default",
+    "steps": [
+      {"action": "reset", "request_id": "kr-reset"},
+      {"action": "set_resource", "player": 1, "resource": "minerals", "value": 5000, "request_id": "kr-set-min"},
+      {"action": "set_resource", "player": 1, "resource": "vespene", "value": 3000, "request_id": "kr-set-gas"},
+      {"action": "spawn", "unit_type": "Marine", "count": 5, "player": 1, "request_id": "kr-spawn-marine"},
+      {"action": "spawn", "unit_type": "Marauder", "count": 2, "player": 1, "request_id": "kr-spawn-marauder"},
+      {"action": "assert", "kind": "count", "unit_type": "Marine", "player": 1, "expected": 5, "request_id": "kr-spawn-marine", "id": "kr-assert-01", "expected_verdict": "passed"},
+      {"action": "assert", "kind": "count", "unit_type": "Marauder", "player": 1, "expected": 2, "request_id": "kr-spawn-marauder", "id": "kr-assert-02", "expected_verdict": "passed"}
+    ]
+  },
+  "adapter_notes": "克哈裂痕是攻防型地图，与亡者之夜 composition 不同。用于验证 Kernel/Host 的通用性。"
+}
