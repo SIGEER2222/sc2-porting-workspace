@@ -2171,6 +2171,51 @@ try {
         $exitCode = Wait-GameReady -ScriptsRoot (Join-Path $LegacyRoot "scripts") -StartupGraceSeconds 120
         if ($exitCode -ne 0) { throw "SC2 readiness check failed with exit code $exitCode" }
     }
+
+    # === 黑屏检测（基于心跳 + 世界覆盖层状态）===
+    # 原理：LibMapModBridge 心跳触发器每 2s 递增 bridge_heartbeat 银行值
+    # 判定逻辑：
+    #   - 心跳递增 + world_cover_dialog_visible_p1=0 → 正常
+    #   - 心跳递增 + world_cover_dialog_visible_p1=1 → 黑屏（世界覆盖层可见）
+    #   - 心跳不变 → 脚本卡住（可能崩溃或死锁）
+    if ($EnableReborn -and $RebornCommander -ne "") {
+        Write-Host ""
+        Write-Host "=== Black Screen Detection ==="
+        $bankPath = Join-Path $env:USERPROFILE "Documents\StarCraft II\Banks\CMRERebornDebug.SC2Bank"
+        $heartbeatBefore = -1
+        $heartbeatAfter = -1
+        $worldCoverVisible = -1
+        if (Test-Path -LiteralPath $bankPath) {
+            # 读取第一次心跳
+            $bankXml = [System.IO.File]::ReadAllText($bankPath, [System.Text.Encoding]::UTF8)
+            if ($bankXml -match '<Key name="bridge_heartbeat">\s*<Value int="(\d+)"') { $heartbeatBefore = [int]$Matches[1] }
+            if ($bankXml -match '<Key name="world_cover_dialog_visible_p1">\s*<Value int="(\d+)"') { $worldCoverVisible = [int]$Matches[1] }
+            Write-Host "Heartbeat (before): $heartbeatBefore"
+            Write-Host "World cover visible: $worldCoverVisible"
+            # 等待 5 秒，让心跳递增
+            Write-Host "Waiting 5s for heartbeat increment..."
+            Start-Sleep -Seconds 5
+            # 读取第二次心跳
+            $bankXml = [System.IO.File]::ReadAllText($bankPath, [System.Text.Encoding]::UTF8)
+            if ($bankXml -match '<Key name="bridge_heartbeat">\s*<Value int="(\d+)"') { $heartbeatAfter = [int]$Matches[1] }
+            Write-Host "Heartbeat (after):  $heartbeatAfter"
+            # 判定
+            $heartbeatDelta = $heartbeatAfter - $heartbeatBefore
+            Write-Host "Heartbeat delta:    $heartbeatDelta"
+            if ($heartbeatBefore -lt 0 -or $heartbeatAfter -lt 0) {
+                Write-Host "WARNING: bridge_heartbeat not found in bank - adapter may not have run" -ForegroundColor Yellow
+            } elseif ($heartbeatDelta -le 0) {
+                Write-Host "ERROR: Heartbeat not incrementing - Galaxy script may be stuck or crashed" -ForegroundColor Red
+            } elseif ($worldCoverVisible -eq 1) {
+                Write-Host "ERROR: BLACK SCREEN DETECTED - world cover dialog is visible (heartbeat running but UI hidden)" -ForegroundColor Red
+            } else {
+                Write-Host "OK: No black screen detected (heartbeat incrementing, world cover hidden)" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "WARNING: Bank file not found: $bankPath" -ForegroundColor Yellow
+        }
+        Write-Host ""
+    }
 } finally {
     # DebugMode 退出时按 PID 关闭自己启动的 SC2（禁止按进程名 kill，避免误杀玩家游戏）
     if ($DebugMode -and (Test-Path $debugPidFile)) {

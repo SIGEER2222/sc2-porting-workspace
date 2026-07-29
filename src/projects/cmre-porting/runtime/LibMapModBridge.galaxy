@@ -87,5 +87,31 @@ void libMapModBridge_InitLib() {
     libMapModBridge_gv_startingUnitsCreatedP2 = 0;
     libMapModBridge_gv_preventDefeatEnsuredP1 = 0;
     libMapModBridge_gv_preventDefeatEnsuredP2 = 0;
+    libMapModBridge_gv_heartbeat = 0;
     libMapModBridge_gv_initialized = true;
+}
+
+// === 心跳触发器 ===
+// 每 2 秒（实时）递增心跳计数器并写入银行
+// 使用 c_timeReal，即使游戏暂停（GameSetMissionTimePaused(true)）也会递增
+// launcher 通过读取心跳值判断 Galaxy 脚本是否正在运行
+// 如果心跳不变 → 脚本卡住（可能崩溃或死锁）
+// 如果心跳递增 + world_cover_dialog_visible_p1=1 → 黑屏（世界覆盖层可见）
+// 如果心跳递增 + world_cover_dialog_visible_p1=0 → 正常
+bool libMapModBridge_gt_Heartbeat_Func(bool testConds, bool runActions) {
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    while (true) {
+        libMapModBridge_gv_heartbeat = libMapModBridge_gv_heartbeat + 1;
+        libMapModBridge_gf_WriteDebugBank("bridge_heartbeat", libMapModBridge_gv_heartbeat);
+        Wait(2.0, c_timeReal);
+    }
+    return true;
+}
+
+void libMapModBridge_gf_StartHeartbeat() {
+    if (libMapModBridge_gt_Heartbeat != null) { return; }
+    libMapModBridge_gt_Heartbeat = TriggerCreate("libMapModBridge_gt_Heartbeat_Func");
+    TriggerExecute(libMapModBridge_gt_Heartbeat, false, true);
+    libMapModBridge_gf_WriteDebugBank("bridge_heartbeat_started", 1);
 }

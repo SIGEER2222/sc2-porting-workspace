@@ -35,4 +35,7 @@ void libRebornAdapter_gf_InitializeBeforeSwarmSetup(
 
     // 5. 写入 adapter 执行标记
     libMapModBridge_gf_WriteDebugBank("reborn_adapter_initialized", 1);
+
+    // 6. 启动心跳触发器（用于 launcher 检测游戏是否黑屏/卡住）
+    libMapModBridge_gf_StartHeartbeat();
 }
