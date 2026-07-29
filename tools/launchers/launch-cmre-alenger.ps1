@@ -36,6 +36,19 @@ function Convert-TestCommanderToCommanderPowerKey {
 }
 $cmre = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\cmre-alenger-dependencies.json") -Raw | ConvertFrom-Json
 $alenger = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\alenger-mods.json") -Raw | ConvertFrom-Json
+# 加载地图需求声明（map-requirements.json）：地图声明硬性需求（PreventDefeat、起始单位），
+# 由 launcher 读取并通知 mod adapter 中间层执行
+$mapRequirements = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\map-requirements.json") -Raw | ConvertFrom-Json
+$mapRequirementKey = $MapName
+if (-not ($mapRequirements.maps.PSObject.Properties.Name -contains $mapRequirementKey)) {
+    $mapRequirementKey = '_default'
+}
+$mapRequirement = $mapRequirements.maps.$mapRequirementKey
+$mapPreventDefeatPlayers = @()
+$mapStartingUnitsPlayers = @()
+if ($mapRequirement.preventDefeat.required) { $mapPreventDefeatPlayers = @($mapRequirement.preventDefeat.players) }
+if ($mapRequirement.startingUnits.required) { $mapStartingUnitsPlayers = @($mapRequirement.startingUnits.players) }
+Write-Host "Map requirements ($MapName): preventDefeat=$($mapRequirement.preventDefeat.required) players=$($mapPreventDefeatPlayers -join ','); startingUnits=$($mapRequirement.startingUnits.required) players=$($mapStartingUnitsPlayers -join ',')"
 $isAlengerCommander = $false
 # alengerId 始终是 alenger-mods.json 中 commanderToAlenger / commanderProfiles 的命名键
 # （如 TalDarim、Empire）。WebUI 传入的 runtime_commander 形如 ProtossAlenger4，
@@ -587,6 +600,22 @@ function Patch-RebornLibraryInit {
     }
     $content = [System.Text.Encoding]::UTF8.GetString($bytes)
 
+    # === 注入 include "LibMapModBridge_h" 和 "LibRebornAdapter_h" 到 Lib48DF4533.galaxy ===
+    # 原因：lib48DF4533_InitLib() 中注入了对 libMapModBridge_InitLib() 和
+    # libRebornAdapter_gf_InitializeBeforeSwarmSetup() 的调用，必须在 Lib48DF4533.galaxy
+    # 中 include 这些头文件才能编译通过。
+    if (-not ($content -match '(?m)^include "LibMapModBridge_h"')) {
+        # 找到现有的 include "Lib48DF4533_h" 行，在其后插入
+        if ($content -match '(?m)^include "Lib48DF4533_h"') {
+            $replacementInclude = '$1' + "`r`n" + 'include "LibMapModBridge_h"' + "`r`n" + 'include "LibRebornAdapter_h"'
+            $content = $content -replace '(?m)^(include "Lib48DF4533_h")', $replacementInclude
+        } else {
+            # fallback：在文件开头插入
+            $content = 'include "LibMapModBridge_h"' + "`r`n" + 'include "LibRebornAdapter_h"' + "`r`n" + $content
+        }
+        Write-Host "Patch-RebornLibraryInit: injected include ""LibMapModBridge_h"" + ""LibRebornAdapter_h"" into Lib48DF4533.galaxy"
+    }
+
     $marker = '    TriggerExecute(lib48DF4533_gt_CommanderStart, false, false);'
     if (-not $content.Contains($marker)) {
         throw "Patch-RebornLibraryInit: CommanderStart trigger marker not found in map copy of Lib48DF4533.galaxy"
@@ -624,11 +653,17 @@ function Patch-RebornLibraryInit {
     # 必须用 black_screen_fix 标记做幂等检查，并在重新注入前移除旧块。
     $initLibInjectMarker = '// CMRE_PATCH_SWARMSETUP_DIRECT_TRIGGER'
     $blackScreenFixMarker = '// CMRE_PATCH_BLACK_SCREEN_FIX'
-    if (-not $content.Contains($blackScreenFixMarker)) {
+    $rebornAdapterMarker = '// CMRE_PATCH_REBORN_ADAPTER'
+    if (-not $content.Contains($rebornAdapterMarker)) {
         # 移除旧版注入块（从 CMRE_PATCH_SWARMSETUP_DIRECT_TRIGGER 到 gt_DisableArmySelectPoll_Init();）
-        # 保证重新注入最新代码（含黑屏修复）
+        # 保证重新注入最新代码（含 Reborn adapter 调用）
         $oldPatchPattern = '(?m)^    // CMRE_PATCH_SWARMSETUP_DIRECT_TRIGGER[\s\S]*?    gt_DisableArmySelectPoll_Init\(\);\r?\n'
         $content = [regex]::Replace($content, $oldPatchPattern, '')
+        # 根据地图需求声明计算参数
+        $ensureP1PreventDefeat = ($mapPreventDefeatPlayers -contains 1).ToString().ToLower()
+        $ensureP2PreventDefeat = ($mapPreventDefeatPlayers -contains 2).ToString().ToLower()
+        $createP1StartingUnits = ($mapStartingUnitsPlayers -contains 1).ToString().ToLower()
+        $createP2StartingUnits = ($mapStartingUnitsPlayers -contains 2).ToString().ToLower()
         $initLibInjectBlock = @"
     $initLibInjectMarker
     // 直接异步触发 SwarmSetup，绕过 Initialization_Func 中的 Wait 卡死问题。
@@ -656,6 +691,15 @@ function Patch-RebornLibraryInit {
     BankLoad("CMRERebornDebug", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "black_screen_fix_ran", 1);
     BankSave(BankLastCreated());
+    // === 调用 Reborn mod adapter 中间层（在 SwarmSetup 之前）===
+    // 参数来自 map-requirements.json（地图声明需求）+ commander profile（mod 个性化）
+    // adapter 内部调用通用 LibMapModBridge API 完成基地创建和 PreventDefeat 保障
+    // CMRE_PATCH_REBORN_ADAPTER
+    libMapModBridge_InitLib();
+    libRebornAdapter_gf_InitializeBeforeSwarmSetup(
+        "$startingStructure", "$startingWorker", $workerCount,
+        $ensureP1PreventDefeat, $ensureP2PreventDefeat,
+        $createP1StartingUnits, $createP2StartingUnits);
     TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);
     // === 公共层：注册 DisableArmySelect 定时补加触发器 ===
     // 在 InitLib 末尾注册（而非 SwarmSetup_Func），因为 Galaxy 不支持函数向前引用，
@@ -838,18 +882,23 @@ void gt_DisableArmySelectPoll_Init() {
     # 现有 include 之后按正确顺序插入 include "Lib281DEC45" 和 include "Lib48DF4533"。
     $mapScript = [regex]::Replace($mapScript, '(?m)^include "Lib48DF4533"\s*\r?\n', '')
     $mapScript = [regex]::Replace($mapScript, '(?m)^include "Lib281DEC45"\s*\r?\n', '')
+    $mapScript = [regex]::Replace($mapScript, '(?m)^include "LibMapModBridge"\s*\r?\n', '')
+    $mapScript = [regex]::Replace($mapScript, '(?m)^include "LibRebornAdapter"\s*\r?\n', '')
     if (-not ($mapScript -match '(?m)^include "Lib48DF4533"')) {
         $includeMatches = [regex]::Matches($mapScript, '(?m)^[ \t]*include "[^"]+"[^\r\n]*')
         if ($includeMatches.Count -gt 0) {
             $lastInclude = $includeMatches[$includeMatches.Count - 1]
             $insertPos = $lastInclude.Index + $lastInclude.Length
-            $newIncludes = "`r`n" + 'include "Lib281DEC45"' + "`r`n" + 'include "Lib48DF4533"'
+            # include 顺序：Lib281DEC45 → Lib48DF4533（Reborn 库实现） → LibMapModBridge（通用中间层实现） → LibRebornAdapter（Reborn adapter 实现）
+            # MapScript.galaxy include 的是实现文件（不带 _h 后缀），不是头文件
+            # adapter 必须在 bridge 之后，因为 adapter 依赖 bridge 的 API 声明
+            $newIncludes = "`r`n" + 'include "Lib281DEC45"' + "`r`n" + 'include "Lib48DF4533"' + "`r`n" + 'include "LibMapModBridge"' + "`r`n" + 'include "LibRebornAdapter"'
             $mapScript = $mapScript.Substring(0, $insertPos) + $newIncludes + $mapScript.Substring($insertPos)
-            Write-Host "Patch-RebornLibraryInit: injected include ""Lib281DEC45"" + ""Lib48DF4533"" after last existing include"
+            Write-Host "Patch-RebornLibraryInit: injected include ""Lib281DEC45"" + ""Lib48DF4533"" + ""LibMapModBridge"" + ""LibRebornAdapter"" after last existing include"
         } else {
             # 罕见：地图没有 include 语句，在文件开头插入
-            $mapScript = 'include "Lib281DEC45"' + "`r`n" + 'include "Lib48DF4533"' + "`r`n" + $mapScript
-            Write-Host "Patch-RebornLibraryInit: no existing include found, prepended Lib281DEC45 + Lib48DF4533 at file start"
+            $mapScript = 'include "Lib281DEC45"' + "`r`n" + 'include "Lib48DF4533"' + "`r`n" + 'include "LibMapModBridge"' + "`r`n" + 'include "LibRebornAdapter"' + "`r`n" + $mapScript
+            Write-Host "Patch-RebornLibraryInit: no existing include found, prepended Lib281DEC45 + Lib48DF4533 + LibMapModBridge + LibRebornAdapter at file start"
         }
     }
 
@@ -882,7 +931,8 @@ void gt_DisableArmySelectPoll_Init() {
         }
     } elseif (-not ($mapScript -match 'lib281DEC45_InitLib\s*\(\s*\)')) {
         # lib48DF4533_InitLib 已注入但 lib281DEC45_InitLib 缺失，补上
-        $mapScript = $mapScript -replace '(    lib48DF4533_InitLib\(\);)', '    lib281DEC45_InitLib();' + "`r`n" + '$1'
+        $lib281Replacement = '    lib281DEC45_InitLib();' + "`r`n" + '$1'
+        $mapScript = $mapScript -replace '(    lib48DF4533_InitLib\(\);)', $lib281Replacement
         Write-Host "Patch-RebornLibraryInit: added missing lib281DEC45_InitLib() before lib48DF4533_InitLib()"
     }
 
@@ -947,6 +997,7 @@ function Install-CmreDynamicObserver {
     $neuroRoot = Join-Path $WorkspaceRoot "reference\SC2-Neuro-API-Integration"
     $observerRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\runtime"
     $adapterRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\adapters\dead-of-night"
+    $rebornAdapterRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\adapters\reborn"
     $baseData = Join-Path $MapPath "Base.SC2Data"
     $files = @(
         @{ Source = Join-Path $neuroRoot "Mod\NeuroIntegration.SC2Mod\Base.SC2Data\LibEFA54406_h.galaxy"; Name = "LibEFA54406_h.galaxy" },
@@ -955,9 +1006,18 @@ function Install-CmreDynamicObserver {
         @{ Source = Join-Path $observerRoot "LibPortingObserver.galaxy"; Name = "LibPortingObserver.galaxy" },
         @{ Source = Join-Path $observerRoot "LibNeuroCommandBridge_h.galaxy"; Name = "LibNeuroCommandBridge_h.galaxy" },
         @{ Source = Join-Path $observerRoot "LibNeuroCommandBridge.galaxy"; Name = "LibNeuroCommandBridge.galaxy" },
+        @{ Source = Join-Path $observerRoot "LibMapModBridge_h.galaxy"; Name = "LibMapModBridge_h.galaxy" },
+        @{ Source = Join-Path $observerRoot "LibMapModBridge.galaxy"; Name = "LibMapModBridge.galaxy" },
         @{ Source = Join-Path $adapterRoot "LibDeadOfNightObserver_h.galaxy"; Name = "LibDeadOfNightObserver_h.galaxy" },
         @{ Source = Join-Path $adapterRoot "LibDeadOfNightObserver.galaxy"; Name = "LibDeadOfNightObserver.galaxy" }
     )
+    # Reborn 模式下额外复制 Reborn adapter 库
+    if ($EnableReborn -and $RebornCommander -ne "") {
+        $files += @(
+            @{ Source = Join-Path $rebornAdapterRoot "LibRebornAdapter_h.galaxy"; Name = "LibRebornAdapter_h.galaxy" },
+            @{ Source = Join-Path $rebornAdapterRoot "LibRebornAdapter.galaxy"; Name = "LibRebornAdapter.galaxy" }
+        )
+    }
     foreach ($file in $files) {
         if (-not (Test-Path -LiteralPath $file.Source)) { throw "Observer input not found: $($file.Source)" }
         [System.IO.File]::Copy($file.Source, (Join-Path $baseData $file.Name), $true)
@@ -1214,6 +1274,17 @@ void gt_${alengerId}TrainProbe_Init() {
             foreach ($u in $vanillaRemovals) {
                 $vanillaRemoveBlockP1 += "    lv_removedP1 += gf_RemoveAllUnitsOfType(1, `"$u`");`r`n"
             }
+            # Reborn 模式下基地已在 InitLib 中通过 Reborn adapter 中间层创建（SwarmSetup 之前），通用层跳过避免重复
+            $rebornSkipBlock = ""
+            if ($EnableReborn -and $RebornCommander -ne "") {
+                $rebornSkipBlock = @"
+    // Reborn 模式：基地已通过 Reborn adapter (LibRebornAdapter) + 通用中间层 (LibMapModBridge) 创建
+    // 在 SwarmSetup 之前于 lib48DF4533_InitLib() 中执行，此处跳过避免重复
+    // 地图需求（PreventDefeat、P1/P2 起始单位）由 map-requirements.json 声明，由 adapter 执行
+    libPortingObserver_gf_Publish("commander_starting_units_skip", "reborn mode: already created via LibRebornAdapter + LibMapModBridge in InitLib", false);
+    return true;
+"@
+            }
             $pollGlue = @"
 trigger gt_PortingObserverDeadOfNightPoll;
 trigger gt_CommanderStartingUnits;
@@ -1254,6 +1325,7 @@ int gf_RemoveAllUnitsOfType(int lp_player, string lp_type) {
 
 // 通用层：指挥官起始单位替换（Map Init + 5s Wait 后执行，等效于"倒计时结束时"）
 // 各 mod 通过 commander profile 的 startingStructure/startingWorker/workerCount/vanillaRemovals 实现个性化
+// Reborn 模式下基地已在 InitLib 中创建（SwarmSetup 之前），此处跳过避免重复
 bool gt_CommanderStartingUnits_Func(bool testConds, bool runActions) {
     point lv_p1Start = null;
     int lv_i = 0;
@@ -1265,6 +1337,7 @@ bool gt_CommanderStartingUnits_Func(bool testConds, bool runActions) {
     string lv_diag = "";
     if (testConds) { return true; }
     if (!runActions) { return true; }
+${rebornSkipBlock}
     libPortingObserver_gf_Publish("commander_starting_units_begin", "creating commander starting units", false);
     Wait(5.0, c_timeReal);
     lv_p1Start = PlayerStartLocation(1);

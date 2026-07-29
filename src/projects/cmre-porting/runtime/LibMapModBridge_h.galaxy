@@ -1,0 +1,33 @@
+include "TriggerLibs/natives"
+
+// === LibMapModBridge: 通用 map-mod 桥接层 ===
+// 职责：提供与 mod 无关的通用 API，由各 mod adapter 在合适时机调用
+// 设计原则：
+//   1. 不依赖任何特定 mod 的库（如 Lib48DF4533）
+//   2. 不包含业务逻辑（如 SwarmSetup 触发、K5Kerrigan 创建）
+//   3. 只提供原子操作（创建单位、移除单位、写银行）
+//   4. 各 mod adapter 负责调用时机和参数
+
+// 全局状态
+bool libMapModBridge_gv_initialized;
+int libMapModBridge_gv_startingUnitsCreatedP1;
+int libMapModBridge_gv_startingUnitsCreatedP2;
+int libMapModBridge_gv_preventDefeatEnsuredP1;
+int libMapModBridge_gv_preventDefeatEnsuredP2;
+
+// API 声明
+void libMapModBridge_InitLib();
+
+// 为指定玩家创建起始单位（基地 + 工蜂）
+// 参数由 commander profile 提供（startingStructure/startingWorker/workerCount）
+void libMapModBridge_gf_CreateStartingUnits(int player, string structureType, string workerType, int workerCount);
+
+// 为指定玩家确保有 PreventDefeat 建筑（避免触发地图失败判定）
+// 如果该玩家已有 PreventDefeat 单位则跳过，否则创建一个
+void libMapModBridge_gf_EnsurePreventDefeat(int player, string structureType);
+
+// 移除指定玩家的指定单位类型（用于 vanilla 单位清理）
+int libMapModBridge_gf_RemoveAllUnitsOfType(int player, string unitType);
+
+// 写入调试银行（CMRERebornDebug）
+void libMapModBridge_gf_WriteDebugBank(string key, int value);

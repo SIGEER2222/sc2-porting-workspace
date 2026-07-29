@@ -1,0 +1,15 @@
+include "TriggerLibs/natives"
+include "LibMapModBridge_h"
+
+// === LibRebornAdapter: Reborn mod 适配器 ===
+// 职责：在 Reborn 模式下，于 SwarmSetup 之前调用 LibMapModBridge API 创建基地
+// 设计原则：
+//   1. 知道 Reborn 模式的初始化时机（SwarmSetup 之前）
+//   2. 调用通用 LibMapModBridge API，不重复实现业务逻辑
+//   3. 由 launcher 在 lib48DF4533_InitLib() 注入调用
+
+// API 声明
+void libRebornAdapter_gf_InitializeBeforeSwarmSetup(
+    string structureType, string workerType, int workerCount,
+    bool ensureP1PreventDefeat, bool ensureP2PreventDefeat,
+    bool createP1StartingUnits, bool createP2StartingUnits);

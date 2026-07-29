@@ -1,0 +1,38 @@
+include "TriggerLibs/natives"
+include "LibRebornAdapter_h"
+
+// === LibRebornAdapter: Reborn mod 适配器实现 ===
+// 在 Reborn 模式下，于 SwarmSetup 触发之前调用 LibMapModBridge API
+// 完成基地创建和 PreventDefeat 保障
+//
+// 调用时机：由 launcher 注入到 lib48DF4533_InitLib() 中
+//           在 TriggerExecute(lib48DF4533_gt_SwarmSetup, ...) 之前
+
+void libRebornAdapter_gf_InitializeBeforeSwarmSetup(
+    string structureType, string workerType, int workerCount,
+    bool ensureP1PreventDefeat, bool ensureP2PreventDefeat,
+    bool createP1StartingUnits, bool createP2StartingUnits) {
+
+    // 1. 为 P1 创建起始单位（如果地图需要且配置允许）
+    if (createP1StartingUnits) {
+        libMapModBridge_gf_CreateStartingUnits(1, structureType, workerType, workerCount);
+    }
+
+    // 2. 为 P2 创建起始单位（如果地图需要且配置允许）
+    if (createP2StartingUnits) {
+        libMapModBridge_gf_CreateStartingUnits(2, structureType, workerType, workerCount);
+    }
+
+    // 3. 确保 P1 有 PreventDefeat 建筑（避免触发地图失败判定）
+    if (ensureP1PreventDefeat) {
+        libMapModBridge_gf_EnsurePreventDefeat(1, structureType);
+    }
+
+    // 4. 确保 P2 有 PreventDefeat 建筑（避免触发地图失败判定）
+    if (ensureP2PreventDefeat) {
+        libMapModBridge_gf_EnsurePreventDefeat(2, structureType);
+    }
+
+    // 5. 写入 adapter 执行标记
+    libMapModBridge_gf_WriteDebugBank("reborn_adapter_initialized", 1);
+}
