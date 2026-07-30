@@ -20,11 +20,11 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
-import socket
-import struct
 import sys
+import threading
 import time
 import uuid
 import zlib
@@ -48,6 +48,12 @@ try:
     HAS_AIOHTTP = True
 except ImportError:
     HAS_AIOHTTP = False
+
+try:
+    import websocket  # websocket-client 同步库
+    HAS_WEBSOCKET = True
+except ImportError:
+    HAS_WEBSOCKET = False
 
 
 # ---- RPC 协议数据类 ----
@@ -190,65 +196,213 @@ def write_bank_request(bank_name: str, request_id: str, request: RpcRequest, pla
     pass  # 实际写入由 Transport 层负责
 
 
-# ---- SC2API 连接（同步封装）----
+# ---- SC2API 连接（aiohttp + 后台 event loop 同步封装）----
+
+# SC2 API race 枚举（common.proto）：NoRace=0, Terran=1, Zerg=2, Protoss=3, Random=4
+RACE_TERRAN = 1
+# PlayerType 枚举（sc2api.proto）：Participant=1, Computer=2, Observer=3
+PLAYER_PARTICIPANT = 1
+PLAYER_COMPUTER = 2
+
 
 class Sc2ApiClient:
-    """同步 SC2API websocket 客户端，封装 RequestMapCommand 等调用。"""
+    """同步 SC2API WebSocket 客户端（aiohttp 内部封装）。
+
+    SC2 API 协议是 WebSocket（ws://<host>:<port>/sc2api），帧体为裸 protobuf。
+    用后台 event loop + run_coroutine_threadsafe 保持同步接口，同时复用 aiohttp 的 WebSocket 实现。
+    参考 reference/SC2-Neuro-API-Integration/sc2api_load_map.py。
+    """
 
     def __init__(self, port: int = 5000, host: str = "127.0.0.1"):
         self.port = port
         self.host = host
-        self._sock: Optional[socket.socket] = None
+        self._url = f"ws://{host}:{port}/sc2api"
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._thread: Optional[threading.Thread] = None
+        self._session: Optional["aiohttp.ClientSession"] = None
+        self._ws: Optional["aiohttp.websockets.ClientWebSocketResponse"] = None
+
+    # ---- 后台 event loop 管理 ----
+
+    def _ensure_loop(self) -> asyncio.AbstractEventLoop:
+        """启动后台 event loop（若未启动）。"""
+        if self._loop is None or not self._loop.is_running():
+            self._loop = asyncio.new_event_loop()
+            self._thread = threading.Thread(target=self._loop.run_forever, daemon=True)
+            self._thread.start()
+        return self._loop
+
+    def _submit(self, coro, timeout: float = 30.0):
+        """提交协程到后台 event loop 并同步等待结果。"""
+        loop = self._ensure_loop()
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
+        return future.result(timeout=timeout)
+
+    # ---- 连接管理 ----
 
     def connect(self, timeout: float = 10.0) -> None:
+        """连接 SC2API WebSocket 端点 ws://<host>:<port>/sc2api。"""
         if not HAS_PROTOBUF:
             raise RuntimeError("缺少 s2clientprotocol 依赖")
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._sock.settimeout(timeout)
-        self._sock.connect((self.host, self.port))
-        # SC2API 握手
-        self._send_request(sc_pb.Request(join_game=sc_pb.RequestJoinGame(
-            observed_player_id=1,
-            options=sc_pb.RequestJoinGame.ObserverOptions(),
-        )))
+        if not HAS_AIOHTTP:
+            raise RuntimeError("缺少 aiohttp 依赖：pip install aiohttp")
+        self._submit(self._async_connect(timeout), timeout=timeout + 5)
 
-    def _send_request(self, req: sc_pb.Request) -> sc_pb.Response:
-        if self._sock is None:
+    async def _async_connect(self, timeout: float) -> None:
+        self._session = aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=timeout)
+        )
+        self._ws = await self._session.ws_connect(self._url)
+
+    def close(self) -> None:
+        """关闭 WebSocket 连接 + session + 后台 event loop。"""
+        if self._loop is None:
+            return
+        try:
+            self._submit(self._async_close(), timeout=5)
+        except Exception:
+            pass
+        try:
+            self._loop.call_soon_threadsafe(self._loop.stop)
+            if self._thread:
+                self._thread.join(timeout=5)
+        except Exception:
+            pass
+        self._loop = None
+        self._thread = None
+        self._session = None
+        self._ws = None
+
+    async def _async_close(self) -> None:
+        if self._ws is not None:
+            await self._ws.close()
+            self._ws = None
+        if self._session is not None:
+            await self._session.close()
+            self._session = None
+
+    # ---- 请求发送 ----
+
+    def _send_request(self, req: sc_pb.Request, timeout: float = 30.0) -> sc_pb.Response:
+        """同步发送请求并返回响应。"""
+        if self._ws is None:
             raise RuntimeError("SC2API 未连接")
-        data = req.SerializeToString()
-        header = struct.pack("<i", len(data))
-        self._sock.sendall(header + data)
-        resp_len_bytes = self._recv_exactly(4)
-        if len(resp_len_bytes) < 4:
-            raise RuntimeError("SC2API 响应长度读取失败")
-        resp_len = struct.unpack("<i", resp_len_bytes)[0]
-        resp_data = self._recv_exactly(resp_len)
+        return self._submit(self._async_send_request(req), timeout=timeout)
+
+    async def _async_send_request(self, req: sc_pb.Request) -> sc_pb.Response:
+        await self._ws.send_bytes(req.SerializeToString())
+        resp_data = await self._ws.receive_bytes()
+        if isinstance(resp_data, str):
+            resp_data = resp_data.encode("utf-8")
         resp = sc_pb.Response()
         resp.ParseFromString(resp_data)
         return resp
 
-    def _recv_exactly(self, n: int) -> bytes:
-        buf = b""
-        while len(buf) < n:
-            chunk = self._sock.recv(n - len(buf))  # type: ignore
-            if not chunk:
-                break
-            buf += chunk
-        return buf
+    # ---- 高层 API ----
 
     def ping(self) -> bool:
-        """SC2API 层 ping（与 RPC system.ping 不同）。"""
+        """SC2API 层 ping（与 RPC system.ping 不同）。返回 True 若 ping 成功。"""
         try:
-            resp = self._send_request(sc_pb.Request(ping=sc_pb.RequestPing()))
+            resp = self._send_request(sc_pb.Request(ping=sc_pb.RequestPing()), timeout=10)
             return resp.HasField("ping")
         except Exception:
             return False
+
+    def create_game(
+        self,
+        map_data: Optional[bytes] = None,
+        map_path: Optional[str] = None,
+        timeout: float = 120.0,
+    ) -> bool:
+        """发送 CreateGame 请求加载地图（SC2 在主菜单时调用）。
+
+        Args:
+            map_data: MPQ 格式的 .SC2Map 字节流（优先于 map_path）
+            map_path: SC2 可见的本地地图路径
+            timeout: 超时秒数（地图大时加载慢）
+
+        Returns:
+            True 若 CreateGame 成功
+        """
+        local_map = sc_pb.LocalMap()
+        if map_data:
+            local_map.map_data = map_data
+        elif map_path:
+            local_map.map_path = map_path
+        else:
+            raise ValueError("create_game 需要 map_data 或 map_path")
+        req = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
+            local_map=local_map,
+            player_setup=[
+                sc_pb.PlayerSetup(
+                    type=PLAYER_PARTICIPANT, race=RACE_TERRAN, player_name="P1",
+                ),
+                sc_pb.PlayerSetup(
+                    type=PLAYER_COMPUTER, race=RACE_TERRAN,
+                    difficulty=2, player_name="AI",
+                ),
+            ],
+            realtime=True,
+        ))
+        try:
+            resp = self._send_request(req, timeout=timeout)
+            # Response.error 是 repeated string，不能用 HasField；用真值检查列表是否非空
+            if resp.error:
+                print(f"[Sc2ApiClient] CreateGame error: {list(resp.error)}", file=sys.stderr)
+                return False
+            if resp.HasField("create_game") and resp.create_game.HasField("error"):
+                print(f"[Sc2ApiClient] CreateGame error: {resp.create_game.error}", file=sys.stderr)
+                return False
+            return True
+        except Exception as e:
+            print(f"[Sc2ApiClient] CreateGame exception: {e}", file=sys.stderr)
+            return False
+
+    def join_game(self, timeout: float = 60.0) -> bool:
+        """发送 JoinGame 请求以 Participant 身份加入对局（race=Terran, raw APM）。"""
+        try:
+            resp = self._send_request(sc_pb.Request(join_game=sc_pb.RequestJoinGame(
+                race=RACE_TERRAN,
+                options=sc_pb.InterfaceOptions(raw=True),
+            )), timeout=timeout)
+            if resp.error:
+                print(f"[Sc2ApiClient] JoinGame error: {list(resp.error)}", file=sys.stderr)
+                return False
+            if resp.HasField("join_game") and resp.join_game.HasField("error"):
+                print(f"[Sc2ApiClient] JoinGame error: {resp.join_game.error} details: {resp.join_game.error_details}", file=sys.stderr)
+                return False
+            return True
+        except Exception as e:
+            print(f"[Sc2ApiClient] JoinGame exception: {e}", file=sys.stderr)
+            return False
+
+    def leave_game(self, timeout: float = 30.0) -> bool:
+        """发送 LeaveGame 请求退出当前对局，返回 SC2 到主菜单。"""
+        try:
+            resp = self._send_request(sc_pb.Request(leave_game=sc_pb.RequestLeaveGame()), timeout=timeout)
+            if resp.error:
+                # LeaveGame 在非 in_game 状态下可能返回错误，不算致命
+                print(f"[Sc2ApiClient] LeaveGame note: {list(resp.error)}", file=sys.stderr)
+            return True
+        except Exception as e:
+            print(f"[Sc2ApiClient] LeaveGame exception: {e}", file=sys.stderr)
+            return False
+
+    def observation(self, timeout: float = 30.0) -> Optional[sc_pb.Response]:
+        """发送 Observation 请求，返回完整 Response（调用方自行检查 HasField）。"""
+        try:
+            return self._send_request(sc_pb.Request(observation=sc_pb.RequestObservation()), timeout=timeout)
+        except Exception as e:
+            print(f"[Sc2ApiClient] Observation exception: {e}", file=sys.stderr)
+            return None
 
     def map_command(self, command: str) -> bool:
         """发送 RequestMapCommand，触发 Galaxy Kernel 的 MapCommand 事件。"""
         try:
             req = sc_pb.Request(map_command=sc_pb.RequestMapCommand(trigger_cmd=command))
-            resp = self._send_request(req)
+            resp = self._send_request(req, timeout=10)
+            if resp.error:
+                return False
             if resp.HasField("map_command") and not resp.map_command.HasField("error"):
                 return True
             return False
@@ -263,18 +417,10 @@ class Sc2ApiClient:
                     action_chat=sc_pb.ActionChat(channel=0, message=message),
                 )],
             ))
-            resp = self._send_request(req)
-            return not resp.HasField("error")
+            resp = self._send_request(req, timeout=10)
+            return not resp.error
         except Exception:
             return False
-
-    def close(self) -> None:
-        if self._sock:
-            try:
-                self._sock.close()
-            except Exception:
-                pass
-            self._sock = None
 
 
 # ---- Vibe Host 主类 ----
@@ -317,11 +463,54 @@ class VibeHost:
 
     # ---- SC2 连接 ----
 
-    def connect_sc2(self) -> bool:
-        """连接 SC2 API。"""
+    def connect_sc2(self, map_data: Optional[bytes] = None, map_path: Optional[str] = None) -> bool:
+        """连接 SC2 API WebSocket。若提供 map_data/map_path，则 CreateGame + JoinGame 进图。
+
+        Args:
+            map_data: MPQ 格式的 .SC2Map 字节流（优先于 map_path）
+            map_path: SC2 可见的本地地图路径（无需读文件，SC2 直接访问）
+        """
         self.client = Sc2ApiClient(port=self.sc2_port)
         try:
             self.client.connect()
+            # 先 ping 确认 WebSocket 连接正常
+            if not self.client.ping():
+                print("[VibeHost] SC2 ping 失败", file=sys.stderr)
+                return False
+            # 若提供了地图，尝试 CreateGame + JoinGame
+            if map_data or map_path:
+                # 先尝试 JoinGame（SC2 可能已在 in_game 且地图正确）
+                if self.client.join_game(timeout=10.0):
+                    print("[VibeHost] 已 JoinGame（SC2 之前在 in_game）", file=sys.stderr)
+                    return True
+                # JoinGame 失败 → SC2 可能在 in_game（地图不对）或主菜单
+                # 先 LeaveGame 确保回到主菜单，避免 CreateGame 在 in_game 状态下行为不确定
+                print("[VibeHost] JoinGame 失败，LeaveGame 退出当前对局...", file=sys.stderr)
+                self.client.leave_game(timeout=15.0)
+                time.sleep(2.0)
+                # CreateGame 加载新地图
+                if map_data:
+                    print(f"[VibeHost] CreateGame with map_data ({len(map_data)} bytes)...", file=sys.stderr)
+                    if not self.client.create_game(map_data=map_data, timeout=120.0):
+                        print("[VibeHost] CreateGame 失败", file=sys.stderr)
+                        return False
+                else:
+                    # map_path 模式（SC2 直接访问路径，不读文件到内存）
+                    print(f"[VibeHost] CreateGame with map_path: {map_path}", file=sys.stderr)
+                    if not self.client.create_game(map_path=map_path, timeout=120.0):
+                        print("[VibeHost] CreateGame 失败", file=sys.stderr)
+                        return False
+                # CreateGame 后短暂等待 SC2 处理（参考 sc2api_load_map.py）
+                time.sleep(3.0)
+                # 再次 ping 确认状态
+                if not self.client.ping():
+                    print("[VibeHost] CreateGame 后 ping 失败", file=sys.stderr)
+                    return False
+                # CreateGame 成功后 JoinGame
+                if not self.client.join_game(timeout=60.0):
+                    print("[VibeHost] JoinGame 失败（CreateGame 后）", file=sys.stderr)
+                    return False
+                print("[VibeHost] CreateGame + JoinGame 成功，已进入游戏", file=sys.stderr)
             return True
         except Exception as e:
             print(f"[VibeHost] SC2 连接失败: {e}", file=sys.stderr)

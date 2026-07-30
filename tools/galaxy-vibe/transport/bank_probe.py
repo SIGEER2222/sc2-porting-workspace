@@ -18,6 +18,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "tools" / "galaxy-vibe"))
@@ -155,10 +156,25 @@ def run_session_recovery(host: VibeHost) -> dict:
     }
 
 
-def run_bank_probe(port: int, out_dir: Path) -> dict:
-    """运行完整 Bank transport probe。"""
+def run_bank_probe(port: int, out_dir: Path, map_path: Optional[str] = None) -> dict:
+    """运行完整 Bank transport probe。
+
+    Args:
+        port: SC2 API 端口
+        out_dir: 输出目录
+        map_path: 可选的 MPQ 打包地图路径，用于 CreateGame + JoinGame 进图
+    """
     host = VibeHost(sc2_port=port, artifacts_dir=out_dir.parent)
-    if not host.connect_sc2():
+    # 读取地图字节（若提供）
+    map_data = None
+    if map_path:
+        try:
+            with open(map_path, "rb") as f:
+                map_data = f.read()
+            print(f"[bank_probe] 已加载地图: {map_path} ({len(map_data)} bytes)", flush=True)
+        except OSError as e:
+            print(f"[bank_probe] 警告: 读取地图失败: {e}", flush=True)
+    if not host.connect_sc2(map_data=map_data):
         return {"transport": "bank", "verdict": "blocked", "reason": "SC2 连接失败"}
 
     host.start_session()
@@ -204,7 +220,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--out-dir", type=str, default="artifacts/galaxy-vibe/p0-transport")
+    parser.add_argument("--map-path", type=str, default=None,
+                        help="MPQ 打包的 .SC2Map 路径，用于 CreateGame + JoinGame 进图")
     args = parser.parse_args()
-    result = run_bank_probe(args.port, Path(args.out_dir))
+    result = run_bank_probe(args.port, Path(args.out_dir), map_path=args.map_path)
     print(json.dumps(result, indent=2, ensure_ascii=False))
     sys.exit(0 if result["verdict"] == "passed" else 1)
