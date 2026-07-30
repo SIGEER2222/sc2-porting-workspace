@@ -111,14 +111,20 @@ def make_enemy_attack_trigger(
     enemy_player_id: int,
     target_player_id: int,
     cooldown: int = 44,  # 2 秒
+    active_entity_ids: Optional[set[int]] = None,  # 只对这些 id 生效；None=该 player 所有单位
 ) -> Trigger:
-    """让指定敌方玩家的所有单位攻击目标玩家最近的单位。"""
+    """让指定敌方玩家的单位攻击目标玩家最近的单位。
+
+    active_entity_ids: 若提供，只对集合内的 entity_id 生效（用于区分波次单位 vs 营地单位）。
+    若 None，对该 player 的所有存活单位生效（旧行为，不推荐用于含营地单位的场景）。
+    """
     def condition(eng: MissionEngine) -> bool:
         s = eng.session
         if s.world is None:
             return False
         own = [e for e in s.world.entities.values()
-               if e.owner_player_id == enemy_player_id and e.is_alive]
+               if e.owner_player_id == enemy_player_id and e.is_alive
+               and (active_entity_ids is None or e.entity_id in active_entity_ids)]
         targets = [e for e in s.world.entities.values()
                    if e.owner_player_id == target_player_id and e.is_alive]
         return bool(own and targets)
@@ -126,7 +132,8 @@ def make_enemy_attack_trigger(
     def action(eng: MissionEngine) -> None:
         s = eng.session
         own = [e for e in s.world.entities.values()
-               if e.owner_player_id == enemy_player_id and e.is_alive]
+               if e.owner_player_id == enemy_player_id and e.is_alive
+               and (active_entity_ids is None or e.entity_id in active_entity_ids)]
         targets = [e for e in s.world.entities.values()
                    if e.owner_player_id == target_player_id and e.is_alive]
         if not own or not targets:
@@ -151,47 +158,83 @@ def make_enemy_attack_trigger(
 class DefendAction:
     """玩家决策动作。"""
     entity_id: int
-    kind: str  # "attack" | "hold" | "move"
+    kind: str  # "attack" | "hold" | "move" | "gather" | "train" | "build"
     target_entity_id: int = 0
     target_x: float = 0.0
     target_y: float = 0.0
+    unit_type_id: str = ""  # train/build 用
     reason: str = ""
 
 
 class DefendBasePolicy:
-    """防守基地策略。
+    """防守基地策略 + 经济管理。
 
     优先级（高→低）：
     1. 基地内威胁（敌方进入 base_region）→ attack 最近的威胁
     2. 近距威胁（敌方在 support_range 内）→ attack
-    3. 低血量单位 → 后撤到基地
-    4. 默认 → hold position（防守基地，不跟随）
+    3. 低血量战斗单位 → 后撤到基地
+    4. SCV 经济管理：空闲 SCV 采集最近的矿物
+    5. 兵营生产：资源充足时训练 Marine
+    6. 基地生产：SCV 数量不足时训练 SCV
+    7. 默认 → hold position（防守基地）
 
     与 AllyPolicy 的区别：
     - 无 leader 概念，所有单位都受指挥
     - 无敌方时 hold 而非 follow（防守图不需要跟随）
     - 低血量单位后撤（保留战斗力）
+    - 主动管理经济（采集/训练/建造）
     """
+
+    # 单位类型分类
+    WORKER_TYPES = {"SCV", "Probe", "Drone"}
+    PRODUCER_TYPES = {
+        "CommandCenter": ["SCV"],
+        "Barracks": ["Marine", "Marauder"],
+        "Factory": ["Hellion", "SiegeTank"],
+        "Starport": ["Medivac", "Viking"],
+    }
+    # 训练优先级（按顺序尝试，资源不够就跳过）
+    TRAIN_PRIORITY = [
+        # (producer_type, product_type, min_minerals, min_vespene, supply_cost)
+        ("CommandCenter", "SCV", 50, 0, 1),
+        ("Barracks", "Marine", 50, 0, 1),
+        ("Barracks", "Marauder", 100, 25, 2),
+        ("Starport", "Medivac", 100, 100, 2),
+    ]
+    # 目标 SCV 数量
+    TARGET_SCV_COUNT = 16
 
     def __init__(self, player_id: int,
                  base_region: tuple[float, float, float] = (PLAYER_BASE_X, PLAYER_BASE_Y, 15.0),
                  support_range: float = 12.0,
                  retreat_threshold: float = 0.3,  # 血量低于 30% 后撤
-                 command_interval: int = 22):  # 1 秒决策一次
+                 command_interval: int = 22,  # 1 秒决策一次
+                 econ_interval: int = 44,  # 2 秒决策一次经济（更积极训练）
+                 minerals_floor: int = 0,  # 不保留矿物下限（有矿物就训练）
+                 ):
         self.player_id = player_id
         self.base_x, self.base_y, self.base_r = base_region
         self.support_range = support_range
         self.retreat_threshold = retreat_threshold
         self.command_interval = command_interval
+        self.econ_interval = econ_interval
+        self.minerals_floor = minerals_floor
         self._last_decide_loop = -10_000
+        self._last_econ_loop = -10_000
         self._last_actions: list[DefendAction] = []
+        # 已发过采集命令的 SCV id 集合（避免重复发命令）
+        self._gathering_scvs: set[int] = set()
+        # 已发过训练命令的建筑 id 集合（本轮已发，等下一轮）
+        self._producers_in_queue: set[int] = set()
 
-    def decide(self, obs, loop: int) -> list[DefendAction]:
+    def decide(self, obs, loop: int, resources: Optional[dict] = None) -> list[DefendAction]:
         """根据 Observation 决策。
 
         obs 应有：
         - own_units: [{entity_id, unit_type_id, x, y, health, ...}, ...]
         - visible_enemies: [{entity_id, x, y, ...}, ...]
+
+        resources 可选：{"minerals": int, "vespene": int, "supply_used": int, "supply_cap": int}
         """
         if loop - self._last_decide_loop < self.command_interval:
             return self._last_actions
@@ -201,6 +244,7 @@ class DefendBasePolicy:
         enemies = obs.visible_enemies
         actions: list[DefendAction] = []
 
+        # ===== 战斗决策 =====
         # 基地内威胁
         base_threats = [e for e in enemies
                         if self._dist(e["x"], e["y"], self.base_x, self.base_y) <= self.base_r]
@@ -213,8 +257,22 @@ class DefendBasePolicy:
         # 去重
         near_threats = list({e["entity_id"]: e for e in near_threats}.values())
 
+        # 收集需要战斗的单位和非战斗单位
+        combat_units = []
+        econ_units = []  # SCV 等工人
+        producers = []  # 兵营/基地等生产建筑
         for uid, u in own_by_id.items():
-            # 低血量单位后撤
+            ut = u.get("unit_type_id", "")
+            if ut in self.WORKER_TYPES:
+                econ_units.append(u)
+            elif ut in self.PRODUCER_TYPES:
+                producers.append(u)
+            else:
+                combat_units.append(u)
+
+        # 战斗决策：战斗单位优先处理威胁
+        for u in combat_units:
+            uid = u["entity_id"]
             hp_ratio = self._hp_ratio(u)
             if hp_ratio < self.retreat_threshold and not base_threats:
                 actions.append(DefendAction(
@@ -235,10 +293,92 @@ class DefendBasePolicy:
                                             target_entity_id=tgt["entity_id"],
                                             reason="near_threat"))
             else:
-                # hold position（不发出命令）
                 actions.append(DefendAction(uid, "hold", reason="defend_base"))
 
+        # SCV 决策：有基地威胁时撤退到基地，否则保持采集
+        for u in econ_units:
+            uid = u["entity_id"]
+            if base_threats:
+                # 基地受袭，SCV 撤退（避免被屠农）
+                actions.append(DefendAction(
+                    uid, "move",
+                    target_x=self.base_x, target_y=self.base_y,
+                    reason="worker_retreat_base_threat",
+                ))
+            else:
+                # 保持采集（已采集的 SCV 不重复发命令）
+                if uid not in self._gathering_scvs:
+                    actions.append(DefendAction(uid, "hold", reason="worker_idle"))
+                # 不发动作 = 保持当前状态（采集中的 SCV 会继续采集）
+
+        # ===== 经济决策（较低频率）=====
+        econ_due = loop - self._last_econ_loop >= self.econ_interval
+        if econ_due and resources is not None:
+            self._last_econ_loop = loop
+            self._producers_in_queue.clear()  # 新一轮，清空队列记录
+            econ_actions = self._decide_economy(obs, resources, econ_units, producers, enemies)
+            actions.extend(econ_actions)
+
         self._last_actions = actions
+        return actions
+
+    def _decide_economy(self, obs, resources: dict,
+                        econ_units: list[dict], producers: list[dict],
+                        enemies: list[dict]) -> list[DefendAction]:
+        """经济决策：SCV 采集 + 建筑训练新单位。"""
+        actions: list[DefendAction] = []
+        minerals = resources.get("minerals", 0)
+        vespene = resources.get("vespene", 0)
+        supply_used = resources.get("supply_used", 0)
+        supply_cap = resources.get("supply_cap", 200)
+
+        # 1. 空闲 SCV 派去采集矿物
+        # 找地图上的 MineralField（obs 里看不到中立单位，用 obs.allied_units 里的资源点？）
+        # 实际上 MineralField 是 Player 0 的中立单位，obs.own_units 不含它们
+        # 这里用 world query 直接找最近 MineralField——但 policy 不应直接访问 world
+        # 折中：在 runner 层注入 mineral_fields 列表
+        # 这里先跳过，依赖 runner 在分发时找矿物
+        # 标记：本函数会返回 gather 动作，但 target_entity_id 由 runner 解析
+        for u in econ_units:
+            uid = u["entity_id"]
+            if uid not in self._gathering_scvs:
+                # 发出 gather 命令（target_entity_id=0 表示由 runner 找最近矿物）
+                actions.append(DefendAction(
+                    uid, "gather",
+                    target_entity_id=0,  # runner 会替换为最近 MineralField id
+                    reason="gather_minerals",
+                ))
+                self._gathering_scvs.add(uid)
+
+        # 2. 训练新单位
+        supply_remaining = supply_cap - supply_used
+        for producer_type, product, min_m, min_v, supply_cost in self.TRAIN_PRIORITY:
+            if minerals < min_m + self.minerals_floor:
+                continue  # 资源不足
+            if vespene < min_v:
+                continue
+            if supply_remaining < supply_cost:
+                continue  # 补给不足
+
+            # 找一个该类型的、未在队列中的建筑
+            for p in producers:
+                if p.get("unit_type_id") != producer_type:
+                    continue
+                pid = p["entity_id"]
+                if pid in self._producers_in_queue:
+                    continue
+                # 检查建筑是否在生产（生产队列已满）——简化：假设未在 _producers_in_queue 即可
+                actions.append(DefendAction(
+                    pid, "train",
+                    unit_type_id=product,
+                    reason=f"train_{product}",
+                ))
+                self._producers_in_queue.add(pid)
+                minerals -= min_m
+                vespene -= min_v
+                supply_remaining -= supply_cost
+                break  # 该产品类型本轮只发一个
+
         return actions
 
     @staticmethod
@@ -254,13 +394,8 @@ class DefendBasePolicy:
     def _hp_ratio(unit: dict) -> float:
         """计算血量比例。health 是 raw int（Fixed），需除以 1024。"""
         health = unit.get("health", 0)
-        # health 是 raw int，1024 = 1.0；不同单位 max_health 不同
-        # 简化：用 health > 0 判断存活，用 health/max_health 估算
-        # 这里用 health 值估算（Marine 45*1024=46080, SCV 45*1024=46080）
-        # 简化：health < 30000 视为低血量（约 30 HP）
         if health == 0:
             return 0.0
-        # 用单位类型估算 max_health
         max_hp_map = {
             "Marine": 45, "Marauder": 125, "SCV": 45, "SiegeTank": 160,
             "Medivac": 150, "CommandCenter": 1400, "Bunker": 400,
@@ -294,6 +429,8 @@ class GameReport:
     verdict: str  # "victory" | "defeat" | "inconclusive"
     summary: str
     replay_log_path: str = ""  # JSONL 回放日志路径（空则未记录）
+    cmd_ok_stats: dict = field(default_factory=dict)  # 命令成功统计 {kind: count}
+    cmd_fail_stats: dict = field(default_factory=dict)  # 命令失败统计 {kind:ErrorCode: count}
 
 
 def _unit_brief_for_log(e) -> dict:
@@ -312,10 +449,12 @@ def _unit_brief_for_log(e) -> dict:
 def _write_replay_frame(fp, loop: int, world, waves_fired: int, total_cmds: int,
                         nights_data: dict, time_scale: float,
                         p1_alive_count: int, enemy_alive_count: int,
-                        key_events_this_frame: list[dict]) -> None:
+                        key_events_this_frame: list[dict],
+                        p1_resources: Optional[dict] = None) -> None:
     """写一帧回放日志到 JSONL 文件。
 
     key_events_this_frame: 仅本帧新发生的事件（已去重），避免历史事件在多帧中重复出现。
+    p1_resources: Player 1 资源快照 {"minerals", "vespene", "supply_used", "supply_cap"}
     """
     import json as _json
     # 收集所有存活单位（按 owner 分组）
@@ -354,9 +493,48 @@ def _write_replay_frame(fp, loop: int, world, waves_fired: int, total_cmds: int,
         "enemy_units_by_type": enemy_units_by_type,
         "entities_by_player": {str(k): v for k, v in entities_by_player.items()},
         "key_events": key_events_this_frame,  # 仅本帧新事件
+        "p1_resources": p1_resources or {},  # 经济指标
     }
     fp.write(_json.dumps(frame, ensure_ascii=False) + "\n")
     fp.flush()
+
+
+def _find_nearest_mineral_field(world, x, y) -> Optional[int]:
+    """找离 (x, y) 最近的 MineralField 实体 id。
+
+    x/y 是世界单位 float；e.x.raw 是 Fixed 的 raw int（值×1024），
+    必须用 to_float() 统一单位，否则距离计算全错。
+    """
+    best_id = None
+    best_sq = float("inf")
+    for e in world.entities.values():
+        if not e.is_alive:
+            continue
+        if e.unit_type_id != "MineralField":
+            continue
+        dx = e.x.to_float() - x
+        dy = e.y.to_float() - y
+        sq = dx * dx + dy * dy
+        if sq < best_sq:
+            best_sq = sq
+            best_id = e.entity_id
+    return best_id
+
+
+def _tally_cmd_results(world, pre_count: int, kind: str,
+                       ok_stats, fail_stats) -> None:
+    """统计 unit_order 后新增的 CommandResult，按 code 分类。
+
+    用于自校验：train/build/gather 失败原因不再被 except:pass 吞掉，
+    而是按 ErrorCode.name 累计到 fail_stats，终局报告可见。
+    """
+    new_results = world.command_results[pre_count:]
+    for r in new_results:
+        if getattr(r, "ok", False):
+            ok_stats[kind] += 1
+        else:
+            code_name = getattr(getattr(r, "code", None), "name", "UNKNOWN")
+            fail_stats[f"{kind}:{code_name}"] += 1
 
 
 def run_dead_of_night(
@@ -474,23 +652,18 @@ def run_dead_of_night(
     ))
 
     # 添加触发器：敌方攻击玩家
+    # 设计原则（参考亡者之夜原版玩法）：
+    # - 营地单位（Player 3/4/5 预放置的）：原地防守营地，不主动出击
+    # - 波次单位（夜晚刷出的 Player 4 单位）：主动 attack_move 到玩家基地
+    # 因此不给 P3/P5 加 attack trigger；P4 的 attack trigger 只作用于波次单位 id 集合
+    wave_entity_ids: set[int] = set()  # 收集所有波次刷出的 entity_id
     if enable_enemy_ai:
-        for enemy_pid in (3, 4, 5):
-            # 检查该玩家是否有单位
-            has_units = any(p["id"] == enemy_pid for p in data.scenario["players"])
-            if has_units:
-                eng.add_trigger(make_enemy_attack_trigger(
-                    name=f"enemy_p{enemy_pid}_attack",
-                    enemy_player_id=enemy_pid,
-                    target_player_id=1,
-                    cooldown=44,  # 2 秒
-                ))
-        # 波次刷怪也攻击
         eng.add_trigger(make_enemy_attack_trigger(
             name="wave_enemies_attack",
-            enemy_player_id=4,  # 波次单位属于 Player 4
+            enemy_player_id=4,
             target_player_id=1,
             cooldown=44,
+            active_entity_ids=wave_entity_ids,  # 只对波次单位生效
         ))
 
     # 4. 运行对局
@@ -504,6 +677,10 @@ def run_dead_of_night(
     total_commands_issued = 0
     total_commands_dispatched = 0
     deadlock_loops = 0
+    # 命令成功/失败统计（按 kind 和 ErrorCode 分类，自校验用）
+    from collections import Counter as _Counter
+    cmd_ok_stats: _Counter = _Counter()
+    cmd_fail_stats: _Counter = _Counter()
     last_report_loop = 0
     last_replay_loop = -10_000  # 强制首帧立即记录
     # 进度报告间隔：取 max_loops / 20 与 100 的较大值，至少每 5% 报告一次
@@ -530,7 +707,19 @@ def run_dead_of_night(
             cur = s.world.clock.now.loop
 
             # 1. 触发波次（记录新触发的波次到事件累积器）
+            # 记录 fire 前的 entity_id 集合，fire 后取差集得到波次单位 id
+            pre_fire_ids = set(s.world.entities.keys())
             eng._fire_waves(cur)
+            new_wave_ids = set(s.world.entities.keys()) - pre_fire_ids
+            if new_wave_ids:
+                wave_entity_ids.update(new_wave_ids)
+                # 给新波次单位立即发 attack_move 到玩家基地（让它们主动冲向基地）
+                for nid in new_wave_ids:
+                    try:
+                        s.unit_order([nid], "attack_move", 4,
+                                     target_x=PLAYER_BASE_X, target_y=PLAYER_BASE_Y)
+                    except Exception:
+                        pass
             for w in waves:
                 if w.name in eng._waves_fired and w.name not in recorded_waves:
                     ev = {
@@ -552,30 +741,77 @@ def run_dead_of_night(
             # 4. 玩家 AI 决策（仅在决策间隔到达时构造 Observation，避免每 loop 都跑视野计算）
             if policy is not None and cur - policy._last_decide_loop >= policy.command_interval:
                 obs = Observation.from_world(s.world, 1)
-                actions = policy.decide(obs, cur)
+                # 查询 Player 1 资源，传给 policy 做经济决策
+                p1_query = s.query_player(1)
+                resources = {
+                    "minerals": p1_query["resources"]["minerals"],
+                    "vespene": p1_query["resources"]["vespene"],
+                    "supply_used": p1_query["resources"].get("supply_used", 0),
+                    "supply_cap": p1_query["resources"].get("supply_cap", 0),
+                }
+                actions = policy.decide(obs, cur, resources=resources)
                 # 分发动作（立即执行，无延迟）
+                # 每条命令的 CommandResult 失败原因被累计到 cmd_fail_stats，
+                # 终局报告可见，不再用 except:pass 吞掉（自校验要求）
                 for a in actions:
                     if a.kind == "hold":
                         continue
                     try:
                         unit = s.world.get_entity(a.entity_id)
                         if unit is None or not unit.is_alive:
+                            cmd_fail_stats[f"{a.kind}:unit_missing"] += 1
                             continue
                         if a.kind == "attack":
                             if a.target_entity_id == 0:
+                                cmd_fail_stats["attack:no_target"] += 1
                                 continue
                             target = s.world.get_entity(a.target_entity_id)
                             if target is None or not target.is_alive:
+                                cmd_fail_stats["attack:target_dead"] += 1
                                 continue
+                            pre = len(s.world.command_results)
                             s.unit_order([a.entity_id], "attack_unit", 1,
                                          target_entity_id=a.target_entity_id)
+                            _tally_cmd_results(s.world, pre, "attack", cmd_ok_stats, cmd_fail_stats)
                             total_commands_dispatched += 1
                         elif a.kind == "move":
+                            pre = len(s.world.command_results)
                             s.unit_order([a.entity_id], "move", 1,
                                          target_x=a.target_x, target_y=a.target_y)
+                            _tally_cmd_results(s.world, pre, "move", cmd_ok_stats, cmd_fail_stats)
                             total_commands_dispatched += 1
-                    except Exception:
-                        pass  # 错误静默
+                        elif a.kind == "gather":
+                            # SCV 采集：找最近 MineralField
+                            target_id = a.target_entity_id
+                            if target_id == 0:
+                                target_id = _find_nearest_mineral_field(
+                                    s.world, unit.x.to_float(), unit.y.to_float())
+                            if target_id is None or target_id == 0:
+                                cmd_fail_stats["gather:no_mineral"] += 1
+                                continue
+                            pre = len(s.world.command_results)
+                            s.unit_order([a.entity_id], "smart", 1,
+                                         target_entity_id=target_id)
+                            _tally_cmd_results(s.world, pre, "gather", cmd_ok_stats, cmd_fail_stats)
+                            total_commands_dispatched += 1
+                        elif a.kind == "train":
+                            # 建筑 train unit_type_id
+                            pre = len(s.world.command_results)
+                            s.unit_order([a.entity_id], "train", 1,
+                                         unit_type_id=a.unit_type_id)
+                            _tally_cmd_results(s.world, pre, "train", cmd_ok_stats, cmd_fail_stats)
+                            total_commands_dispatched += 1
+                        elif a.kind == "build":
+                            # SCV build unit_type_id（简化：在基地附近建造）
+                            pre = len(s.world.command_results)
+                            s.unit_order([a.entity_id], "build", 1,
+                                         unit_type_id=a.unit_type_id,
+                                         target_x=PLAYER_BASE_X + 3.0,
+                                         target_y=PLAYER_BASE_Y + 3.0)
+                            _tally_cmd_results(s.world, pre, "build", cmd_ok_stats, cmd_fail_stats)
+                            total_commands_dispatched += 1
+                    except Exception as exc:
+                        cmd_fail_stats[f"{a.kind}:exception:{type(exc).__name__}"] += 1
                 total_commands_issued += len(actions)
 
             # 5. 检查目标
@@ -627,10 +863,19 @@ def run_dead_of_night(
                 enemy_count = sum(1 for e in s.world.entities.values()
                                   if e.owner_player_id != 1 and e.is_alive
                                   and e.owner_player_id != 0)
+                # 查询 P1 资源快照
+                p1_res = s.query_player(1)["resources"]
+                p1_resources_snapshot = {
+                    "minerals": p1_res.get("minerals", 0),
+                    "vespene": p1_res.get("vespene", 0),
+                    "supply_used": p1_res.get("supply_used", 0),
+                    "supply_cap": p1_res.get("supply_cap", 0),
+                }
                 _write_replay_frame(
                     replay_fp, cur, s.world, len(eng._waves_fired),
                     total_commands_dispatched, data.wave_timing["nights"],
                     time_scale, p1_count, enemy_count, events_since_last_log,
+                    p1_resources=p1_resources_snapshot,
                 )
                 # 写完后清空累积器
                 events_since_last_log = []
@@ -644,10 +889,15 @@ def run_dead_of_night(
                                   if e.owner_player_id != 1 and e.is_alive
                                   and e.owner_player_id != 0)  # 排除中立 Player 0
                 waves_fired = len(eng._waves_fired)
+                p1_res = s.query_player(1)["resources"]
                 elapsed = time.time() - start_time
                 print(f"  loop {cur}/{max_loops} ({cur/max_loops:.0%}) "
                       f"elapsed={elapsed:.1f}s | P1:{p1_count} Enemy:{enemy_count} "
-                      f"Waves:{waves_fired}/{len(waves)} Cmds:{total_commands_dispatched}",
+                      f"Waves:{waves_fired}/{len(waves)} "
+                      f"M:{p1_res.get('minerals',0)} V:{p1_res.get('vespene',0)} "
+                      f"Sup:{p1_res.get('supply_used',0)}/{p1_res.get('supply_cap',0)} "
+                      f"Cmds:{total_commands_dispatched} "
+                      f"OK:{dict(cmd_ok_stats)} FAIL:{dict(cmd_fail_stats)}",
                       flush=True)
     finally:
         # 写最后一帧 + 关闭日志文件（包含所有未写入的事件）
@@ -658,10 +908,18 @@ def run_dead_of_night(
             enemy_count = sum(1 for e in s.world.entities.values()
                               if e.owner_player_id != 1 and e.is_alive
                               and e.owner_player_id != 0)
+            p1_res = s.query_player(1)["resources"]
+            p1_resources_snapshot = {
+                "minerals": p1_res.get("minerals", 0),
+                "vespene": p1_res.get("vespene", 0),
+                "supply_used": p1_res.get("supply_used", 0),
+                "supply_cap": p1_res.get("supply_cap", 0),
+            }
             _write_replay_frame(
                 replay_fp, cur, s.world, len(eng._waves_fired),
                 total_commands_dispatched, data.wave_timing["nights"],
                 time_scale, p1_count, enemy_count, events_since_last_log,
+                p1_resources=p1_resources_snapshot,
             )
         except Exception:
             pass
@@ -711,6 +969,8 @@ def run_dead_of_night(
         verdict=verdict,
         summary=summary,
         replay_log_path=str(replay_path),
+        cmd_ok_stats=dict(cmd_ok_stats),
+        cmd_fail_stats=dict(cmd_fail_stats),
     )
 
     if verbose:
@@ -727,6 +987,8 @@ def run_dead_of_night(
         print(f"命令下发: {report.total_commands_issued}")
         print(f"命令执行: {report.total_commands_dispatched}")
         print(f"死锁: {report.deadlock_detected}")
+        print(f"命令成功: {report.cmd_ok_stats}")
+        print(f"命令失败: {report.cmd_fail_stats}")
         print(f"目标: {report.objectives}")
         print(f"总结: {report.summary}")
 

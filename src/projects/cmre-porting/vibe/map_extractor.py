@@ -480,9 +480,12 @@ def _build_player_starting_units(player_id: int, cx: float, cy: float) -> list[d
     units.append({"unit_type_id": "Barracks", "owner_player_id": player_id, "x": cx - 2, "y": cy - 2})
     units.append({"unit_type_id": "Bunker", "owner_player_id": player_id, "x": cx + 2, "y": cy + 2})
     units.append({"unit_type_id": "EngineeringBay", "owner_player_id": player_id, "x": cx - 2, "y": cy + 2})
-    units.append({"unit_type_id": "SupplyDepot", "owner_player_id": player_id, "x": cx - 3, "y": cy})
-    units.append({"unit_type_id": "SupplyDepot", "owner_player_id": player_id, "x": cx + 3, "y": cy - 2})
+    # SupplyDepot 5 个：supply_cap = 11(CC) + 5*8 = 51，足够起始部队(30) + 训练余量(21)
+    for dx, dy in [(-3, 0), (3, -2), (-3, -2), (3, 0), (-3, 2)]:
+        units.append({"unit_type_id": "SupplyDepot", "owner_player_id": player_id,
+                      "x": cx + dx, "y": cy + dy})
     units.append({"unit_type_id": "MissileTurret", "owner_player_id": player_id, "x": cx + 3, "y": cy + 2})
+    units.append({"unit_type_id": "Refinery", "owner_player_id": player_id, "x": cx + 4, "y": cy - 1})
     # 防守部队（8 Marine + 4 Marauder + 2 SiegeTank + 2 Medivac）
     marines = [(-1, 1), (-0.5, 1), (0, 1), (0.5, 1), (1, 1),
                (-1, 0.5), (0, 0.5), (1, 0.5)]
