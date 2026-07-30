@@ -166,23 +166,47 @@ class DefendAction:
     reason: str = ""
 
 
+class EconomyState:
+    """每帧清零的资源预留池（借鉴 sharpy-sc2 Knowledge.reserve）。
+
+    解决"AI 只造 SCV 不造兵"问题：先为高优先级战斗单位预留资源，
+    再让 SCV 训练通过 can_afford 检查（已扣预留），自然不会抢光矿物。
+    """
+    __slots__ = ("reserved_minerals", "reserved_vespene")
+
+    def __init__(self):
+        self.reserved_minerals = 0
+        self.reserved_vespene = 0
+
+    def reset(self) -> None:
+        self.reserved_minerals = 0
+        self.reserved_vespene = 0
+
+    def reserve(self, minerals: int, vespene: int) -> None:
+        self.reserved_minerals += minerals
+        self.reserved_vespene += vespene
+
+    def can_afford(self, minerals: int, vespene: int,
+                   have_min: int, have_gas: int) -> bool:
+        return (minerals <= have_min - self.reserved_minerals
+                and vespene <= have_gas - self.reserved_vespene)
+
+
 class DefendBasePolicy:
     """防守基地策略 + 经济管理。
+
+    经济决策借鉴：
+    - sharpy-sc2 的 reserve 池（解决资源争抢）
+    - ares-sc2 的比例+优先级配兵 dict（替代 if/elif 链）
 
     优先级（高→低）：
     1. 基地内威胁（敌方进入 base_region）→ attack 最近的威胁
     2. 近距威胁（敌方在 support_range 内）→ attack
     3. 低血量战斗单位 → 后撤到基地
     4. SCV 经济管理：空闲 SCV 采集最近的矿物
-    5. 兵营生产：资源充足时训练 Marine
-    6. 基地生产：SCV 数量不足时训练 SCV
+    5. 战斗单位生产（按比例+优先级配兵 dict）
+    6. SCV 生产（受 reserve 池约束，不抢战斗单位的资源）
     7. 默认 → hold position（防守基地）
-
-    与 AllyPolicy 的区别：
-    - 无 leader 概念，所有单位都受指挥
-    - 无敌方时 hold 而非 follow（防守图不需要跟随）
-    - 低血量单位后撤（保留战斗力）
-    - 主动管理经济（采集/训练/建造）
     """
 
     # 单位类型分类
@@ -193,16 +217,28 @@ class DefendBasePolicy:
         "Factory": ["Hellion", "SiegeTank"],
         "Starport": ["Medivac", "Viking"],
     }
-    # 训练优先级（按顺序尝试，资源不够就跳过）
-    TRAIN_PRIORITY = [
-        # (producer_type, product_type, min_minerals, min_vespene, supply_cost)
-        ("CommandCenter", "SCV", 50, 0, 1),
-        ("Barracks", "Marine", 50, 0, 1),
-        ("Barracks", "Marauder", 100, 25, 2),
-        ("Starport", "Medivac", 100, 100, 2),
-    ]
-    # 目标 SCV 数量
-    TARGET_SCV_COUNT = 16
+
+    # 战术配兵 dict（借鉴 ares-sc2 SpawnController）
+    # priority 数字小=优先级高；proportion=目标比例
+    # 顺序：SiegeTank > Medivac > Marine > Marauder
+    ARMY_COMP = {
+        "SiegeTank": {"proportion": 0.20, "priority": 0, "producer": "Factory",
+                      "min_m": 150, "min_v": 125, "supply": 3},
+        "Medivac":  {"proportion": 0.15, "priority": 1, "producer": "Starport",
+                      "min_m": 100, "min_v": 100, "supply": 2},
+        "Marine":   {"proportion": 0.50, "priority": 2, "producer": "Barracks",
+                      "min_m": 50,  "min_v": 0,   "supply": 1},
+        "Marauder": {"proportion": 0.15, "priority": 3, "producer": "Barracks",
+                      "min_m": 100, "min_v": 25,  "supply": 2},
+    }
+
+    # SCV 训练参数
+    SCV_COST_M = 50
+    SCV_COST_V = 0
+    SCV_SUPPLY = 1
+    # SCV 数量阈值：低于此值时 SCV 训练优先级提升；高于此值时让位给战斗单位
+    SCV_FLOOR = 4      # 低于此值强制造 SCV（即使抢资源）
+    SCV_CEIL = 16      # 达到此值停止造 SCV
 
     def __init__(self, player_id: int,
                  base_region: tuple[float, float, float] = (PLAYER_BASE_X, PLAYER_BASE_Y, 15.0),
@@ -226,6 +262,10 @@ class DefendBasePolicy:
         self._gathering_scvs: set[int] = set()
         # 已发过训练命令的建筑 id 集合（本轮已发，等下一轮）
         self._producers_in_queue: set[int] = set()
+        # 资源预留池（借鉴 sharpy-sc2 Knowledge.reserve）
+        # 每个经济决策周期开头 reset()，先为高优先级战斗单位 reserve，
+        # 再让 SCV 训练通过 can_afford 检查（已扣预留）
+        self._econ = EconomyState()
 
     def decide(self, obs, loop: int, resources: Optional[dict] = None) -> list[DefendAction]:
         """根据 Observation 决策。
@@ -325,24 +365,28 @@ class DefendBasePolicy:
     def _decide_economy(self, obs, resources: dict,
                         econ_units: list[dict], producers: list[dict],
                         enemies: list[dict]) -> list[DefendAction]:
-        """经济决策：SCV 采集 + 建筑训练新单位。"""
+        """经济决策：SCV 采集 + 战斗单位配兵 + SCV 训练。
+
+        决策顺序（借鉴 sharpy reserve 池 + ares 比例配兵）：
+        1. 重置 reserve 池
+        2. 空闲 SCV 派去采集
+        3. 按配兵 dict 优先级训练战斗单位（高优先级先训，造不起就 break 不让低优先级抢钱）
+        4. SCV 训练：通过 can_afford 检查（已扣 reserve），SCV 数量 >= SCV_CEIL 时停止
+        """
         actions: list[DefendAction] = []
+        # 每个经济决策周期开头重置 reserve 池
+        self._econ.reset()
+
         minerals = resources.get("minerals", 0)
         vespene = resources.get("vespene", 0)
         supply_used = resources.get("supply_used", 0)
         supply_cap = resources.get("supply_cap", 200)
+        supply_remaining = supply_cap - supply_used
 
         # 1. 空闲 SCV 派去采集矿物
-        # 找地图上的 MineralField（obs 里看不到中立单位，用 obs.allied_units 里的资源点？）
-        # 实际上 MineralField 是 Player 0 的中立单位，obs.own_units 不含它们
-        # 这里用 world query 直接找最近 MineralField——但 policy 不应直接访问 world
-        # 折中：在 runner 层注入 mineral_fields 列表
-        # 这里先跳过，依赖 runner 在分发时找矿物
-        # 标记：本函数会返回 gather 动作，但 target_entity_id 由 runner 解析
         for u in econ_units:
             uid = u["entity_id"]
             if uid not in self._gathering_scvs:
-                # 发出 gather 命令（target_entity_id=0 表示由 runner 找最近矿物）
                 actions.append(DefendAction(
                     uid, "gather",
                     target_entity_id=0,  # runner 会替换为最近 MineralField id
@@ -350,34 +394,91 @@ class DefendBasePolicy:
                 ))
                 self._gathering_scvs.add(uid)
 
-        # 2. 训练新单位
-        supply_remaining = supply_cap - supply_used
-        for producer_type, product, min_m, min_v, supply_cost in self.TRAIN_PRIORITY:
-            if minerals < min_m + self.minerals_floor:
-                continue  # 资源不足
-            if vespene < min_v:
-                continue
-            if supply_remaining < supply_cost:
-                continue  # 补给不足
+        # 2. 战斗单位配兵（按 ARMY_COMP 的 priority 升序：0=最高优先）
+        # 统计现有战斗单位总数和各兵种数量（含训练中）
+        own_types: dict[str, int] = {}
+        for u in obs.own_units:
+            t = u.get("unit_type_id", "")
+            own_types[t] = own_types.get(t, 0) + 1
+        combat_total = sum(own_types.get(t, 0) for t in self.ARMY_COMP)
+        scv_count = own_types.get("SCV", 0)
 
-            # 找一个该类型的、未在队列中的建筑
+        # 按 priority 升序遍历（SiegeTank=0, Medivac=1, Marine=2, Marauder=3）
+        # MIN_ARMY_BEFORE_PROP：军队规模小于此值时无视比例，按优先级扩张
+        MIN_ARMY_BEFORE_PROP = 24
+        for unit_type, info in sorted(self.ARMY_COMP.items(),
+                                       key=lambda x: x[1]["priority"]):
+            # 比例检查：当前比例 >= 目标比例 且 军队已足够大时才跳过
+            # 军队小时无视比例持续扩产（借鉴 ares over_produce_on_low_tech）
+            current_prop = own_types.get(unit_type, 0) / max(combat_total, 1)
+            if (current_prop >= info["proportion"]
+                    and combat_total >= MIN_ARMY_BEFORE_PROP):
+                continue
+            # 资源检查（用 can_afford 扣除已 reserve 的部分）
+            if not self._econ.can_afford(info["min_m"], info["min_v"],
+                                          minerals, vespene):
+                # 造不起本兵种 → continue 尝试更便宜的低优先级兵种
+                # （原 ares 模式用 break 锁资源给高优先级，但前提是收入能攒够；
+                #  这里经济规模小，break 会导致 Marine 永远造不出，故用 continue）
+                continue
+            if supply_remaining < info["supply"]:
+                continue
+            # 找空闲生产建筑
+            producer_type = info["producer"]
+            idle_producer = None
             for p in producers:
                 if p.get("unit_type_id") != producer_type:
                     continue
-                pid = p["entity_id"]
-                if pid in self._producers_in_queue:
+                if p["entity_id"] in self._producers_in_queue:
                     continue
-                # 检查建筑是否在生产（生产队列已满）——简化：假设未在 _producers_in_queue 即可
-                actions.append(DefendAction(
-                    pid, "train",
-                    unit_type_id=product,
-                    reason=f"train_{product}",
-                ))
-                self._producers_in_queue.add(pid)
-                minerals -= min_m
-                vespene -= min_v
-                supply_remaining -= supply_cost
-                break  # 该产品类型本轮只发一个
+                idle_producer = p
+                break
+            if idle_producer is None:
+                # 没有空闲建筑 → reserve 资源（sharpy ActUnit priority 模式），
+                # 让后续低优先级单位造不起，避免抢资源
+                self._econ.reserve(info["min_m"], info["min_v"])
+                continue
+            # 下单
+            actions.append(DefendAction(
+                idle_producer["entity_id"], "train",
+                unit_type_id=unit_type,
+                reason=f"train_{unit_type}(prop={current_prop:.0%}/{info['proportion']:.0%})",
+            ))
+            self._producers_in_queue.add(idle_producer["entity_id"])
+            # 虚拟扣减（让本帧后续决策看到变少的余额）
+            self._econ.reserve(info["min_m"], info["min_v"])
+            minerals -= info["min_m"]
+            vespene -= info["min_v"]
+            supply_remaining -= info["supply"]
+            own_types[unit_type] = own_types.get(unit_type, 0) + 1
+            combat_total += 1
+
+        # 3. SCV 训练（受 reserve 池约束）
+        # SCV 数量 < SCV_FLOOR 时强制训练（不检查 reserve，紧急恢复经济）
+        # SCV 数量 >= SCV_CEIL 时停止
+        # 中间区间：通过 can_afford 检查（已扣战斗单位 reserve）
+        if scv_count < self.SCV_CEIL:
+            cc_idle = None
+            for p in producers:
+                if p.get("unit_type_id") != "CommandCenter":
+                    continue
+                if p["entity_id"] in self._producers_in_queue:
+                    continue
+                cc_idle = p
+                break
+            if cc_idle is not None:
+                force_train = scv_count < self.SCV_FLOOR
+                can_train = (force_train or
+                             self._econ.can_afford(self.SCV_COST_M, self.SCV_COST_V,
+                                                   minerals, vespene))
+                if can_train and supply_remaining >= self.SCV_SUPPLY:
+                    actions.append(DefendAction(
+                        cc_idle["entity_id"], "train",
+                        unit_type_id="SCV",
+                        reason=f"train_scv(count={scv_count},force={force_train})",
+                    ))
+                    self._producers_in_queue.add(cc_idle["entity_id"])
+                    self._econ.reserve(self.SCV_COST_M, self.SCV_COST_V)
 
         return actions
 
