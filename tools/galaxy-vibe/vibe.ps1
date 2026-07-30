@@ -41,7 +41,8 @@ param(
     [int]$Sc2Port = 5000,
     [int]$TargetRequests = 200,
     [double]$DurationSec = 1800.0,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [string]$MapPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -92,7 +93,7 @@ function Invoke-Python {
     }
     & $python.Source $ScriptPath @Arguments
     if ($LASTEXITCODE -ne 0) {
-        throw "Python 脚本退出码 $LASTEXITCODE: $ScriptPath"
+        throw "Python 脚本退出码 ${LASTEXITCODE}: $ScriptPath"
     }
 }
 
@@ -107,7 +108,7 @@ function Invoke-PowerShellScript {
     }
     & powershell -NoProfile -ExecutionPolicy Bypass -File $ScriptPath @Arguments
     if ($LASTEXITCODE -ne 0) {
-        throw "PowerShell 脚本退出码 $LASTEXITCODE: $ScriptPath"
+        throw "PowerShell 脚本退出码 ${LASTEXITCODE}: $ScriptPath"
     }
 }
 
@@ -137,7 +138,9 @@ function Invoke-Probe {
     if (-not (Test-Path $probeScript)) {
         throw "传输探针脚本不存在: $probeScript"
     }
-    Invoke-PowerShellScript -ScriptPath $probeScript -Arguments @("-Sc2Port", $Sc2Port, "-RunId", $RunId)
+    $probeArgs = @("-Port", $Sc2Port)
+    if ($MapPath) { $probeArgs += @("-MapPath", $MapPath) }
+    Invoke-PowerShellScript -ScriptPath $probeScript -Arguments $probeArgs
     Write-Host "P0 探针完成，verdict: $RunDir\transport-verdict.json" -ForegroundColor Green
 }
 

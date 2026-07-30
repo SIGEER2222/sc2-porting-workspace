@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     P0 传输闸门完整运行脚本：运行三种 transport probe 并聚合判定。
 
@@ -25,17 +25,19 @@
 #>
 param(
     [int]$Port = 5000,
-    [string]$OutDir = "artifacts/galaxy-vibe/p0-transport"
+    [string]$OutDir = "artifacts/galaxy-vibe/p0-transport",
+    [string]$MapPath = ""
 )
 
 $ErrorActionPreference = "Stop"
-$repo = (Resolve-Path (Join-Path $PSScriptRoot ".." "..")).Path
+$repo = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
 $OutDir = Join-Path $repo $OutDir
 
 Write-Host "=== P0 Transport Gate ===" -ForegroundColor Cyan
 Write-Host "Repo: $repo"
 Write-Host "OutDir: $OutDir"
 Write-Host "SC2API Port: $Port"
+if ($MapPath) { Write-Host "MapPath: $MapPath" }
 Write-Host ""
 
 # 确保输出目录存在
@@ -46,7 +48,9 @@ if (-not (Test-Path $OutDir)) {
 # Step 1: Bank probe
 Write-Host "[1/4] Running Bank transport probe..." -ForegroundColor Yellow
 $bankScript = Join-Path $repo "tools/galaxy-vibe/transport/bank_probe.py"
-& python $bankScript --port $Port --out-dir $OutDir
+$bankArgs = @("--port", $Port, "--out-dir", $OutDir)
+if ($MapPath) { $bankArgs += @("--map-path", $MapPath) }
+& python $bankScript @bankArgs
 $bankRc = $LASTEXITCODE
 Write-Host "      Bank probe exit code: $bankRc"
 Write-Host ""
