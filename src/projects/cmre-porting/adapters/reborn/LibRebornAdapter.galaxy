@@ -39,3 +39,286 @@ void libRebornAdapter_gf_InitializeBeforeSwarmSetup(
     // 6. 启动心跳触发器（用于 launcher 检测游戏是否黑屏/卡住）
     libMapModBridge_gf_StartHeartbeat();
 }
+
+// === Zerg 单位解锁：绕过 UnitUnlocks_Func 的地图条件 ===
+// 在 CMRE 合作地图上，libSwaC_gf_CurrentMap() 返回的是合作地图 ID（如亡者之夜），
+// 不是原版剧情地图 ID（ZExpedition1/2, ZZerus1/2, ZChar1/3, ZHybrid1/2 等）；
+// Bank 'cryswarmcoop' 的 'Maps' 段也没有原版剧情进度数据。
+// 因此 UnitUnlocks_Func 中除 Zergling/SpineCrawler/SporeCrawler 外的所有单位/建筑
+// 都被 TechTreeUnitAllow(false) 禁用，Larva 也因此丢失 morph 能力。
+//
+// 此函数在 SwarmSetup 触发后调用，强制解锁所有 Reborn mod 的 Zerg 单位/建筑。
+// 对非 Zerg 指挥官（如 Raynor/Mengsk/Zeratul）不调用此函数。
+// TechTreeUnitAllow(true) 只是允许建造/变异，玩家仍需建造对应建筑才能产出单位。
+void libRebornAdapter_gf_UnlockAllZergUnits(int player) {
+    // 诊断变量（Galaxy 要求函数顶部声明）
+    unitgroup lv_diagSpPool;
+    unitgroup lv_diagHydDen;
+    unitgroup lv_diagBaneNest;
+    unitgroup lv_diagSpire;
+    unitgroup lv_diagUltraCav;
+    unitgroup lv_diagInfPit;
+    int lv_i;
+
+    // 基础建筑（部分本已默认解锁，确保万无一失）
+    TechTreeUnitAllow(player, "Hatchery", true);
+    TechTreeUnitAllow(player, "Lair", true);
+    TechTreeUnitAllow(player, "Hive", true);
+    TechTreeUnitAllow(player, "SpawningPool", true);
+    TechTreeUnitAllow(player, "EvolutionChamber", true);
+    TechTreeUnitAllow(player, "Extractor", true);
+
+    // Zergling 系列
+    TechTreeUnitAllow(player, "Zergling", true);
+    TechTreeUnitAllow(player, "HotSRaptor", true);
+    TechTreeUnitAllow(player, "HotSSwarmling", true);
+    TechTreeUnitAllow(player, "Pygalisk", true);
+    TechTreeUnitAllow(player, "ZerglingToxic", true);
+
+    // Roach 系列（原需 ZExpedition1 或 BankKeyExists 'Harvest of Screams'）
+    TechTreeUnitAllow(player, "RoachWarren", true);
+    TechTreeUnitAllow(player, "Roach", true);
+    TechTreeUnitAllow(player, "RoachCorpser", true);
+    TechTreeUnitAllow(player, "Igniter", true);
+    TechTreeUnitAllow(player, "Ravager", true);
+    TechTreeUnitAllow(player, "RoachVile", true);
+
+    // Hydralisk 系列（原需 ZExpedition2 或 BankKeyExists 'Shoot the Messenger'）
+    TechTreeUnitAllow(player, "HydraliskDen", true);
+    TechTreeUnitAllow(player, "Hydralisk", true);
+    TechTreeUnitAllow(player, "HydraliskImpaler", true);
+    TechTreeUnitAllow(player, "HydraliskLurker", true);
+    TechTreeUnitAllow(player, "HunterKiller", true);
+    TechTreeUnitAllow(player, "Hydralisk2", true);
+    TechTreeUnitAllow(player, "LurkerDen", true);
+    TechTreeUnitAllow(player, "ImpalerDen", true);
+
+    // Baneling 系列（原需 ZChar1 或 BankKeyExists 'Domination'）
+    TechTreeUnitAllow(player, "BanelingNest", true);
+    TechTreeUnitAllow(player, "Baneling", true);
+    TechTreeUnitAllow(player, "HotSHunter", true);
+    TechTreeUnitAllow(player, "HotSSplitterlingBig", true);
+    TechTreeUnitAllow(player, "FrostFiend", true);
+    TechTreeUnitAllow(player, "BileTitan", true);
+
+    // Ultralisk 系列（原需 ZHybrid2 或 BankKeyExists 'Hand of Darkness'）
+    TechTreeUnitAllow(player, "UltraliskCavern", true);
+    TechTreeUnitAllow(player, "Ultralisk", true);
+    TechTreeUnitAllow(player, "UltraliskKaldir", true);
+    TechTreeUnitAllow(player, "HotSNoxious", true);
+    TechTreeUnitAllow(player, "UltraliskSavage", true);
+    TechTreeUnitAllow(player, "HotSTorrasque", true);
+
+    // Mutalisk 系列（原需 ZZerus1 或 BankKeyExists 'Waking the Ancient' 或 Commander=Izsha）
+    TechTreeUnitAllow(player, "Spire", true);
+    TechTreeUnitAllow(player, "GreaterSpire", true);
+    TechTreeUnitAllow(player, "Mutalisk", true);
+    TechTreeUnitAllow(player, "MutaliskChar", true);
+    TechTreeUnitAllow(player, "Mamba", true);
+    TechTreeUnitAllow(player, "MutaliskAnkylos", true);
+    TechTreeUnitAllow(player, "Mesmer", true);
+
+    // 大型飞行单位（原需 BankKeyExists 'With Friends Like These'）
+    TechTreeUnitAllow(player, "BroodLord", true);
+    TechTreeUnitAllow(player, "Devourer", true);
+    TechTreeUnitAllow(player, "IzshaGuardian", true);
+    TechTreeUnitAllow(player, "Kraken", true);
+
+    // SwarmHost 系列（原需 ZZerus2 或 BankKeyExists 'The Crucible'）
+    TechTreeUnitAllow(player, "InfestationPit", true);
+    TechTreeUnitAllow(player, "SwarmHost", true);
+    TechTreeUnitAllow(player, "SwarmHostSplitA", true);
+    TechTreeUnitAllow(player, "SwarmHostSplitB", true);
+    TechTreeUnitAllow(player, "BaneHost", true);
+    TechTreeUnitAllow(player, "VespidHost", true);
+
+    // Caster 系列（原需 ZHybrid1 或 BankKeyExists 'Infested'）
+    TechTreeUnitAllow(player, "Infestor", true);
+    TechTreeUnitAllow(player, "DefilerMP", true);
+    TechTreeUnitAllow(player, "Viper", true);
+
+    // 其他
+    TechTreeUnitAllow(player, "Queen", true);
+    TechTreeUnitAllow(player, "InfestedAbomination", true);
+
+    // 防御建筑（默认已解锁，确保）
+    TechTreeUnitAllow(player, "SpineCrawler", true);
+    TechTreeUnitAllow(player, "SporeCrawler", true);
+
+    // === Reborn mod 自定义 Larva 变异能力启用 ===
+    // Reborn Larva 的 AbilArray 只挂载了 LarvaTrainSwarm2（见 UnitData.xml 行 16615），
+    // 所以只需启用 LarvaTrainSwarm2 的命令即可。LarvaTrain/LarvaTrainSwarm 虽然在
+    // CardLayouts 中被引用，但 Larva 没有这两个能力，按钮不会显示。
+    // LarvaTrainSwarm2 InfoArray（见 AbilData.xml 行 5214-5330）:
+    //   Train1-Train18 (idx 0-17): Pygalisk/ZerglingToxic/FrostFiend/.../Kraken
+    //   Train19 (idx 18): 空占位（无 Unit）
+    //   Train27-Train30 (idx 26-29): Blightbringer/Omegalisk/Brutalisk/Leviathan
+    //   Train31 (idx 30): Hydralisk（任务1修复补丁新增）
+    for (lv_i = 0; lv_i <= 18; lv_i += 1) {
+        TechTreeAbilityAllow(player, AbilityCommand("LarvaTrainSwarm2", lv_i), true);
+    }
+    for (lv_i = 26; lv_i <= 30; lv_i += 1) {
+        TechTreeAbilityAllow(player, AbilityCommand("LarvaTrainSwarm2", lv_i), true);
+    }
+    for (lv_i = 2; lv_i <= 7; lv_i += 1) {
+        TechTreeAbilityAllow(player, AbilityCommand("LarvaTrain", lv_i), true);
+    }
+    for (lv_i = 15; lv_i <= 18; lv_i += 1) {
+        TechTreeAbilityAllow(player, AbilityCommand("LarvaTrain", lv_i), true);
+    }
+    TechTreeAbilityAllow(player, AbilityCommand("LarvaTrainSwarm", 23), true);
+    TechTreeAbilityAllow(player, AbilityCommand("LarvaTrainSwarm", 24), true);
+
+    // === 诊断：记录建筑数量（验证 UnitCreate 是否生效）===
+    lv_diagSpPool = UnitGroup("SpawningPool", player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    lv_diagHydDen = UnitGroup("HydraliskDen", player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    lv_diagBaneNest = UnitGroup("BanelingNest", player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    lv_diagSpire = UnitGroup("Spire", player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    lv_diagUltraCav = UnitGroup("UltraliskCavern", player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    lv_diagInfPit = UnitGroup("InfestationPit", player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    libMapModBridge_gf_WriteDebugBank("diag_sppool_p" + IntToString(player), UnitGroupCount(lv_diagSpPool, c_unitCountAlive));
+    libMapModBridge_gf_WriteDebugBank("diag_hydden_p" + IntToString(player), UnitGroupCount(lv_diagHydDen, c_unitCountAlive));
+    libMapModBridge_gf_WriteDebugBank("diag_banenest_p" + IntToString(player), UnitGroupCount(lv_diagBaneNest, c_unitCountAlive));
+    libMapModBridge_gf_WriteDebugBank("diag_spire_p" + IntToString(player), UnitGroupCount(lv_diagSpire, c_unitCountAlive));
+    libMapModBridge_gf_WriteDebugBank("diag_ultracav_p" + IntToString(player), UnitGroupCount(lv_diagUltraCav, c_unitCountAlive));
+    libMapModBridge_gf_WriteDebugBank("diag_infpit_p" + IntToString(player), UnitGroupCount(lv_diagInfPit, c_unitCountAlive));
+
+    // 记录解锁执行
+    libMapModBridge_gf_WriteDebugBank("zerg_units_unlocked_p" + IntToString(player), 1);
+}
+
+// === 强制启用 Larva 变异按钮 ===
+// 问题：UnitCreate 创建的建筑可能不被 CountUnitXxxCompleteOnlyTechTreeCheat
+//       需求验证器识别（可能缺少建造完成事件），导致 HaveSpawningPool 等
+//       需求始终为 false，LarvaTrainSwarm2 的 Suppressed 按钮全部隐藏。
+// 修复：使用 CatalogFieldValueSet 清除所有 Larva 变异按钮的 Requirements，
+//       并将 State 设置为 "Active"，让按钮无条件显示。
+// 注意：State 设为空字符串无效，必须设为 "Active"。
+//       CatalogFieldValueSet 是 per-player 的，只影响指定玩家。
+void libRebornAdapter_gf_ForceEnableLarvaMorphButtons(int player) {
+    int lv_i;
+
+    // === LarvaTrainSwarm2: Train1-Train19 (idx 0-18), Train27-Train31 (idx 26-30) ===
+    // Reborn Larva 只挂载了 LarvaTrainSwarm2（AbilArray Link="LarvaTrainSwarm2"），
+    // 所以只需处理这一个能力。清除 Requirements 并将 State 设为 "Active"，
+    // 让按钮无条件显示（绕过 HaveSpawningPool 等建筑需求验证器）。
+    // 注意：InfoArray 索引 0=Train1, 17=Train18, 18=Train19(空), 26=Train27, 30=Train31
+    for (lv_i = 0; lv_i <= 18; lv_i += 1) {
+        CatalogFieldValueSet(c_gameCatalogAbil, "LarvaTrainSwarm2",
+            "InfoArray[" + IntToString(lv_i) + "].Button.Requirements", player, "");
+        CatalogFieldValueSet(c_gameCatalogAbil, "LarvaTrainSwarm2",
+            "InfoArray[" + IntToString(lv_i) + "].Button.State", player, "Active");
+    }
+    for (lv_i = 26; lv_i <= 30; lv_i += 1) {
+        CatalogFieldValueSet(c_gameCatalogAbil, "LarvaTrainSwarm2",
+            "InfoArray[" + IntToString(lv_i) + "].Button.Requirements", player, "");
+        CatalogFieldValueSet(c_gameCatalogAbil, "LarvaTrainSwarm2",
+            "InfoArray[" + IntToString(lv_i) + "].Button.State", player, "Active");
+    }
+
+    // 注：LarvaTrain/LarvaTrainSwarm 虽在 CardLayouts 中被引用，但 Reborn Larva 的
+    // AbilArray 未挂载这两个能力，修改它们的按钮无效果，故不处理。
+
+    libMapModBridge_gf_WriteDebugBank("larva_morph_buttons_forced_p" + IntToString(player), 1);
+}
+
+// === Zerg 起始建筑创建 ===
+// 在 Hatchery 附近创建完整的 Zerg 起始建筑集合 + 额外工蜂 + HunterKiller。
+// 调用时机：SwarmSetup_Func 末尾（UnlockAllZergUnits 之后）。
+// 建筑使用 c_unitCreateIgnorePlacement 绕过 creep/位置限制。
+void libRebornAdapter_gf_CreateZergStartingBuildings(int player) {
+    point lv_base = PlayerStartLocation(player);
+    unitgroup lv_hatchGroup;
+    unit lv_hatch;
+    unitgroup lv_geysers;
+    unit lv_geyser;
+    unitgroup lv_drones;
+    int lv_existingDrones;
+    int lv_dronesToCreate;
+    int lv_i;
+    unitgroup lv_overlords;
+    unitgroup lv_hk;
+    unitgroup lv_queen;
+
+    if (lv_base == null) {
+        lv_hatchGroup = UnitGroup("Hatchery", player, RegionEntireMap(),
+            UnitFilter(0, 0, (1 << c_targetFilterMissile),
+                (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1);
+        lv_hatch = UnitGroupUnit(lv_hatchGroup, 1);
+        if (lv_hatch != null) {
+            lv_base = UnitGetPosition(lv_hatch);
+        }
+        if (lv_base == null) {
+            libMapModBridge_gf_WriteDebugBank("zerg_starting_buildings_failed_p" + IntToString(player), 1);
+            return;
+        }
+    }
+
+    // === 1. 创建 Zerg 起始建筑（绕过 placement，围绕基地 5 格半径）===
+    UnitCreate(1, "SpawningPool", c_unitCreateIgnorePlacement, player,
+        PointWithOffsetPolar(lv_base, 5.0, 0.0), 270.0);
+    UnitCreate(1, "RoachWarren", c_unitCreateIgnorePlacement, player,
+        PointWithOffsetPolar(lv_base, 5.0, 72.0), 270.0);
+    UnitCreate(1, "HydraliskDen", c_unitCreateIgnorePlacement, player,
+        PointWithOffsetPolar(lv_base, 5.0, 144.0), 270.0);
+    UnitCreate(1, "BanelingNest", c_unitCreateIgnorePlacement, player,
+        PointWithOffsetPolar(lv_base, 5.0, 216.0), 270.0);
+    UnitCreate(1, "EvolutionChamber", c_unitCreateIgnorePlacement, player,
+        PointWithOffsetPolar(lv_base, 5.0, 288.0), 270.0);
+    UnitCreate(1, "Spire", c_unitCreateIgnorePlacement, player,
+        PointWithOffsetPolar(lv_base, 7.0, 216.0), 270.0);
+    UnitCreate(1, "UltraliskCavern", c_unitCreateIgnorePlacement, player,
+        PointWithOffsetPolar(lv_base, 7.0, 288.0), 270.0);
+
+    // === 2. 创建 Extractor（找最近的 VespeneGeyser）===
+    lv_geysers = UnitGroup("VespeneGeyser", 0, RegionCircle(lv_base, 20.0),
+        UnitFilter(0, 0, 0, (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1);
+    lv_geyser = UnitGroupUnit(lv_geysers, 1);
+    if (lv_geyser != null) {
+        UnitCreate(1, "Extractor", c_unitCreateIgnorePlacement, player,
+            UnitGetPosition(lv_geyser), 270.0);
+    }
+
+    // === 3. 补充工蜂（达到 12 个）===
+    lv_drones = UnitGroup("Drone", player, RegionEntireMap(),
+        UnitFilter(0, 0, (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1);
+    lv_existingDrones = UnitGroupCount(lv_drones, c_unitCountAlive);
+    lv_dronesToCreate = 12 - lv_existingDrones;
+    if (lv_dronesToCreate > 0) {
+        for (lv_i = 0; lv_i < lv_dronesToCreate; lv_i += 1) {
+            UnitCreate(1, "Drone", c_unitCreateIgnorePlacement, player,
+                PointWithOffsetPolar(lv_base, 3.0, (IntToFixed(lv_i) * 30.0)), 270.0);
+        }
+    }
+
+    // === 4. 创建 Overlord（如果不足 2 个）===
+    lv_overlords = UnitGroup("Overlord", player, RegionEntireMap(),
+        UnitFilter(0, 0, (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1);
+    if (UnitGroupCount(lv_overlords, c_unitCountAlive) < 2) {
+        UnitCreate(1, "Overlord", c_unitCreateIgnorePlacement, player,
+            PointWithOffsetPolar(lv_base, 8.0, 90.0), 270.0);
+    }
+
+    // === 5. 创建 HunterKiller（Abathur 起始英雄单位）===
+    lv_hk = UnitGroup("HunterKiller", player, RegionEntireMap(),
+        UnitFilter(0, 0, (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1);
+    if (UnitGroupCount(lv_hk, c_unitCountAlive) == 0) {
+        UnitCreate(1, "HunterKiller", c_unitCreateIgnorePlacement, player,
+            PointWithOffsetPolar(lv_base, 4.0, 45.0), 270.0);
+    }
+
+    // === 6. 创建 Queen ===
+    lv_queen = UnitGroup("Queen", player, RegionEntireMap(),
+        UnitFilter(0, 0, (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1);
+    if (UnitGroupCount(lv_queen, c_unitCountAlive) == 0) {
+        UnitCreate(1, "Queen", c_unitCreateIgnorePlacement, player,
+            PointWithOffsetPolar(lv_base, 4.0, 135.0), 270.0);
+    }
+
+    // 记录创建完成
+    libMapModBridge_gf_WriteDebugBank("zerg_starting_buildings_created_p" + IntToString(player), 1);
+}

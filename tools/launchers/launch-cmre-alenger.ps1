@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "")
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive)
 # -MapCopySuffix: 可选的地图副本后缀，用于避免多会话同时操作同一 live 地图导致 DocumentInfo 冲突。
 # 例如 -MapCopySuffix "reborn" 会使用 Maps\亡者之夜.SC2Map.reborn\ 作为 live 地图。
 # 不指定时使用原始路径（向后兼容）。
@@ -119,20 +119,33 @@ if ($profile) {
     if ($null -ne $profile.workerCount) { $workerCount = [int]$profile.workerCount }
     if ($null -ne $profile.vanillaRemovals) { $vanillaRemovals = @($profile.vanillaRemovals) }
 }
-# 通用层：Reborn 模式下覆盖起始单位为原版单位 ID（Alenger 自定义单位如 6fuhuachang 在 Reborn mod 中不存在）
-# 根据 $Commander 前缀（Zerg/Terran/Protoss）确定 race，用原版单位 ID
+# 通用层：根据 $Commander 前缀（Zerg/Terran/Protoss）确定 race
+# $commanderRace 始终赋值（无论 Alenger 还是 Reborn 模式），用于：
+#   1. Reborn 模式下覆盖起始单位为原版单位 ID
+#   2. galaxy 注入解锁逻辑时判断是否调用 UnlockAllZergUnits
+# Alenger 自定义单位如 6fuhuachang 在 Reborn mod 中不存在，Reborn 模式必须用原版 ID
+$commanderRace = ''
+if ($Commander -match '^Zerg') {
+    $commanderRace = 'Zerg'
+} elseif ($Commander -match '^Terran') {
+    $commanderRace = 'Terran'
+} elseif ($Commander -match '^Protoss') {
+    $commanderRace = 'Protoss'
+}
 if ($EnableReborn -and $RebornCommander -ne "") {
-    if ($Commander -match '^Zerg') {
+    if ($commanderRace -eq 'Zerg') {
         $startingStructure = 'Hatchery'
         $startingWorker = 'Drone'
-    } elseif ($Commander -match '^Terran') {
+    } elseif ($commanderRace -eq 'Terran') {
         $startingStructure = 'CommandCenter'
         $startingWorker = 'SCV'
-    } elseif ($Commander -match '^Protoss') {
+    } elseif ($commanderRace -eq 'Protoss') {
         $startingStructure = 'Nexus'
         $startingWorker = 'Probe'
     }
-    Write-Host "Reborn mode: startingStructure=$startingStructure, startingWorker=$startingWorker (race-based vanilla units)"
+    Write-Host "Reborn mode: startingStructure=$startingStructure, startingWorker=$startingWorker commanderRace=$commanderRace (race-based vanilla units)"
+} elseif ($commanderRace) {
+    Write-Host "Alenger mode with Reborn library: commanderRace=$commanderRace (for Zerg unit unlock injection)"
 }
 $mapSource = Join-Path $LegacyRoot "Maps\CMRE\$MapName"
 if (-not (Test-Path -LiteralPath $mapSource)) { throw "CMRE map source not found: $mapSource" }
@@ -701,6 +714,17 @@ function Patch-RebornLibraryInit {
         $ensureP1PreventDefeat, $ensureP2PreventDefeat,
         $createP1StartingUnits, $createP2StartingUnits);
     TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);
+    // === 解锁所有 Zerg 单位（仅 Zerg 指挥官）===
+    // CMRE_PATCH_ZERG_UNIT_UNLOCK
+    // 原因：UnitUnlocks_Func 依赖 libSwaC_gf_CurrentMap()=='ZXXx' 或 BankKeyExists('Maps','XXX')，
+    // 在 CMRE 合作地图上这些条件都不满足，导致除 Zergling/SpineCrawler/SporeCrawler 外
+    // 的所有单位/建筑都被 TechTreeUnitAllow(false) 禁用，Larva 也丢失 morph 能力。
+    // 修复：SwarmSetup 触发后强制调用 TechTreeUnitAllow(true) 解锁所有 Zerg 单位/建筑。
+    // 注意：必须在 SwarmSetup 之后调用，否则 UnitUnlocks_Func 中的 false 会覆盖此处的 true。
+    if ("$commanderRace" == "Zerg") {
+        libRebornAdapter_gf_UnlockAllZergUnits(1);
+        libRebornAdapter_gf_UnlockAllZergUnits(2);
+    }
     // === 公共层：注册 DisableArmySelect 定时补加触发器 ===
     // 在 InitLib 末尾注册（而非 SwarmSetup_Func），因为 Galaxy 不支持函数向前引用，
     // gt_DisableArmySelectPoll_Init 定义在文件末尾，只有 InitLib（也在文件末尾）才能引用到。
@@ -793,6 +817,31 @@ function Patch-RebornLibraryInit {
         BankValueSetFromInt(BankLastCreated(), "debug", "abathur_abilities_trigger_enabled", 1);
     } else {
         BankValueSetFromInt(BankLastCreated(), "debug", "abathur_abilities_trigger_enabled", 0);
+    }
+    // === Zerg 单位解锁（SwarmSetup 末尾，UnitUnlocks_Func 之后）===
+    // CMRE_PATCH_ZERG_UNIT_UNLOCK_IN_SWARMSETUP
+    // 原因：UnitUnlocks_Func 在 SwarmSetup 中被调用，会根据地图 ID/Bank 进度
+    // 禁用大部分 Zerg 单位（TechTreeUnitAllow(false)），导致 Larva 丢失 morph 能力。
+    // 之前在 InitLib 中 SwarmSetup 触发后立即调用 UnlockAllZergUnits，但
+    // TriggerExecute(SwarmSetup, false, false) 是异步的，UnlockAllZergUnits
+    // 在 UnitUnlocks_Func 之前执行，被其 false 覆盖。
+    // 修复：将 UnlockAllZergUnits 移到 SwarmSetup_Func 末尾（UnitUnlocks_Func 之后），
+    // 确保解锁操作不会被覆盖。
+    if ("$commanderRace" == "Zerg") {
+        libRebornAdapter_gf_UnlockAllZergUnits(1);
+        libRebornAdapter_gf_UnlockAllZergUnits(2);
+        // === Zerg 起始建筑创建（UnlockAllZergUnits 之后）===
+        // CMRE 合作地图不放置 melee 起始建筑（SpawningPool/RoachWarren 等），
+        // Reborn mod 自身也不创建（依赖地图预置）。
+        // 没有这些建筑，Larva 即使解锁了单位也无法变异（morph 需要前置建筑存在）。
+        libRebornAdapter_gf_CreateZergStartingBuildings(1);
+        libRebornAdapter_gf_CreateZergStartingBuildings(2);
+        // === 强制启用 Larva 变异按钮 ===
+        // UnitCreate 创建的建筑可能不被 HaveSpawningPool 等需求验证器识别，
+        // 导致 LarvaTrainSwarm2 的 Suppressed 按钮全部隐藏。
+        // 使用 CatalogFieldValueSet 清除 Requirements 和 State，让按钮无条件显示。
+        libRebornAdapter_gf_ForceEnableLarvaMorphButtons(1);
+        libRebornAdapter_gf_ForceEnableLarvaMorphButtons(2);
     }
     BankSave(BankLastCreated());
     return true;
@@ -933,13 +982,18 @@ void gt_DisableArmySelectPoll_Init() {
 
     # 注入 lib281DEC45_InitLib() 和 lib48DF4533_InitLib() 到 InitLibs() 末尾
     # 顺序：lib281DEC45_InitLib() 必须在 lib48DF4533_InitLib() 之前（依赖关系）
-    if (-not ($mapScript -match 'lib48DF4533_InitLib\s*\(\s*\)')) {
-        $initLibsPattern = '(?s)void InitLibs \(\) \{(.*?)\}'
-        $initLibsMatch = [regex]::Match($mapScript, $initLibsPattern)
-        if (-not $initLibsMatch.Success) {
-            throw "Patch-RebornLibraryInit: InitLibs() function not found in MapScript.galaxy"
-        }
-        $initLibsBody = $initLibsMatch.Groups[1].Value
+    # 注意：正则必须只匹配 InitLibs() 函数体内的实际调用，不能匹配注释中的文本
+    # （MapScript.galaxy 可能在注释中提到 lib48DF4533_InitLib()，导致误判已注入）
+    $initLibsPattern = '(?s)void InitLibs \(\) \{(.*?)\}'
+    $initLibsMatch = [regex]::Match($mapScript, $initLibsPattern)
+    if (-not $initLibsMatch.Success) {
+        throw "Patch-RebornLibraryInit: InitLibs() function not found in MapScript.galaxy"
+    }
+    $initLibsBody = $initLibsMatch.Groups[1].Value
+    $has4845 = $initLibsBody -match '(?m)^    lib48DF4533_InitLib\s*\(\s*\)\s*;'
+    $has281 = $initLibsBody -match '(?m)^    lib281DEC45_InitLib\s*\(\s*\)\s*;'
+    if (-not $has4845) {
+        # lib48DF4533_InitLib 未注入，需要注入 lib281 + lib4845
         $initCalls = [regex]::Matches($initLibsBody, '(?m)^    lib\w+_InitLib\(\);[^\r\n]*')
         if ($initCalls.Count -gt 0) {
             $lastCall = $initCalls[$initCalls.Count - 1]
@@ -958,11 +1012,13 @@ void gt_DisableArmySelectPoll_Init() {
             $mapScript = $mapScript.Substring(0, $absPos) + "    lib281DEC45_InitLib();" + "`r`n    lib48DF4533_InitLib();" + "`r`n" + $mapScript.Substring($absPos)
             Write-Host "Patch-RebornLibraryInit: injected lib281DEC45_InitLib() + lib48DF4533_InitLib() before InitLibs closing brace"
         }
-    } elseif (-not ($mapScript -match 'lib281DEC45_InitLib\s*\(\s*\)')) {
-        # lib48DF4533_InitLib 已注入但 lib281DEC45_InitLib 缺失，补上
+    } elseif (-not $has281) {
+        # lib4845 已注入但 lib281 缺失，在 lib4845 调用前补上 lib281
         $lib281Replacement = '    lib281DEC45_InitLib();' + "`r`n" + '$1'
-        $mapScript = $mapScript -replace '(    lib48DF4533_InitLib\(\);)', $lib281Replacement
+        $mapScript = $mapScript -replace '(?m)^(    lib48DF4533_InitLib\(\);)', $lib281Replacement
         Write-Host "Patch-RebornLibraryInit: added missing lib281DEC45_InitLib() before lib48DF4533_InitLib()"
+    } else {
+        Write-Host "Patch-RebornLibraryInit: lib281DEC45_InitLib() + lib48DF4533_InitLib() already present in InitLibs()"
     }
 
     $mapOutBytes = $utf8NoBom.GetBytes($mapScript)
@@ -2247,13 +2303,16 @@ try {
     }
 } finally {
     # DebugMode 退出时按 PID 关闭自己启动的 SC2（禁止按进程名 kill，避免误杀玩家游戏）
-    if ($DebugMode -and (Test-Path $debugPidFile)) {
+    # -KeepAlive: 保留 SC2 进程运行（用于 SC2API 集成测试，客户端需要在 launcher 退出后连接 SC2）
+    if ($DebugMode -and -not $KeepAlive -and (Test-Path $debugPidFile)) {
         $debugPid = Get-Content $debugPidFile -ErrorAction SilentlyContinue
         if ($debugPid) {
             Write-Host "DebugMode: 退出时关闭 SC2 (PID=$debugPid)"
             Stop-Process -Id $debugPid -Force -ErrorAction SilentlyContinue
         }
         Remove-Item $debugPidFile -Force -ErrorAction SilentlyContinue
+    } elseif ($DebugMode -and $KeepAlive) {
+        Write-Host "DebugMode + KeepAlive: 保留 SC2 进程运行 (PID 文件: $debugPidFile)"
     }
     Release-TestLock -LockContext $lock
 }
