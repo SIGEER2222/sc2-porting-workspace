@@ -293,6 +293,70 @@ class GameReport:
     objectives: list[dict]
     verdict: str  # "victory" | "defeat" | "inconclusive"
     summary: str
+    replay_log_path: str = ""  # JSONL 回放日志路径（空则未记录）
+
+
+def _unit_brief_for_log(e) -> dict:
+    """把实体转成精简 dict 用于 JSONL 日志（只保留关键字段）。"""
+    return {
+        "id": e.entity_id,
+        "t": e.unit_type_id,
+        "p": e.owner_player_id,
+        "x": round(e.x.to_float(), 2),
+        "y": round(e.y.to_float(), 2),
+        "hp": e.health.raw,
+        "alive": e.is_alive,
+    }
+
+
+def _write_replay_frame(fp, loop: int, world, waves_fired: int, total_cmds: int,
+                        nights_data: dict, time_scale: float,
+                        p1_alive_count: int, enemy_alive_count: int,
+                        key_events_this_frame: list[dict]) -> None:
+    """写一帧回放日志到 JSONL 文件。
+
+    key_events_this_frame: 仅本帧新发生的事件（已去重），避免历史事件在多帧中重复出现。
+    """
+    import json as _json
+    # 收集所有存活单位（按 owner 分组）
+    entities_by_player: dict[int, list[dict]] = {}
+    p1_units_by_type: dict[str, int] = {}
+    enemy_units_by_type: dict[str, int] = {}
+    for e in world.entities.values():
+        if not e.is_alive:
+            continue
+        brief = _unit_brief_for_log(e)
+        entities_by_player.setdefault(e.owner_player_id, []).append(brief)
+        if e.owner_player_id == 1:
+            p1_units_by_type[e.unit_type_id] = p1_units_by_type.get(e.unit_type_id, 0) + 1
+        elif e.owner_player_id != 0:
+            enemy_units_by_type[e.unit_type_id] = enemy_units_by_type.get(e.unit_type_id, 0) + 1
+
+    # 当前所处夜晚
+    current_night = 0
+    for night in nights_data:
+        scaled_start = int(night["start_loop"] * time_scale)
+        scaled_end = int(night["end_loop"] * time_scale)
+        if scaled_start <= loop < scaled_end:
+            current_night = night["night_number"]
+            break
+
+    frame = {
+        "loop": loop,
+        "ts_sec": round(loop / 22.4, 1),  # 游戏内秒数
+        "real_sec": round(loop * time_scale / 22.4, 1),  # 实际游戏秒数（按 time_scale）
+        "current_night": current_night,
+        "waves_fired": waves_fired,
+        "total_cmds": total_cmds,
+        "p1_alive": p1_alive_count,
+        "enemy_alive": enemy_alive_count,
+        "p1_units_by_type": p1_units_by_type,
+        "enemy_units_by_type": enemy_units_by_type,
+        "entities_by_player": {str(k): v for k, v in entities_by_player.items()},
+        "key_events": key_events_this_frame,  # 仅本帧新事件
+    }
+    fp.write(_json.dumps(frame, ensure_ascii=False) + "\n")
+    fp.flush()
 
 
 def run_dead_of_night(
@@ -302,6 +366,8 @@ def run_dead_of_night(
     enable_player_ai: bool = True,
     verbose: bool = True,
     time_scale: float = 1.0,  # 时间缩放（< 1.0 压缩昼夜循环，便于测试）
+    replay_log_path: Optional[str] = None,  # JSONL 回放日志路径；None 则自动生成
+    replay_log_interval: int = 100,  # 每 N loop 记录一帧
 ) -> GameReport:
     """运行亡者之夜 AI 盟友对局。
 
@@ -313,6 +379,9 @@ def run_dead_of_night(
         verbose: 是否打印进度
         time_scale: 时间缩放系数（< 1.0 压缩昼夜循环，便于测试。
                     例如 0.1 让 Night 1 从 loop 4704 → 470）
+        replay_log_path: JSONL 回放日志输出路径。None 时自动生成到
+                         artifacts/dead_of_night_replay_<timestamp>.jsonl
+        replay_log_interval: 每 N loop 记录一帧回放日志
     """
     start_time = time.time()
 
@@ -371,6 +440,19 @@ def run_dead_of_night(
         p1_count = sum(1 for e in s.world.entities.values() if e.owner_player_id == 1)
         print(f"  Player 1 单位数: {p1_count}")
 
+    # 准备回放日志文件
+    if replay_log_path is None:
+        from datetime import datetime as _dt
+        ts = _dt.now().strftime("%Y%m%d_%H%M%S")
+        replay_log_path = str(
+            Path(__file__).resolve().parents[1] / "artifacts" / f"dead_of_night_replay_{ts}.jsonl"
+        )
+    replay_path = Path(replay_log_path)
+    replay_path.parent.mkdir(parents=True, exist_ok=True)
+    replay_fp = open(replay_path, "w", encoding="utf-8")
+    if verbose:
+        print(f"  回放日志: {replay_path}")
+
     # 构造 MissionEngine
     eng = MissionEngine(s)
 
@@ -423,83 +505,167 @@ def run_dead_of_night(
     total_commands_dispatched = 0
     deadlock_loops = 0
     last_report_loop = 0
+    last_replay_loop = -10_000  # 强制首帧立即记录
     # 进度报告间隔：取 max_loops / 20 与 100 的较大值，至少每 5% 报告一次
     report_interval = max(100, max_loops // 20)
 
+    # 关键事件累计（贯穿整个对局，用于终局报告）
+    all_key_events: list[dict] = []
+    # 自上次日志帧以来的事件累积器（写入日志帧后清空）
+    events_since_last_log: list[dict] = []
+    # 实体信息缓存：entity_id -> (unit_type, owner_player_id)
+    # 用于死亡时查回类型（实体死亡后会被 world 移除，无法直接读取）
+    entity_info_cache: dict[int, tuple[str, int]] = {
+        eid: (e.unit_type_id, e.owner_player_id) for eid, e in s.world.entities.items()
+    }
+    # 上一 loop 存活实体 ID 集合
+    last_alive_ids: set[int] = set(s.world.entities.keys())
+    # 已记录的波次名（避免重复）
+    recorded_waves: set[str] = set()
+
     from .contracts import Observation
 
-    while not eng.terminated and s.world.clock.now.loop < max_loops:
-        cur = s.world.clock.now.loop
+    try:
+        while not eng.terminated and s.world.clock.now.loop < max_loops:
+            cur = s.world.clock.now.loop
 
-        # 1. 触发波次
-        eng._fire_waves(cur)
+            # 1. 触发波次（记录新触发的波次到事件累积器）
+            eng._fire_waves(cur)
+            for w in waves:
+                if w.name in eng._waves_fired and w.name not in recorded_waves:
+                    ev = {
+                        "loop": cur, "kind": "wave_fired",
+                        "wave_name": w.name,
+                        "unit_count": len(w.spawns),
+                        "ts_sec": round(cur / 22.4, 1),
+                    }
+                    events_since_last_log.append(ev)
+                    all_key_events.append(ev)
+                    recorded_waves.add(w.name)
 
-        # 2. 推进一 loop
-        s.scenario_step(1, snapshot=False)
+            # 2. 推进一 loop
+            s.scenario_step(1, snapshot=False)
 
-        # 3. 触发敌方 AI（攻击玩家）
-        eng._fire_triggers(cur)
+            # 3. 触发敌方 AI（攻击玩家）
+            eng._fire_triggers(cur)
 
-        # 4. 玩家 AI 决策（仅在决策间隔到达时构造 Observation，避免每 loop 都跑视野计算）
-        if policy is not None and cur - policy._last_decide_loop >= policy.command_interval:
-            obs = Observation.from_world(s.world, 1)
-            actions = policy.decide(obs, cur)
-            # 分发动作（立即执行，无延迟）
-            for a in actions:
-                if a.kind == "hold":
-                    continue
-                try:
-                    unit = s.world.get_entity(a.entity_id)
-                    if unit is None or not unit.is_alive:
+            # 4. 玩家 AI 决策（仅在决策间隔到达时构造 Observation，避免每 loop 都跑视野计算）
+            if policy is not None and cur - policy._last_decide_loop >= policy.command_interval:
+                obs = Observation.from_world(s.world, 1)
+                actions = policy.decide(obs, cur)
+                # 分发动作（立即执行，无延迟）
+                for a in actions:
+                    if a.kind == "hold":
                         continue
-                    if a.kind == "attack":
-                        if a.target_entity_id == 0:
+                    try:
+                        unit = s.world.get_entity(a.entity_id)
+                        if unit is None or not unit.is_alive:
                             continue
-                        target = s.world.get_entity(a.target_entity_id)
-                        if target is None or not target.is_alive:
-                            continue
-                        s.unit_order([a.entity_id], "attack_unit", 1,
-                                     target_entity_id=a.target_entity_id)
-                        total_commands_dispatched += 1
-                    elif a.kind == "move":
-                        s.unit_order([a.entity_id], "move", 1,
-                                     target_x=a.target_x, target_y=a.target_y)
-                        total_commands_dispatched += 1
-                except Exception:
-                    pass  # 错误静默
-            total_commands_issued += len(actions)
+                        if a.kind == "attack":
+                            if a.target_entity_id == 0:
+                                continue
+                            target = s.world.get_entity(a.target_entity_id)
+                            if target is None or not target.is_alive:
+                                continue
+                            s.unit_order([a.entity_id], "attack_unit", 1,
+                                         target_entity_id=a.target_entity_id)
+                            total_commands_dispatched += 1
+                        elif a.kind == "move":
+                            s.unit_order([a.entity_id], "move", 1,
+                                         target_x=a.target_x, target_y=a.target_y)
+                            total_commands_dispatched += 1
+                    except Exception:
+                        pass  # 错误静默
+                total_commands_issued += len(actions)
 
-        # 5. 检查目标
-        eng._check_objectives(cur)
+            # 5. 检查目标
+            eng._check_objectives(cur)
 
-        # 6. 检查 Player 1 是否全灭
-        p1_alive = any(e.owner_player_id == 1 and e.is_alive
-                       for e in s.world.entities.values())
-        if not p1_alive:
-            eng.terminated = True
-            eng.end_reason = "player_annihilated"
-            break
+            # 6. 检查 Player 1 是否全灭
+            p1_alive = any(e.owner_player_id == 1 and e.is_alive
+                           for e in s.world.entities.values())
+            if not p1_alive:
+                eng.terminated = True
+                eng.end_reason = "player_annihilated"
+                break
 
-        # 7. 死锁检测
-        if total_commands_dispatched == 0 and policy is not None:
-            deadlock_loops += 1
-        else:
-            deadlock_loops = 0
+            # 7. 死锁检测
+            if total_commands_dispatched == 0 and policy is not None:
+                deadlock_loops += 1
+            else:
+                deadlock_loops = 0
 
-        # 8. 进度报告
-        if verbose and cur - last_report_loop >= report_interval:
-            last_report_loop = cur
+            # 8. 死亡检测：基于 entity_id 集合差集
+            # 模拟器在单位死亡后会从 entities 字典移除（而非保留 is_alive=False），
+            # 所以用 "上一 loop 的 id 集合 - 当前 id 集合" 来检测死亡。
+            cur_alive_ids = set(s.world.entities.keys())
+            # 同时把新生成的实体加入缓存
+            for eid, e in s.world.entities.items():
+                if eid not in entity_info_cache:
+                    entity_info_cache[eid] = (e.unit_type_id, e.owner_player_id)
+            disappeared = last_alive_ids - cur_alive_ids
+            for eid in disappeared:
+                unit_t, owner = entity_info_cache.get(eid, ("unknown", -1))
+                ev = {
+                    "loop": cur, "kind": "death",
+                    "entity_id": eid,
+                    "unit_type": unit_t,
+                    "owner": owner,
+                    "ts_sec": round(cur / 22.4, 1),
+                }
+                events_since_last_log.append(ev)
+                all_key_events.append(ev)
+                # 清理缓存（避免内存泄漏）
+                entity_info_cache.pop(eid, None)
+            last_alive_ids = cur_alive_ids
+
+            # 9. 回放日志记录（按 interval）
+            if cur - last_replay_loop >= replay_log_interval:
+                last_replay_loop = cur
+                p1_count = sum(1 for e in s.world.entities.values()
+                               if e.owner_player_id == 1 and e.is_alive)
+                enemy_count = sum(1 for e in s.world.entities.values()
+                                  if e.owner_player_id != 1 and e.is_alive
+                                  and e.owner_player_id != 0)
+                _write_replay_frame(
+                    replay_fp, cur, s.world, len(eng._waves_fired),
+                    total_commands_dispatched, data.wave_timing["nights"],
+                    time_scale, p1_count, enemy_count, events_since_last_log,
+                )
+                # 写完后清空累积器
+                events_since_last_log = []
+
+            # 10. 进度报告
+            if verbose and cur - last_report_loop >= report_interval:
+                last_report_loop = cur
+                p1_count = sum(1 for e in s.world.entities.values()
+                               if e.owner_player_id == 1 and e.is_alive)
+                enemy_count = sum(1 for e in s.world.entities.values()
+                                  if e.owner_player_id != 1 and e.is_alive
+                                  and e.owner_player_id != 0)  # 排除中立 Player 0
+                waves_fired = len(eng._waves_fired)
+                elapsed = time.time() - start_time
+                print(f"  loop {cur}/{max_loops} ({cur/max_loops:.0%}) "
+                      f"elapsed={elapsed:.1f}s | P1:{p1_count} Enemy:{enemy_count} "
+                      f"Waves:{waves_fired}/{len(waves)} Cmds:{total_commands_dispatched}",
+                      flush=True)
+    finally:
+        # 写最后一帧 + 关闭日志文件（包含所有未写入的事件）
+        try:
+            cur = s.world.clock.now.loop
             p1_count = sum(1 for e in s.world.entities.values()
                            if e.owner_player_id == 1 and e.is_alive)
             enemy_count = sum(1 for e in s.world.entities.values()
                               if e.owner_player_id != 1 and e.is_alive
-                              and e.owner_player_id != 0)  # 排除中立 Player 0
-            waves_fired = len(eng._waves_fired)
-            elapsed = time.time() - start_time
-            print(f"  loop {cur}/{max_loops} ({cur/max_loops:.0%}) "
-                  f"elapsed={elapsed:.1f}s | P1:{p1_count} Enemy:{enemy_count} "
-                  f"Waves:{waves_fired}/{len(waves)} Cmds:{total_commands_dispatched}",
-                  flush=True)
+                              and e.owner_player_id != 0)
+            _write_replay_frame(
+                replay_fp, cur, s.world, len(eng._waves_fired),
+                total_commands_dispatched, data.wave_timing["nights"],
+                time_scale, p1_count, enemy_count, events_since_last_log,
+            )
+        except Exception:
+            pass
+        replay_fp.close()
 
     # 计算结果
     elapsed = time.time() - start_time
@@ -544,6 +710,7 @@ def run_dead_of_night(
         objectives=[{"name": o.name, "kind": o.kind, "status": o.status} for o in eng.objectives],
         verdict=verdict,
         summary=summary,
+        replay_log_path=str(replay_path),
     )
 
     if verbose:
