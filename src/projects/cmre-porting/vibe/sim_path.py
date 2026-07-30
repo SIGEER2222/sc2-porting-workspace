@@ -1,4 +1,4 @@
-"""把 ``tools/sc2-ally-bot/src`` 加入 sys.path，使 ``sc2_simulator`` 可被 import。
+"""把 ``reference/sc2-ally-bot/src`` 加入 sys.path，使 ``sc2_simulator`` 可被 import。
 
 本模块不复制 sc2_simulator 源码，只做路径引导（import，非 fork）。
 路径以本文件位置相对计算，不写绝对工作区路径到 committed 文件。
@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]  # src/projects/cmre-porting/vibe -> repo root
-_SIM_SRC = _REPO_ROOT / "tools" / "sc2-ally-bot" / "src"
+_SIM_SRC = _REPO_ROOT / "reference" / "sc2-ally-bot" / "src"
 
 _ensured = False
 

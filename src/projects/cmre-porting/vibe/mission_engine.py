@@ -142,7 +142,7 @@ class MissionEngine:
                 break
             cur = self.session.world.clock.now.loop if self.session.world else 0
             self._fire_waves(cur)
-            self.session.scenario_step(1)
+            self.session.scenario_step(1, snapshot=False)
             self._fire_triggers(cur)
             self._check_objectives(cur)
             if self.session.terminated:

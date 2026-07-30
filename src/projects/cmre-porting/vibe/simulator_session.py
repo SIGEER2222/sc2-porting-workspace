@@ -400,7 +400,7 @@ class SimulatorSession:
                 r = self.assert_count(kwargs.get("owner_player_id"), kwargs["expected"], kwargs.get("unit_type_id"))
             if r.ok:
                 return AssertResult(True, f"eventually {check_fn_name} ok @ loop {self.world.clock.now.loop}")
-            self.scenario_step(1)
+            self.scenario_step(1, snapshot=False)
         return AssertResult(False, f"eventually {check_fn_name} 未在 {max_loops} loop 内成立")
 
 

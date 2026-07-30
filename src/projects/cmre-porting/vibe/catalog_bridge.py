@@ -154,7 +154,7 @@ def cmre_slice_catalog() -> tuple[CatalogHandle, Mapping[str, Provenance]]:
         prov[uid] = Provenance(
             unit_id=uid,
             source="sc2_simulator.m7",
-            source_path="tools/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py",
+            source_path="reference/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py",
             source_hash=_unit_source_hash(uid),
             derivation="hand-authored",
             fidelity=handle.fidelity_of(uid),
@@ -208,7 +208,7 @@ def p2_selftest() -> dict:
 
     # 2) 缺失引用失败
     from sc2_simulator.scenario.loader import load_scenario
-    sc = load_scenario("tools/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json")
+    sc = load_scenario("reference/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json")
     handle, prov = cmre_slice_catalog()
     # marine_vs_zergling 用 Marine+Zergling，但 CMRE 切片无 Zergling -> 缺失
     bridge = make_bridge(handle, prov)
@@ -222,7 +222,7 @@ def p2_selftest() -> dict:
     m7 = m7_catalog()
     if "Viking" in m7.units:
         m7h = wrap_catalog(m7, source="sc2_simulator.m7")
-        m7prov = {uid: Provenance(uid, "sc2_simulator.m7", "tools/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py",
+        m7prov = {uid: Provenance(uid, "sc2_simulator.m7", "reference/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py",
                                   _unit_source_hash(uid), "hand-authored", m7h.fidelity_of(uid), "") for uid in m7.units}
         m7bridge = make_bridge(m7h, m7prov)
         # stage 06 修复后 Viking 应为 approximate（不再是 unsupported）

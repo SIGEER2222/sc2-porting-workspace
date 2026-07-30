@@ -67,7 +67,7 @@ class SnapshotRecorder:
                 ]
                 self.frames[cur_before] = RecordedFrame(cur_before, snap, events_summary)
                 recorded += 1
-            self.session.scenario_step(1)
+            self.session.scenario_step(1, snapshot=False)
         return {"recorded": recorded, "total_frames": len(self.frames),
                 "final_loop": self.session.world.clock.now.loop}
 

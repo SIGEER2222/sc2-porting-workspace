@@ -371,7 +371,7 @@ def _run_single(scenario_dict: dict, strategy: Strategy, seed: int,
                              ability_id=a.ability_id)
             issued_set.add(a.entity_id)
 
-        s.scenario_step(1)
+        s.scenario_step(1, snapshot=False)
 
     # 统计
     final_friendlies = [e for e in s.world.entities.values()

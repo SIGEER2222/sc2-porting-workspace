@@ -228,7 +228,7 @@ def _determinism_check() -> tuple[bool, str]:
     """同 task/catalog/seed 跑两次，trace 哈希必须相同。"""
     from .contracts import load_scenario, run_scenario
     # 用现有 marine_vs_zergling 场景（确定性基准）
-    sc = load_scenario("tools/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json")
+    sc = load_scenario("reference/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json")
     w1, _ = run_scenario(sc)
     from sc2_simulator.reporting.trace import trace_hash
     h1 = trace_hash(w1)

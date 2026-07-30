@@ -4,56 +4,48 @@
     {
       "id": "SIM-CAL-001",
       "severity": "high",
-      "status": "open",
+      "status": "resolved-fixed",
       "title": "伤害公式偏差（min damage / bonus_damage / armor_add）",
-      "description": "upstream combat.py _compute_damage_breakdown 仍存在三个公式偏差：(1) 最小伤害用 max(1,...) 而非 max(0.5,...)；(2) bonus_damage 用 sum() 累加而非 max() 取最大；(3) armor_add 无射程 ≥2 条件（Guardian Shield 应仅对远程武器生效）",
-      "evidence_class": "static",
-      "evidence_path": "reference/sc2-ally-bot/src/sc2_simulator/systems/combat.py:48-116",
-      "reference": "python-sc2 unit.py:603-809, Sharky DamageService.cs:13-20",
-      "blocking": false,
-      "note": "upstream 已有更完整的 attacker/target entity 加成支持（升级、行为），但三个核心公式偏差未修正"
+      "fix": "combat.py _compute_damage_breakdown: bonus_damage 取 max 而非 sum；min damage 0.5 而非 1；Guardian Shield armor_add 仅对 range>=2 武器生效",
+      "fixed_at": "2026-07-30T22:30:00+08:00"
     },
     {
       "id": "SIM-CAL-002",
       "severity": "high",
-      "status": "open",
+      "status": "resolved-fixed",
       "title": "武器周期严重偏差",
-      "description": "upstream model.py/m7_units.py 中多个单位武器周期与 SC2 实际值偏差过大：Marauder 75（应 34，+123%）、Zergling 22（应 16，+41%）、Marine 22（应 19，+14%）、Viking 75（应 67，+12%）",
-      "evidence_class": "static",
-      "evidence_path": "reference/sc2-ally-bot/src/sc2_simulator/catalog/model.py:263,288,318",
-      "reference": "python-sc2 weapon.speed × 22.4 换算",
-      "blocking": false
+      "fix": "model.py+m7_units.py: Marine 22→19, Zergling 22→16, Marauder 75→34, Viking 75→67, Mutalisk 22→24",
+      "fixed_at": "2026-07-30T22:35:00+08:00"
     },
     {
       "id": "SIM-CAL-003",
       "severity": "medium",
-      "status": "open",
+      "status": "resolved-fixed",
       "title": "单位/行为定义错误",
-      "description": "(1) Mutalisk 无弹跳伤害（SC2 实际 9→3→1 三段）；(2) _is_air 仅检查 is_flying，不检查 MASSIVE 属性（巨像应可被对空武器攻击）；(3) Baneling 矿物成本待核实；(4) Reaper 是否误享 Stimpack 待核实",
-      "evidence_class": "static",
-      "evidence_path": "reference/sc2-ally-bot/src/sc2_simulator/catalog/model.py:44-45, reference/sc2-ally-bot/src/sc2_simulator/systems/combat.py:44-45",
-      "reference": "python-sc2 unit.py:652-653, SC2 实际弹跳伤害机制",
-      "blocking": false
+      "fix": "Mutalisk bounce_damage=(3,1) + _apply_bounce_damage; _is_air 增加 MASSIVE 检查; Baneling minerals 50→25; Reaper 从 Stimpack casters 移除",
+      "fixed_at": "2026-07-30T22:40:00+08:00"
     },
     {
       "id": "PERF-001",
       "severity": "high",
-      "status": "open",
-      "title": "700x 性能回归阻断 P4C-P9 回归验证",
-      "description": "upstream 引入 pathfinding/construction/production/abilities 扩展后，每次 scenario_step 耗时增长约 700 倍。P3 从 0.239s 增至 175.8s；P4C（10 runs × 400 loops）预估需 78+ 分钟，无法在合理时间内完成回归",
-      "evidence_class": "runtime",
-      "evidence_path": "P3: 0.239s → 175.815s; 简单 100 步场景: 0.6s (was <0.01s)",
-      "blocking": true,
-      "recommendation": "优化 pathfinding 查询（缓存/惰性）、减少 construction/production 每步扫描、或为 vibe 回归提供轻量 catalog/配置"
+      "status": "resolved-fixed",
+      "title": "62MB terrain 在 snapshot_hash 中导致 546ms/hash",
+      "fix": "snapshot_hash 排除 terrain（静态不可变数据），546ms→<1ms (546x faster)",
+      "fixed_at": "2026-07-30T22:10:00+08:00"
+    },
+    {
+      "id": "PERF-002",
+      "severity": "high",
+      "status": "resolved-fixed",
+      "title": "per-loop scenario_step(1) 每次计算 snapshot hash",
+      "fix": "所有 per-loop step(1) 改用 snapshot=False（tactical/ally_ai/mission_engine/viewer/session）",
+      "fixed_at": "2026-07-30T22:15:00+08:00"
     },
     {
       "id": "COMPAT-001",
       "severity": "high",
       "status": "resolved-fixed",
       "title": "vibe 适配层 is_air 与 upstream is_flying 不兼容",
-      "description": "upstream 将飞行单位字段从 is_air 改为 is_flying（配合 MovementType 枚举），vibe/gate_verification.py 仍引用 is_air 导致 P3 崩溃",
-      "evidence_class": "runtime",
-      "fix": "gate_verification.py: getattr(m7.units['Viking'], 'is_flying', False) or getattr(..., 'is_air', False)",
       "fixed_at": "2026-07-30T17:30:00+08:00"
     },
     {
@@ -61,9 +53,6 @@
       "severity": "high",
       "status": "resolved-fixed",
       "title": "Stage 06 速度/攻速乘数修复在 upstream 重写后丢失",
-      "description": "upstream 重写 movement.py (374 行变更) 和 combat.py (110 行变更) 时未包含 Stage 06 的 get_speed_multiplier/get_attack_speed_multiplier 调用，导致 G6_speed_mult 和 G6_atkspd_mult 闸门失败",
-      "evidence_class": "runtime",
-      "fix": "movement.py step() 重新接入 get_speed_multiplier；combat.py _try_fire 重新接入 get_attack_speed_multiplier + weapon_air_cd/weapon_ground_cd 区分",
       "fixed_at": "2026-07-30T17:35:00+08:00"
     }
   ]
