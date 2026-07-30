@@ -7,11 +7,31 @@ param(
     [Parameter(Mandatory=$true)][string]$OutputPath
 )
 
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$packPy = Join-Path $scriptDir "pack_mpq.py"
+$scriptDir = $PSScriptRoot
+if (-not $scriptDir) { $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path }
+if (-not $scriptDir) { $scriptDir = Split-Path -Parent $PSCommandPath }
+if (-not $scriptDir) { $scriptDir = "e:\Code\MyMod\SC2VibeTools\sc2-porting-workspace\tools\mpq\scripts" }
+# 使用 StormLib 原生打包器（pack_stormlib.py），而非手写的 pack_mpq.py。
+# pack_mpq.py 产生的 MPQ 格式 SC2 引擎无法正确解析（CreateGame 成功但 JoinGame 报"无法打开地图"）。
+# StormLib 是 Blizzard MPQ 格式的参考实现，与 SC2 自身的 MPQ 读取器同源。
+$packPy = Join-Path $scriptDir "pack_stormlib.py"
 
 if (-not (Test-Path $packPy)) {
-    Write-Error "pack_mpq.py not found at $packPy"
+    Write-Error "pack_stormlib.py not found at $packPy"
+    exit 1
+}
+
+# 查找 StormLib.dll（优先 x64）
+# $scriptDir = .../sc2-porting-workspace/tools/mpq/scripts
+# artifacts 在 SC2VibeTools 根目录下，需要上溯 4 级
+$workspaceRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptDir)))
+$stormlibDll = Join-Path $workspaceRoot "artifacts\stormlib-v9.40\x64\StormLib.dll"
+if (-not (Test-Path $stormlibDll)) {
+    # 回退到 Win32
+    $stormlibDll = Join-Path $workspaceRoot "artifacts\stormlib-v9.40\Win32\StormLib.dll"
+}
+if (-not (Test-Path $stormlibDll)) {
+    Write-Error "StormLib.dll not found in artifacts\stormlib-v9.40\"
     exit 1
 }
 
@@ -30,7 +50,7 @@ if (Test-Path $outputFull) {
 
 Write-Host "Packing $inputFull -> $outputFull"
 
-python $packPy $inputFull $outputFull
+python $packPy $inputFull $outputFull --stormlib $stormlibDll
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Pack failed (exit code $LASTEXITCODE)"

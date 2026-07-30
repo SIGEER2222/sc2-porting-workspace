@@ -1,0 +1,43 @@
+{
+  "$schema": "地图需求声明：地图声明硬性需求，由 launcher 读取并通知 mod adapter 中间层执行",
+  "$convention": "每个地图条目声明 preventDefeat（哪些玩家需要 PreventDefeat 单位以避免触发失败判定）、startingUnits（是否需要创建起始单位）、customHooks（地图特定钩子）",
+  "maps": {
+    "亡者之夜.SC2Map": {
+      "description": "亡者之夜：gt_DefeatBaseDead 每 1s 检查 P1+P2 的 PreventDefeat 单位组（OR 逻辑），缺建筑会触发失败",
+      "preventDefeat": {
+        "required": true,
+        "players": [1, 2],
+        "reason": "gt_DefeatBaseDead_Func 检查 P1+P2 PreventDefeat 单位组，任一为空即触发失败"
+      },
+      "startingUnits": {
+        "required": true,
+        "players": [1],
+        "reason": "API 模式下需要为 P1 创建起始基地+工蜂"
+      }
+    },
+    "克哈裂痕.SC2Map": {
+      "description": "克哈裂痕：待分析",
+      "preventDefeat": {
+        "required": true,
+        "players": [1, 2],
+        "reason": "合作地图默认 P1+P2 都需要 PreventDefeat"
+      },
+      "startingUnits": {
+        "required": true,
+        "players": [1]
+      }
+    },
+    "_default": {
+      "description": "默认需求（未在 maps 中显式声明的地图）",
+      "preventDefeat": {
+        "required": true,
+        "players": [1, 2],
+        "reason": "合作地图默认 P1+P2 都需要 PreventDefeat"
+      },
+      "startingUnits": {
+        "required": true,
+        "players": [1]
+      }
+    }
+  }
+}

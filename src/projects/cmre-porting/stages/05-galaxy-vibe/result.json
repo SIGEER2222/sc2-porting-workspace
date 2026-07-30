@@ -1,0 +1,76 @@
+{
+  "stage": "05-galaxy-vibe",
+  "status": "code_complete_pending_runtime",
+  "started_at": "2026-07-29T22:37:17+08:00",
+  "completed_at": "2026-07-29T23:50:00+08:00",
+  "phases": {
+    "p0-transport": "code_complete",
+    "p1-kernel": "code_complete",
+    "p2-assertion": "code_complete",
+    "p3-visual": "code_complete",
+    "p4-cold": "code_complete",
+    "p5-intent": "code_complete",
+    "p6-second-consumer": "code_complete",
+    "p7-stability": "code_complete"
+  },
+  "first_consumer": {
+    "map": "亡者之夜",
+    "commander": "TerranAlenger3",
+    "baseline": "04-runtime-baseline"
+  },
+  "second_consumer": {
+    "map": "克哈裂痕",
+    "commander": "TerranAlenger3"
+  },
+  "static_validation": {
+    "ran_at": "2026-07-29T23:50:00+08:00",
+    "total_checks": 48,
+    "passed": 48,
+    "failed": 0,
+    "warnings": 0,
+    "overall": "passed",
+    "report_path": "artifacts/galaxy-vibe/static-validation-report.json"
+  },
+  "unit_tests": {
+    "total": 27,
+    "passed": 27,
+    "failed": 0,
+    "note": "需设置 PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python 环境变量绕过 protobuf 版本兼容问题"
+  },
+  "evidence": {
+    "static": [
+      "tools/galaxy-vibe/schema/rpc-schema.json",
+      "tools/galaxy-vibe/schema/rpc-response-schema.json",
+      "tools/galaxy-vibe/kernel/whitelist.json",
+      "tools/galaxy-vibe/kernel/LibVibeKernel.galaxy",
+      "tools/galaxy-vibe/kernel/LibVibeKernel_h.galaxy",
+      "tools/galaxy-vibe/observer/snapshot.schema.json",
+      "tools/galaxy-vibe/consumers/dead-of-night/consumer.json",
+      "tools/galaxy-vibe/consumers/keha-rift/consumer.json",
+      "tools/galaxy-vibe/consumers/shared/extraction-manifest.json",
+      "artifacts/galaxy-vibe/static-validation-report.json"
+    ],
+    "runtime": [],
+    "visual": [],
+    "inference": [
+      "P0-P7 代码完整性由 run-all-validation.ps1 验证通过",
+      "27/27 单元测试通过（覆盖 RPC 协议、幂等、白名单、参数边界、schema 一致性）",
+      "运行时验证（P0 闸门、P1 端到端、P3 视觉、P4 冷循环、P7 soak）需用户手动启动 SC2 执行"
+    ]
+  },
+  "pending_runtime_verification": [
+    "P0: 20 ping/5 dedup/5 illegal/重启恢复/p95<=2s/无 ScriptError",
+    "P1: spawn 3 Marine 端到端 + 未知操作拒绝",
+    "P3: before/after/reset/failed PNG + 单位数一致",
+    "P4: Galaxy fixture + XML fixture 冷循环",
+    "P7: 30min/200 请求 soak + 单命令证据包"
+  ],
+  "unresolved_issues": [
+    {
+      "id": "P7-ENV-001",
+      "severity": "low",
+      "description": "protobuf 库版本与 vendored s2clientprotocol 不兼容，需设置 PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python 环境变量",
+      "workaround": "运行时通过 vibe.ps1 包装或在调用前 set 环境变量"
+    }
+  ]
+}

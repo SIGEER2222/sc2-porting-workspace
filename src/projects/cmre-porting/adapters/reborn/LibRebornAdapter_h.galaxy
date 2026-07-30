@@ -1,0 +1,38 @@
+include "TriggerLibs/natives"
+include "LibMapModBridge_h"
+
+// === LibRebornAdapter: Reborn mod 适配器 ===
+// 职责：在 Reborn 模式下，于 SwarmSetup 之前调用 LibMapModBridge API 创建基地
+// 设计原则：
+//   1. 知道 Reborn 模式的初始化时机（SwarmSetup 之前）
+//   2. 调用通用 LibMapModBridge API，不重复实现业务逻辑
+//   3. 由 launcher 在 lib48DF4533_InitLib() 注入调用
+
+// API 声明
+void libRebornAdapter_gf_InitializeBeforeSwarmSetup(
+    string structureType, string workerType, int workerCount,
+    bool ensureP1PreventDefeat, bool ensureP2PreventDefeat,
+    bool createP1StartingUnits, bool createP2StartingUnits);
+
+// === Zerg 单位解锁（绕过 UnitUnlocks_Func 的地图条件）===
+// CMRE 合作地图上 libSwaC_gf_CurrentMap() 不会返回原版剧情地图 ID (ZExpedition1/2 等)，
+// Bank 'cryswarmcoop' 也没有原版剧情进度数据，导致 UnitUnlocks_Func 中
+// 所有非默认单位/建筑都被 TechTreeUnitAllow(false) 禁用。
+// 此函数在 SwarmSetup 触发后调用，强制解锁所有 Reborn mod 的 Zerg 单位/建筑，
+// 让 Larva 能看到完整的 morph 能力列表。
+void libRebornAdapter_gf_UnlockAllZergUnits(int player);
+
+// === Zerg 起始建筑创建（绕过地图 melee 预置缺失）===
+// CMRE 合作地图（如亡者之夜）不会放置 melee 起始建筑（SpawningPool/RoachWarren 等），
+// Reborn mod 自身也不创建这些建筑（依赖地图预置）。
+// 没有这些建筑，Larva 即使 TechTreeUnitAllow 解锁了单位，也无法变异
+// （morph ability 需要 prerequisite building 存在）。
+// 此函数在 SwarmSetup 末尾（UnlockAllZergUnits 之后）调用，
+// 在 Hatchery 附近创建完整的 Zerg 起始建筑集合 + 额外工蜂 + HunterKiller。
+void libRebornAdapter_gf_CreateZergStartingBuildings(int player);
+
+// === 强制启用 Larva 变异按钮 ===
+// 使用 CatalogFieldValueSet 清除 LarvaTrainSwarm2/LarvaTrain/LarvaTrainSwarm
+// 所有变异按钮的 Requirements 和 State，绕过 HaveSpawningPool 等需求验证器
+// （UnitCreate 创建的建筑可能不被需求系统识别）
+void libRebornAdapter_gf_ForceEnableLarvaMorphButtons(int player);

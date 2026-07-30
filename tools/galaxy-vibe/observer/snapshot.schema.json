@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sc2-porting-workspace/galaxy-vibe/snapshot-schema.json",
+  "title": "Galaxy Vibe State Snapshot",
+  "description": "State Observer 采集的游戏状态快照 schema。每个快照可追溯到一个 request_id 和采样时间。",
+  "type": "object",
+  "properties": {
+    "snapshot_id": {
+      "type": "string",
+      "description": "快照唯一 ID"
+    },
+    "session_id": {
+      "type": "string",
+      "description": "关联的 Vibe 会话 ID"
+    },
+    "request_id": {
+      "type": "string",
+      "description": "触发采样的 request_id"
+    },
+    "sampled_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "采样时间 ISO8601"
+    },
+    "mission_time": {
+      "type": "number",
+      "description": "游戏内任务时间（秒）"
+    },
+    "state_version": {
+      "type": "integer",
+      "description": "Kernel 状态版本号"
+    },
+    "players": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "player_id": {"type": "integer"},
+          "minerals": {"type": "integer"},
+          "vespene": {"type": "integer"},
+          "supply_used": {"type": "integer"},
+          "supply_cap": {"type": "integer"},
+          "active": {"type": "boolean"}
+        },
+        "required": ["player_id", "active"]
+      }
+    },
+    "units": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "unit_tag": {"type": "integer"},
+          "type": {"type": "string"},
+          "owner": {"type": "integer"},
+          "life": {"type": "number"},
+          "shields": {"type": "number"},
+          "energy": {"type": "number"},
+          "x": {"type": "number"},
+          "y": {"type": "number"}
+        },
+        "required": ["unit_tag", "type", "owner"]
+      }
+    },
+    "unit_counts": {
+      "type": "object",
+      "description": "按 player + unit_type 分组的单位计数",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {"type": "integer"}
+      }
+    }
+  },
+  "required": ["snapshot_id", "session_id", "sampled_at", "mission_time", "state_version", "players", "unit_counts"]
+}

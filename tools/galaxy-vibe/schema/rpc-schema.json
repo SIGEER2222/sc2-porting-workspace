@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sc2-porting-workspace/galaxy-vibe/rpc-schema.json",
+  "title": "Galaxy Vibe RPC Protocol",
+  "description": "SC2 Vibe 框架的请求/响应 RPC 契约。Host <-> Kernel 通信协议。",
+  "type": "object",
+  "definitions": {
+    "protocol_version": {
+      "type": "string",
+      "const": "vibe/1.0",
+      "description": "协议版本，固定 vibe/1.0"
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{8,64}$",
+      "description": "会话 ID，Host 重启或 SC2 重启生成新 session"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,64}$",
+      "description": "请求 ID，同 session 内唯一；重复 ID 返回原结果不重复执行"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "请求序号，用于乱序检测"
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "system.ping",
+        "scenario.reset",
+        "unit.spawn",
+        "unit.kill",
+        "unit.set_vital",
+        "player.set_resource",
+        "query.units",
+        "query.unit",
+        "query.mission",
+        "visual.actor_tint",
+        "visual.actor_scale",
+        "visual.actor_opacity",
+        "assert.exists",
+        "assert.count",
+        "assert.equals",
+        "assert.range",
+        "assert.eventually",
+        "assert.not_exists"
+      ],
+      "description": "操作名，必须在白名单内"
+    },
+    "checksum": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}$",
+      "description": "CRC32 校验和，用于检测传输损坏"
+    },
+    "error_code": {
+      "type": "string",
+      "enum": [
+        "OK",
+        "UNKNOWN_OPERATION",
+        "INVALID_ARGS",
+        "UNIT_NOT_FOUND",
+        "PLAYER_OUT_OF_RANGE",
+        "COUNT_OUT_OF_RANGE",
+        "VITAL_OUT_OF_RANGE",
+        "RESOURCE_OUT_OF_RANGE",
+        "SESSION_EXPIRED",
+        "REQUEST_REJECTED",
+        "INTERNAL_ERROR",
+        "CHECKSUM_MISMATCH"
+      ]
+    }
+  },
+  "properties": {
+    "protocol_version": { "$ref": "#/definitions/protocol_version" },
+    "session_id": { "$ref": "#/definitions/session_id" },
+    "request_id": { "$ref": "#/definitions/request_id" },
+    "sequence": { "$ref": "#/definitions/sequence" },
+    "operation": { "$ref": "#/definitions/operation" },
+    "args": {
+      "type": "object",
+      "description": "操作参数，结构由 operation 决定",
+      "additionalProperties": true
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Host 发起时间 ISO8601"
+    },
+    "checksum": { "$ref": "#/definitions/checksum" }
+  },
+  "required": ["protocol_version", "session_id", "request_id", "sequence", "operation", "issued_at", "checksum"],
+  "additionalProperties": false
+}

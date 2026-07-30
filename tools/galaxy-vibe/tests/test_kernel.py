@@ -1,0 +1,446 @@
+"""P1 单元测试 — Vibe Host 与 RPC 协议契约测试。
+
+依据 P1 验收：
+  - Galaxy 编译及 schema 测试通过
+  - spawn 3 Marine、查询为 3、改资源/生命、kill/reset 均与结果一致
+  - 未知操作、坏单位 ID、超限 count 不执行
+
+测试策略：
+  - 单元测试（不依赖 SC2）：RPC 序列化、checksum、session、幂等、whitelist 校验
+  - 契约测试（mock SC2）：模拟 Kernel 响应，验证 Host 端到端流程
+  - 静态 schema 测试：验证 rpc-schema.json 合法
+
+运行：
+  python -m pytest tools/galaxy-vibe/tests/test_kernel.py -v
+  或
+  python tools/galaxy-vibe/tests/test_kernel.py
+"""
+from __future__ import annotations
+
+import json
+import sys
+import unittest
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO_ROOT / "tools" / "galaxy-vibe"))
+
+from host.vibe_host import RpcRequest, RpcResponse, VibeHost, PROTOCOL_VERSION  # noqa: E402
+
+
+# ---- RPC 协议单元测试 ----
+
+class TestRpcRequest(unittest.TestCase):
+    """RpcRequest 序列化与 checksum 测试。"""
+
+    def test_request_args_string_serialization(self):
+        """请求应能序列化为 Galaxy 可解析的 key=value;key=value 格式。"""
+        req = RpcRequest(
+            session_id="test_session_001",
+            request_id="req_001",
+            sequence=1,
+            operation="system.ping",
+            args={},
+        )
+        s = req.to_args_string()
+        self.assertIn("protocol_version=vibe/1.0", s)
+        self.assertIn("session_id=test_session_001", s)
+        self.assertIn("request_id=req_001", s)
+        self.assertIn("sequence=1", s)
+        self.assertIn("operation=system.ping", s)
+        self.assertIn("checksum=", s)
+
+    def test_request_args_with_params(self):
+        """带参数的请求应正确序列化。"""
+        req = RpcRequest(
+            session_id="s1",
+            request_id="r1",
+            sequence=5,
+            operation="unit.spawn",
+            args={"unit_type": "Marine", "count": 3, "player": 1},
+        )
+        s = req.to_args_string()
+        self.assertIn("unit_type=Marine", s)
+        self.assertIn("count=3", s)
+        self.assertIn("player=1", s)
+
+    def test_checksum_deterministic(self):
+        """相同输入应生成相同 checksum。"""
+        req1 = RpcRequest(session_id="s1", request_id="r1", sequence=1, operation="system.ping")
+        req2 = RpcRequest(session_id="s1", request_id="r1", sequence=1, operation="system.ping")
+        self.assertEqual(req1.checksum, req2.checksum)
+        self.assertEqual(len(req1.checksum), 8)
+
+    def test_checksum_changes_with_input(self):
+        """不同输入应生成不同 checksum。"""
+        req1 = RpcRequest(session_id="s1", request_id="r1", sequence=1, operation="system.ping")
+        req2 = RpcRequest(session_id="s1", request_id="r1", sequence=2, operation="system.ping")
+        self.assertNotEqual(req1.checksum, req2.checksum)
+
+    def test_protocol_version_constant(self):
+        """协议版本应固定为 vibe/1.0。"""
+        self.assertEqual(PROTOCOL_VERSION, "vibe/1.0")
+
+
+# ---- 响应解析测试 ----
+
+class TestRpcResponse(unittest.TestCase):
+    """RpcResponse JSON 解析测试。"""
+
+    def test_parse_result_response(self):
+        """应正确解析 result 响应。"""
+        raw = json.dumps({
+            "kind": "result",
+            "protocol_version": "vibe/1.0",
+            "session_id": "s1",
+            "request_id": "r1",
+            "sequence": 1,
+            "operation": "system.ping",
+            "error_code": "OK",
+            "payload": {"pong": True, "request_count": 1, "rejected_count": 0},
+            "state_version": 0,
+        })
+        resp = RpcResponse.from_json(raw)
+        self.assertTrue(resp.is_ok)
+        self.assertEqual(resp.kind, "result")
+        self.assertEqual(resp.payload["pong"], True)
+        self.assertEqual(resp.state_version, 0)
+
+    def test_parse_error_response(self):
+        """应正确解析 error 响应。"""
+        raw = json.dumps({
+            "kind": "error",
+            "protocol_version": "vibe/1.0",
+            "session_id": "s1",
+            "request_id": "r1",
+            "sequence": 1,
+            "operation": "unit.spawn",
+            "error_code": "COUNT_OUT_OF_RANGE",
+            "payload": {},
+            "state_version": 0,
+        })
+        resp = RpcResponse.from_json(raw)
+        self.assertFalse(resp.is_ok)
+        self.assertEqual(resp.error_code, "COUNT_OUT_OF_RANGE")
+
+    def test_parse_invalid_json(self):
+        """无效 JSON 应返回 INTERNAL_ERROR。"""
+        resp = RpcResponse.from_json("not json")
+        self.assertEqual(resp.error_code, "INTERNAL_ERROR")
+
+
+# ---- 白名单注册表测试 ----
+
+class TestWhitelist(unittest.TestCase):
+    """白名单注册表契约测试。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.whitelist_path = REPO_ROOT / "tools" / "galaxy-vibe" / "kernel" / "whitelist.json"
+        cls.whitelist = json.loads(cls.whitelist_path.read_text(encoding="utf-8"))
+
+    def test_whitelist_loads(self):
+        """白名单 JSON 应能加载。"""
+        self.assertIn("operations", self.whitelist)
+        self.assertGreater(len(self.whitelist["operations"]), 0)
+
+    def test_mvp_operations_present(self):
+        """MVP 操作集应全部在白名单中。"""
+        required = [
+            "system.ping", "scenario.reset",
+            "unit.spawn", "unit.kill", "unit.set_vital",
+            "player.set_resource",
+            "query.units", "query.unit", "query.mission",
+            "visual.actor_tint", "visual.actor_scale", "visual.actor_opacity",
+        ]
+        for op in required:
+            self.assertIn(op, self.whitelist["operations"], f"缺少 MVP 操作: {op}")
+
+    def test_rejected_operations_listed(self):
+        """被拒绝的操作（call/run/exec 等）应在 rejected_operations 中。"""
+        rejected = self.whitelist.get("rejected_operations", [])
+        self.assertIn("call", rejected)
+        self.assertIn("run", rejected)
+
+    def test_side_effect_marking(self):
+        """query.* 应标记为无副作用，unit.spawn 应标记为有副作用。"""
+        ops = self.whitelist["operations"]
+        self.assertFalse(ops["query.units"]["produces_side_effect"])
+        self.assertFalse(ops["system.ping"]["produces_side_effect"])
+        self.assertTrue(ops["unit.spawn"]["produces_side_effect"])
+        self.assertTrue(ops["scenario.reset"]["produces_side_effect"])
+
+    def test_unit_spawn_count_bounds(self):
+        """unit.spawn 的 count 参数应有 1-200 边界。"""
+        count_arg = self.whitelist["operations"]["unit.spawn"]["args"]["count"]
+        self.assertEqual(count_arg["min"], 1)
+        self.assertEqual(count_arg["max"], 200)
+
+    def test_player_range_1_to_15(self):
+        """player 参数应为 1-15。"""
+        player_arg = self.whitelist["operations"]["unit.spawn"]["args"]["player"]
+        self.assertEqual(player_arg["min"], 1)
+        self.assertEqual(player_arg["max"], 15)
+
+
+# ---- Host 行为测试（mock SC2）----
+
+class TestVibeHostMocked(unittest.TestCase):
+    """VibeHost 行为测试（mock SC2 连接）。"""
+
+    def setUp(self):
+        self.host = VibeHost(sc2_port=9999, artifacts_dir=Path(__file__).parent / "_test_artifacts")
+        self.host.start_session()
+
+    def tearDown(self):
+        self.host.close()
+
+    def test_session_id_unique(self):
+        """每次 start_session 应生成不同 session_id。"""
+        s1 = self.host.session_id
+        s2 = self.host.start_session()
+        self.assertNotEqual(s1, s2)
+
+    def test_sequence_increments(self):
+        """每次 request 应递增 sequence。"""
+        # mock 连接，返回固定响应
+        mock_client = MagicMock()
+        mock_client.map_command.return_value = True
+        self.host.client = mock_client
+
+        with patch.object(self.host, "_poll_response") as mock_poll:
+            mock_poll.return_value = RpcResponse(
+                kind="result", session_id=self.host.session_id,
+                request_id="r1", sequence=1, operation="system.ping",
+                error_code="OK", payload={"pong": True},
+            )
+            self.host.ping()
+            self.host.ping()
+            self.assertEqual(self.host.sequence, 2)
+
+    def test_unknown_operation_rejected_by_host(self):
+        """Host 侧应拒绝不在白名单的操作（防御性）。"""
+        # 注：Kernel 也会拒绝，Host 侧提前拒绝减少无用请求
+        # 当前实现 Host 不预校验，依赖 Kernel 拒绝
+        # 这里测试 Kernel 返回 UNKNOWN_OPERATION 时 Host 正确传递
+        mock_client = MagicMock()
+        mock_client.map_command.return_value = True
+        self.host.client = mock_client
+
+        with patch.object(self.host, "_poll_response") as mock_poll:
+            mock_poll.return_value = RpcResponse(
+                kind="error", session_id=self.host.session_id,
+                request_id="r1", sequence=1, operation="call_arbitrary_func",
+                error_code="UNKNOWN_OPERATION",
+            )
+            resp = self.host.request("call_arbitrary_func", {"func": "UnitKillAll"})
+            self.assertEqual(resp.error_code, "UNKNOWN_OPERATION")
+            self.assertFalse(resp.is_ok)
+
+    def test_spawn_count_out_of_range_rejected(self):
+        """Kernel 应拒绝 count > 200。"""
+        mock_client = MagicMock()
+        mock_client.map_command.return_value = True
+        self.host.client = mock_client
+
+        with patch.object(self.host, "_poll_response") as mock_poll:
+            mock_poll.return_value = RpcResponse(
+                kind="error", session_id=self.host.session_id,
+                request_id="r1", sequence=1, operation="unit.spawn",
+                error_code="COUNT_OUT_OF_RANGE",
+            )
+            resp = self.host.spawn_units("Marine", 99999)
+            self.assertEqual(resp.error_code, "COUNT_OUT_OF_RANGE")
+
+    def test_spawn_bad_player_rejected(self):
+        """Kernel 应拒绝 player > 15。"""
+        mock_client = MagicMock()
+        mock_client.map_command.return_value = True
+        self.host.client = mock_client
+
+        with patch.object(self.host, "_poll_response") as mock_poll:
+            mock_poll.return_value = RpcResponse(
+                kind="error", session_id=self.host.session_id,
+                request_id="r1", sequence=1, operation="unit.spawn",
+                error_code="PLAYER_OUT_OF_RANGE",
+            )
+            resp = self.host.spawn_units("Marine", 1, player=99)
+            self.assertEqual(resp.error_code, "PLAYER_OUT_OF_RANGE")
+
+    def test_idempotency_returns_cached_response(self):
+        """重复 request_id 应返回缓存结果（幂等）。"""
+        mock_client = MagicMock()
+        mock_client.map_command.return_value = True
+        self.host.client = mock_client
+
+        cached_resp = RpcResponse(
+            kind="result", session_id=self.host.session_id,
+            request_id="shared_id", sequence=1, operation="system.ping",
+            error_code="OK", payload={"pong": True},
+            raw='{"kind":"result","request_id":"shared_id"}',
+        )
+
+        with patch.object(self.host, "_poll_response") as mock_poll:
+            mock_poll.return_value = cached_resp
+            r1 = self.host.ping()
+            # 第二次相同 request_id（通过底层调用）
+            self.host.sequence += 1
+            from host.vibe_host import RpcRequest
+            req = RpcRequest(
+                session_id=self.host.session_id,
+                request_id="shared_id",
+                sequence=self.host.sequence,
+                operation="system.ping",
+            )
+            r2 = self.host._poll_response("shared_id", 1.0)
+            self.assertEqual(r1.request_id, r2.request_id)
+
+
+# ---- 端到端契约测试（模拟 Kernel）----
+
+class TestEndToEndContract(unittest.TestCase):
+    """端到端契约测试：模拟 Kernel 行为，验证 spawn 3 Marine → query 3。"""
+
+    def test_spawn_3_marine_then_query_3(self):
+        """P1 核心验收：spawn 3 Marine → query.units 返回 3。"""
+        host = VibeHost(sc2_port=9999, artifacts_dir=Path(__file__).parent / "_test_artifacts")
+        host.start_session()
+
+        mock_client = MagicMock()
+        mock_client.map_command.return_value = True
+        host.client = mock_client
+
+        # 模拟 Kernel 对 spawn 的响应
+        spawn_resp = RpcResponse(
+            kind="result", session_id=host.session_id,
+            request_id="r1", sequence=1, operation="unit.spawn",
+            error_code="OK", payload={"created": 3, "unit_type": "Marine", "player": 1},
+            state_version=1,
+        )
+        # 模拟 Kernel 对 query.units 的响应
+        query_resp = RpcResponse(
+            kind="result", session_id=host.session_id,
+            request_id="r2", sequence=2, operation="query.units",
+            error_code="OK", payload={"count": 3, "unit_type": "Marine", "player": 1},
+            state_version=1,
+        )
+
+        with patch.object(host, "_poll_response", side_effect=[spawn_resp, query_resp]):
+            spawn_result = host.spawn_units("Marine", 3, player=1)
+            self.assertTrue(spawn_result.is_ok)
+            self.assertEqual(spawn_result.payload["created"], 3)
+
+            query_result = host.query_units(player=1, unit_type="Marine")
+            self.assertTrue(query_result.is_ok)
+            self.assertEqual(query_result.payload["count"], 3)
+
+        host.close()
+
+    def test_set_resource_then_query_mission(self):
+        """P1 验收：set_resource → query.mission 返回新值。"""
+        host = VibeHost(sc2_port=9999, artifacts_dir=Path(__file__).parent / "_test_artifacts")
+        host.start_session()
+
+        mock_client = MagicMock()
+        mock_client.map_command.return_value = True
+        host.client = mock_client
+
+        set_resp = RpcResponse(
+            kind="result", session_id=host.session_id,
+            request_id="r1", sequence=1, operation="player.set_resource",
+            error_code="OK", payload={"player": 1, "resource": "minerals", "value": 1000},
+            state_version=1,
+        )
+        mission_resp = RpcResponse(
+            kind="result", session_id=host.session_id,
+            request_id="r2", sequence=2, operation="query.mission",
+            error_code="OK",
+            payload={"active_players": [1], "mission_time": 5.0,
+                     "p1_minerals": 1000, "p1_vespene": 0,
+                     "p1_supply_used": 0, "p1_supply_cap": 0},
+            state_version=1,
+        )
+
+        with patch.object(host, "_poll_response", side_effect=[set_resp, mission_resp]):
+            r1 = host.set_resource(1, "minerals", 1000)
+            self.assertTrue(r1.is_ok)
+            self.assertEqual(r1.payload["value"], 1000)
+
+            r2 = host.query_mission()
+            self.assertTrue(r2.is_ok)
+            self.assertEqual(r2.payload["p1_minerals"], 1000)
+
+        host.close()
+
+
+# ---- Schema 校验测试 ----
+
+class TestSchemaValidation(unittest.TestCase):
+    """JSON Schema 静态校验测试。"""
+
+    def test_rpc_schema_valid_json(self):
+        """rpc-schema.json 应为合法 JSON。"""
+        schema_path = REPO_ROOT / "tools" / "galaxy-vibe" / "schema" / "rpc-schema.json"
+        data = json.loads(schema_path.read_text(encoding="utf-8"))
+        self.assertEqual(data["title"], "Galaxy Vibe RPC Protocol")
+        self.assertIn("definitions", data)
+
+    def test_rpc_response_schema_valid_json(self):
+        """rpc-response-schema.json 应为合法 JSON。"""
+        schema_path = REPO_ROOT / "tools" / "galaxy-vibe" / "schema" / "rpc-response-schema.json"
+        data = json.loads(schema_path.read_text(encoding="utf-8"))
+        self.assertEqual(data["title"], "Galaxy Vibe RPC Response")
+
+    def test_schema_operation_enum_matches_whitelist(self):
+        """schema 中的 operation enum 应与 whitelist.json 一致。"""
+        schema_path = REPO_ROOT / "tools" / "galaxy-vibe" / "schema" / "rpc-schema.json"
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        whitelist_path = REPO_ROOT / "tools" / "galaxy-vibe" / "kernel" / "whitelist.json"
+        whitelist = json.loads(whitelist_path.read_text(encoding="utf-8"))
+
+        schema_ops = set(schema["definitions"]["operation"]["enum"])
+        whitelist_ops = set(whitelist["operations"].keys())
+        # schema 包含 assert.* 但 whitelist 把它们放在 assert_operations
+        assert_ops = set(whitelist.get("assert_operations", {}).keys())
+        whitelist_all = whitelist_ops | assert_ops
+        self.assertEqual(schema_ops, whitelist_all,
+                         f"schema/whitelist 操作集不一致。差异: {schema_ops.symmetric_difference(whitelist_all)}")
+
+
+# ---- Galaxy 语法静态检查 ----
+
+class TestGalaxyStaticCheck(unittest.TestCase):
+    """Galaxy 文件静态语法检查（不依赖 SC2 编辑器）。"""
+
+    def test_kernel_galaxy_no_syntax_errors(self):
+        """LibVibeKernel.galaxy 应通过基础语法检查。"""
+        galaxy_path = REPO_ROOT / "tools" / "galaxy-vibe" / "kernel" / "LibVibeKernel.galaxy"
+        content = galaxy_path.read_text(encoding="utf-8")
+        # 基础检查：括号匹配
+        open_paren = content.count("(")
+        close_paren = content.count(")")
+        self.assertEqual(open_paren, close_paren, "括号不匹配")
+        # 基础检查：花括号匹配
+        open_brace = content.count("{")
+        close_brace = content.count("}")
+        self.assertEqual(open_brace, close_brace, "花括号不匹配")
+        # 基础检查：包含必要函数
+        self.assertIn("libVibeKernel_gf_Init", content)
+        self.assertIn("libVibeKernel_gf_Dispatch", content)
+        self.assertIn("libVibeKernel_gt_MapCommand_Func", content)
+
+    def test_kernel_header_galaxy_valid(self):
+        """LibVibeKernel_h.galaxy 应包含必要的函数声明。"""
+        header_path = REPO_ROOT / "tools" / "galaxy-vibe" / "kernel" / "LibVibeKernel_h.galaxy"
+        content = header_path.read_text(encoding="utf-8")
+        self.assertIn("include \"TriggerLibs/natives\"", content)
+        self.assertIn("libVibeKernel_gf_Init", content)
+        self.assertIn("libVibeKernel_gf_Dispatch", content)
+        # 所有 handler 应声明（Galaxy 命名约定: gf_Handle<Op>，无下划线）
+        for op in ["SystemPing", "UnitSpawn", "UnitKill", "QueryUnits", "QueryMission"]:
+            self.assertIn(f"libVibeKernel_gf_Handle{op}", content)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

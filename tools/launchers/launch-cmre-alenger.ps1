@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "")
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive)
 # -MapCopySuffix: 可选的地图副本后缀，用于避免多会话同时操作同一 live 地图导致 DocumentInfo 冲突。
 # 例如 -MapCopySuffix "reborn" 会使用 Maps\亡者之夜.SC2Map.reborn\ 作为 live 地图。
 # 不指定时使用原始路径（向后兼容）。
@@ -36,6 +36,19 @@ function Convert-TestCommanderToCommanderPowerKey {
 }
 $cmre = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\cmre-alenger-dependencies.json") -Raw | ConvertFrom-Json
 $alenger = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\alenger-mods.json") -Raw | ConvertFrom-Json
+# 加载地图需求声明（map-requirements.json）：地图声明硬性需求（PreventDefeat、起始单位），
+# 由 launcher 读取并通知 mod adapter 中间层执行
+$mapRequirements = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\map-requirements.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+$mapRequirementKey = $MapName
+if (-not ($mapRequirements.maps.PSObject.Properties.Name -contains $mapRequirementKey)) {
+    $mapRequirementKey = '_default'
+}
+$mapRequirement = $mapRequirements.maps.$mapRequirementKey
+$mapPreventDefeatPlayers = @()
+$mapStartingUnitsPlayers = @()
+if ($mapRequirement.preventDefeat.required) { $mapPreventDefeatPlayers = @($mapRequirement.preventDefeat.players) }
+if ($mapRequirement.startingUnits.required) { $mapStartingUnitsPlayers = @($mapRequirement.startingUnits.players) }
+Write-Host "Map requirements ($MapName): preventDefeat=$($mapRequirement.preventDefeat.required) players=$($mapPreventDefeatPlayers -join ','); startingUnits=$($mapRequirement.startingUnits.required) players=$($mapStartingUnitsPlayers -join ',')"
 $isAlengerCommander = $false
 # alengerId 始终是 alenger-mods.json 中 commanderToAlenger / commanderProfiles 的命名键
 # （如 TalDarim、Empire）。WebUI 传入的 runtime_commander 形如 ProtossAlenger4，
@@ -106,20 +119,33 @@ if ($profile) {
     if ($null -ne $profile.workerCount) { $workerCount = [int]$profile.workerCount }
     if ($null -ne $profile.vanillaRemovals) { $vanillaRemovals = @($profile.vanillaRemovals) }
 }
-# 通用层：Reborn 模式下覆盖起始单位为原版单位 ID（Alenger 自定义单位如 6fuhuachang 在 Reborn mod 中不存在）
-# 根据 $Commander 前缀（Zerg/Terran/Protoss）确定 race，用原版单位 ID
+# 通用层：根据 $Commander 前缀（Zerg/Terran/Protoss）确定 race
+# $commanderRace 始终赋值（无论 Alenger 还是 Reborn 模式），用于：
+#   1. Reborn 模式下覆盖起始单位为原版单位 ID
+#   2. galaxy 注入解锁逻辑时判断是否调用 UnlockAllZergUnits
+# Alenger 自定义单位如 6fuhuachang 在 Reborn mod 中不存在，Reborn 模式必须用原版 ID
+$commanderRace = ''
+if ($Commander -match '^Zerg') {
+    $commanderRace = 'Zerg'
+} elseif ($Commander -match '^Terran') {
+    $commanderRace = 'Terran'
+} elseif ($Commander -match '^Protoss') {
+    $commanderRace = 'Protoss'
+}
 if ($EnableReborn -and $RebornCommander -ne "") {
-    if ($Commander -match '^Zerg') {
+    if ($commanderRace -eq 'Zerg') {
         $startingStructure = 'Hatchery'
         $startingWorker = 'Drone'
-    } elseif ($Commander -match '^Terran') {
+    } elseif ($commanderRace -eq 'Terran') {
         $startingStructure = 'CommandCenter'
         $startingWorker = 'SCV'
-    } elseif ($Commander -match '^Protoss') {
+    } elseif ($commanderRace -eq 'Protoss') {
         $startingStructure = 'Nexus'
         $startingWorker = 'Probe'
     }
-    Write-Host "Reborn mode: startingStructure=$startingStructure, startingWorker=$startingWorker (race-based vanilla units)"
+    Write-Host "Reborn mode: startingStructure=$startingStructure, startingWorker=$startingWorker commanderRace=$commanderRace (race-based vanilla units)"
+} elseif ($commanderRace) {
+    Write-Host "Alenger mode with Reborn library: commanderRace=$commanderRace (for Zerg unit unlock injection)"
 }
 $mapSource = Join-Path $LegacyRoot "Maps\CMRE\$MapName"
 if (-not (Test-Path -LiteralPath $mapSource)) { throw "CMRE map source not found: $mapSource" }
@@ -328,7 +354,7 @@ function Enable-CmreSavedProfileStartup {
             '    if ((PlayerType(14) == c_playerTypeUser)) {',
             '        libCOOC_gf_ShowHideWorldCover(false, 0.0, 14);',
             '    }',
-            '    libNtve_gf_HideGameUI(false, PlayerGroupAll());',
+            '    libNtve_gf_HideGameUI(true, PlayerGroupAll()); // true=显示UI（HideGameUI函数名反直觉：lp_showHide=true 显示, false 隐藏）',
             '    // 黑屏检测：写入对话框可见性到银行文件',
             '    BankLoad("CMRERebornDebug", 1);',
             '    if (DialogIsVisible(libCOOC_gv_cC_WorldCoverDlg, 1)) {',
@@ -344,8 +370,8 @@ function Enable-CmreSavedProfileStartup {
             '    }',
             '    BankSave(BankLastCreated());'
         ))
-        $replacementBody += [Environment]::NewLine + '    // SkipCountdown (API mode): CMUIX_ReadyBeginCountdown() omitted to avoid Launched-state stall' + [Environment]::NewLine + $blackScreenFixInDevStartup + [Environment]::NewLine + '    return ;'
-        Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipCountdown=true (API mode, no CMUIX_ReadyBeginCountdown) + black screen fix injected"
+        $replacementBody += [Environment]::NewLine + '    // SkipCountdown (API mode): 调用 CC_DevStartupFinish() 完成完整 CMRE 初始化' + [Environment]::NewLine + $blackScreenFixInDevStartup + [Environment]::NewLine + '    // 调用 CC_DevStartupFinish()：应用 tech + 显示 UI（HideGameUI(true)）+ 执行 mission trigger' + [Environment]::NewLine + '    // 注意：HideGameUI(bool lp_showHide) 参数 true=显示UI, false=隐藏UI（函数名反直觉）' + [Environment]::NewLine + '    // 之前错误地跳过 DevStartupFinish 导致 UI 永久隐藏 + mission trigger 未执行' + [Environment]::NewLine + '    libCOOC_gf_CC_DevStartupFinish();' + [Environment]::NewLine + '    return ;'
+        Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipCountdown=true (API mode) + black screen fix + CC_DevStartupFinish() (full CMRE init)"
     } else {
         # This matches CMRE's native saved-profile path. ReadyBeginCountdown commits the
         # empty launcher draft and clears bank-provided Mode=2/3 mutators before game start.
@@ -587,6 +613,22 @@ function Patch-RebornLibraryInit {
     }
     $content = [System.Text.Encoding]::UTF8.GetString($bytes)
 
+    # === 注入 include "LibMapModBridge_h" 和 "LibRebornAdapter_h" 到 Lib48DF4533.galaxy ===
+    # 原因：lib48DF4533_InitLib() 中注入了对 libMapModBridge_InitLib() 和
+    # libRebornAdapter_gf_InitializeBeforeSwarmSetup() 的调用，必须在 Lib48DF4533.galaxy
+    # 中 include 这些头文件才能编译通过。
+    if (-not ($content -match '(?m)^include "LibMapModBridge_h"')) {
+        # 找到现有的 include "Lib48DF4533_h" 行，在其后插入
+        if ($content -match '(?m)^include "Lib48DF4533_h"') {
+            $replacementInclude = '$1' + "`r`n" + 'include "LibMapModBridge_h"' + "`r`n" + 'include "LibRebornAdapter_h"'
+            $content = $content -replace '(?m)^(include "Lib48DF4533_h")', $replacementInclude
+        } else {
+            # fallback：在文件开头插入
+            $content = 'include "LibMapModBridge_h"' + "`r`n" + 'include "LibRebornAdapter_h"' + "`r`n" + $content
+        }
+        Write-Host "Patch-RebornLibraryInit: injected include ""LibMapModBridge_h"" + ""LibRebornAdapter_h"" into Lib48DF4533.galaxy"
+    }
+
     $marker = '    TriggerExecute(lib48DF4533_gt_CommanderStart, false, false);'
     if (-not $content.Contains($marker)) {
         throw "Patch-RebornLibraryInit: CommanderStart trigger marker not found in map copy of Lib48DF4533.galaxy"
@@ -624,11 +666,17 @@ function Patch-RebornLibraryInit {
     # 必须用 black_screen_fix 标记做幂等检查，并在重新注入前移除旧块。
     $initLibInjectMarker = '// CMRE_PATCH_SWARMSETUP_DIRECT_TRIGGER'
     $blackScreenFixMarker = '// CMRE_PATCH_BLACK_SCREEN_FIX'
-    if (-not $content.Contains($blackScreenFixMarker)) {
+    $rebornAdapterMarker = '// CMRE_PATCH_REBORN_ADAPTER'
+    if (-not $content.Contains($rebornAdapterMarker)) {
         # 移除旧版注入块（从 CMRE_PATCH_SWARMSETUP_DIRECT_TRIGGER 到 gt_DisableArmySelectPoll_Init();）
-        # 保证重新注入最新代码（含黑屏修复）
+        # 保证重新注入最新代码（含 Reborn adapter 调用）
         $oldPatchPattern = '(?m)^    // CMRE_PATCH_SWARMSETUP_DIRECT_TRIGGER[\s\S]*?    gt_DisableArmySelectPoll_Init\(\);\r?\n'
         $content = [regex]::Replace($content, $oldPatchPattern, '')
+        # 根据地图需求声明计算参数
+        $ensureP1PreventDefeat = ($mapPreventDefeatPlayers -contains 1).ToString().ToLower()
+        $ensureP2PreventDefeat = ($mapPreventDefeatPlayers -contains 2).ToString().ToLower()
+        $createP1StartingUnits = ($mapStartingUnitsPlayers -contains 1).ToString().ToLower()
+        $createP2StartingUnits = ($mapStartingUnitsPlayers -contains 2).ToString().ToLower()
         $initLibInjectBlock = @"
     $initLibInjectMarker
     // 直接异步触发 SwarmSetup，绕过 Initialization_Func 中的 Wait 卡死问题。
@@ -652,11 +700,31 @@ function Patch-RebornLibraryInit {
     if ((PlayerType(14) == c_playerTypeUser)) {
         libCOOC_gf_ShowHideWorldCover(false, 0.0, 14);
     }
-    libNtve_gf_HideGameUI(true, PlayerGroupAll());
+    libNtve_gf_HideGameUI(true, PlayerGroupAll()); // true=显示UI（HideGameUI 函数名反直觉：lp_showHide=true 显示, false 隐藏）
     BankLoad("CMRERebornDebug", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "black_screen_fix_ran", 1);
     BankSave(BankLastCreated());
+    // === 调用 Reborn mod adapter 中间层（在 SwarmSetup 之前）===
+    // 参数来自 map-requirements.json（地图声明需求）+ commander profile（mod 个性化）
+    // adapter 内部调用通用 LibMapModBridge API 完成基地创建和 PreventDefeat 保障
+    // CMRE_PATCH_REBORN_ADAPTER
+    libMapModBridge_InitLib();
+    libRebornAdapter_gf_InitializeBeforeSwarmSetup(
+        "$startingStructure", "$startingWorker", $workerCount,
+        $ensureP1PreventDefeat, $ensureP2PreventDefeat,
+        $createP1StartingUnits, $createP2StartingUnits);
     TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);
+    // === 解锁所有 Zerg 单位（仅 Zerg 指挥官）===
+    // CMRE_PATCH_ZERG_UNIT_UNLOCK
+    // 原因：UnitUnlocks_Func 依赖 libSwaC_gf_CurrentMap()=='ZXXx' 或 BankKeyExists('Maps','XXX')，
+    // 在 CMRE 合作地图上这些条件都不满足，导致除 Zergling/SpineCrawler/SporeCrawler 外
+    // 的所有单位/建筑都被 TechTreeUnitAllow(false) 禁用，Larva 也丢失 morph 能力。
+    // 修复：SwarmSetup 触发后强制调用 TechTreeUnitAllow(true) 解锁所有 Zerg 单位/建筑。
+    // 注意：必须在 SwarmSetup 之后调用，否则 UnitUnlocks_Func 中的 false 会覆盖此处的 true。
+    if ("$commanderRace" == "Zerg") {
+        libRebornAdapter_gf_UnlockAllZergUnits(1);
+        libRebornAdapter_gf_UnlockAllZergUnits(2);
+    }
     // === 公共层：注册 DisableArmySelect 定时补加触发器 ===
     // 在 InitLib 末尾注册（而非 SwarmSetup_Func），因为 Galaxy 不支持函数向前引用，
     // gt_DisableArmySelectPoll_Init 定义在文件末尾，只有 InitLib（也在文件末尾）才能引用到。
@@ -750,6 +818,31 @@ function Patch-RebornLibraryInit {
     } else {
         BankValueSetFromInt(BankLastCreated(), "debug", "abathur_abilities_trigger_enabled", 0);
     }
+    // === Zerg 单位解锁（SwarmSetup 末尾，UnitUnlocks_Func 之后）===
+    // CMRE_PATCH_ZERG_UNIT_UNLOCK_IN_SWARMSETUP
+    // 原因：UnitUnlocks_Func 在 SwarmSetup 中被调用，会根据地图 ID/Bank 进度
+    // 禁用大部分 Zerg 单位（TechTreeUnitAllow(false)），导致 Larva 丢失 morph 能力。
+    // 之前在 InitLib 中 SwarmSetup 触发后立即调用 UnlockAllZergUnits，但
+    // TriggerExecute(SwarmSetup, false, false) 是异步的，UnlockAllZergUnits
+    // 在 UnitUnlocks_Func 之前执行，被其 false 覆盖。
+    // 修复：将 UnlockAllZergUnits 移到 SwarmSetup_Func 末尾（UnitUnlocks_Func 之后），
+    // 确保解锁操作不会被覆盖。
+    if ("$commanderRace" == "Zerg") {
+        libRebornAdapter_gf_UnlockAllZergUnits(1);
+        libRebornAdapter_gf_UnlockAllZergUnits(2);
+        // === Zerg 起始建筑创建（UnlockAllZergUnits 之后）===
+        // CMRE 合作地图不放置 melee 起始建筑（SpawningPool/RoachWarren 等），
+        // Reborn mod 自身也不创建（依赖地图预置）。
+        // 没有这些建筑，Larva 即使解锁了单位也无法变异（morph 需要前置建筑存在）。
+        libRebornAdapter_gf_CreateZergStartingBuildings(1);
+        libRebornAdapter_gf_CreateZergStartingBuildings(2);
+        // === 强制启用 Larva 变异按钮 ===
+        // UnitCreate 创建的建筑可能不被 HaveSpawningPool 等需求验证器识别，
+        // 导致 LarvaTrainSwarm2 的 Suppressed 按钮全部隐藏。
+        // 使用 CatalogFieldValueSet 清除 Requirements 和 State，让按钮无条件显示。
+        libRebornAdapter_gf_ForceEnableLarvaMorphButtons(1);
+        libRebornAdapter_gf_ForceEnableLarvaMorphButtons(2);
+    }
     BankSave(BankLastCreated());
     return true;
 "@
@@ -815,6 +908,35 @@ void gt_DisableArmySelectPoll_Init() {
         }
     }
 
+    # === 3e. 修复 PingController_Func 的 EventUnit() 触发器错误 ===
+    # 根因：lib48DF4533_gt_PingController_Func 注册的是 TriggerAddEventPing（玩家小地图 ping 事件），
+    # 但条件检查中调用了 EventUnit()。Ping 事件只提供 EventPingPoint()，不提供 EventUnit()，
+    # 引擎在初始化触发器时即报错"事件响应函数'EventUnit'没有匹配的事件"。
+    # 修复：触发器已通过 TriggerAddEventPing(trig, 1) 限定为 player 1，条件检查冗余且无效，
+    # 直接跳过（if (false)），保留 Actions 部分的 EventPingPoint() 功能。
+    $pingControllerAnchor = '    if (testConds) {
+        if (!((UnitGetOwner(EventUnit()) == 1))) {
+            return false;
+        }
+    }'
+    $pingControllerPatch = '    if (testConds) {
+        if (false) { // CMRE patch: Ping event has no EventUnit(), trigger registered for player 1 only
+            return false;
+        }
+    }'
+    if ($content.Contains('lib48DF4533_gt_PingController_Func')) {
+        if (-not $content.Contains($pingControllerPatch)) {
+            if ($content.Contains($pingControllerAnchor)) {
+                $content = $content.Replace($pingControllerAnchor, $pingControllerPatch)
+                Write-Host "Patch-RebornLibraryInit: patched PingController_Func EventUnit() error"
+            } else {
+                Write-Host "Patch-RebornLibraryInit: WARNING - PingController_Func anchor not found, EventUnit patch skipped" -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "Patch-RebornLibraryInit: PingController patch already applied, skipping"
+        }
+    }
+
     $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
     $outBytes = $utf8NoBom.GetBytes($content)
     [System.IO.File]::WriteAllBytes($libPath, $outBytes)
@@ -838,30 +960,40 @@ void gt_DisableArmySelectPoll_Init() {
     # 现有 include 之后按正确顺序插入 include "Lib281DEC45" 和 include "Lib48DF4533"。
     $mapScript = [regex]::Replace($mapScript, '(?m)^include "Lib48DF4533"\s*\r?\n', '')
     $mapScript = [regex]::Replace($mapScript, '(?m)^include "Lib281DEC45"\s*\r?\n', '')
+    $mapScript = [regex]::Replace($mapScript, '(?m)^include "LibMapModBridge"\s*\r?\n', '')
+    $mapScript = [regex]::Replace($mapScript, '(?m)^include "LibRebornAdapter"\s*\r?\n', '')
     if (-not ($mapScript -match '(?m)^include "Lib48DF4533"')) {
         $includeMatches = [regex]::Matches($mapScript, '(?m)^[ \t]*include "[^"]+"[^\r\n]*')
         if ($includeMatches.Count -gt 0) {
             $lastInclude = $includeMatches[$includeMatches.Count - 1]
             $insertPos = $lastInclude.Index + $lastInclude.Length
-            $newIncludes = "`r`n" + 'include "Lib281DEC45"' + "`r`n" + 'include "Lib48DF4533"'
+            # include 顺序：Lib281DEC45 → Lib48DF4533（Reborn 库实现） → LibMapModBridge（通用中间层实现） → LibRebornAdapter（Reborn adapter 实现）
+            # MapScript.galaxy include 的是实现文件（不带 _h 后缀），不是头文件
+            # adapter 必须在 bridge 之后，因为 adapter 依赖 bridge 的 API 声明
+            $newIncludes = "`r`n" + 'include "Lib281DEC45"' + "`r`n" + 'include "Lib48DF4533"' + "`r`n" + 'include "LibMapModBridge"' + "`r`n" + 'include "LibRebornAdapter"'
             $mapScript = $mapScript.Substring(0, $insertPos) + $newIncludes + $mapScript.Substring($insertPos)
-            Write-Host "Patch-RebornLibraryInit: injected include ""Lib281DEC45"" + ""Lib48DF4533"" after last existing include"
+            Write-Host "Patch-RebornLibraryInit: injected include ""Lib281DEC45"" + ""Lib48DF4533"" + ""LibMapModBridge"" + ""LibRebornAdapter"" after last existing include"
         } else {
             # 罕见：地图没有 include 语句，在文件开头插入
-            $mapScript = 'include "Lib281DEC45"' + "`r`n" + 'include "Lib48DF4533"' + "`r`n" + $mapScript
-            Write-Host "Patch-RebornLibraryInit: no existing include found, prepended Lib281DEC45 + Lib48DF4533 at file start"
+            $mapScript = 'include "Lib281DEC45"' + "`r`n" + 'include "Lib48DF4533"' + "`r`n" + 'include "LibMapModBridge"' + "`r`n" + 'include "LibRebornAdapter"' + "`r`n" + $mapScript
+            Write-Host "Patch-RebornLibraryInit: no existing include found, prepended Lib281DEC45 + Lib48DF4533 + LibMapModBridge + LibRebornAdapter at file start"
         }
     }
 
     # 注入 lib281DEC45_InitLib() 和 lib48DF4533_InitLib() 到 InitLibs() 末尾
     # 顺序：lib281DEC45_InitLib() 必须在 lib48DF4533_InitLib() 之前（依赖关系）
-    if (-not ($mapScript -match 'lib48DF4533_InitLib\s*\(\s*\)')) {
-        $initLibsPattern = '(?s)void InitLibs \(\) \{(.*?)\}'
-        $initLibsMatch = [regex]::Match($mapScript, $initLibsPattern)
-        if (-not $initLibsMatch.Success) {
-            throw "Patch-RebornLibraryInit: InitLibs() function not found in MapScript.galaxy"
-        }
-        $initLibsBody = $initLibsMatch.Groups[1].Value
+    # 注意：正则必须只匹配 InitLibs() 函数体内的实际调用，不能匹配注释中的文本
+    # （MapScript.galaxy 可能在注释中提到 lib48DF4533_InitLib()，导致误判已注入）
+    $initLibsPattern = '(?s)void InitLibs \(\) \{(.*?)\}'
+    $initLibsMatch = [regex]::Match($mapScript, $initLibsPattern)
+    if (-not $initLibsMatch.Success) {
+        throw "Patch-RebornLibraryInit: InitLibs() function not found in MapScript.galaxy"
+    }
+    $initLibsBody = $initLibsMatch.Groups[1].Value
+    $has4845 = $initLibsBody -match '(?m)^    lib48DF4533_InitLib\s*\(\s*\)\s*;'
+    $has281 = $initLibsBody -match '(?m)^    lib281DEC45_InitLib\s*\(\s*\)\s*;'
+    if (-not $has4845) {
+        # lib48DF4533_InitLib 未注入，需要注入 lib281 + lib4845
         $initCalls = [regex]::Matches($initLibsBody, '(?m)^    lib\w+_InitLib\(\);[^\r\n]*')
         if ($initCalls.Count -gt 0) {
             $lastCall = $initCalls[$initCalls.Count - 1]
@@ -880,10 +1012,13 @@ void gt_DisableArmySelectPoll_Init() {
             $mapScript = $mapScript.Substring(0, $absPos) + "    lib281DEC45_InitLib();" + "`r`n    lib48DF4533_InitLib();" + "`r`n" + $mapScript.Substring($absPos)
             Write-Host "Patch-RebornLibraryInit: injected lib281DEC45_InitLib() + lib48DF4533_InitLib() before InitLibs closing brace"
         }
-    } elseif (-not ($mapScript -match 'lib281DEC45_InitLib\s*\(\s*\)')) {
-        # lib48DF4533_InitLib 已注入但 lib281DEC45_InitLib 缺失，补上
-        $mapScript = $mapScript -replace '(    lib48DF4533_InitLib\(\);)', '    lib281DEC45_InitLib();' + "`r`n" + '$1'
+    } elseif (-not $has281) {
+        # lib4845 已注入但 lib281 缺失，在 lib4845 调用前补上 lib281
+        $lib281Replacement = '    lib281DEC45_InitLib();' + "`r`n" + '$1'
+        $mapScript = $mapScript -replace '(?m)^(    lib48DF4533_InitLib\(\);)', $lib281Replacement
         Write-Host "Patch-RebornLibraryInit: added missing lib281DEC45_InitLib() before lib48DF4533_InitLib()"
+    } else {
+        Write-Host "Patch-RebornLibraryInit: lib281DEC45_InitLib() + lib48DF4533_InitLib() already present in InitLibs()"
     }
 
     $mapOutBytes = $utf8NoBom.GetBytes($mapScript)
@@ -947,6 +1082,7 @@ function Install-CmreDynamicObserver {
     $neuroRoot = Join-Path $WorkspaceRoot "reference\SC2-Neuro-API-Integration"
     $observerRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\runtime"
     $adapterRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\adapters\dead-of-night"
+    $rebornAdapterRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\adapters\reborn"
     $baseData = Join-Path $MapPath "Base.SC2Data"
     $files = @(
         @{ Source = Join-Path $neuroRoot "Mod\NeuroIntegration.SC2Mod\Base.SC2Data\LibEFA54406_h.galaxy"; Name = "LibEFA54406_h.galaxy" },
@@ -955,9 +1091,18 @@ function Install-CmreDynamicObserver {
         @{ Source = Join-Path $observerRoot "LibPortingObserver.galaxy"; Name = "LibPortingObserver.galaxy" },
         @{ Source = Join-Path $observerRoot "LibNeuroCommandBridge_h.galaxy"; Name = "LibNeuroCommandBridge_h.galaxy" },
         @{ Source = Join-Path $observerRoot "LibNeuroCommandBridge.galaxy"; Name = "LibNeuroCommandBridge.galaxy" },
+        @{ Source = Join-Path $observerRoot "LibMapModBridge_h.galaxy"; Name = "LibMapModBridge_h.galaxy" },
+        @{ Source = Join-Path $observerRoot "LibMapModBridge.galaxy"; Name = "LibMapModBridge.galaxy" },
         @{ Source = Join-Path $adapterRoot "LibDeadOfNightObserver_h.galaxy"; Name = "LibDeadOfNightObserver_h.galaxy" },
         @{ Source = Join-Path $adapterRoot "LibDeadOfNightObserver.galaxy"; Name = "LibDeadOfNightObserver.galaxy" }
     )
+    # Reborn 模式下额外复制 Reborn adapter 库
+    if ($EnableReborn -and $RebornCommander -ne "") {
+        $files += @(
+            @{ Source = Join-Path $rebornAdapterRoot "LibRebornAdapter_h.galaxy"; Name = "LibRebornAdapter_h.galaxy" },
+            @{ Source = Join-Path $rebornAdapterRoot "LibRebornAdapter.galaxy"; Name = "LibRebornAdapter.galaxy" }
+        )
+    }
     foreach ($file in $files) {
         if (-not (Test-Path -LiteralPath $file.Source)) { throw "Observer input not found: $($file.Source)" }
         [System.IO.File]::Copy($file.Source, (Join-Path $baseData $file.Name), $true)
@@ -1214,6 +1359,17 @@ void gt_${alengerId}TrainProbe_Init() {
             foreach ($u in $vanillaRemovals) {
                 $vanillaRemoveBlockP1 += "    lv_removedP1 += gf_RemoveAllUnitsOfType(1, `"$u`");`r`n"
             }
+            # Reborn 模式下基地已在 InitLib 中通过 Reborn adapter 中间层创建（SwarmSetup 之前），通用层跳过避免重复
+            $rebornSkipBlock = ""
+            if ($EnableReborn -and $RebornCommander -ne "") {
+                $rebornSkipBlock = @"
+    // Reborn 模式：基地已通过 Reborn adapter (LibRebornAdapter) + 通用中间层 (LibMapModBridge) 创建
+    // 在 SwarmSetup 之前于 lib48DF4533_InitLib() 中执行，此处跳过避免重复
+    // 地图需求（PreventDefeat、P1/P2 起始单位）由 map-requirements.json 声明，由 adapter 执行
+    libPortingObserver_gf_Publish("commander_starting_units_skip", "reborn mode: already created via LibRebornAdapter + LibMapModBridge in InitLib", false);
+    return true;
+"@
+            }
             $pollGlue = @"
 trigger gt_PortingObserverDeadOfNightPoll;
 trigger gt_CommanderStartingUnits;
@@ -1254,6 +1410,7 @@ int gf_RemoveAllUnitsOfType(int lp_player, string lp_type) {
 
 // 通用层：指挥官起始单位替换（Map Init + 5s Wait 后执行，等效于"倒计时结束时"）
 // 各 mod 通过 commander profile 的 startingStructure/startingWorker/workerCount/vanillaRemovals 实现个性化
+// Reborn 模式下基地已在 InitLib 中创建（SwarmSetup 之前），此处跳过避免重复
 bool gt_CommanderStartingUnits_Func(bool testConds, bool runActions) {
     point lv_p1Start = null;
     int lv_i = 0;
@@ -1265,6 +1422,7 @@ bool gt_CommanderStartingUnits_Func(bool testConds, bool runActions) {
     string lv_diag = "";
     if (testConds) { return true; }
     if (!runActions) { return true; }
+${rebornSkipBlock}
     libPortingObserver_gf_Publish("commander_starting_units_begin", "creating commander starting units", false);
     Wait(5.0, c_timeReal);
     lv_p1Start = PlayerStartLocation(1);
@@ -2098,15 +2256,63 @@ try {
         $exitCode = Wait-GameReady -ScriptsRoot (Join-Path $LegacyRoot "scripts") -StartupGraceSeconds 120
         if ($exitCode -ne 0) { throw "SC2 readiness check failed with exit code $exitCode" }
     }
+
+    # === 黑屏检测（基于心跳 + 世界覆盖层状态）===
+    # 原理：LibMapModBridge 心跳触发器每 2s 递增 bridge_heartbeat 银行值
+    # 判定逻辑：
+    #   - 心跳递增 + world_cover_dialog_visible_p1=0 → 正常
+    #   - 心跳递增 + world_cover_dialog_visible_p1=1 → 黑屏（世界覆盖层可见）
+    #   - 心跳不变 → 脚本卡住（可能崩溃或死锁）
+    if ($EnableReborn -and $RebornCommander -ne "") {
+        Write-Host ""
+        Write-Host "=== Black Screen Detection ==="
+        $bankPath = Join-Path $env:USERPROFILE "Documents\StarCraft II\Banks\CMRERebornDebug.SC2Bank"
+        $heartbeatBefore = -1
+        $heartbeatAfter = -1
+        $worldCoverVisible = -1
+        if (Test-Path -LiteralPath $bankPath) {
+            # 读取第一次心跳
+            $bankXml = [System.IO.File]::ReadAllText($bankPath, [System.Text.Encoding]::UTF8)
+            if ($bankXml -match '<Key name="bridge_heartbeat">\s*<Value int="(\d+)"') { $heartbeatBefore = [int]$Matches[1] }
+            if ($bankXml -match '<Key name="world_cover_dialog_visible_p1">\s*<Value int="(\d+)"') { $worldCoverVisible = [int]$Matches[1] }
+            Write-Host "Heartbeat (before): $heartbeatBefore"
+            Write-Host "World cover visible: $worldCoverVisible"
+            # 等待 5 秒，让心跳递增
+            Write-Host "Waiting 5s for heartbeat increment..."
+            Start-Sleep -Seconds 5
+            # 读取第二次心跳
+            $bankXml = [System.IO.File]::ReadAllText($bankPath, [System.Text.Encoding]::UTF8)
+            if ($bankXml -match '<Key name="bridge_heartbeat">\s*<Value int="(\d+)"') { $heartbeatAfter = [int]$Matches[1] }
+            Write-Host "Heartbeat (after):  $heartbeatAfter"
+            # 判定
+            $heartbeatDelta = $heartbeatAfter - $heartbeatBefore
+            Write-Host "Heartbeat delta:    $heartbeatDelta"
+            if ($heartbeatBefore -lt 0 -or $heartbeatAfter -lt 0) {
+                Write-Host "WARNING: bridge_heartbeat not found in bank - adapter may not have run" -ForegroundColor Yellow
+            } elseif ($heartbeatDelta -le 0) {
+                Write-Host "ERROR: Heartbeat not incrementing - Galaxy script may be stuck or crashed" -ForegroundColor Red
+            } elseif ($worldCoverVisible -eq 1) {
+                Write-Host "ERROR: BLACK SCREEN DETECTED - world cover dialog is visible (heartbeat running but UI hidden)" -ForegroundColor Red
+            } else {
+                Write-Host "OK: No black screen detected (heartbeat incrementing, world cover hidden)" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "WARNING: Bank file not found: $bankPath" -ForegroundColor Yellow
+        }
+        Write-Host ""
+    }
 } finally {
     # DebugMode 退出时按 PID 关闭自己启动的 SC2（禁止按进程名 kill，避免误杀玩家游戏）
-    if ($DebugMode -and (Test-Path $debugPidFile)) {
+    # -KeepAlive: 保留 SC2 进程运行（用于 SC2API 集成测试，客户端需要在 launcher 退出后连接 SC2）
+    if ($DebugMode -and -not $KeepAlive -and (Test-Path $debugPidFile)) {
         $debugPid = Get-Content $debugPidFile -ErrorAction SilentlyContinue
         if ($debugPid) {
             Write-Host "DebugMode: 退出时关闭 SC2 (PID=$debugPid)"
             Stop-Process -Id $debugPid -Force -ErrorAction SilentlyContinue
         }
         Remove-Item $debugPidFile -Force -ErrorAction SilentlyContinue
+    } elseif ($DebugMode -and $KeepAlive) {
+        Write-Host "DebugMode + KeepAlive: 保留 SC2 进程运行 (PID 文件: $debugPidFile)"
     }
     Release-TestLock -LockContext $lock
 }

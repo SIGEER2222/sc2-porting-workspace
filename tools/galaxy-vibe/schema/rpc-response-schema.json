@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sc2-porting-workspace/galaxy-vibe/rpc-response-schema.json",
+  "title": "Galaxy Vibe RPC Response",
+  "description": "Kernel 响应 schema。ack/result/error 三选一，同一 request_id。",
+  "type": "object",
+  "definitions": {
+    "response_kind": {
+      "type": "string",
+      "enum": ["ack", "result", "error"]
+    }
+  },
+  "properties": {
+    "kind": { "$ref": "#/definitions/response_kind" },
+    "protocol_version": { "type": "string", "const": "vibe/1.0" },
+    "session_id": { "type": "string" },
+    "request_id": { "type": "string" },
+    "sequence": { "type": "integer" },
+    "operation": { "type": "string" },
+    "started_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "error_code": {
+      "type": "string",
+      "enum": [
+        "OK", "UNKNOWN_OPERATION", "INVALID_ARGS", "UNIT_NOT_FOUND",
+        "PLAYER_OUT_OF_RANGE", "COUNT_OUT_OF_RANGE", "VITAL_OUT_OF_RANGE",
+        "RESOURCE_OUT_OF_RANGE", "SESSION_EXPIRED", "REQUEST_REJECTED",
+        "INTERNAL_ERROR", "CHECKSUM_MISMATCH"
+      ]
+    },
+    "payload": {
+      "type": "object",
+      "description": "result 的负载，结构由 operation 决定",
+      "additionalProperties": true
+    },
+    "state_version": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "状态版本号，每次产生副作用递增"
+    }
+  },
+  "required": ["kind", "protocol_version", "session_id", "request_id", "sequence"],
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "ack" } } },
+      "then": { "required": ["started_at"] }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "result" } } },
+      "then": { "required": ["started_at", "completed_at", "error_code", "payload", "state_version"] }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "error" } } },
+      "then": { "required": ["started_at", "completed_at", "error_code", "state_version"] }
+    }
+  ]
+}
