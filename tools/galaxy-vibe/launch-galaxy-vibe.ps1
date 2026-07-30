@@ -1,0 +1,175 @@
+<#
+.SYNOPSIS
+    Launch SC2 with the Galaxy Vibe debug mod + SC2 API, then run the P0 transport probe.
+
+.DESCRIPTION
+    Mounts tools/galaxy-vibe/galaxy-debug-mod as a -mod, starts a test map with -listenPort,
+    waits for the /sc2api port, then (with -AutoProbe) runs tools/galaxy-vibe/transport_probe.py.
+
+    Sandbox note: in a headless/sandboxed environment the Switcher drops -listenPort and the
+    /sc2api websocket never comes up (see tools/launchers/run-live-runtime-probe.ps1). Run on a
+    real desktop where SC2 launches normally.
+
+.PARAMETER Port
+    SC2 API listen port. Default 5000.
+
+.PARAMETER Map
+    Test map to load. Default: artifacts/runtime/cmre/blank_test_neuro.SC2Map
+
+.PARAMETER ModPath
+    Debug mod folder (.SC2Mod). Default: tools/galaxy-vibe/galaxy-debug-mod
+
+.PARAMETER AutoProbe
+    After SC2 is up, automatically run transport_probe.py.
+
+.PARAMETER Repl
+    After SC2 is up, launch the P1 interactive REPL (galaxy_repl.py) in the foreground.
+
+.PARAMETER Verify
+    One-shot verification: launch SC2, run <scenario> via --assert-file, then run the
+    ScriptError gate and summarize into a single PASS/FAIL verdict (exit code 0/1).
+    Example: .\launch-galaxy-vibe.ps1 -Verify tools/galaxy-vibe/examples/my_test.vtest
+
+.PARAMETER Visual
+    P3 视觉闭环开关（仅真机桌面有效）。在 -Verify 链尾追加 visual_loop 实时采集，判定
+    "场景稳定"并写 visual-verdict.json，由 summarize 一并收口。沙箱无 mss 会自动跳过。
+    配合 -VisualRoi / -VisualThreshold / -VisualSteady 调参。
+
+.PARAMETER VisualRoi
+    P3 采集 ROI，格式 x,y,w,h（像素）。默认全屏。
+
+.PARAMETER VisualThreshold
+    P3 稳态阈值（ROI 内平均像素差 <= 此值视为稳态帧）。默认 8.0。
+
+.PARAMETER VisualSteady
+    P3 判定稳定所需的连续稳态帧数。默认 3。
+
+.PARAMETER Python
+    Python interpreter with aiohttp + vendored s2clientprotocol. Default: python
+
+.EXAMPLE
+    .\launch-galaxy-vibe.ps1 -Repl
+.EXAMPLE
+    .\launch-galaxy-vibe.ps1 -AutoProbe
+.EXAMPLE
+    .\launch-galaxy-vibe.ps1 -Verify tools/galaxy-vibe/examples/my_test.vtest -Visual -VisualRoi "100,80,800,600"
+#>
+param(
+    [int]$Port = 5000,
+    [string]$Map = "",
+    [string]$ModPath = "",
+    [switch]$AutoProbe,
+    [switch]$Repl,
+    [string]$Verify = "",
+    [switch]$Visual,
+    [string]$VisualRoi = "",
+    [double]$VisualThreshold = 8.0,
+    [int]$VisualSteady = 3,
+    [string]$Python = "python"
+)
+
+$ErrorActionPreference = "Stop"
+$repo = (Resolve-Path (Join-Path $PSScriptRoot ".." "..")).Path
+if (-not $Map)     { $Map = Join-Path $repo "artifacts/runtime/cmre/blank_test_neuro.SC2Map" }
+if (-not $ModPath) { $ModPath = Join-Path $repo "tools/galaxy-vibe/galaxy-debug-mod" }
+
+$switcher = $null
+$candidates = @(
+    "E:\SC2\SC2new\StarCraft II\Support64\SC2Switcher_x64.exe",
+    "C:\Program Files (x86)\StarCraft II\Support64\SC2Switcher_x64.exe",
+    "$env:PROGRAMFILES\StarCraft II\Support64\SC2Switcher_x64.exe",
+    "${env:PROGRAMFILES(X86)}\StarCraft II\Support64\SC2Switcher_x64.exe"
+)
+foreach ($c in $candidates) { if ($c -and (Test-Path $c)) { $switcher = $c; break } }
+if (-not $switcher) { Write-Error "Could not locate SC2Switcher_x64.exe. Install StarCraft II or set its path." }
+
+if (-not (Test-Path $Map))     { Write-Error "Map not found: $Map" }
+if (-not (Test-Path $ModPath)) { Write-Error "Debug mod not found: $ModPath" }
+
+Write-Host "[1/4] Killing any running SC2 ..."
+Get-Process -Name "SC2_x64", "SC2Switcher_x64" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+
+Write-Host "[2/4] Launching SC2 (Switcher) with debug mod + API on port $Port ..."
+$args = @($Map, "-listenPort", "$Port", "-mod", "$ModPath", "-displayMode", "0", "-windowWidth", "800", "-windowHeight", "600", "-novid")
+Write-Host "      $switcher $($args -join ' ')"
+$launched = Start-Process -FilePath $switcher -ArgumentList $args -PassThru
+Write-Host "      Switcher PID=$($launched.Id)"
+
+$opened = $false
+for ($i = 0; $i -lt 60; $i++) {
+    Start-Sleep -Seconds 2
+    try {
+        $c = New-Object System.Net.Sockets.TcpClient
+        $ar = $c.BeginConnect("127.0.0.1", $Port, $null, $null)
+        if ($ar.AsyncWaitHandle.WaitOne(1500) -and $c.Connected) { $c.EndConnect($ar); $c.Close(); Write-Host "      API port $Port OPEN (~$([int]($i * 2))s)"; $opened = $true; break }
+        else { $c.Close() }
+    }
+    catch { }
+    if (-not (Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue)) { Write-Host "      SC2_x64 exited before port opened"; break }
+}
+if (-not $opened) {
+    Write-Error "SC2 API port $Port never opened. On a normal desktop check GameLogs; in a sandbox the Switcher drops -listenPort."
+}
+
+# 写启动标记，供 tools/galaxy-vibe/script_error_check.py 判定"本次启动以来"的新增 ScriptError
+$markerDir = Join-Path $env:USERPROFILE "Documents\StarCraft II"
+if (-not (Test-Path $markerDir)) { New-Item -ItemType Directory -Path $markerDir -Force | Out-Null }
+$markerPath = Join-Path $markerDir "galaxy-vibe-launch.json"
+$epoch = [int][double]::Parse((Get-Date -UFormat %s))
+@{
+    launched_at      = $epoch
+    launched_at_iso  = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+    port             = $Port
+    map              = $Map
+    mod              = $ModPath
+} | ConvertTo-Json | Set-Content -Path $markerPath -Encoding UTF8
+Write-Host "      Wrote launch marker -> $markerPath (launched_at=$epoch)"
+
+if ($Verify) {
+    Write-Host "[3/4] Running scenario asserts (assert-file: $Verify) ..."
+    $repl = Join-Path $repo "tools/galaxy-vibe/galaxy_repl.py"
+    & $Python $repl --port $Port --assert-file $Verify
+    $assertRc = $LASTEXITCODE
+    Write-Host "      assert exit code=$assertRc"
+    Write-Host "[4/4] ScriptError gate + (optional P3 visual) + summarize -> vibe-verdict.json"
+    $checker = Join-Path $repo "tools/galaxy-vibe/script_error_check.py"
+    & $Python $checker
+    $seRc = $LASTEXITCODE
+
+    if ($Visual) {
+        Write-Host "      [P3] Visual loop: capturing live window (mss) ..."
+        $vloop = Join-Path $repo "tools/galaxy-vibe/visual_loop.py"
+        $vArgs = @("--capture-loop", "--adapter", "mss", "--threshold", "$VisualThreshold", "--steady", "$VisualSteady")
+        if ($VisualRoi) { $vArgs += @("--roi", $VisualRoi) }
+        & $Python $vloop @vArgs
+        $visRc = $LASTEXITCODE
+        Write-Host "      visual exit code=$visRc (sandbox w/o mss -> skipped, no verdict)"
+    }
+
+    $summ = Join-Path $repo "tools/galaxy-vibe/summarize_verdict.py"
+    & $Python $summ
+    $finalRc = $LASTEXITCODE
+    Write-Host "VERDICT exit code=$finalRc (assert_rc=$assertRc, scripterror_rc=$seRc)"
+    exit $finalRc
+}
+
+if ($AutoProbe) {
+    Write-Host "[3/4] Running P0 transport probe ..."
+    $probe = Join-Path $repo "tools/galaxy-vibe/transport_probe.py"
+    & $Python $probe --port $Port --out-dir (Join-Path $repo "artifacts/galaxy-vibe")
+    Write-Host "[4/4] Probe exit code=$LASTEXITCODE"
+}
+
+if ($Repl) {
+    Write-Host "[3/4] Launching P1 Vibe REPL ..."
+    $repl = Join-Path $repo "tools/galaxy-vibe/galaxy_repl.py"
+    & $Python $repl --port $Port
+    Write-Host "[4/4] REPL exited."
+    exit $LASTEXITCODE
+}
+
+Write-Host "[3/4] SC2 is running with debug mod. In another shell run:"
+Write-Host "      python tools/galaxy-vibe/galaxy_repl.py --port $Port      # P1 交互 REPL"
+Write-Host "      python tools/galaxy-vibe/transport_probe.py --port $Port  # P0 传输探针"
+Write-Host "[4/4] Done. After testing, check GameLogs for new ScriptError.*.txt."

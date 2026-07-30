@@ -1,0 +1,87 @@
+{
+  "stage_id": "06-sim-cap-completion",
+  "schemaVersion": 1,
+  "status": "PASS",
+  "current_phase": "completed (SIM-CAP-GAP-002 + SIM-CAP-GAP-003 engine-layer fixes verified)",
+  "opened_at": "2026-07-30T15:30:00+08:00",
+  "closed_at": "2026-07-30T16:55:00+08:00",
+  "direction": "engine-layer fix for SIM-CAP-GAP-002 (air combat) + SIM-CAP-GAP-003 (behavior multipliers)",
+  "plan": "src/projects/cmre-porting/stages/06-sim-cap-completion/plan.md",
+  "gates": {
+    "G5-air-wired": "PASS — Viking vs Viking damage_events=6 (end_health=[('Viking', 67584), ('Viking', 67584)])",
+    "G5-ground-stable": "PASS — Marine vs Zergling 回归仍 PASS (P1/P3 G5_combat_damage=true)",
+    "G5-weapon-selection": "PASS — 空中目标用 weapon_air (Viking vs Viking damage>0)；地面目标用 weapon_ground (Marine vs Zergling damage>0)",
+    "G6-speed-mult": "PASS — baseline_dist=5.078 stim_dist=7.666 stim_further=True (speed_multiplier=150)",
+    "G6-atkspd-mult": "PASS — baseline_fires=5 stim_fires=8 stim_fires_more=True (attack_speed_multiplier=150)",
+    "G6-armor-add": "PASS — no_armor_dmg=5120 with_armor_dmg=3072 armor_reduced_dmg=True (armor_add=2)",
+    "G6-damage-add": "PASS — no_buff_dmg=5120 with_buff_dmg=8192 buff_increased_dmg=True (damage_add=3)",
+    "P1-P9-regression": "PASS — vibe 平台 12/12 回归 PASS (regression-20260730T085503Z.json)",
+    "no-fidelity-regression": "PASS — catalog_bridge 保真度标签升级：Viking unsupported → approximate (空战已接线)"
+  },
+  "writeScope_extension": {
+    "new_files": [
+      "tools/sc2-ally-bot/src/sc2_simulator/catalog/model.py",
+      "tools/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py",
+      "tools/sc2-ally-bot/src/sc2_simulator/systems/combat.py",
+      "tools/sc2-ally-bot/src/sc2_simulator/systems/movement.py"
+    ],
+    "rationale": "SIM-CAP-GAP-002/003 是 sc2_simulator 引擎层缺口，stage 05 在适配层绕过；本阶段在引擎层修复，需扩展 writeScope 到 4 个精确文件",
+    "not_modified": [
+      "tools/sc2-ally-bot/src/sc2_simulator/systems/abilities.py (multiplier getters 已存在)",
+      "tools/sc2-ally-bot/src/sc2_simulator/world/entity.py (weapon_air_cd 已存在)"
+    ]
+  },
+  "regression_evidence": {
+    "command": "python artifacts/galaxy-vibe/run-all-phases.py",
+    "executed_at": "20260730T090531Z (self-review rerun after Medivac is_air fix)",
+    "overall_verdict": "PASS",
+    "passed_phases": 12,
+    "total_phases": 12,
+    "summary_artifact": "artifacts/galaxy-vibe/p1-p9-regression/regression-20260730T090531Z.json",
+    "evidence_class": "runtime",
+    "per_phase": {
+      "P1": true,
+      "P2": true,
+      "P3": true,
+      "P4A": true,
+      "P4B": true,
+      "P4C": true,
+      "P4D": true,
+      "P5": true,
+      "P6": true,
+      "P7": true,
+      "P8": true,
+      "P9": true
+    }
+  },
+  "engine_fixes": {
+    "SIM-CAP-GAP-002_air_combat": {
+      "files_changed": [
+        "tools/sc2-ally-bot/src/sc2_simulator/catalog/model.py (UnitType.is_air field added; Medivac marked is_air=True in self-review)",
+        "tools/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py (15 aerial units marked is_air=True)",
+        "tools/sc2-ally-bot/src/sc2_simulator/systems/combat.py (_is_air returns unit_type.is_air; _weapon_for_target selects weapon_air/weapon_ground by target is_air; _try_fire uses weapon_air_cd/weapon_ground_cd)"
+      ],
+      "evidence": "G5_air_combat_wired: Viking vs Viking damage_events=6 (runtime)"
+    },
+    "SIM-CAP-GAP-003_behavior_multipliers": {
+      "files_changed": [
+        "tools/sc2-ally-bot/src/sc2_simulator/systems/movement.py (step() calls get_speed_multiplier)",
+        "tools/sc2-ally-bot/src/sc2_simulator/systems/combat.py (_try_fire calls get_attack_speed_multiplier; _compute_damage_breakdown applies damage_add/armor_add)"
+      ],
+      "evidence": "G6_speed_mult + G6_atkspd_mult + G6_armor_add + G6_damage_add all PASS (runtime)"
+    }
+  },
+  "adapter_layer_updates": {
+    "vibe/contracts.py": "_unit_fidelity: weapon_air 单位不再 unsupported (stage 06 修复后空战已接线); 所有单位标 approximate (手写 IR)",
+    "vibe/catalog_bridge.py": "p2_selftest: viking_fidelity_upgraded check 替换 unsupported_unit_present; validate_strict 保留防御逻辑",
+    "vibe/gate_verification.py": "p3_selftest: G5_air_unsupported_known -> G5_air_combat_wired (0 damage -> damage>0); 新增 G6_speed_mult/G6_atkspd_mult/G6_armor_add/G6_damage_add 闸门",
+    "vibe/consumers/mod_dev.py": "p4a_selftest: unsupported_visible -> no_unsupported_after_stage06 (反转检查逻辑)"
+  },
+  "issue_resolution": {
+    "resolved_fixed": [
+      "SIM-CAP-GAP-002 (air combat not wired) -> resolved-fixed at engine layer (model.py + m7_units.py + combat.py)",
+      "SIM-CAP-GAP-003 (behavior multipliers not wired) -> resolved-fixed at engine layer (movement.py + combat.py)"
+    ]
+  },
+  "note": "Stage 06 complete 2026-07-30. SIM-CAP-GAP-002 (air combat) and SIM-CAP-GAP-003 (behavior multipliers) closed at engine layer. All 9 gates PASS (G5-air-wired, G5-ground-stable, G5-weapon-selection, G6-speed-mult, G6-atkspd-mult, G6-armor-add, G6-damage-add, P1-P9-regression, no-fidelity-regression). 12/12 P1-P9 phases PASS. No SC2 launch needed (simulator-first)."
+}

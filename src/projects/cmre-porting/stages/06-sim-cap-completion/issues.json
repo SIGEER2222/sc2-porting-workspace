@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "SIM-CAP-GAP-002",
+      "status": "resolved-fixed",
+      "inherited_from": "05-vibe-framework",
+      "summary": "sc2_simulator air combat is not wired: _is_air always returns False (combat.py:41-43) and weapon_air is defined but never queried. All anti-air weapons (Viking/Phoenix/Mutalisk/Corruptor/MissileTurret/SporeCrawler) effectively cannot fire. Stage 06 fixed this at the engine layer: added is_air field to UnitType, marked air units in m7_units.py, fixed _is_air/_weapon_for_target/_try_fire in combat.py.",
+      "evidence": [
+        "src/projects/cmre-porting/stages/06-sim-cap-completion/plan.md §1 (static: gap analysis)",
+        "tools/sc2-ally-bot/src/sc2_simulator/systems/combat.py:58-60 (static: _is_air returns unit_type.is_air)",
+        "tools/sc2-ally-bot/src/sc2_simulator/systems/combat.py:34-55 (static: _weapon_for_target selects weapon_air/weapon_ground by target is_air)",
+        "tools/sc2-ally-bot/src/sc2_simulator/catalog/model.py:155 (static: UnitType.is_air field added)",
+        "tools/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py (static: 15 aerial units marked is_air=True)",
+        "src/projects/cmre-porting/stages/06-sim-cap-completion/result.json (runtime: G5_air_combat_wired PASS, Viking vs Viking damage_events=6)"
+      ],
+      "resolution": "Engine-layer fix: model.py add is_air field, m7_units.py mark 15 air units, combat.py fix _is_air/_weapon_for_target/_try_fire. Verified by G5-air-wired gate (Viking vs Viking damage_events=6)."
+    },
+    {
+      "id": "SIM-CAP-GAP-003",
+      "status": "resolved-fixed",
+      "inherited_from": "05-vibe-framework",
+      "summary": "sc2_simulator behavior multipliers are not wired into rules: get_speed_multiplier / get_attack_speed_multiplier exist (abilities.py:361-374) but movement.py and combat.py do not call them. Also armor_add/damage_add behavior fields are stored (abilities.py:217-220) but not applied in combat. Stage 06 fixed this: movement.py calls get_speed_multiplier, combat.py calls get_attack_speed_multiplier and applies armor_add/damage_add in _compute_damage_breakdown.",
+      "evidence": [
+        "src/projects/cmre-porting/stages/06-sim-cap-completion/plan.md §1 (static: gap analysis)",
+        "tools/sc2-ally-bot/src/sc2_simulator/systems/movement.py:139-144 (static: step() calls get_speed_multiplier)",
+        "tools/sc2-ally-bot/src/sc2_simulator/systems/combat.py:329-335 (static: _try_fire calls get_attack_speed_multiplier)",
+        "tools/sc2-ally-bot/src/sc2_simulator/systems/combat.py:109-130 (static: _compute_damage_breakdown applies damage_add/armor_add)",
+        "src/projects/cmre-porting/stages/06-sim-cap-completion/result.json (runtime: G6_speed_mult/G6_atkspd_mult/G6_armor_add/G6_damage_add all PASS)"
+      ],
+      "resolution": "Engine-layer fix: movement.py step() calls get_speed_multiplier; combat.py _try_fire calls get_attack_speed_multiplier; _compute_damage_breakdown accepts attacker/target Entity and applies damage_add/armor_add from active_behaviors. Verified by G6 gates (speed_mult: 5.078->7.666; atkspd_mult: 5->8 fires; armor_add: 5120->3072 dmg; damage_add: 5120->8192 dmg)."
+    },
+    {
+      "id": "SIM-CAP-GAP-006",
+      "status": "open",
+      "inherited_from": "06-sim-cap-completion (self-review finding)",
+      "summary": "Overlord (m3_units.py:238) 是 SC2 空中单位但未标记 is_air=True。stage 06 修复了 SIM-CAP-GAP-002 空战接线，但 Overlord 定义在 m3_units.py 中，不在 stage 06 的 writeScope 内（writeScope 只含 model.py / m7_units.py / combat.py / movement.py）。影响：Overlord 会被地面武器攻击（应只能被对空武器攻击）。Overlord 无武器，不影响战斗输出，但影响被攻击判定。",
+      "evidence": [
+        "tools/sc2-ally-bot/src/sc2_simulator/catalog/m3_units.py:238-251 (static: Overlord 定义无 is_air 字段)",
+        "src/projects/cmre-porting/project.json:18-27 (static: writeScope 不含 m3_units.py)",
+        "src/projects/cmre-porting/stages/06-sim-cap-completion/plan.md §2.1 (static: 遗留说明)"
+      ],
+      "resolution": "待后续 stage 扩展 writeScope 到 m3_units.py 后修复。或重构 Overlord 定义到 m7_units.py（需评估 m3 兼容性）。"
+    },
+    {
+      "id": "SIM-CAP-GAP-007",
+      "status": "open",
+      "inherited_from": "06-sim-cap-completion (self-review finding)",
+      "summary": "splash 伤害使用主目标 breakdown（含主目标的 armor_add），对次要目标不重新计算护甲加成。这是 M1 既有设计近似（splash 使用主目标 final_raw * falloff），stage 06 添加 armor_add/damage_add 后使得该近似更显著：主目标有 GuardianShield 时，splash 次要目标也会受到减伤，即使它们自己没有 GuardianShield。影响场景较少（splash + 行为加成交叠），不阻塞 stage 06 完成。",
+      "evidence": [
+        "tools/sc2-ally-bot/src/sc2_simulator/systems/combat.py:415-420 (static: _apply_splash_instant 使用主目标 breakdown)",
+        "tools/sc2-ally-bot/src/sc2_simulator/systems/projectile.py:273,318 (static: 弹体 splash 同样使用主目标 breakdown)"
+      ],
+      "resolution": "待后续 stage 重构 splash 结算：对每个次要目标用其自身护甲/行为重新计算 breakdown。需要 apply_damage_breakdown 接口重构。"
+    }
+  ]
+}

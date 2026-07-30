@@ -1,0 +1,113 @@
+{
+  "stage_id": "05-vibe-framework",
+  "schemaVersion": 1,
+  "status": "PASS",
+  "current_phase": "P9-closed (simulator-first local critical path complete; third pass closed M10 + position-unit bug)",
+  "opened_at": "2026-07-30T08:32:00+08:00",
+  "closed_at": "2026-07-30T15:23:00+08:00",
+  "direction": "simulator-first (canonical: simulator-first-platform-plan.md)",
+  "phases": {
+    "P0": "direction-and-ownership",
+    "P1": "protocol-and-simulator-transport",
+    "P2": "catalog-bridge-and-fidelity",
+    "P3": "core-runtime-acceptance",
+    "P4A": "mod-dev-consumer",
+    "P4B": "ally-ai-consumer",
+    "P4C": "tactical-validation-consumer",
+    "P4D": "mission-wave-consumer",
+    "P5": "offline-wysiwyg-replay",
+    "P6": "hot-cold-loops",
+    "P7": "intent-driven-host",
+    "P8": "multi-consumer-conformance",
+    "P9": "optional-real-sc2-calibration"
+  },
+  "phase_status": {
+    "P0": "PASS (direction reset to simulator-first; galaxy-vibe reclassified as spike; SC2/Bank/launcher reclassified as optional P9 adapters; sc2_simulator = read-only candidate; local critical path has no SC2 dependency)",
+    "P1": "PASS (simulator_transport + simulator_session + protocol reuse + typed operations + determinism self-test)",
+    "P2": "PASS (catalog_bridge computes real content hash + per-unit fidelity labels + provenance; SIM-CAP-GAP-005 resolved at adapter layer)",
+    "P3": "PASS (gate_verification G1-G8 self-tests + mission_engine for G7 gap; SIM-CAP-GAP-001 resolved at adapter layer)",
+    "P4A": "PASS (mod_dev A/B runner: Marine damage 5->7 shortens end_loop 132->88)",
+    "P4B": "PASS (ally_ai: Observation-only policy + per-unit-per-loop command limit + runtime safety; zero violations over 10-min equivalent run)",
+    "P4C": "PASS (tactical: focus_fire vs spread_fire A/B across 5 seeds + Wilson lower bound + traceable improvement claims; INCONCLUSIVE is valid)",
+    "P4D": "PASS (mission_wave: JSON DSL -> MissionEngine + difficulty curve matrix + positive/negative terminals + reset/replay reproduces trace hash; third pass added escort_vip + capture_region objective self-tests that now pass after the position-unit fix)",
+    "P5": "PASS (viewer: SnapshotRecorder + render_svg + seek restores hash = deterministic replay)",
+    "P6": "PASS (dev_loop: HotLoop runtime manipulation + ColdLoop source-change -> A/B -> verdict in one shot)",
+    "P7": "PASS (vibe_host: parse_intent + run_vibe_host + up to 3 evidence-driven correction rounds; invalid-catalog and unsatisfiable recovery paths exercised)",
+    "P8": "PASS (conformance: cross_consumer_fixtures + shared_contracts_registry; every shared contract passes for every consumer that consumes it; third pass added M10 dynamic contract usage detection cross-checking the static registry against actual consumer source)",
+    "P9": "PASS (sc2_calibration: Sc2BackendStub + run_calibration differential report + known divergence registry; real-SC2 backend deferred to live desktop session per VIBE-RUNTIME-001 reclassification)"
+  },
+  "regression_evidence": {
+    "command": "python artifacts/galaxy-vibe/run-all-phases.py",
+    "executed_at": "20260730T072306Z",
+    "overall_verdict": "PASS",
+    "passed_phases": 12,
+    "total_phases": 12,
+    "summary_artifact": "artifacts/galaxy-vibe/p1-p9-regression/regression-20260730T072306Z.json",
+    "evidence_class": "runtime",
+    "per_phase": {
+      "P1": true,
+      "P2": true,
+      "P3": true,
+      "P4A": true,
+      "P4B": true,
+      "P4C": true,
+      "P4D": true,
+      "P5": true,
+      "P6": true,
+      "P7": true,
+      "P8": true,
+      "P9": true
+    },
+    "hardening_pass": {
+      "executed_at": "20260730T062650Z",
+      "fixes": [
+        "L1: mission_engine Trigger exceptions now logged to world.events (no longer silent)",
+        "L5: P3 G5 air-combat gap dynamically verified (Viking vs Viking -> 0 damage events)",
+        "M2: P4B long-run now executes 13200 loops (10 sim min) instead of short-circuit",
+        "perf: scenario_step gains snapshot=False option; P4B long-run 150s -> 2s",
+        "P5: SnapshotRecorder.record_during off-by-one fixed (snapshot before step); assertion_locates_loop no longer tautological",
+        "L2: dead imports + unused exception class removed from catalog_bridge.py"
+      ]
+    },
+    "third_pass": {
+      "executed_at": "20260730T072306Z",
+      "fixes": [
+        "M10: dynamic contract usage detection added to conformance.py (detect_contract_usage_dynamically + registry_with_dynamic_check); static registry corrected (SnapshotHandle/CatalogPatch now mod_dev-only, extraction_eligible=False); p8_selftest adds m10_dynamic_contract_detection + m10_dynamic_detection_responds_to_change checks",
+        "position-unit bug: _entity_brief (contracts.py + simulator_session.py) returned fixed-point raw int for x/y; consumers compared against world-unit floats -> escort_vip/capture_region objectives unsatisfiable and tactical distances inflated 1024x. Fixed by returning e.x.to_float()/e.y.to_float(); health/shields/energy stay raw int (P4A asserts marine_hp=46080=45*1024). Also fixed mission_engine._evaluate_objective(escort_vip) and mission_wave._make_attack_trigger.",
+        "regression runner recreated: artifacts/galaxy-vibe/run-all-phases.py was referenced by result/issues but missing on disk; recreated as self-contained runner with namespace-package imports + timestamped JSON evidence output"
+      ],
+      "key_evidence": {
+        "p4d_escort_vip_success": "end_loop=30 objectives=[{'name': 'escort_vip', 'kind': 'escort_vip', 'status': 'success'}] vip_id=1",
+        "p4d_capture_region_success": "end_loop=10 objectives=[{'name': 'capture_point', 'kind': 'capture_region', 'status': 'success'}]",
+        "p8_m10_dynamic_contract_detection": "core_mismatches=[] all_mismatches=[]",
+        "p8_m10_dynamic_detection_responds_to_change": "after_breaking_ally_ai_anchor: Observation.detected=['tactical'] (ally_ai absent)"
+      }
+    }
+  },
+  "p0_evidence": {
+    "capability_matrix": "src/projects/cmre-porting/stages/05-vibe-framework/evidence/p0-sc2-simulator-capability-matrix-2026-07-30.md",
+    "ownership_decision": "src/projects/cmre-porting/stages/05-vibe-framework/evidence/p0-ownership-decision-2026-07-30.md",
+    "sc2_simulator_verdict": "G1 COMPLETE / G2 COMPLETE / G3 COMPLETE(simplified) / G4 PARTIAL / G5 COMPLETE(air-gap) / G6 PARTIAL / G7 STUB / G8 PARTIAL; zero SC2/Bank/GameLogs deps; public API MISSING; catalog no content-hash/no fidelity",
+    "gate_local_no_sc2": true,
+    "gate_writescope_explicit": true
+  },
+  "issue_resolution": {
+    "resolved_at_adapter": [
+      "SIM-CAP-GAP-001 (G7 triggers/regions/waves/objectives) -> vibe/mission_engine.py",
+      "SIM-CAP-GAP-004 (no stable public API) -> vibe/contracts.py + vibe/simulator_session.py",
+      "SIM-CAP-GAP-005 (no Catalog hash/fidelity) -> vibe/catalog_bridge.py"
+    ],
+    "resolved_fixed_third_pass": [
+      "VIBE-POS-UNIT-001 (position-unit mismatch: _entity_brief returned fixed-point raw int for x/y while consumers compared against world-unit floats -> escort_vip/capture_region objectives unsatisfiable, tactical distances inflated 1024x) -> vibe/contracts.py + vibe/simulator_session.py + vibe/mission_engine.py + vibe/consumers/mission_wave.py (return e.x.to_float()/e.y.to_float())",
+      "VIBE-M10-001 (M10 dynamic contract usage detection was declared pending; static registry over-claimed SnapshotHandle/CatalogPatch as multi-consumer) -> vibe/conformance.py (detect_contract_usage_dynamically + registry_with_dynamic_check + p8_selftest M10 checks; registry corrected)"
+    ],
+    "still_open_not_blocking": [
+      "SIM-CAP-GAP-002 (air combat not wired in sc2_simulator; tracked as approximate fidelity label; air-only scenarios out of scope)",
+      "SIM-CAP-GAP-003 (behavior multipliers not wired; tracked as approximate fidelity; dynamic verification deferred)",
+      "VIBE-RUNTIME-001 (reclassified to P9; real-SC2 calibration deferred to live desktop session)",
+      "CMRE-RUNTIME-003 (reclassified to P9; Bank = optional adapter, not exercised)"
+    ]
+  },
+  "note": "Stage 05-vibe-framework local critical path complete 2026-07-30. All 12 phases (P1, P2, P3, P4A, P4B, P4C, P4D, P5, P6, P7, P8, P9) PASS offline regression (third pass executed 20260730T072306Z). Local critical path stayed SC2-free throughout: no SC2 launch, no Bank write, no GameLogs ScriptError check needed. Three SIM-CAP-GAP issues closed at the adapter layer (no sc2_simulator edit). Third pass additionally closed VIBE-POS-UNIT-001 (position-unit mismatch blocking escort_vip/capture_region objectives) and VIBE-M10-001 (M10 dynamic contract usage detection cross-checking the static registry). The optional real-SC2 differential calibration (P9) ran against Sc2BackendStub; replacing the stub with the real launch-cmre-alenger.ps1 adapter requires a live SC2 desktop session and is tracked by VIBE-RUNTIME-001 (reclassified, not a blocker).",
+  "closure_criteria": "See plan.md Completion Gate: declared artifacts exist; each phase validation passes; result.json/issues.json/log.md complete; every claim carries evidence class + path; no new ScriptError (P9); hot/cold routing correct; screenshots consistent with structured state (P5); second consumer passes before shared extraction (P8); local completion gate does not require SC2 install; failures reproducible from task+source hash+Catalog hash+snapshot+trace+seed. All criteria met for the simulator-first local critical path."
+}

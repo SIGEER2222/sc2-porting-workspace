@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "VIBE-RUNTIME-001",
+      "status": "reclassified",
+      "summary": "Originally: P0-P7 runtime/visual acceptance required a live SC2 desktop session (sandbox cannot launch SC2). Under simulator-first direction (P0 reset 2026-07-30), the local critical path is SimulatorTransport over the headless sc2_simulator, which has ZERO SC2/Bank/GameLogs dependency (verified: evidence/p0-sc2-simulator-capability-matrix-2026-07-30.md section 0). This issue NO LONGER BLOCKS local P0-P8 progress. Real-SC2 runtime evidence is deferred to optional P9 differential calibration. As of 2026-07-30 stage closure, P9 ran against Sc2BackendStub (PASS); replacing the stub with the real launch-cmre-alenger.ps1 adapter requires a live SC2 desktop session.",
+      "evidence": [
+        "src/projects/cmre-porting/stages/05-vibe-framework/evidence/p0-sc2-simulator-capability-matrix-2026-07-30.md (sc2_simulator zero SC2 deps)",
+        "src/projects/cmre-porting/stages/05-vibe-framework/evidence/p0-ownership-decision-2026-07-30.md (reclassification section 5)",
+        "simulator-first-platform-plan.md P9 gate (real-SC2 absence never blocks local P0-P8)",
+        "artifacts/galaxy-vibe/p1-p9-regression/regression-20260730T050212Z.json (P9 PASS against Sc2BackendStub)"
+      ],
+      "nextAction": "Optional: replace Sc2BackendStub with real SC2 adapter (live desktop session via tools/launchers/launch-cmre-alenger.ps1) and re-run P9 differential calibration. Not a blocker for stage closure."
+    },
+    {
+      "id": "CMRE-RUNTIME-003",
+      "status": "reclassified",
+      "summary": "Carried from 04-runtime-baseline: external process writing NeuroIntegration.SC2Bank is not consumed by running SC2 (BankLoad caches in-memory image). Under simulator-first direction, Bank is reclassified as an OPTIONAL real-SC2 adapter (P9), not a P0 transport-gate premise. The mandatory first transport is SimulatorTransport (P1), which has no Bank dependency.",
+      "evidence": [
+        "src/projects/cmre-porting/stages/05-vibe-framework/evidence/p0-ownership-decision-2026-07-30.md (section 5: Bank reclassified as optional P9 adapter)",
+        "simulator-first-platform-plan.md section 8 (Bank = optional adapter)"
+      ],
+      "nextAction": "Revisit only if/when P9 real-SC2 calibration needs a Bank-side channel. Not exercised this stage."
+    },
+    {
+      "id": "SIM-CAP-GAP-001",
+      "status": "resolved-at-adapter",
+      "summary": "sc2_simulator Gate 7 (triggers/regions/waves/objectives) is STUB: TriggerEngine exists but the scenario runner NEVER calls TriggerEngine.step (dead code). Only annihilation win-condition is implemented. No region/wave/objective systems. This means the simulator currently CANNOT carry mission scripts — only pure combat/economy closed loops. RESOLVED at the project-local adapter layer (vibe/mission_engine.py) within writeScope; sc2_simulator itself was not edited. The adapter provides Region/Wave/Objective/Trigger + run loop + terminal states, sufficient for P4D mission/wave consumer and any mission-scenario acceptance.",
+      "evidence": [
+        "src/projects/cmre-porting/stages/05-vibe-framework/evidence/p0-sc2-simulator-capability-matrix-2026-07-30.md (section 1, G7 row)",
+        "tools/sc2-ally-bot/src/sc2_simulator/tools/triggers.py (Trigger model exists)",
+        "tools/sc2-ally-bot/src/sc2_simulator/scenario/runner.py (no TriggerEngine.step call in main loop)",
+        "src/projects/cmre-porting/vibe/mission_engine.py (adapter implementation)",
+        "src/projects/cmre-porting/vibe/consumers/mission_wave.py (P4D self-test PASS using adapter)",
+        "artifacts/galaxy-vibe/p1-p9-regression/regression-20260730T050212Z.json (P3 + P4D PASS)"
+      ],
+      "nextAction": "Closed at adapter layer. If a future consumer requires native simulator support (e.g. for performance), a separate writeScope amendment to edit sc2_simulator would be needed."
+    },
+    {
+      "id": "SIM-CAP-GAP-002",
+      "status": "open",
+      "summary": "sc2_simulator air combat is not wired: _is_air always returns False (combat.py:41-43) and weapon_air is defined but never queried. All anti-air weapons (Viking/Phoenix/Mutalisk/Corruptor/MissileTurret/SporeCrawler) effectively cannot fire. This is a hidden Gate 5 gap only visible via static reading. Tracked as a known approximate fidelity label in the P2 catalog bridge; air-only scenarios are out of scope for the current consumer suite.",
+      "evidence": [
+        "src/projects/cmre-porting/stages/05-vibe-framework/evidence/p0-sc2-simulator-capability-matrix-2026-07-30.md (section 1, G5 row)",
+        "tools/sc2-ally-bot/src/sc2_simulator/systems/combat.py:41-43 (_is_air hardcoded False)",
+        "src/projects/cmre-porting/vibe/catalog_bridge.py (per-unit fidelity label records this as approximate)",
+        "src/projects/cmre-porting/vibe/gate_verification.py (G5_air_unsupported_known: dynamic probe spawns Viking vs Viking for 200 loops, asserts 0 damage events — confirms weapon_air cannot fire. Runtime evidence, not just static field check.)"
+      ],
+      "nextAction": "Real fix requires a sc2_simulator writeScope extension (not granted this stage). Air-only scenarios remain out of scope until then. The gap is now dynamically verified (not just statically inferred) so any future fix that wires _is_air will flip the dynamic probe and surface immediately."
+    },
+    {
+      "id": "SIM-CAP-GAP-003",
+      "status": "open",
+      "summary": "sc2_simulator behavior multipliers are not wired into rules: get_speed_multiplier / get_attack_speed_multiplier exist but movement.py and combat.py do not call them. Stimpack speed-up and Fungal root appear implemented but are effectively no-ops. Also armor_add/damage_add behavior fields are not applied. This is a 'false-complete' trap requiring dynamic verification. Tracked as a known approximate fidelity label in the P2 catalog bridge; Stimpack/Fungal dynamic verification deferred.",
+      "evidence": [
+        "src/projects/cmre-porting/stages/05-vibe-framework/evidence/p0-sc2-simulator-capability-matrix-2026-07-30.md (section 1, G6 row; section 4 finding 3)",
+        "tools/sc2-ally-bot/src/sc2_simulator/systems/abilities.py (multiplier getters exist)",
+        "tools/sc2-ally-bot/src/sc2_simulator/systems/movement.py (does not call speed multiplier)",
+        "tools/sc2-ally-bot/src/sc2_simulator/systems/combat.py (does not call attack-speed multiplier)",
+        "src/projects/cmre-porting/vibe/catalog_bridge.py (per-unit fidelity label records this as approximate)"
+      ],
+      "nextAction": "Real fix requires a sc2_simulator writeScope extension. Stimpack/Fungal dynamic verification deferred until then."
+    },
+    {
+      "id": "SIM-CAP-GAP-004",
+      "status": "resolved-at-adapter",
+      "summary": "sc2_simulator has NO stable public API: __init__.py only exports cli; no __all__; core classes (CatalogSnapshot/ScenarioDefinition/RunResult/WorldState/Entity/Fixed/Event/RandomStreams) require deep submodule imports. No top-level Catalog/Scenario/Observation/Action/Snapshot/Trace/Capability contracts (simulator-first-platform-plan.md section 4.4 entirely missing). RESOLVED at the project-local adapter layer (vibe/contracts.py exposes section 4.4 contracts; vibe/simulator_session.py exposes typed operations); sc2_simulator itself was not edited.",
+      "evidence": [
+        "src/projects/cmre-porting/stages/05-vibe-framework/evidence/p0-sc2-simulator-capability-matrix-2026-07-30.md (section 3, Public API)",
+        "tools/sc2-ally-bot/src/sc2_simulator/__init__.py (only 'from . import cli')",
+        "src/projects/cmre-porting/vibe/contracts.py (section 4.4 contracts)",
+        "src/projects/cmre-porting/vibe/simulator_session.py (typed operations over WorldState)",
+        "artifacts/galaxy-vibe/p1-p9-regression/regression-20260730T050212Z.json (P1 + all downstream consumers PASS)"
+      ],
+      "nextAction": "Closed at adapter layer. If a future external consumer needs a stable API from sc2_simulator itself, a separate writeScope amendment would be needed."
+    },
+    {
+      "id": "SIM-CAP-GAP-005",
+      "status": "resolved-at-adapter",
+      "summary": "sc2_simulator Catalog has no content hash and no fidelity tracking: content_hash is a static string (e.g. 'm7-standard'), not a computed content hash, so catalog drift cannot be detected. No per-unit fidelity labels (exact/approximate/partial/unsupported). No XML import (hand-authored Python dataclasses, ~70 units). RESOLVED at the project-local adapter layer (vibe/catalog_bridge.py computes a real content hash from all unit entries + records per-unit fidelity labels + provenance); sc2_simulator itself was not edited.",
+      "evidence": [
+        "src/projects/cmre-porting/stages/05-vibe-framework/evidence/p0-sc2-simulator-capability-matrix-2026-07-30.md (section 2)",
+        "tools/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py:1876 (content_hash = 'm7-standard' static string)",
+        "src/projects/cmre-porting/vibe/catalog_bridge.py (real content hash + fidelity labels + provenance)",
+        "artifacts/galaxy-vibe/p1-p9-regression/regression-20260730T050212Z.json (P2 PASS)"
+      ],
+      "nextAction": "Closed at adapter layer. Real CMRE Catalog XML import (replacing hand-authored dataclasses) is a future-stage concern, not a blocker for stage 05 closure."
+    },
+    {
+      "id": "VIBE-POS-UNIT-001",
+      "status": "resolved-fixed",
+      "summary": "Position-unit mismatch bug discovered during third-pass self-review (2026-07-30). _entity_brief in both vibe/contracts.py and vibe/simulator_session.py returned e.x.raw / e.y.raw (fixed-point raw int, e.g. 5120 for world position 5.0), but every spatial consumer (regions in mission_engine, tactical distance checks, viewer) compared positions against world-unit floats (region r=3.0, retreat_range=3.0, etc.). This made escort_vip and capture_region objectives impossible to satisfy (raw 5120 vs world 5.0 never matches a world-unit region) and silently inflated all tactical distances by 1024x. The P4D self-test added escort_vip/capture_region cases that exposed this — prior passes never exercised those objective kinds despite M5 declaring them implemented. Fixed by returning e.x.to_float() / e.y.to_float() in both _entity_brief copies; health/shields/energy stay as raw int (P4A asserts marine_hp=46080=45*1024). Also fixed mission_engine._evaluate_objective(escort_vip) which used vip.x.raw directly, and mission_wave._make_attack_trigger which used u.x.raw for region containment check.",
+      "evidence": [
+        "src/projects/cmre-porting/vibe/contracts.py (_entity_brief: x=e.x.to_float(), y=e.y.to_float(); docstring records the position contract)",
+        "src/projects/cmre-porting/vibe/simulator_session.py (_entity_brief + _get_field: x/y -> to_float())",
+        "src/projects/cmre-porting/vibe/mission_engine.py (_evaluate_objective escort_vip branch: vip.x.to_float())",
+        "src/projects/cmre-porting/vibe/consumers/mission_wave.py (_make_attack_trigger: u.x.to_float() for region.contains)",
+        "artifacts/galaxy-vibe/p1-p9-regression/regression-20260730T072306Z.json (P4D checks escort_vip_success=true, escort_vip_failed_when_killed=true, capture_region_success=true, capture_region_blocked_by_enemy=true; P4C retreat_low_hp_moves_away=true with hp=20/45 dist world-units)"
+      ],
+      "nextAction": "Closed. Position contract is now documented in _entity_brief docstring; future spatial code must use world-unit floats from _entity_brief, not raw ints."
+    },
+    {
+      "id": "VIBE-M10-001",
+      "status": "resolved-fixed",
+      "summary": "M10 (shared_contracts_registry dynamic detection) was declared pending in the second-pass result.json. The static registry over-claimed SnapshotHandle and CatalogPatch as multi-consumer (extraction_eligible would have been true), but no consumer source other than mod_dev actually references those type names — other consumers use them indirectly via SimulatorSession.snapshot_create (returns dict) or scenario fields. Third pass (2026-07-30) added detect_contract_usage_dynamically() which scans each consumer module's source (via inspect.getsource on anchor symbols) for contract identifier references, and registry_with_dynamic_check() which cross-checks the static registry against the dynamic detection. The static registry was corrected: SnapshotHandle and CatalogPatch are now declared mod_dev-only with extraction_eligible=False. The p8_selftest adds two M10 checks: (a) m10_dynamic_contract_detection — core contracts must have declared == detected; (b) m10_dynamic_detection_responds_to_change — breaking the ally_ai anchor must remove ally_ai from the detected set, proving detection is live (not cached).",
+      "evidence": [
+        "src/projects/cmre-porting/vibe/conformance.py (detect_contract_usage_dynamically, registry_with_dynamic_check, _CONSUMER_ANCHORS, _CONTRACT_SYMBOLS)",
+        "src/projects/cmre-porting/vibe/conformance.py (shared_contracts_registry: SnapshotHandle/CatalogPatch now consumers_using=['mod_dev'], extraction_eligible=False)",
+        "src/projects/cmre-porting/vibe/conformance.py (p8_selftest: m10_dynamic_contract_detection + m10_dynamic_detection_responds_to_change checks)",
+        "artifacts/galaxy-vibe/p1-p9-regression/regression-20260730T072306Z.json (P8 passed=true; details: m10_dynamic_contract_detection core_mismatches=[], m10_dynamic_detection_responds_to_change after_breaking_ally_ai_anchor Observation.detected=['tactical'])"
+      ],
+      "nextAction": "Closed. Future contract additions to the registry must keep declared consumers_using consistent with detect_contract_usage_dynamically(); the p8_selftest cross-check enforces this."
+    }
+  ]
+}

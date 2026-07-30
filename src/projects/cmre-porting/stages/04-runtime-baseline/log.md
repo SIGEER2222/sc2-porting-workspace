@@ -727,3 +727,15 @@ for all unit/building/command-card/train-completion acceptance gates.
 All 6 classes of CMRE core non-fatal runtime errors have been eliminated
 (`CMRE-ALENGER3-RUNTIME-002` resolved). SC2 now launches cleanly with
 exit code 0 and no ScriptError.txt generated.
+
+## Stage closure (2026-07-30)
+
+`result.json` already recorded `status: PASS` (2026-07-21). All acceptance gates closed:
+commander=双方 TerranAlenger3、建筑/单位/训练能力全部解锁、启动 exit 0、无新增 ScriptError、
+train completion 验证（worker_before=10 → worker_after=11）。保留 follow-up：`CMRE-RUNTIME-001`
+(partially-resolved, Gary 外部驱动链路)、`CMRE-RUNTIME-003`（open, 外部 bank 写不被运行 SC2 消费）。
+
+Stage formally closed and handed off to **`05-vibe-framework`** (SC2 WYSIWYG Vibe 双循环框架).
+`src/projects/cmre-porting/project.json` `currentStage` 已切到 `05-vibe-framework`，并声明其精确
+`writeScope`（见 05 阶段 plan.md）。`亡者之夜 x TerranAlenger3` composition 作为首个消费者基底，
+通过批准 launcher `tools/launchers/launch-cmre-alenger.ps1` 启动。

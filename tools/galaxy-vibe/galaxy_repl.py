@@ -1,0 +1,772 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""SC2 Vibe REPL — P1 最小热循环（所见即所得 vibe 调试）。
+
+连接运行中 SC2 的 SC2API（ws://127.0.0.1:<port>/sc2api），提供交互式 vibe 调试。
+核心目的：写/调一段逻辑，秒级在运行的游戏里看到效果，无需重编译/重开。
+
+命令（help 查看）：
+  ping                              -> 调试 Mod (dbg ping)，并读回 Bank 验证闭环
+  call <FuncName> [args...]         -> 调试 Mod (dbg call) 调用任意已编译 Galaxy 函数
+  echo <text>                       -> 调试 Mod (dbg echo)
+  spawn <type> <count> [player] [@x,y]   -> SC2API DebugCreateUnit（秒级刷兵）
+  kill <all|player N|tag t1 t2...>  -> SC2API DebugKillUnit
+  set <hp|energy|shields> <val> <player N|tag t1 t2...>  -> SC2API DebugSetUnitValue
+  cheat <minerals|gas|god> <on|off> -> SC2API Debug game_state 作弊开关
+  query [player N]                  -> SC2API Observation 汇总单位/资源
+  obs                               -> 一次 Observation 原始摘要
+  info                              -> SC2API GameInfo（地图尺寸/玩家）
+  step [n]                          -> SC2API Step（推进 n 帧，默认 1）
+  help                              -> 本帮助
+  exit / quit                       -> 退出
+
+非交互：
+  --cmd "spawn marine 5 1"          -> 执行单条命令后退出
+  --script file.txt                 -> 逐行执行文件中的命令后退出
+
+依赖：aiohttp + s2clientprotocol（优先 vendored reference/SC2-Neuro-API-Integration，
+      否则回退 pip 安装的 s2clientprotocol / python-sc2）。必须在能跑 SC2 的真机运行。
+
+证据分类：
+  - spawn/kill/set/cheat/query/step/info/obs 走 SC2API，字段名取自 vendored python-sc2
+    client.py 与 debug_pb2 描述符文本（static 已核对）。
+  - call/ping/echo 走调试 Mod 的 Map Command 分发器（见 galaxy-debug-mod/）。
+  - 真机闭环为 runtime 证据，待 master 真机验证。
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+import shlex
+import sys
+import time
+from pathlib import Path
+from datetime import datetime, timezone
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+NEURO = REPO_ROOT / "reference" / "SC2-Neuro-API-Integration"
+sys.path.insert(0, str(NEURO))
+
+HAS_PROTO = False
+PROTO_ERR = ""
+try:
+    from s2clientprotocol import sc2api_pb2 as sc_pb
+    from s2clientprotocol import debug_pb2 as debug_pb
+    from s2clientprotocol import common_pb2 as common_pb
+
+    HAS_PROTO = True
+except Exception as e:  # pragma: no cover
+    PROTO_ERR = str(e)
+
+import aiohttp  # 同 sc2-observer
+
+DEFAULT_BANK = Path.home() / "Documents" / "StarCraft II" / "Banks" / "GalaxyVibeDebug.SC2Bank"
+
+# 断言结果落盘（外部完全可控，不碰 Bank；供冷循环/CI 消费）
+ASSERT_REPORT_PATH = REPO_ROOT / "artifacts" / "galaxy-vibe" / "assert-results.json"
+
+# unit_value 映射（依据 python-sc2 client.py doc：1=energy, 2=life, 3=shields）
+UNIT_VALUE = {"energy": 1, "hp": 2, "life": 2, "shields": 3}
+
+# 资源作弊枚举（取自 vendored debug_pb2 描述符文本：god=6, minerals=7, gas=8）
+GAME_STATE_CHEAT = {"god": 6, "minerals": 7, "gas": 8, "vespene": 8}
+
+
+def utcnow() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _build_unit_map() -> dict[str, int]:
+    """构建单位名->id 映射。优先 python-sc2 的 UnitTypeId（权威）；不可用时解析 vendored
+    unit_typeid.py 源码拿准确 id；都不行则回退空表（只认整数 id，不猜值）。"""
+    umap: dict[str, int] = {}
+    # 1) 优先 import python-sc2 的枚举（运行时值与 DebugCreateUnit.unit_type 一致）
+    try:
+        from sc2.ids.unit_typeid import UnitTypeId  # type: ignore
+
+        for k, v in UnitTypeId.__members__.items():
+            umap[k] = int(v.value)
+        if umap:
+            return umap
+    except Exception:
+        pass
+    # 2) 解析 vendored 源码（避免重依赖 import，且 id 准确）
+    import re
+
+    cand = REPO_ROOT / "reference" / "python-sc2" / "sc2" / "ids" / "unit_typeid.py"
+    if cand.exists():
+        txt = cand.read_text(encoding="utf-8", errors="replace")
+        for mm in re.finditer(r"^\s*([A-Z][A-Z0-9_]+)\s*=\s*(\d+)\s*$", txt, re.M):
+            umap[mm.group(1)] = int(mm.group(2))
+    return umap
+
+
+UNIT_MAP = _build_unit_map()
+
+
+def _unit_id_resolver():
+    """返回一个 name->int 解析函数。整数直接回传；英文名查 UNIT_MAP（python-sc2 / 源码）。"""
+
+    def resolve(name: str) -> int | None:
+        s = name.strip()
+        if s.isdigit():
+            return int(s)
+        return UNIT_MAP.get(s.upper().replace(" ", ""))
+
+    return resolve
+
+
+def _unit_name_lookup():
+    """返回一个 int->name 函数（用于 query 展示）。"""
+    rev = {v: k for k, v in UNIT_MAP.items()}
+    return lambda i: rev.get(i, str(i))
+
+
+async def send_request(ws, req_proto):
+    await ws.send_bytes(req_proto.SerializeToString())
+    data = await asyncio.wait_for(ws.receive_bytes(), timeout=15.0)
+    resp = sc_pb.Response()
+    resp.ParseFromString(data)
+    return resp
+
+
+def parse_bank(bank_path: Path) -> dict:
+    import xml.etree.ElementTree as ET
+
+    if not bank_path.exists():
+        return {}
+    try:
+        root = ET.parse(bank_path).getroot()
+    except ET.ParseError:
+        return {}
+    parsed: dict = {}
+    for section in root.findall("Section"):
+        sn = section.get("name", "")
+        if not sn:
+            continue
+        sd: dict = {}
+        for key in section.findall("Key"):
+            kn = key.get("name", "")
+            vn = key.find("Value")
+            if vn is None:
+                continue
+            if "int" in vn.attrib:
+                try:
+                    sd[kn] = int(vn.attrib["int"])
+                except ValueError:
+                    sd[kn] = vn.attrib["int"]
+            elif "string" in vn.attrib:
+                sd[kn] = vn.attrib["string"]
+            elif "text" in vn.attrib:
+                sd[kn] = vn.attrib["text"]
+            elif "flag" in vn.attrib:
+                sd[kn] = vn.attrib["flag"] == "1"
+        parsed[sn] = sd
+    return parsed
+
+
+async def wait_bank_run_id(bank_path: Path, run_id: str, timeout: float = 5.0, poll: float = 0.1):
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        if bank_path.exists():
+            vibe = parse_bank(bank_path).get("vibe", {})
+            if vibe.get("run_id") == run_id:
+                return True, time.time() - t0, vibe
+        await asyncio.sleep(poll)
+    return False, timeout, {}
+
+
+def _split_flags(args):
+    """从断言参数里抽出 --player N / --within S（支持 `--player=N` 形式），其余原样返回。"""
+    rest, player, within = [], None, None
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--player" and i + 1 < len(args):
+            try:
+                player = int(args[i + 1])
+            except ValueError:
+                pass
+            i += 2
+            continue
+        if a.startswith("--player="):
+            try:
+                player = int(a.split("=", 1)[1])
+            except ValueError:
+                pass
+            i += 1
+            continue
+        if a == "--within" and i + 1 < len(args):
+            try:
+                within = float(args[i + 1])
+            except ValueError:
+                pass
+            i += 2
+            continue
+        if a.startswith("--within="):
+            try:
+                within = float(a.split("=", 1)[1])
+            except ValueError:
+                pass
+            i += 1
+            continue
+        rest.append(a)
+        i += 1
+    return rest, player, within
+
+
+class VibeREPL:
+    def __init__(self, port: int, resolve, name_lookup):
+        self.port = port
+        self.resolve = resolve
+        self.name_lookup = name_lookup
+        self.map_center = common_pb.Point2D(x=50.0, y=50.0)
+        self._have_map = False
+        self.assert_results: list[dict] = []
+
+    async def connect(self):
+        url = f"ws://127.0.0.1:{self.port}/sc2api"
+        self.session = aiohttp.ClientSession()
+        self.ws = await self.session.ws_connect(url, max_msg_size=0)
+        # 连通性 ping
+        resp = await send_request(self.ws, sc_pb.Request(ping=sc_pb.RequestPing()))
+        if resp.error:
+            raise RuntimeError(f"SC2API ping error: {resp.error}")
+        # 拉一次 GameInfo 拿地图中心（失败不影响核心功能）
+        try:
+            gi = await send_request(self.ws, sc_pb.Request(game_info=sc_pb.RequestGameInfo()))
+            ms = gi.game_info.start_raw.map_size
+            self.map_center = common_pb.Point2D(x=ms.x / 2.0, y=ms.y / 2.0)
+            self._have_map = True
+        except Exception:
+            pass
+        return True
+
+    async def close(self):
+        try:
+            await self.ws.close()
+            await self.session.close()
+        except Exception:
+            pass
+
+    # ---------- 各命令实现 ----------
+    async def cmd_ping(self, args):
+        run_id = f"repl_{int(time.time() * 1000)}"
+        await send_request(self.ws, sc_pb.Request(map_command=sc_pb.RequestMapCommand(command=f"dbg ping {run_id}")))
+        ok, lat, sec = await wait_bank_run_id(DEFAULT_BANK, run_id, timeout=5.0)
+        if ok and sec.get("result") == "pong":
+            print(f"[ping] OK 闭环闭合 latency={lat*1000:.0f}ms run_id={run_id}")
+        else:
+            print(f"[ping] 未确认闭环（Mod 未挂？或 Bank 未回写）run_id={run_id}")
+        return True
+
+    async def cmd_call(self, args):
+        if not args:
+            print("[call] 用法: call <FuncName> [args...]")
+            return True
+        cmd = "dbg call " + " ".join(args)
+        resp = await send_request(self.ws, sc_pb.Request(map_command=sc_pb.RequestMapCommand(command=cmd)))
+        if resp.error:
+            print(f"[call] error: {resp.error}")
+        else:
+            print(f"[call] 已下发 {cmd}（Mod 经 TriggerExecuteByName 执行；带参函数请改用 gf_ 包装全局变量）")
+        return True
+
+    async def cmd_echo(self, args):
+        cmd = "dbg echo " + " ".join(args)
+        resp = await send_request(self.ws, sc_pb.Request(map_command=sc_pb.RequestMapCommand(command=cmd)))
+        if resp.error:
+            print(f"[echo] error: {resp.error}")
+        else:
+            print(f"[echo] 已下发: {cmd}")
+        return True
+
+    async def cmd_spawn(self, args):
+        # spawn <type> <count> [player] [@x,y]
+        if len(args) < 2:
+            print("[spawn] 用法: spawn <type> <count> [player] [@x,y]")
+            return True
+        uid = self.resolve(args[0])
+        if uid is None:
+            print(f"[spawn] 未知单位类型: {args[0]}（用整数 id 或 python-sc2 支持的英文名）")
+            return True
+        try:
+            count = int(args[1])
+        except ValueError:
+            print("[spawn] count 必须是整数")
+            return True
+        player = 1
+        pos = self.map_center
+        rest = args[2:]
+        if rest and not rest[0].startswith("@"):
+            try:
+                player = int(rest[0])
+                rest = rest[1:]
+            except ValueError:
+                pass
+        if rest and rest[0].startswith("@"):
+            coord = rest[0][1:]
+            try:
+                x, y = (float(v) for v in coord.split(","))
+                pos = common_pb.Point2D(x=x, y=y)
+            except ValueError:
+                print("[spawn] 坐标格式错误，应为 @x,y")
+                return True
+        req = sc_pb.Request(
+            debug=sc_pb.RequestDebug(
+                debug=[
+                    debug_pb.DebugCommand(
+                        create_unit=debug_pb.DebugCreateUnit(
+                            unit_type=uid, owner=player, pos=pos, quantity=count
+                        )
+                    )
+                ]
+            )
+        )
+        resp = await send_request(self.ws, req)
+        if resp.error:
+            print(f"[spawn] error: {resp.error}")
+        else:
+            print(f"[spawn] 已创建 {count}x {args[0]} -> player {player} @({pos.x},{pos.y})")
+        return True
+
+    async def _collect_units(self, player=None):
+        resp = await send_request(self.ws, sc_pb.Request(observation=sc_pb.RequestObservation()))
+        if resp.error:
+            print(f"[obs] error: {resp.error}")
+            return []
+        raw = resp.observation.observation.raw_data
+        if raw is None:
+            print("[obs] 无 raw_data（确认游戏以 raw 接口启动）")
+            return []
+        units = []
+        for u in raw.units:
+            if player is None or u.owner == player:
+                units.append(u)
+        return units
+
+    async def cmd_kill(self, args):
+        if not args:
+            print("[kill] 用法: kill <all|player N|tag t1 t2 ...>")
+            return True
+        targets = []
+        if args[0] == "all":
+            units = await self._collect_units()
+            targets = [u.tag for u in units]
+        elif args[0] == "player" and len(args) >= 2:
+            units = await self._collect_units(int(args[1]))
+            targets = [u.tag for u in units]
+        elif args[0] == "tag":
+            targets = [int(t) for t in args[1:] if t.lstrip("-").isdigit()]
+        else:
+            targets = [int(t) for t in args if t.lstrip("-").isdigit()]
+        if not targets:
+            print("[kill] 未解析到目标单位")
+            return True
+        resp = await send_request(
+            self.ws,
+            sc_pb.Request(debug=sc_pb.RequestDebug(debug=[debug_pb.DebugCommand(kill_unit=debug_pb.DebugKillUnit(tag=targets))])),
+        )
+        if resp.error:
+            print(f"[kill] error: {resp.error}")
+        else:
+            print(f"[kill] 已击杀 {len(targets)} 个单位")
+        return True
+
+    async def cmd_set(self, args):
+        # set <hp|energy|shields> <val> <player N|tag t1 t2...>
+        if len(args) < 3:
+            print("[set] 用法: set <hp|energy|shields> <val> <player N|tag t1 t2 ...>")
+            return True
+        stat = args[0].lower()
+        if stat not in UNIT_VALUE:
+            print(f"[set] 未知属性: {stat}（支持 hp/energy/shields）")
+            return True
+        try:
+            val = float(args[1])
+        except ValueError:
+            print("[set] val 必须是数字")
+            return True
+        rest = args[2:]
+        targets = []
+        if rest[0] == "player" and len(rest) >= 2:
+            units = await self._collect_units(int(rest[1]))
+            targets = [u.tag for u in units]
+        elif rest[0] == "tag":
+            targets = [int(t) for t in rest[1:] if t.lstrip("-").isdigit()]
+        else:
+            targets = [int(t) for t in rest if t.lstrip("-").isdigit()]
+        if not targets:
+            print("[set] 未解析到目标单位（用 player N 或 tag t1 t2）")
+            return True
+        cmds = [
+            debug_pb.DebugCommand(
+                unit_value=debug_pb.DebugSetUnitValue(unit_value=UNIT_VALUE[stat], value=val, unit_tag=t)
+            )
+            for t in targets
+        ]
+        resp = await send_request(self.ws, sc_pb.Request(debug=sc_pb.RequestDebug(debug=cmds)))
+        if resp.error:
+            print(f"[set] error: {resp.error}")
+        else:
+            print(f"[set] 已将 {len(targets)} 个单位的 {stat} 设为 {val}")
+        return True
+
+    async def cmd_cheat(self, args):
+        if len(args) < 2:
+            print("[cheat] 用法: cheat <minerals|gas|god> <on|off>")
+            return True
+        kind = args[0].lower()
+        if kind not in GAME_STATE_CHEAT:
+            print(f"[cheat] 未知作弊: {kind}（支持 minerals/gas/god）")
+            return True
+        on = args[1].lower() in ("on", "1", "true", "yes")
+        state = GAME_STATE_CHEAT[kind] if on else 0
+        resp = await send_request(self.ws, sc_pb.Request(debug=sc_pb.RequestDebug(debug=[debug_pb.DebugCommand(game_state=state)])))
+        if resp.error:
+            print(f"[cheat] error: {resp.error}")
+        else:
+            print(f"[cheat] {kind} {'开启' if on else '关闭'}")
+        return True
+
+    async def cmd_query(self, args):
+        player = int(args[0]) if args and args[0].isdigit() else None
+        resp = await send_request(self.ws, sc_pb.Request(observation=sc_pb.RequestObservation()))
+        if resp.error:
+            print(f"[query] error: {resp.error}")
+            return True
+        obs = resp.observation.observation
+        pc = obs.player_common
+        if pc is not None:
+            print(f"[query] 资源(玩家{pc.player_id}): 矿物={pc.minerals} 气={pc.vespene} 补给={pc.food_used}/{pc.food_cap}")
+        raw = obs.raw_data
+        if raw is None:
+            print("[query] 无 raw_data")
+            return True
+        by_player: dict[int, dict[str, int]] = {}
+        for u in raw.units:
+            if player is not None and u.owner != player:
+                continue
+            by_player.setdefault(u.owner, {})
+            name = self.name_lookup(u.unit_type)
+            by_player[u.owner][name] = by_player[u.owner].get(name, 0) + 1
+        for pid, counts in sorted(by_player.items()):
+            summary = ", ".join(f"{n}×{c}" for n, c in sorted(counts.items(), key=lambda kv: -kv[1]))
+            print(f"  玩家{pid}: {summary}")
+
+    async def cmd_obs(self, args):
+        resp = await send_request(self.ws, sc_pb.Request(observation=sc_pb.RequestObservation()))
+        if resp.error:
+            print(f"[obs] error: {resp.error}")
+            return True
+        raw = resp.observation.observation.raw_data
+        if raw is None:
+            print("[obs] 无 raw_data")
+            return True
+        gl = getattr(resp.observation.observation, "game_loop", None) or getattr(resp.observation, "game_loop", None)
+        print(f"[obs] 单位总数: {len(raw.units)}; 游戏循环: {gl}")
+        return True
+
+    async def cmd_info(self, args):
+        resp = await send_request(self.ws, sc_pb.Request(game_info=sc_pb.RequestGameInfo()))
+        if resp.error:
+            print(f"[info] error: {resp.error}")
+            return True
+        gi = resp.game_info
+        try:
+            print(f"[info] 地图: {gi.map_name}")
+        except Exception:
+            print("[info] 地图: (未暴露)")
+        try:
+            ms = gi.start_raw.map_size
+            print(f"[info] 尺寸: {ms.x}×{ms.y}")
+        except Exception:
+            print("[info] 尺寸: (本 proto 未暴露 start_raw)")
+        try:
+            for p in gi.player_info:
+                print(f"  玩家{p.player_id} type={p.type} race={p.race}")
+        except Exception:
+            pass
+        return True
+
+    async def cmd_step(self, args):
+        n = int(args[0]) if args and args[0].isdigit() else 1
+        resp = await send_request(self.ws, sc_pb.Request(step=sc_pb.RequestStep(count=n)))
+        if resp.error:
+            print(f"[step] error: {resp.error}")
+        else:
+            print(f"[step] 已推进 {n} 帧")
+        return True
+
+    # ---------- P2 状态断言 ----------
+    async def _player_counts_by_id(self, player):
+        """返回 {unit_type_id: count}，仅统计指定玩家；失败返回 (None, err)。"""
+        resp = await send_request(self.ws, sc_pb.Request(observation=sc_pb.RequestObservation()))
+        if resp.error:
+            return None, resp.error
+        raw = resp.observation.observation.raw_data
+        if raw is None:
+            return None, "无 raw_data（确认游戏以 raw 接口启动）"
+        counts: dict[int, int] = {}
+        for u in raw.units:
+            if u.owner == player:
+                counts[u.unit_type] = counts.get(u.unit_type, 0) + 1
+        return counts, None
+
+    async def _eval_assert(self, op, unit, player, cmp=None, n=None, lo=None, hi=None):
+        counts, err = await self._player_counts_by_id(player)
+        if err:
+            return False, f"采集失败: {err}"
+        uid = self.resolve(unit)
+        if uid is None:
+            return False, f"未知单位: {unit}（用整数 id 或 python-sc2 支持的英文名）"
+        actual = counts.get(uid, 0)
+        name = self.name_lookup(uid)
+        if op == "exists":
+            ok = actual >= 1
+            want = "至少 1 个"
+        elif op == "not_exists":
+            ok = actual == 0
+            want = "0 个"
+        elif op == "count":
+            if cmp == "==":
+                ok = actual == n
+            elif cmp == ">=":
+                ok = actual >= n
+            elif cmp == "<=":
+                ok = actual <= n
+            elif cmp == ">":
+                ok = actual > n
+            elif cmp == "<":
+                ok = actual < n
+            else:
+                return False, f"非法比较符: {cmp}"
+            want = f"{cmp} {n}"
+        elif op == "range":
+            ok = lo <= actual <= hi
+            want = f"{lo}..{hi}"
+        else:
+            return False, f"未知断言 op: {op}"
+        verdict = "PASS" if ok else "FAIL"
+        detail = f"{verdict} {op} {unit}({name}) 玩家{player} 实际={actual} 期望={want}"
+        return ok, detail
+
+    async def _run_assert_inner(self, rest, player):
+        """解析内部断言 op（exists/not_exists/count/range）并判定。rest 已剥离 flags。"""
+        if not rest:
+            return False, "断言为空"
+        op = rest[0].lower()
+        if op == "exists":
+            if len(rest) < 2:
+                return False, "exists 需指定 unit"
+            return await self._eval_assert("exists", rest[1], player)
+        if op == "not_exists":
+            if len(rest) < 2:
+                return False, "not_exists 需指定 unit"
+            return await self._eval_assert("not_exists", rest[1], player)
+        if op == "count":
+            if len(rest) < 4:
+                return False, "count 需 <unit> <cmp> <N>"
+            unit, cmp, n = rest[1], rest[2], rest[3]
+            if cmp not in ("==", ">=", ">", "<=", "<"):
+                return False, f"非法比较符: {cmp}"
+            try:
+                nv = int(n)
+            except ValueError:
+                return False, f"N 非整数: {n}"
+            return await self._eval_assert("count", unit, player, cmp=cmp, n=nv)
+        if op == "range":
+            if len(rest) < 3:
+                return False, "range 需 <unit> <min> <max>"
+            unit, lo, hi = rest[1], rest[2], rest[3]
+            try:
+                lo, hi = int(lo), int(hi)
+            except ValueError:
+                return False, "min/max 非整数"
+            return await self._eval_assert("range", unit, player, lo=lo, hi=hi)
+        return False, f"未知断言 op: {op}"
+
+    def _record(self, ok, expr, detail):
+        self.assert_results.append(
+            {"pass": bool(ok), "expr": expr, "detail": detail, "ts": utcnow()}
+        )
+
+    def write_assert_report(self):
+        if not self.assert_results:
+            return
+        total = len(self.assert_results)
+        passed = sum(1 for r in self.assert_results if r["pass"])
+        report = {
+            "total": total,
+            "passed": passed,
+            "failed": total - passed,
+            "all_passed": passed == total,
+            "results": self.assert_results,
+            "generated_at": utcnow(),
+        }
+        ASSERT_REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        ASSERT_REPORT_PATH.write_text(
+            json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        print(f"[assert] 汇总 {passed}/{total} 通过 -> {ASSERT_REPORT_PATH}")
+
+    async def cmd_assert(self, args):
+        # assert <op> <...> [--player N] [--within S]
+        #   op: exists | not_exists | count | range | eventually
+        rest, player, within = _split_flags(args)
+        if not rest:
+            print(
+                "[assert] 用法: assert <exists|not_exists|count|range|eventually> <unit> ... "
+                "[--player N] [--within S]"
+            )
+            return True
+        player = player or 1
+        op = rest[0].lower()
+        if op == "eventually":
+            inner = rest[1:]
+            if not inner:
+                print("[assert] eventually 需跟一个断言 op，如: eventually exists marine")
+                return True
+            within = within or 5.0
+            deadline = time.time() + within
+            poll = 0.25
+            passed = False
+            last = ""
+            while time.time() < deadline:
+                ok, last = await self._run_assert_inner(inner, player)
+                if ok:
+                    passed = True
+                    break
+                await asyncio.sleep(poll)
+            print(f"[assert] eventually({within}s) {'PASS' if passed else 'FAIL'}: {last}")
+            self._record(passed, "eventually " + " ".join(inner), last)
+            return True
+        ok, detail = await self._run_assert_inner(rest, player)
+        print(f"[assert] {detail}")
+        self._record(ok, " ".join(rest), detail)
+        return True
+
+    async def dispatch(self, line: str):
+        line = line.strip()
+        if not line:
+            return True
+        try:
+            parts = shlex.split(line)
+        except ValueError:
+            parts = line.split()
+        op = parts[0].lower()
+        args = parts[1:]
+        handlers = {
+            "ping": self.cmd_ping,
+            "call": self.cmd_call,
+            "echo": self.cmd_echo,
+            "spawn": self.cmd_spawn,
+            "kill": self.cmd_kill,
+            "set": self.cmd_set,
+            "cheat": self.cmd_cheat,
+            "query": self.cmd_query,
+            "assert": self.cmd_assert,
+            "obs": self.cmd_obs,
+            "info": self.cmd_info,
+            "step": self.cmd_step,
+            "help": self.cmd_help,
+            "?": self.cmd_help,
+        }
+        h = handlers.get(op)
+        if h is None:
+            print(f"[?] 未知命令: {op}（输入 help 查看）")
+            return True
+        try:
+            await h(args)
+        except Exception as e:  # pragma: no cover
+            print(f"[!] 执行 {op} 异常: {e}")
+        return True
+
+    async def cmd_help(self, args):
+        print(
+            "SC2 Vibe REPL 命令：\n"
+            "  ping                                  验证 Mod 闭环\n"
+            "  call <FuncName> [args...]             调用已编译 Galaxy 函数\n"
+            "  echo <text>                           回显文本到 Bank\n"
+            "  spawn <type> <count> [player] [@x,y]  秒级刷兵（type 可用英文名或整数 id）\n"
+            "  kill <all|player N|tag t1 t2...>      击杀单位\n"
+            "  set <hp|energy|shields> <val> <player N|tag ...>  设单位属性\n"
+            "  cheat <minerals|gas|god> <on|off>     资源/上帝模式作弊\n"
+            "  query [player N]                      汇总单位与资源\n"
+            "  assert <exists|not_exists|count|range|eventually> <unit> ... [--player N] [--within S]  自动判定\n"
+            "  obs                                    观察原始摘要\n"
+            "  info                                   地图/玩家信息\n"
+            "  step [n]                               推进 n 帧\n"
+            "  help | ?                               本帮助\n"
+            "  exit | quit                            退出\n"
+            "注：精确设置玩家资源请用你的 Galaxy 函数 + call（本 REPL 不内置 DebugSetPlayerState）。"
+        )
+        return True
+
+    async def run_interactive(self):
+        print("SC2 Vibe REPL 已连接。输入 help 查看命令，exit 退出。")
+        if not self._have_map:
+            print("（未取到地图中心，spawn 默认落点 50,50；可用 @x,y 指定）")
+        loop = asyncio.get_event_loop()
+        while True:
+            try:
+                line = await loop.run_in_executor(None, lambda: input("vibe> "))
+            except (EOFError, KeyboardInterrupt):
+                print()
+                break
+            if line.strip().lower() in ("exit", "quit"):
+                break
+            await self.dispatch(line)
+
+    async def run_script(self, path: Path):
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            print(f"vibe> {line}")
+            await self.dispatch(line)
+
+
+async def amain(args):
+    if not HAS_PROTO:
+        print(f"ERR s2clientprotocol: {PROTO_ERR}", file=sys.stderr)
+        return 2
+    resolve = _unit_id_resolver()
+    name_lookup = _unit_name_lookup()
+    repl = VibeREPL(args.port, resolve, name_lookup)
+    try:
+        await repl.connect()
+    except Exception as e:
+        print(f"ERR 连接 SC2 API 失败: {e}", file=sys.stderr)
+        print("确认：游戏已通过 tools/galaxy-vibe/launch-galaxy-vibe.ps1 启动且 /sc2api 已绑定。", file=sys.stderr)
+        return 2
+
+    try:
+        if args.cmd:
+            await repl.dispatch(args.cmd)
+        elif args.script or args.assert_file:
+            await repl.run_script(Path(args.assert_file or args.script))
+        else:
+            await repl.run_interactive()
+        repl.write_assert_report()
+        rc = 0
+        if repl.assert_results and not all(r["pass"] for r in repl.assert_results):
+            rc = 1
+        return rc
+    finally:
+        await repl.close()
+
+
+def main():
+    ap = argparse.ArgumentParser(description="SC2 Vibe REPL — P1 最小热循环")
+    ap.add_argument("--port", type=int, default=5000)
+    ap.add_argument("--cmd", help="执行单条命令后退出")
+    ap.add_argument("--script", help="逐行执行脚本文件后退出")
+    ap.add_argument("--assert-file", help="逐行执行断言/scenario 文件，结束打印 PASS/FAIL 汇总并以退出码返回")
+    a = ap.parse_args()
+    raise SystemExit(asyncio.run(amain(a)))
+
+
+if __name__ == "__main__":
+    main()

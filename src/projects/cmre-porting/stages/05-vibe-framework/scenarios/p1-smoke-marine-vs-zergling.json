@@ -1,0 +1,21 @@
+{
+  "schema_version": "m0.v1",
+  "name": "P1 smoke — Marine vs Zergling",
+  "description": "P1 端到端手写 IR 场景：1 Marine 对 1 Zergling，互相攻击，验证确定性 + 断言。",
+  "players": [
+    {"id": 1, "name": "Terran", "race": "terran", "allies": [], "is_ai": true},
+    {"id": 2, "name": "Zerg", "race": "zerg", "allies": [], "is_ai": true}
+  ],
+  "spawns": [
+    {"unit_type_id": "Marine", "owner_player_id": 1, "x": 0.0, "y": 0.0},
+    {"unit_type_id": "Zergling", "owner_player_id": 2, "x": 10.0, "y": 0.0}
+  ],
+  "commands": [
+    {"loop": 0, "kind": "attack_unit", "issuer_player_id": 1, "entity_ids": [1], "target_entity_id": 2},
+    {"loop": 0, "kind": "attack_unit", "issuer_player_id": 2, "entity_ids": [2], "target_entity_id": 1}
+  ],
+  "max_loops": 1000,
+  "seed": 42,
+  "strict": true,
+  "win_condition": "annihilation"
+}

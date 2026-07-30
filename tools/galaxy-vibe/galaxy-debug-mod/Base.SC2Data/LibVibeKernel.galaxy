@@ -1,0 +1,85 @@
+// LibVibeKernel.galaxy
+// SC2 Vibe 运行时调试内核 — P0 传输闸门端点
+//
+// 职责：
+//   1) 注册 Map Command "dbg"；
+//   2) 按名分发子命令：ping / call <FuncName> / echo <text>；
+//   3) 结果回传：写 Bank "GalaxyVibeDebug.SC2Bank" section "vibe" + TriggerDebugOutput。
+//
+// 仅使用已验证 native（见 artifacts/galaxy-runtime/*）：
+//   libNtve_gf_TriggerAddEventMapCommand / EventMapCommandCommand /
+//   libNtve_gf_TriggerExecuteByName / BankCreate / BankWrite / BankSave /
+//   TriggerDebugOutput / GameTimeSec / 字符串与 TriggerCreate。
+//
+// 一次性编辑器步骤（master 真机）：
+//   用 Galaxy Editor 打开本 mod → 新建一个 "Map Initialization" 触发器 →
+//   动作调用 gf_VibeInit()。保存即得到可运行的 .SC2Mod。
+
+// ---------------- 全局 ----------------
+bank gv_vibeBank;
+const string c_bankName = "GalaxyVibeDebug";
+const string c_bankExt  = "SC2Bank";
+const string c_section  = "vibe";
+
+// ---------------- 字符串工具 ----------------
+string gf_VibeFirstToken(string s) {
+    int sp = StringFind(s, " ", 0);
+    if (sp < 0) { return s; }
+    return StringSub(s, 0, sp);
+}
+
+string gf_VibeRest(string s) {
+    int sp = StringFind(s, " ", 0);
+    if (sp < 0) { return ""; }
+    return StringSub(s, sp + 1, StringLength(s) - sp - 1);
+}
+
+// ---------------- 回传 ----------------
+void gf_VibeReport(string op, string run_id, string result) {
+    BankWrite(gv_vibeBank, c_section, "last_op", op);
+    BankWrite(gv_vibeBank, c_section, "run_id", run_id);
+    BankWrite(gv_vibeBank, c_section, "result", result);
+    BankWrite(gv_vibeBank, c_section, "ts", IntToString(GameTimeSec()));
+    BankSave(gv_vibeBank);
+    TriggerDebugOutput(c_triggerDebugOutputTypeText, "vibe[" + op + "] " + result, true);
+}
+
+// ---------------- 子命令 ----------------
+void gf_VibePing(string run_id) {
+    gf_VibeReport("ping", run_id, "pong");
+}
+
+void gf_VibeCall(string rest) {
+    // rest = "<FuncName> [args...]"；P0 仅执行无参/已编译函数
+    string fname = gf_VibeFirstToken(rest);
+    if (StringLength(fname) > 0) {
+        libNtve_gf_TriggerExecuteByName(fname, true, true);
+        gf_VibeReport("call", fname, "executed");
+    } else {
+        gf_VibeReport("call", "", "missing_funcname");
+    }
+}
+
+void gf_VibeEcho(string rest) {
+    gf_VibeReport("echo", "", rest);
+}
+
+// ---------------- Map Command 处理器（必须匹配 bool(bool,bool) 签名）----------------
+bool gf_VibeHandler(bool inA, bool inB) {
+    string full = EventMapCommandCommand();   // 形如 "dbg ping run_xxx"
+    string body = gf_VibeRest(full);          // 去掉前缀 "dbg" -> "ping run_xxx"
+    string op   = gf_VibeFirstToken(body);    // "ping"
+    string rest = gf_VibeRest(body);          // "run_xxx"
+    if (op == "ping") { gf_VibePing(rest); return true; }
+    if (op == "call") { gf_VibeCall(rest); return true; }
+    if (op == "echo") { gf_VibeEcho(rest); return true; }
+    gf_VibeReport("unknown", "", op);
+    return false;
+}
+
+// ---------------- 初始化（由 Map Initialization 触发器调用）----------------
+void gf_VibeInit() {
+    gv_vibeBank = BankCreate(c_playerAny, c_bankName, c_bankExt, 0);
+    trigger t = TriggerCreate(gf_VibeHandler);
+    libNtve_gf_TriggerAddEventMapCommand(t, "dbg");
+}
