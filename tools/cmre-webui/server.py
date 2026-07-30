@@ -10,12 +10,13 @@
 
 import json
 import os
+import queue
 import subprocess
 import sys
 import threading
 import webbrowser
 import xml.etree.ElementTree as ET
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import HTTPServer, ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -767,6 +768,53 @@ def normalize_mutators(raw_mutators):
     return normalized[:MUTATOR_MAX], len(normalized) > MUTATOR_MAX
 
 
+# === 异步启动 / SSE 日志流 全局状态 ===
+_launcher_process = None  # 当前异步启动的 launcher 子进程
+_launcher_lock = threading.Lock()
+_log_lines = []  # 环形缓冲，最多 2000 行
+_log_subscribers = []  # SSE 订阅者 queue 列表
+_log_lock = threading.Lock()
+
+
+def _append_log(line):
+    """添加日志行并推送给所有 SSE 订阅者。"""
+    with _log_lock:
+        _log_lines.append(line)
+        if len(_log_lines) > 2000:
+            _log_lines.pop(0)
+        for q in _log_subscribers:
+            try:
+                q.put_nowait(line)
+            except queue.Full:
+                pass
+
+
+def _read_pipe(pipe, prefix=""):
+    """后台线程函数：逐行读取子进程 stdout/stderr 并推送到日志缓冲。"""
+    try:
+        for line in iter(pipe.readline, ''):
+            _append_log(prefix + line.rstrip('\n'))
+    finally:
+        try:
+            pipe.close()
+        except Exception:
+            pass
+
+
+def _wait_for_process(proc):
+    """后台线程函数：等待子进程结束并记录退出码，清理全局进程引用。"""
+    global _launcher_process
+    try:
+        code = proc.wait()
+    except Exception as exc:
+        _append_log(f"[webui] 等待进程结束异常: {exc}")
+        code = -1
+    _append_log(f"[webui] launcher 进程结束, exit={code}")
+    with _launcher_lock:
+        if _launcher_process is proc:
+            _launcher_process = None
+
+
 class CmreWebUIHandler(SimpleHTTPRequestHandler):
     """处理 WebUI 的 HTTP 请求。"""
 
@@ -817,6 +865,15 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             return
         if self.path == "/api/maps":
             self._send_json({"maps": load_maps()})
+            return
+        if self.path == "/api/logs/stream":
+            self._handle_logs_stream()
+            return
+        if self.path == "/api/status":
+            self._send_json({
+                "launcherRunning": _launcher_process is not None and _launcher_process.poll() is None,
+                "pid": _launcher_process.pid if _launcher_process else None,
+            })
             return
         if self.path.startswith("/api/extra-mods"):
             from urllib.parse import urlparse, parse_qs
@@ -899,10 +956,21 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/launch":
             self._handle_launch()
             return
+        if self.path == "/api/launch-async":
+            self._handle_launch_async()
+            return
+        if self.path == "/api/stop":
+            self._handle_stop()
+            return
         self._send_json({"success": False, "error": "未知端点"}, 404)
 
-    def _handle_launch(self):
-        body = self._read_body()
+    def _build_launch_args(self, body):
+        """从请求 body 解析参数、校验并构建 launcher 命令行参数。
+
+        成功返回 dict: {args, mode, capped, api_minimal, enable_buff_patch,
+                        buffs, masteries, listen_port, commander}；
+        失败时发送错误 JSON 响应并返回 None。
+        """
         commander = body.get("commander", "TerranAlenger3")
         map_name = body.get("mapName", "亡者之夜.SC2Map")
         mode = int(body.get("mode", 1))
@@ -924,12 +992,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         # K5Kerrigan 替换逻辑。commander 形如 "ZergAbathur"，rebornCommander 为 "Abathur"。
         enable_reborn = bool(body.get("enableReborn", False))
         reborn_commander = body.get("rebornCommander", "") or ""
-        # Buff 补丁：仅对原版 18 指挥官生效。WebUI Buff 面板透传字段：
-        # - enableBuffPatch: bool，是否启用补丁
-        # - buffs: ["P1","P2","P3"] 子集，编码为 bitmask (P1=1, P2=2, P3=4)
-        # - masteries: [6 个 0..30 整数]，覆盖原版精通；空数组表示用默认 30
-        # - buffExtras: {"P1":[0,2], "P2":[], "P3":[1]} 每个威望已勾选的 extra 子选项 index 列表，
-        #              编码为 bitmask（每个威望最多 31 个 extra）
+        # Buff 补丁：仅对原版 18 指挥官生效。
         enable_buff_patch = bool(body.get("enableBuffPatch", False))
         raw_buffs = body.get("buffs", []) or []
         raw_masteries = body.get("masteries", []) or []
@@ -940,7 +1003,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                 {"success": False, "error": f"Buff 补丁仅支持原版 18 指挥官，当前: {commander}"},
                 400,
             )
-            return
+            return None
         # 校验 buffs
         valid_buff_tokens = {"P1", "P2", "P3"}
         buffs = [b for b in raw_buffs if b in valid_buff_tokens] if raw_buffs else []
@@ -949,7 +1012,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                 {"success": False, "error": "启用 Buff 补丁时至少需要选择一个威望优点 (P1/P2/P3)"},
                 400,
             )
-            return
+            return None
         # 校验 masteries（0..30 整数，最多 6 个）
         masteries = []
         for v in raw_masteries[:6]:
@@ -963,7 +1026,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                     {"success": False, "error": f"精通点数必须为 0..30 整数: {v}"},
                     400,
                 )
-                return
+                return None
         # 校验/编码 extras：每个 P 槽位的 extra index 列表 → 3 个 bitmask 整数
         extra_masks = {"P1": 0, "P2": 0, "P3": 0}
         for key in ("P1", "P2", "P3"):
@@ -984,15 +1047,15 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             mutators, capped = normalize_mutators(raw_mutators)
         except ValueError as exc:
             self._send_json({"success": False, "error": str(exc)}, 400)
-            return
+            return None
 
         if not isinstance(voice_pack, str):
             self._send_json({"success": False, "error": "voicePack 必须是字符串"}, 400)
-            return
+            return None
         valid_voice_pack_ids = {voice["id"] for voice in load_voice_packs()}
         if voice_pack and voice_pack not in valid_voice_pack_ids:
             self._send_json({"success": False, "error": f"不支持的 CMRE 语音包: {voice_pack}"}, 400)
-            return
+            return None
 
         # 因子生效关键修复（"选择的因子无效"根因）：
         # CMRE 仅在 Mode=2 (MutatorChallenges) 或 Mode=1 (Standard) 且 Brutal+ > 0 时
@@ -1007,7 +1070,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             self._send_json(
                 {"success": False, "error": f"启动脚本不存在: {LAUNCH_SCRIPT}"}, 500
             )
-            return
+            return None
 
         # 模式 3 使用 CMRE 的 Chaos 队列，不支持 Enhanced；其他模式使用普通因子数组。
         mutator_str = ",".join(
@@ -1076,6 +1139,33 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if os.environ.get("CMRE_WEBUI_DRY_RUN"):
             args.append("-NoLaunch")
 
+        return {
+            "args": args,
+            "mode": mode,
+            "capped": capped,
+            "api_minimal": api_minimal,
+            "enable_buff_patch": enable_buff_patch,
+            "buffs": buffs,
+            "masteries": masteries,
+            "listen_port": listen_port,
+            "commander": commander,
+        }
+
+    def _handle_launch(self):
+        """同步启动 launcher（阻塞等待完成）。保留兼容旧前端。"""
+        body = self._read_body()
+        ctx = self._build_launch_args(body)
+        if ctx is None:
+            return
+        args = ctx["args"]
+        mode = ctx["mode"]
+        capped = ctx["capped"]
+        api_minimal = ctx["api_minimal"]
+        enable_buff_patch = ctx["enable_buff_patch"]
+        buffs = ctx["buffs"]
+        masteries = ctx["masteries"]
+        listen_port = ctx["listen_port"]
+
         # CREATE_NO_WINDOW: 避免 PowerShell 控制台窗口弹出干扰玩家。
         # 仅 Windows 平台有此标志。
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -1133,6 +1223,119 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self._send_json({"success": False, "error": str(e)}, 500)
 
+    def _handle_launch_async(self):
+        """异步启动 launcher（不阻塞），日志通过 SSE 实时推送。"""
+        global _launcher_process
+        body = self._read_body()
+
+        with _launcher_lock:
+            if _launcher_process is not None and _launcher_process.poll() is None:
+                self._send_json(
+                    {"success": False, "error": "已有启动进程在运行"},
+                    409,
+                )
+                return
+
+        ctx = self._build_launch_args(body)
+        if ctx is None:
+            return
+        args = ctx["args"]
+        commander = ctx["commander"]
+
+        # CREATE_NO_WINDOW: 避免 PowerShell 控制台窗口弹出干扰玩家。
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+        try:
+            proc = subprocess.Popen(
+                args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                creationflags=creationflags,
+                bufsize=1,
+            )
+        except Exception as e:
+            self._send_json({"success": False, "error": str(e)}, 500)
+            return
+
+        with _launcher_lock:
+            _launcher_process = proc
+
+        _append_log(f"[webui] 异步启动 launcher, pid={proc.pid}, commander={commander}")
+        _append_log(f"[webui] args: {' '.join(args)}")
+
+        # 启动 daemon 线程读取 stdout / stderr，逐行推送到日志缓冲
+        threading.Thread(
+            target=_read_pipe, args=(proc.stdout, ""), daemon=True
+        ).start()
+        threading.Thread(
+            target=_read_pipe, args=(proc.stderr, "[stderr] "), daemon=True
+        ).start()
+        # 启动 daemon 线程等待进程结束并记录退出码
+        threading.Thread(
+            target=_wait_for_process, args=(proc,), daemon=True
+        ).start()
+
+        self._send_json({
+            "success": True,
+            "message": "SC2 启动中...",
+            "pid": proc.pid,
+        })
+
+    def _handle_logs_stream(self):
+        """SSE 日志流：先发送历史日志，再实时推送新日志行。"""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self.end_headers()
+
+        q = queue.Queue(maxsize=1000)
+        with _log_lock:
+            # 先发送最近 200 行历史日志
+            for line in _log_lines[-200:]:
+                try:
+                    self.wfile.write(f"data: {line}\n\n".encode("utf-8"))
+                    self.wfile.flush()
+                except (BrokenPipeError, ConnectionResetError):
+                    return
+            _log_subscribers.append(q)
+
+        try:
+            while True:
+                try:
+                    line = q.get(timeout=15)
+                    self.wfile.write(f"data: {line}\n\n".encode("utf-8"))
+                    self.wfile.flush()
+                except queue.Empty:
+                    # 发送心跳保持连接
+                    self.wfile.write(b": heartbeat\n\n")
+                    self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
+        finally:
+            with _log_lock:
+                if q in _log_subscribers:
+                    _log_subscribers.remove(q)
+
+    def _handle_stop(self):
+        """停止正在运行的 launcher 进程。"""
+        global _launcher_process
+        with _launcher_lock:
+            if _launcher_process is not None and _launcher_process.poll() is None:
+                _launcher_process.terminate()
+                try:
+                    _launcher_process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    _launcher_process.kill()
+                _append_log(
+                    f"[webui] launcher 已停止, exit={_launcher_process.returncode}"
+                )
+                _launcher_process = None
+        self._send_json({"success": True, "message": "已停止"})
+
     def log_message(self, format, *args):
         sys.stderr.write(f"[{self.log_date_time_string()}] {format % args}\n")
 
@@ -1151,7 +1354,7 @@ def main():
     parser.add_argument("--no-browser", action="store_true", help="不自动打开浏览器")
     args = parser.parse_args()
 
-    server = HTTPServer((args.host, args.port), CmreWebUIHandler)
+    server = ThreadingHTTPServer((args.host, args.port), CmreWebUIHandler)
     url = f"http://{args.host}:{args.port}"
     print(f"CMRE 亡者之夜 WebUI 服务已启动: {url}")
     print(f"WebUI 目录: {WEBUI_DIR}")

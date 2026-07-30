@@ -35,7 +35,7 @@ def p3_selftest() -> dict:
     details = {}
 
     # G1: 快照/恢复保全状态 —— restore 后快照哈希不变
-    sc = load_scenario("tools/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json")
+    sc = load_scenario("reference/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json")
     w, _ = run_scenario(sc)
     snap_before = w.snapshot()
     h_before = snapshot_hash(snap_before)
@@ -61,10 +61,10 @@ def p3_selftest() -> dict:
 
     # G2: ID 稳定 —— 跑两次同一场景，spawn 的 entity_id 一致
     s1 = SimulatorSession()
-    s1.scenario_load(scenario_path="tools/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json")
+    s1.scenario_load(scenario_path="reference/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json")
     s1.scenario_reset()
     s2 = SimulatorSession()
-    s2.scenario_load(scenario_path="tools/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json")
+    s2.scenario_load(scenario_path="reference/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json")
     s2.scenario_reset()
     ids1 = sorted(s1.world.entities.keys())
     ids2 = sorted(s2.world.entities.keys())
@@ -72,21 +72,21 @@ def p3_selftest() -> dict:
     details["G2_stable_ids"] = f"{ids1} == {ids2}"
 
     # G3: 资源/生产 —— barracks_and_marine 场景验证生产闭环
-    sc_prod = load_scenario("tools/sc2-ally-bot/scenarios/sc2-simulator/barracks_and_marine.json")
+    sc_prod = load_scenario("reference/sc2-ally-bot/scenarios/sc2-simulator/barracks_and_marine.json")
     wp, rp = run_scenario(sc_prod)
     has_train_event = any(e.kind == "train_completed" for e in wp.events.emitted)
     checks["G3_production"] = has_train_event
     details["G3_production"] = f"train_completed events present={has_train_event}, end={rp.end_reason}"
 
     # G3: 建造 —— supply_depot_build 场景
-    sc_build = load_scenario("tools/sc2-ally-bot/scenarios/sc2-simulator/supply_depot_build.json")
+    sc_build = load_scenario("reference/sc2-ally-bot/scenarios/sc2-simulator/supply_depot_build.json")
     wb, rb = run_scenario(sc_build)
     has_build_event = any(e.kind == "build_completed" for e in wb.events.emitted)
     checks["G3_construction"] = has_build_event
     details["G3_construction"] = f"build_completed present={has_build_event}"
 
     # G3: 采集 —— scv_mineral_gathering
-    sc_gather = load_scenario("tools/sc2-ally-bot/scenarios/sc2-simulator/scv_mineral_gathering.json")
+    sc_gather = load_scenario("reference/sc2-ally-bot/scenarios/sc2-simulator/scv_mineral_gathering.json")
     wg, rg = run_scenario(sc_gather)
     has_mineral = any(e.kind == "mineral_deposited" for e in wg.events.emitted)
     checks["G3_economy"] = has_mineral
@@ -98,7 +98,7 @@ def p3_selftest() -> dict:
     details["G5_combat_damage"] = f"damage events present={has_damage}"
 
     # G5: 弹体 —— marauder_vs_roach
-    sc_proj = load_scenario("tools/sc2-ally-bot/scenarios/sc2-simulator/marauder_vs_roach.json")
+    sc_proj = load_scenario("reference/sc2-ally-bot/scenarios/sc2-simulator/marauder_vs_roach.json")
     wpr, _ = run_scenario(sc_proj)
     has_proj = any(e.kind == "projectile_launched" for e in wpr.events.emitted)
     checks["G5_projectile"] = has_proj
@@ -110,7 +110,7 @@ def p3_selftest() -> dict:
     from sc2_simulator.catalog.m7_units import m7_catalog
     m7 = m7_catalog()
     static_has_weapon = "Viking" in m7.units and m7.units["Viking"].weapon_air is not None
-    static_is_air = "Viking" in m7.units and m7.units["Viking"].is_air
+    static_is_air = "Viking" in m7.units and (getattr(m7.units["Viking"], "is_flying", False) or getattr(m7.units["Viking"], "is_air", False))
     # 动态：两个 Viking 互相攻击，应能造成伤害
     air_scenario = {
         "schema_version": "m7",
@@ -149,7 +149,7 @@ def p3_selftest() -> dict:
     )
 
     # G6: 技能 —— medivac_heal_marine 验证治疗
-    sc_heal = load_scenario("tools/sc2-ally-bot/scenarios/sc2-simulator/medivac_heal_marine.json")
+    sc_heal = load_scenario("reference/sc2-ally-bot/scenarios/sc2-simulator/medivac_heal_marine.json")
     wh, _ = run_scenario(sc_heal)
     has_heal = any(e.kind in ("heal", "combat.heal") for e in wh.events.emitted)
     checks["G6_abilities"] = has_heal

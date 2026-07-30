@@ -13,6 +13,10 @@ const API = {
   buffMetadata: "/api/buff-metadata",
   extraMods: (bank) => `/api/extra-mods?commander=${encodeURIComponent(bank)}`,
   launch: "/api/launch",
+  launchAsync: "/api/launch-async",
+  stop: "/api/stop",
+  status: "/api/status",
+  logStream: "/api/logs/stream",
   asset: (relPath) => `/api/assets/dds?path=${encodeURIComponent(relPath)}`,
 };
 
@@ -42,7 +46,7 @@ const state = {
     mutators: [],
     voicePack: "",
     extraMods: [],
-    apiMode: false,
+    apiMode: true,
     listenPort: 5000,
     // Buff 补丁：仅对原版 18 指挥官生效。
     // - enabled: 是否启用补丁
@@ -842,6 +846,8 @@ function confirmSavePreset() {
 }
 
 /* === 启动游戏 === */
+let logEventSource = null;
+
 async function launchGame() {
   const s = state.selected;
   const btn = $("launch-btn");
@@ -886,23 +892,87 @@ async function launchGame() {
   const output = $("output");
   const outputBody = $("output-body");
   output.hidden = false;
-  outputBody.textContent = "正在调用启动脚本...";
+  outputBody.textContent = "";
+  const stopBtn = $("stop-btn");
+  if (stopBtn) stopBtn.style.display = "";
 
   try {
-    const resp = await fetch(API.launch, { method: "POST", headers: { "Content-Type": "application/json; charset=utf-8" }, body: JSON.stringify(body) });
+    const resp = await fetch(API.launchAsync, { method: "POST", headers: { "Content-Type": "application/json; charset=utf-8" }, body: JSON.stringify(body) });
     const data = await resp.json();
     if (data.success) {
-      outputBody.textContent = data.message + (data.output ? "\n\n" + data.output : "");
-      showStatus("SC2 已启动", "success");
+      showStatus("SC2 启动中，日志实时显示...", "info");
+      startLogStream();
     } else {
-      outputBody.textContent = `错误: ${data.error}\n\n${data.output || ""}${data.stderr ? "\n\nSTDERR:\n" + data.stderr : ""}`;
+      outputBody.textContent = `错误: ${data.error}`;
       showStatus("启动失败", "error");
+      btn.disabled = false; btn.textContent = "启动游戏";
+      if (stopBtn) stopBtn.style.display = "none";
     }
   } catch (e) {
     outputBody.textContent = `请求失败: ${e.message}`;
     showStatus("请求失败", "error");
-  } finally {
     btn.disabled = false; btn.textContent = "启动游戏";
+    if (stopBtn) stopBtn.style.display = "none";
+  }
+}
+
+function startLogStream() {
+  if (logEventSource) logEventSource.close();
+  const outputBody = $("output-body");
+  logEventSource = new EventSource(API.logStream);
+
+  logEventSource.onmessage = function(event) {
+    const line = event.data;
+    outputBody.textContent += line + "\n";
+    outputBody.scrollTop = outputBody.scrollHeight;
+
+    // 检测完成信号
+    if (line.includes("exit=0") || line.includes("SC2 API 已就绪")) {
+      showStatus("SC2 启动完成", "success");
+      $("launch-btn").disabled = false;
+      $("launch-btn").textContent = "启动游戏";
+      const stopBtn = $("stop-btn");
+      if (stopBtn) stopBtn.style.display = "none";
+    } else if (line.includes("exit=") && !line.includes("exit=0")) {
+      showStatus("启动失败", "error");
+      $("launch-btn").disabled = false;
+      $("launch-btn").textContent = "启动游戏";
+      const stopBtn = $("stop-btn");
+      if (stopBtn) stopBtn.style.display = "none";
+      logEventSource.close();
+    }
+  };
+
+  logEventSource.onerror = function() {
+    logEventSource.close();
+    $("launch-btn").disabled = false;
+    $("launch-btn").textContent = "启动游戏";
+    const stopBtn = $("stop-btn");
+    if (stopBtn) stopBtn.style.display = "none";
+  };
+}
+
+function stopLogStream() {
+  if (logEventSource) {
+    logEventSource.close();
+    logEventSource = null;
+  }
+}
+
+async function stopGame() {
+  try {
+    const resp = await fetch(API.stop, { method: "POST" });
+    const data = await resp.json();
+    if (data.success) {
+      showStatus("已停止", "info");
+      stopLogStream();
+      $("launch-btn").disabled = false;
+      $("launch-btn").textContent = "启动游戏";
+      const stopBtn = $("stop-btn");
+      if (stopBtn) stopBtn.style.display = "none";
+    }
+  } catch (e) {
+    showStatus("停止失败: " + e.message, "error");
   }
 }
 
@@ -916,7 +986,7 @@ function resetSelection() {
     commanderCachedImage: c0.cachedImage || "",
     mode: 1, difficultyBase: 0, difficultyPlus: 0, enemy: "",
     mutators: [], voicePack: "", extraMods: [],
-    apiMode: false, listenPort: 5000,
+    apiMode: true, listenPort: 5000,
     buffPatch: { enabled: false, buffs: [], masteries: {}, extras: { P1: new Set(), P2: new Set(), P3: new Set() }, _lastCommander: "" },
   };
   syncUI();
@@ -985,6 +1055,8 @@ async function init() {
   $("launch-btn").onclick = launchGame;
   $("reset-btn").onclick = resetSelection;
   $("output-close").onclick = () => { $("output").hidden = true; };
+  const stopBtn = $("stop-btn");
+  if (stopBtn) stopBtn.onclick = stopGame;
 
   $("mode").onchange = e => { state.selected.mode = parseInt(e.target.value, 10); updateFooter(); };
   $("difficultyBase").oninput = e => {

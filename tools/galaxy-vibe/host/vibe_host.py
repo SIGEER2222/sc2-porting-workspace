@@ -529,7 +529,7 @@ class VibeHost:
         operation: str,
         args: Optional[dict[str, Any]] = None,
         timeout: float = 5.0,
-        transport: str = "map_command",
+        transport: str = "chat",
     ) -> RpcResponse:
         """发送 RPC 请求并等待响应。
 
@@ -602,29 +602,27 @@ class VibeHost:
         return response
 
     def _send_via_map_command(self, request: RpcRequest) -> bool:
-        """通过 SC2API RequestMapCommand 发送。
+        """通过 SC2API RequestMapCommand 发送（仅触发 Kernel，不传请求内容）。
 
-        流程：
-        1. 将请求 args 字符串写入 Bank section="request" key=request_id
-           （注：SC2 运行时 Bank 由游戏管理，Host 无法直接写文件；
-           实际通过 SC2API DebugCommand 或预置方式）
-        2. 发送 MapCommand("dbg <request_id>")
+        注：MapCommand 只能传命令标识符，不能传任意数据。
+        此方法仅作为备用触发器，请求内容需预先通过其他方式传入。
+        实际运行时请使用 _send_via_chat。
         """
         if not self.client:
             return False
-        # 简化实现：将完整请求嵌入 MapCommand 字符串
-        # Galaxy Kernel 解析 MapCommand 文本获取 request_id
-        # 但 MapCommand 有长度限制，长请求走 Bank
-        # PoC 阶段：直接传 request_id，请求内容预置在 Bank
-        # 实际运行时 Host 写 Bank + 发 MapCommand
         cmd = f"dbg {request.request_id}"
         return self.client.map_command(cmd)
 
     def _send_via_chat(self, request: RpcRequest) -> bool:
-        """通过 SC2API 聊天消息发送（备用 transport）。"""
+        """通过 SC2API 聊天消息发送完整请求。
+
+        格式: !vibe <args_string>
+        其中 args_string 由 RpcRequest.to_args_string() 生成，包含完整请求字段。
+        Kernel 端通过 TriggerAddEventChatMessage 监听 "!vibe" 前缀，直接解析请求。
+        """
         if not self.client:
             return False
-        msg = f"!dbg {request.request_id}"
+        msg = f"!vibe {request.to_args_string()}"
         return self.client.send_chat(msg)
 
     def _send_via_input(self, request: RpcRequest) -> bool:

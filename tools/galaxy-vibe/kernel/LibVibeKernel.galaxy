@@ -386,11 +386,14 @@ string libVibeKernel_gf_HandleVisualActorOpacity(string argsJson) {
 // ---- 主分发器 ----
 string libVibeKernel_gf_Dispatch(string requestJson) {
     // 解析请求字段（简单 key=value 解析）
+    // 注：args 直接嵌入 requestJson 中（key=value;key=value 格式），
+    // 不单独提取 args 字段，handler 直接从 requestJson 中读取参数
     string sessionId = libVibeKernel_gf_ArgsGet(requestJson, "session_id");
     string requestId = libVibeKernel_gf_ArgsGet(requestJson, "request_id");
     int sequence = libVibeKernel_gf_ArgsGetInt(requestJson, "sequence");
     string operation = libVibeKernel_gf_ArgsGet(requestJson, "operation");
-    string args = libVibeKernel_gf_ArgsGet(requestJson, "args");
+    // args 直接使用完整 requestJson，handler 通过 ArgsGet 查找具体参数
+    string args = requestJson;
 
     libVibeKernel_gv_lastRequestId = requestId;
     libVibeKernel_gv_lastSequence = sequence;
@@ -484,30 +487,28 @@ bool libVibeKernel_gt_MapCommand_Func(bool testConds, bool runActions) {
 }
 
 // ---- Chat 入口 ----
-// 聊天前缀 "!dbg" 触发，格式："!dbg <request_id>"
+// 聊天前缀 "!vibe" 触发，格式："!vibe <args_string>"
+// args_string 包含完整请求字段：session_id=...;request_id=...;operation=...;...
+// Kernel 直接从聊天消息解析请求，不依赖 Bank 读取请求
 bool libVibeKernel_gt_ChatCommand_Func(bool testConds, bool runActions) {
     if (testConds) { return true; }
     if (!runActions) { return true; }
 
     string chat = EventChatMessage(false);
-    // 期望格式："!dbg <request_id>"
-    if (StringFind(chat, "!dbg ") != 0) { return true; }
+    // 期望格式："!vibe <args_string>"
+    if (StringFind(chat, "!vibe ") != 0) { return true; }
 
-    string requestId = StringTrim(SubString(chat, 5, StringLength(chat)));
-    if (requestId == "") {
-        libVibeKernel_gf_EchoChat("[Vibe] 用法：!dbg <request_id>");
+    // 提取 args_string（"!vibe " 后的全部内容）
+    string requestArgs = StringTrim(SubString(chat, 6, StringLength(chat)));
+    if (requestArgs == "") {
+        libVibeKernel_gf_EchoChat("[Vibe] 用法：!vibe <args_string>");
         return true;
     }
 
-    // 复用 MapCommand 处理逻辑
-    string requestJson = libVibeKernel_gf_ReadBankKey("request", requestId);
-    if (requestJson == "") {
-        libVibeKernel_gf_EchoChat("[Vibe] 错误：Bank 中无请求 " + requestId);
-        return true;
-    }
-
-    string response = libVibeKernel_gf_Dispatch(requestJson);
-    string opName = libVibeKernel_gf_ArgsGet(requestJson, "operation");
+    // 直接分发（args_string 已是 key=value;key=value 格式）
+    string response = libVibeKernel_gf_Dispatch(requestArgs);
+    string opName = libVibeKernel_gf_ArgsGet(requestArgs, "operation");
+    string requestId = libVibeKernel_gf_ArgsGet(requestArgs, "request_id");
     libVibeKernel_gf_EchoChat("[Vibe] " + opName + " done (id=" + requestId + ")");
 
     return true;
@@ -521,13 +522,17 @@ void libVibeKernel_gf_RegisterEntryPoints() {
     TriggerAddEventMapCommand(libVibeKernel_gt_MapCommand, c_playerAny, "dbg");
 
     libVibeKernel_gt_ChatCommand = TriggerCreate("libVibeKernel_gt_ChatCommand_Func");
-    TriggerAddEventChatMessage(libVibeKernel_gt_ChatCommand, c_playerAny, "!dbg", false);
+    TriggerAddEventChatMessage(libVibeKernel_gt_ChatCommand, c_playerAny, "!vibe", false);
 }
 
 // ---- 初始化 ----
 void libVibeKernel_gf_Init() {
     if (libVibeKernel_gv_initialized) { return; }
     libVibeKernel_gv_initialized = true;
+
+    // 调试标记：在地图中心创建一个 Marine，证明 Init 被调用
+    UnitCreate(1, "Marine", c_unitCreateIgnorePlacement, 1, Point(50.0, 50.0), 270.0);
+
     libVibeKernel_gv_stateVersion = 0;
     libVibeKernel_gv_currentSession = "";
     libVibeKernel_gv_lastSequence = -1;
@@ -536,12 +541,13 @@ void libVibeKernel_gf_Init() {
     libVibeKernel_gv_requestCount = 0;
     libVibeKernel_gv_rejectedCount = 0;
 
+    // 注册触发器优先（不依赖 Bank）
     libVibeKernel_gf_RegisterEntryPoints();
 
-    // 写入初始化标记
+    // 写入初始化标记（Bank 操作可能失败，不影响触发器）
     libVibeKernel_gf_WriteBankInt("index", "kernel_initialized", 1);
     libVibeKernel_gf_WriteBankInt("index", "state_version", 0);
-    libVibeKernel_gf_EchoChat("[Vibe] Kernel initialized. Use MapCommand 'dbg <request_id>' or chat '!dbg <request_id>'.");
+    libVibeKernel_gf_EchoChat("[Vibe] Kernel initialized. Use chat '!vibe <args>'.");
 }
 
 // ---- Auto-init 触发器（地图加载后自动初始化）----
@@ -558,4 +564,6 @@ void libVibeKernel_InitLib() {
     if (libVibeKernel_gt_AutoInit != null) { return; }
     libVibeKernel_gt_AutoInit = TriggerCreate("libVibeKernel_gt_AutoInit_Func");
     TriggerAddEventTimeElapsed(libVibeKernel_gt_AutoInit, 0.0);
+    // 直接调用 Init，不依赖 TimeElapsed 触发器（API 模式下 TimeElapsed 0.0 可能不触发）
+    libVibeKernel_gf_Init();
 }
