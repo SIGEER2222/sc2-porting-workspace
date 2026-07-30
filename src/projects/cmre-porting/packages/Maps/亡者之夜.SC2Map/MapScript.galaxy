@@ -11,19 +11,20 @@ include "TriggerLibs/SwarmLib"
 include "LibCOOC"
 include "LibCOMI"
 include "LibCOUI"
-include "LibVibeKernel_h"
+include "LibVibeKernel"
 
 //--------------------------------------------------------------------------------------------------
 // Library Initialization
 //--------------------------------------------------------------------------------------------------
 void InitLibs () {
+    // Vibe Kernel 必须最先初始化，避免被 CMRE 库的 DevStartup 流程阻塞
+    libVibeKernel_InitLib();
     libNtve_InitLib();
     libLbty_InitLib();
     libHots_InitLib();
     libCOOC_InitLib();
     libCOMI_InitLib();
     libCOUI_InitLib();
-    libVibeKernel_InitLib();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -7792,6 +7793,14 @@ void InitTriggers () {
 // Map Initialization
 //--------------------------------------------------------------------------------------------------
 void InitMap () {
+    // [DEBUG] 最优先写入 Bank，证明 InitMap 被调用（不依赖任何库）
+    BankLoad("GalaxyVibe", 1);
+    BankValueSetFromInt(BankLastCreated(), "index", "initmap_entered", 1);
+    BankSave(BankLastCreated());
+
+    // [DEBUG] 创建 Marine，证明 InitMap 被调用
+    UnitCreate(1, "Marine", c_unitCreateIgnorePlacement, 1, Point(45.0, 45.0), 270.0);
+
     InitLibs();
     InitGlobals();
     InitTriggers();
