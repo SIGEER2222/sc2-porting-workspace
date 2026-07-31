@@ -69,9 +69,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$repo = (Resolve-Path (Join-Path $PSScriptRoot ".." "..")).Path
+$repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 if (-not $Map)     { $Map = Join-Path $repo "artifacts/runtime/cmre/blank_test_neuro.SC2Map" }
-if (-not $ModPath) { $ModPath = Join-Path $repo "tools/galaxy-vibe/galaxy-debug-mod" }
+# 只有未传 -ModPath 参数时才用默认 mod；传 -ModPath "" 表示不挂载 mod
+if (-not $PSBoundParameters.ContainsKey('ModPath')) { $ModPath = Join-Path $repo "tools/galaxy-vibe/galaxy-debug-mod" }
 
 $switcher = $null
 $candidates = @(
@@ -93,24 +94,42 @@ Start-Sleep -Seconds 2
 Write-Host "[2/4] Launching SC2 (Switcher) with debug mod + API on port $Port ..."
 # 正确参数格式：-listen <host> -port <port> -debug（SC2 静默忽略 -listenPort）
 # 去掉 -displayMode 0 -novid（在某些环境下导致黑屏且无 ScriptError）
-$args = @($Map, "-listen", "127.0.0.1", "-port", "$Port", "-debug", "-mod", "$ModPath")
+# API 模式下不传 map 作为位置参数（Switcher 不会自动加载地图到 in_game 状态），
+# 让客户端用 CreateGame + JoinGame 推进到 in_game（与 launch-cmre-alenger.ps1 设计一致）
+$args = @("-listen", "127.0.0.1", "-port", "$Port", "-debug")
+# 只有 ModPath 非空时才挂载 mod（避免 mod 冲突导致 SC2 退出）
+if ($ModPath) { $args += @("-mod", "$ModPath") }
 Write-Host "      $switcher $($args -join ' ')"
+Write-Host "      Map (for client CreateGame): $Map"
 # WorkingDirectory 必须设为 SC2 安装根目录，否则 SC2 可能回退到默认端口 6119
 $sc2Root = Split-Path -Parent (Split-Path -Parent $switcher)
 $launched = Start-Process -FilePath $switcher -ArgumentList $args -PassThru -WorkingDirectory $sc2Root
 Write-Host "      Switcher PID=$($launched.Id) WorkingDir=$sc2Root"
 
+# 阶段 1：等待 SC2_x64 进程出现（Switcher 启动 SC2_x64 需要 patch 检查 + auth，可能 30-60s）
+$sc2Proc = $null
+for ($i = 0; $i -lt 60; $i++) {
+    Start-Sleep -Seconds 2
+    $sc2Proc = Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue
+    if ($sc2Proc) { Write-Host "      SC2_x64 PID=$($sc2Proc.Id) appeared (~$([int]($i * 2))s)"; break }
+}
+if (-not $sc2Proc) {
+    Write-Error "SC2_x64.exe never started within 120s. Check GameLogs for crash; Switcher may have failed auth."
+}
+
+# 阶段 2：等待 API 端口开放（SC2_x64 启动后还需要加载 mod/资源，可能 30-90s）
 $opened = $false
 for ($i = 0; $i -lt 60; $i++) {
     Start-Sleep -Seconds 2
     try {
         $c = New-Object System.Net.Sockets.TcpClient
         $ar = $c.BeginConnect("127.0.0.1", $Port, $null, $null)
-        if ($ar.AsyncWaitHandle.WaitOne(1500) -and $c.Connected) { $c.EndConnect($ar); $c.Close(); Write-Host "      API port $Port OPEN (~$([int]($i * 2))s)"; $opened = $true; break }
+        if ($ar.AsyncWaitHandle.WaitOne(1500) -and $c.Connected) { $c.EndConnect($ar); $c.Close(); Write-Host "      API port $Port OPEN (~$([int]($i * 2))s after SC2_x64 appeared)"; $opened = $true; break }
         else { $c.Close() }
     }
     catch { }
-    if (-not (Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue)) { Write-Host "      SC2_x64 exited before port opened"; break }
+    # 如果 SC2_x64 进程消失了（不是 Switcher），说明崩溃了
+    if (-not (Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue)) { Write-Host "      SC2_x64 exited before port opened (crash?)"; break }
 }
 if (-not $opened) {
     Write-Error "SC2 API port $Port never opened. On a normal desktop check GameLogs; in a sandbox the Switcher may drop -listen/-port."
