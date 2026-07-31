@@ -124,6 +124,22 @@
     "command": "python -m pytest tests/sc2_simulator -q",
     "result": "373 passed"
   },
+  "post_sync_validation": {
+    "executed_at": "2026-07-31",
+    "workspace_commit": "a499c17a",
+    "simulator_merge_commit": "a0a396a",
+    "simulator_upstream_head": "7256839",
+    "tests": {
+      "command": "uv run --extra test python -m pytest tests/sc2_simulator -q",
+      "result": "539 passed",
+      "evidence_class": "runtime"
+    },
+    "performance_probe": {
+      "command": "uv run python inline benchmark (50 loops, camp-idle and active-combat)",
+      "result": "active-combat: 50 units 0.1027s, 200 units 0.2199s, 1000 units 3.8777s; camp-idle: 50 units 0.0911s, 200 units 0.1838s, 1000 units 2.1546s",
+      "evidence_class": "runtime"
+    }
+  },
   "issue_resolution": {
     "resolved_fixed": [
       "COMPAT-001: is_air/is_flying compatibility break",
@@ -135,7 +151,10 @@
       "SIM-CAL-002: weapon period (Marine 19, Zergling 16, Marauder 34, Viking 67, Mutalisk 24)",
       "SIM-CAL-003: unit/behavior (Mutalisk bounce, Colossus MASSIVE, Baneling cost, Reaper Stimpack)"
     ],
-    "open": []
+    "open": [
+      "SIM-CAP-GAP-006: m3 Catalog 中 Overlord 未标记为飞行单位；m7 组装层已补偿",
+      "SIM-CAP-GAP-007: 常规 splash 对次要目标复用主目标伤害 breakdown"
+    ]
   },
-  "note": "Stage 07 完成。所有缺口已补齐：3 项兼容性修复 + 2 项性能优化 + 3 项 SIM-CAL 数值校准。P1-P9 回归 11/12 PASS + 1 INCONCLUSIVE（P4C 的 INCONCLUSIVE 是预期行为：简单场景无法区分 focus_fire vs spread_fire 策略差异，所有 15 项 checks 通过）。sc2_simulator 373 tests 全部通过。"
+  "note": "Stage 07 的 SIM-CAL/COMPAT/PERF 目标已完成。历史 P1-P9 回归为 11/12 PASS + 1 INCONCLUSIVE；2026-07-31 合并上游后 539 项 sc2_simulator 测试通过。SIM-CAP-GAP-006/007 是已记录的非阻塞后续语义缺口。"
 }

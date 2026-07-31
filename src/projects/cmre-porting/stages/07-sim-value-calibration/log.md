@@ -323,3 +323,35 @@ python -m pytest tests/sc2_simulator -q
 - `src/projects/cmre-porting/vibe/mission_engine.py`（PERF-002）
 - `src/projects/cmre-porting/vibe/viewer.py`（PERF-002）
 - `src/projects/cmre-porting/vibe/simulator_session.py`（PERF-002）
+
+## 9. 2026-07-31 上游再同步与性能复核
+
+### 9.1 同步结果
+
+- `static`：控制仓库已快进到 `origin/master` 的 `a499c17a`。
+- `static`：`reference/sc2-ally-bot` 已将 `origin/main` 的 4 个提交合并到本地 R3 分支，合并提交为 `a0a396a`，上游头为 `7256839`。
+- `static`：冲突合并保留了本地 R3 的空中武器升级/变形逻辑，并接入上游的 snapshot、营地单位缓存和 cache isolation 修复。
+
+### 9.2 回归证据
+
+| 结论 | 证据类型 | 命令/证据 |
+|---|---|---|
+| sc2_simulator 539 项全部通过 | `runtime` | `uv run --extra test python -m pytest tests/sc2_simulator -q` |
+| 收集数为 539 | `runtime` | `uv run --extra test python -m pytest tests/sc2_simulator --collect-only -q -o addopts=` |
+| m3 Overlord 为 GROUND，m7 组装后为 FLYING | `runtime` | `uv run python` 调用 `m3_catalog()` / `m7_catalog()` |
+| 常规 splash 仍复用主目标 breakdown | `static` | `systems/combat.py::_apply_splash_instant`、`systems/projectile.py::_resolve_splash` |
+
+### 9.3 固定规模性能探针
+
+环境：Windows x64、Python 3.12.12、同一进程预热后执行；每个场景 50 loops。结果包含场景构建和步进，属于开发机探索性基线，不等同于正式 BenchmarkDotNet 基准。
+
+| profile | units | elapsed | loops/s | 相对 SC2 22.4 loops/s |
+|---|---:|---:|---:|---:|
+| camp-idle | 50 | 0.0911s | 549.1 | 24.5x |
+| camp-idle | 200 | 0.1838s | 272.0 | 12.1x |
+| camp-idle | 1000 | 2.1546s | 23.2 | 1.0x |
+| active-combat | 50 | 0.1027s | 486.7 | 21.7x |
+| active-combat | 200 | 0.2199s | 227.4 | 10.2x |
+| active-combat | 1000 | 3.8777s | 12.9 | 0.6x |
+
+`runtime` profile（1000 units / 50 loops）：约 1916 万次函数调用；`vision.step` 累计 3.68s、`combat.step` 2.15s、`movement.step` 0.56s。`inference`：缓存已改善常见中小场景，但 1000 单位和 AI 批量探索仍受 Python 对象调用、视野/索敌近二次扫描限制，适合作为迁移前行为规范，不适合作为最终高吞吐内核。
