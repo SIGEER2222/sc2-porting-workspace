@@ -35,6 +35,9 @@ const string libVibeKernel_gv_BankName = "GalaxyVibe";
 const int    libVibeKernel_gv_BankPlayer = 1;
 const string libVibeKernel_gv_BankSection = "rpc";
 
+// ---- Bank handle（用于 ReloadBank 跟踪已加载的 Bank，避免误删其他系统的 Bank）----
+bank   libVibeKernel_gv_bankHandle = null;
+
 // ---- 操作白名单（P1 完整版） ----
 // 每个 operation 对应一个 handler 函数，签名固定：
 //   string libVibeKernel_gf_Handle_<op>(string argsJson)
@@ -55,6 +58,8 @@ string libVibeKernel_gf_HandleVisualActorScale(string argsJson);
 string libVibeKernel_gf_HandleVisualActorOpacity(string argsJson);
 
 // ---- 工具函数 ----
+void   libVibeKernel_gf_ReloadBank();
+void   libVibeKernel_gf_EnsureBankLoaded();
 void   libVibeKernel_gf_Init();
 void   libVibeKernel_InitLib();
 void   libVibeKernel_gf_RegisterEntryPoints();

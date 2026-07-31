@@ -428,21 +428,21 @@ string libVibeKernel_gf_HandleQueryMission(string argsJson) {
 
 string libVibeKernel_gf_HandleVisualActorTint(string argsJson) {
     int unitTag;
-    string color;
+    string colorStr;
     unit lv_u;
     string payload;
     unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "unit_tag");
-    color = libVibeKernel_gf_ArgsGet(argsJson, "color");
+    colorStr = libVibeKernel_gf_ArgsGet(argsJson, "color");
 
     lv_u = UnitFromId(unitTag);
     if (lv_u == null) {
         return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "visual.actor_tint", "UNIT_NOT_FOUND", "{}");
     }
 
-    // ActorSend 设置单位 tint（color 格式 R,G,B 或 hex）
-    ActorScopeSend(ActorScopeFromUnit(lv_u), "SetTintColor {" + color + "}");
+    // ActorScopeSend 设置单位 tint（colorStr 格式 R,G,B 或 hex）
+    ActorScopeSend(ActorScopeFromUnit(lv_u), "SetTintColor {" + colorStr + "}");
     libVibeKernel_gv_stateVersion += 1;
-    payload = "{\"unit_tag\":" + IntToString(unitTag) + ",\"color\":\"" + color + "\"}";
+    payload = "{\"unit_tag\":" + IntToString(unitTag) + ",\"color\":\"" + colorStr + "\"}";
     return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "visual.actor_tint", "OK", payload);
 }
 

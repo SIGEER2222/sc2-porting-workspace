@@ -109,7 +109,7 @@
       "source_line": 5089,
       "expected_units": ["WarPig"],
       "expected_buildings": [],
-      "notes": "已验证（commit bd1dc0d）：warpig_p1_count=1（代码 1:2 但运行时只检测到 1 只，需排查）"
+      "notes": "已验证（commit bd1dc0d + 真机排查 2026-07-31）：warpig_p1_count=1。Reborn mod 原始代码调用 2 次 libNtve_gf_CreateUnitsWithDefaultFacing(1, 'WarPig', ...) 实现设计 1:2 替换，但运行时同一位置创建 2 个 WarPig 时只有 1 个存活（warpig_p1_count=1）。这是 Reborn mod 上游行为（非移植 bug），k5kerrigan_p1_count=1 → k5kerrigan_p1_after_swarmsetup=0 证明替换逻辑正确触发。如需 2:1 可在 map adapter 层补刷。地图打包用 亡者之夜.SC2Map.reborn 目录（含 Reborn mod 依赖）。"
     },
     {
       "id": "Stukov",

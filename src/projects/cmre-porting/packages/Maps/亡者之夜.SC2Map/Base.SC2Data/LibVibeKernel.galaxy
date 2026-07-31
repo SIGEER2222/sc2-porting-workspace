@@ -65,26 +65,54 @@ fixed libVibeKernel_gf_ArgsGetFixed(string args, string key) {
 }
 
 // ---- Bank 工具 ----
+// 注意：SC2 的 BankLoad 是幂等的——首次调用从磁盘加载，后续调用返回已加载的 handle
+// 且不会重新读取磁盘。要让 game-side 读到 external writer（Host Python 脚本）写入
+// 磁盘的新内容，必须先 BankRemove 卸载内存中的 Bank，再 BankLoad 重新加载。
+// 我们用全局 handle 跟踪已加载的 Bank，避免误删其他系统的 Bank。
+// （gv_bankHandle 声明在 LibVibeKernel_h.galaxy）
+//
+// 重要修正（VIBE-RUNTIME-001 真机调试发现）：
+//   早期实现中 WriteBankKey/WriteBankInt 每次都调用 ReloadBank，导致连续写入时
+//   BankRemove+BankLoad 会丢弃内存中刚写入的 key（BankSave 未必立即刷新到磁盘，
+//   或 BankLoad 读取 SC2 内部缓存而非磁盘最新版本）。最终 Bank 文件只剩最后一次
+//   写入的 key。现在写入路径只在 handle 为 null 时 BankLoad，保证内存中累积所有 key。
+//   读取路径仍调用 ReloadBank 以读取 Host 外部写入的数据（BankPoll 场景）。
+
+void libVibeKernel_gf_ReloadBank() {
+    if (libVibeKernel_gv_bankHandle != null) {
+        BankRemove(libVibeKernel_gv_bankHandle);
+        libVibeKernel_gv_bankHandle = null;
+    }
+    libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
+}
+
+// 确保_bankHandle 已加载（写入路径使用，不 ReloadBank 以保留内存中已写入的 key）
+void libVibeKernel_gf_EnsureBankLoaded() {
+    if (libVibeKernel_gv_bankHandle == null) {
+        libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
+    }
+}
+
 void libVibeKernel_gf_WriteBankKey(string section, string key, string value) {
-    BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
-    BankValueSetFromString(BankLastCreated(), section, key, value);
-    BankSave(BankLastCreated());
+    libVibeKernel_gf_EnsureBankLoaded();
+    BankValueSetFromString(libVibeKernel_gv_bankHandle, section, key, value);
+    BankSave(libVibeKernel_gv_bankHandle);
 }
 
 string libVibeKernel_gf_ReadBankKey(string section, string key) {
-    BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
-    return BankValueGetAsString(BankLastCreated(), section, key);
+    libVibeKernel_gf_ReloadBank();
+    return BankValueGetAsString(libVibeKernel_gv_bankHandle, section, key);
 }
 
 void libVibeKernel_gf_WriteBankInt(string section, string key, int value) {
-    BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
-    BankValueSetFromInt(BankLastCreated(), section, key, value);
-    BankSave(BankLastCreated());
+    libVibeKernel_gf_EnsureBankLoaded();
+    BankValueSetFromInt(libVibeKernel_gv_bankHandle, section, key, value);
+    BankSave(libVibeKernel_gv_bankHandle);
 }
 
 int libVibeKernel_gf_ReadBankInt(string section, string key) {
-    BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
-    return BankValueGetAsInt(BankLastCreated(), section, key);
+    libVibeKernel_gf_ReloadBank();
+    return BankValueGetAsInt(libVibeKernel_gv_bankHandle, section, key);
 }
 
 void libVibeKernel_gf_EchoChat(string message) {
@@ -428,21 +456,21 @@ string libVibeKernel_gf_HandleQueryMission(string argsJson) {
 
 string libVibeKernel_gf_HandleVisualActorTint(string argsJson) {
     int unitTag;
-    string color;
+    string colorStr;
     unit lv_u;
     string payload;
     unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "unit_tag");
-    color = libVibeKernel_gf_ArgsGet(argsJson, "color");
+    colorStr = libVibeKernel_gf_ArgsGet(argsJson, "color");
 
     lv_u = UnitFromId(unitTag);
     if (lv_u == null) {
         return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "visual.actor_tint", "UNIT_NOT_FOUND", "{}");
     }
 
-    // ActorSend 设置单位 tint（color 格式 R,G,B 或 hex）
-    ActorScopeSend(ActorScopeFromUnit(lv_u), "SetTintColor {" + color + "}");
+    // ActorScopeSend 设置单位 tint（colorStr 格式 R,G,B 或 hex）
+    ActorScopeSend(ActorScopeFromUnit(lv_u), "SetTintColor {" + colorStr + "}");
     libVibeKernel_gv_stateVersion += 1;
-    payload = "{\"unit_tag\":" + IntToString(unitTag) + ",\"color\":\"" + color + "\"}";
+    payload = "{\"unit_tag\":" + IntToString(unitTag) + ",\"color\":\"" + colorStr + "\"}";
     return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "visual.actor_tint", "OK", payload);
 }
 
