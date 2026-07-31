@@ -28,14 +28,21 @@ int    libVibeKernel_gv_rejectedCount = 0;
 // ---- 触发器句柄 ----
 trigger libVibeKernel_gt_ChatCommand = null;
 trigger libVibeKernel_gt_BankPoll = null;
+trigger libVibeKernel_gt_MapCommand = null;
 string libVibeKernel_gv_lastPolledRequestId = "";
+
+// ---- 诊断计数器 ----
+int libVibeKernel_gv_bankPollCount = 0;
+int libVibeKernel_gv_mapCommandCount = 0;
 
 // ---- Bank 名称 ----
 const string libVibeKernel_gv_BankName = "GalaxyVibe";
 const int    libVibeKernel_gv_BankPlayer = 1;
 const string libVibeKernel_gv_BankSection = "rpc";
 
-// ---- Bank handle（用于 ReloadBank 跟踪已加载的 Bank，避免误删其他系统的 Bank）----
+// ---- Bank handle ----
+// 读取 Host 外部写入时必须先 BankRemove，再 BankLoad 重新加载磁盘内容。
+// 写入路径不能每个 key 都 reload，否则连续写入会丢失同一响应里的其他 key。
 bank   libVibeKernel_gv_bankHandle = null;
 
 // ---- 操作白名单（P1 完整版） ----
@@ -56,6 +63,11 @@ string libVibeKernel_gf_HandleQueryMission(string argsJson);
 string libVibeKernel_gf_HandleVisualActorTint(string argsJson);
 string libVibeKernel_gf_HandleVisualActorScale(string argsJson);
 string libVibeKernel_gf_HandleVisualActorOpacity(string argsJson);
+// Stage 1 新增：动态诊断
+string libVibeKernel_gf_HandleUpgradeSetLevel(string argsJson);
+string libVibeKernel_gf_HandleTechTreeCheck(string argsJson);
+string libVibeKernel_gf_HandleQueryUnitTags(string argsJson);
+string libVibeKernel_gf_HandleQueryUnitAttrs(string argsJson);
 
 // ---- 工具函数 ----
 void   libVibeKernel_gf_ReloadBank();
@@ -69,9 +81,10 @@ string libVibeKernel_gf_MakeResponse(string kind, string sessionId, string reque
 void   libVibeKernel_gf_WriteResponseToBank(string requestId, string responseJson);
 void   libVibeKernel_gf_EchoChat(string message);
 
-// ---- Chat / Bank 轮询入口 ----
+// ---- Chat / Bank 轮询 / MapCommand 入口 ----
 bool   libVibeKernel_gt_ChatCommand_Func(bool testConds, bool runActions);
 bool   libVibeKernel_gt_BankPoll_Func(bool testConds, bool runActions);
+bool   libVibeKernel_gt_MapCommand_Func(bool testConds, bool runActions);
 
 // ---- 主分发器 ----
 string libVibeKernel_gf_Dispatch(string requestJson);

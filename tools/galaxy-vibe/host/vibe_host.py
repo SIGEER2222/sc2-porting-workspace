@@ -577,7 +577,7 @@ class VibeHost:
         operation: str,
         args: Optional[dict[str, Any]] = None,
         timeout: float = 5.0,
-        transport: str = "bank_poll",
+        transport: str = "map_command",
     ) -> RpcResponse:
         """发送 RPC 请求并等待响应。
 
@@ -585,7 +585,7 @@ class VibeHost:
             operation: 白名单操作名
             args: 操作参数
             timeout: 等待响应超时（秒）
-            transport: "map_command" | "chat" | "input"
+            transport: "map_command" | "chat" | "input" | "bank_poll"
 
         Returns:
             RpcResponse
@@ -655,13 +655,13 @@ class VibeHost:
         """通过 SC2API RequestMapCommand 发送（仅触发 Kernel，不传请求内容）。
 
         注：MapCommand 只能传命令标识符，不能传任意数据。
-        此方法仅作为备用触发器，请求内容需预先通过其他方式传入。
-        实际运行时请使用 _send_via_chat。
+        请求内容先写入 Bank，Kernel 收到 MapCommand 后从 pending_request_id 读取。
         """
         if not self.client:
             return False
-        cmd = f"dbg {request.request_id}"
-        return self.client.map_command(cmd)
+        if not write_bank_request(self.bank_name, request.request_id, request):
+            return False
+        return self.client.map_command("vibe")
 
     def _send_via_chat(self, request: RpcRequest) -> bool:
         """通过 SC2API 聊天消息发送完整请求。

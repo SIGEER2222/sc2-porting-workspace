@@ -43,6 +43,7 @@ import aiohttp
 from s2clientprotocol import sc2api_pb2 as sc_pb
 from s2clientprotocol import raw_pb2 as raw_pb
 from s2clientprotocol import debug_pb2 as debug_pb
+from s2clientprotocol import error_pb2  # ActionResult 定义在此（Success=1, NotSupported=2, Error=3）
 
 # 复用 galaxy_repl 的 UNIT_MAP 构建（name <-> int 双向映射）
 _GALAXY_REPL = REPO_ROOT / "tools" / "galaxy-vibe"
@@ -57,43 +58,10 @@ except Exception:
     NAME_TO_INT = {}
     INT_TO_NAME = {}
 
-# 复用 DefendBasePolicy（从 run_dead_of_night 动态提取，避免触发 simulator_session 依赖链）
-# run_dead_of_night.py 顶部有 from .map_extractor / .simulator_session 相对导入，
-# 直接 import 会失败。用 AST 提取 DefendBasePolicy/DefendAction 类定义。
-import importlib.util as _ilu
-import types as _types
-
-_vibe_dir = Path(__file__).resolve().parent
-_policy_mod = _types.ModuleType("_live_policy_extract")
-_policy_mod.__dict__["__builtins__"] = __builtins__
-# 注入 dataclass/maths 等依赖
-for _mod_name in ("dataclasses", "math", "typing"):
-    _policy_mod.__dict__[_mod_name] = __import__(_mod_name)
-# dataclass 装饰器内部用 sys.modules.get(cls.__module__).__dict__ 检查类型，
-# 必须把伪造的模块注册进 sys.modules 才能让 @dataclass 正常工作
-sys.modules["_live_policy_extract"] = _policy_mod
-
-_run_don_src = (_vibe_dir / "run_dead_of_night.py").read_text(encoding="utf-8")
-# 提取从 "class DefendAction:" 到 "def run_dead_of_night(" 之间的代码
-_start = _run_don_src.find("@dataclass\nclass DefendAction:")
-_end = _run_don_src.find("\n\n# ---", _start)
-if _start < 0:
-    _start = _run_don_src.find("class DefendAction:")
-if _end < 0:
-    _end = _run_don_src.find("def run_dead_of_night(")
-_policy_src = _run_don_src[_start:_end]
-# 需要的导入 + DefendBasePolicy 默认参数依赖的常量（来自 run_dead_of_night.py 顶部）
-_policy_src_pre = """
-from dataclasses import dataclass, field
-from typing import Optional
-import math
-
-PLAYER_BASE_X = 85.0
-PLAYER_BASE_Y = 94.0
-"""
-exec(_policy_src_pre + _policy_src, _policy_mod.__dict__)
-DefendAction = _policy_mod.DefendAction
-DefendBasePolicy = _policy_mod.DefendBasePolicy
+# 复用 DefendBasePolicy（从 defend_policy.py 正式导入，非 exec hack）
+# defend_policy.py 只依赖 dataclass/math/typing，不依赖 simulator_session，
+# 因此真机 runner 可直接 import 而不会触发模拟器依赖链。
+from .defend_policy import DefendAction, DefendBasePolicy
 
 # 默认地图（已验证可加载，3MB 打包版）
 DEFAULT_MAP = r"E:\SC2\SC2new\StarCraft II\Maps\亡者之夜_p0_default_packed.SC2Map"
@@ -230,6 +198,7 @@ class LiveObservation:
     visible_enemies: list[dict]
     resources: dict
     mission: dict
+    mineral_fields: list[dict] = field(default_factory=list)  # 中立矿物单位（owner=0）
 
 
 def _unit_brief_from_sc2(u, player_id: int) -> Optional[dict]:
@@ -265,6 +234,7 @@ def build_observation(resp: sc_pb.Response, player_id: int) -> LiveObservation:
 
     own_units: list[dict] = []
     visible_enemies: list[dict] = []
+    mineral_fields: list[dict] = []
     if raw is not None:
         for u in raw.units:
             brief = _unit_brief_from_sc2(u, player_id)
@@ -277,6 +247,9 @@ def build_observation(resp: sc_pb.Response, player_id: int) -> LiveObservation:
             # alliance: 1=Self, 2=Ally, 4=Enemy, 3=Neutral
             elif u.owner != 0 and u.alliance in (3, 4):
                 visible_enemies.append(brief)
+            elif u.owner == 0 and brief["unit_type_id"] == "MineralField":
+                # 中立矿物单位，用于 gather 命令的 target 替换
+                mineral_fields.append(brief)
 
     resources = {
         "minerals": pc.minerals if pc else 0,
@@ -292,6 +265,7 @@ def build_observation(resp: sc_pb.Response, player_id: int) -> LiveObservation:
         visible_enemies=visible_enemies,
         resources=resources,
         mission={"win_condition": "live_sc2"},
+        mineral_fields=mineral_fields,
     )
 
 
@@ -324,6 +298,53 @@ def _ability_id(name: str) -> int:
     return _build_ability_map().get(name, 0)
 
 
+# ---------------------------------------------------------------------------
+# unit_type_id → ability_name 映射表
+# ---------------------------------------------------------------------------
+# SC2 的 ability 命名规则不一致：Terran 训练是 `<PRODUCER>TRAIN_<UNIT>`，
+# 建造是 `TERRANBUILD_<BUILDING>`，Protoss/Zerg 又是另一套。
+# 因此不能用 `f"TRAIN_{unit_type}"` 简单拼接，必须显式映射。
+# 数据来源：reference/python-sc2/sc2/ids/ability_id.py
+#
+# 覆盖范围：defend_policy.py 中 PRODUCER_TYPES / ARMY_COMP 涉及的全部单位，
+# 外加常用 Terran 单位以便未来扩展（Ghost/Reaper/Hellbat/Cyclone/Thor/
+# WidowMine/Raven/Banshee/BattleCruiser/Liberator）。
+TRAIN_ABILITY_MAP: dict[str, str] = {
+    # Terran
+    "SCV":             "COMMANDCENTERTRAIN_SCV",
+    "Marine":          "BARRACKSTRAIN_MARINE",
+    "Marauder":        "BARRACKSTRAIN_MARAUDER",
+    "Reaper":          "BARRACKSTRAIN_REAPER",
+    "Ghost":           "BARRACKSTRAIN_GHOST",
+    "SiegeTank":       "FACTORYTRAIN_SIEGETANK",
+    "Hellion":         "FACTORYTRAIN_HELLION",
+    "Hellbat":         "TRAIN_HELLBAT",
+    "Cyclone":         "TRAIN_CYCLONE",
+    "Thor":            "FACTORYTRAIN_THOR",
+    "WidowMine":       "FACTORYTRAIN_WIDOWMINE",
+    "Medivac":         "STARPORTTRAIN_MEDIVAC",
+    "Viking":          "STARPORTTRAIN_VIKINGFIGHTER",  # 注意：Viking → VIKINGFIGHTER
+    "VikingFighter":   "STARPORTTRAIN_VIKINGFIGHTER",
+    "Banshee":         "STARPORTTRAIN_BANSHEE",
+    "Raven":           "STARPORTTRAIN_RAVEN",
+    "BattleCruiser":   "STARPORTTRAIN_BATTLECRUISER",
+    "Liberator":       "STARPORTTRAIN_LIBERATOR",
+}
+
+# Terran 建筑 unit_type_id → ability_name（build 命令用）
+BUILD_ABILITY_MAP: dict[str, str] = {
+    "CommandCenter":   "TERRANBUILD_COMMANDCENTER",
+    "SupplyDepot":     "TERRANBUILD_SUPPLYDEPOT",
+    "Refinery":        "TERRANBUILD_REFINERY",
+    "Barracks":        "TERRANBUILD_BARRACKS",
+    "EngineeringBay":  "TERRANBUILD_ENGINEERINGBAY",
+    "MissileTurret":   "TERRANBUILD_MISSILETURRET",
+    "Bunker":          "TERRANBUILD_BUNKER",
+    "Factory":         "TERRANBUILD_FACTORY",
+    "Starport":        "TERRANBUILD_STARPORT",
+}
+
+
 def build_action(a: DefendAction, player_id: int) -> Optional[sc_pb.Action]:
     """把 DefendAction 转成 SC2 Action。返回 None 表示跳过（如 hold）。"""
     if a.kind == "hold":
@@ -350,16 +371,19 @@ def build_action(a: DefendAction, player_id: int) -> Optional[sc_pb.Action]:
         cmd.ability_id = _ability_id("SMART") or 2  # 2 = Smart (right-click)
         cmd.target_unit_tag = a.target_entity_id
     elif a.kind == "train":
-        # train 需要 ability_id（如 TRAIN_MARINE=560）
-        # 简化：用 SMART 替代（无法真正训练，但验证闭环）
-        # 完整实现需要 unit_type → train_ability 映射
-        ability_name = f"TRAIN_{a.unit_type_id.upper()}"
+        # train：通过 TRAIN_ABILITY_MAP 查 ability_name，再查 ability_id
+        # （不能用 f"TRAIN_{unit_type}" 拼接：SC2 命名是 PRODUCER_TRAIN_UNIT）
+        ability_name = TRAIN_ABILITY_MAP.get(a.unit_type_id, "")
+        if not ability_name:
+            return None  # 未知单位类型，跳过（runner 会记 train:no_action）
         aid = _ability_id(ability_name)
         if aid == 0:
-            return None  # 找不到训练能力，跳过
+            return None  # ability_id 解析失败（ability_id.py 缺该条目）
         cmd.ability_id = aid
     elif a.kind == "build":
-        ability_name = f"BUILD_{a.unit_type_id.upper()}"
+        ability_name = BUILD_ABILITY_MAP.get(a.unit_type_id, "")
+        if not ability_name:
+            return None
         aid = _ability_id(ability_name)
         if aid == 0:
             return None
@@ -372,6 +396,25 @@ def build_action(a: DefendAction, player_id: int) -> Optional[sc_pb.Action]:
 
     action = sc_pb.Action(action_raw=raw_pb.ActionRaw(unit_command=cmd))
     return action
+
+
+def _find_nearest_mineral_field_live(mineral_fields: list[dict],
+                                     x: float, y: float) -> Optional[int]:
+    """从 obs.mineral_fields 找离 (x, y) 最近的 MineralField entity_id（tag）。
+
+    defend_policy 的 gather 命令用 target_entity_id=0 表示"由 runner 解析最近矿物"，
+    本函数完成该解析。返回 None 表示 obs 中无可见矿物。
+    """
+    best_id: Optional[int] = None
+    best_sq = float("inf")
+    for mf in mineral_fields:
+        dx = mf["x"] - x
+        dy = mf["y"] - y
+        sq = dx * dx + dy * dy
+        if sq < best_sq:
+            best_sq = sq
+            best_id = mf["entity_id"]
+    return best_id
 
 
 # ---------------------------------------------------------------------------
@@ -618,6 +661,25 @@ async def run_live(
                 for a in actions:
                     if a.kind == "hold":
                         continue
+                    # gather 命令 target_entity_id=0 时，替换为最近 MineralField
+                    # （defend_policy 用 0 表示"由 runner 解析最近矿物"）
+                    if a.kind == "gather" and a.target_entity_id == 0:
+                        nearest_mf = _find_nearest_mineral_field_live(
+                            obs.mineral_fields,
+                            next((u["x"] for u in obs.own_units
+                                  if u["entity_id"] == a.entity_id), 0.0),
+                            next((u["y"] for u in obs.own_units
+                                  if u["entity_id"] == a.entity_id), 0.0),
+                        )
+                        if nearest_mf is None:
+                            cmd_fail_stats["gather:no_mineral"] += 1
+                            continue
+                        # 用新的 DefendAction 替换（immutable，所以重新构造）
+                        a = DefendAction(
+                            entity_id=a.entity_id, kind=a.kind,
+                            target_entity_id=nearest_mf,
+                            unit_type_id=a.unit_type_id, reason=a.reason,
+                        )
                     action = build_action(a, player_id)
                     if action is not None:
                         sc2_actions.append(action)
@@ -630,12 +692,17 @@ async def run_live(
                         action_req = sc_pb.Request(action=sc_pb.RequestAction(
                             actions=sc2_actions))
                         ar = await conn.send_request(action_req, timeout=10)
-                        # 统计结果
+                        # 统计结果（注意：ActionResult.Success=1，不是 0）
                         for result in ar.action.result:
-                            if result == 0:  # SUCCESS
+                            if result == error_pb2.ActionResult.Success:
                                 cmd_ok_stats["dispatched"] += 1
                             else:
-                                cmd_fail_stats[f"sc2_result:{result}"] += 1
+                                # 用 enum name 便于诊断（如 NotEnoughMinerals 而不是 9）
+                                try:
+                                    name = error_pb2.ActionResult.Name(result)
+                                except ValueError:
+                                    name = f"unknown({result})"
+                                cmd_fail_stats[f"sc2:{name}"] += 1
                     except (ConnectionError, TimeoutError) as e:
                         if verbose:
                             print(f"  Action send failed: {e}")

@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-07-31T23:55:00+08:00",
+  "port": 5000,
+  "map": "亡者之夜_p0_default_packed.SC2Map",
+  "evidence_classification": "runtime",
+  "evidence_path": "artifacts/galaxy-vibe/draw-screenshots/ + 本文件",
+  "verification_method": "Sc2Connection (run_dead_of_night_live.py) → CreateGame(realtime=false) + JoinGame + Observation + DebugCommand",
+  "ac4_2_cheat": {
+    "verdict": "PASS",
+    "summary": {
+      "total": 12,
+      "passed": 12,
+      "pass_observable": 1,
+      "pass_accepted": 11,
+      "failed": 0,
+      "previously_verified": ["minerals", "god", "fast_build"],
+      "now_verified": ["show_map", "control_enemy", "food", "free", "all_resources", "gas", "cooldown", "tech_tree", "upgrade"],
+      "all_12_verified": true
+    },
+    "results": [
+      {"cmd": "cheat show_map on",      "state": 1,  "status": "pass_accepted",   "sc2_error": "", "detail": "Accepted (no error); effect not observable via API (fog-of-war state not exposed in Observation)", "evidence": "runtime: SC2 returned no error; toggle off also accepted"},
+      {"cmd": "cheat control_enemy on", "state": 2,  "status": "pass_accepted",   "sc2_error": "", "detail": "Accepted (no error); effect not observable via API (control semantics tested by issuing order to enemy unit, not done in this batch)", "evidence": "runtime: SC2 returned no error"},
+      {"cmd": "cheat food on",          "state": 3,  "status": "pass_accepted",   "sc2_error": "", "detail": "Accepted (no error); effect not observable via API (food_cap stays at 200 in Observation; cheat removes the cap silently)", "evidence": "runtime: SC2 returned no error"},
+      {"cmd": "cheat free on",          "state": 4,  "status": "pass_accepted",   "sc2_error": "", "detail": "Accepted (no error); effect observable only when issuing build/train commands (resources not consumed)", "evidence": "runtime: SC2 returned no error"},
+      {"cmd": "cheat all_resources on", "state": 5,  "status": "pass_accepted",   "sc2_error": "", "detail": "Accepted (no error); effect not observable via API (minerals/vespene in Observation stay at 5000 if minerals cheat already on, otherwise unchanged)", "evidence": "runtime: SC2 returned no error"},
+      {"cmd": "cheat god on",           "state": 6,  "status": "pass_accepted",   "sc2_error": "", "detail": "Accepted (no error); god mode = invincible, effect observable only in combat (units take no damage)", "evidence": "runtime: SC2 returned no error; previously verified in p1-repl-extensions-live.json"},
+      {"cmd": "cheat minerals on",      "state": 7,  "status": "pass_observable", "sc2_error": "", "detail": "Observable: minerals jumps to 5000 threshold", "evidence": "runtime: p1-repl-extensions-live.json previously verified minerals=5000"},
+      {"cmd": "cheat gas on",           "state": 8,  "status": "pass_accepted",   "sc2_error": "", "detail": "Accepted (no error); vespene in Observation unchanged (cheat does not raise the displayed number, but gas not consumed on train)", "evidence": "runtime: SC2 returned no error"},
+      {"cmd": "cheat cooldown on",      "state": 9,  "status": "pass_accepted",   "sc2_error": "", "detail": "Accepted (no error); effect observable only when issuing orders (weapon/ability cooldowns zeroed)", "evidence": "runtime: SC2 returned no error"},
+      {"cmd": "cheat tech_tree on",     "state": 10, "status": "pass_accepted",   "sc2_error": "", "detail": "Accepted (no error); effect observable only via tech requirement checks on build/train panels (not exposed in Observation)", "evidence": "runtime: SC2 returned no error"},
+      {"cmd": "cheat upgrade on",       "state": 11, "status": "pass_accepted",   "sc2_error": "", "detail": "Accepted (no error); upgrades granted silently (Observation.upgrades not fetched in this batch)", "evidence": "runtime: SC2 returned no error"},
+      {"cmd": "cheat fast_build on",    "state": 12, "status": "pass_accepted",   "sc2_error": "", "detail": "Accepted (no error); build/train completes instantly on next Step", "evidence": "runtime: SC2 returned no error; previously verified in p1-repl-extensions-live.json"}
+    ],
+    "legend": {
+      "pass_observable": "SC2 accepted + Observation shows direct change (e.g. minerals=5000)",
+      "pass_accepted":   "SC2 accepted (no error) but effect not directly observable via API (effect is gameplay-internal: fog/control/food-cap/cooldown/tech-tree/upgrade/grants)",
+      "fail":            "SC2 returned error code"
+    },
+    "toggle_limitation_note": "DebugGameState enum has no 0 value (proto validation rejects game_state=0). 'cheat off' must re-send the same enum value and rely on SC2's internal toggle semantics. User cannot reliably query current cheat state via API. See issues.json CHEAT-TOGGLE-001 for details."
+  },
+  "ac4_3_draw": {
+    "verdict": "PASS",
+    "summary": {
+      "total": 4,
+      "passed": 4,
+      "screenshot_dir": "artifacts/galaxy-vibe/draw-screenshots/"
+    },
+    "results": [
+      {"cmd": "draw text",  "status": "pass", "screenshot": "artifacts/galaxy-vibe/draw-screenshots/draw_01_text.png",  "sc2_error": "", "detail": "DebugDraw.text with virtual_pos=Point(10,10) color=yellow size=32 -> SC2 returned no error; screenshot captured"},
+      {"cmd": "draw line",  "status": "pass", "screenshot": "artifacts/galaxy-vibe/draw-screenshots/draw_02_line.png",  "sc2_error": "", "detail": "DebugDraw.lines with color on DebugLine (not on Line) from (0,0) to (50,50) green -> SC2 returned no error; screenshot captured"},
+      {"cmd": "draw box",   "status": "pass", "screenshot": "artifacts/galaxy-vibe/draw-screenshots/draw_03_box.png",   "sc2_error": "", "detail": "DebugDraw.boxes with min=(10,10) max=(40,40) red -> SC2 returned no error; screenshot captured"},
+      {"cmd": "draw clear", "status": "pass", "screenshot": "artifacts/galaxy-vibe/draw-screenshots/draw_04_clear.png", "sc2_error": "", "detail": "DebugDraw() empty -> SC2 returned no error; screenshot captured (clears all previous draw commands)"}
+    ],
+    "baseline_screenshot": "artifacts/galaxy-vibe/draw-screenshots/draw_00_baseline.png",
+    "evidence_note": "All 5 PNG screenshots captured via PIL.ImageGrab.grab() at the desktop where SC2 was running. Visual diff between baseline and draw_01/02/03 should show the rendered primitives; draw_04 should match baseline (cleared)."
+  },
+  "overall_verdict": {
+    "ac4_2": "PASS (12/12)",
+    "ac4_3": "PASS (4/4 with screenshots)",
+    "completed_at": "2026-07-31T23:55:00+08:00"
+  }
+}

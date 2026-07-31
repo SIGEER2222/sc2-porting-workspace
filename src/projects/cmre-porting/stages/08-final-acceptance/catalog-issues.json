@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "scope": "reference/sc2-ally-bot/src/sc2_simulator/catalog/",
+  "purpose": "记录 sc2_simulator catalog 层的数据缺口、引用闭包问题与已知 limitation，作为 AC2-4 的交付物。catalog 目录本身为 read-only 外部仓库，本文件在 cmre-porting 项目侧跟踪。",
+  "generated_at": "2026-07-31T24:00:00+08:00",
+  "ac_mapping": "AC2-4",
+  "issues": [
+    {
+      "id": "CATALOG-BOUNCE-001",
+      "severity": "low",
+      "status": "resolved",
+      "title": "Mutalisk 弹跳伤害字段被注释禁用（AC2-3）",
+      "detail": "m7_units.py:1301 Mutalisk.GlaiveWurm 武器的 bounce_damage=(3, 1) 长期被注释，注释自承'model.py 未实现，暂时禁用'。实际核查发现：(1) model.py:119-120 已定义 bounce_damage 字段（tuple[int, ...]，默认空 tuple）；(2) combat.py:476-531 已实现 _apply_bounce_damage 函数（含主目标命中后跳到最近敌人、按序列结算、护盾影响、事件记录）。注释为历史遗留，逻辑实际已就绪。",
+      "evidence": {
+        "data_ref": "reference/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py:1290-1303",
+        "model_ref": "reference/sc2-ally-bot/src/sc2_simulator/catalog/model.py:119-120",
+        "logic_ref": "reference/sc2-ally-bot/src/sc2_simulator/systems/combat.py:476-531",
+        "test_evidence": "pytest tests/sc2_simulator → 446/446 PASSED（启用后无回归）"
+      },
+      "resolution": "2026-07-31 启用 bounce_damage=(3, 1) 并更新注释指向 model.py:120 + combat.py:476。回归测试 446/446 PASS。",
+      "ac_mapping": "AC2-3"
+    },
+    {
+      "id": "CATALOG-ROACH-REF-001",
+      "severity": "low",
+      "status": "wontfix",
+      "title": "ZergGroundArmorLevel1 升级 effects 引用 Roach.armor 但 m7_units.py 不含 ROACH 定义",
+      "detail": "m7_units.py:1760-1764 ZergGroundArmorLevel1 的 effects 字典含 'Roach.armor': 1，但 m7_units.py 不定义 ROACH 常量。实际核查：ROACH 定义在 model.py:389-390（id='Roach'），通过 m1→m2→m3→m7 合并链在运行时解析，非真实引用断裂。当前无静态引用闭包校验工具，仅运行时合并后才可验证。",
+      "evidence": {
+        "upgrade_ref": "reference/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py:1760-1764",
+        "target_ref": "reference/sc2-ally-bot/src/sc2_simulator/catalog/model.py:389-390"
+      },
+      "resolution": "判定为非缺陷（合并链可解析）。建议后续建立静态引用闭包校验工具时再统一处理。"
+    },
+    {
+      "id": "CATALOG-M3-ZERG-THIN-001",
+      "severity": "medium",
+      "status": "open",
+      "title": "m3_units.py Zerg 单位覆盖极薄（仅 6 项 + 1 个 None 占位）",
+      "detail": "m3_units.py:246-355 Zerg 单位仅 6 项：Hatchery / Drone / Overlord / Larva / Queen / SpawningPool。ZERGLING_M3 = None（注释'复用 M0 Zergling'），无 Zergling / Baneling / Roach / Hydralisk / Mutalisk / Corruptor / Ultralisk 等 T1.5/T2/T3 单位定义。这些单位靠 m7_units.py（1252-1390）补齐，但 m3 作为'基础三族单位'层覆盖不完整，违背 m3 命名意图。",
+      "evidence": {
+        "m3_zerg_ref": "reference/sc2-ally-bot/src/sc2_simulator/catalog/m3_units.py:246-355",
+        "zergling_placeholder": "reference/sc2-ally-bot/src/sc2_simulator/catalog/m3_units.py:315 (ZERGLING_M3 = None)",
+        "m7_zerg_count": "m7_units.py 含 HYDRALISK/MUTALISK/CORRUPTOR/ULTRALISK/ROACH_WARREN 等 25+ 项 Zerg 单位"
+      },
+      "resolution": "未修复。当前测试 446/446 PASS 因 m7 补齐了缺口，但 m3 层语义不完整。建议后续重构时把 m7 的 Zerg T1.5/T2/T3 单位下沉到 m3，m7 仅保留扩展规则。"
+    },
+    {
+      "id": "CATALOG-UPGRADE-EFFECTS-001",
+      "severity": "low",
+      "status": "open",
+      "title": "升级 effects 字段无静态引用闭包校验",
+      "detail": "UpgradeType.effects 是 dict[str, int]，key 格式为 '<UnitId>.<field>.<subfield>'（如 'Hydralisk.weapon_ground.damage'）。当前无静态校验工具验证：(1) UnitId 是否在 m1-m7 合并链中存在；(2) field/subfield 路径是否对应该 UnitType 的有效字段；(3) 是否有 effects 引用了已删除/重命名的单位。CATALOG-ROACH-REF-001 即为此类潜在问题的实例（运行时可解析但静态不可见）。",
+      "evidence": {
+        "effects_field_ref": "reference/sc2-ally-bot/src/sc2_simulator/catalog/model.py (UpgradeType.effects)",
+        "sample_upgrade": "m7_units.py:1756-1772 ZergMissileAttacksLevel1 / ZergGroundArmorLevel1 / ZergFlyerAttacksLevel1 等"
+      },
+      "resolution": "未修复。需开发静态引用闭包校验工具（扫描所有 UpgradeType.effects key，比对合并后的 UnitType 字段路径）。属工具链改进，非数据缺陷。"
+    },
+    {
+      "id": "CATALOG-COVERAGE-MAP-001",
+      "severity": "low",
+      "status": "open",
+      "title": "catalog 单位覆盖率无自动统计",
+      "detail": "catalog 目录有 coverage.py 但无定期运行的覆盖率报告。无法回答'SC2 全部 N 项单位中 catalog 覆盖了多少'。m1-m7 合并后的单位总数、按种族分布、按建筑/单位/英雄分类均无自动统计产出。",
+      "evidence": {
+        "coverage_tool_ref": "reference/sc2-ally-bot/src/sc2_simulator/catalog/coverage.py"
+      },
+      "resolution": "未修复。建议后续接入 coverage.py 到 CI 或 stage 验证流程，产出覆盖率报告（类似 stage 08 evidence/static/catalog-graph.json 的扩展）。"
+    }
+  ],
+  "summary": {
+    "total": 5,
+    "by_status": {
+      "resolved": 1,
+      "wontfix": 1,
+      "open": 3
+    },
+    "by_severity": {
+      "medium": 1,
+      "low": 4
+    },
+    "key_achievement": "AC2-3（弹跳伤害模型完整）通过 CATALOG-BOUNCE-001 修复达成：启用 m7_units.py:1301 的 bounce_damage=(3, 1)，回归测试 446/446 PASS。"
+  }
+}

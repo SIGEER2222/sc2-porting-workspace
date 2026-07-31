@@ -65,26 +65,43 @@ fixed libVibeKernel_gf_ArgsGetFixed(string args, string key) {
 }
 
 // ---- Bank 工具 ----
+// SC2 会缓存已加载的 Bank。Host 从进程外改写 SC2Bank 文件后，
+// game-side 读取路径必须先卸载旧 handle 再 BankLoad，才能看到新 pending_request_id。
+// 写入路径只 EnsureBankLoaded，避免连续写 response/index key 时 reload 丢失内存中尚未保存的键。
+void libVibeKernel_gf_ReloadBank() {
+    if (libVibeKernel_gv_bankHandle != null) {
+        BankRemove(libVibeKernel_gv_bankHandle);
+        libVibeKernel_gv_bankHandle = null;
+    }
+    libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
+}
+
+void libVibeKernel_gf_EnsureBankLoaded() {
+    if (libVibeKernel_gv_bankHandle == null) {
+        libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
+    }
+}
+
 void libVibeKernel_gf_WriteBankKey(string section, string key, string value) {
-    BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
-    BankValueSetFromString(BankLastCreated(), section, key, value);
-    BankSave(BankLastCreated());
+    libVibeKernel_gf_EnsureBankLoaded();
+    BankValueSetFromString(libVibeKernel_gv_bankHandle, section, key, value);
+    BankSave(libVibeKernel_gv_bankHandle);
 }
 
 string libVibeKernel_gf_ReadBankKey(string section, string key) {
-    BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
-    return BankValueGetAsString(BankLastCreated(), section, key);
+    libVibeKernel_gf_ReloadBank();
+    return BankValueGetAsString(libVibeKernel_gv_bankHandle, section, key);
 }
 
 void libVibeKernel_gf_WriteBankInt(string section, string key, int value) {
-    BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
-    BankValueSetFromInt(BankLastCreated(), section, key, value);
-    BankSave(BankLastCreated());
+    libVibeKernel_gf_EnsureBankLoaded();
+    BankValueSetFromInt(libVibeKernel_gv_bankHandle, section, key, value);
+    BankSave(libVibeKernel_gv_bankHandle);
 }
 
 int libVibeKernel_gf_ReadBankInt(string section, string key) {
-    BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
-    return BankValueGetAsInt(BankLastCreated(), section, key);
+    libVibeKernel_gf_ReloadBank();
+    return BankValueGetAsInt(libVibeKernel_gv_bankHandle, section, key);
 }
 
 void libVibeKernel_gf_EchoChat(string message) {
@@ -605,7 +622,7 @@ string libVibeKernel_gf_HandleQueryUnitAttrs(string argsJson) {
     maxLife = UnitGetPropertyFixed(lv_u, c_unitPropLifeMax, true);
     shields = UnitGetPropertyFixed(lv_u, c_unitPropShields, true);
     energy = UnitGetPropertyFixed(lv_u, c_unitPropEnergy, true);
-    armor = UnitGetPropertyFixed(lv_u, c_unitPropArmor, true);
+    armor = libNtve_gf_CatalogFieldValueGetAsReal(c_gameCatalogUnit, typeName, "ArmorArray[0].Value", UnitGetOwner(lv_u));
     // 查询不产生副作用，不递增 state_version
     // MVP: weapon_damage/weapon_range/attributes 标 unavailable（Catalog 路径复杂，延后）
     payload = "{\"unit_tag\":" + IntToString(unitTag) + ",\"unit_type\":\"" + typeName + "\",\"life\":" + FixedToString(life, 2) + ",\"max_life\":" + FixedToString(maxLife, 2) + ",\"shields\":" + FixedToString(shields, 2) + ",\"energy\":" + FixedToString(energy, 2) + ",\"armor\":" + FixedToString(armor, 2) + ",\"weapon_damage\":\"unavailable\",\"weapon_range\":\"unavailable\",\"attributes\":\"unavailable\"}";
@@ -702,6 +719,10 @@ bool libVibeKernel_gt_BankPoll_Func(bool testConds, bool runActions) {
     if (testConds) { return true; }
     if (!runActions) { return true; }
 
+    // 诊断标记：证明 BankPoll 触发器被调用（每次递增）
+    libVibeKernel_gv_bankPollCount += 1;
+    libVibeKernel_gf_WriteBankInt("diag", "bankpoll_count", libVibeKernel_gv_bankPollCount);
+
     // 读取 pending_request_id
     pendingId = libVibeKernel_gf_ReadBankKey("index", "pending_request_id");
     if (pendingId == "") { return true; }
@@ -755,6 +776,41 @@ bool libVibeKernel_gt_ChatCommand_Func(bool testConds, bool runActions) {
     return true;
 }
 
+// ---- MapCommand 入口 ----
+// SC2API RequestMapCommand(trigger_cmd="vibe") 触发。
+// Host 先把完整请求写入 Bank(request/<pending_id>)，这里只负责可靠唤醒并分发。
+bool libVibeKernel_gt_MapCommand_Func(bool testConds, bool runActions) {
+    string pendingId;
+    string requestJson;
+    string response;
+    string opName;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+
+    // 诊断标记：证明 MapCommand 触发器被调用
+    libVibeKernel_gv_mapCommandCount += 1;
+    libVibeKernel_gf_WriteBankInt("diag", "mapcmd_count", libVibeKernel_gv_mapCommandCount);
+
+    // 读取 pending_request_id
+    pendingId = libVibeKernel_gf_ReadBankKey("index", "pending_request_id");
+    if (pendingId == "") { return true; }
+    if (pendingId == libVibeKernel_gv_lastPolledRequestId) { return true; }
+
+    // 读取完整请求
+    requestJson = libVibeKernel_gf_ReadBankKey("request", pendingId);
+    if (requestJson == "") { return true; }
+
+    // 分发处理
+    response = libVibeKernel_gf_Dispatch(requestJson);
+    libVibeKernel_gv_lastPolledRequestId = pendingId;
+
+    // 简短回声
+    opName = libVibeKernel_gf_ArgsGet(requestJson, "operation");
+    libVibeKernel_gf_EchoChat("[Vibe] " + opName + " done (id=" + pendingId + ")");
+
+    return true;
+}
+
 // ---- 注册入口 ----
 void libVibeKernel_gf_RegisterEntryPoints() {
     if (libVibeKernel_gt_ChatCommand != null) { return; }
@@ -766,6 +822,10 @@ void libVibeKernel_gf_RegisterEntryPoints() {
     // Bank 轮询入口（API 自动化用，每 0.5 秒检查一次）
     libVibeKernel_gt_BankPoll = TriggerCreate("libVibeKernel_gt_BankPoll_Func");
     TriggerAddEventTimePeriodic(libVibeKernel_gt_BankPoll, 0.5, c_timeGame);
+
+    // MapCommand 入口（SC2API RequestMapCommand 触发）
+    libVibeKernel_gt_MapCommand = TriggerCreate("libVibeKernel_gt_MapCommand_Func");
+    TriggerAddEventMapCommand(libVibeKernel_gt_MapCommand, c_playerAny, "vibe", false);
 }
 
 // ---- 初始化 ----
