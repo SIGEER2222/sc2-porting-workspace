@@ -153,6 +153,9 @@ class TestWhitelist(unittest.TestCase):
             "player.set_resource",
             "query.units", "query.unit", "query.mission",
             "visual.actor_tint", "visual.actor_scale", "visual.actor_opacity",
+            # Stage 1 新增：动态诊断
+            "upgrade.set_level", "tech_tree.check",
+            "query.unit_tags", "query.unit_attrs",
         ]
         for op in required:
             self.assertIn(op, self.whitelist["operations"], f"缺少 MVP 操作: {op}")
@@ -296,6 +299,78 @@ class TestVibeHostMocked(unittest.TestCase):
             r2 = self.host._poll_response("shared_id", 1.0)
             self.assertEqual(r1.request_id, r2.request_id)
 
+    def test_upgrade_set_level_convenience(self):
+        """upgrade_set_level 便捷方法构造正确请求。"""
+        mock_client = MagicMock()
+        mock_client.map_command.return_value = True
+        self.host.client = mock_client
+
+        with patch.object(self.host, "_poll_response") as mock_poll:
+            mock_poll.return_value = RpcResponse(
+                kind="result", session_id=self.host.session_id,
+                request_id="r1", sequence=1, operation="upgrade.set_level",
+                error_code="OK", payload={"applied": 1, "player": 1,
+                                          "upgrade": "ShieldWall", "level": 1},
+            )
+            resp = self.host.upgrade_set_level(player=1, upgrade="ShieldWall", level=1)
+        self.assertTrue(resp.is_ok)
+        self.assertEqual(resp.payload["applied"], 1)
+        self.assertEqual(resp.operation, "upgrade.set_level")
+
+    def test_tech_tree_check_convenience(self):
+        """tech_tree_check 便捷方法构造正确请求。"""
+        mock_client = MagicMock()
+        mock_client.map_command.return_value = True
+        self.host.client = mock_client
+
+        with patch.object(self.host, "_poll_response") as mock_poll:
+            mock_poll.return_value = RpcResponse(
+                kind="result", session_id=self.host.session_id,
+                request_id="r1", sequence=1, operation="tech_tree.check",
+                error_code="OK", payload={"unlocked": 1, "count": 1,
+                                          "upgrade": "ShieldWall", "player": 1},
+            )
+            resp = self.host.tech_tree_check(player=1, upgrade="ShieldWall")
+        self.assertTrue(resp.is_ok)
+        self.assertEqual(resp.payload["unlocked"], 1)
+        self.assertEqual(resp.operation, "tech_tree.check")
+
+    def test_query_unit_tags_convenience(self):
+        """query_unit_tags 便捷方法构造正确请求。"""
+        mock_client = MagicMock()
+        mock_client.map_command.return_value = True
+        self.host.client = mock_client
+
+        with patch.object(self.host, "_poll_response") as mock_poll:
+            mock_poll.return_value = RpcResponse(
+                kind="result", session_id=self.host.session_id,
+                request_id="r1", sequence=1, operation="query.unit_tags",
+                error_code="OK", payload={"count": 1, "tags": [12345],
+                                          "unit_type": "Marine", "player": 1},
+            )
+            resp = self.host.query_unit_tags(player=1, unit_type="Marine")
+        self.assertTrue(resp.is_ok)
+        self.assertEqual(resp.payload["tags"], [12345])
+        self.assertEqual(resp.operation, "query.unit_tags")
+
+    def test_query_unit_attrs_convenience(self):
+        """query_unit_attrs 便捷方法构造正确请求。"""
+        mock_client = MagicMock()
+        mock_client.map_command.return_value = True
+        self.host.client = mock_client
+
+        with patch.object(self.host, "_poll_response") as mock_poll:
+            mock_poll.return_value = RpcResponse(
+                kind="result", session_id=self.host.session_id,
+                request_id="r1", sequence=1, operation="query.unit_attrs",
+                error_code="OK", payload={"armor": 3.0, "unit_type": "Marine",
+                                          "unit_tag": 12345},
+            )
+            resp = self.host.query_unit_attrs(unit_tag=12345)
+        self.assertTrue(resp.is_ok)
+        self.assertEqual(resp.payload["armor"], 3.0)
+        self.assertEqual(resp.operation, "query.unit_attrs")
+
 
 # ---- 端到端契约测试（模拟 Kernel）----
 
@@ -428,13 +503,22 @@ class TestGalaxyStaticCheck(unittest.TestCase):
         # 基础检查：包含必要函数
         self.assertIn("libVibeKernel_gf_Init", content)
         self.assertIn("libVibeKernel_gf_Dispatch", content)
-        self.assertIn("libVibeKernel_gt_MapCommand_Func", content)
+        self.assertIn("libVibeKernel_gt_ChatCommand_Func", content)
+        self.assertIn("libVibeKernel_gt_BankPoll_Func", content)
+        # Stage 1 新增 handler 应存在
+        for handler in ["HandleUpgradeSetLevel", "HandleTechTreeCheck",
+                        "HandleQueryUnitTags", "HandleQueryUnitAttrs"]:
+            self.assertIn(f"libVibeKernel_gf_{handler}", content)
+        # Dispatch 应注册新 operation
+        for op in ["upgrade.set_level", "tech_tree.check",
+                   "query.unit_tags", "query.unit_attrs"]:
+            self.assertIn(f'"{op}"', content)
 
     def test_kernel_header_galaxy_valid(self):
         """LibVibeKernel_h.galaxy 应包含必要的函数声明。"""
         header_path = REPO_ROOT / "tools" / "galaxy-vibe" / "kernel" / "LibVibeKernel_h.galaxy"
         content = header_path.read_text(encoding="utf-8")
-        self.assertIn("include \"TriggerLibs/natives\"", content)
+        self.assertIn("include \"TriggerLibs/NativeLib\"", content)
         self.assertIn("libVibeKernel_gf_Init", content)
         self.assertIn("libVibeKernel_gf_Dispatch", content)
         # 所有 handler 应声明（Galaxy 命名约定: gf_Handle<Op>，无下划线）

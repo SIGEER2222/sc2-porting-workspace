@@ -154,6 +154,68 @@
         "unit_tag": "integer",
         "opacity": "fixed"
       }
+    },
+    "upgrade.set_level": {
+      "category": "upgrade",
+      "produces_side_effect": true,
+      "args": {
+        "player": {"type": "integer", "required": true, "min": 1, "max": 15},
+        "upgrade": {"type": "string", "required": true, "pattern": "^[A-Za-z][A-Za-z0-9_]*$"},
+        "level": {"type": "integer", "required": true, "min": 0, "max": 15}
+      },
+      "payload_schema": {
+        "applied": "integer",
+        "player": "integer",
+        "upgrade": "string",
+        "level": "integer"
+      }
+    },
+    "tech_tree.check": {
+      "category": "tech_tree",
+      "produces_side_effect": false,
+      "args": {
+        "player": {"type": "integer", "required": true, "min": 1, "max": 15},
+        "upgrade": {"type": "string", "required": true, "pattern": "^[A-Za-z][A-Za-z0-9_]*$"}
+      },
+      "payload_schema": {
+        "count": "integer",
+        "unlocked": "integer",
+        "upgrade": "string",
+        "player": "integer"
+      }
+    },
+    "query.unit_tags": {
+      "category": "query",
+      "produces_side_effect": false,
+      "args": {
+        "player": {"type": "integer", "required": false, "min": 0, "max": 15, "default": 0},
+        "unit_type": {"type": "string", "required": false, "default": ""}
+      },
+      "payload_schema": {
+        "count": "integer",
+        "tags": "array",
+        "unit_type": "string",
+        "player": "integer"
+      }
+    },
+    "query.unit_attrs": {
+      "category": "query",
+      "produces_side_effect": false,
+      "args": {
+        "unit_tag": {"type": "integer", "required": true}
+      },
+      "payload_schema": {
+        "unit_tag": "integer",
+        "unit_type": "string",
+        "life": "fixed",
+        "max_life": "fixed",
+        "shields": "fixed",
+        "energy": "fixed",
+        "armor": "fixed",
+        "weapon_damage": "string",
+        "weapon_range": "string",
+        "attributes": "string"
+      }
     }
   },
   "assert_operations": {

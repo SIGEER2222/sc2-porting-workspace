@@ -717,6 +717,34 @@ class VibeHost:
         """便捷方法：查询任务状态。"""
         return self.request("query.mission", {})
 
+    def upgrade_set_level(self, player: int, upgrade: str, level: int) -> RpcResponse:
+        """便捷方法：设置玩家升级等级。"""
+        return self.request("upgrade.set_level", {
+            "player": player,
+            "upgrade": upgrade,
+            "level": level,
+        })
+
+    def tech_tree_check(self, player: int, upgrade: str) -> RpcResponse:
+        """便捷方法：检查升级是否已解锁。"""
+        return self.request("tech_tree.check", {
+            "player": player,
+            "upgrade": upgrade,
+        })
+
+    def query_unit_tags(self, player: int = 1, unit_type: str = "") -> RpcResponse:
+        """便捷方法：查询单位 tag 列表。"""
+        return self.request("query.unit_tags", {
+            "player": player,
+            "unit_type": unit_type,
+        })
+
+    def query_unit_attrs(self, unit_tag: int) -> RpcResponse:
+        """便捷方法：查询单位属性（life/armor/shields/energy）。"""
+        return self.request("query.unit_attrs", {
+            "unit_tag": unit_tag,
+        })
+
     # ---- 清理 ----
 
     def close(self) -> None:

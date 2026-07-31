@@ -1,0 +1,32 @@
+{
+  "scenario": "marine-baseline",
+  "description": "验证 upgrade.set_level + query.unit_attrs + tech_tree.check 闭环。Marine 基础护甲 0，ShieldWall 升级后 +3。",
+  "checks": [
+    {
+      "name": "marine_base_armor",
+      "unit_type": "Marine",
+      "player": 1,
+      "spawn_at": [50, 50],
+      "assert": { "armor": "== 0" }
+    },
+    {
+      "name": "marine_with_shield_wall",
+      "unit_type": "Marine",
+      "player": 1,
+      "upgrade": "ShieldWall",
+      "upgrade_level": 1,
+      "spawn_at": [51, 50],
+      "assert": { "armor": "== 3", "tech_tree_unlocked": true }
+    },
+    {
+      "name": "marine_nonexistent_upgrade",
+      "unit_type": "Marine",
+      "player": 1,
+      "upgrade": "NonExistent",
+      "upgrade_level": 1,
+      "spawn_at": [52, 50],
+      "expect_status": "FAIL",
+      "assert": { "tech_tree_unlocked": false }
+    }
+  ]
+}
