@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "02-static-boundaries",
+  "status": "PASS",
+  "opened_at": "2026-07-26T22:00:00+08:00",
+  "closed_at": "2026-07-26T23:00:00+08:00",
+  "goal": "Produce symbol-level Catalog and Galaxy ownership analysis for Reborn mod integration",
+  "evidence_type": "static",
+  "acceptance_results": {
+    "dependency_closure": "PASS — 5 Reborn mods have dependency closure with CMRE runtime",
+    "galaxy_ownership": "PASS — K5Kerrigan spawn → commander replacement → unit unlocks chain identified in Lib48DF4533.galaxy",
+    "catalog_ownership": "PASS — 15 replacement units have Catalog definitions (WarPig@UnitData.xml:8154, HunterKiller@UnitData.xml:13309, etc.)",
+    "integration_boundary": "PASS — -EnableReborn switch design approved; mod deployment layout: cmre-runtime/Mods/reborn/",
+    "campaign_dependencies": "PASS — SwarmStory.SC2Campaign and swarmstoryutil.sc2mod deployment to SC2 install Campaigns/ approved"
+  },
+  "boundary_decision": {
+    "integration_point": "launch-cmre-alenger.ps1 -EnableReborn switch",
+    "mod_layout": "cmre-runtime/Mods/reborn/{crys_the_swarm_reborn.SC2Mod + 4 sub-mods}",
+    "campaign_layout": "SC2 install Campaigns/{SwarmStory.SC2Campaign, swarmstoryutil.sc2mod}",
+    "config_declaration": "src/config/cmre-alenger-dependencies.json optionalPackageMods block"
+  },
+  "next_stage": "03-mvp-feasible",
+  "note": "Stage 02 完成（回顾性文档）。Reborn mod 的 Galaxy 和 Catalog 所有权图已建立，集成边界已批准。"
+}
