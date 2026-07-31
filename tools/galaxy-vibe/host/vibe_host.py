@@ -34,7 +34,8 @@ from typing import Any, Optional
 from xml.etree import ElementTree as ET
 
 # 复用 sc2api-baseline 的 SC2API websocket 封装
-REPO_ROOT = Path(__file__).resolve().parents[2]
+# vibe_host.py 位于 tools/galaxy-vibe/host/，parents[3] 才是仓库根
+REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "reference" / "SC2-Neuro-API-Integration"))
 
 try:
@@ -184,16 +185,59 @@ def read_bank(bank_name: str, player: int = 1) -> dict[str, dict[str, Any]]:
     return parsed
 
 
-def write_bank_request(bank_name: str, request_id: str, request: RpcRequest, player: int = 1) -> None:
-    """将请求写入 Bank 的 request section。
+def write_bank_request(bank_name: str, request_id: str, request: RpcRequest, player: int = 1) -> bool:
+    """将请求写入 Bank 的 request section + 设置 pending_request_id。
 
-    SC2 Bank 文件由游戏进程管理，外部程序直接写入不会被运行中的 SC2 消费。
-    本函数用于 PoC/测试；运行时通过 SC2API DebugCommand 或预置文件实现。
+    Kernel 的 BankPoll 触发器每 0.5 秒调用 BankLoad 重新加载 Bank 文件，
+    因此外部写入磁盘的内容会被 Kernel 消费（BankLoad 从磁盘重新读取）。
+
+    Args:
+        bank_name: Bank 名称（不带 .SC2Map 后缀）
+        request_id: 请求 ID
+        request: RpcRequest 对象
+        player: 玩家编号
+
+    Returns:
+        True 若写入成功
     """
-    # 注意：实际运行时，Host 不直接写 Bank 文件（SC2 会覆盖）
-    # 而是通过 SC2API 的 DebugCommand 或其他机制让 Kernel 读取
-    # 这里仅生成请求字符串供 Host 内部使用
-    pass  # 实际写入由 Transport 层负责
+    bank_path = DEFAULT_BANK_DIR / f"{bank_name}.SC2Bank"
+    args_string = request.to_args_string()
+    try:
+        tree = ET.parse(bank_path)
+        root = tree.getroot()
+    except (ET.ParseError, FileNotFoundError):
+        root = ET.Element("Bank")
+        root.set("version", "1")
+        tree = ET.ElementTree(root)
+
+    # 写入 request section: key=request_id, value=args_string
+    req_sec = root.find("Section[@name='request']")
+    if req_sec is None:
+        req_sec = ET.SubElement(root, "Section")
+        req_sec.set("name", "request")
+    for k in req_sec.findall("Key"):
+        if k.get("name") == request_id:
+            req_sec.remove(k)
+    rk = ET.SubElement(req_sec, "Key")
+    rk.set("name", request_id)
+    rv = ET.SubElement(rk, "Value")
+    rv.set("string", args_string)
+
+    # 设置 pending_request_id 触发 BankPoll
+    idx_sec = root.find("Section[@name='index']")
+    if idx_sec is None:
+        idx_sec = ET.SubElement(root, "Section")
+        idx_sec.set("name", "index")
+    for k in idx_sec.findall("Key"):
+        if k.get("name") == "pending_request_id":
+            idx_sec.remove(k)
+    pk = ET.SubElement(idx_sec, "Key")
+    pk.set("name", "pending_request_id")
+    pv = ET.SubElement(pk, "Value")
+    pv.set("string", request_id)
+
+    tree.write(bank_path, encoding="utf-8", xml_declaration=True)
+    return True
 
 
 # ---- SC2API 连接（aiohttp + 后台 event loop 同步封装）----
@@ -410,11 +454,15 @@ class Sc2ApiClient:
             return False
 
     def send_chat(self, message: str) -> bool:
-        """发送聊天消息（备用 transport）。"""
+        """发送聊天消息（备用 transport）。
+
+        ActionChat.Channel 枚举：Broadcast=1, Team=2（无 0 值）。
+        用 Broadcast 确保触发 Galaxy EventChatMessage。
+        """
         try:
             req = sc_pb.Request(action=sc_pb.RequestAction(
                 actions=[sc_pb.Action(
-                    action_chat=sc_pb.ActionChat(channel=0, message=message),
+                    action_chat=sc_pb.ActionChat(channel=1, message=message),
                 )],
             ))
             resp = self._send_request(req, timeout=10)
@@ -529,7 +577,7 @@ class VibeHost:
         operation: str,
         args: Optional[dict[str, Any]] = None,
         timeout: float = 5.0,
-        transport: str = "chat",
+        transport: str = "bank_poll",
     ) -> RpcResponse:
         """发送 RPC 请求并等待响应。
 
@@ -574,6 +622,8 @@ class VibeHost:
             ok = self._send_via_chat(request)
         elif transport == "input":
             ok = self._send_via_input(request)
+        elif transport == "bank_poll":
+            ok = self._send_via_bank_poll(request)
         else:
             return RpcResponse(
                 kind="error", session_id=self.session_id,
@@ -633,6 +683,19 @@ class VibeHost:
         """
         # 输入回退需要游戏窗口焦点，不稳定，仅作最后手段
         return False
+
+    def _send_via_bank_poll(self, request: RpcRequest) -> bool:
+        """通过 Bank 文件写入 + Kernel BankPoll 触发器发送。
+
+        Kernel 的 BankPoll 触发器每 0.5 秒调用 BankLoad 从磁盘重新加载 Bank，
+        读取 pending_request_id，发现新请求后读取完整请求并分发。
+        本方法将请求写入 Bank 文件，不依赖 SC2API action_chat。
+        """
+        try:
+            return write_bank_request(self.bank_name, request.request_id, request)
+        except Exception as e:
+            print(f"[VibeHost] write_bank_request 异常: {e}", file=sys.stderr)
+            return False
 
     def _poll_response(self, request_id: str, timeout: float) -> RpcResponse:
         """轮询 Bank 等待响应。"""

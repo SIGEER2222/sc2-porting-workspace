@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "scenario": "marine-baseline",
+  "timestamp": "2026-07-31T15:00:00+08:00",
+  "map": "artifacts/live-maps/亡者之夜_live_packed.SC2Map",
+  "summary": {
+    "total": 3,
+    "pass": 0,
+    "fail": 0,
+    "error": 3,
+    "blocker": "BankPoll/ChatCommand triggers do not fire in SC2 API mode"
+  },
+  "checks": [
+    {
+      "name": "marine_base_armor",
+      "status": "ERROR",
+      "actual": {},
+      "expected": {"armor": "== 0"},
+      "error_code": "TRIGGER_NOT_FIRING",
+      "notes": "BankPoll trigger registered but never processed pending request. state_version stayed 0 across all tests."
+    },
+    {
+      "name": "marine_with_shield_wall",
+      "status": "ERROR",
+      "actual": {},
+      "expected": {"armor": "== 3", "tech_tree_unlocked": true},
+      "error_code": "TRIGGER_NOT_FIRING",
+      "notes": "upgrade.set_level request written to Bank but Kernel did not dispatch."
+    },
+    {
+      "name": "marine_nonexistent_upgrade",
+      "status": "ERROR",
+      "actual": {},
+      "expected": {"tech_tree_unlocked": false},
+      "error_code": "TRIGGER_NOT_FIRING",
+      "notes": "tech_tree.check request written to Bank but Kernel did not dispatch."
+    }
+  ],
+  "runtime_evidence": {
+    "init_confirmed": {
+      "verdict": "PASS",
+      "evidence": "Bank file deleted then recreated by Init() after CreateGame+JoinGame. Markers: kernel_initialized=1, init_entered=1, initmap_entered=1, initlib_entered=1.",
+      "type": "runtime"
+    },
+    "sc2_in_game": {
+      "verdict": "PASS",
+      "evidence": "SC2 API observation: game_loop=13645, player_id=1, 31 units, Marine at (45,45) created by InitMap.",
+      "type": "runtime"
+    },
+    "bank_poll_trigger": {
+      "verdict": "FAIL",
+      "evidence": "pending_request_id set in Bank, waited 5-8s + Step(8), state_version stayed 0. No response section created.",
+      "type": "runtime"
+    },
+    "chat_command_trigger": {
+      "verdict": "FAIL",
+      "evidence": "Sent '!vibe <args>' via ActionChat(channel=1) + Step(8), state_version stayed 0. No response written.",
+      "type": "runtime"
+    },
+    "bank_load_external_write": {
+      "verdict": "FAIL",
+      "evidence": "Deleted Bank file, restored with pending_request_id set, waited 8s. Kernel did not process. SC2 BankLoad likely caches content and ignores external modifications.",
+      "type": "runtime"
+    },
+    "script_error": {
+      "verdict": "PASS",
+      "evidence": "No ScriptError.*.txt files in GameLogs after launch.",
+      "type": "runtime"
+    }
+  },
+  "offline_tests": {
+    "verdict": "PASS",
+    "evidence": "31/31 tests passed (TestWhitelist, TestSchemaValidation, TestGalaxyStaticCheck, TestVibeHostMocked).",
+    "type": "static"
+  },
+  "kernel_integration": {
+    "verdict": "PASS",
+    "evidence": "Extracted LibVibeKernel.galaxy from live map (亡者之夜_live_packed.SC2Map). Confirmed contains: BankPoll_Func, ChatCommand_Func, RegisterEntryPoints, HandleUpgradeSetLevel, HandleTechTreeCheck, HandleQueryUnitTags, HandleQueryUnitAttrs, TriggerAddEventTimePeriodic, TriggerAddEventChatMessage.",
+    "type": "static"
+  },
+  "root_cause_hypothesis": "SC2 API mode (CreateGame+JoinGame via WebSocket) does not fire TimePeriodic/ChatMessage triggers registered via TriggerCreate+TriggerAddEventXxx in custom Galaxy libraries. The map's own triggers (registered via MapScript.galaxy InitTriggers) DO fire (enemies spawn, game advances), suggesting the issue is specific to programmatically created triggers in library Init functions. Alternatively, SC2's BankLoad may cache file content and not re-read externally modified Bank files, making BankPoll unable to see pending_request_id written by VibeHost.",
+  "next_steps": [
+    "Investigate whether TriggerCreate works differently in API mode vs normal mode",
+    "Consider using SC2API RequestMapCommand (map must register a MapCommand trigger) as alternative transport",
+    "Consider using SC2API RequestDebug with debug commands to invoke Kernel dispatch directly",
+    "Verify if the map's own TimePeriodic triggers use a different registration mechanism than TriggerCreate"
+  ]
+}
