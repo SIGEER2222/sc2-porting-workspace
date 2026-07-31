@@ -1,0 +1,92 @@
+include "LibNeuroCommandBridge_h"
+include "LibEFA54406_h"
+
+trigger libNeuroCommandBridge_gt_RegisterActions = null;
+trigger libNeuroCommandBridge_gt_ExecuteActions = null;
+
+bool libNeuroCommandBridge_gt_RegisterActions_Func(bool testConds, bool runActions) {
+    if (!runActions) { return true; }
+
+    // NeuroIntegration creates its Bank during its map-init trigger. Give that
+    // trigger a short head start before publishing our action schema.
+    Wait(1.0, c_timeReal);
+    libEFA54406_gf_create_action_3_arg(
+        "issue_order",
+        true,
+        "Issue an ability order to every living player-one unit of a type. Args: unit_type, ability_id, target_point as x y.",
+        "string",
+        "string",
+        "string",
+        -1
+    );
+    return true;
+}
+
+void libNeuroCommandBridge_gt_RegisterActions_Init() {
+    libNeuroCommandBridge_gt_RegisterActions = TriggerCreate("libNeuroCommandBridge_gt_RegisterActions_Func");
+    TriggerAddEventMapInit(libNeuroCommandBridge_gt_RegisterActions);
+}
+
+bool libNeuroCommandBridge_gt_ExecuteActions_Func(bool testConds, bool runActions) {
+    string lv_unitType;
+    string lv_abilityId;
+    string lv_target;
+    unitgroup lv_units;
+    int lv_count;
+    fixed lv_x;
+    fixed lv_y;
+
+    if (!runActions) { return true; }
+
+    BankLoad("NeuroIntegration", 1);
+    BankWait(BankLastCreated());
+    if (BankValueGetAsFlag(BankLastCreated(), "do_action", "issue_order") == true) {
+        lv_unitType = BankValueGetAsString(BankLastCreated(), "do_action", "issue_order_arg_1");
+        lv_abilityId = BankValueGetAsString(BankLastCreated(), "do_action", "issue_order_arg_2");
+        lv_target = BankValueGetAsString(BankLastCreated(), "do_action", "issue_order_arg_3");
+        lv_x = StringToFixed(StringWord(lv_target, 1));
+        lv_y = StringToFixed(StringWord(lv_target, 2));
+
+        if ((lv_unitType != "") && (lv_abilityId != "") && (StringWord(lv_target, 2) != "")) {
+            lv_units = UnitGroup(lv_unitType, 1, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+            lv_count = UnitGroupCount(lv_units, c_unitCountAlive);
+            if (lv_count > 0) {
+                UnitGroupIssueOrder(
+                    lv_units,
+                    OrderTargetingPoint(AbilityCommand(lv_abilityId, 0), Point(lv_x, lv_y)),
+                    c_orderQueueReplace
+                );
+            }
+            BankValueSetFromString(
+                BankLastCreated(),
+                "game_context",
+                "issue_order_result",
+                ("issued=" + IntToString(lv_count) + ";type=" + lv_unitType + ";ability=" + lv_abilityId + ";target=" + lv_target)
+            );
+        }
+        else {
+            BankValueSetFromString(BankLastCreated(), "game_context", "issue_order_result", "rejected=invalid_args");
+        }
+        BankValueSetFromFlag(BankLastCreated(), "do_action", "issue_order", false);
+    }
+
+    // Match the upstream map-side action handshake. The active bump wakes the
+    // external runtime, while releasing the semaphore allows normal contexts
+    // to resume after our event handler has committed its result.
+    BankValueSetFromInt(BankLastCreated(), "game_state", "active", BankValueGetAsInt(BankLastCreated(), "game_state", "active") + 1);
+    BankSave(BankLastCreated());
+    Wait(0.1, c_timeReal);
+    libEFA54406_gv_bankwriteallowed = true;
+    TriggerSendEvent("execute_actions_global");
+    return true;
+}
+
+void libNeuroCommandBridge_gt_ExecuteActions_Init() {
+    libNeuroCommandBridge_gt_ExecuteActions = TriggerCreate("libNeuroCommandBridge_gt_ExecuteActions_Func");
+    TriggerAddEventGeneric(libNeuroCommandBridge_gt_ExecuteActions, "execute_actions_map");
+}
+
+void libNeuroCommandBridge_InitLib() {
+    libNeuroCommandBridge_gt_RegisterActions_Init();
+    libNeuroCommandBridge_gt_ExecuteActions_Init();
+}

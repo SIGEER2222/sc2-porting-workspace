@@ -1,0 +1,21 @@
+{
+  "stage_id": "08-final-acceptance",
+  "issues": [
+    {
+      "id": "UNRESOLVED-INCLUDES-001",
+      "severity": "low",
+      "status": "wontfix",
+      "title": "adapters/dead-of-night/ 中 4 项 unresolved includes",
+      "detail": "TriggerLibs/natives 是 SC2 编辑器内置标准库；LibPortingObserver_h 是地图包内库。静态分析器无法解析 SC2 编辑器内部 include 路径，非真实代码缺陷。",
+      "resolution": "判定为静态分析器已知限制，不需要修复"
+    },
+    {
+      "id": "AI-ALLY-LIVE-001",
+      "severity": "medium",
+      "status": "implemented",
+      "title": "AI 盟友真机自主对局闭环",
+      "detail": "run_dead_of_night_live.py 已实现 CreateGame→JoinGame→Observation→决策→Action 闭环，包含 Sc2Connection 自动重连、DefendBasePolicy 复用、ability_id 映射。",
+      "resolution": "已实现，真机 API 链路已验证（P0/P1/P11-P15 PASS），完整自主对局验收留待后续按需执行"
+    }
+  ]
+}

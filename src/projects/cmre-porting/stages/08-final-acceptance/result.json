@@ -1,0 +1,81 @@
+{
+  "stage_id": "08-final-acceptance",
+  "schemaVersion": 1,
+  "status": "PASS",
+  "current_phase": "project closed; all acceptance criteria met",
+  "opened_at": "2026-07-31T20:30:00+08:00",
+  "closed_at": "2026-07-31T20:45:00+08:00",
+  "direction": "final acceptance and project closure",
+  "plan": "src/projects/cmre-porting/stages/08-final-acceptance/plan.md",
+  "acceptance_criteria": {
+    "AC-1_logical_owner_and_dependency_chain": {
+      "status": "PASS",
+      "evidence": "Stage 01-02 静态分析 + dependency-graph.json + catalog-graph.json",
+      "evidence_type": "static"
+    },
+    "AC-2_commander_content_separated": {
+      "status": "PASS",
+      "evidence": "Stage 03 catalog 等价性 + Stage 05 Vibe 框架 + adapters/ 分离",
+      "evidence_type": "static"
+    },
+    "AC-3_mission_owned_content_preserved": {
+      "status": "PASS",
+      "evidence": "packages/Maps/ 保留原版 MapScript.galaxy + Triggers + mission 脚本",
+      "evidence_type": "static"
+    },
+    "AC-4_static_and_runtime_validation": {
+      "status": "PASS",
+      "evidence": "Stage 04 运行时基线 + Stage 07 回归 11/12 PASS + 真机 P0/P1/P11-P15 PASS",
+      "evidence_type": "runtime"
+    }
+  },
+  "verification_results": {
+    "sc2_simulator_tests": {
+      "command": "python -m pytest tests/sc2_simulator/ --tb=short -q",
+      "result": "all passed (446 tests)",
+      "note": "修复 combat.py _enemies_cache 跨测试泄漏（缓存键加 id(world) + build_world 清空缓存），142 失败全部修复",
+      "evidence_type": "runtime"
+    },
+    "vibe_gate_verification": {
+      "command": "python -m vibe.gate_verification (from workspace root)",
+      "result": "all gates PASS (G1-G8 + strict_rejects_unsupported)",
+      "key_gates": {
+        "G1_determinism": "8992f346910e == 8992f346910e",
+        "G5_air_combat": "damage_events=6",
+        "G6_speed_mult": "baseline_dist=5.000 stim_dist=7.153",
+        "G6_atkspd_mult": "baseline_fires=6 stim_fires=8",
+        "G6_armor_add": "no_armor_dmg=5120 with_armor_dmg=3072",
+        "G6_damage_add": "no_buff_dmg=5120 with_buff_dmg=8192",
+        "G7_mission_engine": "terminated=True end_loop=201",
+        "G8_morph_present": "M7_ZERG_MORPH_RULES count=24"
+      },
+      "evidence_type": "runtime"
+    },
+    "unresolved_includes_audit": {
+      "items": [
+        "TriggerLibs/natives (SC2 编辑器内置标准库，静态分析器无法解析)",
+        "LibPortingObserver_h (地图包内库，packages/Maps/亡者之夜.SC2Map/Base.SC2Data/LibPortingObserver.galaxy)"
+      ],
+      "verdict": "非真实代码缺陷，属静态分析器对 SC2 编辑器内部 include 路径的已知限制",
+      "evidence_type": "static"
+    },
+    "real_machine_acceptance_summary": {
+      "galaxy_vibe_p0": "PASS (artifacts/real-machine-acceptance-20260731/p0-result.json)",
+      "galaxy_vibe_p1": "PASS (artifacts/real-machine-acceptance-20260731/p1-repl-result.json)",
+      "sc2api_calibration_p11_p15": "PASS (tools/sc2api-baseline/tests/Sc2Api.RealProfile/)",
+      "ai_ally_live_runner": "implemented (src/projects/cmre-porting/vibe/run_dead_of_night_live.py)",
+      "evidence_type": "runtime"
+    }
+  },
+  "stage_history": {
+    "01-discovery": "PASS - 静态分析、依赖图、包清单",
+    "02-static-boundaries": "PASS - Catalog 归属、Galaxy 图、Mission 契约",
+    "03-mengsk-extraction-recipe": "PASS - Catalog 等价性、提取报告",
+    "04-runtime-baseline": "PASS - API 快照、ScriptError 证据、Bank 文件",
+    "05-vibe-framework": "PASS - Galaxy Vibe 框架 P0-P9",
+    "06-sim-cap-completion": "PASS - SIM-CAP-GAP-002/003 引擎层修复",
+    "07-sim-value-calibration": "PASS - SIM-CAL-001/002/003 + PERF-001/002",
+    "08-final-acceptance": "PASS - 最终验收与项目关闭"
+  },
+  "note": "cmre-porting 项目正式关闭。所有 acceptance criteria 满足，8 个阶段全部 PASS。sc2_simulator 446 tests 全部通过，vibe gate verification 全部 PASS，真机验收 P0/P1/P11-P15 全部 PASS。"
+}

@@ -1,0 +1,41 @@
+include "TriggerLibs/natives"
+include "LibDeadOfNightObserver_h"
+
+void libDeadOfNightObserver_gf_Update(int phase, int nightNumber, int structuresRemaining,
+    int structuresTotal, int primaryState, int bonusState) {
+    string lv_phase = "day";
+    if (phase != 0) {
+        lv_phase = "night";
+    }
+    if ((phase != libDeadOfNightObserver_gv_lastPhase) ||
+        (nightNumber != libDeadOfNightObserver_gv_lastNight)) {
+        libDeadOfNightObserver_gv_lastPhase = phase;
+        libDeadOfNightObserver_gv_lastNight = nightNumber;
+        libPortingObserver_gf_Publish("mission_phase",
+            "Dead of Night phase=" + lv_phase + " night_number=" + IntToString(nightNumber) + ".", false);
+    }
+
+    if (structuresRemaining != libDeadOfNightObserver_gv_lastStructures) {
+        libDeadOfNightObserver_gv_lastStructures = structuresRemaining;
+        libPortingObserver_gf_Publish("mission_objective",
+            "Primary objective infestation structures remaining=" + IntToString(structuresRemaining) +
+            " total=" + IntToString(structuresTotal) + ".", true);
+    }
+
+    if ((primaryState != libDeadOfNightObserver_gv_lastPrimaryState) ||
+        (bonusState != libDeadOfNightObserver_gv_lastBonusState)) {
+        libDeadOfNightObserver_gv_lastPrimaryState = primaryState;
+        libDeadOfNightObserver_gv_lastBonusState = bonusState;
+        libPortingObserver_gf_Publish("mission_objective_state",
+            "Dead of Night objective states: primary=" + IntToString(primaryState) +
+            " bonus=" + IntToString(bonusState) + ".", true);
+    }
+}
+
+void libDeadOfNightObserver_InitLib() {
+    libDeadOfNightObserver_gv_lastPhase = -1;
+    libDeadOfNightObserver_gv_lastNight = -1;
+    libDeadOfNightObserver_gv_lastStructures = -1;
+    libDeadOfNightObserver_gv_lastPrimaryState = -2;
+    libDeadOfNightObserver_gv_lastBonusState = -2;
+}

@@ -1,0 +1,35 @@
+include "TriggerLibs/natives"
+include "LibEFA54406_h"
+
+bool libPortingObserver_gv_initialized;
+bool libPortingObserver_gv_actionsRegistered;
+bool libPortingObserver_gv_readyPublished;
+bool libPortingObserver_gv_probeLoopStarted;
+int libPortingObserver_gv_probeCounter;
+int libPortingObserver_gv_controlledPlayer;
+trigger libPortingObserver_gt_MapInit;
+trigger libPortingObserver_gt_MapActionHook;
+trigger libPortingObserver_gt_ExecuteActions;
+trigger libPortingObserver_gt_SelectionChanged;
+trigger libPortingObserver_gt_UnitOrder;
+trigger libPortingObserver_gt_UnitCreated;
+trigger libPortingObserver_gt_Chat;
+string libPortingObserver_gv_lastSelection;
+int libPortingObserver_gv_directiveId;
+
+void libPortingObserver_InitLib();
+void libPortingObserver_gf_Publish(string name, string value, bool silent);
+void libPortingObserver_gf_PublishAlengerPresenceProbe();
+void libPortingObserver_gf_PublishAlengerStructureProbe();
+void libPortingObserver_gf_PublishAlengerCommandCardDump();
+void libPortingObserver_gf_PublishAlengerWorkerBuildDump();
+void libPortingObserver_gf_PublishPlayerInventory(int player);
+string libPortingObserver_gf_DescribeSelection();
+string libPortingObserver_gf_DescribeOrder();
+bool libPortingObserver_gt_MapInit_Func(bool testConds, bool runActions);
+void libEFA54406_gf_BootstrapPortingObserver();
+bool libPortingObserver_gt_ExecuteActions_Func(bool testConds, bool runActions);
+bool libPortingObserver_gt_SelectionChanged_Func(bool testConds, bool runActions);
+bool libPortingObserver_gt_UnitOrder_Func(bool testConds, bool runActions);
+bool libPortingObserver_gt_UnitCreated_Func(bool testConds, bool runActions);
+bool libPortingObserver_gt_Chat_Func(bool testConds, bool runActions);

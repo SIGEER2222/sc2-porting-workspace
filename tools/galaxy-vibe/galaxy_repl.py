@@ -12,7 +12,17 @@
   spawn <type> <count> [player] [@x,y]   -> SC2API DebugCreateUnit（秒级刷兵）
   kill <all|player N|tag t1 t2...>  -> SC2API DebugKillUnit
   set <hp|energy|shields> <val> <player N|tag t1 t2...>  -> SC2API DebugSetUnitValue
-  cheat <minerals|gas|god> <on|off> -> SC2API Debug game_state 作弊开关
+  cheat <kind> <on|off>             -> SC2API DebugGameState 全 12 项开关
+                                       kind ∈ show_map/control_enemy/food/free/
+                                       all_resources/god/minerals/gas/cooldown/
+                                       tech_tree/upgrade/fast_build
+  endgame <victory|surrender>       -> SC2API DebugEndGame
+  testproc <hang|crash|exit> [ms]   -> SC2API DebugTestProcess（破坏性，仅供排错）
+  setscore <score:float>            -> SC2API DebugSetScore
+  draw text <text> [@x,y]           -> SC2API DebugDraw.text（屏幕绘制文本）
+  draw line <x1,y1> <x2,y2>         -> SC2API DebugDraw.lines（世界坐标线段）
+  draw box <x1,y1> <x2,y2>          -> SC2API DebugDraw.boxes（世界坐标方框）
+  draw clear                        -> 清空所有调试绘制
   query [player N]                  -> SC2API Observation 汇总单位/资源
   obs                               -> 一次 Observation 原始摘要
   info                              -> SC2API GameInfo（地图尺寸/玩家）
@@ -69,8 +79,31 @@ ASSERT_REPORT_PATH = REPO_ROOT / "artifacts" / "galaxy-vibe" / "assert-results.j
 # unit_value 映射（依据 python-sc2 client.py doc：1=energy, 2=life, 3=shields）
 UNIT_VALUE = {"energy": 1, "hp": 2, "life": 2, "shields": 3}
 
-# 资源作弊枚举（取自 vendored debug_pb2 描述符文本：god=6, minerals=7, gas=8）
-GAME_STATE_CHEAT = {"god": 6, "minerals": 7, "gas": 8, "vespene": 8}
+# DebugGameState 枚举（取自 vendored debug_pb2 DebugGameState enum，全部 12 项）
+# 用 on/off 切换：on=枚举值，off=0
+GAME_STATE_CHEAT = {
+    "show_map": 1,        # 显示全图
+    "control_enemy": 2,   # 可控制敌方单位
+    "food": 3,            # 无视人口上限
+    "free": 4,            # 免费建造（无资源/无建造需求）
+    "all_resources": 5,   # 资源无限
+    "god": 6,             # 上帝模式（无敌）
+    "minerals": 7,        # 矿物无限
+    "gas": 8,             # 瓦斯无限
+    "vespene": 8,         # gas 别名
+    "cooldown": 9,        # 无冷却
+    "tech_tree": 10,      # 解锁全部科技
+    "upgrade": 11,        # 给予全部升级
+    "fast_build": 12,     # 快速建造
+}
+
+# DebugEndGame.EndResult 枚举
+END_GAME_RESULT = {"surrender": 1, "victory": 2, "declare_victory": 2}
+
+# DebugTestProcess.Test 枚举
+TEST_PROCESS_TEST = {"hang": 1, "crash": 2, "exit": 3}
+
+# DebugSetUnitValue.UnitValue 枚举（1=energy, 2=life, 3=shields）
 
 
 def utcnow() -> str:
@@ -415,11 +448,11 @@ class VibeREPL:
 
     async def cmd_cheat(self, args):
         if len(args) < 2:
-            print("[cheat] 用法: cheat <minerals|gas|god> <on|off>")
+            print("[cheat] 用法: cheat <kind> <on|off>  kind ∈ {show_map|control_enemy|food|free|all_resources|god|minerals|gas|cooldown|tech_tree|upgrade|fast_build}")
             return True
         kind = args[0].lower()
         if kind not in GAME_STATE_CHEAT:
-            print(f"[cheat] 未知作弊: {kind}（支持 minerals/gas/god）")
+            print(f"[cheat] 未知作弊: {kind}（支持 {sorted(GAME_STATE_CHEAT.keys())}）")
             return True
         on = args[1].lower() in ("on", "1", "true", "yes")
         state = GAME_STATE_CHEAT[kind] if on else 0
@@ -428,6 +461,198 @@ class VibeREPL:
             print(f"[cheat] error: {resp.error}")
         else:
             print(f"[cheat] {kind} {'开启' if on else '关闭'}")
+        return True
+
+    async def cmd_endgame(self, args):
+        # endgame <victory|surrender>  -> DebugEndGame
+        if not args:
+            print("[endgame] 用法: endgame <victory|surrender>  (victory=DeclareVictory, surrender=Surrender)")
+            return True
+        kind = args[0].lower()
+        if kind not in END_GAME_RESULT:
+            print(f"[endgame] 未知结果: {kind}（支持 victory/surrender）")
+            return True
+        resp = await send_request(
+            self.ws,
+            sc_pb.Request(debug=sc_pb.RequestDebug(debug=[
+                debug_pb.DebugCommand(end_game=debug_pb.DebugEndGame(end_result=END_GAME_RESULT[kind]))
+            ])),
+        )
+        if resp.error:
+            print(f"[endgame] error: {resp.error}")
+        else:
+            print(f"[endgame] 已下发 {kind}（DebugEndGame.EndResult={END_GAME_RESULT[kind]}）")
+        return True
+
+    async def cmd_testproc(self, args):
+        # testproc <hang|crash|exit> [delay_ms]  -> DebugTestProcess
+        if not args:
+            print("[testproc] 用法: testproc <hang|crash|exit> [delay_ms]")
+            print("  注：hang/crash 会使 SC2 进程卡死/崩溃；exit 让 SC2 正常退出；仅供排错用。")
+            return True
+        kind = args[0].lower()
+        if kind not in TEST_PROCESS_TEST:
+            print(f"[testproc] 未知 test: {kind}（支持 hang/crash/exit）")
+            return True
+        delay_ms = 0
+        if len(args) >= 2:
+            try:
+                delay_ms = int(args[1])
+            except ValueError:
+                print(f"[testproc] delay_ms 必须是整数: {args[1]}")
+                return True
+        resp = await send_request(
+            self.ws,
+            sc_pb.Request(debug=sc_pb.RequestDebug(debug=[
+                debug_pb.DebugCommand(test_process=debug_pb.DebugTestProcess(
+                    test=TEST_PROCESS_TEST[kind], delay_ms=delay_ms
+                ))
+            ])),
+        )
+        if resp.error:
+            print(f"[testproc] error: {resp.error}")
+        else:
+            print(f"[testproc] 已下发 {kind} delay_ms={delay_ms}（注意：hang/crash 会破坏 SC2 进程）")
+        return True
+
+    async def cmd_setscore(self, args):
+        # setscore <score>  -> DebugSetScore
+        if not args:
+            print("[setscore] 用法: setscore <score:float>  (设置玩家当前分数；仅在含分数的地图有效)")
+            return True
+        try:
+            score = float(args[0])
+        except ValueError:
+            print(f"[setscore] score 必须是数字: {args[0]}")
+            return True
+        resp = await send_request(
+            self.ws,
+            sc_pb.Request(debug=sc_pb.RequestDebug(debug=[
+                debug_pb.DebugCommand(score=debug_pb.DebugSetScore(score=score))
+            ])),
+        )
+        if resp.error:
+            print(f"[setscore] error: {resp.error}")
+        else:
+            print(f"[setscore] 已设置 score={score}")
+        return True
+
+    async def cmd_draw(self, args):
+        # draw text <text> [@x,y]      -> DebugDraw.text
+        # draw line <x1,y1> <x2,y2>    -> DebugDraw.lines
+        # draw box <x1,y1> <x2,y2>     -> DebugDraw.boxes
+        # draw clear                   -> DebugDraw 空（清屏）
+        # 注：Color 与 Line 在 debug.proto 中定义（debug_pb2.Color / debug_pb2.Line），不在 common_pb2
+        if not args:
+            print("[draw] 用法:")
+            print("  draw text <text> [@x,y]            屏幕绘制文本（默认 virtual_pos=0,0）")
+            print("  draw line <x1,y1> <x2,y2>          绘制线段（世界坐标）")
+            print("  draw box <x1,y1> <x2,y2>           绘制方框（世界坐标）")
+            print("  draw clear                          清空所有调试绘制")
+            return True
+        sub = args[0].lower()
+        if sub == "clear":
+            # 发送空 DebugDraw 清屏
+            resp = await send_request(
+                self.ws,
+                sc_pb.Request(debug=sc_pb.RequestDebug(debug=[
+                    debug_pb.DebugCommand(draw=debug_pb.DebugDraw())
+                ])),
+            )
+            if resp.error:
+                print(f"[draw clear] error: {resp.error}")
+            else:
+                print("[draw clear] 已清空调试绘制")
+            return True
+        if sub == "text":
+            if len(args) < 2:
+                print("[draw text] 用法: draw text <text> [@x,y]")
+                return True
+            text = " ".join(args[1:])
+            vp = common_pb.Point(x=0.0, y=0.0)
+            # 抽取 @x,y
+            if "@" in text:
+                parts = text.rsplit("@", 1)
+                text = parts[0].strip()
+                try:
+                    xs, ys = parts[1].split(",")
+                    vp = common_pb.Point(x=float(xs), y=float(ys))
+                except ValueError:
+                    print("[draw text] @x,y 格式错误")
+                    return True
+            resp = await send_request(
+                self.ws,
+                sc_pb.Request(debug=sc_pb.RequestDebug(debug=[
+                    debug_pb.DebugCommand(draw=debug_pb.DebugDraw(text=[
+                        debug_pb.DebugText(
+                            color=debug_pb.Color(r=255, g=255, b=255),
+                            text=text, virtual_pos=vp, size=14,
+                        )
+                    ]))
+                ])),
+            )
+            if resp.error:
+                print(f"[draw text] error: {resp.error}")
+            else:
+                print(f"[draw text] 已绘制: {text} @({vp.x},{vp.y})")
+            return True
+        if sub == "line":
+            if len(args) < 3:
+                print("[draw line] 用法: draw line <x1,y1> <x2,y2>")
+                return True
+            try:
+                x1, y1 = (float(v) for v in args[1].split(","))
+                x2, y2 = (float(v) for v in args[2].split(","))
+            except ValueError:
+                print("[draw line] 坐标格式错误（应为 x,y）")
+                return True
+            resp = await send_request(
+                self.ws,
+                sc_pb.Request(debug=sc_pb.RequestDebug(debug=[
+                    debug_pb.DebugCommand(draw=debug_pb.DebugDraw(lines=[
+                        debug_pb.DebugLine(
+                            color=debug_pb.Color(r=0, g=255, b=0),
+                            line=debug_pb.Line(
+                                p0=common_pb.Point(x=x1, y=y1),
+                                p1=common_pb.Point(x=x2, y=y2),
+                            ),
+                        )
+                    ]))
+                ])),
+            )
+            if resp.error:
+                print(f"[draw line] error: {resp.error}")
+            else:
+                print(f"[draw line] 已绘制 ({x1},{y1})->({x2},{y2})")
+            return True
+        if sub == "box":
+            if len(args) < 3:
+                print("[draw box] 用法: draw box <x1,y1> <x2,y2>")
+                return True
+            try:
+                x1, y1 = (float(v) for v in args[1].split(","))
+                x2, y2 = (float(v) for v in args[2].split(","))
+            except ValueError:
+                print("[draw box] 坐标格式错误（应为 x,y）")
+                return True
+            resp = await send_request(
+                self.ws,
+                sc_pb.Request(debug=sc_pb.RequestDebug(debug=[
+                    debug_pb.DebugCommand(draw=debug_pb.DebugDraw(boxes=[
+                        debug_pb.DebugBox(
+                            color=debug_pb.Color(r=255, g=0, b=0),
+                            min=common_pb.Point(x=x1, y=y1),
+                            max=common_pb.Point(x=x2, y=y2),
+                        )
+                    ]))
+                ])),
+            )
+            if resp.error:
+                print(f"[draw box] error: {resp.error}")
+            else:
+                print(f"[draw box] 已绘制 ({x1},{y1})->({x2},{y2})")
+            return True
+        print(f"[draw] 未知子命令: {sub}（支持 text/line/box/clear）")
         return True
 
     async def cmd_query(self, args):
@@ -665,6 +890,10 @@ class VibeREPL:
             "kill": self.cmd_kill,
             "set": self.cmd_set,
             "cheat": self.cmd_cheat,
+            "endgame": self.cmd_endgame,
+            "testproc": self.cmd_testproc,
+            "setscore": self.cmd_setscore,
+            "draw": self.cmd_draw,
             "query": self.cmd_query,
             "assert": self.cmd_assert,
             "obs": self.cmd_obs,
@@ -692,7 +921,16 @@ class VibeREPL:
             "  spawn <type> <count> [player] [@x,y]  秒级刷兵（type 可用英文名或整数 id）\n"
             "  kill <all|player N|tag t1 t2...>      击杀单位\n"
             "  set <hp|energy|shields> <val> <player N|tag ...>  设单位属性\n"
-            "  cheat <minerals|gas|god> <on|off>     资源/上帝模式作弊\n"
+            "  cheat <kind> <on|off>                 DebugGameState 作弊开关\n"
+            "    kind ∈ {show_map|control_enemy|food|free|all_resources|god|\n"
+            "            minerals|gas|cooldown|tech_tree|upgrade|fast_build}\n"
+            "  endgame <victory|surrender>           DebugEndGame 结束游戏\n"
+            "  testproc <hang|crash|exit> [delay_ms] DebugTestProcess（破坏性，仅供排错）\n"
+            "  setscore <score:float>                DebugSetScore 设置分数\n"
+            "  draw text <text> [@x,y]               DebugDraw 屏幕绘制文本\n"
+            "  draw line <x1,y1> <x2,y2>             DebugDraw 绘制线段（世界坐标）\n"
+            "  draw box <x1,y1> <x2,y2>              DebugDraw 绘制方框（世界坐标）\n"
+            "  draw clear                            清空所有调试绘制\n"
             "  query [player N]                      汇总单位与资源\n"
             "  assert <exists|not_exists|count|range|eventually> <unit> ... [--player N] [--within S]  自动判定\n"
             "  obs                                    观察原始摘要\n"

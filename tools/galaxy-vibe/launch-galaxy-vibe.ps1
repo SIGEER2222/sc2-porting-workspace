@@ -85,7 +85,8 @@ foreach ($c in $candidates) { if ($c -and (Test-Path $c)) { $switcher = $c; brea
 if (-not $switcher) { Write-Error "Could not locate SC2Switcher_x64.exe. Install StarCraft II or set its path." }
 
 if (-not (Test-Path $Map))     { Write-Error "Map not found: $Map" }
-if (-not (Test-Path $ModPath)) { Write-Error "Debug mod not found: $ModPath" }
+# ModPath 为空字符串时跳过检查（表示不挂载 mod）
+if ($ModPath -and -not (Test-Path $ModPath)) { Write-Error "Debug mod not found: $ModPath" }
 
 Write-Host "[1/4] Killing any running SC2 ..."
 Get-Process -Name "SC2_x64", "SC2Switcher_x64" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue

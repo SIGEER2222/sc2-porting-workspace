@@ -1,0 +1,410 @@
+include "TriggerLibs/natives"
+include "LibPortingObserver_h"
+
+void libPortingObserver_gf_Publish(string name, string value, bool silent) {
+    if ((value == "") || (libEFA54406_gv_neuroIntegration == null)) {
+        return;
+    }
+    libEFA54406_gf_create_context(name, value, silent);
+}
+
+void libPortingObserver_gf_PublishAlengerPresenceProbe() {
+    // RuntimeProbe is deprecated as runtime evidence (see project rules).
+    // The original body hardcoded Alenger3 unit IDs (3diguoqianshaojidi,
+    // 3diguolaogong, 3diguojianzhengzhe) which are invalid for other
+    // commanders (e.g. ZergAlenger6) and trigger
+    // "指定的单位类型无效" fatal script errors at map init. Disabled.
+}
+
+void libPortingObserver_gf_PublishPlayerInventory(int player) {
+    string[96] lv_seenTypes;
+    int[96] lv_seenCounts;
+    int lv_seenCount = 0;
+    unitgroup lv_units = UnitGroup("", player, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    int lv_total = UnitGroupCount(lv_units, c_unitCountAll);
+    int lv_idx = 0;
+    unit lv_u = null;
+    string lv_type = "";
+    bool lv_found = false;
+    int lv_j = 0;
+    string lv_context = "";
+    string lv_section = "player_" + IntToString(player) + "_inventory";
+    int lv_alengerCount = 0;
+    int lv_alengerTypeCount = 0;
+
+    for (lv_idx = 1; lv_idx <= lv_total; lv_idx += 1) {
+        lv_u = UnitGroupUnit(lv_units, lv_idx);
+        if (lv_u == null) { break; }
+        lv_type = UnitGetType(lv_u);
+        lv_found = false;
+        for (lv_j = 0; lv_j < lv_seenCount; lv_j += 1) {
+            if (lv_seenTypes[lv_j] == lv_type) {
+                lv_seenCounts[lv_j] = lv_seenCounts[lv_j] + 1;
+                lv_found = true;
+                break;
+            }
+        }
+        if (!lv_found) {
+            if (lv_seenCount < 96) {
+                lv_seenTypes[lv_seenCount] = lv_type;
+                lv_seenCounts[lv_seenCount] = 1;
+                lv_seenCount = lv_seenCount + 1;
+            }
+        }
+    }
+
+    // Count Alenger3-specific units (ID starts with "3") for a quick summary.
+    for (lv_j = 0; lv_j < lv_seenCount; lv_j += 1) {
+        if (StringSub(lv_seenTypes[lv_j], 1, 1) == "3") {
+            lv_alengerCount = lv_alengerCount + lv_seenCounts[lv_j];
+            lv_alengerTypeCount = lv_alengerTypeCount + 1;
+        }
+    }
+
+    lv_context = "total=" + IntToString(lv_total) +
+        "; unique_types=" + IntToString(lv_seenCount) +
+        "; alenger_units=" + IntToString(lv_alengerCount) +
+        "; alenger_types=" + IntToString(lv_alengerTypeCount) +
+        "; items:";
+    for (lv_j = 0; lv_j < lv_seenCount; lv_j += 1) {
+        lv_context = lv_context + " " + lv_seenTypes[lv_j] + "=" + IntToString(lv_seenCounts[lv_j]) + ";";
+    }
+    libPortingObserver_gf_Publish(lv_section, lv_context, false);
+}
+
+void libPortingObserver_gf_PublishAlengerStructureProbe() {
+    // RuntimeProbe is deprecated as runtime evidence. The original body
+    // hardcoded Alenger3 unit IDs (3diguoqianshaojidi, 3diguolaogong) which
+    // are invalid for other commanders and trigger fatal script errors.
+    // Disabled.
+}
+
+void libPortingObserver_gf_PublishAlengerCommandCardDump() {
+    // RuntimeProbe is deprecated as runtime evidence. The original body
+    // hardcoded Alenger3 unit ID (3diguoqianshaojidi) which is invalid for
+    // other commanders and triggers fatal script errors. Disabled.
+}
+
+void libPortingObserver_gf_PublishAlengerWorkerBuildDump() {
+    // RuntimeProbe is deprecated as runtime evidence. The original body
+    // hardcoded Alenger3 unit ID (3diguolaogong) and Alenger3 build abilities
+    // (3jianzao1/3jianzao2) which are invalid for other commanders and trigger
+    // fatal script errors. Disabled.
+}
+
+string libPortingObserver_gf_DescribeSelection() {
+    unitgroup lv_group = UnitGroupSelected(libPortingObserver_gv_controlledPlayer);
+    int lv_count = UnitGroupCount(lv_group, c_unitCountAll);
+    int lv_index = lv_count;
+    int lv_shown = 0;
+    unit lv_unit = null;
+    string lv_context = "";
+    string lv_type = "";
+    string lv_name = "";
+    fixed lv_resources = 0.0;
+
+    if (lv_count <= 0) {
+        return "Player selection is empty.";
+    }
+
+    lv_context = "Player selected " + IntToString(lv_count) + " unit(s): ";
+    for (;; lv_index -= 1) {
+        lv_unit = UnitGroupUnitFromEnd(lv_group, lv_index);
+        if (lv_unit == null) { break; }
+        if (lv_shown > 0) {
+            lv_context = lv_context + "; ";
+        }
+        lv_type = UnitGetType(lv_unit);
+        lv_name = TextToString(UnitGetName(lv_unit));
+        if (lv_name == "") {
+            lv_name = lv_type;
+        }
+        lv_context = lv_context + lv_name + " type=" + lv_type + " owner=" + IntToString(UnitGetOwner(lv_unit));
+        lv_resources = UnitGetPropertyFixed(lv_unit, c_unitPropResources, c_unitPropCurrent);
+        if (lv_resources > 0.0) {
+            lv_context = lv_context + " resources_remaining=" + IntToString(FixedToInt(lv_resources));
+        }
+        lv_shown = lv_shown + 1;
+        if (lv_shown >= 8) { break; }
+    }
+    if (lv_count > lv_shown) {
+        lv_context = lv_context + "; ...";
+    }
+    return lv_context + ".";
+}
+
+string libPortingObserver_gf_DescribeOrder() {
+    unit lv_source = EventUnit();
+    order lv_order = EventUnitOrder();
+    abilcmd lv_command;
+    unit lv_target = null;
+    point lv_point = null;
+    string lv_context = "";
+    string lv_ability = "";
+    fixed lv_resources = 0.0;
+
+    if ((lv_source == null) || (lv_order == null)) {
+        return "";
+    }
+
+    lv_command = OrderGetAbilityCommand(lv_order);
+    lv_ability = AbilityCommandGetAbility(lv_command);
+    lv_context = "Player issued order: source=" + UnitGetType(lv_source) +
+        " ability=" + lv_ability + " command=" + IntToString(AbilityCommandGetCommand(lv_command));
+
+    if (OrderGetTargetType(lv_order) == c_orderTargetUnit) {
+        lv_target = OrderGetTargetUnit(lv_order);
+        if (lv_target != null) {
+            lv_context = lv_context + " target_unit=" + UnitGetType(lv_target) +
+                " target_owner=" + IntToString(UnitGetOwner(lv_target));
+            lv_resources = UnitGetPropertyFixed(lv_target, c_unitPropResources, c_unitPropCurrent);
+            if (lv_resources > 0.0) {
+                lv_context = lv_context + " target_resources_remaining=" + IntToString(FixedToInt(lv_resources));
+            }
+        }
+    } else if (OrderGetTargetType(lv_order) == c_orderTargetPoint) {
+        lv_point = OrderGetTargetPoint(lv_order);
+        if (lv_point != null) {
+            lv_context = lv_context + " target_point=(" + FixedToString(PointGetX(lv_point), 1) +
+                "," + FixedToString(PointGetY(lv_point), 1) + ")";
+        }
+    }
+    return lv_context + ".";
+}
+
+bool libPortingObserver_gt_MapInit_Func(bool testConds, bool runActions) {
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    // Single initial probe after a short delay. The sustained poll loop is
+    // owned by gt_PortingObserverDeadOfNightPoll_Func injected into
+    // MapScript.galaxy. Running two concurrent while(true) loops here and in
+    // the poll trigger caused "too many threads" errors (each Publish call
+    // creates a trigger via libEFA54406_gf_create_context, and two 3-5s
+    // loops stacked threads faster than they drain).
+    Wait(8.0, c_timeReal);
+    libPortingObserver_gf_PublishAlengerPresenceProbe();
+    return true;
+}
+
+bool libPortingObserver_gt_AlengerProbeLoop_Func(bool testConds, bool runActions) {
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    libPortingObserver_gf_PublishAlengerPresenceProbe();
+    return true;
+}
+
+void libEFA54406_gf_BootstrapPortingObserver() {
+    if (libEFA54406_gv_neuroIntegration == null) { return; }
+
+    libEFA54406_gv_bankwriteallowed = true;
+    if (!libPortingObserver_gv_readyPublished) {
+        libPortingObserver_gv_readyPublished = true;
+        libPortingObserver_gf_Publish("porting_observer_ready",
+            "CMRE dynamic observer initialized. Selection, resource, order, production and chat events are active.", false);
+    }
+    if (!libPortingObserver_gv_actionsRegistered) {
+        libEFA54406_gf_create_action_1_arg("select_unit_type", true,
+            "Select player or neutral units by exact unit type id", "string", -1);
+        libEFA54406_gf_create_action_2_arg("order_selected", true,
+            "Issue an ability command to the selected player units. arg_1 is the ability id and arg_2 is an optional target unit type id",
+            "string", "string", -1);
+        libPortingObserver_gv_actionsRegistered = true;
+    }
+    if (!libPortingObserver_gv_probeLoopStarted) {
+        libPortingObserver_gv_probeLoopStarted = true;
+        libPortingObserver_gf_PublishAlengerPresenceProbe();
+    }
+}
+
+bool libPortingObserver_gt_ExecuteActions_Func(bool testConds, bool runActions) {
+    string lv_message = "";
+    string lv_unitType = "";
+    string lv_ability = "";
+    string lv_targetType = "";
+    unitgroup lv_group = UnitGroupEmpty();
+    unitgroup lv_selected = UnitGroupEmpty();
+    unitgroup lv_targets = UnitGroupEmpty();
+    unit lv_target = null;
+    unit lv_source = null;
+    order lv_issue = null;
+    int lv_issued = 0;
+    int lv_active = 0;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+
+    // Debug: confirm ExecuteActions trigger is running
+    libPortingObserver_gv_probeCounter = libPortingObserver_gv_probeCounter + 1;
+    if (libPortingObserver_gv_probeCounter == 1) {
+        libPortingObserver_gf_Publish("execute_actions_fired", "ExecuteActions trigger is running", false);
+    }
+    // Periodic probe: every ~6 seconds (10 * 0.6s loop interval)
+    if (libPortingObserver_gv_probeCounter % 10 == 0) {
+        libPortingObserver_gf_PublishAlengerPresenceProbe();
+    }
+
+    // This is the map half of Neuro's silent Bank IPC loop. It must reload the
+    // external file before reading actions, then leave a write window for the
+    // integration before handing control back to the global half.
+    if (libEFA54406_gv_neuroIntegration != null) {
+        BankReload(libEFA54406_gv_neuroIntegration);
+        BankWait(BankLastCreated());
+        libEFA54406_gv_neuroIntegration = BankLastCreated();
+    }
+    if ((libEFA54406_gv_neuroIntegration != null) &&
+        BankValueGetAsFlag(libEFA54406_gv_neuroIntegration, "do_action", "select_unit_type")) {
+        lv_unitType = BankValueGetAsString(libEFA54406_gv_neuroIntegration, "do_action", "select_unit_type_arg_1");
+        lv_group = UnitGroup(lv_unitType, c_playerAny, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+        BankValueSetFromFlag(libEFA54406_gv_neuroIntegration, "do_action", "select_unit_type", false);
+        UnitGroupSelect(lv_group, libPortingObserver_gv_controlledPlayer, true);
+        lv_message = "Selected " + IntToString(UnitGroupCount(lv_group, c_unitCountAll)) + " unit(s) of type " + lv_unitType + ".";
+        libPortingObserver_gf_Publish("action_result", lv_message, false);
+    }
+
+    if ((libEFA54406_gv_neuroIntegration != null) &&
+        BankValueGetAsFlag(libEFA54406_gv_neuroIntegration, "do_action", "order_selected")) {
+        lv_ability = BankValueGetAsString(libEFA54406_gv_neuroIntegration, "do_action", "order_selected_arg_1");
+        lv_targetType = BankValueGetAsString(libEFA54406_gv_neuroIntegration, "do_action", "order_selected_arg_2");
+        lv_selected = UnitGroupSelected(libPortingObserver_gv_controlledPlayer);
+        BankValueSetFromFlag(libEFA54406_gv_neuroIntegration, "do_action", "order_selected", false);
+        if (lv_targetType != "") {
+            lv_targets = UnitGroup(lv_targetType, c_playerAny, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+        }
+        if (UnitGroupCount(lv_targets, c_unitCountAll) > 0) {
+            lv_source = UnitGroupUnit(lv_selected, 1);
+            if (lv_source != null) {
+                lv_target = UnitGroupClosestToPoint(lv_targets, UnitGetPosition(lv_source));
+            }
+        }
+        UnitGroupLoopBegin(lv_selected);
+        while (!UnitGroupLoopDone()) {
+            if (lv_target != null) {
+                lv_issue = OrderTargetingUnit(AbilityCommand(lv_ability, 0), lv_target);
+            } else {
+                lv_issue = Order(AbilityCommand(lv_ability, 0));
+            }
+            if (UnitOrderIsValid(UnitGroupLoopCurrent(), lv_issue)) {
+                UnitIssueOrder(UnitGroupLoopCurrent(), lv_issue, c_orderQueueReplace);
+                lv_issued = lv_issued + 1;
+            }
+            UnitGroupLoopStep();
+        }
+        UnitGroupLoopEnd();
+        libPortingObserver_gf_Publish("action_result",
+            "Issued ability " + lv_ability + " to " + IntToString(lv_issued) + " selected unit(s).", false);
+    }
+    if ((libEFA54406_gv_neuroIntegration != null) &&
+        BankValueGetAsFlag(libEFA54406_gv_neuroIntegration, "do_action", "chat_message")) {
+        lv_message = BankValueGetAsString(libEFA54406_gv_neuroIntegration, "do_action", "chat_message_arg_1");
+        UIDisplayMessage(PlayerGroupAll(), c_messageAreaSubtitle, StringToText("Gary: " + lv_message));
+        BankValueSetFromFlag(libEFA54406_gv_neuroIntegration, "do_action", "chat_message", false);
+    }
+
+    if (libEFA54406_gv_neuroIntegration != null) {
+        lv_active = BankValueGetAsInt(libEFA54406_gv_neuroIntegration, "game_state", "active");
+        if (lv_active >= 2000000000) {
+            lv_active = 1;
+        } else {
+            lv_active = lv_active + 1;
+        }
+        BankValueSetFromInt(libEFA54406_gv_neuroIntegration, "game_state", "active", lv_active);
+        BankSave(libEFA54406_gv_neuroIntegration);
+    }
+    Wait(0.40, c_timeReal);
+
+    if (libEFA54406_gv_neuroIntegration != null) {
+        BankReload(libEFA54406_gv_neuroIntegration);
+        BankWait(BankLastCreated());
+        libEFA54406_gv_neuroIntegration = BankLastCreated();
+        BankSave(libEFA54406_gv_neuroIntegration);
+    }
+    libEFA54406_gv_bankwriteallowed = true;
+    Wait(0.20, c_timeReal);
+    libEFA54406_gv_bankwriteallowed = false;
+
+    if (libEFA54406_gv_neuroIntegration != null) {
+        BankSave(libEFA54406_gv_neuroIntegration);
+    }
+    TriggerSendEvent("execute_actions_global");
+    return true;
+}
+
+bool libPortingObserver_gt_SelectionChanged_Func(bool testConds, bool runActions) {
+    string lv_context = "";
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    if ((EventPlayer() == 1) || (EventPlayer() == 2)) {
+        libPortingObserver_gv_controlledPlayer = EventPlayer();
+    }
+    lv_context = libPortingObserver_gf_DescribeSelection();
+    if (lv_context != libPortingObserver_gv_lastSelection) {
+        libPortingObserver_gv_lastSelection = lv_context;
+        libPortingObserver_gf_Publish("player_selection", lv_context, true);
+        TriggerSendEvent("execute_actions_global");
+    }
+    return true;
+}
+
+bool libPortingObserver_gt_UnitOrder_Func(bool testConds, bool runActions) {
+    if (testConds) {
+        return ((EventPlayer() == 1) || (EventPlayer() == 2)) &&
+            (UnitGetOwner(EventUnit()) == EventPlayer());
+    }
+    if (!runActions) { return true; }
+    libPortingObserver_gv_controlledPlayer = EventPlayer();
+    libPortingObserver_gf_Publish("player_order", libPortingObserver_gf_DescribeOrder(), true);
+    TriggerSendEvent("execute_actions_global");
+    return true;
+}
+
+bool libPortingObserver_gt_UnitCreated_Func(bool testConds, bool runActions) {
+    unit lv_unit = EventUnitCreatedUnit();
+    if (testConds) {
+        return (lv_unit != null) && ((UnitGetOwner(lv_unit) == 1) || (UnitGetOwner(lv_unit) == 2));
+    }
+    if (!runActions) { return true; }
+    libPortingObserver_gf_Publish("player_production",
+        "Player unit created: type=" + UnitGetType(lv_unit) + " name=" + TextToString(UnitGetName(lv_unit)) + ".", true);
+    TriggerSendEvent("execute_actions_global");
+    return true;
+}
+
+bool libPortingObserver_gt_Chat_Func(bool testConds, bool runActions) {
+    string lv_message = "";
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    lv_message = EventChatMessage(false);
+    if (((EventPlayer() == 1) || (EventPlayer() == 2)) && (lv_message != "")) {
+        libPortingObserver_gv_controlledPlayer = EventPlayer();
+        libPortingObserver_gv_directiveId = libPortingObserver_gv_directiveId + 1;
+        libPortingObserver_gf_Publish("player_directive", "Player directive: " + lv_message, false);
+        libEFA54406_gf_create_force_action(
+            "cmre_directive_" + IntToString(libPortingObserver_gv_directiveId),
+            "chat_message,select_unit_type,order_selected",
+            libPortingObserver_gf_DescribeSelection(),
+            "The player typed: " + lv_message + ". Reply with chat_message for conversation, or use the available unit actions to carry out a clear command.",
+            false, "high");
+        TriggerSendEvent("execute_actions_global");
+    }
+    return true;
+}
+
+void libPortingObserver_InitLib() {
+    if (libPortingObserver_gv_initialized) { return; }
+    libPortingObserver_gv_controlledPlayer = 2;
+    libPortingObserver_gt_MapInit = TriggerCreate("libPortingObserver_gt_MapInit_Func");
+    TriggerAddEventMapInit(libPortingObserver_gt_MapInit);
+    libPortingObserver_gt_ExecuteActions = TriggerCreate("libPortingObserver_gt_ExecuteActions_Func");
+    TriggerAddEventGeneric(libPortingObserver_gt_ExecuteActions, "execute_actions_map");
+    libPortingObserver_gt_MapActionHook = libPortingObserver_gt_ExecuteActions;
+    libPortingObserver_gt_SelectionChanged = TriggerCreate("libPortingObserver_gt_SelectionChanged_Func");
+    TriggerAddEventUnitSelected(libPortingObserver_gt_SelectionChanged, null, 1, true);
+    TriggerAddEventUnitSelected(libPortingObserver_gt_SelectionChanged, null, 2, true);
+    libPortingObserver_gt_UnitOrder = TriggerCreate("libPortingObserver_gt_UnitOrder_Func");
+    TriggerAddEventUnitOrder(libPortingObserver_gt_UnitOrder, null, null);
+    libPortingObserver_gt_UnitCreated = TriggerCreate("libPortingObserver_gt_UnitCreated_Func");
+    TriggerAddEventUnitCreated(libPortingObserver_gt_UnitCreated, null, null, null);
+    libPortingObserver_gt_Chat = TriggerCreate("libPortingObserver_gt_Chat_Func");
+    TriggerAddEventChatMessage(libPortingObserver_gt_Chat, c_playerAny, "", false);
+    libPortingObserver_gv_initialized = true;
+    TriggerExecute(libPortingObserver_gt_MapInit, true, false);
+}
