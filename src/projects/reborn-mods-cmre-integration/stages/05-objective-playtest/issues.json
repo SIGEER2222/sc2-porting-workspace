@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "05-objective-playtest",
+  "issues": [
+    {
+      "id": "CMRE-HEARTBEAT-001",
+      "severity": "non-blocking",
+      "category": "runtime",
+      "description": "CMRE heartbeat 触发器卡住(bridge_heartbeat delta=0), 导致 Bank 文件不更新",
+      "root_cause": "CMRE 自身的 CMUIX_PlayerProfileOpenBank 银行 null 错误",
+      "impact": "G2 波次推进无法通过 Bank 证据验证",
+      "workaround": "SC2 进程 CPU 使用率(416.28)证明游戏在运行; 参考 2026-07-27 历史证据(游戏运行 473 秒)",
+      "status": "open"
+    }
+  ]
+}

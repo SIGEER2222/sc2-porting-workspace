@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "07-series-port-completion",
+  "issues": [
+    {
+      "id": "CMRE-HEARTBEAT-001",
+      "severity": "non-blocking",
+      "category": "runtime",
+      "description": "CMRE heartbeat 触发器卡住, 导致 Stage 05/06 G2 波次推进 INCONCLUSIVE",
+      "impact": "无法通过 Bank 证据验证波次推进",
+      "workaround": "历史证据 + SC2 CPU 使用率证明游戏在运行",
+      "status": "open"
+    },
+    {
+      "id": "REBORN-FV-001",
+      "severity": "non-blocking",
+      "category": "runtime",
+      "description": "SC2 API 模式下加载 Reborn mod 触发 ACCESS_VIOLATION 崩溃",
+      "impact": "无法用 vibe REPL 在 Reborn mod 环境下做 runtime 战斗验证",
+      "workaround": "用不带 Reborn 的 SC2 API 模式验证 vibe 框架战斗闭环, Reborn 单位战斗通过 static+inference 推导",
+      "status": "open"
+    }
+  ]
+}

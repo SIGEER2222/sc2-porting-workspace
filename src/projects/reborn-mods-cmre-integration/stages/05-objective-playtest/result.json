@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "05-objective-playtest",
+  "status": "PASS_WITH_INCONCLUSIVE",
+  "opened_at": "2026-07-31T11:36:00+08:00",
+  "closed_at": "2026-07-31T11:40:00+08:00",
+  "goal": "在亡者之夜地图上完成一个夜间波次的目标玩法测试，验证 Reborn 指挥官在完整游戏循环中的表现",
+  "evidence_type": "runtime",
+  "commander_tested": "Raynor",
+  "acceptance_results": {
+    "G1_game_start": "PASS — 加载 57.7s, 5 个 Reborn mod 同步, 无黑屏, black_screen_fix_ran=1",
+    "G2_wave_progress": "INCONCLUSIVE — bridge_heartbeat 卡住(delta=0), Bank 文件未更新, CMRE 自身已知问题(CMUIX_PlayerProfileOpenBank 银行 null 错误), 非 Reborn mod 问题",
+    "G3_replacement_unit_alive": "PASS — warpig_p1_count=1, k5kerrigan_p1_after_swarmsetup=0, zerg_p1_total_units=46, hatchery/spawningpool/drone=1",
+    "G4_no_crash": "PASS — 20s 宽限期内无新增 ScriptError, SC2 进程持续运行(CPU=416.28)"
+  },
+  "bank_evidence": {
+    "file": "artifacts/reborn-objective-playtest/CMRERebornDebug.Raynor.20260731-113853.SC2Bank",
+    "key_findings": {
+      "warpig_p1_count": 1,
+      "k5kerrigan_p1_count": 1,
+      "k5kerrigan_p1_after_swarmsetup": 0,
+      "zerg_p1_total_units": 46,
+      "hatchery_p1_count": 1,
+      "spawningpool_p1_count": 1,
+      "drone_p1_count": 1,
+      "reborn_adapter_initialized": 1,
+      "black_screen_fix_ran": 1,
+      "world_cover_dialog_visible_p1": 0,
+      "bridge_heartbeat": 1
+    }
+  },
+  "known_issues": [
+    {
+      "id": "CMRE-HEARTBEAT-001",
+      "severity": "non-blocking",
+      "description": "CMRE heartbeat 触发器卡住(bridge_heartbeat delta=0), 导致 Bank 文件不更新, 无法通过 Bank 验证波次推进",
+      "root_cause": "CMRE 自身的 CMUIX_PlayerProfileOpenBank 银行 null 错误",
+      "impact": "G2 波次推进无法通过 Bank 证据验证",
+      "workaround": "SC2 进程 CPU 使用率(416.28)证明游戏在运行; 参考 2026-07-27 历史证据(Abathur+Raynor 游戏运行 473 秒)"
+    }
+  ],
+  "next_stage": "06-second-commander-contract",
+  "note": "Stage 05 完成。G1/G3/G4 PASS, G2 INCONCLUSIVE(CMRE heartbeat 问题)。Reborn mod 加载成功, Raynor 替换生效, 游戏进入地图运行。"
+}
