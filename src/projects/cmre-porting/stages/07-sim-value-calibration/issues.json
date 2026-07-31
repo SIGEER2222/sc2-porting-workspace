@@ -54,6 +54,31 @@
       "status": "resolved-fixed",
       "title": "Stage 06 速度/攻速乘数修复在 upstream 重写后丢失",
       "fixed_at": "2026-07-30T17:35:00+08:00"
+    },
+    {
+      "id": "SIM-CAP-GAP-006",
+      "severity": "medium",
+      "status": "open",
+      "title": "m3 Catalog 中 Overlord 未标记为飞行单位",
+      "summary": "m3_catalog() 中 Overlord 仍是地面移动类型；m7_catalog() 会在组装时将其修正为 FLYING，因此当前 m7 主路径正确，但直接消费 m3 Catalog 时仍可能被地面武器错误选中。",
+      "evidence": [
+        "reference/sc2-ally-bot/src/sc2_simulator/catalog/m3_units.py (static: Overlord 原始定义未设置 is_flying/movement_type)",
+        "reference/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py (static: m7_catalog flying_unit_ids 包含 Overlord)",
+        "uv run python catalog probe (runtime: m3=False/GROUND, m7=True/FLYING, 2026-07-31)"
+      ],
+      "resolution": "在后续 Catalog 统一化阶段把飞行属性下沉到单位原始定义，删除 m7 组装层补丁；同时保留 m3/m7 回归测试。"
+    },
+    {
+      "id": "SIM-CAP-GAP-007",
+      "severity": "medium",
+      "status": "open",
+      "title": "常规 splash 复用主目标伤害 breakdown",
+      "summary": "即时与弹体 splash 仍复用主目标的 armor/behavior 计算结果，次要目标没有按自身护甲和行为重新结算；Mutalisk bounce 已进入独立伤害路径。",
+      "evidence": [
+        "reference/sc2-ally-bot/src/sc2_simulator/systems/combat.py (static: _apply_splash_instant 复制主目标 breakdown)",
+        "reference/sc2-ally-bot/src/sc2_simulator/systems/projectile.py (static: projectile splash 复用主目标 damage_breakdown)"
+      ],
+      "resolution": "后续把伤害管线拆成命中上下文与逐目标结算，对每个 splash 目标重新计算 armor/behavior；增加 Guardian Shield 混合编队回归。"
     }
   ]
 }

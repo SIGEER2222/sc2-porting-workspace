@@ -106,11 +106,14 @@ def p3_selftest() -> dict:
 
     # G5: 空战已接线（stage 06 修复 SIM-CAP-GAP-002）—— 动态验证 Viking 对空武器可开火
     # 静态：Viking weapon_air 存在；动态：Viking vs Viking 跑 200 loop，必有 damage 事件
-    # （stage 06 修复后 _is_air 返回 unit_type.is_air，weapon_air 会被选中并开火）
+    # （stage 06 修复后 _is_air 返回 unit_type.is_flying，weapon_air 会被选中并开火）
     from sc2_simulator.catalog.m7_units import m7_catalog
     m7 = m7_catalog()
     static_has_weapon = "Viking" in m7.units and m7.units["Viking"].weapon_air is not None
-    static_is_air = "Viking" in m7.units and (getattr(m7.units["Viking"], "is_flying", False) or getattr(m7.units["Viking"], "is_air", False))
+    static_is_air = "Viking" in m7.units and (
+        getattr(m7.units["Viking"], "is_flying", False)
+        or getattr(m7.units["Viking"], "is_air", False)
+    )
     # 动态：两个 Viking 互相攻击，应能造成伤害
     air_scenario = {
         "schema_version": "m7",
@@ -138,7 +141,7 @@ def p3_selftest() -> dict:
     _s.scenario_reset()
     _s.scenario_step(200)
     air_damage_events = [e for e in _s.world.events.emitted if e.kind == "damage"]
-    # 静态有 weapon_air + is_air，且动态有 damage 事件 = 真验证了「weapon_air 可开火」
+    # 静态有 weapon_air + is_flying，且动态有 damage 事件 = 真验证了「weapon_air 可开火」
     dynamic_has_damage = static_has_weapon and static_is_air and len(air_damage_events) > 0
     checks["G5_air_combat_wired"] = dynamic_has_damage
     details["G5_air_combat_wired"] = (
@@ -170,6 +173,22 @@ def p3_selftest() -> dict:
     g7_ok, g7_detail = _g7_mission_test()
     checks["G7_mission_engine"] = g7_ok
     details["G7_mission_engine"] = g7_detail
+
+    # ===== Stage 07 SIM-CAL 校准闸门（G7-cal-*）=====
+    # 验证 stage 07 的伤害公式、武器周期、单位行为修正
+    g7_cal_ok, g7_cal_detail = _g7_calibration_test()
+    checks["G7_cal_min_dmg"] = g7_cal_detail["min_dmg_passed"]
+    checks["G7_cal_bonus_max"] = g7_cal_detail["bonus_max_passed"]
+    checks["G7_cal_marauder_period"] = g7_cal_detail["marauder_period_passed"]
+    checks["G7_cal_reaper_no_stim"] = g7_cal_detail["reaper_no_stim_passed"]
+    checks["G7_cal_mutalisk_bounce"] = g7_cal_detail["mutalisk_bounce_passed"]
+    checks["G7_cal_colossus_air"] = g7_cal_detail["colossus_air_passed"]
+    details["G7_cal_min_dmg"] = g7_cal_detail["min_dmg"]
+    details["G7_cal_bonus_max"] = g7_cal_detail["bonus_max"]
+    details["G7_cal_marauder_period"] = g7_cal_detail["marauder_period"]
+    details["G7_cal_reaper_no_stim"] = g7_cal_detail["reaper_no_stim"]
+    details["G7_cal_mutalisk_bounce"] = g7_cal_detail["mutalisk_bounce"]
+    details["G7_cal_colossus_air"] = g7_cal_detail["colossus_air"]
 
     # G8: Zerg morph —— 检查 m7 有 morph 规则
     try:
@@ -464,6 +483,207 @@ def _g7_mission_test() -> tuple[bool, str]:
     enemies_after_wave = [u for u in s.query_units()["units"] if u["owner"] == 2]
     wave_fired = len(enemies_after_wave) > 0 or any(o["status"] != "active" for o in res.objectives)
     return wave_fired and res.terminated, detail
+
+
+def _g7_calibration_test() -> tuple[bool, dict]:
+    """Stage 07 SIM-CAL 校准闸门验证（6 项）。
+
+    验证项：
+    - G7-cal-min-dmg: 0.5 最小伤害规则生效（高护甲目标伤害不低于 0.5/发 = 512 raw）
+    - G7-cal-bonus-max: bonus damage 取 max 而非累加（多属性匹配时只取最大值）
+    - G7-cal-marauder-period: Marauder period 34 后 100 loop 内开火 ≥2 次（修正前 75 只能 1 次）
+    - G7-cal-reaper-no-stim: Reaper 不在 Stimpack casters 列表中
+    - G7-cal-mutalisk-bounce: Mutalisk 攻击密集阵型时次要目标受到弹跳伤害
+    - G7-cal-colossus-air: Colossus（MASSIVE）可被 Viking weapon_air 攻击
+
+    金标准来源：python-sc2 unit.py:723,734,745,748 + unit.py:783-785（Stimpack casters）
+    + Sharky DamageService.cs:13（Colossus dual target）
+    """
+    from sc2_simulator.catalog.m7_units import m7_catalog
+    from sc2_simulator.catalog.abilities import casters_by_ability
+    from sc2_simulator.fixed import Fixed, SCALE
+    from sc2_simulator.systems.combat import (
+        _compute_damage_breakdown, _is_air, _weapon_for_target,
+    )
+    from sc2_simulator.catalog.model import Attribute, UnitType, WeaponType
+
+    result = {
+        "min_dmg_passed": False,
+        "bonus_max_passed": False,
+        "marauder_period_passed": False,
+        "reaper_no_stim_passed": False,
+        "mutalisk_bounce_passed": False,
+        "colossus_air_passed": False,
+        "min_dmg": "",
+        "bonus_max": "",
+        "marauder_period": "",
+        "reaper_no_stim": "",
+        "mutalisk_bounce": "",
+        "colossus_air": "",
+    }
+    m7 = m7_catalog()
+
+    # ===== G7-cal-min-dmg: 0.5 最小伤害规则生效 =====
+    # 构造 Marine 攻击高护甲目标（armor 10），单发伤害应被钳到 0.5 点 = 512 raw
+    # Marine weapon.damage=5, attacks=1, target 无 bonus attr。
+    # 公式：pre_armor = 5；armor=10；net = 5-10 = -5；min_dmg = 0.5（512 raw）
+    high_armor_type = UnitType(
+        id="HighArmorTarget",
+        race="terran",
+        attributes=frozenset({Attribute.ARMORED, Attribute.MECHANICAL}),
+        max_health=Fixed.from_int(100),
+        armor=Fixed.from_int(10),
+    )
+    marine_weapon = m7.units["Marine"].weapon_ground
+    bd = _compute_damage_breakdown(marine_weapon, high_armor_type)
+    # 期望 final_raw = 512 (0.5 点)
+    min_ok = bd["final_raw"] == SCALE // 2
+    result["min_dmg_passed"] = min_ok
+    result["min_dmg"] = (
+        f"final_raw={bd['final_raw']} expected={SCALE // 2} (0.5 point floor, "
+        f"pre_armor={bd['pre_armor_raw']} armor={bd['armor_raw']})"
+    )
+
+    # ===== G7-cal-bonus-max: bonus damage 取 max 而非累加 =====
+    # 构造武器 bonus_damage = {LIGHT: 5, ARMORED: 10}，目标同时有 LIGHT + ARMORED 属性
+    # 累加错误结果：bonus=15；取 max 正确结果：bonus=10
+    multi_bonus_weapon = WeaponType(
+        id="TestMultiBonus",
+        damage=Fixed.from_int(5),
+        attacks=1,
+        range=Fixed.from_int(5),
+        period=22,
+        bonus_damage={Attribute.LIGHT: Fixed.from_int(5), Attribute.ARMORED: Fixed.from_int(10)},
+    )
+    multi_attr_type = UnitType(
+        id="MultiAttrTarget",
+        race="terran",
+        attributes=frozenset({Attribute.LIGHT, Attribute.ARMORED}),
+        max_health=Fixed.from_int(100),
+        armor=Fixed.zero(),
+    )
+    bd2 = _compute_damage_breakdown(multi_bonus_weapon, multi_attr_type)
+    # 期望 bonus_raw = 10*1024 = 10240（取 max）；而非 15*1024 = 15360（累加）
+    expected_bonus = 10 * SCALE
+    bonus_ok = bd2["bonus_raw"] == expected_bonus
+    result["bonus_max_passed"] = bonus_ok
+    result["bonus_max"] = (
+        f"bonus_raw={bd2['bonus_raw']} expected={expected_bonus} (取 max 而非累加 5+10=15) "
+        f"bonus_attrs={bd2['bonus_attrs']}"
+    )
+
+    # ===== G7-cal-marauder-period: Marauder period 34 后 100 loop 内开火 ≥2 次 =====
+    # 修正前 period=75，100 loop 内只能开火 1 次（loop 0 一次，第二次要 loop 75 + 飞行延迟）
+    # 修正后 period=34，100 loop 内能开火 2-3 次
+    marauder_scenario = {
+        "schema_version": "m7", "name": "G7 cal marauder period",
+        "players": [
+            {"id": 1, "name": "T1", "race": "terran", "allies": [], "is_ai": True},
+            {"id": 2, "name": "T2", "race": "zerg", "allies": [], "is_ai": True},
+        ],
+        "spawns": [
+            {"unit_type_id": "Marauder", "owner_player_id": 1, "x": 0.0, "y": 0.0},
+            {"unit_type_id": "Roach", "owner_player_id": 2, "x": 3.0, "y": 0.0},
+        ],
+        "commands": [
+            {"loop": 0, "kind": "attack_unit", "issuer_player_id": 1, "entity_ids": [1], "target_entity_id": 2},
+        ],
+        "max_loops": 100, "seed": 42, "strict": False, "win_condition": "custom",
+    }
+    _s = SimulatorSession()
+    _s.scenario_load(scenario_dict=marauder_scenario, catalog="m7")
+    _s.scenario_reset()
+    _s.scenario_step(100)
+    marauder_dmg_events = [e for e in _s.world.events.emitted
+                           if e.kind == "damage" and e.payload.get("attacker") == 1]
+    # 期望 ≥2 次（修正前 1 次，修正后 ≥2 次）
+    marauder_period_ok = len(marauder_dmg_events) >= 2
+    # 同时验证 catalog 中 Marauder period=34
+    marauder_period_value = m7.units["Marauder"].weapon_ground.period
+    result["marauder_period_passed"] = marauder_period_ok and marauder_period_value == 34
+    result["marauder_period"] = (
+        f"damage_events={len(marauder_dmg_events)} (expected >=2) "
+        f"catalog_period={marauder_period_value} (expected 34, was 75)"
+    )
+
+    # ===== G7-cal-reaper-no-stim: Reaper 不在 Stimpack casters 列表中 =====
+    stim_casters = casters_by_ability.get("Stimpack", ())
+    reaper_no_stim_ok = "Reaper" not in stim_casters
+    result["reaper_no_stim_passed"] = reaper_no_stim_ok
+    result["reaper_no_stim"] = (
+        f"Stimpack casters={stim_casters} (Reaper absent={reaper_no_stim_ok}, "
+        f"python-sc2 金标准: Marine/Marauder only)"
+    )
+
+    # ===== G7-cal-mutalisk-bounce: Mutalisk 弹跳伤害命中次要目标 =====
+    # 构造 1 个 Mutalisk 攻击 3 个密集 Marine（互相距离 ≤ 1.0）
+    # 期望：主目标吃 9 伤害；第二目标吃 3 伤害；第三目标吃 1 伤害
+    bounce_scenario = {
+        "schema_version": "m7", "name": "G7 cal mutalisk bounce",
+        "players": [
+            {"id": 1, "name": "Z", "race": "zerg", "allies": [], "is_ai": True},
+            {"id": 2, "name": "T", "race": "terran", "allies": [], "is_ai": True},
+        ],
+        "spawns": [
+            {"unit_type_id": "Mutalisk", "owner_player_id": 1, "x": 0.0, "y": 0.0},
+            # 3 个 Marine 密集站位（相互距离 ≤ 1.0 在 bounce_radius=1.0 内）
+            {"unit_type_id": "Marine", "owner_player_id": 2, "x": 2.5, "y": 0.0},
+            {"unit_type_id": "Marine", "owner_player_id": 2, "x": 3.0, "y": 0.5},
+            {"unit_type_id": "Marine", "owner_player_id": 2, "x": 3.0, "y": -0.5},
+        ],
+        "commands": [
+            {"loop": 0, "kind": "attack_unit", "issuer_player_id": 1, "entity_ids": [1], "target_entity_id": 2},
+        ],
+        "max_loops": 60, "seed": 42, "strict": False, "win_condition": "custom",
+    }
+    _s2 = SimulatorSession()
+    _s2.scenario_load(scenario_dict=bounce_scenario, catalog="m7")
+    _s2.scenario_reset()
+    _s2.scenario_step(60)
+    # 统计所有 damage 事件中 attacker=1（Mutalisk）的，按 payload.bounce_index 分组
+    mutalisk_dmg_events = [e for e in _s2.world.events.emitted
+                           if e.kind == "damage" and e.payload.get("attacker") == 1]
+    bounce_events = [e for e in mutalisk_dmg_events if e.payload.get("bounce_index", 0) > 0]
+    # 期望：有 bounce_index > 0 的事件（即弹跳伤害已触发）
+    bounce_indices = sorted({e.payload.get("bounce_index", 0) for e in bounce_events})
+    bounce_ok = len(bounce_events) > 0 and 1 in bounce_indices
+    result["mutalisk_bounce_passed"] = bounce_ok
+    result["mutalisk_bounce"] = (
+        f"total_mutalisk_dmg_events={len(mutalisk_dmg_events)} "
+        f"bounce_events={len(bounce_events)} bounce_indices={bounce_indices} "
+        f"(expected bounce_index=1 present, 9→3→1 sequence)"
+    )
+
+    # ===== G7-cal-colossus-air: Colossus 可被 Viking weapon_air 攻击 =====
+    # 静态验证：_is_air(Colossus) == True；_weapon_for_target(Viking, Colossus) 返回 weapon_air
+    # Colossus 在 m7 中应已定义（attributes 含 MASSIVE）
+    colossus_type = m7.units.get("Colossus")
+    viking_type = m7.units.get("Viking")
+    if colossus_type is None or viking_type is None:
+        result["colossus_air_passed"] = False
+        result["colossus_air"] = (
+            f"Colossus present={colossus_type is not None} Viking present={viking_type is not None} "
+            f"(m7 catalog missing required units)"
+        )
+    else:
+        colossus_is_air = _is_air(colossus_type)
+        viking_weapon_for_colossus = _weapon_for_target(viking_type, colossus_type)
+        colossus_air_ok = (colossus_is_air
+                           and viking_weapon_for_colossus is not None
+                           and viking_weapon_for_colossus.id == "Viking.LanzerTorpedoes")
+        result["colossus_air_passed"] = colossus_air_ok
+        result["colossus_air"] = (
+            f"colossus_is_air={colossus_is_air} (MASSIVE dual target判定) "
+            f"viking_weapon_for_colossus={viking_weapon_for_colossus.id if viking_weapon_for_colossus else None} "
+            f"(expected Viking.LanzerTorpedoes)"
+        )
+
+    all_passed = all([
+        result["min_dmg_passed"], result["bonus_max_passed"],
+        result["marauder_period_passed"], result["reaper_no_stim_passed"],
+        result["mutalisk_bounce_passed"], result["colossus_air_passed"],
+    ])
+    return all_passed, result
 
 
 def _make_attack_nearest_trigger():
