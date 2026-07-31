@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "04-functional-verification",
+  "issues": [
+    {
+      "id": "REBORN-FV-001",
+      "severity": "blocking",
+      "category": "runtime",
+      "description": "SC2 API 模式（-listen -port -debug）下加载 Reborn mod 触发 ACCESS_VIOLATION 崩溃（写入 0x0000000000004023）。Crash 发生在 SC2_x64.exe 主线程，非 mod 脚本错误。",
+      "evidence": "C:\\Users\\22448\\Documents\\StarCraft II\\GameLogs\\2026-07-31 10.26.00 SIGEER B97563 Crash\\2026-07-31 10.26.00 SIGEER B97563 Crash.txt",
+      "impact": "无法用 vibe REPL 在 Reborn mod 环境下做 runtime 战斗功能验证（G3）",
+      "workaround": "改用普通模式（无 -listen/-port）启动游戏，通过 Bank 文件收集证据；或等待 SC2 API 与 Reborn mod 兼容性修复",
+      "status": "open"
+    },
+    {
+      "id": "REBORN-FV-002",
+      "severity": "non-blocking",
+      "category": "static",
+      "description": "G3 战斗功能验证缺 runtime 证据，当前仅有 static 证据（Catalog 中武器定义存在）",
+      "impact": "G3 闸门未完全关闭",
+      "workaround": "用普通模式启动游戏，手动观察替换单位是否可攻击；或修复 REBORN-FV-001 后用 vibe REPL 验证",
+      "status": "open"
+    }
+  ]
+}

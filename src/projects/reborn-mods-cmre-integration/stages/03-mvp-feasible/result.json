@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "03-mvp-feasible",
+  "status": "PASS",
+  "opened_at": "2026-07-26T23:17:00+08:00",
+  "closed_at": "2026-07-31T10:45:00+08:00",
+  "direction": "Integrate 5 Reborn mods into CMRE runtime via -EnableReborn switch and verify all 15 commanders' unit replacement",
+  "goal": "Prove Reborn commander replacement works for all 15 commanders on 亡者之夜 map with black-screen fix",
+  "evidence_type": "runtime",
+  "acceptance_results": {
+    "reborn_mods_deployed": "PASS — 5 Reborn mods synced to SC2 install Mods/reborn/",
+    "enableReborn_switch": "PASS — launch-cmre-alenger.ps1 supports -EnableReborn switch",
+    "commander_replacement_15_of_15": "PASS — all 15 commanders verified via CMRERebornDebug.SC2Bank",
+    "black_screen_fix": "PASS — black_screen_fix_ran=1, world_cover_dialog_visible_p1=0 across all commanders",
+    "k5kerrigan_spawn_patch": "PASS — initlib_patch_ran=1, k5kerrigan_patch_ran=1, k5kerrigan_p1_after_swarmsetup=0",
+    "no_new_script_error": "PASS — Raynor test clean; Abathur had only CMUIX bank null error (pre-existing CMRE issue)"
+  },
+  "commander_results": {
+    "Abathur": "PASS (hunterkiller_p1_count=1, zerg_total=14)",
+    "Dehaka": "PASS (primalhydralisk2_p1_count=1, primaligniter_p1_count=1, zerg_total=17)",
+    "Izsha": "PASS (siqueen_p1_count=1, zerg_total=14)",
+    "Karass": "PASS (higharchontemplar_p1_count=1, zerg_total=4)",
+    "Kerrigan": "PASS (k5kerrigan_p1_count=1 not replaced, zerg_total=14)",
+    "Naktul": "PASS (queen_p1_count=1, zerg_total=14)",
+    "Narud": "PASS (revenantgun_p1_count=1, zerg_total=4)",
+    "Raynor": "PASS (warpig_p1_count=1, zerg_total=7)",
+    "Stukov": "PASS (infestedmarine_p1_count=1, zerg_total=17)",
+    "Tosh": "PASS (witch_p1_count=1, zerg_total=4)",
+    "Urun": "PASS (huntress_p1_count=1, zerg_total=7)",
+    "Warfield": "PASS (grizzly_p1_count=1, zerg_total=4)",
+    "Mengsk": "PASS (mengskmarauder_p1_count=1, zerg_total=4)",
+    "Zagara": "PASS (infestedabomination_p1_count=1, zerg_total=14)",
+    "Zeratul": "PASS (stalkershakuras_p1_count=1, zerg_total=7)",
+    "Random": "skipped"
+  },
+  "evidence_files": [
+    "stages/03-mvp-feasible/2026-07-26-enableReborn-deadOfNight-alenger3.md",
+    "stages/03-mvp-feasible/2026-07-27-reborn-commander-real-test.md",
+    "stages/03-mvp-feasible/2026-07-27-abathur-deep-verification.md",
+    "stages/03-mvp-feasible/2026-07-27-documentHeader-fix.md",
+    "stages/03-mvp-feasible/evidence/CMRERebornDebug.SC2Bank.20260727-final-*",
+    "stages/03-mvp-feasible/evidence/batch-test-summary-20260727.json"
+  ],
+  "known_issues": [
+    {
+      "id": "REBORN-001",
+      "description": "Raynor WarPig replacement ratio is 1:1 at runtime (expected 1:2 by design). Reborn mod creates 2 WarPigs at same location but only 1 survives. This is upstream Reborn mod behavior, not a porting bug.",
+      "resolution": "documented in reborn-commanders.json notes; can be patched in map adapter layer if 2:1 is required"
+    },
+    {
+      "id": "REBORN-002",
+      "description": "SpawningPool=0 for all Zerg commanders (expected 1). Reborn mod does not build SpawningPool in SwarmSetup; Hatchery and Drone are created.",
+      "resolution": "upstream Reborn mod behavior; non-blocking for unit replacement verification"
+    },
+    {
+      "id": "REBORN-003",
+      "description": "Protoss/Terran commanders (Karass/Narud/Tosh/Urun/Warfield/Mengsk) do not call PlayerSetRace, resulting in Zerg base buildings for some. zerg_total=4-7 indicates minimal Zerg units.",
+      "resolution": "upstream Reborn mod behavior; non-blocking for unit replacement verification"
+    }
+  ],
+  "next_stage": "04-functional-verification",
+  "note": "Stage 03 完成。15 个指挥官单位替换全部验证通过（runtime 证据）。黑屏修复 + K5Kerrigan spawn patch + SwarmSetup direct trigger 全部稳定执行。已知问题均为 Reborn mod 上游行为，非移植 bug。下一阶段（04-functional-verification）将验证技能/生产面板/战斗功能。"
+}
