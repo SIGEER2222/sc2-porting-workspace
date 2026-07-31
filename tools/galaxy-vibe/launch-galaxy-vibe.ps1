@@ -3,10 +3,10 @@
     Launch SC2 with the Galaxy Vibe debug mod + SC2 API, then run the P0 transport probe.
 
 .DESCRIPTION
-    Mounts tools/galaxy-vibe/galaxy-debug-mod as a -mod, starts a test map with -listenPort,
+    Mounts tools/galaxy-vibe/galaxy-debug-mod as a -mod, starts a test map with -listen/-port,
     waits for the /sc2api port, then (with -AutoProbe) runs tools/galaxy-vibe/transport_probe.py.
 
-    Sandbox note: in a headless/sandboxed environment the Switcher drops -listenPort and the
+    Sandbox note: in a headless/sandboxed environment the Switcher may drop -listen/-port and the
     /sc2api websocket never comes up (see tools/launchers/run-live-runtime-probe.ps1). Run on a
     real desktop where SC2 launches normally.
 
@@ -91,10 +91,14 @@ Get-Process -Name "SC2_x64", "SC2Switcher_x64" -ErrorAction SilentlyContinue | S
 Start-Sleep -Seconds 2
 
 Write-Host "[2/4] Launching SC2 (Switcher) with debug mod + API on port $Port ..."
-$args = @($Map, "-listenPort", "$Port", "-mod", "$ModPath", "-displayMode", "0", "-windowWidth", "800", "-windowHeight", "600", "-novid")
+# 正确参数格式：-listen <host> -port <port> -debug（SC2 静默忽略 -listenPort）
+# 去掉 -displayMode 0 -novid（在某些环境下导致黑屏且无 ScriptError）
+$args = @($Map, "-listen", "127.0.0.1", "-port", "$Port", "-debug", "-mod", "$ModPath")
 Write-Host "      $switcher $($args -join ' ')"
-$launched = Start-Process -FilePath $switcher -ArgumentList $args -PassThru
-Write-Host "      Switcher PID=$($launched.Id)"
+# WorkingDirectory 必须设为 SC2 安装根目录，否则 SC2 可能回退到默认端口 6119
+$sc2Root = Split-Path -Parent (Split-Path -Parent $switcher)
+$launched = Start-Process -FilePath $switcher -ArgumentList $args -PassThru -WorkingDirectory $sc2Root
+Write-Host "      Switcher PID=$($launched.Id) WorkingDir=$sc2Root"
 
 $opened = $false
 for ($i = 0; $i -lt 60; $i++) {
@@ -109,7 +113,7 @@ for ($i = 0; $i -lt 60; $i++) {
     if (-not (Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue)) { Write-Host "      SC2_x64 exited before port opened"; break }
 }
 if (-not $opened) {
-    Write-Error "SC2 API port $Port never opened. On a normal desktop check GameLogs; in a sandbox the Switcher drops -listenPort."
+    Write-Error "SC2 API port $Port never opened. On a normal desktop check GameLogs; in a sandbox the Switcher may drop -listen/-port."
 }
 
 # 写启动标记，供 tools/galaxy-vibe/script_error_check.py 判定"本次启动以来"的新增 ScriptError
