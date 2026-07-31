@@ -455,12 +455,15 @@ class VibeREPL:
             print(f"[cheat] 未知作弊: {kind}（支持 {sorted(GAME_STATE_CHEAT.keys())}）")
             return True
         on = args[1].lower() in ("on", "1", "true", "yes")
-        state = GAME_STATE_CHEAT[kind] if on else 0
+        # SC2 DebugGameState 是 toggle 语义：每次发请求都切换状态，枚举无 0 值。
+        # on/off 都发同一枚举值；用户需自行记住当前状态（SC2 API 无查询当前作弊状态的接口）。
+        state = GAME_STATE_CHEAT[kind]
         resp = await send_request(self.ws, sc_pb.Request(debug=sc_pb.RequestDebug(debug=[debug_pb.DebugCommand(game_state=state)])))
         if resp.error:
             print(f"[cheat] error: {resp.error}")
         else:
-            print(f"[cheat] {kind} {'开启' if on else '关闭'}")
+            action = "开启(toggle)" if on else "关闭(toggle)"
+            print(f"[cheat] {kind} {action}  (DebugGameState={state}, SC2 切换语义)")
         return True
 
     async def cmd_endgame(self, args):
