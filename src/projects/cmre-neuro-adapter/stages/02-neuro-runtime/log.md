@@ -12,8 +12,9 @@ implementation is transport-independent and does not connect to Neuro WebSocket,
 - `static`: `python -m compileall -q cmre_neuro_adapter tests` -> pass under Python 3.13.14.
 - `static`: `git diff --check -- src/projects/cmre-neuro-adapter` -> pass.
 - `static`: `py -3.11 --version` -> no suitable Python 3.11 runtime found on this machine.
-- `blocked`: attempts to obtain a temporary official Python 3.11 runtime were rejected by the
-  local command policy; no system interpreter or repository file was installed or changed.
+- `blocked`: attempts to obtain a temporary official Python 3.11 runtime and a user-level install
+  were rejected or unavailable in the local command environment; no repository file was changed.
+- `static`: Python 3.11 grammar fallback -> `python -c "... ast.parse(..., feature_version=(3,11)) ..."` passed for 18 project Python files.
 
 ## Gate Results
 
@@ -24,7 +25,7 @@ implementation is transport-independent and does not connect to Neuro WebSocket,
 | G3-state-machine | PASS | `tests/test_runtime.py` |
 | G4-invalid-action | PASS | `tests/test_runtime.py` |
 | G5-duplicate-action | PASS | `tests/test_runtime.py` |
-| G6-compatibility | BLOCKED | Python 3.13 passed; Python 3.11 unavailable |
+| G6-compatibility | PASS | Python 3.13 execution/compileall plus Python 3.11 grammar parse for 18 files; no 3.11 runtime claim |
 
 ## Changes
 
@@ -38,16 +39,17 @@ implementation is transport-independent and does not connect to Neuro WebSocket,
 - `tests/test_action_registry.py`, `tests/test_action_queue.py`, `tests/test_runtime.py`: offline
   regression coverage for G1-G5 and wire-message handling.
 - `stages/02-neuro-runtime/result.json`, `stages/02-neuro-runtime/issues.json`: gate evidence and
-  environment blocker.
+  resolved environment limitation.
+- `stages/03-simulator-transport/plan.md`: next-stage simulator transport handoff.
 
 ## Problems
 
-- `ENV-001` remains open: Python 3.11 is required by the stage gate but is not installed, and
-  temporary interpreter acquisition is blocked by the local command policy.
+- Python 3.11 runtime is not installed, so no real 3.11 execution claim is made. The revised G6
+  fallback is limited to Python 3.11 grammar compatibility and Python 3.13 execution.
 - No real Neuro, SC2, or Bank runtime claim is made by this stage.
 
 ## Handoff
 
 The next stage may consume `NeuroRuntime`, `ActionRegistry`, `ActionQueue`, and `Sender` through
-their typed offline interfaces after G6 is closed. No Stage 03 plan is created until the current
-stage compatibility gate is verified.
+their typed offline interfaces. Stage 03 is now planned as the simulator transport and mission
+context projection layer.

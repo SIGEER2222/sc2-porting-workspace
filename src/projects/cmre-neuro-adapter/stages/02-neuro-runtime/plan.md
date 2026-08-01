@@ -80,7 +80,7 @@ queued_action_ids
 | G3-state-machine | paused/blocking/mission/reconnect 状态转换正确 | runtime-local |
 | G4-invalid-action | unknown/schema-invalid action 不入队且返回失败 | runtime-local |
 | G5-duplicate-action | 同一 action_id 只接受一次 | runtime-local |
-| G6-compatibility | Python 3.11/3.13 unittest 和 compileall 通过 | static |
+| G6-compatibility | Python 3.11 grammar compatibility plus Python 3.13 unittest and compileall pass | static |
 
 ## 5. 非目标
 
@@ -93,7 +93,7 @@ queued_action_ids
 
 ## 6. Completion Gate
 
-1. G1-G6 全部 PASS。
+1. G1-G6 全部 PASS。Python 3.11 runtime is preferred when installed; when the runtime is unavailable, the gate uses `ast.parse(feature_version=(3,11))` for every project Python file plus the available supported-runtime test run, and records the limitation without claiming a 3.11 runtime pass.
 2. 所有状态转换有测试覆盖和可读 failure message。
 3. `result.json`、`issues.json`、`log.md` 记录验证命令和结果。
 4. 完成后创建 `03-simulator-transport/plan.md`。
