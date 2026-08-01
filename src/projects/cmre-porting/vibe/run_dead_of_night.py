@@ -64,6 +64,7 @@ CLEAR_PUSH_STAGING_POINTS = [
     (125.0, 145.0),
 ]
 REINFORCEMENT_LIFETIME_LOOPS = 336
+CLEAR_PROBE_WALL_TIME_BUDGET_SEC = 120.0
 
 
 def build_night_waves(
@@ -1454,7 +1455,7 @@ def main():
     parser.add_argument(
         "--mvp-fast",
         action="store_true",
-        help="MVP 快速基准：普通窗口 1280/55s；清图窗口 2000/90s",
+        help="MVP 快速基准：普通窗口 1280/55s；清图窗口 2000/120s",
     )
     parser.add_argument(
         "--clear-enemy-structures",
@@ -1483,7 +1484,7 @@ def main():
     )
     time_scale = 0.02 if args.mvp_fast else args.time_scale
     wall_time_budget_sec = (
-        90.0
+        CLEAR_PROBE_WALL_TIME_BUDGET_SEC
         if clear_probe
         else (55.0 if args.mvp_fast else None)
     )

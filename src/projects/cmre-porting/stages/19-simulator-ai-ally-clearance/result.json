@@ -1,12 +1,58 @@
 {
   "stage_id": "19-simulator-ai-ally-clearance",
   "schemaVersion": 1,
-  "status": "IN_PROGRESS",
-  "current_phase": "Stage opened from verified Stage 18 clearance handoff",
+  "status": "PASS",
+  "current_phase": "Simulator AI ally multi-seed clearance and hostile-case regression verified",
   "opened_at": "2026-08-01T15:50:41Z",
-  "completed_at": null,
-  "verification_results": {},
+  "completed_at": "2026-08-01T23:52:30Z",
+  "verification_results": {
+    "multi_seed_clearance": {
+      "status": "PASS",
+      "evidence_type": "simulator",
+      "commands": [
+        "python -m vibe.run_dead_of_night --mvp-fast --clear-enemy-structures --seed 42 --output stages/19-simulator-ai-ally-clearance/simulator-seed-42.json",
+        "python -m vibe.run_dead_of_night --mvp-fast --clear-enemy-structures --seed 7 --output stages/19-simulator-ai-ally-clearance/simulator-seed-7.json",
+        "python -m vibe.run_dead_of_night --mvp-fast --clear-enemy-structures --seed 99 --output stages/19-simulator-ai-ally-clearance/simulator-seed-99.json"
+      ],
+      "artifacts": [
+        "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/simulator-seed-42.json",
+        "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/simulator-seed-7.json",
+        "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/simulator-seed-99.json"
+      ],
+      "summary": "Seeds 42/7/99 all reached all_objectives_success with 344 initial and 0 remaining enemy structures. Infection spawned 36 in every run; daytime cleanup recorded 27/27/25; building reinforcements recorded 306/297/317."
+    },
+    "focused_simulator_regression": {
+      "status": "PASS",
+      "evidence_type": "simulator",
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/test_simulator_ai_ally_clearance.py",
+      "summary": "Five focused cases passed: infection/day cleanup/reinforcement, stale target reallocation, dead push-unit handling, wall-clock exhaustion, and deterministic wave seeding."
+    },
+    "static_regression": {
+      "status": "PASS",
+      "evidence_type": "static",
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/test_simulator_ai_ally_clearance.py src/projects/cmre-porting/stages/18-vibe-task-execution-loop/test_task_loop.py tools/galaxy-vibe/tests/test_kernel.py tools/launchers/tests/test_launch_cmre_alenger_static.py tools/launchers/tests/test_live_runner_unit_adapter.py",
+      "summary": "65 tests passed. py_compile and git diff --check also passed."
+    },
+    "static_validation": {
+      "status": "PASS",
+      "evidence_type": "static",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1",
+      "artifact": "artifacts/galaxy-vibe/static-validation-report.json",
+      "summary": "52/52 static checks passed with zero warnings."
+    }
+  },
   "warnings": [],
-  "changed_paths": [],
-  "next_stage_plan": null
+  "changed_paths": [
+    "src/projects/cmre-porting/project.json",
+    "src/projects/cmre-porting/vibe/run_dead_of_night.py",
+    "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/test_simulator_ai_ally_clearance.py",
+    "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/simulator-seed-42.json",
+    "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/simulator-seed-7.json",
+    "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/simulator-seed-99.json",
+    "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/result.json",
+    "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/log.md",
+    "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/issues.json",
+    "src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/plan.md"
+  ],
+  "next_stage_plan": "src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/plan.md"
 }

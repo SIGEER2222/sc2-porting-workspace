@@ -1,5 +1,26 @@
 {
   "stage_id": "19-simulator-ai-ally-clearance",
   "schemaVersion": 1,
-  "issues": []
+  "issues": [
+    {
+      "id": "SIM-AI-ALLY-CLEAR-001",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "The original 90-second clear probe could stop with live structures",
+      "detail": "Seed 7 reached the wall-clock guard at loop 1784 with two enemy structures remaining while all dispatched push commands were successful.",
+      "evidence_type": "simulator",
+      "resolution": "The compressed clear probe wall-clock budget is now 120 seconds. Seed 7 was rerun and reached all_objectives_success at loop 1930 with zero remaining structures.",
+      "evidence": "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/simulator-seed-7.json"
+    },
+    {
+      "id": "SIM-AI-ALLY-CLEAR-002",
+      "severity": "low",
+      "status": "resolved",
+      "title": "Clear-mode target allocation needed hostile-case regression coverage",
+      "detail": "A push unit can die after a target assignment and a destroyed structure can leave a stale target id in the controller mapping.",
+      "evidence_type": "simulator",
+      "resolution": "Focused synthetic scenarios cover dead push units, stale target reallocation, infection/day cleanup, building reinforcement pressure, and wall-clock exhaustion. All five cases pass without command failures.",
+      "evidence": "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/test_simulator_ai_ally_clearance.py"
+    }
+  ]
 }
