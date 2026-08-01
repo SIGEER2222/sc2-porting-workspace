@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "03-simulator-transport",
+  "status": "PASS",
+  "completed_at": "2026-08-02T00:20:00+08:00",
+  "outputs": [
+    "cmre_neuro_adapter/neuro/simulator_transport.py",
+    "cmre_neuro_adapter/neuro/mission_projection.py",
+    "cmre_neuro_adapter/neuro/__init__.py",
+    "tests/test_simulator_transport.py",
+    "tests/test_mission_projection.py"
+  ],
+  "gate_results": {
+    "G1-transport-contract": {"status": "PASS", "evidence_type": "static"},
+    "G2-context-projection": {"status": "PASS", "evidence_type": "simulator"},
+    "G3-action-correlation": {"status": "PASS", "evidence_type": "simulator"},
+    "G4-idempotency": {"status": "PASS", "evidence_type": "simulator"},
+    "G5-deterministic-replay": {"status": "PASS", "evidence_type": "simulator"},
+    "G6-compatibility": {"status": "PASS", "evidence_type": "static"}
+  },
+  "verification": {
+    "python_3_13_unittest": {
+      "status": "PASS",
+      "tests": 33,
+      "command": "python -m unittest discover -s tests -v",
+      "evidence_type": "simulator"
+    },
+    "simulator_mvp": {
+      "status": "PASS",
+      "tests": 4,
+      "command": "python -m unittest discover -s tests -p test_simulator_transport.py -v",
+      "evidence_type": "simulator",
+      "observed": "NeuroRuntime -> SimulatorTransport -> DeterministicBackend.execute changed backend state and emitted a correlated action/result trace."
+    },
+    "python_3_13_compileall": {
+      "status": "PASS",
+      "command": "python -m compileall -q cmre_neuro_adapter tests",
+      "evidence_type": "static"
+    },
+    "python_3_11_grammar": {
+      "status": "PASS",
+      "files": 22,
+      "command": "python -c \"import ast, pathlib; ... ast.parse(path.read_text(encoding='utf-8'), feature_version=(3,11)) ...\"",
+      "reason": "No Python 3.11 runtime is installed, so this is a syntax-compatibility check rather than a runtime execution claim.",
+      "evidence_type": "static"
+    },
+    "diff_check": {
+      "status": "PASS",
+      "command": "git diff --check -- src/projects/cmre-neuro-adapter",
+      "evidence_type": "static"
+    }
+  },
+  "runtime_claims": [],
+  "resolved_limitations": ["ENV-001"],
+  "next_stage": "04-mission-adapter",
+  "next_stage_plan": "stages/04-mission-adapter/plan.md"
+}
