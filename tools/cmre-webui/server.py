@@ -8,6 +8,7 @@
     python server.py [--port 8767] [--host 127.0.0.1]
 """
 
+import csv
 import json
 import os
 import queue
@@ -775,6 +776,13 @@ _log_lines = []  # 环形缓冲，最多 2000 行
 _log_subscribers = []  # SSE 订阅者 queue 列表
 _log_lock = threading.Lock()
 
+_GAME_PROCESS_NAMES = {
+    "sc2.exe",
+    "sc2_x64.exe",
+    "sc2switcher.exe",
+    "sc2switcher_x64.exe",
+}
+
 
 def _append_log(line):
     """添加日志行并推送给所有 SSE 订阅者。"""
@@ -813,6 +821,94 @@ def _wait_for_process(proc):
     with _launcher_lock:
         if _launcher_process is proc:
             _launcher_process = None
+
+
+def _list_game_processes():
+    """返回当前 SC2/SC2Switcher 进程，供 WebUI 的强制重启使用。"""
+    if os.name != "nt":
+        return []
+    try:
+        completed = subprocess.run(
+            ["tasklist", "/FO", "CSV", "/NH"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        _append_log(f"[webui] 枚举 SC2 进程失败: {exc}")
+        return []
+
+    processes = []
+    for row in csv.reader(completed.stdout.splitlines()):
+        if len(row) < 2:
+            continue
+        name = row[0].strip().lower()
+        if name not in _GAME_PROCESS_NAMES:
+            continue
+        try:
+            pid = int(row[1].strip())
+        except ValueError:
+            continue
+        if pid != os.getpid():
+            processes.append((pid, row[0].strip()))
+    return processes
+
+
+def _force_kill_process_tree(pid):
+    """强制终止 pid 及其子树；非 Windows 测试环境回退到无操作。"""
+    if os.name != "nt":
+        return False
+    try:
+        completed = subprocess.run(
+            ["taskkill", "/PID", str(pid), "/T", "/F"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15,
+            check=False,
+        )
+        return completed.returncode == 0
+    except (OSError, subprocess.SubprocessError) as exc:
+        _append_log(f"[webui] 强制结束 PID {pid} 失败: {exc}")
+        return False
+
+
+def _force_stop_current_game():
+    """终止当前 WebUI launcher 及所有残留 SC2 进程。"""
+    global _launcher_process
+
+    with _launcher_lock:
+        tracked_launcher = _launcher_process
+        _launcher_process = None
+
+    killed = []
+    if tracked_launcher is not None and tracked_launcher.poll() is None:
+        if _force_kill_process_tree(tracked_launcher.pid):
+            killed.append(f"launcher:{tracked_launcher.pid}")
+        else:
+            try:
+                tracked_launcher.kill()
+                killed.append(f"launcher:{tracked_launcher.pid}")
+            except OSError:
+                pass
+        try:
+            tracked_launcher.wait(timeout=5)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+
+    for pid, name in _list_game_processes():
+        if _force_kill_process_tree(pid):
+            killed.append(f"{name}:{pid}")
+
+    if killed:
+        _append_log(f"[webui] 强制重启: 已结束旧进程 {', '.join(killed)}")
+    else:
+        _append_log("[webui] 强制重启: 未发现旧 launcher/SC2 进程")
+    return killed
 
 
 class CmreWebUIHandler(SimpleHTTPRequestHandler):
@@ -1157,6 +1253,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         ctx = self._build_launch_args(body)
         if ctx is None:
             return
+        _force_stop_current_game()
         args = ctx["args"]
         mode = ctx["mode"]
         capped = ctx["capped"]
@@ -1228,17 +1325,10 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         global _launcher_process
         body = self._read_body()
 
-        with _launcher_lock:
-            if _launcher_process is not None and _launcher_process.poll() is None:
-                self._send_json(
-                    {"success": False, "error": "已有启动进程在运行"},
-                    409,
-                )
-                return
-
         ctx = self._build_launch_args(body)
         if ctx is None:
             return
+        _force_stop_current_game()
         args = ctx["args"]
         commander = ctx["commander"]
 
@@ -1322,19 +1412,8 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
 
     def _handle_stop(self):
         """停止正在运行的 launcher 进程。"""
-        global _launcher_process
-        with _launcher_lock:
-            if _launcher_process is not None and _launcher_process.poll() is None:
-                _launcher_process.terminate()
-                try:
-                    _launcher_process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    _launcher_process.kill()
-                _append_log(
-                    f"[webui] launcher 已停止, exit={_launcher_process.returncode}"
-                )
-                _launcher_process = None
-        self._send_json({"success": True, "message": "已停止"})
+        killed = _force_stop_current_game()
+        self._send_json({"success": True, "message": "已停止", "killed": killed})
 
     def log_message(self, format, *args):
         sys.stderr.write(f"[{self.log_date_time_string()}] {format % args}\n")
