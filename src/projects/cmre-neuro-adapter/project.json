@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "cmre-neuro-adapter",
+  "goal": "Apply the proven Neuro API and action/context architecture to CMRE Dead of Night while preserving simulator-first transport boundaries.",
+  "sources": [
+    {
+      "sourceId": "cmre-porting",
+      "path": "src/projects/cmre-porting/vibe",
+      "role": "simulator-first-observation-action-contracts"
+    },
+    {
+      "sourceId": "sc2-neuro-api",
+      "kind": "external-repository",
+      "path": "reference/SC2-Neuro-API-Integration",
+      "role": "reference-only-neuro-websocket-and-bank-architecture"
+    },
+    {
+      "sourceId": "sc2-neuro-wol",
+      "kind": "external-repository",
+      "path": "reference/SC2-Neuro-WoL-Integration",
+      "role": "reference-only-campaign-adapter-and-ability-architecture"
+    },
+    {
+      "sourceId": "cmre-ai-enhancement",
+      "path": "src/projects/cmre-ai-enhancement",
+      "role": "optional-policy-consumer"
+    }
+  ],
+  "target": {
+    "map": "dead-of-night",
+    "commander": "TerranRaynor",
+    "series": "cmre-coop-missions",
+    "integration": "Neuro-compatible action/context adapter"
+  },
+  "currentStage": "02-neuro-runtime",
+  "writeScope": [
+    "src/projects/cmre-neuro-adapter/**"
+  ],
+  "acceptance": [
+    "Neuro startup, context, action registration, action result, and reconnect contracts are typed and locally testable",
+    "Simulator action/context loop works without an SC2 executable or Bank dependency",
+    "Dead of Night mission state is projected without exposing hidden simulator state",
+    "Campaign, mission, and runtime state are separated and versioned",
+    "The same upper-layer contract can later map to simulator, SC2 API, Bank, and input transports",
+    "Real-SC2 completion is claimed only with launcher and GameLogs runtime evidence"
+  ]
+}
