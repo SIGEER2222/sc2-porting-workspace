@@ -1,0 +1,107 @@
+// CMRE_ON_DEMAND_MAP_GLUE
+trigger gt_CmreOnDemandDeadOfNightPoll;
+trigger gt_CmreOnDemandCommanderStartingUnits;
+trigger gt_CmreOnDemandRuntimeListener;
+
+int gf_CmreOnDemandProfileInt(string key) {
+    BankLoad("CMCoopLaunchProfile", 1);
+    BankWait(BankLastCreated());
+    return BankValueGetAsInt(BankLastCreated(), "CMUI|LaunchProfile", key);
+}
+
+string gf_CmreOnDemandProfileString(string key, string fallback) {
+    string value = "";
+    BankLoad("CMCoopLaunchProfile", 1);
+    BankWait(BankLastCreated());
+    value = BankValueGetAsString(BankLastCreated(), "CMUI|LaunchProfile", key);
+    if (value == "") { return fallback; }
+    return value;
+}
+
+int gf_CmreOnDemandRemoveConfiguredVanilla(int player) {
+    int count = gf_CmreOnDemandProfileInt("VanillaRemovalCount");
+    int index = 1;
+    int removed = 0;
+    string unitType = "";
+    for (index = 1; index <= count; index += 1) {
+        unitType = gf_CmreOnDemandProfileString("VanillaRemoval|" + IntToString(index) + "|Type", "");
+        removed += libMapModBridge_gf_RemoveAllUnitsOfType(player, unitType);
+    }
+    return removed;
+}
+
+bool gt_CmreOnDemandCommanderStartingUnits_Func(bool testConds, bool runActions) {
+    string structureType = "";
+    string workerType = "";
+    int workerCount = 0;
+    int removedP1 = 0;
+    int removedP2 = 0;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    if (gf_CmreOnDemandProfileInt("RebornStartingUnitsHandled") != 0) {
+        libPortingObserver_gf_Publish("commander_starting_units_skip", "reborn mode: adapter owns starting units", false);
+        return true;
+    }
+    Wait(5.0, c_timeReal);
+    structureType = gf_CmreOnDemandProfileString("StartingStructure", "CommandCenter");
+    workerType = gf_CmreOnDemandProfileString("StartingWorker", "SCV");
+    workerCount = gf_CmreOnDemandProfileInt("WorkerCount");
+    if (workerCount <= 0) { workerCount = 5; }
+    if (gf_CmreOnDemandProfileInt("EnsurePreventDefeatP1") != 0) {
+        libMapModBridge_gf_EnsurePreventDefeat(1, structureType);
+    }
+    if (gf_CmreOnDemandProfileInt("EnsurePreventDefeatP2") != 0) {
+        libMapModBridge_gf_EnsurePreventDefeat(2, structureType);
+    }
+    if (gf_CmreOnDemandProfileInt("CreateStartingUnitsP1") != 0) {
+        removedP1 = gf_CmreOnDemandRemoveConfiguredVanilla(1);
+        libMapModBridge_gf_CreateStartingUnits(1, structureType, workerType, workerCount);
+    }
+    if (gf_CmreOnDemandProfileInt("CreateStartingUnitsP2") != 0) {
+        removedP2 = gf_CmreOnDemandRemoveConfiguredVanilla(2);
+        libMapModBridge_gf_CreateStartingUnits(2, structureType, workerType, workerCount);
+    }
+    libPortingObserver_gf_Publish("commander_starting_units_done",
+        "structure=" + structureType + "; worker=" + workerType + "; worker_count=" + IntToString(workerCount) +
+        "; removed_vanilla_p1=" + IntToString(removedP1) + "; removed_vanilla_p2=" + IntToString(removedP2), false);
+    return true;
+}
+
+void gt_CmreOnDemandCommanderStartingUnits_Init() {
+    gt_CmreOnDemandCommanderStartingUnits = TriggerCreate("gt_CmreOnDemandCommanderStartingUnits_Func");
+    TriggerExecute(gt_CmreOnDemandCommanderStartingUnits, false, true);
+}
+
+bool gt_CmreOnDemandRuntimeListener_Func(bool testConds, bool runActions) {
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    libMapModBridge_gf_WriteDebugBank("runtime_listener_started", 1);
+    libMapModBridge_gf_WriteDebugBank("runtime_listener_ready", 1);
+    libMapModBridge_gf_StartHeartbeat();
+    libPortingObserver_gf_Publish("runtime_listener_ready", "CMRE runtime listener and heartbeat are active", false);
+    return true;
+}
+
+void gt_CmreOnDemandRuntimeListener_Init() {
+    gt_CmreOnDemandRuntimeListener = TriggerCreate("gt_CmreOnDemandRuntimeListener_Func");
+    TriggerExecute(gt_CmreOnDemandRuntimeListener, false, true);
+}
+
+bool gt_CmreOnDemandDeadOfNightPoll_Func(bool testConds, bool runActions) {
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    libPortingObserver_gf_Publish("poll_trigger_started", "CMRE on-demand poll trigger is running", false);
+    Wait(10.0, c_timeReal);
+    while (true) {
+        libPortingObserver_gf_PublishPlayerInventory(1);
+        Wait(1.0, c_timeReal);
+        libPortingObserver_gf_PublishPlayerInventory(2);
+        Wait(9.0, c_timeReal);
+    }
+    return true;
+}
+
+void gt_CmreOnDemandDeadOfNightPoll_Init() {
+    gt_CmreOnDemandDeadOfNightPoll = TriggerCreate("gt_CmreOnDemandDeadOfNightPoll_Func");
+    TriggerExecute(gt_CmreOnDemandDeadOfNightPoll, false, true);
+}

@@ -7804,4 +7804,8 @@ void InitMap () {
     InitLibs();
     InitGlobals();
     InitTriggers();
+
+    // Vibe Kernel 触发器注册：必须在 InitTriggers() 之后（所有库已初始化）。
+    // 原因：在 NativeLib 初始化前创建的触发器对象可能无效，导致事件不触发。
+    libVibeKernel_gf_RegisterEntryPoints();
 }
