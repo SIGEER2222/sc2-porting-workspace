@@ -268,6 +268,8 @@ class GameReport:
     building_reinforcements_spawned: int = 0
     structure_health_scale: float = 1.0
     push_unit_type: str = ""
+    event_summary: dict = field(default_factory=dict)
+    target_allocation_summary: dict = field(default_factory=dict)
 
 
 def _unit_brief_for_log(e) -> dict:
@@ -561,7 +563,6 @@ def run_dead_of_night(
                 staging_x + (formation_index % 8) * 0.8 - 2.8,
                 staging_y + (formation_index // 8) * 0.8 - 2.0,
             )
-            entity_info_cache_id = spawn["entity_id"]
     if verbose:
         print(f"  初始单位数: {len(s.world.entities)}")
         p1_count = sum(1 for e in s.world.entities.values() if e.owner_player_id == 1)
@@ -696,6 +697,20 @@ def run_dead_of_night(
     reinforcement_cooldowns: dict[int, int] = {}
     push_targets: dict[int, int] = {}
     push_target_cursor = 0
+    push_unit_ids = {
+        entity.entity_id
+        for entity in s.world.entities.values()
+        if entity.owner_player_id == 1
+        and entity.unit_type_id == push_unit_type
+        and clear_enemy_structures
+    }
+    filtered_dead_push_unit_ids: set[int] = set()
+    push_dispatch_cycles = 0
+    push_target_allocations = 0
+    push_target_reallocations = 0
+    push_target_reallocation_reasons: _Counter = _Counter()
+    push_target_ids: set[int] = set()
+    max_active_push_assignments = 0
 
     def _night_at_loop(loop: int) -> int:
         for night_data in data.wave_timing["nights"]:
@@ -776,11 +791,14 @@ def run_dead_of_night(
     def _dispatch_structure_push(loop: int) -> int:
         """Advance a persistent, globally distributed structure-clear push by day."""
         nonlocal push_target_cursor
+        nonlocal push_dispatch_cycles, push_target_allocations
+        nonlocal push_target_reallocations, max_active_push_assignments
         if not clear_enemy_structures or _night_at_loop(loop) != 0:
             return 0
         structures = sorted(_enemy_structures(), key=lambda entity: entity.entity_id)
         if not structures:
             return 0
+        push_dispatch_cycles += 1
         structures_by_id = {entity.entity_id: entity for entity in structures}
         combat_units = [
             entity
@@ -790,6 +808,8 @@ def run_dead_of_night(
             and not s.world.catalog.get(entity.unit_type_id).is_structure
             and not s.world.catalog.get(entity.unit_type_id).is_worker
         ]
+        live_push_unit_ids = {entity.entity_id for entity in combat_units}
+        filtered_dead_push_unit_ids.update(push_unit_ids - live_push_unit_ids)
         issued = 0
         claimed_targets = {
             target_id
@@ -800,6 +820,7 @@ def run_dead_of_night(
             current_target_id = push_targets.get(unit.entity_id, 0)
             target = structures_by_id.get(current_target_id)
             if target is None:
+                had_target = bool(current_target_id)
                 # Allocate from a stable global cursor instead of the nearest local
                 # building. This makes the push cover remote camps after a local camp
                 # has been cleared, while the mapping keeps each unit on its target
@@ -816,6 +837,11 @@ def run_dead_of_night(
                     push_target_cursor = (push_target_cursor + 1) % len(structures)
                 push_targets[unit.entity_id] = target.entity_id
                 claimed_targets.add(target.entity_id)
+                push_target_allocations += 1
+                push_target_ids.add(target.entity_id)
+                if had_target:
+                    push_target_reallocations += 1
+                    push_target_reallocation_reasons["target_destroyed"] += 1
             try:
                 pre = len(s.world.command_results)
                 s.unit_order(
@@ -828,6 +854,13 @@ def run_dead_of_night(
                 issued += 1
             except Exception as exc:
                 cmd_fail_stats[f"push:exception:{type(exc).__name__}"] += 1
+        active_assignments = sum(
+            1
+            for unit_id, target_id in push_targets.items()
+            if s.world.get_entity(unit_id) is not None
+            and target_id in structures_by_id
+        )
+        max_active_push_assignments = max(max_active_push_assignments, active_assignments)
         return issued
 
     def _spawn_building_reinforcements(loop: int) -> int:
@@ -1382,6 +1415,26 @@ def run_dead_of_night(
         building_reinforcements_spawned=building_reinforcements_spawned,
         structure_health_scale=structure_health_scale,
         push_unit_type=push_unit_type if clear_enemy_structures else "",
+        event_summary={
+            "counts": dict(
+                sorted(
+                    __import__("collections").Counter(
+                        event.get("kind", "unknown") for event in all_key_events
+                    ).items()
+                )
+            ),
+            "total": len(all_key_events),
+        },
+        target_allocation_summary={
+            "push_units_spawned": len(push_unit_ids),
+            "push_units_dead_filtered": len(filtered_dead_push_unit_ids),
+            "dispatch_cycles": push_dispatch_cycles,
+            "allocations": push_target_allocations,
+            "reallocations": push_target_reallocations,
+            "reallocation_reasons": dict(sorted(push_target_reallocation_reasons.items())),
+            "unique_targets_assigned": len(push_target_ids),
+            "max_active_assignments": max_active_push_assignments,
+        },
     )
 
     if verbose:
