@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "cmre-ai-enhancement",
+  "goal": "Enhance CMRE AI ally with AresSC2 framework: expansion, proactive macro, multi-pronged combat, and transferable decision tree, while preserving vibe transport layer and DefendBasePolicy baseline.",
+  "sources": [
+    {
+      "sourceId": "cmre-porting",
+      "path": "src/projects/cmre-porting/vibe/defend_policy.py",
+      "role": "baseline-policy"
+    },
+    {
+      "sourceId": "cmre-porting",
+      "path": "src/projects/cmre-porting/vibe/run_dead_of_night_live.py",
+      "role": "transport-layer-baseline"
+    },
+    {
+      "sourceId": "ares-sc2",
+      "kind": "external-repository",
+      "path": "reference/ares-sc2",
+      "role": "framework-dependency-read-only",
+      "pythonPath": ["reference/ares-sc2/src", "reference/ares-sc2"]
+    }
+  ],
+  "target": {
+    "map": "dead-of-night",
+    "commander": "TerranRaynor",
+    "series": "cmre-coop-missions",
+    "aiProfile": "enhanced-ally"
+  },
+  "currentStage": "01-foundation",
+  "writeScope": [
+    "src/projects/cmre-ai-enhancement/**"
+  ],
+  "acceptance": [
+    "AresSC2 integrated as framework dependency (vendor or submodule)",
+    "MacroPlan replaces DefendBasePolicy economic logic (expand, workers, gas, supply, production)",
+    "CombatManeuver replaces DefendBasePolicy combat logic (threat response, retreat, kiting, focus fire, siege/unsiege)",
+    "AI reaches 3500 loop on Dead of Night with >50 army supply, >=3 bases, <20% worker loss",
+    "Decision tree is white-box: every action traceable to MacroPlan priority or CombatManeuver condition",
+    "No regression on vibe transport: P0/P1 REPL, live runner, bank observation all pass"
+  ]
+}

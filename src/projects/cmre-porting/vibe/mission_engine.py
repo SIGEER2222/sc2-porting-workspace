@@ -11,6 +11,7 @@ sc2_simulator 的 TriggerEngine 是死代码（SIM-CAP-GAP-001），runner 不�
 - ``defend_region``：守住指定区域 N loop（敌方未进入）
 - ``survive_loops``：存活到指定 loop
 - ``destroy_unit``：摧毁指定实体
+- ``destroy_all_enemy_structures``：摧毁所有指定敌方玩家的建筑
 - ``timer``：到时即胜/败
 - ``escort_vip``（M5）：VIP 存活且到达目标区域
 - ``capture_region``（M5）：连续控制区域 N loop（仅己方单位在内）
@@ -27,11 +28,13 @@ from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 from .simulator_session import SimulatorSession
+from .contracts import VictoryTimeMetric
 
 
 @dataclass
 class Region:
     """矩形或圆形区域。"""
+
     name: str
     kind: str  # "rect" | "circle"
     x: float
@@ -51,6 +54,7 @@ class Region:
 @dataclass
 class Wave:
     """波次：在指定 loop 生成一组单位。"""
+
     name: str
     at_loop: int
     spawns: list[dict]  # [{unit_type_id, owner_player_id, x, y}, ...]
@@ -60,8 +64,9 @@ class Wave:
 @dataclass
 class Objective:
     """任务目标。"""
+
     name: str
-    kind: str  # annihilation | defend_region | survive_loops | destroy_unit | timer
+    kind: str  # annihilation | defend_region | survive_loops | destroy_unit | destroy_all_enemy_structures | timer
     params: dict = field(default_factory=dict)
     status: str = "active"  # active | success | failed
 
@@ -69,6 +74,7 @@ class Objective:
 @dataclass
 class Trigger:
     """触发器：条件满足时执行动作。"""
+
     name: str
     condition: Callable[["MissionEngine"], bool]
     action: Callable[["MissionEngine"], None]
@@ -82,6 +88,36 @@ class MissionResult:
     end_loop: int
     end_reason: str
     objectives: list[dict]
+    # Stage 08: 胜利时间指标
+    game_time_sec: float = 0.0
+    nights_survived: int = 0
+    victory: bool = False
+
+    @classmethod
+    def from_engine(cls, eng: "MissionEngine") -> "MissionResult":
+        loop = eng.session.world.clock.now.loop if eng.session.world else 0
+        nights = 0
+        if hasattr(eng.session, "_wave_timing") and eng.session._wave_timing:
+            for night in eng.session._wave_timing.get("nights", []):
+                if loop >= night.get("end_loop", 0):
+                    nights += 1
+        victory = eng.terminated and eng.end_reason in (
+            "all_objectives_success",
+            "survive_loops",
+            "max_loops_reached",
+        )
+        return cls(
+            terminated=eng.terminated,
+            end_loop=loop,
+            end_reason=eng.end_reason,
+            objectives=[
+                {"name": o.name, "kind": o.kind, "status": o.status}
+                for o in eng.objectives
+            ],
+            game_time_sec=loop / 22.4,
+            nights_survived=nights,
+            victory=victory,
+        )
 
 
 class MissionEngine:
@@ -124,15 +160,22 @@ class MissionEngine:
         return self
 
     # ----- 区域查询 -----
-    def units_in_region(self, region_name: str, owner_player_id: Optional[int] = None) -> list[dict]:
+    def units_in_region(
+        self, region_name: str, owner_player_id: Optional[int] = None
+    ) -> list[dict]:
         r = self.regions[region_name]
         units = self.session.query_units(owner_player_id)["units"]
         return [u for u in units if r.contains(u["x"], u["y"])]
 
-    def enemies_in_region(self, region_name: str, defender_player_id: int) -> list[dict]:
+    def enemies_in_region(
+        self, region_name: str, defender_player_id: int
+    ) -> list[dict]:
         r = self.regions[region_name]
-        enemies = [e for e in self.session.query_units()["units"]
-                   if e["owner"] != defender_player_id and r.contains(e["x"], e["y"])]
+        enemies = [
+            e
+            for e in self.session.query_units()["units"]
+            if e["owner"] != defender_player_id and r.contains(e["x"], e["y"])
+        ]
         return enemies
 
     # ----- 主循环 -----
@@ -148,8 +191,13 @@ class MissionEngine:
             if self.session.terminated:
                 # sc2_simulator 原生终局（如 annihilation）
                 self.terminated = True
-                self.end_reason = getattr(self.session, "end_reason", "") or "simulator_terminated"
+                self.end_reason = (
+                    getattr(self.session, "end_reason", "") or "simulator_terminated"
+                )
         return self._result()
+
+    def _result(self) -> MissionResult:
+        return MissionResult.from_engine(self)
 
     def run(self, max_loops: int = 10_000) -> MissionResult:
         return self.step(max_loops)
@@ -159,13 +207,20 @@ class MissionEngine:
             if w.at_loop <= cur_loop and w.name not in self._waves_fired:
                 self._waves_fired.add(w.name)
                 for sp in w.spawns:
-                    self.session.unit_spawn(sp["unit_type_id"], sp["owner_player_id"],
-                                            sp["x"], sp["y"])
+                    self.session.unit_spawn(
+                        sp["unit_type_id"], sp["owner_player_id"], sp["x"], sp["y"]
+                    )
                 for c in w.commands:
-                    self.session.unit_order(c.get("entity_ids", []), c["kind"],
-                                            c["issuer_player_id"], c.get("target_entity_id", 0),
-                                            c.get("target_x", 0.0), c.get("target_y", 0.0),
-                                            c.get("unit_type_id", ""), c.get("ability_id", ""))
+                    self.session.unit_order(
+                        c.get("entity_ids", []),
+                        c["kind"],
+                        c["issuer_player_id"],
+                        c.get("target_entity_id", 0),
+                        c.get("target_x", 0.0),
+                        c.get("target_y", 0.0),
+                        c.get("unit_type_id", ""),
+                        c.get("ability_id", ""),
+                    )
 
     def _fire_triggers(self, cur_loop: int) -> None:
         for t in self.triggers:
@@ -181,6 +236,7 @@ class MissionEngine:
                 world = self.session.world
                 if world is not None:
                     import traceback as _tb
+
                     world.events.schedule(
                         loop=cur_loop,
                         system="system",
@@ -220,17 +276,41 @@ class MissionEngine:
             return None
         if o.kind == "defend_region":
             # 守住区域：敌方未进入
-            enemies = self.enemies_in_region(o.params["region"], o.params["defender_player_id"])
+            enemies = self.enemies_in_region(
+                o.params["region"], o.params["defender_player_id"]
+            )
             if enemies:
                 return "failed"
             if cur_loop >= o.params.get("until_loop", 10_000):
                 return "success"
             return None
         if o.kind == "destroy_unit":
-            e = self.session.world.get_entity(o.params["entity_id"]) if self.session.world else None
+            e = (
+                self.session.world.get_entity(o.params["entity_id"])
+                if self.session.world
+                else None
+            )
             if e is None or not e.is_alive:
                 return "success"
             return None
+        if o.kind == "destroy_all_enemy_structures":
+            enemy_players = set(o.params.get("enemy_player_ids", []))
+            defender = o.params.get("defender_player_id")
+            if not enemy_players and defender is not None:
+                enemy_players = {
+                    e.owner_player_id
+                    for e in self.session.world.entities.values()
+                    if e.owner_player_id != defender
+                }
+            structures = [
+                e
+                for e in self.session.world.entities.values()
+                if e.is_alive
+                and (not enemy_players or e.owner_player_id in enemy_players)
+                and self.session.world.catalog.get(e.unit_type_id).is_structure
+                and self.session.world.catalog.get(e.unit_type_id).race != "neutral"
+            ]
+            return "success" if not structures else None
         if o.kind == "timer":
             if cur_loop >= o.params["target_loops"]:
                 return o.params.get("on_expire", "success")
@@ -259,7 +339,11 @@ class MissionEngine:
             if r is None:
                 return None
             enemies = self.enemies_in_region(region_name, owner)
-            own = [u for u in self.session.query_units(owner)["units"] if r.contains(u["x"], u["y"])]
+            own = [
+                u
+                for u in self.session.query_units(owner)["units"]
+                if r.contains(u["x"], u["y"])
+            ]
             if enemies or not own:
                 # 敌方在内或己方无单位 -> 重置进度
                 self._capture_progress[o.name] = 0
@@ -271,18 +355,15 @@ class MissionEngine:
             return None
         return None
 
-    def _result(self) -> MissionResult:
-        return MissionResult(
-            terminated=self.terminated,
-            end_loop=self.session.world.clock.now.loop if self.session.world else 0,
-            end_reason=self.end_reason,
-            objectives=[{"name": o.name, "kind": o.kind, "status": o.status} for o in self.objectives],
-        )
+
+def _result(self) -> MissionResult:
+    return MissionResult.from_engine(self)
 
 
 # ---------------------------------------------------------------------------
 # M5: Reward DSL
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class RewardComponent:
@@ -298,6 +379,7 @@ class RewardComponent:
     - ``win_bonus``：weight * (1 if all objectives success else 0)
     - ``flat``：weight（固定奖励/惩罚）
     """
+
     name: str
     kind: str
     weight: float
@@ -310,6 +392,7 @@ class RewardComponent:
 @dataclass
 class RewardSpec:
     """奖励规格：组件列表。"""
+
     components: list[RewardComponent] = field(default_factory=list)
 
     @classmethod
@@ -320,6 +403,7 @@ class RewardSpec:
 @dataclass
 class RewardResult:
     """奖励计算结果。"""
+
     total: float
     breakdown: dict[str, float]  # component.name -> contribution
     spec_components: int
@@ -350,13 +434,19 @@ def compute_reward(
         initial_enemy_count = eng._initial_enemy_count
     if initial_enemy_count < 0 and eng.session.world is not None:
         # 退化：用当前 world 敌方存活数估算（不精确，仅 fallback）
-        initial_enemy_count = sum(1 for e in eng.session.world.entities.values()
-                                  if e.owner_player_id != 1)
+        initial_enemy_count = sum(
+            1 for e in eng.session.world.entities.values() if e.owner_player_id != 1
+        )
     final_enemies = 0
     if eng.session.world is not None:
-        final_enemies = sum(1 for e in eng.session.world.entities.values()
-                            if e.owner_player_id != 1 and e.is_alive)
-    enemies_killed = max(0, initial_enemy_count - final_enemies) if initial_enemy_count >= 0 else 0
+        final_enemies = sum(
+            1
+            for e in eng.session.world.entities.values()
+            if e.owner_player_id != 1 and e.is_alive
+        )
+    enemies_killed = (
+        max(0, initial_enemy_count - final_enemies) if initial_enemy_count >= 0 else 0
+    )
 
     # VIP 存活
     vip_alive = False
@@ -386,9 +476,20 @@ def compute_reward(
         breakdown[c.name] = contrib
         total += contrib
 
-    return RewardResult(total=total, breakdown=breakdown,
-                        spec_components=len(spec.components))
+    return RewardResult(
+        total=total, breakdown=breakdown, spec_components=len(spec.components)
+    )
 
 
-__all__ = ["Region", "Wave", "Objective", "Trigger", "MissionEngine", "MissionResult",
-           "RewardComponent", "RewardSpec", "RewardResult", "compute_reward"]
+__all__ = [
+    "Region",
+    "Wave",
+    "Objective",
+    "Trigger",
+    "MissionEngine",
+    "MissionResult",
+    "RewardComponent",
+    "RewardSpec",
+    "RewardResult",
+    "compute_reward",
+]

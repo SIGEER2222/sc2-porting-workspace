@@ -19,6 +19,7 @@ import json
 import sys
 
 from .sim_path import ensure_simulator_on_path
+
 ensure_simulator_on_path()
 
 from sc2_simulator.scenario.loader import load_scenario  # noqa: E402
@@ -35,7 +36,9 @@ def p3_selftest() -> dict:
     details = {}
 
     # G1: 快照/恢复保全状态 —— restore 后快照哈希不变
-    sc = load_scenario("reference/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json")
+    sc = load_scenario(
+        "reference/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json"
+    )
     w, _ = run_scenario(sc)
     snap_before = w.snapshot()
     h_before = snapshot_hash(snap_before)
@@ -61,10 +64,14 @@ def p3_selftest() -> dict:
 
     # G2: ID 稳定 —— 跑两次同一场景，spawn 的 entity_id 一致
     s1 = SimulatorSession()
-    s1.scenario_load(scenario_path="reference/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json")
+    s1.scenario_load(
+        scenario_path="reference/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json"
+    )
     s1.scenario_reset()
     s2 = SimulatorSession()
-    s2.scenario_load(scenario_path="reference/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json")
+    s2.scenario_load(
+        scenario_path="reference/sc2-ally-bot/scenarios/sc2-simulator/marine_vs_zergling.json"
+    )
     s2.scenario_reset()
     ids1 = sorted(s1.world.entities.keys())
     ids2 = sorted(s2.world.entities.keys())
@@ -72,21 +79,29 @@ def p3_selftest() -> dict:
     details["G2_stable_ids"] = f"{ids1} == {ids2}"
 
     # G3: 资源/生产 —— barracks_and_marine 场景验证生产闭环
-    sc_prod = load_scenario("reference/sc2-ally-bot/scenarios/sc2-simulator/barracks_and_marine.json")
+    sc_prod = load_scenario(
+        "reference/sc2-ally-bot/scenarios/sc2-simulator/barracks_and_marine.json"
+    )
     wp, rp = run_scenario(sc_prod)
     has_train_event = any(e.kind == "train_completed" for e in wp.events.emitted)
     checks["G3_production"] = has_train_event
-    details["G3_production"] = f"train_completed events present={has_train_event}, end={rp.end_reason}"
+    details["G3_production"] = (
+        f"train_completed events present={has_train_event}, end={rp.end_reason}"
+    )
 
     # G3: 建造 —— supply_depot_build 场景
-    sc_build = load_scenario("reference/sc2-ally-bot/scenarios/sc2-simulator/supply_depot_build.json")
+    sc_build = load_scenario(
+        "reference/sc2-ally-bot/scenarios/sc2-simulator/supply_depot_build.json"
+    )
     wb, rb = run_scenario(sc_build)
     has_build_event = any(e.kind == "build_completed" for e in wb.events.emitted)
     checks["G3_construction"] = has_build_event
     details["G3_construction"] = f"build_completed present={has_build_event}"
 
     # G3: 采集 —— scv_mineral_gathering
-    sc_gather = load_scenario("reference/sc2-ally-bot/scenarios/sc2-simulator/scv_mineral_gathering.json")
+    sc_gather = load_scenario(
+        "reference/sc2-ally-bot/scenarios/sc2-simulator/scv_mineral_gathering.json"
+    )
     wg, rg = run_scenario(sc_gather)
     has_mineral = any(e.kind == "mineral_deposited" for e in wg.events.emitted)
     checks["G3_economy"] = has_mineral
@@ -98,7 +113,9 @@ def p3_selftest() -> dict:
     details["G5_combat_damage"] = f"damage events present={has_damage}"
 
     # G5: 弹体 —— marauder_vs_roach
-    sc_proj = load_scenario("reference/sc2-ally-bot/scenarios/sc2-simulator/marauder_vs_roach.json")
+    sc_proj = load_scenario(
+        "reference/sc2-ally-bot/scenarios/sc2-simulator/marauder_vs_roach.json"
+    )
     wpr, _ = run_scenario(sc_proj)
     has_proj = any(e.kind == "projectile_launched" for e in wpr.events.emitted)
     checks["G5_projectile"] = has_proj
@@ -108,8 +125,11 @@ def p3_selftest() -> dict:
     # 静态：Viking weapon_air 存在；动态：Viking vs Viking 跑 200 loop，必有 damage 事件
     # （stage 06 修复后 _is_air 返回 unit_type.is_flying，weapon_air 会被选中并开火）
     from sc2_simulator.catalog.m7_units import m7_catalog
+
     m7 = m7_catalog()
-    static_has_weapon = "Viking" in m7.units and m7.units["Viking"].weapon_air is not None
+    static_has_weapon = (
+        "Viking" in m7.units and m7.units["Viking"].weapon_air is not None
+    )
     static_is_air = "Viking" in m7.units and (
         getattr(m7.units["Viking"], "is_flying", False)
         or getattr(m7.units["Viking"], "is_air", False)
@@ -127,8 +147,20 @@ def p3_selftest() -> dict:
             {"unit_type_id": "Viking", "owner_player_id": 2, "x": 3.0, "y": 0.0},
         ],
         "commands": [
-            {"loop": 0, "kind": "attack_unit", "issuer_player_id": 1, "entity_ids": [1], "target_entity_id": 2},
-            {"loop": 0, "kind": "attack_unit", "issuer_player_id": 2, "entity_ids": [2], "target_entity_id": 1},
+            {
+                "loop": 0,
+                "kind": "attack_unit",
+                "issuer_player_id": 1,
+                "entity_ids": [1],
+                "target_entity_id": 2,
+            },
+            {
+                "loop": 0,
+                "kind": "attack_unit",
+                "issuer_player_id": 2,
+                "entity_ids": [2],
+                "target_entity_id": 1,
+            },
         ],
         "max_loops": 200,
         "seed": 42,
@@ -136,13 +168,16 @@ def p3_selftest() -> dict:
         "win_condition": "custom",
     }
     from .simulator_session import SimulatorSession as _SS
+
     _s = _SS()
     _s.scenario_load(scenario_dict=air_scenario, catalog="m7")
     _s.scenario_reset()
     _s.scenario_step(200)
     air_damage_events = [e for e in _s.world.events.emitted if e.kind == "damage"]
     # 静态有 weapon_air + is_flying，且动态有 damage 事件 = 真验证了「weapon_air 可开火」
-    dynamic_has_damage = static_has_weapon and static_is_air and len(air_damage_events) > 0
+    dynamic_has_damage = (
+        static_has_weapon and static_is_air and len(air_damage_events) > 0
+    )
     checks["G5_air_combat_wired"] = dynamic_has_damage
     details["G5_air_combat_wired"] = (
         f"static_weapon_air={'yes' if static_has_weapon else 'no'} "
@@ -152,7 +187,9 @@ def p3_selftest() -> dict:
     )
 
     # G6: 技能 —— medivac_heal_marine 验证治疗
-    sc_heal = load_scenario("reference/sc2-ally-bot/scenarios/sc2-simulator/medivac_heal_marine.json")
+    sc_heal = load_scenario(
+        "reference/sc2-ally-bot/scenarios/sc2-simulator/medivac_heal_marine.json"
+    )
     wh, _ = run_scenario(sc_heal)
     has_heal = any(e.kind in ("heal", "combat.heal") for e in wh.events.emitted)
     checks["G6_abilities"] = has_heal
@@ -193,11 +230,21 @@ def p3_selftest() -> dict:
     # G8: Zerg morph —— 检查 m7 有 morph 规则
     try:
         from sc2_simulator.catalog.m7_units import M7_ZERG_MORPH_RULES
+
         morph_count = len(M7_ZERG_MORPH_RULES)
     except ImportError:
         morph_count = 0
     checks["G8_morph_present"] = morph_count > 0
     details["G8_morph_present"] = f"M7_ZERG_MORPH_RULES count={morph_count}"
+
+    # ===== Stage 08 G8: 胜利时间 + Replay Simulation =====
+    g8_victory_ok, g8_victory_detail = _g8_victory_time_test()
+    checks["G8_victory_time"] = g8_victory_ok
+    details["G8_victory_time"] = g8_victory_detail
+
+    g8_replay_ok, g8_replay_detail = _g8_replay_simulation_test()
+    checks["G8_replay_simulation"] = g8_replay_ok
+    details["G8_replay_simulation"] = g8_replay_detail
 
     # strict 场景不能用 unsupported（已在 P2 验证，此处复述）
     checks["strict_rejects_unsupported"] = True
@@ -232,19 +279,37 @@ def _g6_behavior_multiplier_test() -> tuple[bool, dict]:
     # ===== G6-speed-mult: Stimpack 后单位移动更远 =====
     # 构造两个 Marine，一个带 Stimpack 行为，一个不带，移动相同 loop
     speed_scenario = {
-        "schema_version": "m7", "name": "G6 speed mult",
-        "players": [{"id": 1, "name": "T", "race": "terran", "allies": [], "is_ai": True}],
+        "schema_version": "m7",
+        "name": "G6 speed mult",
+        "players": [
+            {"id": 1, "name": "T", "race": "terran", "allies": [], "is_ai": True}
+        ],
         "spawns": [
             {"unit_type_id": "Marine", "owner_player_id": 1, "x": 0.0, "y": 0.0},
             {"unit_type_id": "Marine", "owner_player_id": 1, "x": 0.0, "y": 5.0},
         ],
         "commands": [
-            {"loop": 0, "kind": "move", "issuer_player_id": 1, "entity_ids": [1],
-             "target_x": 10.0, "target_y": 0.0},
-            {"loop": 0, "kind": "move", "issuer_player_id": 1, "entity_ids": [2],
-             "target_x": 10.0, "target_y": 5.0},
+            {
+                "loop": 0,
+                "kind": "move",
+                "issuer_player_id": 1,
+                "entity_ids": [1],
+                "target_x": 10.0,
+                "target_y": 0.0,
+            },
+            {
+                "loop": 0,
+                "kind": "move",
+                "issuer_player_id": 1,
+                "entity_ids": [2],
+                "target_x": 10.0,
+                "target_y": 5.0,
+            },
         ],
-        "max_loops": 50, "seed": 42, "strict": False, "win_condition": "custom",
+        "max_loops": 50,
+        "seed": 42,
+        "strict": False,
+        "win_condition": "custom",
     }
     _s = SimulatorSession()
     _s.scenario_load(scenario_dict=speed_scenario, catalog="m7")
@@ -252,12 +317,20 @@ def _g6_behavior_multiplier_test() -> tuple[bool, dict]:
     # 给 entity 2 注入 Stimpack 行为（speed_multiplier=150）
     e2 = _s.world.get_entity(2)
     if e2 is not None:
-        e2.active_behaviors.append({
-            "id": "StimpackBehavior", "kind": "stim", "remaining": 100,
-            "speed_multiplier": 150, "attack_speed_multiplier": 150,
-            "armor_add": 0, "damage_add": 0, "damage_per_tick": 0,
-            "tick_interval": 8, "last_tick": 0,
-        })
+        e2.active_behaviors.append(
+            {
+                "id": "StimpackBehavior",
+                "kind": "stim",
+                "remaining": 100,
+                "speed_multiplier": 150,
+                "attack_speed_multiplier": 150,
+                "armor_add": 0,
+                "damage_add": 0,
+                "damage_per_tick": 0,
+                "tick_interval": 8,
+                "last_tick": 0,
+            }
+        )
     _s.scenario_step(50)
     e1_final = _s.world.get_entity(1)
     e2_final = _s.world.get_entity(2)
@@ -275,7 +348,8 @@ def _g6_behavior_multiplier_test() -> tuple[bool, dict]:
 
     # ===== G6-atkspd-mult: Stimpack 后开火次数更多 =====
     atk_scenario = {
-        "schema_version": "m7", "name": "G6 atkspd mult",
+        "schema_version": "m7",
+        "name": "G6 atkspd mult",
         "players": [
             {"id": 1, "name": "T1", "race": "terran", "allies": [], "is_ai": True},
             {"id": 2, "name": "T2", "race": "zerg", "allies": [], "is_ai": True},
@@ -287,10 +361,25 @@ def _g6_behavior_multiplier_test() -> tuple[bool, dict]:
             {"unit_type_id": "Zergling", "owner_player_id": 2, "x": 3.0, "y": 5.0},
         ],
         "commands": [
-            {"loop": 0, "kind": "attack_unit", "issuer_player_id": 1, "entity_ids": [1], "target_entity_id": 3},
-            {"loop": 0, "kind": "attack_unit", "issuer_player_id": 1, "entity_ids": [2], "target_entity_id": 4},
+            {
+                "loop": 0,
+                "kind": "attack_unit",
+                "issuer_player_id": 1,
+                "entity_ids": [1],
+                "target_entity_id": 3,
+            },
+            {
+                "loop": 0,
+                "kind": "attack_unit",
+                "issuer_player_id": 1,
+                "entity_ids": [2],
+                "target_entity_id": 4,
+            },
         ],
-        "max_loops": 100, "seed": 42, "strict": False, "win_condition": "custom",
+        "max_loops": 100,
+        "seed": 42,
+        "strict": False,
+        "win_condition": "custom",
     }
     _s2 = SimulatorSession()
     _s2.scenario_load(scenario_dict=atk_scenario, catalog="m7")
@@ -298,18 +387,32 @@ def _g6_behavior_multiplier_test() -> tuple[bool, dict]:
     # 给 entity 2 注入 Stimpack 行为（attack_speed_multiplier=150）
     e2_atk = _s2.world.get_entity(2)
     if e2_atk is not None:
-        e2_atk.active_behaviors.append({
-            "id": "StimpackBehavior", "kind": "stim", "remaining": 200,
-            "speed_multiplier": 100, "attack_speed_multiplier": 150,
-            "armor_add": 0, "damage_add": 0, "damage_per_tick": 0,
-            "tick_interval": 8, "last_tick": 0,
-        })
+        e2_atk.active_behaviors.append(
+            {
+                "id": "StimpackBehavior",
+                "kind": "stim",
+                "remaining": 200,
+                "speed_multiplier": 100,
+                "attack_speed_multiplier": 150,
+                "armor_add": 0,
+                "damage_add": 0,
+                "damage_per_tick": 0,
+                "tick_interval": 8,
+                "last_tick": 0,
+            }
+        )
     _s2.scenario_step(100)
     # 统计 attacker=1 和 attacker=2 的 damage 事件次数
-    e1_dmg_count = sum(1 for e in _s2.world.events.emitted
-                       if e.kind == "damage" and e.payload.get("attacker") == 1)
-    e2_dmg_count = sum(1 for e in _s2.world.events.emitted
-                       if e.kind == "damage" and e.payload.get("attacker") == 2)
+    e1_dmg_count = sum(
+        1
+        for e in _s2.world.events.emitted
+        if e.kind == "damage" and e.payload.get("attacker") == 1
+    )
+    e2_dmg_count = sum(
+        1
+        for e in _s2.world.events.emitted
+        if e.kind == "damage" and e.payload.get("attacker") == 2
+    )
     atk_ok = e2_dmg_count > e1_dmg_count  # stimpack 单位开火更多
     result["atkspd_mult_passed"] = atk_ok
     result["atkspd_mult"] = (
@@ -319,7 +422,8 @@ def _g6_behavior_multiplier_test() -> tuple[bool, dict]:
 
     # ===== G6-armor-add: GuardianShield (armor_add=2) 后受到伤害更低 =====
     armor_scenario = {
-        "schema_version": "m7", "name": "G6 armor add",
+        "schema_version": "m7",
+        "name": "G6 armor add",
         "players": [
             {"id": 1, "name": "T1", "race": "terran", "allies": [], "is_ai": True},
             {"id": 2, "name": "T2", "race": "terran", "allies": [], "is_ai": True},
@@ -330,17 +434,34 @@ def _g6_behavior_multiplier_test() -> tuple[bool, dict]:
             {"unit_type_id": "Marine", "owner_player_id": 2, "x": 5.0, "y": 3.0},
         ],
         "commands": [
-            {"loop": 0, "kind": "attack_unit", "issuer_player_id": 1, "entity_ids": [1], "target_entity_id": 2},
-            {"loop": 0, "kind": "attack_unit", "issuer_player_id": 1, "entity_ids": [1], "target_entity_id": 3},
+            {
+                "loop": 0,
+                "kind": "attack_unit",
+                "issuer_player_id": 1,
+                "entity_ids": [1],
+                "target_entity_id": 2,
+            },
+            {
+                "loop": 0,
+                "kind": "attack_unit",
+                "issuer_player_id": 1,
+                "entity_ids": [1],
+                "target_entity_id": 3,
+            },
         ],
-        "max_loops": 30, "seed": 42, "strict": False, "win_condition": "custom",
+        "max_loops": 30,
+        "seed": 42,
+        "strict": False,
+        "win_condition": "custom",
     }
+
     # 同一 attacker 攻击两个 target：一个有 armor_add，一个没有
     # 但 attacker 同一 loop 只能攻击一个 target，所以分两次跑
     # 简化：构造两个独立场景，attacker 都是 Marine，target 一个有 armor_add 一个没有
     def _run_armor_test(target_has_armor: bool) -> int:
         sc = {
-            "schema_version": "m7", "name": f"armor test {target_has_armor}",
+            "schema_version": "m7",
+            "name": f"armor test {target_has_armor}",
             "players": [
                 {"id": 1, "name": "T1", "race": "terran", "allies": [], "is_ai": True},
                 {"id": 2, "name": "T2", "race": "terran", "allies": [], "is_ai": True},
@@ -350,9 +471,18 @@ def _g6_behavior_multiplier_test() -> tuple[bool, dict]:
                 {"unit_type_id": "Marine", "owner_player_id": 2, "x": 3.0, "y": 0.0},
             ],
             "commands": [
-                {"loop": 0, "kind": "attack_unit", "issuer_player_id": 1, "entity_ids": [1], "target_entity_id": 2},
+                {
+                    "loop": 0,
+                    "kind": "attack_unit",
+                    "issuer_player_id": 1,
+                    "entity_ids": [1],
+                    "target_entity_id": 2,
+                },
             ],
-            "max_loops": 30, "seed": 42, "strict": False, "win_condition": "custom",
+            "max_loops": 30,
+            "seed": 42,
+            "strict": False,
+            "win_condition": "custom",
         }
         _s3 = SimulatorSession()
         _s3.scenario_load(scenario_dict=sc, catalog="m7")
@@ -360,16 +490,28 @@ def _g6_behavior_multiplier_test() -> tuple[bool, dict]:
         if target_has_armor:
             tgt = _s3.world.get_entity(2)
             if tgt is not None:
-                tgt.active_behaviors.append({
-                    "id": "GuardianShieldBehavior", "kind": "armor_buff", "remaining": 100,
-                    "speed_multiplier": 100, "attack_speed_multiplier": 100,
-                    "armor_add": 2, "damage_add": 0, "damage_per_tick": 0,
-                    "tick_interval": 8, "last_tick": 0,
-                })
+                tgt.active_behaviors.append(
+                    {
+                        "id": "GuardianShieldBehavior",
+                        "kind": "armor_buff",
+                        "remaining": 100,
+                        "speed_multiplier": 100,
+                        "attack_speed_multiplier": 100,
+                        "armor_add": 2,
+                        "damage_add": 0,
+                        "damage_per_tick": 0,
+                        "tick_interval": 8,
+                        "last_tick": 0,
+                    }
+                )
         _s3.scenario_step(30)
         # 取 attacker=1 且 target=entity_id=2 的第一次 damage 事件
         for e in _s3.world.events.emitted:
-            if e.kind == "damage" and e.payload.get("attacker") == 1 and e.entity_id == 2:
+            if (
+                e.kind == "damage"
+                and e.payload.get("attacker") == 1
+                and e.entity_id == 2
+            ):
                 return e.payload.get("final_raw", 0)
         return 0
 
@@ -388,7 +530,8 @@ def _g6_behavior_multiplier_test() -> tuple[bool, dict]:
     # ===== G6-damage-add: damage_add 行为后攻击者伤害更高 =====
     def _run_damage_add_test(attacker_has_damage_add: bool) -> int:
         sc = {
-            "schema_version": "m7", "name": f"damage add test {attacker_has_damage_add}",
+            "schema_version": "m7",
+            "name": f"damage add test {attacker_has_damage_add}",
             "players": [
                 {"id": 1, "name": "T1", "race": "terran", "allies": [], "is_ai": True},
                 {"id": 2, "name": "T2", "race": "terran", "allies": [], "is_ai": True},
@@ -398,9 +541,18 @@ def _g6_behavior_multiplier_test() -> tuple[bool, dict]:
                 {"unit_type_id": "Marine", "owner_player_id": 2, "x": 3.0, "y": 0.0},
             ],
             "commands": [
-                {"loop": 0, "kind": "attack_unit", "issuer_player_id": 1, "entity_ids": [1], "target_entity_id": 2},
+                {
+                    "loop": 0,
+                    "kind": "attack_unit",
+                    "issuer_player_id": 1,
+                    "entity_ids": [1],
+                    "target_entity_id": 2,
+                },
             ],
-            "max_loops": 30, "seed": 42, "strict": False, "win_condition": "custom",
+            "max_loops": 30,
+            "seed": 42,
+            "strict": False,
+            "win_condition": "custom",
         }
         _s4 = SimulatorSession()
         _s4.scenario_load(scenario_dict=sc, catalog="m7")
@@ -408,16 +560,28 @@ def _g6_behavior_multiplier_test() -> tuple[bool, dict]:
         if attacker_has_damage_add:
             atk = _s4.world.get_entity(1)
             if atk is not None:
-                atk.active_behaviors.append({
-                    "id": "DamageBuffBehavior", "kind": "damage_buff", "remaining": 100,
-                    "speed_multiplier": 100, "attack_speed_multiplier": 100,
-                    "armor_add": 0, "damage_add": 3, "damage_per_tick": 0,
-                    "tick_interval": 8, "last_tick": 0,
-                })
+                atk.active_behaviors.append(
+                    {
+                        "id": "DamageBuffBehavior",
+                        "kind": "damage_buff",
+                        "remaining": 100,
+                        "speed_multiplier": 100,
+                        "attack_speed_multiplier": 100,
+                        "armor_add": 0,
+                        "damage_add": 3,
+                        "damage_per_tick": 0,
+                        "tick_interval": 8,
+                        "last_tick": 0,
+                    }
+                )
         _s4.scenario_step(30)
         # 取 attacker=1 且 target=entity_id=2 的第一次 damage 事件
         for e in _s4.world.events.emitted:
-            if e.kind == "damage" and e.payload.get("attacker") == 1 and e.entity_id == 2:
+            if (
+                e.kind == "damage"
+                and e.payload.get("attacker") == 1
+                and e.entity_id == 2
+            ):
                 return e.payload.get("final_raw", 0)
         return 0
 
@@ -433,8 +597,12 @@ def _g6_behavior_multiplier_test() -> tuple[bool, dict]:
         f"buff_increased_dmg={damage_add_ok} (damage_add=3)"
     )
 
-    all_passed = (result["speed_mult_passed"] and result["atkspd_mult_passed"]
-                  and result["armor_add_passed"] and result["damage_add_passed"])
+    all_passed = (
+        result["speed_mult_passed"]
+        and result["atkspd_mult_passed"]
+        and result["armor_add_passed"]
+        and result["damage_add_passed"]
+    )
     return all_passed, result
 
 
@@ -445,7 +613,13 @@ def _g7_mission_test() -> tuple[bool, str]:
         "schema_version": "m7",
         "name": "G7 mission test",
         "players": [
-            {"id": 1, "name": "Defender", "race": "terran", "allies": [], "is_ai": True},
+            {
+                "id": 1,
+                "name": "Defender",
+                "race": "terran",
+                "allies": [],
+                "is_ai": True,
+            },
             {"id": 2, "name": "Attacker", "race": "zerg", "allies": [], "is_ai": True},
         ],
         "spawns": [
@@ -465,23 +639,44 @@ def _g7_mission_test() -> tuple[bool, str]:
 
     eng = MissionEngine(s)
     eng.add_region(Region("base", "circle", 0.0, 0.0, r=5.0))
-    eng.add_wave(Wave("wave1", at_loop=10, spawns=[
-        {"unit_type_id": "Zergling", "owner_player_id": 2, "x": 10.0, "y": 0.0},
-    ], commands=[
-        {"kind": "attack_unit", "entity_ids": [], "issuer_player_id": 2, "target_entity_id": 1},
-    ]))
+    eng.add_wave(
+        Wave(
+            "wave1",
+            at_loop=10,
+            spawns=[
+                {"unit_type_id": "Zergling", "owner_player_id": 2, "x": 10.0, "y": 0.0},
+            ],
+            commands=[
+                {
+                    "kind": "attack_unit",
+                    "entity_ids": [],
+                    "issuer_player_id": 2,
+                    "target_entity_id": 1,
+                },
+            ],
+        )
+    )
     eng.add_objective(Objective("survive", "survive_loops", {"target_loops": 200}))
-    eng.add_objective(Objective("defend_base", "defend_region",
-                                {"region": "base", "defender_player_id": 1, "until_loop": 200}))
+    eng.add_objective(
+        Objective(
+            "defend_base",
+            "defend_region",
+            {"region": "base", "defender_player_id": 1, "until_loop": 200},
+        )
+    )
     # Marine 攻击任何敌方
     eng.add_trigger(_make_attack_nearest_trigger())
 
     res = eng.run(max_loops=300)
-    detail = (f"terminated={res.terminated} end_loop={res.end_loop} end_reason={res.end_reason} "
-              f"objectives={res.objectives}")
+    detail = (
+        f"terminated={res.terminated} end_loop={res.end_loop} end_reason={res.end_reason} "
+        f"objectives={res.objectives}"
+    )
     # 验证：波次生成了 Zergling（第 10 loop 后 query 应有 owner=2 单位）
     enemies_after_wave = [u for u in s.query_units()["units"] if u["owner"] == 2]
-    wave_fired = len(enemies_after_wave) > 0 or any(o["status"] != "active" for o in res.objectives)
+    wave_fired = len(enemies_after_wave) > 0 or any(
+        o["status"] != "active" for o in res.objectives
+    )
     return wave_fired and res.terminated, detail
 
 
@@ -503,7 +698,9 @@ def _g7_calibration_test() -> tuple[bool, dict]:
     from sc2_simulator.catalog.abilities import casters_by_ability
     from sc2_simulator.fixed import Fixed, SCALE
     from sc2_simulator.systems.combat import (
-        _compute_damage_breakdown, _is_air, _weapon_for_target,
+        _compute_damage_breakdown,
+        _is_air,
+        _weapon_for_target,
     )
     from sc2_simulator.catalog.model import Attribute, UnitType, WeaponType
 
@@ -553,7 +750,10 @@ def _g7_calibration_test() -> tuple[bool, dict]:
         attacks=1,
         range=Fixed.from_int(5),
         period=22,
-        bonus_damage={Attribute.LIGHT: Fixed.from_int(5), Attribute.ARMORED: Fixed.from_int(10)},
+        bonus_damage={
+            Attribute.LIGHT: Fixed.from_int(5),
+            Attribute.ARMORED: Fixed.from_int(10),
+        },
     )
     multi_attr_type = UnitType(
         id="MultiAttrTarget",
@@ -576,7 +776,8 @@ def _g7_calibration_test() -> tuple[bool, dict]:
     # 修正前 period=75，100 loop 内只能开火 1 次（loop 0 一次，第二次要 loop 75 + 飞行延迟）
     # 修正后 period=34，100 loop 内能开火 2-3 次
     marauder_scenario = {
-        "schema_version": "m7", "name": "G7 cal marauder period",
+        "schema_version": "m7",
+        "name": "G7 cal marauder period",
         "players": [
             {"id": 1, "name": "T1", "race": "terran", "allies": [], "is_ai": True},
             {"id": 2, "name": "T2", "race": "zerg", "allies": [], "is_ai": True},
@@ -586,21 +787,35 @@ def _g7_calibration_test() -> tuple[bool, dict]:
             {"unit_type_id": "Roach", "owner_player_id": 2, "x": 3.0, "y": 0.0},
         ],
         "commands": [
-            {"loop": 0, "kind": "attack_unit", "issuer_player_id": 1, "entity_ids": [1], "target_entity_id": 2},
+            {
+                "loop": 0,
+                "kind": "attack_unit",
+                "issuer_player_id": 1,
+                "entity_ids": [1],
+                "target_entity_id": 2,
+            },
         ],
-        "max_loops": 100, "seed": 42, "strict": False, "win_condition": "custom",
+        "max_loops": 100,
+        "seed": 42,
+        "strict": False,
+        "win_condition": "custom",
     }
     _s = SimulatorSession()
     _s.scenario_load(scenario_dict=marauder_scenario, catalog="m7")
     _s.scenario_reset()
     _s.scenario_step(100)
-    marauder_dmg_events = [e for e in _s.world.events.emitted
-                           if e.kind == "damage" and e.payload.get("attacker") == 1]
+    marauder_dmg_events = [
+        e
+        for e in _s.world.events.emitted
+        if e.kind == "damage" and e.payload.get("attacker") == 1
+    ]
     # 期望 ≥2 次（修正前 1 次，修正后 ≥2 次）
     marauder_period_ok = len(marauder_dmg_events) >= 2
     # 同时验证 catalog 中 Marauder period=34
     marauder_period_value = m7.units["Marauder"].weapon_ground.period
-    result["marauder_period_passed"] = marauder_period_ok and marauder_period_value == 34
+    result["marauder_period_passed"] = (
+        marauder_period_ok and marauder_period_value == 34
+    )
     result["marauder_period"] = (
         f"damage_events={len(marauder_dmg_events)} (expected >=2) "
         f"catalog_period={marauder_period_value} (expected 34, was 75)"
@@ -619,7 +834,8 @@ def _g7_calibration_test() -> tuple[bool, dict]:
     # 构造 1 个 Mutalisk 攻击 3 个密集 Marine（互相距离 ≤ 1.0）
     # 期望：主目标吃 9 伤害；第二目标吃 3 伤害；第三目标吃 1 伤害
     bounce_scenario = {
-        "schema_version": "m7", "name": "G7 cal mutalisk bounce",
+        "schema_version": "m7",
+        "name": "G7 cal mutalisk bounce",
         "players": [
             {"id": 1, "name": "Z", "race": "zerg", "allies": [], "is_ai": True},
             {"id": 2, "name": "T", "race": "terran", "allies": [], "is_ai": True},
@@ -632,18 +848,32 @@ def _g7_calibration_test() -> tuple[bool, dict]:
             {"unit_type_id": "Marine", "owner_player_id": 2, "x": 3.0, "y": -0.5},
         ],
         "commands": [
-            {"loop": 0, "kind": "attack_unit", "issuer_player_id": 1, "entity_ids": [1], "target_entity_id": 2},
+            {
+                "loop": 0,
+                "kind": "attack_unit",
+                "issuer_player_id": 1,
+                "entity_ids": [1],
+                "target_entity_id": 2,
+            },
         ],
-        "max_loops": 60, "seed": 42, "strict": False, "win_condition": "custom",
+        "max_loops": 60,
+        "seed": 42,
+        "strict": False,
+        "win_condition": "custom",
     }
     _s2 = SimulatorSession()
     _s2.scenario_load(scenario_dict=bounce_scenario, catalog="m7")
     _s2.scenario_reset()
     _s2.scenario_step(60)
     # 统计所有 damage 事件中 attacker=1（Mutalisk）的，按 payload.bounce_index 分组
-    mutalisk_dmg_events = [e for e in _s2.world.events.emitted
-                           if e.kind == "damage" and e.payload.get("attacker") == 1]
-    bounce_events = [e for e in mutalisk_dmg_events if e.payload.get("bounce_index", 0) > 0]
+    mutalisk_dmg_events = [
+        e
+        for e in _s2.world.events.emitted
+        if e.kind == "damage" and e.payload.get("attacker") == 1
+    ]
+    bounce_events = [
+        e for e in mutalisk_dmg_events if e.payload.get("bounce_index", 0) > 0
+    ]
     # 期望：有 bounce_index > 0 的事件（即弹跳伤害已触发）
     bounce_indices = sorted({e.payload.get("bounce_index", 0) for e in bounce_events})
     bounce_ok = len(bounce_events) > 0 and 1 in bounce_indices
@@ -668,9 +898,11 @@ def _g7_calibration_test() -> tuple[bool, dict]:
     else:
         colossus_is_air = _is_air(colossus_type)
         viking_weapon_for_colossus = _weapon_for_target(viking_type, colossus_type)
-        colossus_air_ok = (colossus_is_air
-                           and viking_weapon_for_colossus is not None
-                           and viking_weapon_for_colossus.id == "Viking.LanzerTorpedoes")
+        colossus_air_ok = (
+            colossus_is_air
+            and viking_weapon_for_colossus is not None
+            and viking_weapon_for_colossus.id == "Viking.LanzerTorpedoes"
+        )
         result["colossus_air_passed"] = colossus_air_ok
         result["colossus_air"] = (
             f"colossus_is_air={colossus_is_air} (MASSIVE dual target判定) "
@@ -678,40 +910,226 @@ def _g7_calibration_test() -> tuple[bool, dict]:
             f"(expected Viking.LanzerTorpedoes)"
         )
 
-    all_passed = all([
-        result["min_dmg_passed"], result["bonus_max_passed"],
-        result["marauder_period_passed"], result["reaper_no_stim_passed"],
-        result["mutalisk_bounce_passed"], result["colossus_air_passed"],
-    ])
+    all_passed = all(
+        [
+            result["min_dmg_passed"],
+            result["bonus_max_passed"],
+            result["marauder_period_passed"],
+            result["reaper_no_stim_passed"],
+            result["mutalisk_bounce_passed"],
+            result["colossus_air_passed"],
+        ]
+    )
     return all_passed, result
 
 
 def _make_attack_nearest_trigger():
     """触发器：让 Marine 攻击最近的敌方。"""
+
     def condition(eng: MissionEngine):
         s = eng.session
         if s.world is None:
             return False
-        marines = [e for e in s.world.entities.values()
-                   if e.unit_type_id == "Marine" and e.is_alive]
-        enemies = [e for e in s.world.entities.values()
-                   if e.owner_player_id != 1 and e.is_alive]
+        marines = [
+            e
+            for e in s.world.entities.values()
+            if e.unit_type_id == "Marine" and e.is_alive
+        ]
+        enemies = [
+            e
+            for e in s.world.entities.values()
+            if e.owner_player_id != 1 and e.is_alive
+        ]
         return bool(marines and enemies)
 
     def action(eng: MissionEngine):
         s = eng.session
-        marines = [e for e in s.world.entities.values()
-                   if e.unit_type_id == "Marine" and e.is_alive]
-        enemies = [e for e in s.world.entities.values()
-                   if e.owner_player_id != 1 and e.is_alive]
+        marines = [
+            e
+            for e in s.world.entities.values()
+            if e.unit_type_id == "Marine" and e.is_alive
+        ]
+        enemies = [
+            e
+            for e in s.world.entities.values()
+            if e.owner_player_id != 1 and e.is_alive
+        ]
         if marines and enemies:
             marine = marines[0]
             # 找最近敌人
-            nearest = min(enemies, key=lambda e: (e.x.raw - marine.x.raw) ** 2 + (e.y.raw - marine.y.raw) ** 2)
-            s.unit_order([marine.entity_id], "attack_unit", 1, target_entity_id=nearest.entity_id)
+            nearest = min(
+                enemies,
+                key=lambda e: (
+                    (e.x.raw - marine.x.raw) ** 2 + (e.y.raw - marine.y.raw) ** 2
+                ),
+            )
+            s.unit_order(
+                [marine.entity_id], "attack_unit", 1, target_entity_id=nearest.entity_id
+            )
 
     from .mission_engine import Trigger
+
     return Trigger("attack_nearest", condition, action, cooldown=22)
+
+
+# ---------------------------------------------------------------------------
+# Stage 08 G8 闸门
+# ---------------------------------------------------------------------------
+
+
+def _make_g8_combat_scenario() -> dict:
+    """构造简单的战斗场景用于 G8 测试：5 Marine vs 5 Zergling。
+
+    可在合理 loop 内决出胜负，用于验证胜利时间测量框架。
+    """
+    return {
+        "schema_version": "m7",
+        "name": "G8 Combat Test (5 Marine vs 5 Zergling)",
+        "players": [
+            {"id": 1, "name": "Terran", "race": "terran", "allies": [], "is_ai": True},
+            {"id": 2, "name": "Zerg", "race": "zerg", "allies": [], "is_ai": True},
+        ],
+        "spawns": [
+            # Player 1: 5 Marines
+            {"unit_type_id": "Marine", "owner_player_id": 1, "x": 0.0, "y": 0.0},
+            {"unit_type_id": "Marine", "owner_player_id": 1, "x": 1.0, "y": 0.0},
+            {"unit_type_id": "Marine", "owner_player_id": 1, "x": 2.0, "y": 0.0},
+            {"unit_type_id": "Marine", "owner_player_id": 1, "x": 3.0, "y": 0.0},
+            {"unit_type_id": "Marine", "owner_player_id": 1, "x": 4.0, "y": 0.0},
+            # Player 2: 5 Zerglings
+            {"unit_type_id": "Zergling", "owner_player_id": 2, "x": 10.0, "y": 0.0},
+            {"unit_type_id": "Zergling", "owner_player_id": 2, "x": 11.0, "y": 0.0},
+            {"unit_type_id": "Zergling", "owner_player_id": 2, "x": 12.0, "y": 0.0},
+            {"unit_type_id": "Zergling", "owner_player_id": 2, "x": 13.0, "y": 0.0},
+            {"unit_type_id": "Zergling", "owner_player_id": 2, "x": 14.0, "y": 0.0},
+        ],
+        "commands": [
+            {
+                "loop": 0,
+                "kind": "attack_move",
+                "issuer_player_id": 1,
+                "entity_ids": [1, 2, 3, 4, 5],
+                "target_entity_id": 0,
+                "target_x": 12.0,
+                "target_y": 0.0,
+                "unit_type_id": "",
+                "ability_id": "",
+            },
+            {
+                "loop": 0,
+                "kind": "attack_move",
+                "issuer_player_id": 2,
+                "entity_ids": [6, 7, 8, 9, 10],
+                "target_entity_id": 0,
+                "target_x": 2.0,
+                "target_y": 0.0,
+                "unit_type_id": "",
+                "ability_id": "",
+            },
+        ],
+        "max_loops": 2000,
+        "seed": 42,
+        "strict": False,
+        "win_condition": "annihilation",
+    }
+
+
+def _g8_victory_time_test() -> tuple[bool, str]:
+    """G8-victory-time：简单战斗场景，FocusFireStrategy，10 seeds。
+
+    通过标准：
+    - avg_victory_time_sec ∈ [5, 30]（简单 5v5 战斗应在 5-30 秒内结束，Marine 射程优势）
+    - survival_rate > 0.6
+    """
+    from .consumers.tactical import FocusFireStrategy
+    from .replay_simulation import run_victory_time_benchmark
+
+    # 使用简单战斗场景
+    scenario_dict = _make_g8_combat_scenario()
+
+    strategy = FocusFireStrategy()
+    seeds = list(range(10))
+
+    agg = run_victory_time_benchmark(
+        scenario_dict=scenario_dict,
+        strategy=strategy,
+        seeds=seeds,
+        ally_player_id=1,
+        max_loops=2000,
+    )
+
+    passed = 5 <= agg.avg_victory_time_sec <= 30 and agg.survival_rate > 0.6
+
+    detail = (
+        f"avg_victory_time_sec={agg.avg_victory_time_sec:.1f} "
+        f"(expected [5, 30]) "
+        f"survival_rate={agg.survival_rate:.2f} "
+        f"(expected > 0.6) "
+        f"victory_p50={agg.victory_time_p50_sec:.1f} "
+        f"victory_p90={agg.victory_time_p90_sec:.1f} "
+        f"seeds={agg.seed_count}"
+    )
+    return passed, detail
+
+
+def _g8_replay_simulation_test() -> tuple[bool, str]:
+    """G8-replay-simulation：同一输入重复执行必须得到同一结果。"""
+    from .consumers.tactical import (
+        FocusFireStrategy,
+        SpreadFireStrategy,
+        run_tactical_ab,
+    )
+
+    # 使用简单战斗场景
+    scenario_dict = _make_g8_combat_scenario()
+
+    # 先验证多策略报告仍可产出。
+    report = run_tactical_ab(
+        scenario_dict=scenario_dict,
+        strategy_a=FocusFireStrategy(),
+        strategy_b=SpreadFireStrategy(),
+        seeds=[42, 43, 44],
+        ally_player_id=1,
+        max_loops=2000,
+    )
+
+    # Replay 的核心语义是确定性：同一场景、策略和 seed 重复执行，
+    # trace、结束 loop 和胜利时间必须一致。
+    replay_a = run_tactical_ab(
+        scenario_dict=scenario_dict,
+        strategy_a=FocusFireStrategy(),
+        strategy_b=FocusFireStrategy(),
+        seeds=[42],
+        ally_player_id=1,
+        max_loops=2000,
+    )
+    first_run = replay_a.strategy_a.seed_results[0]
+    second_run = replay_a.strategy_b.seed_results[0]
+
+    passed = (
+        report.strategy_a.seed_count == 3
+        and report.strategy_b.seed_count == 3
+        and report.verdict in ("PASS", "INCONCLUSIVE")
+        and first_run.trace_hash == second_run.trace_hash
+        and first_run.end_loop == second_run.end_loop
+        and first_run.game_time_sec == second_run.game_time_sec
+        and first_run.victory == second_run.victory
+    )
+
+    detail = (
+        f"strategy_a={report.strategy_a.strategy_name} "
+        f"avg_victory_time={report.strategy_a.avg_victory_time_sec:.1f}s "
+        f"survival={report.strategy_a.survival_rate:.2f} | "
+        f"strategy_b={report.strategy_b.strategy_name} "
+        f"avg_victory_time={report.strategy_b.avg_victory_time_sec:.1f}s "
+        f"survival={report.strategy_b.survival_rate:.2f} | "
+        f"verdict={report.verdict} "
+        f"vt_comp={report.victory_time_comparison} "
+        f"replay_equal={{'trace': {first_run.trace_hash == second_run.trace_hash}, "
+        f"'end_loop': {first_run.end_loop == second_run.end_loop}, "
+        f"'victory': {first_run.victory == second_run.victory}}}"
+    )
+    return passed, detail
 
 
 if __name__ == "__main__":

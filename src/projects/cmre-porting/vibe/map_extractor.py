@@ -38,25 +38,109 @@ LOOPS_PER_SECOND = 22.4
 
 # m7_catalog 支持的 103 个单位（从 m7_units.py 提取）
 SUPPORTED_UNITS = {
-    "Adept", "Archon", "Armory", "Baneling", "BanelingNest", "Banshee",
-    "Barracks", "BarracksReactor", "BarracksTechLab", "Battlecruiser",
-    "BroodLord", "Broodling", "Bunker", "Carrier", "Colossus", "CommandCenter",
-    "Corruptor", "CyberneticsCore", "Cyclone", "DarkShrine", "DarkTemplar",
-    "Disruptor", "Drone", "EngineeringBay", "EvolutionChamber", "Extractor",
-    "Factory", "FactoryReactor", "FactoryTechLab", "FleetBeacon", "Forge",
-    "FusionCore", "Gateway", "Ghost", "GhostAcademy", "GreaterSpire",
-    "Hatchery", "Hellbat", "Hellion", "HighTemplar", "Hive", "Hydralisk",
-    "HydraliskDen", "Immortal", "InfestationPit", "Infestor", "Lair", "Larva",
-    "Locust", "Marauder", "Marine", "Medivac", "MineralField", "MissileTurret",
-    "Mutalisk", "Nexus", "NydusNetwork", "Observer", "Oracle", "Overlord",
-    "Phoenix", "PhotonCannon", "Probe", "Pylon", "Queen", "Raven", "Reaper",
-    "Refinery", "Roach", "RoachWarren", "RoboticsBay", "RoboticsFacility",
-    "SCV", "SensorTower", "Sentry", "ShieldBattery", "SiegeTank",
-    "SpawningPool", "SpineCrawler", "Spire", "SporeCrawler", "Stalker",
-    "Stargate", "Starport", "StarportReactor", "StarportTechLab", "SupplyDepot",
-    "SwarmHost", "Tempest", "TemplarArchive", "Thor", "TwilightCouncil",
-    "Ultralisk", "UltraliskCavern", "VespeneGeyser", "Viking", "Viper",
-    "VoidRay", "WarpGate", "WarpPrism", "WidowMine", "Zealot", "Zergling",
+    "Adept",
+    "Archon",
+    "Armory",
+    "Baneling",
+    "BanelingNest",
+    "Banshee",
+    "Barracks",
+    "BarracksReactor",
+    "BarracksTechLab",
+    "Battlecruiser",
+    "BroodLord",
+    "Broodling",
+    "Bunker",
+    "Carrier",
+    "Colossus",
+    "CommandCenter",
+    "Corruptor",
+    "CyberneticsCore",
+    "Cyclone",
+    "DarkShrine",
+    "DarkTemplar",
+    "Disruptor",
+    "Drone",
+    "EngineeringBay",
+    "EvolutionChamber",
+    "Extractor",
+    "Factory",
+    "FactoryReactor",
+    "FactoryTechLab",
+    "FleetBeacon",
+    "Forge",
+    "FusionCore",
+    "Gateway",
+    "Ghost",
+    "GhostAcademy",
+    "GreaterSpire",
+    "Hatchery",
+    "Hellbat",
+    "Hellion",
+    "HighTemplar",
+    "Hive",
+    "Hydralisk",
+    "HydraliskDen",
+    "Immortal",
+    "InfestationPit",
+    "Infestor",
+    "Lair",
+    "Larva",
+    "Locust",
+    "Marauder",
+    "Marine",
+    "Medivac",
+    "MineralField",
+    "MissileTurret",
+    "Mutalisk",
+    "Nexus",
+    "NydusNetwork",
+    "Observer",
+    "Oracle",
+    "Overlord",
+    "Phoenix",
+    "PhotonCannon",
+    "Probe",
+    "Pylon",
+    "Queen",
+    "Raven",
+    "Reaper",
+    "Refinery",
+    "Roach",
+    "RoachWarren",
+    "RoboticsBay",
+    "RoboticsFacility",
+    "SCV",
+    "SensorTower",
+    "Sentry",
+    "ShieldBattery",
+    "SiegeTank",
+    "SpawningPool",
+    "SpineCrawler",
+    "Spire",
+    "SporeCrawler",
+    "Stalker",
+    "Stargate",
+    "Starport",
+    "StarportReactor",
+    "StarportTechLab",
+    "SupplyDepot",
+    "SwarmHost",
+    "Tempest",
+    "TemplarArchive",
+    "Thor",
+    "TwilightCouncil",
+    "Ultralisk",
+    "UltraliskCavern",
+    "VespeneGeyser",
+    "Viking",
+    "Viper",
+    "VoidRay",
+    "WarpGate",
+    "WarpPrism",
+    "WidowMine",
+    "Zealot",
+    "Zergling",
 }
 
 # 单位类型映射（地图特殊单位 → m7 支持单位）
@@ -71,11 +155,11 @@ UNIT_TYPE_MAP = {
     # SwarmHost 变体
     "SwarmHostMP": "SwarmHost",
     # 雇佣兵（m7 不支持，映射到近似单位）
-    "Goliath": "Viking",        # 步行机械对空对地
-    "DevilDog": "Marauder",     # 雇佣兵劫掠者
-    "Kraith": "Stalker",        # 雇佣兵追猎者
-    "HellionTank": "Hellbat",   # 地狱火战车形态
-    "DukesReaper": "Reaper",    # 雇佣兵收割者
+    "Goliath": "Viking",  # 步行机械对空对地
+    "DevilDog": "Marauder",  # 雇佣兵劫掠者
+    "Kraith": "Stalker",  # 雇佣兵追猎者
+    "HellionTank": "Hellbat",  # 地狱火战车形态
+    "DukesReaper": "Reaper",  # 雇佣兵收割者
     "SpartanCompany": "Marauder",
     "HammerSecurities": "Marauder",
     "CerbrosSecurities": "Marauder",
@@ -87,7 +171,7 @@ UNIT_TYPE_MAP = {
     "InfestedCivilian": "Marine",
     "InfestedTerranCampaign": "Marine",
     "InfestedAbomination": "Roach",
-    "InfestedCocoon": "Bunker",      # 茧是静止的，映射到建筑
+    "InfestedCocoon": "Bunker",  # 茧是静止的，映射到建筑
     "InfestedMaw": "SpineCrawler",
     # 感染建筑（目标建筑，映射到可破坏建筑）
     "JarbanInfestibleColonistHut": "Bunker",
@@ -98,7 +182,7 @@ UNIT_TYPE_MAP = {
     # 其他
     "CreepTumorUsed": "SpineCrawler",
     "CreepTumor": "SpineCrawler",
-    "Overseer": "Overlord",       # m7 无 Overseer，映射到 Overlord
+    "Overseer": "Overlord",  # m7 无 Overseer，映射到 Overlord
     "OverseerSiegeMode": "Overlord",
     "BroodLordEscort": "BroodLord",
     # 资源/中立建筑
@@ -147,6 +231,7 @@ PLAYER_FACTIONS = {
 @dataclass
 class ExtractionStats:
     """提取统计信息。"""
+
     total_objects: int = 0
     units_extracted: int = 0
     units_mapped: int = 0
@@ -163,6 +248,7 @@ class ExtractionStats:
 @dataclass
 class MapData:
     """提取的地图数据。"""
+
     scenario: dict
     regions: list[dict]
     stats: ExtractionStats
@@ -217,12 +303,14 @@ class MapExtractor:
                 self.stats.units_skipped += 1
                 self.stats.skipped_counter[f"{original}(P{player})"] += 1
                 continue
-            spawns.append({
-                "unit_type_id": unit_type,
-                "owner_player_id": player,
-                "x": obj["x"],
-                "y": obj["y"],
-            })
+            spawns.append(
+                {
+                    "unit_type_id": unit_type,
+                    "owner_player_id": player,
+                    "x": obj["x"],
+                    "y": obj["y"],
+                }
+            )
             self.stats.units_extracted += 1
             self.stats.unit_type_counter[unit_type] += 1
             self.stats.player_counter[player] += 1
@@ -235,13 +323,15 @@ class MapExtractor:
                 f = PLAYER_FACTIONS[pid]
             else:
                 f = {"name": f"Player{pid}", "team": "neutral", "race": "neutral"}
-            players.append({
-                "id": pid,
-                "name": f["name"],
-                "race": f["race"],
-                "allies": [],
-                "is_ai": True,
-            })
+            players.append(
+                {
+                    "id": pid,
+                    "name": f["name"],
+                    "race": f["race"],
+                    "allies": [],
+                    "is_ai": True,
+                }
+            )
 
         scenario = {
             "schema_version": "m7",
@@ -288,12 +378,14 @@ class MapExtractor:
                 y = float(parts[1])
             except (ValueError, IndexError):
                 continue
-            results.append({
-                "unit_type": unit_type,
-                "player": player,
-                "x": x,
-                "y": y,
-            })
+            results.append(
+                {
+                    "unit_type": unit_type,
+                    "player": player,
+                    "x": x,
+                    "y": y,
+                }
+            )
         return results
 
     def _parse_regions(self) -> list[dict]:
@@ -306,7 +398,11 @@ class MapExtractor:
         results = []
         for r in root.iter("region"):
             name_elem = r.find("name")
-            name = name_elem.get("value", f"region_{r.get('id', 'unknown')}") if name_elem is not None else f"region_{r.get('id', 'unknown')}"
+            name = (
+                name_elem.get("value", f"region_{r.get('id', 'unknown')}")
+                if name_elem is not None
+                else f"region_{r.get('id', 'unknown')}"
+            )
             # 解析所有 shape（circle/box）
             shapes = []
             for shape in r.findall("shape"):
@@ -316,44 +412,57 @@ class MapExtractor:
                     radius = shape.find("radius")
                     if center is not None and radius is not None:
                         cx, cy = center.get("value", "0,0").split(",")
-                        shapes.append({
-                            "type": "circle",
-                            "x": float(cx.strip()),
-                            "y": float(cy.strip()),
-                            "r": float(radius.get("value", "0")),
-                        })
+                        shapes.append(
+                            {
+                                "type": "circle",
+                                "x": float(cx.strip()),
+                                "y": float(cy.strip()),
+                                "r": float(radius.get("value", "0")),
+                            }
+                        )
                 elif shape_type == "box":
                     minp = shape.find("min")
                     maxp = shape.find("max")
                     if minp is not None and maxp is not None:
                         x1, y1 = minp.get("value", "0,0").split(",")
                         x2, y2 = maxp.get("value", "0,0").split(",")
-                        shapes.append({
-                            "type": "rect",
-                            "x": float(x1.strip()),
-                            "y": float(y1.strip()),
-                            "w": float(x2.strip()) - float(x1.strip()),
-                            "h": float(y2.strip()) - float(y1.strip()),
-                        })
+                        shapes.append(
+                            {
+                                "type": "rect",
+                                "x": float(x1.strip()),
+                                "y": float(y1.strip()),
+                                "w": float(x2.strip()) - float(x1.strip()),
+                                "h": float(y2.strip()) - float(y1.strip()),
+                            }
+                        )
             if shapes:
                 # 用第一个 shape 作为主区域代表（多 shape 的合并为 bounding box）
                 first = shapes[0]
-                results.append({
-                    "name": name,
-                    "kind": first["type"],
-                    "x": first["x"],
-                    "y": first["y"],
-                    "w": first.get("w", 0.0),
-                    "h": first.get("h", 0.0),
-                    "r": first.get("r", 0.0),
-                    "shapes": shapes,
-                })
+                results.append(
+                    {
+                        "name": name,
+                        "kind": first["type"],
+                        "x": first["x"],
+                        "y": first["y"],
+                        "w": first.get("w", 0.0),
+                        "h": first.get("h", 0.0),
+                        "r": first.get("r", 0.0),
+                        "shapes": shapes,
+                    }
+                )
         return results
 
     def _compute_map_bounds(self, objects: list[dict]) -> dict:
         """从 Objects 坐标范围推断地图大小。"""
         if not objects:
-            return {"width": 0, "height": 0, "min_x": 0, "min_y": 0, "max_x": 0, "max_y": 0}
+            return {
+                "width": 0,
+                "height": 0,
+                "min_x": 0,
+                "min_y": 0,
+                "max_x": 0,
+                "max_y": 0,
+            }
         xs = [o["x"] for o in objects]
         ys = [o["y"] for o in objects]
         min_x, max_x = min(xs), max(xs)
@@ -391,21 +500,27 @@ class MapExtractor:
         # 生成 6 个夜晚的时机（亡者之夜通常 6-7 个夜晚）
         nights = []
         # Night 1: 第一天结束后
-        nights.append({
-            "night_number": 1,
-            "start_loop": day_first_loops,
-            "end_loop": day_first_loops + night_loops,
-            "difficulty": "light",  # night 1-3: light
-        })
+        nights.append(
+            {
+                "night_number": 1,
+                "start_loop": day_first_loops,
+                "end_loop": day_first_loops + night_loops,
+                "difficulty": "light",  # night 1-3: light
+            }
+        )
         # 后续夜晚：每隔 cycle_loops
         for n in range(2, 7):
             prev_end = nights[-1]["end_loop"]
-            nights.append({
-                "night_number": n,
-                "start_loop": prev_end + day_loops,
-                "end_loop": prev_end + day_loops + night_loops,
-                "difficulty": "light" if n < 4 else ("heavy" if n >= 6 else "medium"),
-            })
+            nights.append(
+                {
+                    "night_number": n,
+                    "start_loop": prev_end + day_loops,
+                    "end_loop": prev_end + day_loops + night_loops,
+                    "difficulty": "light"
+                    if n < 4
+                    else ("heavy" if n >= 6 else "medium"),
+                }
+            )
 
         return {
             "day_first_loops": day_first_loops,
@@ -430,11 +545,15 @@ def extract_dead_of_night(map_dir: Optional[str | Path] = None) -> MapData:
     位置基于 ACHeroSpawnPlacement 提取的 (85, 94)。
     """
     if map_dir is None:
-        # 默认路径：SC2VibeTools/cmre-runtime/Maps/CMRE/亡者之夜.SC2Map
-        # 文件位于 SC2VibeTools/sc2-porting-workspace/src/projects/cmre-porting/vibe/
-        # parents[5] = SC2VibeTools 根目录
-        repo_root = Path(__file__).resolve().parents[5]
-        map_dir = repo_root / "cmre-runtime" / "Maps" / "CMRE" / "亡者之夜.SC2Map"
+        # 优先使用项目内已解包的地图包；开发环境没有该目录时再回退到
+        # 外部 cmre-runtime 绑定，保持原有运行方式兼容。
+        project_root = Path(__file__).resolve().parents[1]
+        packaged_map = project_root / "packages" / "Maps" / "亡者之夜.SC2Map"
+        runtime_root = Path(__file__).resolve().parents[5]
+        runtime_map = (
+            runtime_root / "cmre-runtime" / "Maps" / "CMRE" / "亡者之夜.SC2Map"
+        )
+        map_dir = packaged_map if packaged_map.exists() else runtime_map
     ex = MapExtractor(map_dir)
     data = ex.extract_all()
 
@@ -451,9 +570,15 @@ def extract_dead_of_night(map_dir: Optional[str | Path] = None) -> MapData:
     # 确保 Player 1 在 players 列表中
     player_ids = {p["id"] for p in data.scenario["players"]}
     if 1 not in player_ids:
-        data.scenario["players"].append({
-            "id": 1, "name": "User1", "race": "terran", "allies": [], "is_ai": True,
-        })
+        data.scenario["players"].append(
+            {
+                "id": 1,
+                "name": "User1",
+                "race": "terran",
+                "allies": [],
+                "is_ai": True,
+            }
+        )
         # 按 id 排序
         data.scenario["players"].sort(key=lambda p: p["id"])
 
@@ -471,39 +596,125 @@ def _build_player_starting_units(player_id: int, cx: float, cy: float) -> list[d
     """
     units = []
     # 基地
-    units.append({"unit_type_id": "CommandCenter", "owner_player_id": player_id, "x": cx, "y": cy})
+    units.append(
+        {
+            "unit_type_id": "CommandCenter",
+            "owner_player_id": player_id,
+            "x": cx,
+            "y": cy,
+        }
+    )
     # 采矿 SCV（4 个）
     for i, (dx, dy) in enumerate([(-1, -1), (-0.5, -1), (0.5, -1), (1, -1)]):
-        units.append({"unit_type_id": "SCV", "owner_player_id": player_id,
-                      "x": cx + dx, "y": cy + dy})
+        units.append(
+            {
+                "unit_type_id": "SCV",
+                "owner_player_id": player_id,
+                "x": cx + dx,
+                "y": cy + dy,
+            }
+        )
     # 建筑
-    units.append({"unit_type_id": "Barracks", "owner_player_id": player_id, "x": cx - 2, "y": cy - 2})
-    units.append({"unit_type_id": "Bunker", "owner_player_id": player_id, "x": cx + 2, "y": cy + 2})
-    units.append({"unit_type_id": "EngineeringBay", "owner_player_id": player_id, "x": cx - 2, "y": cy + 2})
+    units.append(
+        {
+            "unit_type_id": "Barracks",
+            "owner_player_id": player_id,
+            "x": cx - 2,
+            "y": cy - 2,
+        }
+    )
+    units.append(
+        {
+            "unit_type_id": "Bunker",
+            "owner_player_id": player_id,
+            "x": cx + 2,
+            "y": cy + 2,
+        }
+    )
+    units.append(
+        {
+            "unit_type_id": "EngineeringBay",
+            "owner_player_id": player_id,
+            "x": cx - 2,
+            "y": cy + 2,
+        }
+    )
     # SupplyDepot 5 个：supply_cap = 11(CC) + 5*8 = 51，足够起始部队(30) + 训练余量(21)
     for dx, dy in [(-3, 0), (3, -2), (-3, -2), (3, 0), (-3, 2)]:
-        units.append({"unit_type_id": "SupplyDepot", "owner_player_id": player_id,
-                      "x": cx + dx, "y": cy + dy})
-    units.append({"unit_type_id": "MissileTurret", "owner_player_id": player_id, "x": cx + 3, "y": cy + 2})
-    units.append({"unit_type_id": "Refinery", "owner_player_id": player_id, "x": cx + 4, "y": cy - 1})
+        units.append(
+            {
+                "unit_type_id": "SupplyDepot",
+                "owner_player_id": player_id,
+                "x": cx + dx,
+                "y": cy + dy,
+            }
+        )
+    units.append(
+        {
+            "unit_type_id": "MissileTurret",
+            "owner_player_id": player_id,
+            "x": cx + 3,
+            "y": cy + 2,
+        }
+    )
+    units.append(
+        {
+            "unit_type_id": "Refinery",
+            "owner_player_id": player_id,
+            "x": cx + 4,
+            "y": cy - 1,
+        }
+    )
     # 防守部队（8 Marine + 4 Marauder + 2 SiegeTank + 2 Medivac）
-    marines = [(-1, 1), (-0.5, 1), (0, 1), (0.5, 1), (1, 1),
-               (-1, 0.5), (0, 0.5), (1, 0.5)]
+    marines = [
+        (-1, 1),
+        (-0.5, 1),
+        (0, 1),
+        (0.5, 1),
+        (1, 1),
+        (-1, 0.5),
+        (0, 0.5),
+        (1, 0.5),
+    ]
     for dx, dy in marines:
-        units.append({"unit_type_id": "Marine", "owner_player_id": player_id,
-                      "x": cx + dx, "y": cy + dy})
+        units.append(
+            {
+                "unit_type_id": "Marine",
+                "owner_player_id": player_id,
+                "x": cx + dx,
+                "y": cy + dy,
+            }
+        )
     marauders = [(-1.5, 0), (1.5, 0), (-1.5, -0.5), (1.5, -0.5)]
     for dx, dy in marauders:
-        units.append({"unit_type_id": "Marauder", "owner_player_id": player_id,
-                      "x": cx + dx, "y": cy + dy})
+        units.append(
+            {
+                "unit_type_id": "Marauder",
+                "owner_player_id": player_id,
+                "x": cx + dx,
+                "y": cy + dy,
+            }
+        )
     tanks = [(2, 1), (-2, 1)]
     for dx, dy in tanks:
-        units.append({"unit_type_id": "SiegeTank", "owner_player_id": player_id,
-                      "x": cx + dx, "y": cy + dy})
+        units.append(
+            {
+                "unit_type_id": "SiegeTank",
+                "owner_player_id": player_id,
+                "x": cx + dx,
+                "y": cy + dy,
+            }
+        )
     medivacs = [(0, 3), (2, 3)]
     for dx, dy in medivacs:
-        units.append({"unit_type_id": "Medivac", "owner_player_id": player_id,
-                      "x": cx + dx, "y": cy + dy})
+        units.append(
+            {
+                "unit_type_id": "Medivac",
+                "owner_player_id": player_id,
+                "x": cx + dx,
+                "y": cy + dy,
+            }
+        )
     return units
 
 
@@ -512,8 +723,10 @@ def print_extraction_report(data: MapData) -> None:
     stats = data.stats
     print(f"=== 地图提取报告: {data.scenario['name']} ===")
     print(f"地图边界: {data.map_bounds}")
-    print(f"波次时机: {data.wave_timing['total_nights']} 个夜晚, "
-          f"首夜开始 @ loop {data.wave_timing['nights'][0]['start_loop']}")
+    print(
+        f"波次时机: {data.wave_timing['total_nights']} 个夜晚, "
+        f"首夜开始 @ loop {data.wave_timing['nights'][0]['start_loop']}"
+    )
     print()
     print(f"总物体数: {stats.total_objects}")
     print(f"成功提取: {stats.units_extracted}")
@@ -560,8 +773,10 @@ if __name__ == "__main__":
     print()
     print("=== 验证 scenario_dict 加载 ===")
     import sys
+
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from vibe.simulator_session import SimulatorSession
+
     s = SimulatorSession()
     info = s.scenario_load(scenario_dict=data.scenario, catalog="m7")
     print(f"加载成功: {info}")

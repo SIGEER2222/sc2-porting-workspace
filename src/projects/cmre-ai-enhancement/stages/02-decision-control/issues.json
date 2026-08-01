@@ -1,0 +1,23 @@
+{
+  "stage_id": "02-decision-control",
+  "issues": [
+    {
+      "id": "FOUNDATION-DEPENDENCY-001",
+      "severity": "high",
+      "status": "open",
+      "title": "Stage 01 Ares runtime gates remain open",
+      "detail": "The local Python environment lacks pytest and the Ares runtime dependencies; pure decision-control tests must remain independent of Ares and SC2.",
+      "evidence_type": "static",
+      "next_action": "Install the declared Ares dependencies and run the Stage 01 import, simulator, and live gates before advancing project.currentStage."
+    },
+    {
+      "id": "LIVE-INTEGRATION-002",
+      "severity": "high",
+      "status": "open",
+      "title": "DecisionController has no live Ares executor proof in this stage",
+      "detail": "This stage verifies contracts and deterministic intent selection only; it does not prove that Ares executes the selected intent in SC2.",
+      "evidence_type": "inference",
+      "next_action": "Add an Ares adapter integration test and launcher-backed Dead of Night run after Stage 01 is unblocked."
+    }
+  ]
+}

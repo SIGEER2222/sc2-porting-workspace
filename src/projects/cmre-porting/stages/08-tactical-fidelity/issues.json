@@ -1,0 +1,94 @@
+{
+  "stage_id": "08-tactical-fidelity",
+  "issues": [
+    {
+      "id": "IMPL-001",
+      "severity": "high",
+      "status": "resolved",
+      "title": "VictoryTimeMetric 契约 + contracts/tactical/mission_engine 集成",
+      "summary": "在 contracts.py 新增 VictoryTimeMetric；tactical.py/mission_engine.py 增加胜利时间字段与聚合逻辑",
+      "evidence": [
+        "contracts.py: VictoryTimeMetric dataclass + from_mission_result/from_simulator_session",
+        "mission_engine.py: MissionResult 新增 game_time_sec/nights_survived/victory + from_engine",
+        "tactical.py: SingleRunMetrics/AggregatedMetrics/TacticalReport 新增胜利时间字段，_run_single/_aggregate/run_tactical_ab 实现"
+      ]
+    },
+    {
+      "id": "IMPL-002",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Replay Simulation 核心模块",
+      "summary": "新建 replay_simulation.py：replay_from_jsonl、compare_strategies、run_victory_time_benchmark",
+      "evidence": [
+        "replay_simulation.py: 完整实现，含 _frame_to_scenario_dict、_run_single_with_strategy"
+      ]
+    },
+    {
+      "id": "IMPL-003",
+      "severity": "high",
+      "status": "resolved",
+      "title": "SimulatorSession 波次时机存储 + run_dead_of_night 集成",
+      "summary": "SimulatorSession 新增 _wave_timing 属性与 set_wave_timing()；run_dead_of_night.py 调用 set_wave_timing",
+      "evidence": [
+        "simulator_session.py: _wave_timing: Optional[dict] + set_wave_timing()",
+        "run_dead_of_night.py: s.set_wave_timing(data.wave_timing)"
+      ]
+    },
+    {
+      "id": "IMPL-004",
+      "severity": "high",
+      "status": "resolved",
+      "title": "G8 闸门验证",
+      "summary": "gate_verification.py 新增 G8_victory_time、G8_replay_simulation 闸门测试函数",
+      "evidence": [
+        "gate_verification.py: _g8_victory_time_test、_g8_replay_simulation_test，集成到 p3_selftest",
+        "runtime: python -m src.projects.cmre-porting.vibe.gate_verification -> passed=true, 26/26 checks true"
+      ]
+    },
+    {
+      "id": "PERF-003",
+      "severity": "medium",
+      "status": "open",
+      "title": "10 seeds 完整跑耗时优化",
+      "summary": "Dead of Night 15000 loops × 10 seeds 约需数分钟，考虑并行化（ProcessPoolExecutor）或缩减 max_loops",
+      "evidence": [
+        "当前 tactical.py 串行跑 seeds",
+        "replay_simulation.compare_strategies 已预留 max_workers 参数但未实现并行"
+      ]
+    },
+    {
+      "id": "MAP-RUNTIME-001",
+      "severity": "high",
+      "status": "open",
+      "title": "真实地图多 seed/A-B Victory Time 基准未完成",
+      "summary": "默认 cmre-runtime 路径不存在，但项目内 packages/Maps/亡者之夜.SC2Map 可用；--mvp-fast 已完成 3 seed 压缩六夜基准",
+      "evidence": [
+        "runtime: 显式项目地图提取 1339 spawns、6 nights、5 个非关键 unsupported objects",
+        "runtime: --mvp-fast -> time_scale=0.02, max_loops=1280, seeds=1/2/3, waves=24 each, nights_survived=6 each, p1_survivors=33/32/34, total duration=13.0s"
+      ],
+      "next_action": "继续接入多策略 A/B；当前已完成多 seed 单策略基准"
+    },
+    {
+      "id": "TACT-CLEAR-001",
+      "severity": "medium",
+      "status": "open",
+      "title": "六夜后清场终局尚未达到 MVP",
+      "summary": "clear_waves_after_final 已实现实验路径，但 3000 loop probe 仍有 28 个波次单位存活，不能作为默认 MVP 胜利条件",
+      "evidence": [
+        "runtime: max_loops=3000, time_scale=0.02, strength_scale=0.25 -> verdict=inconclusive, enemy_survivors={4: 28}, p1_survivors=2, duration=5.59s"
+      ],
+      "next_action": "后续实现进攻/追击策略或地图路径支持后再启用清场终局"
+    },
+    {
+      "id": "FUNC-001",
+      "severity": "low",
+      "status": "resolved",
+      "title": "replay_from_snapshot 真正的快照恢复",
+      "summary": "通过 SimulatorSession 快照注册、WorldState clone/restore_into 和策略注入实现 MVP 快照回放",
+      "evidence": [
+        "replay_simulation.py: replay_from_snapshot 已实现",
+        "runtime: snapshot smoke test end_loop=141, game_time_sec=6.2946, victory=true"
+      ]
+    }
+  ]
+}

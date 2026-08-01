@@ -1,0 +1,70 @@
+{
+  "stage_id": "08-tactical-fidelity",
+  "schemaVersion": 1,
+  "status": "PASS_WITH_GAP",
+  "current_phase": "MVP verified; real-map calibration pending",
+  "opened_at": "2026-08-01T00:00:00+08:00",
+  "closed_at": null,
+  "direction": "MVP: 胜利时间框架 + Replay Simulation，核心指标 Victory Time",
+  "plan": "src/projects/cmre-porting/stages/08-tactical-fidelity/plan.md",
+  "writeScope": [
+    "src/projects/cmre-porting/stages/08-tactical-fidelity/**",
+    "src/projects/cmre-porting/vibe/contracts.py",
+    "src/projects/cmre-porting/vibe/tactical.py",
+    "src/projects/cmre-porting/vibe/mission_engine.py",
+    "src/projects/cmre-porting/vibe/replay_simulation.py",
+    "src/projects/cmre-porting/vibe/gate_verification.py",
+    "src/projects/cmre-porting/vibe/simulator_session.py",
+    "src/projects/cmre-porting/vibe/run_dead_of_night.py",
+    "src/projects/cmre-porting/vibe/map_extractor.py"
+  ],
+  "acceptance": [
+    "G8-victory-time: synthetic fallback 10 seeds avg=6.3s survival=100%; real-map --mvp-fast six-night survival 3 seeds total=13.0s",
+    "G8-replay-simulation: 同一场景、策略和 seed 重复运行，trace/end_loop/victory_time 一致，并输出 TacticalReport",
+    "P1-P9 回归 12/12 PASS",
+    "sc2_simulator tests 全过"
+  ],
+  "contracts_changes": {
+    "VictoryTimeMetric": "新增 end_loop, game_time_sec, nights_survived, victory, end_reason",
+    "Observation": "保持兼容，可选注入胜利时间字段"
+  },
+  "mission_engine_changes": {
+    "MissionResult": "新增 game_time_sec, nights_survived, victory 字段 + from_engine classmethod"
+  },
+  "tactical_changes": {
+    "SingleRunMetrics": "新增 game_time_sec, nights_survived, victory",
+    "AggregatedMetrics": "新增 avg_victory_time_sec, victory_time_p50_sec, victory_time_p90_sec, survival_rate",
+    "TacticalReport": "新增 victory_time_comparison",
+    "_run_single": "计算并返回胜利时间指标",
+    "_aggregate": "聚合胜利时间指标（平均/中位/90分位/生存率）",
+    "run_tactical_ab": "输出 victory_time_comparison"
+  },
+  "new_files": {
+    "replay_simulation.py": "replay_from_snapshot, replay_from_jsonl, compare_strategies, run_victory_time_benchmark",
+    "victory_time_comparison.py": "run_strategy_seeds facade + VictoryTimeComparison exports",
+    "gate_verification.py": "新增 G8_victory_time, G8_replay_simulation 闸门"
+  },
+  "simulator_session_changes": {
+    "_wave_timing": "存储波次时机数据",
+    "set_wave_timing()": "设置波次时机的公共方法"
+  },
+  "verification": {
+    "gate_command": "python -m src.projects.cmre-porting.vibe.gate_verification",
+    "gate_result": "PASS: 26/26 checks true",
+    "simulator_tests_command": "uv run --extra test python -m pytest tests/sc2_simulator -q",
+    "simulator_tests_result": "PASS: complete test run",
+    "compile_result": "PASS",
+    "snapshot_replay_smoke": "PASS: end_loop=141, game_time_sec=6.2946, victory=true",
+    "jsonl_replay_smoke": "PASS: end_loop=100, game_time_sec=4.4643, victory=false",
+    "real_map_mvp_fast": "PASS: max_loops=1280, time_scale=0.02, wave_strength_scale=0.25, victory_mode=survive, seeds=1/2/3, waves=24 each, nights_survived=6 each, p1_survivors=33/32/34, total_duration=13.0s"
+  },
+  "known_gap": {
+    "id": "MAP-RUNTIME-001",
+    "status": "open",
+    "summary": "默认 cmre-runtime 路径不存在，但项目内 packages/Maps/亡者之夜.SC2Map 可用；--mvp-fast 真实地图完整 6 夜在 11.69s 内完成",
+    "next_action": "继续接入多策略 A/B；当前 --mvp-fast 默认仍是六夜存活终局，clear_waves_after_final 另列后续"
+  },
+  "run_dead_of_night_changes": {
+    "set_wave_timing": "scenario_load 后调用，传入 map_extractor 的 wave_timing"
+  }
+}

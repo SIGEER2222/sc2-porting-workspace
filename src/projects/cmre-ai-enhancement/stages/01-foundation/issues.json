@@ -1,0 +1,75 @@
+{
+  "stage_id": "01-foundation",
+  "issues": [
+    {
+      "id": "REFERENCE-001",
+      "severity": "high",
+      "status": "open",
+      "title": "AresSC2 外部依赖环境未完成",
+      "detail": "reference/ares-sc2 可读，但 Python 3.11 环境尚未安装 cython-extensions-sc2、map-analyzer 等运行依赖；不得将导入验证标记为 PASS"
+    },
+    {
+      "id": "MACRO-001",
+      "severity": "high",
+      "status": "open",
+      "title": "实现 MacroPlan：供给→工人→气矿→扩基地→造兵→加产建筑",
+      "detail": "对应 DefendBasePolicy._decide_economy 全逻辑，使用 Ares 原生 AutoSupply, BuildWorkers, GasBuildingController, ExpansionController, SpawnController, ProductionController"
+    },
+    {
+      "id": "COMBAT-001",
+      "severity": "high",
+      "status": "open",
+      "title": "实现 CombatManeuver：威胁响应、低血撤退、SiegeTank 决策、焦火",
+      "detail": "对应 DefendBasePolicy.decide() 战斗片段；复用 Ares AMove, KeepUnitSafe, PathUnitToTarget；自定义 SiegeTankDecision, FocusFire, KiteBehavior"
+    },
+    {
+      "id": "INTEGRATION-001",
+      "severity": "high",
+      "status": "open",
+      "title": "原生 AresBot 入口待接 launcher",
+      "detail": "已实现 CmreEnhancedBot + EnhancedPolicy 生命周期；raw WebSocket runner 不作为 Ares 适配器，仍需独立 launcher/runtime 验证"
+    },
+    {
+      "id": "CONFIG-001",
+      "severity": "medium",
+      "status": "open",
+      "title": "配置文件：config.yml + builds/terran_macro.yml",
+      "detail": "已改为 Ares 原生 config.yml 与 BuildOrderRunner terran_builds.yml；尚未执行 Ares 进程验证"
+    },
+    {
+      "id": "GATE-G0",
+      "severity": "high",
+      "status": "open",
+      "title": "G0-reference：Ares 外部依赖导入",
+      "detail": "Python 3.11 py_compile 已通过；完整 import 当前被缺失的 cython_extensions 阻断"
+    },
+    {
+      "id": "GATE-G1",
+      "severity": "high",
+      "status": "open",
+      "title": "G1-macro-plan：Simulator 场景验证 MacroPlan 执行顺序",
+      "detail": "构造模拟场景，验证每帧行为优先级与预期一致"
+    },
+    {
+      "id": "GATE-G2",
+      "severity": "high",
+      "status": "open",
+      "title": "G2-combat：Simulator 场景验证 CombatManeuver 行为",
+      "detail": "基地威胁→attack、低血→retreat、SiegeTank siege/unsiege、焦火优先级"
+    },
+    {
+      "id": "GATE-G3",
+      "severity": "high",
+      "status": "open",
+      "title": "G3-live-3500：亡者之夜 3500 loop 真机验收",
+      "detail": "verdict=victory、bases≥3、army_supply≥50、scv_loss_pct<20%、无 ScriptError"
+    },
+    {
+      "id": "GATE-G4",
+      "severity": "high",
+      "status": "open",
+      "title": "G4-regression：vibe gate G1-G8 + P0/P1 REPL 全 PASS",
+      "detail": "确保传输层、kernel、REPL 无回归"
+    }
+  ]
+}

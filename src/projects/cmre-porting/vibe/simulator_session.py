@@ -24,8 +24,15 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from .contracts import (
-    CatalogHandle, Observation, ScenarioHandle, SnapshotHandle, TraceHandle,
-    build_world, clone_world, run_scenario, wrap_catalog,
+    CatalogHandle,
+    Observation,
+    ScenarioHandle,
+    SnapshotHandle,
+    TraceHandle,
+    build_world,
+    clone_world,
+    run_scenario,
+    wrap_catalog,
 )
 from .sim_path import ensure_simulator_on_path
 
@@ -53,6 +60,7 @@ class KernelError(Exception):
 @dataclass
 class StepResult:
     """scenario.step 的返回。"""
+
     loop: int
     terminated: bool
     end_reason: str
@@ -82,7 +90,11 @@ class SimulatorSession:
         self.terminated: bool = False
         self.paused: bool = False
         self._snapshots: dict[str, SnapshotHandle] = {}
-        self._initial_snapshot: Optional[SnapshotHandle] = None  # scenario.reset 后的首个快照
+        self._initial_snapshot: Optional[SnapshotHandle] = (
+            None  # scenario.reset 后的首个快照
+        )
+        # Stage 08: 波次时机数据（用于胜利时间计算 nights_survived）
+        self._wave_timing: Optional[dict] = None
 
     # ----- system -----
     def ping(self) -> dict:
@@ -95,9 +107,12 @@ class SimulatorSession:
         }
 
     # ----- scenario -----
-    def scenario_load(self, scenario_path: Optional[str] = None,
-                      scenario_dict: Optional[dict] = None,
-                      catalog: Optional[str] = None) -> dict:
+    def scenario_load(
+        self,
+        scenario_path: Optional[str] = None,
+        scenario_dict: Optional[dict] = None,
+        catalog: Optional[str] = None,
+    ) -> dict:
         if scenario_path:
             self.scenario = ScenarioHandle.from_file(scenario_path)
         elif scenario_dict:
@@ -105,7 +120,9 @@ class SimulatorSession:
         else:
             raise KernelError(2, "scenario.load 需要 scenario_path 或 scenario_dict")
         # 选 catalog
-        cat_snap = self._select_catalog(catalog or self.scenario.definition.schema_version)
+        cat_snap = self._select_catalog(
+            catalog or self.scenario.definition.schema_version
+        )
         self.catalog = wrap_catalog(cat_snap, source="sc2_simulator")
         return {
             "scenario_name": self.scenario.definition.name,
@@ -114,13 +131,23 @@ class SimulatorSession:
             "fidelity_summary": _fidelity_summary(self.catalog),
         }
 
+    def set_wave_timing(self, wave_timing: dict) -> None:
+        """设置波次时机数据（用于胜利时间计算 nights_survived）。
+
+        通常在 scenario_load 后、scenario_reset 前调用。
+        数据来源：map_extractor.extract_dead_of_night().wave_timing
+        """
+        self._wave_timing = wave_timing
+
     def _select_catalog(self, key: str) -> CatalogSnapshot:
         # 默认用 m7（超集）；显式 m2/m3 也支持
         if key.startswith("m2"):
             from sc2_simulator.catalog.m2_units import m2_catalog
+
             return m2_catalog()
         if key.startswith("m3"):
             from sc2_simulator.catalog.m3_units import m3_catalog
+
             return m3_catalog()
         return m7_catalog()
 
@@ -144,14 +171,34 @@ class SimulatorSession:
         if self.world is None:
             raise KernelError(2, "scenario.step 前需 scenario.reset")
         if self.terminated:
-            return StepResult(self.world.clock.now.loop, True, "already_terminated", SnapshotHandle.from_world(self.world).hash if snapshot else "")
+            return StepResult(
+                self.world.clock.now.loop,
+                True,
+                "already_terminated",
+                SnapshotHandle.from_world(self.world).hash if snapshot else "",
+            )
         if loops < 1:
             raise KernelError(2, f"loops 必须 >=1，得到 {loops}")
-        from sc2_simulator.scenario.runner import _dispatch_command, _convert_scenario_command, check_win_condition
-        from sc2_simulator.systems import (
-            movement, combat, projectile, economy, construction, production,
-            upgrades, repair, morph, shields, vision, abilities,
+        from sc2_simulator.scenario.runner import (
+            _dispatch_command,
+            _convert_scenario_command,
+            check_win_condition,
         )
+        from sc2_simulator.systems import (
+            movement,
+            combat,
+            projectile,
+            economy,
+            construction,
+            production,
+            upgrades,
+            repair,
+            morph,
+            shields,
+            vision,
+            abilities,
+        )
+
         scenario = self.scenario.definition
         commands_by_loop = {}
         for sc in scenario.commands:
@@ -178,8 +225,13 @@ class SimulatorSession:
             self.world.events.pop_due(cur)
             dead = self.world.remove_dead()
             for d in dead:
-                self.world.events.schedule(loop=cur, system="system", kind="entity_removed",
-                                           entity_id=d.entity_id, payload={"unit_type": d.unit_type_id})
+                self.world.events.schedule(
+                    loop=cur,
+                    system="system",
+                    kind="entity_removed",
+                    entity_id=d.entity_id,
+                    payload={"unit_type": d.unit_type_id},
+                )
             self.world.events.pop_due(cur)
             winner, end_reason = check_win_condition(self.world)
             if winner is not None or end_reason:
@@ -188,22 +240,31 @@ class SimulatorSession:
                 break
             self.world.clock.tick()
         snap_hash = SnapshotHandle.from_world(self.world).hash if snapshot else ""
-        return StepResult(self.world.clock.now.loop, self.terminated, end_reason, snap_hash)
+        return StepResult(
+            self.world.clock.now.loop, self.terminated, end_reason, snap_hash
+        )
 
     def scenario_run(self, max_loops: Optional[int] = None) -> dict:
         """运行到终局。重置后从头跑（保留当前 world 也可，但 P1 约定 run = reset+到终局）。"""
         if self.world is None:
             raise KernelError(2, "scenario.run 前需 scenario.reset")
         if self.terminated:
-            return {"loop": self.world.clock.now.loop, "terminated": True, "end_reason": getattr(self, "end_reason", "")}
+            return {
+                "loop": self.world.clock.now.loop,
+                "terminated": True,
+                "end_reason": getattr(self, "end_reason", ""),
+            }
         # 复用 run_scenario 的完整循环（含 coverage 标记），但 world 已存在 -> 用 step 推进
         scenario = self.scenario.definition
         budget = max_loops if max_loops is not None else scenario.max_loops
         remaining = budget - self.world.clock.now.loop
         sr = self.scenario_step(remaining)
-        self.result = _build_run_result(self.world, sr.loop, sr.end_reason or "max_loops_reached")
+        self.result = _build_run_result(
+            self.world, sr.loop, sr.end_reason or "max_loops_reached"
+        )
         return {
-            "loop": sr.loop, "terminated": sr.terminated or True,
+            "loop": sr.loop,
+            "terminated": sr.terminated or True,
             "end_reason": sr.end_reason or "max_loops_reached",
             "trace_hash": TraceHandle.from_world(self.world).hash,
             "winner": _extract_winner(self.world, sr.end_reason),
@@ -214,11 +275,19 @@ class SimulatorSession:
         return {"paused": True, "loop": self.world.clock.now.loop if self.world else 0}
 
     # ----- unit -----
-    def unit_spawn(self, unit_type_id: str, owner_player_id: int, x: float, y: float) -> dict:
+    def unit_spawn(
+        self, unit_type_id: str, owner_player_id: int, x: float, y: float
+    ) -> dict:
         if self.world is None:
             raise KernelError(2, "unit.spawn 前需 scenario.reset")
-        e = self.world.create_entity(unit_type_id, owner_player_id, fixed_from(x), fixed_from(y))
-        return {"entity_id": e.entity_id, "unit_type_id": unit_type_id, "owner": owner_player_id}
+        e = self.world.create_entity(
+            unit_type_id, owner_player_id, fixed_from(x), fixed_from(y)
+        )
+        return {
+            "entity_id": e.entity_id,
+            "unit_type_id": unit_type_id,
+            "owner": owner_player_id,
+        }
 
     def unit_kill(self, entity_id: int) -> dict:
         if self.world is None:
@@ -227,13 +296,21 @@ class SimulatorSession:
         if e is None:
             raise KernelError(2, f"单位 {entity_id} 不存在")
         e.health = Fixed.from_int(0)
-        e.state = e.state.__class__("dead") if hasattr(e.state, "__class__") else e.state
+        e.state = (
+            e.state.__class__("dead") if hasattr(e.state, "__class__") else e.state
+        )
         from sc2_simulator.world.entity import UnitState
+
         e.state = UnitState.DEAD
         return {"entity_id": entity_id, "killed": True}
 
-    def unit_set_vital(self, entity_id: int, health: Optional[float] = None,
-                       shields: Optional[float] = None, energy: Optional[float] = None) -> dict:
+    def unit_set_vital(
+        self,
+        entity_id: int,
+        health: Optional[float] = None,
+        shields: Optional[float] = None,
+        energy: Optional[float] = None,
+    ) -> dict:
         if self.world is None:
             raise KernelError(2, "unit.set_vital 前需 scenario.reset")
         e = self.world.get_entity(entity_id)
@@ -245,28 +322,56 @@ class SimulatorSession:
             e.shields = fixed_from(shields)
         if energy is not None:
             e.energy = fixed_from(energy)
-        return {"entity_id": entity_id, "health": e.health.raw, "shields": e.shields.raw, "energy": e.energy.raw}
+        return {
+            "entity_id": entity_id,
+            "health": e.health.raw,
+            "shields": e.shields.raw,
+            "energy": e.energy.raw,
+        }
 
-    def unit_order(self, entity_ids: list[int], kind: str, issuer_player_id: int,
-                   target_entity_id: int = 0, target_x: float = 0.0, target_y: float = 0.0,
-                   unit_type_id: str = "", ability_id: str = "") -> dict:
+    def unit_order(
+        self,
+        entity_ids: list[int],
+        kind: str,
+        issuer_player_id: int,
+        target_entity_id: int = 0,
+        target_x: float = 0.0,
+        target_y: float = 0.0,
+        unit_type_id: str = "",
+        ability_id: str = "",
+    ) -> dict:
         if self.world is None:
             raise KernelError(2, "unit.order 前需 scenario.reset")
         if kind not in _CMD_KIND_MAP:
             raise KernelError(1, f"未知命令 kind: {kind}")
         from sc2_simulator.scenario.runner import _dispatch_command
+
         cmd = Command(
-            kind=_CMD_KIND_MAP[kind], issuer_player_id=issuer_player_id,
-            entity_ids=tuple(entity_ids), target_entity_id=target_entity_id,
-            target_x=fixed_from(target_x), target_y=fixed_from(target_y),
-            unit_type_id=unit_type_id, ability_id=ability_id, issued_loop=self.world.clock.now.loop,
+            kind=_CMD_KIND_MAP[kind],
+            issuer_player_id=issuer_player_id,
+            entity_ids=tuple(entity_ids),
+            target_entity_id=target_entity_id,
+            target_x=fixed_from(target_x),
+            target_y=fixed_from(target_y),
+            unit_type_id=unit_type_id,
+            ability_id=ability_id,
+            issued_loop=self.world.clock.now.loop,
         )
         _dispatch_command(self.world, cmd)
-        return {"issued": True, "kind": kind, "entity_ids": entity_ids, "loop": self.world.clock.now.loop}
+        return {
+            "issued": True,
+            "kind": kind,
+            "entity_ids": entity_ids,
+            "loop": self.world.clock.now.loop,
+        }
 
     # ----- player -----
-    def player_set_resource(self, player_id: int, minerals: Optional[int] = None,
-                            vespene: Optional[int] = None) -> dict:
+    def player_set_resource(
+        self,
+        player_id: int,
+        minerals: Optional[int] = None,
+        vespene: Optional[int] = None,
+    ) -> dict:
         if self.world is None:
             raise KernelError(2, "player.set_resource 前需 scenario.reset")
         res = self.world.get_resources(player_id)
@@ -280,7 +385,11 @@ class SimulatorSession:
     def query_units(self, owner_player_id: Optional[int] = None) -> dict:
         if self.world is None:
             raise KernelError(2, "query.units 前需 scenario.reset")
-        es = self.world.entities_of(owner_player_id) if owner_player_id is not None else list(self.world.entities.values())
+        es = (
+            self.world.entities_of(owner_player_id)
+            if owner_player_id is not None
+            else list(self.world.entities.values())
+        )
         return {"units": [_entity_brief(e) for e in es], "count": len(es)}
 
     def query_unit(self, entity_id: int) -> dict:
@@ -340,26 +449,45 @@ class SimulatorSession:
             return AssertResult(False, "world 未加载")
         e = self.world.get_entity(entity_id)
         ok = e is not None and e.is_alive
-        return AssertResult(ok, f"entity {entity_id} exists={ok}", actual=ok, expected=True)
+        return AssertResult(
+            ok, f"entity {entity_id} exists={ok}", actual=ok, expected=True
+        )
 
     def assert_not_exists(self, entity_id: int) -> AssertResult:
         if self.world is None:
             return AssertResult(False, "world 未加载")
         e = self.world.get_entity(entity_id)
         ok = e is None or not e.is_alive
-        return AssertResult(ok, f"entity {entity_id} not_exists={ok}", actual=ok, expected=True)
+        return AssertResult(
+            ok, f"entity {entity_id} not_exists={ok}", actual=ok, expected=True
+        )
 
-    def assert_count(self, owner_player_id: Optional[int], expected: int,
-                     unit_type_id: Optional[str] = None) -> AssertResult:
+    def assert_count(
+        self,
+        owner_player_id: Optional[int],
+        expected: int,
+        unit_type_id: Optional[str] = None,
+    ) -> AssertResult:
         if self.world is None:
             return AssertResult(False, "world 未加载")
-        es = self.world.entities_of(owner_player_id) if owner_player_id is not None else list(self.world.entities.values())
+        es = (
+            self.world.entities_of(owner_player_id)
+            if owner_player_id is not None
+            else list(self.world.entities.values())
+        )
         if unit_type_id:
             es = [e for e in es if e.unit_type_id == unit_type_id]
         actual = len(es)
-        return AssertResult(actual == expected, f"count={actual} expected={expected}", actual=actual, expected=expected)
+        return AssertResult(
+            actual == expected,
+            f"count={actual} expected={expected}",
+            actual=actual,
+            expected=expected,
+        )
 
-    def assert_equals(self, entity_id: int, field: str, expected: float) -> AssertResult:
+    def assert_equals(
+        self, entity_id: int, field: str, expected: float
+    ) -> AssertResult:
         if self.world is None:
             return AssertResult(False, "world 未加载")
         e = self.world.get_entity(entity_id)
@@ -369,9 +497,13 @@ class SimulatorSession:
         if val is None:
             return AssertResult(False, f"未知字段 {field}")
         ok = abs(val - expected) < 1e-6
-        return AssertResult(ok, f"{field}={val} expected={expected}", actual=val, expected=expected)
+        return AssertResult(
+            ok, f"{field}={val} expected={expected}", actual=val, expected=expected
+        )
 
-    def assert_range(self, entity_id: int, field: str, low: float, high: float) -> AssertResult:
+    def assert_range(
+        self, entity_id: int, field: str, low: float, high: float
+    ) -> AssertResult:
         if self.world is None:
             return AssertResult(False, "world 未加载")
         e = self.world.get_entity(entity_id)
@@ -381,14 +513,21 @@ class SimulatorSession:
         if val is None:
             return AssertResult(False, f"未知字段 {field}")
         ok = low <= val <= high
-        return AssertResult(ok, f"{field}={val} range=[{low},{high}]", actual=val, expected=[low, high])
+        return AssertResult(
+            ok, f"{field}={val} range=[{low},{high}]", actual=val, expected=[low, high]
+        )
 
-    def assert_eventually(self, check_fn_name: str, max_loops: int = 1000, **kwargs) -> AssertResult:
+    def assert_eventually(
+        self, check_fn_name: str, max_loops: int = 1000, **kwargs
+    ) -> AssertResult:
         """简单实现：向前推进直到条件成立或达到 max_loops。check_fn_name 限定为 exists/not_exists/count。"""
         if self.world is None:
             return AssertResult(False, "world 未加载")
         if check_fn_name not in ("exists", "not_exists", "count"):
-            return AssertResult(False, f"eventually 仅支持 exists/not_exists/count，得到 {check_fn_name}")
+            return AssertResult(
+                False,
+                f"eventually 仅支持 exists/not_exists/count，得到 {check_fn_name}",
+            )
         for _ in range(max_loops):
             if self.terminated:
                 break
@@ -397,49 +536,78 @@ class SimulatorSession:
             elif check_fn_name == "not_exists":
                 r = self.assert_not_exists(kwargs["entity_id"])
             else:
-                r = self.assert_count(kwargs.get("owner_player_id"), kwargs["expected"], kwargs.get("unit_type_id"))
+                r = self.assert_count(
+                    kwargs.get("owner_player_id"),
+                    kwargs["expected"],
+                    kwargs.get("unit_type_id"),
+                )
             if r.ok:
-                return AssertResult(True, f"eventually {check_fn_name} ok @ loop {self.world.clock.now.loop}")
+                return AssertResult(
+                    True,
+                    f"eventually {check_fn_name} ok @ loop {self.world.clock.now.loop}",
+                )
             self.scenario_step(1, snapshot=False)
-        return AssertResult(False, f"eventually {check_fn_name} 未在 {max_loops} loop 内成立")
+        return AssertResult(
+            False, f"eventually {check_fn_name} 未在 {max_loops} loop 内成立"
+        )
 
 
 def _entity_brief(e) -> dict:
     # 位置返回世界单位 float（与 contracts._entity_brief 对齐）；
     # health/shields/energy 保留 raw int（P4A 断言 marine_hp=46080=45*1024）。
     return {
-        "entity_id": e.entity_id, "unit_type_id": e.unit_type_id, "owner": e.owner_player_id,
-        "x": e.x.to_float(), "y": e.y.to_float(),
-        "health": e.health.raw, "shields": e.shields.raw, "energy": e.energy.raw,
+        "entity_id": e.entity_id,
+        "unit_type_id": e.unit_type_id,
+        "owner": e.owner_player_id,
+        "x": e.x.to_float(),
+        "y": e.y.to_float(),
+        "health": e.health.raw,
+        "shields": e.shields.raw,
+        "energy": e.energy.raw,
         "state": e.state.value if hasattr(e.state, "value") else str(e.state),
     }
 
 
 def _get_field(e, field: str) -> Optional[float]:
     m = {
-        "health": e.health.raw, "shields": e.shields.raw, "energy": e.energy.raw,
-        "x": e.x.to_float(), "y": e.y.to_float(),
+        "health": e.health.raw,
+        "shields": e.shields.raw,
+        "energy": e.energy.raw,
+        "x": e.x.to_float(),
+        "y": e.y.to_float(),
     }
     return m.get(field)
 
 
 def _fidelity_summary(cat: CatalogHandle) -> dict:
     from collections import Counter
+
     c = Counter(cat.fidelity.values())
     return dict(c)
 
 
 def _build_run_result(world, end_loop, end_reason):
     from sc2_simulator.scenario.runner import RunResult
+
     survivors = {}
     for e in world.entities.values():
         if e.is_alive:
             survivors.setdefault(e.owner_player_id, []).append(
-                {"entity_id": e.entity_id, "unit_type_id": e.unit_type_id, "health": e.health.raw}
+                {
+                    "entity_id": e.entity_id,
+                    "unit_type_id": e.unit_type_id,
+                    "health": e.health.raw,
+                }
             )
     summary = {"end_loop": end_loop, "total_events": len(world.events.emitted)}
-    return RunResult(winner_player_id=None, end_loop=end_loop, end_reason=end_reason,
-                     survivors=survivors, summary=summary, coverage={})
+    return RunResult(
+        winner_player_id=None,
+        end_loop=end_loop,
+        end_reason=end_reason,
+        survivors=survivors,
+        summary=summary,
+        coverage={},
+    )
 
 
 def _extract_winner(world, end_reason) -> Optional[int]:

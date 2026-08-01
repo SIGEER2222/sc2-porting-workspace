@@ -1,0 +1,30 @@
+{
+  "stage_id": "01-foundation",
+  "schemaVersion": 1,
+  "status": "IN_PROGRESS",
+  "current_phase": "Ares-native policy skeleton implemented; dependency and runtime validation pending",
+  "opened_at": "2026-08-01T00:00:00+08:00",
+  "closed_at": null,
+  "direction": "reference AresSC2 + implement MacroPlan/CombatManeuver + native AresBot entry",
+  "plan": "src/projects/cmre-ai-enhancement/stages/01-foundation/plan.md",
+  "acceptance_criteria": {
+    "G0_reference": { "status": "BLOCKED", "evidence_type": "static" },
+    "G1_macro_plan": { "status": "PENDING", "evidence_type": "runtime" },
+    "G2_combat": { "status": "PENDING", "evidence_type": "runtime" },
+    "G3_live_3500": { "status": "PENDING", "evidence_type": "runtime" },
+    "G4_regression": { "status": "PENDING", "evidence_type": "runtime" }
+  },
+  "verification_results": {
+    "python_compile": {
+      "status": "PASS",
+      "command": "python3.11 -m py_compile src/projects/cmre-ai-enhancement/vibe/*.py",
+      "evidence_type": "static"
+    },
+    "ares_import": {
+      "status": "BLOCKED",
+      "reason": "Python 3.11 environment lacks cython_extensions and map_analyzer",
+      "evidence_type": "static"
+    }
+  },
+  "note": "Stage 01 remains open; no live or simulator PASS is claimed"
+}

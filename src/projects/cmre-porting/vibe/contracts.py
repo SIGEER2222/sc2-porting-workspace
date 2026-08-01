@@ -73,15 +73,23 @@ def compute_catalog_hash(snapshot: CatalogSnapshot) -> str:
         "schema_version": snapshot.schema_version,
         "units": {
             uid: {
-                "id": u.id, "race": u.race,
-                "max_health": u.max_health.raw, "max_shields": u.max_shields.raw,
-                "max_energy": u.max_energy.raw, "armor": u.armor.raw,
-                "radius": u.radius.raw, "speed": u.speed.raw, "sight": u.sight.raw,
-                "minerals": u.minerals, "vespene": u.vespene, "supply": u.supply,
+                "id": u.id,
+                "race": u.race,
+                "max_health": u.max_health.raw,
+                "max_shields": u.max_shields.raw,
+                "max_energy": u.max_energy.raw,
+                "armor": u.armor.raw,
+                "radius": u.radius.raw,
+                "speed": u.speed.raw,
+                "sight": u.sight.raw,
+                "minerals": u.minerals,
+                "vespene": u.vespene,
+                "supply": u.supply,
                 "build_time": u.build_time,
                 "weapon_ground": _weapon_dict(u.weapon_ground),
                 "weapon_air": _weapon_dict(u.weapon_air),
-                "is_structure": u.is_structure, "is_worker": u.is_worker,
+                "is_structure": u.is_structure,
+                "is_worker": u.is_worker,
             }
             for uid, u in snapshot.units.items()
         },
@@ -94,15 +102,22 @@ def _weapon_dict(w: Optional[WeaponType]) -> Optional[dict]:
     if w is None:
         return None
     return {
-        "id": w.id, "damage": w.damage.raw, "attacks": w.attacks,
-        "range": w.range.raw, "period": w.period,
+        "id": w.id,
+        "damage": w.damage.raw,
+        "attacks": w.attacks,
+        "range": w.range.raw,
+        "period": w.period,
         "damage_type": w.damage_type.value,
-        "splash_type": w.splash_type.value, "splash_radius": w.splash_radius.raw,
-        "projectile_speed": w.projectile_speed.raw, "heal_amount": w.heal_amount.raw,
+        "splash_type": w.splash_type.value,
+        "splash_radius": w.splash_radius.raw,
+        "projectile_speed": w.projectile_speed.raw,
+        "heal_amount": w.heal_amount.raw,
     }
 
 
-def wrap_catalog(snapshot: CatalogSnapshot, source: str = "sc2_simulator") -> CatalogHandle:
+def wrap_catalog(
+    snapshot: CatalogSnapshot, source: str = "sc2_simulator"
+) -> CatalogHandle:
     fidelity = {uid: _unit_fidelity(u) for uid, u in snapshot.units.items()}
     return CatalogHandle(
         snapshot=snapshot,
@@ -117,9 +132,11 @@ def wrap_catalog(snapshot: CatalogSnapshot, source: str = "sc2_simulator") -> Ca
 # Scenario 契约
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ScenarioHandle:
     """场景句柄。包裹 sc2_simulator.ScenarioDefinition。"""
+
     definition: ScenarioDefinition
     path: Optional[str] = None
 
@@ -136,9 +153,11 @@ class ScenarioHandle:
 # Snapshot 契约
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class SnapshotHandle:
     """快照句柄。包裹 world.snapshot() 的 dict + 哈希。"""
+
     data: dict
     hash: str
     loop: int
@@ -153,9 +172,11 @@ class SnapshotHandle:
 # Observation 契约（玩家可见状态 + 可选全知测试状态）
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Observation:
     """玩家可见观察。AI 消费者（P4B）只读此对象，不能访问全知 world。"""
+
     loop: int
     player_id: int
     own_units: list[dict]
@@ -166,8 +187,12 @@ class Observation:
     @classmethod
     def from_world(cls, world, player_id: int) -> "Observation":
         from sc2_simulator.systems import vision as vision_system
+
         own = [_entity_brief(e, world) for e in world.entities_of(player_id)]
-        vis = [_entity_brief(e, world) for e in vision_system.visible_enemies(world, player_id)]
+        vis = [
+            _entity_brief(e, world)
+            for e in vision_system.visible_enemies(world, player_id)
+        ]
         res = world.get_resources(player_id).snapshot()
         return cls(
             loop=world.clock.now.loop,
@@ -187,10 +212,14 @@ def _entity_brief(e, world=None) -> dict:
     health/shields/energy 等结算字段保留 raw int（P4A 断言 marine_hp=46080=45*1024）。
     """
     d = {
-        "entity_id": e.entity_id, "unit_type_id": e.unit_type_id,
+        "entity_id": e.entity_id,
+        "unit_type_id": e.unit_type_id,
         "owner": e.owner_player_id,
-        "x": e.x.to_float(), "y": e.y.to_float(),
-        "health": e.health.raw, "shields": e.shields.raw, "energy": e.energy.raw,
+        "x": e.x.to_float(),
+        "y": e.y.to_float(),
+        "health": e.health.raw,
+        "shields": e.shields.raw,
+        "energy": e.energy.raw,
         "state": e.state.value if hasattr(e.state, "value") else str(e.state),
     }
     if world is not None:
@@ -206,9 +235,11 @@ def _entity_brief(e, world=None) -> dict:
 # Trace 契约
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class TraceHandle:
     """trace 句柄。包裹 world.events + 哈希。"""
+
     hash: str
     event_count: int
     command_result_count: int
@@ -226,16 +257,20 @@ class TraceHandle:
 # Capability 契约
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CapabilityReport:
     """能力报告：保真度 + 运行时使用覆盖。"""
+
     catalog_hash: str
     schema_version: str
     fidelity: Mapping[str, Fidelity]
     used_in_run: list[str] = field(default_factory=list)
 
     @classmethod
-    def from_catalog(cls, cat: CatalogHandle, used: Optional[list] = None) -> "CapabilityReport":
+    def from_catalog(
+        cls, cat: CatalogHandle, used: Optional[list] = None
+    ) -> "CapabilityReport":
         return cls(
             catalog_hash=cat.content_hash,
             schema_version=cat.schema_version,
@@ -244,10 +279,77 @@ class CapabilityReport:
         )
 
 
+# ---------------------------------------------------------------------------
+# Victory Time 契约（Stage 08 MVP 核心指标）
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class VictoryTimeMetric:
+    """胜利时间指标（核心 KPI）。"""
+
+    end_loop: int
+    game_time_sec: float
+    nights_survived: int
+    victory: bool
+    end_reason: str
+
+    @classmethod
+    def from_mission_result(cls, result, world) -> "VictoryTimeMetric":
+        nights = 0
+        if hasattr(world, "_wave_timing") and world._wave_timing:
+            for night in world._wave_timing.get("nights", []):
+                if result.end_loop >= night.get("end_loop", 0):
+                    nights += 1
+        return cls(
+            end_loop=result.end_loop,
+            game_time_sec=result.end_loop / 22.4,
+            nights_survived=nights,
+            victory=result.terminated
+            and result.end_reason in ("all_objectives_success", "survive_loops"),
+            end_reason=result.end_reason,
+        )
+
+    @classmethod
+    def from_simulator_session(
+        cls, session, terminated: bool, end_reason: str
+    ) -> "VictoryTimeMetric":
+        loop = session.world.clock.now.loop if session.world else 0
+        nights = 0
+        if hasattr(session, "_wave_timing") and session._wave_timing:
+            for night in session._wave_timing.get("nights", []):
+                if loop >= night.get("end_loop", 0):
+                    nights += 1
+        return cls(
+            end_loop=loop,
+            game_time_sec=loop / 22.4,
+            nights_survived=nights,
+            victory=terminated
+            and end_reason in ("max_loops_reached", "all_objectives_success"),
+            end_reason=end_reason,
+        )
+
+
+# 扩展 Observation 增加胜利时间相关字段（可选，不破坏现有消费者）
+# 在 from_world 时可由上层注入
+
+
 __all__ = [
-    "Fidelity", "CatalogHandle", "ScenarioHandle", "SnapshotHandle",
-    "Observation", "TraceHandle", "CapabilityReport",
-    "wrap_catalog", "compute_catalog_hash",
-    "load_scenario", "build_world", "run_scenario", "clone_world",
-    "RunResult", "snapshot_hash", "trace_hash",
+    "Fidelity",
+    "CatalogHandle",
+    "ScenarioHandle",
+    "SnapshotHandle",
+    "Observation",
+    "TraceHandle",
+    "CapabilityReport",
+    "VictoryTimeMetric",
+    "wrap_catalog",
+    "compute_catalog_hash",
+    "load_scenario",
+    "build_world",
+    "run_scenario",
+    "clone_world",
+    "RunResult",
+    "snapshot_hash",
+    "trace_hash",
 ]
