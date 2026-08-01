@@ -48,7 +48,6 @@ tools/launchers/convert-to-crlf-bom.py
 # 顶级 webui 产物目录（测试输出）
 tools/cmre-webui/artifacts/
 
-# reference/ 是外部 submodule 集合（参考资料），未在本仓库内跟踪。
 # .gitmodules 保留了 submodule URL 配置作为参考，
 # 用户可手动 git submodule update --init reference/<name> 拉取所需资料。
 # 仓库不跟踪 reference/ 下的 gitlink 指针变化。
@@ -56,3 +55,10 @@ reference/
 # tools/sc2-ally-bot/ 是搬迁遗留的独立 git 仓库副本，最新版本在 reference/sc2-ally-bot/。
 # 清理后不应再出现；若被进程重新创建，git 忽略它避免污染 status。
 tools/sc2-ally-bot/
+artifacts/**
+
+# Project-local runtime replay captures are generated evidence, not source.
+src/projects/cmre-porting/artifacts/*.jsonl
+
+# Local OMX runtime/session state.
+.omx/
