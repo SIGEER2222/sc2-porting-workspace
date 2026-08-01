@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "01-contracts",
+  "status": "PASS",
+  "completed_at": "2026-08-01T18:44:53+08:00",
+  "next_stage": "02-neuro-runtime",
+  "outputs": [
+    "cmre_neuro_adapter/neuro/actions.py",
+    "cmre_neuro_adapter/neuro/context.py",
+    "cmre_neuro_adapter/neuro/errors.py",
+    "cmre_neuro_adapter/neuro/evidence.py",
+    "cmre_neuro_adapter/neuro/messages.py",
+    "cmre_neuro_adapter/neuro/schemas.py",
+    "cmre_neuro_adapter/neuro/session.py",
+    "tests/test_messages.py",
+    "tests/test_schemas.py"
+  ],
+  "verification": {
+    "python_3_13_unittest": {
+      "status": "PASS",
+      "tests": 12,
+      "command": "set PYTHONPATH=. && python -m unittest discover -s tests -v",
+      "evidence_type": "static"
+    },
+    "python_3_11_unittest": {
+      "status": "PASS",
+      "tests": 12,
+      "command": "set PYTHONPATH=. && C:\\Users\\Sigeer\\AppData\\Roaming\\uv\\python\\cpython-3.11.15-windows-x86_64-none\\python.exe -m unittest discover -s tests -v",
+      "evidence_type": "static"
+    },
+    "compileall": {
+      "status": "PASS",
+      "command": "python -m compileall -q cmre_neuro_adapter tests",
+      "evidence_type": "static"
+    },
+    "diff_check": {
+      "status": "PASS",
+      "command": "git diff --check -- src/projects/cmre-neuro-adapter",
+      "evidence_type": "static"
+    }
+  },
+  "runtime_claims": []
+}
