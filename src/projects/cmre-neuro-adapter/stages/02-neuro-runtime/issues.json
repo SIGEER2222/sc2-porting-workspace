@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "02-neuro-runtime",
+  "issues": [
+    {
+      "id": "ENV-001",
+      "severity": "blocker",
+      "status": "open",
+      "evidence_type": "static",
+      "detail": "Stage G6 requires Python 3.11 and 3.13 verification. Python 3.13.14 is available and passes; no Python 3.11 runtime is installed, and local command policy rejected temporary interpreter acquisition.",
+      "resolution": "Provide an existing Python 3.11 interpreter or permit a temporary official runtime for the verification command."
+    }
+  ],
+  "residual_risks": [
+    {
+      "id": "RUNTIME-002",
+      "status": "planned",
+      "detail": "Neuro WebSocket, simulator transport, Bank transport, and real SC2 behavior remain deferred to later stages by design."
+    }
+  ]
+}

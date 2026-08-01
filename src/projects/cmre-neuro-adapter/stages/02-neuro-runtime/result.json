@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "02-neuro-runtime",
+  "status": "BLOCKED",
+  "completed_at": null,
+  "outputs": [
+    "cmre_neuro_adapter/neuro/sender.py",
+    "cmre_neuro_adapter/neuro/action_registry.py",
+    "cmre_neuro_adapter/neuro/action_queue.py",
+    "cmre_neuro_adapter/neuro/runtime.py",
+    "tests/test_action_registry.py",
+    "tests/test_action_queue.py",
+    "tests/test_runtime.py"
+  ],
+  "gate_results": {
+    "G1-registry": {"status": "PASS", "evidence_type": "static"},
+    "G2-queue": {"status": "PASS", "evidence_type": "static"},
+    "G3-state-machine": {"status": "PASS", "evidence_type": "static"},
+    "G4-invalid-action": {"status": "PASS", "evidence_type": "static"},
+    "G5-duplicate-action": {"status": "PASS", "evidence_type": "static"},
+    "G6-compatibility": {"status": "BLOCKED", "evidence_type": "static"}
+  },
+  "verification": {
+    "python_3_13_unittest": {
+      "status": "PASS",
+      "tests": 27,
+      "command": "python -m unittest discover -s tests -v",
+      "evidence_type": "static"
+    },
+    "python_3_13_compileall": {
+      "status": "PASS",
+      "command": "python -m compileall -q cmre_neuro_adapter tests",
+      "evidence_type": "static"
+    },
+    "diff_check": {
+      "status": "PASS",
+      "command": "git diff --check -- src/projects/cmre-neuro-adapter",
+      "evidence_type": "static"
+    },
+    "python_3_11_unittest": {
+      "status": "BLOCKED",
+      "command": "py -3.11 --version; python -m unittest discover -s tests -v",
+      "reason": "No Python 3.11 runtime is installed; temporary acquisition was rejected by local command policy.",
+      "evidence_type": "static"
+    }
+  },
+  "runtime_claims": [],
+  "blockers": ["ENV-001"],
+  "next_stage": null
+}
