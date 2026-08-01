@@ -29,6 +29,8 @@ $script:LauncherScriptsRoot = Join-Path $LegacyRoot "scripts\sc2-launcher"
 . (Join-Path $script:LauncherScriptsRoot "test-lock.ps1")
 . (Join-Path $LegacyRoot "scripts\commander-power-metadata.ps1")
 . (Join-Path $LegacyRoot "scripts\sc2\campaignxcore-bank.ps1")
+. (Join-Path $PSScriptRoot "lib\cmre-on-demand-overlay.ps1")
+. (Join-Path $PSScriptRoot "lib\cmre-core-runtime-overlay.ps1")
 
 function Convert-TestCommanderToCommanderPowerKey {
     param([string]$Commander)
@@ -149,6 +151,10 @@ if ($EnableReborn -and $RebornCommander -ne "") {
 }
 $mapSource = Join-Path $LegacyRoot "Maps\CMRE\$MapName"
 if (-not (Test-Path -LiteralPath $mapSource)) { throw "CMRE map source not found: $mapSource" }
+$commanderSelectionDisabled = $MapName -eq "亡者之夜.SC2Map"
+if ($commanderSelectionDisabled -and $ShowSelectionUI) {
+    throw "-ShowSelectionUI is disabled for ${MapName}: the map-owned startup code permanently bypasses commander selection"
+}
 if ($isAlengerCommander) {
     $selectedMods = @($alenger.commanderToAlenger.$alengerId)
 } else {
@@ -214,187 +220,11 @@ function Enable-CmreSavedProfileStartup {
         [switch]$SkipCountdown,
         [switch]$ApiMinimal,
         [switch]$SkipPause,
+        [switch]$Headless,
         [switch]$KeepPlayer1Vanilla
     )
-    # Patch the map-level LibCOOC.galaxy (copied by Install-CmreGalaxyHostOverlay)
-    # instead of the mod-source copy. The mod source is overwritten by Sync-ModSet
-    # (robocopy /MIR) on every launch, which silently dropped the previous patch.
-    # Patching the map copy after the host overlay guarantees the edit survives.
-    $path = Join-Path $MapPath "Base.SC2Data\LibCOOC.galaxy"
-    if (-not (Test-Path -LiteralPath $path)) { throw "Map-level LibCOOC.galaxy not found: $path" }
-    $content = [System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8)
-    # CMUIX_StartupApplySavedConfiguration() shows the commander selection UI when
-    # CMUIX_LaunchProfileTryLoadForStartupAll() returns false. Bypass that call
-    # entirely: manually run the core init steps, pre-set the requested commander
-    # for players 1 and 2, then drive CMUIX_ReadyBeginCountdown() so its finish
-    # handler emits CU_CommChoiceEventClosed and finalizes the commander state.
-    $startupPattern = '(?m)^    if \(\(libCMFE_gf_CMUIX_StartupApplySavedConfiguration\(\) == true\)\) \{\r?\n        Wait\(1\.0, c_timeReal\);\r?\n        CMUIX_ReadyBeginCountdown\(\);\r?\n        return ;\r?\n    \}'
-    $startupFallbackPattern = '(?m)^    if \(\(libCMFE_gf_CMUIX_StartupApplySavedConfiguration\(\) == true\)\) \{\r?\n        TriggerSendEvent\("CU_CommChoiceEventClosed"\);\r?\n        return ;\r?\n    \}'
-    $replacementBody = @"
-    if ((CMUIX_CoreReady == false)) { CMUIX_CoreInit(); }
-    CMUIX_StartupLoadPersistentProfiles();
-    CMUIX_HistoryPrunePendingRecordsAll();
-    CMUIX_LaunchProfileOpenBank(1);
-    if (BankLastCreated() != null) {
-        BankValueSetFromInt(BankLastCreated(), CMUIX_LAUNCH_PROFILE_SECTION, "CreatedAt", DateTimeToInt(CurrentDateTimeGet()));
-        BankValueSetFromString(BankLastCreated(), CMUIX_LAUNCH_PROFILE_SECTION, "TargetMission", CMUIX_MapSelectionCurrentMapInstance());
-        BankValueSetFromString(BankLastCreated(), CMUIX_LAUNCH_PROFILE_SECTION, "TargetMap", CMUIX_MapSelectionCurrentMapInstance());
-        BankSave(BankLastCreated());
-        if (CMUIX_LaunchProfileValidForStartup(BankLastCreated()) == true) {
-            CMUIX_LaunchProfileApply(BankLastCreated());
-        }
-    }
-"@
-    # KeepPlayer1Vanilla: 跳过 P1 的指挥官设置，让 P1 保留 vanilla 单位（type_18 CC / type_45 SCV）。
-    # 用于 API 模式：API 以 P1 身份加入（P1=Participant），操作 vanilla 单位用标准 ability ID 训练/建造。
-    # P2 仍然设置指挥官（被 galaxy 触发器替换为指挥官单位），由 AI 控制。
-    if (-not $KeepPlayer1Vanilla) {
-        $replacementBody += @"
-    libCOTF_gv_sELECTED_Commander[1] = "$Commander";
-    libCOTF_gv_sELECTED_Commander_Random[1] = false;
-    libCOOC_gf_CC_PlayerCommanderSet(1, "$Commander");
-    libCOUI_gv_cU_CommanderSelection[1] = "$Commander";
-    libCOUI_gv_cU_CommanderSelect_PlayerReady[1] = true;
-    libCOUI_gf_CU_CommanderFinalizeStates(1);
-"@
-    } else {
-        Write-Host "DEBUG Enable-CmreSavedProfileStartup: KeepPlayer1Vanilla — skipping P1 commander setup (P1 keeps vanilla units for API control)"
-    }
-    $replacementBody += @"
-    libCOTF_gv_sELECTED_Commander[2] = "$Commander";
-    libCOTF_gv_sELECTED_Commander_Random[2] = false;
-    libCOOC_gf_CC_PlayerCommanderSet(2, "$Commander");
-    libCOUI_gv_cU_CommanderSelection[2] = "$Commander";
-    libCOUI_gv_cU_CommanderSelect_PlayerReady[2] = true;
-    libCOUI_gf_CU_CommanderFinalizeStates(2);
-"@
-    if ($ApiMinimal) {
-        # ApiMinimal: skip all galaxy startup patches (CustomStartupBegin pause,
-        # ReadyBeginCountdown, etc.). SC2 stays at main menu (Launched) after
-        # CreateGame. The client uses realtime=true + Step/Observation to advance
-        # to in_game (see Sc2Api.RealProfile.CreateAndJoinGameAsync).
-        Write-Host "ApiMinimal: skipping galaxy startup patches (client drives CreateGame+JoinGame)"
-        return
-    }
-
-    if ($SkipPause) {
-        # CustomStartupBegin runs before DevStartupBegin and pauses the mission
-        # before SC2API can complete JoinGame. Patch both sites as one API-mode
-        # invariant; leaving this earlier pause intact keeps the API in Launched.
-        $customStartupPausePattern = '(?m)(void libCOOC_gf_CC_CustomStartupBegin \(\) \{[\s\S]*?    // Implementation\r?\n)    GameSetMissionTimePaused\(true\);\r?\n    AITimePause\(true\);\r?\n    UnitPauseAll\(true\);'
-        $customStartupPauseReplacement = '$1' + [string]::Join([Environment]::NewLine, @(
-            '    // API mode (SkipPause): do not pause before SC2API JoinGame',
-            '    // GameSetMissionTimePaused(true); -- skipped',
-            '    // AITimePause(true); -- skipped',
-            '    // UnitPauseAll(true); -- skipped'
-        ))
-        if ([regex]::IsMatch($content, $customStartupPausePattern)) {
-            $content = [regex]::Replace($content, $customStartupPausePattern, $customStartupPauseReplacement, 1)
-            Write-Host "DEBUG Enable-CmreSavedProfileStartup: CustomStartupBegin pause skipped"
-        } elseif ([regex]::IsMatch($content, 'CustomStartupBegin[\s\S]*?API mode \(SkipPause\)', [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
-            Write-Host "DEBUG Enable-CmreSavedProfileStartup: CustomStartupBegin already API-patched"
-        } else {
-            throw "CustomStartupBegin pause anchor not found"
-        }
-
-        # SkipPause: 跳过 DevStartupBegin 开头的三个暂停调用（GameSetMissionTimePaused /
-        # AITimePause / UnitPauseAll），但保留后续的 commander 设置和
-        # CU_CommChoiceEventClosed 事件触发。与 ApiMinimal 的区别：
-        # ApiMinimal 在暂停调用处直接 return，跳过所有 commander 设置；
-        # SkipPause 只注释掉暂停调用，让函数体继续执行到 commander 设置块。
-        # 用于默认 API 模式（-ListenPort > 0）：SC2 不传 -e <map>，停在主菜单。
-        # 客户端用 CreateGame + JoinGame 加载地图并推进到 in_game，galaxy 触发器
-        # 执行，DevStartupBegin 不暂停游戏，commander 设置完成后发射
-        # CU_CommChoiceEventClosed，游戏正常进入 in_game。
-        $skipPausePattern = '(?m)^    // Implementation\r?\n    GameSetMissionTimePaused\(true\);\r?\n    AITimePause\(true\);\r?\n    UnitPauseAll\(true\);'
-        $skipPauseReplacement = [string]::Join([Environment]::NewLine, @(
-            '    // Implementation',
-            '    // API mode (SkipPause): skip game pause to allow in_game transition',
-            '    // GameSetMissionTimePaused(true); -- skipped',
-            '    // AITimePause(true); -- skipped',
-            '    // UnitPauseAll(true); -- skipped'
-        ))
-        if ([regex]::IsMatch($content, $skipPausePattern)) {
-            $content = [regex]::Replace($content, $skipPausePattern, $skipPauseReplacement, 1)
-            Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipPause applied (pause calls commented out)"
-        } elseif ([regex]::IsMatch($content, 'API mode \(SkipPause\)')) {
-            Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipPause already applied, skipping"
-        } else {
-            # 检查是否已经被 ApiMinimal patch 过（ApiMinimal 也替换了暂停调用）
-            if ([regex]::IsMatch($content, 'ApiMinimal: skip pause')) {
-                Write-Host "DEBUG Enable-CmreSavedProfileStartup: ApiMinimal already patched pause calls, SkipPause redundant"
-            } else {
-                throw "SkipPause pattern not found in libCOOC_gf_CC_DevStartupBegin (expected GameSetMissionTimePaused/AITimePause/UnitPauseAll)"
-            }
-        }
-        # SkipPause mode (API default, non-ApiMinimal): after commander setup, MUST
-        # call CMUIX_ReadyBeginCountdown() explicitly. Otherwise CMRE is stuck at
-        # selector-unit state (observation: self_units=1, type=4051, hp=1, no
-        # abilities, all Actions return NotSupported). ReadyBeginCountdown triggers
-        # ReadyCountdownFinishHandler -> CMUIX_FinalApplyLocalLaunchConfiguration
-        # + TriggerSendEvent(CMUIX_EVENT_COMMANDER_CHOICE_CLOSED), which lets
-        # downstream galaxy triggers spawn real commander units (SCV/CommandCenter/Marine).
-        # We do NOT directly TriggerSendEvent because ReadyBeginCountdown also runs
-        # FinalApplyLocalLaunchConfiguration (sets Mode/Mission/Enemy/Mutators).
-        if (-not $ApiMinimal) {
-            $replacementBody += [Environment]::NewLine + '    CMUIX_ReadyBeginCountdown();' + [Environment]::NewLine + '    return ;'
-            Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipPause mode appended CMUIX_ReadyBeginCountdown() + return"
-        }
-    } elseif ($SkipCountdown) {
-        # 黑屏修复（2026-07-28 真因）：CC_DevStartupBegin 中 libCOOC_gf_ShowHideWorldCover(true, ...)
-        # 隐藏了世界画面，但 CC_DevStartupFinish 不会在 SkipCountdown 模式下被调用，
-        # 导致世界永远被隐藏。在 return ; 之前手动恢复：解除暂停 + 显示世界 + 显示游戏 UI。
-        $blackScreenFixInDevStartup = [string]::Join([Environment]::NewLine, @(
-            '    // CMRE_PATCH_BLACK_SCREEN_FIX_IN_DEVSTARTUP',
-            '    // 恢复世界画面：CC_DevStartupBegin 隐藏了世界，但 DevStartupFinish 不会被调用',
-            '    GameSetMissionTimePaused(false);',
-            '    AITimePause(false);',
-            '    UnitPauseAll(false);',
-            '    libCOOC_gf_ShowHideWorldCover(false, 0.0, 1);',
-            '    if ((PlayerType(14) == c_playerTypeUser)) {',
-            '        libCOOC_gf_ShowHideWorldCover(false, 0.0, 14);',
-            '    }',
-            '    libNtve_gf_HideGameUI(true, PlayerGroupAll()); // true=显示UI（HideGameUI函数名反直觉：lp_showHide=true 显示, false 隐藏）',
-            '    // 黑屏检测：写入对话框可见性到银行文件',
-            '    BankLoad("CMRERebornDebug", 1);',
-            '    if (DialogIsVisible(libCOOC_gv_cC_WorldCoverDlg, 1)) {',
-            '        BankValueSetFromInt(BankLastCreated(), "debug", "world_cover_dialog_visible_p1", 1);',
-            '    } else {',
-            '        BankValueSetFromInt(BankLastCreated(), "debug", "world_cover_dialog_visible_p1", 0);',
-            '    }',
-            '    BankValueSetFromInt(BankLastCreated(), "debug", "world_cover_dialog_id", libCOOC_gv_cC_WorldCoverDlg);',
-            '    if (GameIsMissionTimePaused()) {',
-            '        BankValueSetFromInt(BankLastCreated(), "debug", "game_mission_time_paused", 1);',
-            '    } else {',
-            '        BankValueSetFromInt(BankLastCreated(), "debug", "game_mission_time_paused", 0);',
-            '    }',
-            '    BankSave(BankLastCreated());'
-        ))
-        $replacementBody += [Environment]::NewLine + '    // SkipCountdown (API mode): 调用 CC_DevStartupFinish() 完成完整 CMRE 初始化' + [Environment]::NewLine + $blackScreenFixInDevStartup + [Environment]::NewLine + '    // 调用 CC_DevStartupFinish()：应用 tech + 显示 UI（HideGameUI(true)）+ 执行 mission trigger' + [Environment]::NewLine + '    // 注意：HideGameUI(bool lp_showHide) 参数 true=显示UI, false=隐藏UI（函数名反直觉）' + [Environment]::NewLine + '    // 之前错误地跳过 DevStartupFinish 导致 UI 永久隐藏 + mission trigger 未执行' + [Environment]::NewLine + '    libCOOC_gf_CC_DevStartupFinish();' + [Environment]::NewLine + '    return ;'
-        Write-Host "DEBUG Enable-CmreSavedProfileStartup: SkipCountdown=true (API mode) + black screen fix + CC_DevStartupFinish() (full CMRE init)"
-    } else {
-        # This matches CMRE's native saved-profile path. ReadyBeginCountdown commits the
-        # empty launcher draft and clears bank-provided Mode=2/3 mutators before game start.
-        $replacementBody += [Environment]::NewLine + '    TriggerSendEvent("CU_CommChoiceEventClosed");' + [Environment]::NewLine + '    return ;'
-    }
-    $replacement = $replacementBody
-    Write-Host "DEBUG Enable-CmreSavedProfileStartup: Commander=$Commander"
-    Write-Host "DEBUG replacement (first 200 chars): $($replacement.Substring(0, [Math]::Min(200, $replacement.Length)))"
-    if ([regex]::IsMatch($content, [regex]::Escape($replacement))) {
-        Write-Host "DEBUG: replacement already in content, skipping"
-        return
-    }
-    if ([regex]::IsMatch($content, $startupPattern)) {
-        $content = [regex]::Replace($content, $startupPattern, $replacement, 1)
-    } elseif ([regex]::IsMatch($content, $startupFallbackPattern)) {
-        $content = [regex]::Replace($content, $startupFallbackPattern, $replacement, 1)
-    } else {
-        throw "CMRE saved-profile startup anchor not found"
-    }
-    [System.IO.File]::WriteAllText($path, $content, [System.Text.UTF8Encoding]::new($false))
-    Write-Host "CMRE saved-profile startup patch applied to map: $path"
+    Install-CmreSavedProfileStartupOverlay -MapPath $MapPath -Commander $Commander -SkipCountdown:$SkipCountdown -ApiMinimal:$ApiMinimal -SkipPause:$SkipPause -Headless:$Headless -KeepPlayer1Vanilla:$KeepPlayer1Vanilla
 }
-
 function Patch-RebornK5KerriganSpawn {
     <#
     .SYNOPSIS
@@ -1077,562 +907,13 @@ function Install-CmreGalaxyHostOverlay {
 function Install-CmreDynamicObserver {
     param([Parameter(Mandatory = $true)][string]$MapPath)
 
-    Write-Host "DEBUG Install-CmreDynamicObserver: isAlengerCommander=$isAlengerCommander alengerId=$alengerId MapPath=$MapPath"
-
-    $neuroRoot = Join-Path $WorkspaceRoot "reference\SC2-Neuro-API-Integration"
-    $observerRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\runtime"
-    $adapterRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\adapters\dead-of-night"
-    $rebornAdapterRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\adapters\reborn"
-    $baseData = Join-Path $MapPath "Base.SC2Data"
-    $files = @(
-        @{ Source = Join-Path $neuroRoot "Mod\NeuroIntegration.SC2Mod\Base.SC2Data\LibEFA54406_h.galaxy"; Name = "LibEFA54406_h.galaxy" },
-        @{ Source = Join-Path $neuroRoot "Mod\NeuroIntegration.SC2Mod\Base.SC2Data\LibEFA54406.galaxy"; Name = "LibEFA54406.galaxy" },
-        @{ Source = Join-Path $observerRoot "LibPortingObserver_h.galaxy"; Name = "LibPortingObserver_h.galaxy" },
-        @{ Source = Join-Path $observerRoot "LibPortingObserver.galaxy"; Name = "LibPortingObserver.galaxy" },
-        @{ Source = Join-Path $observerRoot "LibNeuroCommandBridge_h.galaxy"; Name = "LibNeuroCommandBridge_h.galaxy" },
-        @{ Source = Join-Path $observerRoot "LibNeuroCommandBridge.galaxy"; Name = "LibNeuroCommandBridge.galaxy" },
-        @{ Source = Join-Path $observerRoot "LibMapModBridge_h.galaxy"; Name = "LibMapModBridge_h.galaxy" },
-        @{ Source = Join-Path $observerRoot "LibMapModBridge.galaxy"; Name = "LibMapModBridge.galaxy" },
-        @{ Source = Join-Path $adapterRoot "LibDeadOfNightObserver_h.galaxy"; Name = "LibDeadOfNightObserver_h.galaxy" },
-        @{ Source = Join-Path $adapterRoot "LibDeadOfNightObserver.galaxy"; Name = "LibDeadOfNightObserver.galaxy" }
-    )
-    # Reborn 模式下额外复制 Reborn adapter 库
-    if ($EnableReborn -and $RebornCommander -ne "") {
-        $files += @(
-            @{ Source = Join-Path $rebornAdapterRoot "LibRebornAdapter_h.galaxy"; Name = "LibRebornAdapter_h.galaxy" },
-            @{ Source = Join-Path $rebornAdapterRoot "LibRebornAdapter.galaxy"; Name = "LibRebornAdapter.galaxy" }
-        )
-    }
-    foreach ($file in $files) {
-        if (-not (Test-Path -LiteralPath $file.Source)) { throw "Observer input not found: $($file.Source)" }
-        [System.IO.File]::Copy($file.Source, (Join-Path $baseData $file.Name), $true)
-    }
-
-    $efaPath = Join-Path $baseData "LibEFA54406.galaxy"
-    $efa = [System.IO.File]::ReadAllText($efaPath, [System.Text.Encoding]::UTF8)
-    if ($efa -notmatch '(?m)^include "LibPortingObserver_h"$') {
-        $efa = $efa.Replace('include "LibEFA54406_h"', "include `"LibEFA54406_h`"`r`ninclude `"LibPortingObserver_h`"")
-    }
-    $actionAnchor = '    libEFA54406_gf_create_action_1_arg("chat_message", true, "Post a message into the game chat", "string", -1);' + "`r`n    return true;"
-    $actionPatch = '    libEFA54406_gf_create_action_1_arg("chat_message", true, "Post a message into the game chat", "string", -1);' + "`r`n    libEFA54406_gf_BootstrapPortingObserver();`r`n    return true;"
-    if ($efa.Contains($actionAnchor)) { $efa = $efa.Replace($actionAnchor, $actionPatch) }
-    # The integration library's legacy color conversion is rejected by this CMRE runtime.
-    # Keep the upstream text while omitting only that incompatible conversion in the live copy.
-    $legacyColorCall = '            libEFA54406_gv_displayNameText = TextWithColor(libEFA54406_gv_displayNameText, Color(100.00, 50.20, 75.29));'
-    if ($efa.Contains($legacyColorCall)) {
-        $efa = $efa.Replace($legacyColorCall, '            // CMRE adapter: display text retained without incompatible color conversion.')
-    }
-    # CMRE fix: upstream Executeactionsglobal_Func sets bankwriteallowed=false at
-    # entry (line 351) but never resets it to true. Every other bank-writing
-    # function in this library follows the pattern set-false -> work -> set-true,
-    # but Executeactionsglobal_Func omits the final set-true. This permanently
-    # blocks all subsequent create_context Publish calls (they spin on
-    # while(bankwriteallowed==false) Wait(...)). The bug manifests as:
-    #   - execute_actions_fired key never appears in Bank
-    #   - alenger_unit_presence stuck at bootstrap-time values (commander_p1 empty)
-    #   - player_*_inventory never written
-    # Reset the semaphore after the map event handlers return.
-    $execMapAnchor = '    BankSave(BankLastCreated());' + "`r`n" +
-                     '    Wait(0.1, c_timeReal);' + "`r`n" +
-                     '    TriggerSendEvent("execute_actions_map");' + "`r`n" +
-                     '    return true;'
-    $execMapPatch = '    BankSave(BankLastCreated());' + "`r`n" +
-                    '    Wait(0.1, c_timeReal);' + "`r`n" +
-                    '    TriggerSendEvent("execute_actions_map");' + "`r`n" +
-                    '    libEFA54406_gv_bankwriteallowed = true;' + "`r`n" +
-                    '    return true;'
-    if ($efa.Contains($execMapAnchor)) {
-        $efa = $efa.Replace($execMapAnchor, $execMapPatch)
-    }
-    [System.IO.File]::WriteAllText($efaPath, $efa, [System.Text.UTF8Encoding]::new($false))
-
-    $mapScriptPath = Join-Path $MapPath "MapScript.galaxy"
-    $mapScript = [System.IO.File]::ReadAllText($mapScriptPath, [System.Text.Encoding]::UTF8)
-    # 参数化 include 和 InitLib：当 adapterFiles 为空或非Alenger指挥官时不注入 adapter 库引用
-    $adapterInclude = ''
-    $adapterInitLib = ''
-    if ($isAlengerCommander -and $adapterFiles.Count -gt 0 -and $adapterLibPrefix) {
-        $adapterInclude = "`r`n" + 'include "Lib' + $adapterLibPrefix + '"'
-        $adapterInitLib = "`r`n" + '    lib' + $adapterLibPrefix + '_InitLib();'
-    }
-    if ($mapScript -notmatch '(?m)^include "LibEFA54406"$') {
-        $incReplacement = 'include "LibCOUI"' + "`r`n" + 'include "LibEFA54406"' + "`r`n" + 'include "LibNeuroCommandBridge"' + "`r`n" + 'include "LibPortingObserver"' + $adapterInclude
-        $mapScript = $mapScript.Replace('include "LibCOUI"', $incReplacement)
-    }
-    if (-not $mapScript.Contains('include "LibNeuroCommandBridge"')) {
-        $mapScript = $mapScript.Replace('include "LibEFA54406"', 'include "LibEFA54406"' + "`r`n" + 'include "LibNeuroCommandBridge"')
-    }
-    if ($mapScript -notmatch 'libEFA54406_InitLib\s*\(\s*\)') {
-        $initReplacement = '    libCOUI_InitLib();' + "`r`n" + '    libEFA54406_InitLib();' + "`r`n" + '    libNeuroCommandBridge_InitLib();' + $adapterInitLib
-        $mapScript = $mapScript.Replace('    libCOUI_InitLib();', $initReplacement)
-    }
-    if ($mapScript -notmatch 'libNeuroCommandBridge_InitLib\s*\(\s*\)') {
-        $mapScript = $mapScript.Replace('    libEFA54406_InitLib();', '    libEFA54406_InitLib();' + "`r`n" + '    libNeuroCommandBridge_InitLib();')
-    }
-    # LibDeadOfNightObserver 必须在文件开头的 include 块中（Galaxy 语法要求 include 在所有声明之前）。
-    # 之前把它放在 pollGlue 中（Map Initialization 注释前），那个位置在函数定义之后，
-    # 导致 Galaxy 编译器报 "函数已声明但尚未定义" 错误（include 在文件中间被忽略，
-    # libDeadOfNightObserver_gf_Update / libDeadOfNightObserver_InitLib 等库函数无法解析）。
-    if ($mapScript -notmatch '(?m)^include "LibDeadOfNightObserver"$') {
-        $donIncReplacement = 'include "LibPortingObserver"' + "`r`n" + 'include "LibDeadOfNightObserver"'
-        $mapScript = $mapScript.Replace('include "LibPortingObserver"', $donIncReplacement)
-    }
-    if ($mapScript -notmatch 'gt_PortingObserverDeadOfNightPoll_Func') {
-        $mapInitAnchor = "//--------------------------------------------------------------------------------------------------`r`n// Map Initialization"
-        if (-not $mapScript.Contains($mapInitAnchor)) { throw "Map initialization anchor not found in MapScript" }
-        # 亡者之夜专用代码块：引用 gv_dayORNight/gv_nightNumber/gv_objective_Primary_DestroyInfestation
-        # 等亡者之夜特有的全局变量。其他地图（如克哈裂痕）没有这些变量，注入会导致编译崩溃。
-        # 只在亡者之夜地图注入这段代码；其他地图用空字符串占位，保持 poll trigger 通用部分可用。
-        $donUpdateBlock = ''
-        if ($MapName -eq "亡者之夜.SC2Map") {
-            $donUpdateBlock = @'
-        if (gv_objective_Primary_DestroyInfestation != c_invalidObjectiveId) {
-            lv_primaryState = ObjectiveGetState(gv_objective_Primary_DestroyInfestation);
-        }
-        if (gv_objective_Bonus_DestroyInfestationSource != c_invalidObjectiveId) {
-            lv_bonusState = ObjectiveGetState(gv_objective_Bonus_DestroyInfestationSource);
-        }
-        libDeadOfNightObserver_gf_Update(gv_dayORNight, gv_nightNumber,
-            gv_infestedStructuresRemaining, gv_infestedStructuresTotal, lv_primaryState, lv_bonusState);
-'@
-        }
-        if ($isAlengerCommander) {
-            $pollGlue = @"
-trigger gt_PortingObserverDeadOfNightPoll;
-trigger gt_${alengerId}StartingUnits;
-
-bool gt_PortingObserverDeadOfNightPoll_Func(bool testConds, bool runActions) {
-    int lv_primaryState = -1;
-    int lv_bonusState = -1;
-    if (testConds) { return true; }
-    if (!runActions) { return true; }
-    libPortingObserver_gf_Publish("poll_trigger_started", "DeadOfNight poll trigger is running", false);
-    Wait(10.0, c_timeReal);
-    while (true) {
-${donUpdateBlock}
-        libPortingObserver_gf_PublishAlengerPresenceProbe();
-        Wait(1.0, c_timeReal);
-        libPortingObserver_gf_PublishAlengerStructureProbe();
-        Wait(1.0, c_timeReal);
-        libPortingObserver_gf_PublishAlengerCommandCardDump();
-        Wait(1.0, c_timeReal);
-        libPortingObserver_gf_PublishAlengerWorkerBuildDump();
-        Wait(1.0, c_timeReal);
-        // Generic per-player inventory probe (does not hardcode any commander-specific unit IDs).
-        // Outputs "player_N_inventory" bank keys listing every unit type + count on the map for player N.
-        // This is the primary evidence for verifying Reborn commander SwarmSetup actually produced
-        // the expected Reborn-specific units/buildings.
-        libPortingObserver_gf_PublishPlayerInventory(1);
-        Wait(1.0, c_timeReal);
-        libPortingObserver_gf_PublishPlayerInventory(2);
-        Wait(7.0, c_timeReal);
-    }
-    return true;
+    Install-CmreObserverOverlay -WorkspaceRoot $WorkspaceRoot -MapPath $MapPath -MapName $MapName -IsAlengerCommander $isAlengerCommander -AdapterLibPrefix $adapterLibPrefix -AdapterFiles $adapterFiles -EnableReborn $EnableReborn -RebornCommander $RebornCommander
 }
-
-void gt_PortingObserverDeadOfNightPoll_Init() {
-    gt_PortingObserverDeadOfNightPoll = TriggerCreate("gt_PortingObserverDeadOfNightPoll_Func");
-    TriggerExecute(gt_PortingObserverDeadOfNightPoll, false, true);
-}
-
-int gf_RemoveAllUnitsOfType(int lp_player, string lp_type) {
-    unitgroup lv_units;
-    int lv_count;
-    int lv_i;
-    if (lp_type == "") { return 0; }
-    if (!CatalogEntryIsValid(c_gameCatalogUnit, lp_type)) { return 0; }
-    lv_units = UnitGroup(lp_type, lp_player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
-    lv_count = UnitGroupCount(lv_units, c_unitCountAll);
-    for (lv_i = lv_count; lv_i >= 1; lv_i -= 1) {
-        UnitRemove(UnitGroupUnit(lv_units, lv_i));
-    }
-    return lv_count;
-}
-
-bool gt_${alengerId}StartingUnits_Func(bool testConds, bool runActions) {
-    point lv_p1Start = null;
-    point lv_p2Start = null;
-    int lv_i = 0;
-    unitgroup lv_beforeP1 = UnitGroupEmpty();
-    unitgroup lv_afterP1 = UnitGroupEmpty();
-    unitgroup lv_beforeP2 = UnitGroupEmpty();
-    unitgroup lv_afterP2 = UnitGroupEmpty();
-    int lv_beforeCount = 0;
-    int lv_createdP1 = 0;
-    int lv_createdP2 = 0;
-    string lv_diag = "";
-    string lv_p1Valid = "F";
-    string lv_p2Valid = "F";
-    int lv_removedP1 = 0;
-    int lv_removedP2 = 0;
-    if (testConds) { return true; }
-    if (!runActions) { return true; }
-    libPortingObserver_gf_Publish("alenger_starting_units_begin", "creating Alenger starting units", false);
-    Wait(5.0, c_timeReal);
-    lv_p1Start = PlayerStartLocation(1);
-    lv_p2Start = PlayerStartLocation(2);
-    if (lv_p1Start != null) { lv_p1Valid = "T"; }
-    if (lv_p2Start != null) { lv_p2Valid = "T"; }
-"@
-            $vanillaRemoveBlockP1 = ""
-            foreach ($u in $vanillaRemovals) {
-                $vanillaRemoveBlockP1 += "    lv_removedP1 += gf_RemoveAllUnitsOfType(1, `"$u`");`r`n"
-            }
-            $vanillaRemoveBlockP2 = ""
-            foreach ($u in $vanillaRemovals) {
-                $vanillaRemoveBlockP2 += "    lv_removedP2 += gf_RemoveAllUnitsOfType(2, `"$u`");`r`n"
-            }
-            $pollGlue += $vanillaRemoveBlockP1 + $vanillaRemoveBlockP2
-            $pollGlue += @"
-    lv_beforeP1 = UnitGroup("$startingStructure", 1, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
-    lv_beforeCount = UnitGroupCount(lv_beforeP1, c_unitCountAll);
-    if (lv_p1Start != null) {
-        UnitCreate(1, "$startingStructure", c_unitCreateIgnorePlacement, 1, lv_p1Start, 270.0);
-        for (lv_i = 0; lv_i < $workerCount; lv_i += 1) {
-            UnitCreate(1, "$startingWorker", c_unitCreateIgnorePlacement, 1,
-                PointWithOffsetPolar(lv_p1Start, 3.0, (IntToFixed(lv_i) * 72.0)), 270.0);
-        }
-    }
-    lv_afterP1 = UnitGroup("$startingStructure", 1, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
-    lv_createdP1 = UnitGroupCount(lv_afterP1, c_unitCountAll) - lv_beforeCount;
-    lv_beforeP2 = UnitGroup("$startingStructure", 2, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
-    lv_beforeCount = UnitGroupCount(lv_beforeP2, c_unitCountAll);
-    if (lv_p2Start != null) {
-        UnitCreate(1, "$startingStructure", c_unitCreateIgnorePlacement, 2, lv_p2Start, 270.0);
-        for (lv_i = 0; lv_i < $workerCount; lv_i += 1) {
-            UnitCreate(1, "$startingWorker", c_unitCreateIgnorePlacement, 2,
-                PointWithOffsetPolar(lv_p2Start, 3.0, (IntToFixed(lv_i) * 72.0)), 270.0);
-        }
-    }
-    lv_afterP2 = UnitGroup("$startingStructure", 2, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
-    lv_createdP2 = UnitGroupCount(lv_afterP2, c_unitCountAll) - lv_beforeCount;
-    lv_diag = "p1_start=" + lv_p1Valid + "; p2_start=" + lv_p2Valid +
-        "; created_p1=" + IntToString(lv_createdP1) + "; created_p2=" + IntToString(lv_createdP2) +
-        "; after_p1=" + IntToString(UnitGroupCount(lv_afterP1, c_unitCountAll)) +
-        "; after_p2=" + IntToString(UnitGroupCount(lv_afterP2, c_unitCountAll)) +
-        "; removed_vanilla_p1=" + IntToString(lv_removedP1) +
-        "; removed_vanilla_p2=" + IntToString(lv_removedP2);
-    libPortingObserver_gf_Publish("alenger_starting_units_done", lv_diag, false);
-    return true;
-}
-
-void gt_${alengerId}StartingUnits_Init() {
-    gt_${alengerId}StartingUnits = TriggerCreate("gt_${alengerId}StartingUnits_Func");
-    TriggerExecute(gt_${alengerId}StartingUnits, false, true);
-}
-
-trigger gt_${alengerId}TrainProbe;
-
-bool gt_${alengerId}TrainProbe_Func(bool testConds, bool runActions) {
-    string lv_structureType = "$startingStructure";
-    string lv_workerType = "$startingWorker";
-    unitgroup lv_structs = null;
-    unitgroup lv_workers = null;
-    int lv_workerBefore = 0;
-    if (testConds) { return true; }
-    if (!runActions) { return true; }
-    libPortingObserver_gf_Publish("alenger_train_probe_begin", "starting train completion probe", false);
-    Wait(25.0, c_timeReal);
-    lv_structs = UnitGroup(lv_structureType, c_playerAny, RegionEntireMap(),
-        UnitFilter(0, 0, 0, (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
-    if (UnitGroupCount(lv_structs, c_unitCountAll) == 0) {
-        libPortingObserver_gf_Publish("alenger_train_probe_result", "no_producer; worker_before=0; worker_after=0; new_workers=0; train_completed=false", false);
-        return true;
-    }
-    lv_workers = UnitGroup(lv_workerType, c_playerAny, RegionEntireMap(),
-        UnitFilter(0, 0, 0, (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
-    lv_workerBefore = UnitGroupCount(lv_workers, c_unitCountAll);
-    libPortingObserver_gf_Publish("alenger_train_probe_result",
-        "train_ability_placeholder; worker_before=" + IntToString(lv_workerBefore) + "; train_completed=false(diag_skip)", false);
-    return true;
-}
-
-void gt_${alengerId}TrainProbe_Init() {
-    gt_${alengerId}TrainProbe = TriggerCreate("gt_${alengerId}TrainProbe_Func");
-    TriggerExecute(gt_${alengerId}TrainProbe, false, true);
-}
-
-"@
-        } else {
-            # 通用层：生成原版单位移除代码块（各 mod 通过 $vanillaRemovals 配置实现个性化）
-            $vanillaRemoveBlockP1 = ""
-            foreach ($u in $vanillaRemovals) {
-                $vanillaRemoveBlockP1 += "    lv_removedP1 += gf_RemoveAllUnitsOfType(1, `"$u`");`r`n"
-            }
-            # Reborn 模式下基地已在 InitLib 中通过 Reborn adapter 中间层创建（SwarmSetup 之前），通用层跳过避免重复
-            $rebornSkipBlock = ""
-            if ($EnableReborn -and $RebornCommander -ne "") {
-                $rebornSkipBlock = @"
-    // Reborn 模式：基地已通过 Reborn adapter (LibRebornAdapter) + 通用中间层 (LibMapModBridge) 创建
-    // 在 SwarmSetup 之前于 lib48DF4533_InitLib() 中执行，此处跳过避免重复
-    // 地图需求（PreventDefeat、P1/P2 起始单位）由 map-requirements.json 声明，由 adapter 执行
-    libPortingObserver_gf_Publish("commander_starting_units_skip", "reborn mode: already created via LibRebornAdapter + LibMapModBridge in InitLib", false);
-    return true;
-"@
-            }
-            $pollGlue = @"
-trigger gt_PortingObserverDeadOfNightPoll;
-trigger gt_CommanderStartingUnits;
-
-bool gt_PortingObserverDeadOfNightPoll_Func(bool testConds, bool runActions) {
-    int lv_primaryState = -1;
-    int lv_bonusState = -1;
-    if (testConds) { return true; }
-    if (!runActions) { return true; }
-    libPortingObserver_gf_Publish("poll_trigger_started", "DeadOfNight poll trigger is running", false);
-    Wait(10.0, c_timeReal);
-    while (true) {
-${donUpdateBlock}
-        Wait(10.0, c_timeReal);
-    }
-    return true;
-}
-
-void gt_PortingObserverDeadOfNightPoll_Init() {
-    gt_PortingObserverDeadOfNightPoll = TriggerCreate("gt_PortingObserverDeadOfNightPoll_Func");
-    TriggerExecute(gt_PortingObserverDeadOfNightPoll, false, true);
-}
-
-// 通用层：移除指定类型的所有单位
-int gf_RemoveAllUnitsOfType(int lp_player, string lp_type) {
-    unitgroup lv_units;
-    int lv_count;
-    int lv_i;
-    if (lp_type == "") { return 0; }
-    if (!CatalogEntryIsValid(c_gameCatalogUnit, lp_type)) { return 0; }
-    lv_units = UnitGroup(lp_type, lp_player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
-    lv_count = UnitGroupCount(lv_units, c_unitCountAll);
-    for (lv_i = lv_count; lv_i >= 1; lv_i -= 1) {
-        UnitRemove(UnitGroupUnit(lv_units, lv_i));
-    }
-    return lv_count;
-}
-
-// 通用层：指挥官起始单位替换（Map Init + 5s Wait 后执行，等效于"倒计时结束时"）
-// 各 mod 通过 commander profile 的 startingStructure/startingWorker/workerCount/vanillaRemovals 实现个性化
-// Reborn 模式下基地已在 InitLib 中创建（SwarmSetup 之前），此处跳过避免重复
-bool gt_CommanderStartingUnits_Func(bool testConds, bool runActions) {
-    point lv_p1Start = null;
-    int lv_i = 0;
-    unitgroup lv_beforeP1 = UnitGroupEmpty();
-    unitgroup lv_afterP1 = UnitGroupEmpty();
-    int lv_beforeCount = 0;
-    int lv_createdP1 = 0;
-    int lv_removedP1 = 0;
-    string lv_diag = "";
-    if (testConds) { return true; }
-    if (!runActions) { return true; }
-${rebornSkipBlock}
-    libPortingObserver_gf_Publish("commander_starting_units_begin", "creating commander starting units", false);
-    Wait(5.0, c_timeReal);
-    lv_p1Start = PlayerStartLocation(1);
-${vanillaRemoveBlockP1}    lv_beforeP1 = UnitGroup("$startingStructure", 1, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
-    lv_beforeCount = UnitGroupCount(lv_beforeP1, c_unitCountAll);
-    if (lv_p1Start != null) {
-        UnitCreate(1, "$startingStructure", c_unitCreateIgnorePlacement, 1, lv_p1Start, 270.0);
-        for (lv_i = 0; lv_i < $workerCount; lv_i += 1) {
-            UnitCreate(1, "$startingWorker", c_unitCreateIgnorePlacement, 1,
-                PointWithOffsetPolar(lv_p1Start, 3.0, (IntToFixed(lv_i) * 72.0)), 270.0);
-        }
-    }
-    lv_afterP1 = UnitGroup("$startingStructure", 1, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
-    lv_createdP1 = UnitGroupCount(lv_afterP1, c_unitCountAll) - lv_beforeCount;
-    lv_diag = "created_p1=" + IntToString(lv_createdP1) + "; removed_vanilla_p1=" + IntToString(lv_removedP1);
-    libPortingObserver_gf_Publish("commander_starting_units_done", lv_diag, false);
-    return true;
-}
-
-void gt_CommanderStartingUnits_Init() {
-    gt_CommanderStartingUnits = TriggerCreate("gt_CommanderStartingUnits_Func");
-    TriggerExecute(gt_CommanderStartingUnits, false, true);
-}
-
-"@
-        }
-        $mapScript = $mapScript.Replace($mapInitAnchor, $pollGlue.Replace("`n", "`r`n") + $mapInitAnchor)
-    }
-    if ($mapScript -notmatch 'libDeadOfNightObserver_InitLib\s*\(\s*\)') {
-        $initAnchor = "    InitTriggers();`r`n"
-        if (-not $mapScript.Contains($initAnchor)) { throw "InitMap anchor not found in MapScript" }
-        if ($isAlengerCommander) {
-            $initMapReplacement = "    libDeadOfNightObserver_InitLib();`r`n    gt_PortingObserverDeadOfNightPoll_Init();`r`n    gt_${alengerId}StartingUnits_Init();`r`n    gt_${alengerId}TrainProbe_Init();`r`n" + $initAnchor
-        } else {
-            $initMapReplacement = "    libDeadOfNightObserver_InitLib();`r`n    gt_PortingObserverDeadOfNightPoll_Init();`r`n    gt_CommanderStartingUnits_Init();`r`n" + $initAnchor
-        }
-        $mapScript = $mapScript.Replace($initAnchor, $initMapReplacement)
-    }
-    [System.IO.File]::WriteAllText($mapScriptPath, $mapScript, [System.Text.UTF8Encoding]::new($false))
-
-    $bankListPath = Join-Path $MapPath "BankList.xml"
-    [xml]$bankList = [System.IO.File]::ReadAllText($bankListPath, [System.Text.Encoding]::UTF8)
-    $bankChanged = $false
-    if (@($bankList.BankList.Bank | Where-Object { $_.Name -eq "NeuroIntegration" -and $_.Player -eq "1" }).Count -eq 0) {
-        $bank = $bankList.CreateElement("Bank")
-        $bank.SetAttribute("Name", "NeuroIntegration")
-        $bank.SetAttribute("Player", "1")
-        $bankList.BankList.AppendChild($bank) | Out-Null
-        $bankChanged = $true
-    }
-    # RuntimeProbe Bank registration intentionally omitted: RuntimeProbe is
-    # deprecated as runtime evidence (see docs/deprecated-runtime-probe.md).
-    if ($bankChanged) {
-        $settings = [System.Xml.XmlWriterSettings]::new(); $settings.Indent = $true; $settings.Encoding = [System.Text.UTF8Encoding]::new($false)
-        $writer = [System.Xml.XmlWriter]::Create($bankListPath, $settings)
-        try { $bankList.Save($writer) } finally { $writer.Dispose() }
-    }
-}
-
 function Patch-CmreCoreRuntimeErrors {
     param([Parameter(Mandatory = $true)][string]$MapPath)
 
-    # CMRE-ALENGER3-RUNTIME-002: 6 classes of non-fatal runtime errors in
-    # LibCOTF.galaxy, LibCOUI.galaxy and LibCOMI.galaxy. CMRE core assumes
-    # fully configured commander data (decal, revive behavior, shield color,
-    # AI vision dialog, gameUser for player 2) but the 5-dep Alenger3
-    # composition does not populate all of these fields. Patches add defensive
-    # guards / fallbacks to suppress ScriptError noise. Idempotent: skips
-    # anchors that already contain the patch marker.
-
-    $baseData = Join-Path $MapPath "Base.SC2Data"
-    $patchCount = 0
-
-    # --- LibCOTF.galaxy patches ---
-    $cotfPath = Join-Path $baseData "LibCOTF.galaxy"
-    if (-not (Test-Path -LiteralPath $cotfPath)) { throw "LibCOTF.galaxy not found: $cotfPath" }
-    $cotf = [System.IO.File]::ReadAllText($cotfPath, [System.Text.Encoding]::UTF8)
-
-    # Patch 1: line 176 - EventPlayerEffectUsedUnitOwner has no effect event in InitGlobals context
-    $cotfAnchor1 = '    libCOTF_gv_player = EventPlayerEffectUsedUnitOwner(c_effectPlayerCaster);'
-    $cotfPatch1 = '    libCOTF_gv_player = 1; // CMRE patch: InitGlobals has no effect event context'
-    if (-not $cotf.Contains($cotfPatch1)) {
-        if (-not $cotf.Contains($cotfAnchor1)) { throw "LibCOTF patch 1 anchor not found" }
-        $cotf = $cotf.Replace($cotfAnchor1, $cotfPatch1); $patchCount++
-    }
-
-    # Patch 2: line 7828 - PlayerHandle returns non-numeric string; StringToInt fails.
-    # Line 7829 also fails (DateTimeToString returns non-numeric string).
-    # Both lines are redundant: the while loop at line 7830 provides continuous
-    # random seeds via RandomInt. Comment out both lines to suppress ScriptError.
-    $cotfAnchor2 = '    GameSetSeed(StringToInt((PlayerHandle(1) + PlayerHandle(2))));'
-    $cotfPatch2 = '    // CMRE patch: skip PlayerHandle-based seed (StringToInt cannot parse handle string)'
-    if (-not $cotf.Contains($cotfPatch2)) {
-        if (-not $cotf.Contains($cotfAnchor2)) { throw "LibCOTF patch 2 anchor not found" }
-        $cotf = $cotf.Replace($cotfAnchor2, $cotfPatch2); $patchCount++
-    }
-
-    # Patch 2b: line 7829 - DateTimeToString returns non-numeric string; StringToInt fails.
-    $cotfAnchor2b = '    GameSetSeed(StringToInt(DateTimeToString(CurrentDateTimeGet())));'
-    $cotfPatch2b = '    // CMRE patch: skip DateTime-based seed (StringToInt cannot parse datetime string; while loop below provides continuous random seed)'
-    if (-not $cotf.Contains($cotfPatch2b)) {
-        if (-not $cotf.Contains($cotfAnchor2b)) { throw "LibCOTF patch 2b anchor not found" }
-        $cotf = $cotf.Replace($cotfAnchor2b, $cotfPatch2b); $patchCount++
-    }
-
-    # Patch 3: line 7959 - DialogSetVisible with invalid dialog handle
-    $cotfAnchor3 = '    DialogSetVisible(libCOTF_gv_uT_AIVisionDialog, PlayerGroupAll(), false);'
-    $cotfPatch3 = '    if (libCOTF_gv_uT_AIVisionDialog != c_invalidDialogId) { DialogSetVisible(libCOTF_gv_uT_AIVisionDialog, PlayerGroupAll(), false); } // CMRE patch: guard invalid dialog handle'
-    if (-not $cotf.Contains($cotfPatch3)) {
-        if (-not $cotf.Contains($cotfAnchor3)) { throw "LibCOTF patch 3 anchor not found" }
-        $cotf = $cotf.Replace($cotfAnchor3, $cotfPatch3); $patchCount++
-    }
-
-    [System.IO.File]::WriteAllText($cotfPath, $cotf, [System.Text.UTF8Encoding]::new($false))
-
-    # --- LibCOUI.galaxy patches ---
-    $couiPath = Join-Path $baseData "LibCOUI.galaxy"
-    if (-not (Test-Path -LiteralPath $couiPath)) { throw "LibCOUI.galaxy not found: $couiPath" }
-    $coui = [System.IO.File]::ReadAllText($couiPath, [System.Text.Encoding]::UTF8)
-
-    # Patch 4: line 3306 - SetDialogItemUnitGroup with invalid control handle
-    $couiAnchor4 = '    libNtve_gf_SetDialogItemUnitGroup(libCOUI_gv_cU_GPCmdPanel[lp_player], libCOUI_gv_cU_GPCasterGroup[lp_player], PlayerGroupSingle(lp_player));'
-    $couiPatch4 = '    if (libCOUI_gv_cU_GPCmdPanel[lp_player] != c_invalidDialogControlId) { libNtve_gf_SetDialogItemUnitGroup(libCOUI_gv_cU_GPCmdPanel[lp_player], libCOUI_gv_cU_GPCasterGroup[lp_player], PlayerGroupSingle(lp_player)); } // CMRE patch: guard invalid control handle'
-    if (-not $coui.Contains($couiPatch4)) {
-        if (-not $coui.Contains($couiAnchor4)) { throw "LibCOUI patch 4 anchor not found" }
-        $coui = $coui.Replace($couiAnchor4, $couiPatch4); $patchCount++
-    }
-
-    [System.IO.File]::WriteAllText($couiPath, $coui, [System.Text.UTF8Encoding]::new($false))
-
-    # --- LibCOMI.galaxy patches ---
-    $comiPath = Join-Path $baseData "LibCOMI.galaxy"
-    if (-not (Test-Path -LiteralPath $comiPath)) { throw "LibCOMI.galaxy not found: $comiPath" }
-    $comi = [System.IO.File]::ReadAllText($comiPath, [System.Text.Encoding]::UTF8)
-
-    # Patch 5+6: lines 23813 and 23851 - CatalogFieldValueGet with empty decal entry (same anchor, replaces both)
-    $comiAnchor5 = '    lv_commanderDefaultDecalString = CatalogFieldValueGet(c_gameCatalogTexture, lv_commanderDefaultDecal, "File", c_playerAny);'
-    $comiPatch5 = '    if (lv_commanderDefaultDecal != "") { lv_commanderDefaultDecalString = CatalogFieldValueGet(c_gameCatalogTexture, lv_commanderDefaultDecal, "File", c_playerAny); } // CMRE patch: guard empty decal entry'
-    if (-not $comi.Contains($comiPatch5)) {
-        if (-not $comi.Contains($comiAnchor5)) { throw "LibCOMI patch 5 anchor not found" }
-        $comi = $comi.Replace($comiAnchor5, $comiPatch5); $patchCount += 2
-    }
-
-    # Patch 7: line 18204 - CatalogFieldValueGet fails when NormalRevive behavior is empty.
-    # Guard the call itself (not just the fallback) to suppress ScriptError at the source.
-    $comiAnchor7 = '    lv_reviveDuration = StringToFixed(CatalogFieldValueGet(c_gameCatalogBehavior, libCOOC_gf_CC_PlayerHeroNormalReviveBehavior(lp_player), "Duration", lp_player));'
-    $comiPatch7 = '    if (libCOOC_gf_CC_PlayerHeroNormalReviveBehavior(lp_player) != "") { lv_reviveDuration = StringToFixed(CatalogFieldValueGet(c_gameCatalogBehavior, libCOOC_gf_CC_PlayerHeroNormalReviveBehavior(lp_player), "Duration", lp_player)); } if (lv_reviveDuration <= 0.0) { lv_reviveDuration = 60.0; } // CMRE patch: guard empty normal revive behavior entry'
-    if (-not $comi.Contains($comiPatch7)) {
-        if (-not $comi.Contains($comiAnchor7)) { throw "LibCOMI patch 7 anchor not found" }
-        $comi = $comi.Replace($comiAnchor7, $comiPatch7); $patchCount++
-    }
-
-    # Patch 8: line 18244 - CatalogFieldValueGet fails when FirstRevive behavior is empty.
-    # Guard the call itself (not just the fallback) to suppress ScriptError at the source.
-    $comiAnchor8 = '    lv_reviveDuration = StringToFixed(CatalogFieldValueGet(c_gameCatalogBehavior, libCOOC_gf_CC_PlayerHeroFirstReviveBehavior(lp_player), "Duration", lp_player));'
-    $comiPatch8 = '    if (libCOOC_gf_CC_PlayerHeroFirstReviveBehavior(lp_player) != "") { lv_reviveDuration = StringToFixed(CatalogFieldValueGet(c_gameCatalogBehavior, libCOOC_gf_CC_PlayerHeroFirstReviveBehavior(lp_player), "Duration", lp_player)); } if (lv_reviveDuration <= 0.0) { lv_reviveDuration = 60.0; } // CMRE patch: guard empty first revive behavior entry'
-    if (-not $comi.Contains($comiPatch8)) {
-        if (-not $comi.Contains($comiAnchor8)) { throw "LibCOMI patch 8 anchor not found" }
-        $comi = $comi.Replace($comiAnchor8, $comiPatch8); $patchCount++
-    }
-
-    # Patch 9: line 18259 - divide-by-zero when lv_reviveDuration is 0
-    $comiAnchor9 = '    UnitSetPropertyFixed(libCOMI_gv_cM_HeroReviver[lp_player], c_unitPropLifeRegen, (UnitGetPropertyFixed(libCOMI_gv_cM_HeroReviver[lp_player], c_unitPropLifeMax, c_unitPropCurrent)/lv_reviveDuration));'
-    $comiPatch9 = '    if (lv_reviveDuration > 0.0) { UnitSetPropertyFixed(libCOMI_gv_cM_HeroReviver[lp_player], c_unitPropLifeRegen, (UnitGetPropertyFixed(libCOMI_gv_cM_HeroReviver[lp_player], c_unitPropLifeMax, c_unitPropCurrent)/lv_reviveDuration)); } // CMRE patch: guard divide-by-zero'
-    if (-not $comi.Contains($comiPatch9)) {
-        if (-not $comi.Contains($comiAnchor9)) { throw "LibCOMI patch 9 anchor not found" }
-        $comi = $comi.Replace($comiAnchor9, $comiPatch9); $patchCount++
-    }
-
-    # Patch 10: CM_HeroWaitForRevive_TriggerFunc 在无英雄指挥官（如 Alenger）时
-    # libCOMI_gv_cM_HeroReviver[lp_player] 为 null，执行到 UnitGetPosition 会抛
-    # "无法从参数中获取 unit(0#0)" 致命错误。无英雄复活单位则直接跳过复活逻辑。
-    # 注意：Galaxy 不允许在局部变量声明之前出现可执行语句，故 guard 必须放在
-    # 变量声明之后。锚点用 autoE01594B5_var（该触发器函数独有的自动变量）保证
-    # 只命中 CM_HeroWaitForRevive_TriggerFunc，避免误注入到其他函数（如复活时长计算）。
-    # 用正则容忍声明之间的空行数量差异。
-    $comiAnchor10 = 'unit autoE01594B5_var;[\s\S]*?lv_commander = libCOOC_gf_ActiveCommanderForPlayer\(lp_player\);'
-    $comiPatch10 = 'unit autoE01594B5_var;' + "`r`n" + "`r`n" + `
-        '    // CMRE patch: 无英雄指挥官（如 Alenger）的 cM_HeroReviver 为 null，跳过复活逻辑' + "`r`n" + `
-        '    if (libCOMI_gv_cM_HeroReviver[lp_player] == null) { return true; }' + "`r`n" + `
-        '    lv_commander = libCOOC_gf_ActiveCommanderForPlayer(lp_player);'
-    if (-not $comi.Contains($comiPatch10)) {
-        if (-not [regex]::IsMatch($comi, $comiAnchor10)) { throw "LibCOMI patch 10 anchor not found" }
-        $comi = [regex]::Replace($comi, $comiAnchor10, $comiPatch10)
-        $patchCount++
-    }
-
-    # Patch 11: libCOMI_gf_CM_CommanderVOSend - 当 lp_vOSound 为 null（指挥官未配置
-    # VO lines，如 Alenger6）时，SoundPlayForPlayer 会抛 "无法从'sCreateSound'的参数中
-    # 获取'sound'(值：0)" 触发器错误。跳过 null soundlink 的播放，避免运行时错误。
-    # 该错误在克哈裂痕等地图上单位被攻击时立即触发（libCOMI_gt_CM_VOEnemySpotted_Func）。
-    $comiAnchor11 = 'void libCOMI_gf_CM_CommanderVOSend (int lp_listenerPlayer, soundlink lp_vOSound, playergroup lp_targetPlayers) {
-    // Automatic Variable Declarations
-    // Implementation
-    SoundSetListenerGender(lp_vOSound, libCOOC_gf_CC_CommanderGender(libCOOC_gf_ActiveCommanderForPlayer(lp_listenerPlayer)));'
-    $comiPatch11 = 'void libCOMI_gf_CM_CommanderVOSend (int lp_listenerPlayer, soundlink lp_vOSound, playergroup lp_targetPlayers) {
-    // Automatic Variable Declarations
-    // Implementation
-    if ((lp_vOSound == null)) { return; } // CMRE patch: guard null soundlink (VO line not configured for this commander)
-    SoundSetListenerGender(lp_vOSound, libCOOC_gf_CC_CommanderGender(libCOOC_gf_ActiveCommanderForPlayer(lp_listenerPlayer)));'
-    if (-not $comi.Contains($comiPatch11)) {
-        if (-not $comi.Contains($comiAnchor11)) { throw "LibCOMI patch 11 anchor not found" }
-        $comi = $comi.Replace($comiAnchor11, $comiPatch11); $patchCount++
-    }
-
-    [System.IO.File]::WriteAllText($comiPath, $comi, [System.Text.UTF8Encoding]::new($false))
-
-    Write-Host "CMRE core runtime error patches applied: $patchCount locations"
+    Install-CmreCoreRuntimeErrorOverlay -MapPath $MapPath
 }
-
 function Write-CmreLaunchProfile {
     $banksRoot = "C:\Users\22448\Documents\StarCraft II\Banks"
     [System.IO.Directory]::CreateDirectory($banksRoot) | Out-Null
@@ -1645,6 +926,11 @@ function Write-CmreLaunchProfile {
         3 { "CustomMutators" }
         default { "Standard" }
     }
+    $createStartingUnitsP1 = if ($mapStartingUnitsPlayers -contains 1) { "1" } else { "0" }
+    $createStartingUnitsP2 = if ($mapStartingUnitsPlayers -contains 2) { "1" } else { "0" }
+    $ensurePreventDefeatP1 = if ($mapPreventDefeatPlayers -contains 1) { "1" } else { "0" }
+    $ensurePreventDefeatP2 = if ($mapPreventDefeatPlayers -contains 2) { "1" } else { "0" }
+    $rebornStartingUnitsHandled = if ($EnableReborn -and $RebornCommander -ne "") { "1" } else { "0" }
     $values = [ordered]@{
         Valid = @("int", "1"); Version = @("int", "1");
         CreatedAt = @("int", [string][int][DateTimeOffset]::UtcNow.ToUnixTimeSeconds());
@@ -1656,7 +942,19 @@ function Write-CmreLaunchProfile {
         TargetMission = @("string", "AC_MeinhoffDayNight");
         TargetMap = @("string", "AC_MeinhoffDayNight");
         'Player|1|Commander' = @("string", $Commander);
-        'Player|2|Commander' = @("string", $Commander)
+        'Player|2|Commander' = @("string", $Commander);
+        StartingStructure = @("string", $startingStructure);
+        StartingWorker = @("string", $startingWorker);
+        WorkerCount = @("int", [string]$workerCount);
+        CreateStartingUnitsP1 = @("int", $createStartingUnitsP1);
+        CreateStartingUnitsP2 = @("int", $createStartingUnitsP2);
+        EnsurePreventDefeatP1 = @("int", $ensurePreventDefeatP1);
+        EnsurePreventDefeatP2 = @("int", $ensurePreventDefeatP2);
+        RebornStartingUnitsHandled = @("int", $rebornStartingUnitsHandled);
+        VanillaRemovalCount = @("int", [string]$vanillaRemovals.Count)
+    }
+    for ($vr = 0; $vr -lt $vanillaRemovals.Count; $vr++) {
+        $values["VanillaRemoval|$($vr + 1)|Type"] = @("string", [string]$vanillaRemovals[$vr])
     }
     if ($Enemy -ne "") { $values['Enemy'] = @("string", $Enemy) }
     # 解析 Mutators 参数：逗号分隔的 id 列表，可选 ":enhanced" 后缀
@@ -1887,6 +1185,169 @@ function Set-RebornCommander {
     Write-Host "cryswarmcoop 银行已写入: Commander=$Commander, Difficulty=$Difficulty, Speed=$Speed, UnlockAllMaps=$([bool]$UnlockAllMaps) (root + P1 + P14)"
 }
 
+function Get-CmreRuntimeBankPaths {
+    $banksRoot = Join-Path $env:USERPROFILE "Documents\StarCraft II\Banks"
+    return @(
+        (Join-Path $banksRoot "CMRERebornDebug.SC2Bank"),
+        (Join-Path $banksRoot "1\CMRERebornDebug.SC2Bank"),
+        (Join-Path $banksRoot "2\CMRERebornDebug.SC2Bank"),
+        (Join-Path $banksRoot "14\CMRERebornDebug.SC2Bank")
+    )
+}
+
+function Set-CmreRuntimeBankInt {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Key,
+        [Parameter(Mandatory = $true)][int]$Value
+    )
+    $parent = Split-Path -Parent $Path
+    if ($parent -and -not (Test-Path -LiteralPath $parent)) { [System.IO.Directory]::CreateDirectory($parent) | Out-Null }
+    [xml]$doc = if (Test-Path -LiteralPath $Path) {
+        Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+    } else {
+        '<Bank version="1" />'
+    }
+    if ($null -eq $doc.Bank) {
+        $doc = [xml]'<Bank version="1" />'
+    }
+    $section = @($doc.Bank.Section | Where-Object { $_.name -eq "debug" } | Select-Object -First 1)
+    if ($section.Count -eq 0) {
+        $sectionNode = $doc.CreateElement("Section")
+        $sectionNode.SetAttribute("name", "debug")
+        $doc.Bank.AppendChild($sectionNode) | Out-Null
+    } else {
+        $sectionNode = $section[0]
+    }
+    $keyNode = @($sectionNode.Key | Where-Object { $_.name -eq $Key } | Select-Object -First 1)
+    if ($keyNode.Count -eq 0) {
+        $keyElement = $doc.CreateElement("Key")
+        $keyElement.SetAttribute("name", $Key)
+        $sectionNode.AppendChild($keyElement) | Out-Null
+    } else {
+        $keyElement = $keyNode[0]
+    }
+    $valueElement = @($keyElement.Value | Select-Object -First 1)
+    if ($valueElement.Count -eq 0) {
+        $valueNode = $doc.CreateElement("Value")
+        $keyElement.AppendChild($valueNode) | Out-Null
+    } else {
+        $valueNode = $valueElement[0]
+    }
+    $valueNode.RemoveAllAttributes()
+    $valueNode.SetAttribute("int", [string]$Value)
+    $settings = [System.Xml.XmlWriterSettings]::new()
+    $settings.Indent = $true
+    $settings.Encoding = [System.Text.UTF8Encoding]::new($false)
+    $writer = [System.Xml.XmlWriter]::Create($Path, $settings)
+    try { $doc.Save($writer) } finally { $writer.Dispose() }
+}
+
+function Reset-CmreRuntimeListenerBank {
+    foreach ($path in Get-CmreRuntimeBankPaths) {
+        foreach ($key in @("runtime_listener_started", "runtime_listener_ready", "bridge_heartbeat_started", "bridge_heartbeat", "world_cover_dialog_visible_p1")) {
+            Set-CmreRuntimeBankInt -Path $path -Key $key -Value 0
+        }
+    }
+    Write-Host "CMRE runtime listener bank reset"
+}
+
+function Get-CmreRuntimeBankInt {
+    param([Parameter(Mandatory = $true)][string]$Key)
+    foreach ($path in Get-CmreRuntimeBankPaths) {
+        if (-not (Test-Path -LiteralPath $path)) { continue }
+        try {
+            $bankXml = [System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8)
+            $pattern = '<Key\s+name="' + [regex]::Escape($Key) + '">\s*<Value\s+int="(-?\d+)"'
+            if ($bankXml -match $pattern) { return [int]$Matches[1] }
+        } catch { }
+    }
+    return $null
+}
+
+function Get-CmreNewScriptErrorFiles {
+    param([Parameter(Mandatory = $true)][datetime]$Since)
+    $gameLogsDir = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "StarCraft II\GameLogs"
+    if (-not (Test-Path -LiteralPath $gameLogsDir)) { return @() }
+    $threshold = $Since.AddSeconds(-2)
+    return @(Get-ChildItem -LiteralPath $gameLogsDir -Recurse -File -Filter "*ScriptError*.txt" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CreationTime -ge $threshold -or $_.LastWriteTime -ge $threshold } |
+        Sort-Object LastWriteTime)
+}
+
+function Get-CmreNewAlertFiles {
+    param([Parameter(Mandatory = $true)][datetime]$Since)
+    $gameLogsDir = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "StarCraft II\GameLogs"
+    if (-not (Test-Path -LiteralPath $gameLogsDir)) { return @() }
+    $threshold = $Since.AddSeconds(-2)
+    return @(Get-ChildItem -LiteralPath $gameLogsDir -Recurse -File -Filter "*Alert*.txt" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CreationTime -ge $threshold -or $_.LastWriteTime -ge $threshold } |
+        Sort-Object LastWriteTime)
+}
+
+function Wait-CmreGameLogMapLoadSignal {
+    param(
+        [Parameter(Mandatory = $true)][datetime]$Since,
+        [int]$TimeoutSeconds = 180
+    )
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        $alerts = @(Get-CmreNewAlertFiles -Since $Since)
+        if ($alerts.Count -gt 0) {
+            Write-Host "GameLogs map-load gate: Alerts file created: $($alerts[0].FullName)"
+            return "Alert"
+        }
+        $scriptErrors = @(Get-CmreNewScriptErrorFiles -Since $Since)
+        if ($scriptErrors.Count -gt 0) {
+            Write-Host "GameLogs map-load gate: ScriptError file created: $($scriptErrors[0].FullName)"
+            return "ScriptError"
+        }
+        Start-Sleep -Seconds 1
+    }
+    throw "GameLogs map-load gate failed: no new *Alert*.txt or *ScriptError*.txt within $TimeoutSeconds seconds."
+}
+
+function Assert-CmreNoNewScriptErrors {
+    param([Parameter(Mandatory = $true)][datetime]$Since)
+    $errors = @(Get-CmreNewScriptErrorFiles -Since $Since | Where-Object { $_.Length -gt 0 })
+    if ($errors.Count -gt 0) {
+        $first = $errors[0]
+        $preview = ""
+        try { $preview = (Get-Content -LiteralPath $first.FullName -Raw -ErrorAction Stop).Trim() } catch { }
+        if ($preview.Length -gt 800) { $preview = $preview.Substring(0, 800) + "..." }
+        throw ("New non-empty ScriptError detected after launch: " + $first.FullName + [Environment]::NewLine + $preview)
+    }
+    Write-Host "ScriptError gate: no new non-empty *ScriptError*.txt files"
+}
+
+function Wait-CmreRuntimeListener {
+    param([int]$TimeoutSeconds = 45)
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $firstHeartbeat = $null
+    while ((Get-Date) -lt $deadline) {
+        $started = Get-CmreRuntimeBankInt -Key "runtime_listener_started"
+        $ready = Get-CmreRuntimeBankInt -Key "runtime_listener_ready"
+        $heartbeat = Get-CmreRuntimeBankInt -Key "bridge_heartbeat"
+        $worldCoverVisible = Get-CmreRuntimeBankInt -Key "world_cover_dialog_visible_p1"
+        if (($started -gt 0) -and ($ready -gt 0) -and ($heartbeat -gt 0)) {
+            if ($null -eq $firstHeartbeat) {
+                $firstHeartbeat = $heartbeat
+                Start-Sleep -Seconds 3
+                continue
+            }
+            if ($heartbeat -gt $firstHeartbeat) {
+                if ($worldCoverVisible -eq 1) {
+                    throw "Runtime listener heartbeat is active, but world cover dialog is still visible; likely black screen."
+                }
+                Write-Host "Runtime listener gate: ready; heartbeat $firstHeartbeat -> $heartbeat"
+                return
+            }
+        }
+        Start-Sleep -Seconds 1
+    }
+    throw "Runtime listener gate failed: no ready marker plus increasing bridge_heartbeat within $TimeoutSeconds seconds."
+}
+
 $lock = Acquire-TestLock -TestType "cmre_alenger" -MapName $MapName -Commander $Commander
 $debugPidFile = Join-Path $env:TEMP "cmre-debug-sc2.pid"
 try {
@@ -2045,22 +1506,25 @@ try {
     [System.IO.Directory]::CreateDirectory($liveMap) | Out-Null
     robocopy $mapSource $liveMap /MIR /NFL /NDL /NJH /NJS /NC /NS /NP | Out-Null
     Install-CmreGalaxyHostOverlay -ModsRoot (Join-Path $Sc2Root "Mods") -MapPath $liveMap
-    if ($ShowSelectionUI) {
+    if ($ShowSelectionUI -and -not $commanderSelectionDisabled) {
         # ShowSelectionUI: 不 patch LibCOOC.galaxy，保留 CMRE 原生启动流程。
-        # 地图加载后会显示指挥官选择界面，用户可以手动选择指挥官和因子。
+        # 仅对仍保留原生选择流程的其他 CMRE 地图开放。
         Write-Host "CMRE ShowSelectionUI: skipping saved-profile startup patch, selection UI will be shown"
+    } elseif ($commanderSelectionDisabled) {
+        # 亡者之夜的选择界面属于不再使用的地图启动代码：staged map 必须删除该分支，
+        # 不能依赖 LaunchProfile bank 或调用方参数避免误入。
+        Write-Host "CMRE map policy: commander selection code disabled for $MapName; forcing headless startup"
+        Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -ApiMinimal:$ApiMinimal -SkipCountdown:$SkipCountdown -SkipPause:$SkipPause -Headless
     } elseif ($ApiMinimal) {
-        # ApiMinimal: 跳过所有 galaxy 状态干预（commander 设置 + countdown），让 SC2 通过
-        # API CreateGame+JoinGame 正常从 init_game → in_game。Alenger6 mod catalog 仍通过
-        # mod 依赖加载，P11 catalog 验证可用。
-        Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -ApiMinimal
+        # ApiMinimal: API 客户端负责 CreateGame+JoinGame，但 staged map 仍强制使用
+        # 预设 commander 并移除 selection fallback，避免进入地图后回到选择界面。
+        Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -ApiMinimal -Headless
     } elseif ($SkipCountdown) {
-        # 显式 SkipCountdown：跳过 CMUIX_ReadyBeginCountdown()，客户端用 CreateGame+JoinGame 推进状态。
-        Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -SkipCountdown
+        # 显式 SkipCountdown：客户端用 CreateGame+JoinGame 推进状态；仍走 headless startup。
+        Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -SkipCountdown -Headless
     } else {
-        # 默认模式（含 -ListenPort > 0 的 API 模式）：注入 commander 设置 +
-        # CU_CommChoiceEventClosed 事件，让 galaxy 触发器自动把 SC2 从 Launched
-        # 推进到 in_game。客户端用 CreateGame + JoinGame 连接。
+        # 默认模式：注入 commander 设置并直接调用 CMUIX_ReadyBeginCountdown，
+        # 让启动直接进入地图；只有显式 -ShowSelectionUI 才保留指挥官选择界面。
         # 之前把 -ListenPort > 0 合并到 SkipCountdown 分支是错误的：ReadyBeginCountdown 被跳过
         # 导致 SC2 永远卡在 Launched，GameInfo/Step 全部报 "Not in a game"。
         # 2026-07-25 修复：API 模式（-ListenPort > 0）加 -SkipPause，跳过
@@ -2072,9 +1536,9 @@ try {
             # API 以 P1 身份加入，操作 P1 的指挥官单位（type_4390/4386 CC / type_4382 SCV）。
             # 这才是 CMRE 的"玩家队友"角色——有指挥官的单位，而非 vanilla 单位。
             # ability ID 使用 CMRE 自定义值（17428/17514 训练 SCV，16/17/18 建造建筑）。
-            Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -SkipPause
+            Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -SkipPause -Headless
         } else {
-            Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander
+            Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -Headless
         }
     }
     # Install-CmreDynamicObserver 必须始终调用：
@@ -2112,7 +1576,7 @@ try {
     if ($EnableReborn -and $RebornCommander -ne "") {
         Set-RebornCommander -Commander $RebornCommander -Difficulty $RebornDifficulty -Speed $RebornSpeed -UnlockAllMaps
     }
-    if ($ShowSelectionUI) {
+    if ($ShowSelectionUI -and -not $commanderSelectionDisabled) {
         # 删除已有的 LaunchProfile 银行文件，确保 CMRE 不会自动应用已保存的配置，
         # 而是显示指挥官选择界面。
         $bankPath = "C:\Users\22448\Documents\StarCraft II\Banks\CMCoopLaunchProfile.SC2Bank"
@@ -2124,6 +1588,10 @@ try {
         Write-CmreLaunchProfile
     }
     if ($NoLaunch) { Write-Host "CMRE Alenger composition staged: $liveMap"; exit 0 }
+    if ($MapCopySuffix -ne "" -and $ListenPort -le 0) {
+        throw "-MapCopySuffix is for staging/API isolation only in this launcher. Direct SC2 map launch must use Maps\\$MapName so GameLogs emits the Alerts/ScriptError load signal; omit -MapCopySuffix for WebUI/player launch."
+    }
+    Reset-CmreRuntimeListenerBank
     $switcher = Join-Path $Sc2Root "Support64\SC2Switcher_x64.exe"
     if ($ListenPort -gt 0) {
         # API 模式：用 SC2Switcher -listen <host> -port <port> 启动 SC2。
@@ -2163,6 +1631,7 @@ try {
             Write-Host "Working directory: $Sc2Root"
             Write-Host "Live map staged at: $liveMap (client loads it via CreateGame + map_data)"
         }
+        $launchStartedAt = Get-Date
         Start-Process -FilePath $switcher -ArgumentList $argList -WorkingDirectory $Sc2Root
         # API 模式下轮询 TCP 端口，直到 SC2 API 监听就绪（最多等 120s）。
         Write-Host "SC2 API mode: polling TCP 127.0.0.1:$ListenPort until listening (max 120s)..."
@@ -2229,7 +1698,7 @@ try {
         if ($null -ne $latestDir) {
             $deadline2 = (Get-Date).AddSeconds(60)
             while ((Get-Date) -lt $deadline2) {
-                $scriptErr = Get-ChildItem -LiteralPath $latestDir.FullName -Filter "ScriptError*.txt" -ErrorAction SilentlyContinue
+                $scriptErr = Get-ChildItem -LiteralPath $latestDir.FullName -Filter "*ScriptError*.txt" -ErrorAction SilentlyContinue
                 if ($null -ne $scriptErr -and $scriptErr.Count -gt 0) {
                     Write-Host "SC2 API mode: ScriptError detected, map load likely failed: $($scriptErr[0].FullName)"
                     break
@@ -2246,15 +1715,18 @@ try {
             }
         }
         Write-Host "SC2 API mode: ready, client can connect with CreateGame + JoinGame"
+        Assert-CmreNoNewScriptErrors -Since $launchStartedAt
     } else {
-        # 普通模式：地图路径作为位置参数传给 Switcher，SC2 启动后自动加载地图
-        $args = @("`"$liveMap`"")
-        Start-Process -FilePath $switcher -ArgumentList $args -WorkingDirectory (Split-Path -Parent $switcher)
-        # StartupGraceSeconds=120: SC2Switcher 启动 SC2_x64 需要 1-3 分钟（patch 检查、auth、模块加载）。
-        # 默认 0 会在 SC2 未启动 10 秒后误判 crash。之前 08:14 测试 SC2 启动快（10 秒内）所以通过，
-        # 但 Battle.net auth 慢或 patch 检查时会超过 10 秒导致误判。
-        $exitCode = Wait-GameReady -ScriptsRoot (Join-Path $LegacyRoot "scripts") -StartupGraceSeconds 120
-        if ($exitCode -ne 0) { throw "SC2 readiness check failed with exit code $exitCode" }
+        # 普通/WebUI 模式：沿用已验证的 CMRE baseline，地图路径作为 Switcher 位置参数。
+        # 是否真正加载地图由本次 GameLogs 新增 *Alert*.txt / *ScriptError*.txt 判定。
+        $argList = "`"$liveMap`""
+        Write-Host "SC2 direct-map mode: launching SC2Switcher_x64.exe $argList"
+        $launchStartedAt = Get-Date
+        Start-Process -FilePath $switcher -ArgumentList $argList -WorkingDirectory (Split-Path -Parent $switcher)
+        Wait-CmreGameLogMapLoadSignal -Since $launchStartedAt -TimeoutSeconds 180 | Out-Null
+        Assert-CmreNoNewScriptErrors -Since $launchStartedAt
+        Wait-CmreRuntimeListener -TimeoutSeconds 45
+        Assert-CmreNoNewScriptErrors -Since $launchStartedAt
     }
 
     # === 黑屏检测（基于心跳 + 世界覆盖层状态）===

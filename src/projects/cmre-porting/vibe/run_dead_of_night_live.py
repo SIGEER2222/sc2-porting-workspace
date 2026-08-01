@@ -61,7 +61,12 @@ except Exception:
 # 复用 DefendBasePolicy（从 defend_policy.py 正式导入，非 exec hack）
 # defend_policy.py 只依赖 dataclass/math/typing，不依赖 simulator_session，
 # 因此真机 runner 可直接 import 而不会触发模拟器依赖链。
-from .defend_policy import DefendAction, DefendBasePolicy
+try:
+    from .defend_policy import DefendAction, DefendBasePolicy
+except ImportError:
+    # Support the documented direct-script invocation as well as package imports.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from defend_policy import DefendAction, DefendBasePolicy  # type: ignore
 
 # 默认地图（已验证可加载，3MB 打包版）
 DEFAULT_MAP = r"E:\SC2\SC2new\StarCraft II\Maps\亡者之夜_p0_default_packed.SC2Map"
@@ -530,7 +535,21 @@ async def run_live(
         # 3. CreateGame（realtime=False 避免异步通知干扰）
         if verbose:
             print(f"[3] CreateGame: {os.path.basename(map_path)}")
-        local_map = sc_pb.LocalMap(map_path=map_path.replace('\\', '/'))
+        map_file = Path(map_path)
+        if not map_file.is_file():
+            raise FileNotFoundError(
+                f"Live runtime requires a packed .SC2Map file: {map_file}"
+            )
+        map_data = map_file.read_bytes()
+        if not map_data:
+            raise ValueError(f"Packed .SC2Map is empty: {map_file}")
+        # Embed small packed artifacts so SC2 cannot resolve a stale map by
+        # name. Large cooperative maps exceed the SC2 API/WebSocket payload
+        # budget, so keep the exact packed file path for those runs.
+        if len(map_data) <= 32 * 1024 * 1024:
+            local_map = sc_pb.LocalMap(map_data=map_data)
+        else:
+            local_map = sc_pb.LocalMap(map_path=map_file.resolve().as_posix())
         req = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
             local_map=local_map,
             player_setup=[

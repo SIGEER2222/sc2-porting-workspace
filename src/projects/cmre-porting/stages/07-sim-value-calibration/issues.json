@@ -58,27 +58,32 @@
     {
       "id": "SIM-CAP-GAP-006",
       "severity": "medium",
-      "status": "open",
+      "status": "resolved-fixed",
       "title": "m3 Catalog 中 Overlord 未标记为飞行单位",
-      "summary": "m3_catalog() 中 Overlord 仍是地面移动类型；m7_catalog() 会在组装时将其修正为 FLYING，因此当前 m7 主路径正确，但直接消费 m3 Catalog 时仍可能被地面武器错误选中。",
+      "summary": "m3_catalog() 中 Overlord 已下沉为源定义飞行单位；m7_catalog() 不再需要通过 flying_unit_ids 对 Overlord 做组装层补丁。",
       "evidence": [
-        "reference/sc2-ally-bot/src/sc2_simulator/catalog/m3_units.py (static: Overlord 原始定义未设置 is_flying/movement_type)",
-        "reference/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py (static: m7_catalog flying_unit_ids 包含 Overlord)",
-        "uv run python catalog probe (runtime: m3=False/GROUND, m7=True/FLYING, 2026-07-31)"
+        "reference/sc2-ally-bot/src/sc2_simulator/catalog/m3_units.py (static: Overlord is_flying=True, movement_type=FLYING, Armored/Massive attributes)",
+        "reference/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py (static: Overlord removed from m7 flying_unit_ids patch list)",
+        "python catalog probe (runtime: m3=True/FLYING, m7=True/FLYING, 2026-07-31T20:55+08:00)",
+        "python -m pytest tests/sc2_simulator/test_m3_races.py::TestZergSupply::test_overlord_is_flying_in_source_catalog -q (runtime: PASS)"
       ],
-      "resolution": "在后续 Catalog 统一化阶段把飞行属性下沉到单位原始定义，删除 m7 组装层补丁；同时保留 m3/m7 回归测试。"
+      "resolution": "Stage 09 fixed：飞行属性下沉到 m3 源 Catalog，并保留 m3/m7 probe 与 m3 回归测试。",
+      "fixed_at": "2026-07-31T20:55:00+08:00"
     },
     {
       "id": "SIM-CAP-GAP-007",
       "severity": "medium",
-      "status": "open",
+      "status": "resolved-fixed",
       "title": "常规 splash 复用主目标伤害 breakdown",
-      "summary": "即时与弹体 splash 仍复用主目标的 armor/behavior 计算结果，次要目标没有按自身护甲和行为重新结算；Mutalisk bounce 已进入独立伤害路径。",
+      "summary": "即时与弹体 splash 现在对每个次要目标重新计算 armor/attributes/behaviors，并在 damage payload 标注 splash_target_recalc。",
       "evidence": [
-        "reference/sc2-ally-bot/src/sc2_simulator/systems/combat.py (static: _apply_splash_instant 复制主目标 breakdown)",
-        "reference/sc2-ally-bot/src/sc2_simulator/systems/projectile.py (static: projectile splash 复用主目标 damage_breakdown)"
+        "reference/sc2-ally-bot/src/sc2_simulator/systems/combat.py (static: _compute_splash_damage_breakdown + instant splash uses target-specific breakdown)",
+        "reference/sc2-ally-bot/src/sc2_simulator/systems/projectile.py (static: projectile splash resolves WeaponType and recomputes target-specific breakdown)",
+        "python splash probe (runtime: ArmoredDummy bonus_raw=0 armor_raw=1024 final_raw=7168 splash_target_recalc=target_specific)",
+        "python -m pytest tests/sc2_simulator/test_m1_combat.py::TestSplash::test_splash_recomputes_damage_for_secondary_target_armor -q (runtime: PASS)"
       ],
-      "resolution": "后续把伤害管线拆成命中上下文与逐目标结算，对每个 splash 目标重新计算 armor/behavior；增加 Guardian Shield 混合编队回归。"
+      "resolution": "Stage 09 fixed：splash 次目标不再复用主目标 breakdown；已有全量 sc2_simulator 回归 448/448 PASS。",
+      "fixed_at": "2026-07-31T20:55:00+08:00"
     }
   ]
 }

@@ -84,6 +84,30 @@ class EvidenceBundler:
         ("test-kernel", "tests/test_kernel.py"),
     ]
 
+    # Root-level artifacts from a stage output directory. Stage 13 uses this path
+    # so the bundle can include launcher/assertion/ScriptError evidence instead
+    # of only collecting generic artifacts/galaxy-vibe/run-* files.
+    ROOT_ARTIFACTS = [
+        ("runtime-summary", "runtime-summary.json", "runtime"),
+        ("launcher-exit", "launcher-exit.json", "runtime"),
+        ("launcher-stdout", "launcher-stdout.txt", "runtime"),
+        ("launcher-stderr", "launcher-stderr.txt", "runtime"),
+        ("assert-results", "assert-results.json", "runtime"),
+        ("script-error-verdict", "script-error-verdict.json", "runtime"),
+        ("script-error-verdict-stage13", "script-error-verdict-stage13.json", "runtime"),
+        ("vibe-verdict", "vibe-verdict.json", "runtime"),
+        ("visual-verdict", "visual-verdict.json", "visual"),
+        ("pack-sc2map-exit", "pack-sc2map-exit.json", "static"),
+        ("pack-sc2map-stdout", "pack-sc2map-stdout.txt", "static"),
+        ("pack-sc2map-stderr", "pack-sc2map-stderr.txt", "static"),
+        ("stage12-manifest", "stage12-manifest.json", "static"),
+        ("stage12-summary", "stage12-summary.json", "static"),
+        ("stage12-task-live", "stage12-task.live.json", "static"),
+        ("stage12-runtime-recipe", "stage12-runtime-recipe.json", "static"),
+        ("stage12-scenario-vtest", "stage12-scenario.vtest", "static"),
+        ("runtime-scenario-vtest", "runtime-scenario.vtest", "runtime"),
+    ]
+
     def __init__(
         self,
         run_id: str,
@@ -107,14 +131,18 @@ class EvidenceBundler:
             src = GALAXY_VIBE_ROOT / rel
             self._collect_file(items, "static", name, src)
 
-        # 2. runtime 证据（artifacts 下的 run-* 目录、bank、session state）
+        # 2. stage/root 证据（Stage 13 等阶段目录的顶层报告）
+        for name, rel, category in self.ROOT_ARTIFACTS:
+            self._collect_file(items, category, name, self.artifacts_dir / rel)
+
+        # 3. runtime 证据（artifacts 下的 run-* 目录、bank、session state）
         run_dir = self.artifacts_dir / f"run-{self.run_id}"
         if run_dir.exists():
             for f in run_dir.glob("**/*"):
                 if f.is_file():
                     self._collect_file(items, "runtime", f"run/{f.relative_to(run_dir)}", f)
 
-        # 3. ScriptError 差异（来自 GameLogs）
+        # 4. ScriptError 差异（来自 GameLogs）
         if self.gamelogs_dir.exists():
             for f in self.gamelogs_dir.glob("ScriptError.*.txt"):
                 # 仅收集最近 24h 内的
@@ -122,7 +150,7 @@ class EvidenceBundler:
                 if time.time() - mtime < 86400:
                     self._collect_file(items, "runtime", f"gamelogs/{f.name}", f)
 
-        # 4. visual 证据
+        # 5. visual 证据
         visual_dir = self.artifacts_dir / "visual"
         if visual_dir.exists():
             for f in visual_dir.glob("*.png"):
@@ -131,7 +159,7 @@ class EvidenceBundler:
             if manifest.exists():
                 self._collect_file(items, "visual", "visual/manifest.json", manifest)
 
-        # 5. inference 证据（soak / perf / cleanup 报告）
+        # 6. inference 证据（soak / perf / cleanup 报告）
         for name in ("soak-report.json", "performance-report.json", "cleanup-report.json", "transport-verdict.json"):
             p = self.artifacts_dir / name
             if p.exists():
@@ -139,8 +167,16 @@ class EvidenceBundler:
 
         # 阶段状态
         phase_status = phase_status or {}
-        overall = "passed" if all(v == "passed" for v in phase_status.values() if isinstance(v, str)) else "unknown"
-        if not phase_status:
+        values = [v for v in phase_status.values() if isinstance(v, str)]
+        if not values:
+            overall = "unknown"
+        elif any(v in ("fail", "failed") for v in values):
+            overall = "failed"
+        elif all(v == "passed" for v in values):
+            overall = "passed"
+        elif any(v == "carried-forward" for v in values):
+            overall = "carried-forward"
+        else:
             overall = "unknown"
 
         bundle = EvidenceBundle(
@@ -234,6 +270,7 @@ def main() -> int:
     parser.add_argument("--artifacts-dir", default=None, help="runtime/visual/inference 证据根目录")
     parser.add_argument("--gamelogs-dir", default=None, help="SC2 GameLogs 目录（ScriptError 差异）")
     parser.add_argument("--phase-status", default=None, help="JSON 字符串：阶段状态映射")
+    parser.add_argument("--phase-status-file", default=None, help="UTF-8 JSON 文件：阶段状态映射")
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir) if args.out_dir else (REPO_ROOT / "artifacts" / "galaxy-vibe" / "bundles")
@@ -241,7 +278,14 @@ def main() -> int:
     gamelogs_dir = Path(args.gamelogs_dir) if args.gamelogs_dir else None
 
     phase_status = {}
-    if args.phase_status:
+    if args.phase_status_file:
+        try:
+            phase_status = json.loads(
+                Path(args.phase_status_file).read_text(encoding="utf-8-sig")
+            )
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"警告：--phase-status-file JSON 解析失败: {e}", file=sys.stderr)
+    elif args.phase_status:
         try:
             phase_status = json.loads(args.phase_status)
         except json.JSONDecodeError as e:

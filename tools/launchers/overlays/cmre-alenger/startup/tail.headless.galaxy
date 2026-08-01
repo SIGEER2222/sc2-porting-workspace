@@ -1,0 +1,13 @@
+    // CMRE_ON_DEMAND_HEADLESS_STARTUP
+    // The launcher has already supplied the commander profile. Never open the
+    // commander-selection screen for the staged runtime map.
+    GameSetMissionTimePaused(false);
+    AITimePause(false);
+    UnitPauseAll(false);
+    libCOOC_gf_ShowHideWorldCover(false, 0.0, 1);
+    if ((PlayerType(14) == c_playerTypeUser)) {
+        libCOOC_gf_ShowHideWorldCover(false, 0.0, 14);
+    }
+    libNtve_gf_HideGameUI(true, PlayerGroupAll());
+    libCOOC_gf_CC_DevStartupFinish();
+    return ;

@@ -39,7 +39,8 @@
     },
     {
       "id": "SIM-CAP-GAP-002",
-      "status": "open",
+      "status": "resolved-fixed-later",
+      "resolved_by": "06-sim-cap-completion",
       "summary": "sc2_simulator air combat is not wired: _is_air always returns False (combat.py:41-43) and weapon_air is defined but never queried. All anti-air weapons (Viking/Phoenix/Mutalisk/Corruptor/MissileTurret/SporeCrawler) effectively cannot fire. This is a hidden Gate 5 gap only visible via static reading. Tracked as a known approximate fidelity label in the P2 catalog bridge; air-only scenarios are out of scope for the current consumer suite.",
       "evidence": [
         "src/projects/cmre-porting/stages/05-vibe-framework/evidence/p0-sc2-simulator-capability-matrix-2026-07-30.md (section 1, G5 row)",
@@ -47,11 +48,12 @@
         "src/projects/cmre-porting/vibe/catalog_bridge.py (per-unit fidelity label records this as approximate)",
         "src/projects/cmre-porting/vibe/gate_verification.py (G5_air_unsupported_known: dynamic probe spawns Viking vs Viking for 200 loops, asserts 0 damage events — confirms weapon_air cannot fire. Runtime evidence, not just static field check.)"
       ],
-      "nextAction": "Real fix requires a sc2_simulator writeScope extension (not granted this stage). Air-only scenarios remain out of scope until then. The gap is now dynamically verified (not just statically inferred) so any future fix that wires _is_air will flip the dynamic probe and surface immediately."
+      "nextAction": "Closed later by Stage 06 at the engine layer. See src/projects/cmre-porting/stages/06-sim-cap-completion/result.json: G5_air_combat_wired PASS and SIM-CAP-GAP-002 resolved-fixed."
     },
     {
       "id": "SIM-CAP-GAP-003",
-      "status": "open",
+      "status": "resolved-fixed-later",
+      "resolved_by": "06-sim-cap-completion",
       "summary": "sc2_simulator behavior multipliers are not wired into rules: get_speed_multiplier / get_attack_speed_multiplier exist but movement.py and combat.py do not call them. Stimpack speed-up and Fungal root appear implemented but are effectively no-ops. Also armor_add/damage_add behavior fields are not applied. This is a 'false-complete' trap requiring dynamic verification. Tracked as a known approximate fidelity label in the P2 catalog bridge; Stimpack/Fungal dynamic verification deferred.",
       "evidence": [
         "src/projects/cmre-porting/stages/05-vibe-framework/evidence/p0-sc2-simulator-capability-matrix-2026-07-30.md (section 1, G6 row; section 4 finding 3)",
@@ -60,7 +62,7 @@
         "tools/sc2-ally-bot/src/sc2_simulator/systems/combat.py (does not call attack-speed multiplier)",
         "src/projects/cmre-porting/vibe/catalog_bridge.py (per-unit fidelity label records this as approximate)"
       ],
-      "nextAction": "Real fix requires a sc2_simulator writeScope extension. Stimpack/Fungal dynamic verification deferred until then."
+      "nextAction": "Closed later by Stage 06 at the engine layer. See src/projects/cmre-porting/stages/06-sim-cap-completion/result.json: G6_speed_mult/G6_atkspd_mult/G6_armor_add/G6_damage_add PASS and SIM-CAP-GAP-003 resolved-fixed."
     },
     {
       "id": "SIM-CAP-GAP-004",

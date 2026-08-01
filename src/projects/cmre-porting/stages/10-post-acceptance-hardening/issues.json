@@ -1,0 +1,24 @@
+{
+  "stage_id": "10-post-acceptance-hardening",
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "HARDEN-ISSUE-LEDGER-001",
+      "severity": "low",
+      "status": "resolved",
+      "title": "历史阶段 issue 状态与后续修复证据不一致",
+      "detail": "Stage 05 仍将 SIM-CAP-GAP-002/003 标为 open，Stage 06 仍将 SIM-CAP-GAP-006/007 标为 open；实际后续阶段已经修复。",
+      "evidence_type": "static",
+      "resolution": "Stage 05 的 SIM-CAP-GAP-002/003 已对齐为 resolved-fixed-later by Stage 06；Stage 06 的 SIM-CAP-GAP-006/007 已对齐为 resolved-fixed-later by Stage 09。"
+    },
+    {
+      "id": "HARDEN-CATALOG-STATIC-001",
+      "severity": "low",
+      "status": "resolved",
+      "title": "catalog 缺少 UpgradeType.effects 闭包和覆盖率静态报告",
+      "detail": "Stage 08 已记录 CATALOG-UPGRADE-EFFECTS-001 与 CATALOG-COVERAGE-MAP-001；本阶段生成项目侧 artifacts，不修改 simulator 行为。",
+      "evidence_type": "static",
+      "resolution": "已生成 artifacts/projects/cmre-porting/stage10-post-acceptance-hardening/upgrade-effects-closure.json 和 catalog-coverage-report.json；Stage 08 catalog issue 已更新为 resolved-static-report。"
+    }
+  ]
+}

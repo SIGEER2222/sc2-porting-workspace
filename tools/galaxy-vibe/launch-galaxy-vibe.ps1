@@ -140,10 +140,10 @@ if (-not $opened) {
 $markerDir = Join-Path $env:USERPROFILE "Documents\StarCraft II"
 if (-not (Test-Path $markerDir)) { New-Item -ItemType Directory -Path $markerDir -Force | Out-Null }
 $markerPath = Join-Path $markerDir "galaxy-vibe-launch.json"
-$epoch = [int][double]::Parse((Get-Date -UFormat %s))
+$epoch = [int][DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 @{
     launched_at      = $epoch
-    launched_at_iso  = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+    launched_at_iso  = ([DateTimeOffset]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"))
     port             = $Port
     map              = $Map
     mod              = $ModPath
@@ -152,8 +152,8 @@ Write-Host "      Wrote launch marker -> $markerPath (launched_at=$epoch)"
 
 if ($Verify) {
     Write-Host "[3/4] Running scenario asserts (assert-file: $Verify) ..."
-    $repl = Join-Path $repo "tools/galaxy-vibe/galaxy_repl.py"
-    & $Python $repl --port $Port --assert-file $Verify
+    $replScript = Join-Path $repo "tools/galaxy-vibe/galaxy_repl.py"
+    & $Python $replScript --port $Port --map $Map --assert-file $Verify
     $assertRc = $LASTEXITCODE
     Write-Host "      assert exit code=$assertRc"
     Write-Host "[4/4] ScriptError gate + (optional P3 visual) + summarize -> vibe-verdict.json"
@@ -174,6 +174,14 @@ if ($Verify) {
     $summ = Join-Path $repo "tools/galaxy-vibe/summarize_verdict.py"
     & $Python $summ
     $finalRc = $LASTEXITCODE
+    if ($assertRc -ne 0 -and $finalRc -eq 0) {
+        Write-Host "      overriding final verdict: assert runner failed before/while writing assertions" -ForegroundColor Yellow
+        $finalRc = $assertRc
+    }
+    if ($seRc -ne 0 -and $finalRc -eq 0) {
+        Write-Host "      overriding final verdict: ScriptError gate failed" -ForegroundColor Yellow
+        $finalRc = $seRc
+    }
     Write-Host "VERDICT exit code=$finalRc (assert_rc=$assertRc, scripterror_rc=$seRc)"
     exit $finalRc
 }
@@ -187,8 +195,8 @@ if ($AutoProbe) {
 
 if ($Repl) {
     Write-Host "[3/4] Launching P1 Vibe REPL ..."
-    $repl = Join-Path $repo "tools/galaxy-vibe/galaxy_repl.py"
-    & $Python $repl --port $Port
+    $replScript = Join-Path $repo "tools/galaxy-vibe/galaxy_repl.py"
+    & $Python $replScript --port $Port --map $Map
     Write-Host "[4/4] REPL exited."
     exit $LASTEXITCODE
 }

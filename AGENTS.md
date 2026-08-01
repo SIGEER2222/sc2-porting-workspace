@@ -8,8 +8,8 @@ explicitly grants a narrow write scope.
 
 ## Required workflow
 
-1. Read `src/config/workspace.json` and the active project's `project.json`.
-2. Read the current stage `plan.md` and `log.md`.
+1. Read `src/config/workspace.json`, resolve the active project, then use its `project.json.currentStage`.
+2. Read that stage's `plan.md` and `log.md`.
 3. Select the required project-local Skills.
 4. Run static discovery before proposing dependency or adapter changes.
 5. Make only the files listed in `writeScope`.
@@ -36,14 +36,11 @@ explicitly grants a narrow write scope.
 ## SC2 launch rules
 
 - **禁止直接启动 `SC2_x64.exe`**：必须通过 `tools/launchers/` 下的 launcher 脚本启动 SC2。
-  - 原因：直接启动会跳过 mod 同步、test lock、地图同步、ready 信号监控、ScriptError 复核等保障流程，导致无法判断游戏是否真正进入可观测状态。
-  - 例外：仅当 launcher 脚本本身损坏或缺失时，可临时使用 `SC2Switcher_x64.exe`（注意：Switcher 会吞掉 `-listen` 参数，不能用于 API 模式）。
-  - 正确入口：
-    - CMRE 移植项目：`launch-cmre-alenger.ps1 -MapName <map> -Commander <cmdr> [-ListenPort <port>]`
-    - 7vs1 合作测试：`E:\Code\MyMod\SC2\合作指挥官-起义狂潮\scripts\launch-7vs1-coop-test.ps1`
-    - Live runtime probe（无 mod 依赖）：`run-live-runtime-probe.ps1 -Port <port> -Map <map>`
-- launcher 退出码 0 视为加载完成；退出后必须复核 `C:\Users\22448\Documents\StarCraft II\GameLogs` 是否有本次启动新增的 `ScriptError.*.txt`。
+- 常用入口：`launch-cmre-alenger.ps1 -MapName <map> -Commander <cmdr> [-ListenPort <port>]`；7vs1 使用其专用 launcher；无 mod probe 使用 `run-live-runtime-probe.ps1`。
+- launcher 只能负责编排、staging、配置和调用 overlay；不要在启动脚本内嵌大段 Galaxy/patch 代码。
+- launcher 退出码 0 只表示加载流程完成；还必须复核 GameLogs 本次新增的 `*ScriptError*.txt`，并取得 runtime listener 证据。
 - 禁止用固定时间盲等 SC2 启动；依赖 launcher 自带的 `Wait-GameReady` 信号检测。
+- 修改 `tools/launchers/` 或 `.galaxy` 后，`-NoLaunch` 不足以验收；必须实际启动游戏并确认 runtime listener/heartbeat。
 
 ## Evidence rules
 
@@ -75,3 +72,13 @@ A stage is complete only when:
 - unresolved issues are recorded;
 - `log.md` contains evidence and changed paths;
 - the next stage has a concrete `plan.md`.
+
+## Session closeout
+
+At the end of every agent session that changed repository files:
+
+- Run `git fetch` before finalizing, then `git pull --rebase` after local commits are ready, and `git push` before ending the session.
+- Split changes into coherent, categorized commits instead of one mixed checkpoint.
+- Use the Lore Commit Protocol for every commit message.
+- Do not leave verified, in-scope work only in the working tree; either commit it, or document why it is intentionally left uncommitted.
+- Do not commit external read-only sources, local caches, or bulky generated artifacts unless the active stage explicitly requires them.

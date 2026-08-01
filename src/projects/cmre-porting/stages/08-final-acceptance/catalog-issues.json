@@ -15,9 +15,9 @@
         "data_ref": "reference/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py:1290-1303",
         "model_ref": "reference/sc2-ally-bot/src/sc2_simulator/catalog/model.py:119-120",
         "logic_ref": "reference/sc2-ally-bot/src/sc2_simulator/systems/combat.py:476-531",
-        "test_evidence": "pytest tests/sc2_simulator → 446/446 PASSED（启用后无回归）"
+        "test_evidence": "pytest tests/sc2_simulator → Stage 08: 446/446 PASSED；Stage 09 follow-up regression: 448/448 PASSED"
       },
-      "resolution": "2026-07-31 启用 bounce_damage=(3, 1) 并更新注释指向 model.py:120 + combat.py:476。回归测试 446/446 PASS。",
+      "resolution": "2026-07-31 启用 bounce_damage=(3, 1) 并更新注释指向 model.py:120 + combat.py:476。Stage 08 回归测试 446/446 PASS；Stage 09 follow-up simulator 回归 448/448 PASS。",
       "ac_mapping": "AC2-3"
     },
     {
@@ -48,38 +48,43 @@
     {
       "id": "CATALOG-UPGRADE-EFFECTS-001",
       "severity": "low",
-      "status": "open",
+      "status": "resolved-static-report",
       "title": "升级 effects 字段无静态引用闭包校验",
-      "detail": "UpgradeType.effects 是 dict[str, int]，key 格式为 '<UnitId>.<field>.<subfield>'（如 'Hydralisk.weapon_ground.damage'）。当前无静态校验工具验证：(1) UnitId 是否在 m1-m7 合并链中存在；(2) field/subfield 路径是否对应该 UnitType 的有效字段；(3) 是否有 effects 引用了已删除/重命名的单位。CATALOG-ROACH-REF-001 即为此类潜在问题的实例（运行时可解析但静态不可见）。",
+      "detail": "UpgradeType.effects 是 dict[str, int]，key 格式为 '<UnitId>.<field>.<subfield>'（如 'Hydralisk.weapon_ground.damage'）。Stage 10 已对 merged m7 catalog 生成静态闭包报告，验证 UnitId、UnitType 字段、WeaponType 子字段均可解析。",
       "evidence": {
         "effects_field_ref": "reference/sc2-ally-bot/src/sc2_simulator/catalog/model.py (UpgradeType.effects)",
-        "sample_upgrade": "m7_units.py:1756-1772 ZergMissileAttacksLevel1 / ZergGroundArmorLevel1 / ZergFlyerAttacksLevel1 等"
+        "sample_upgrade": "m7_units.py:1756-1772 ZergMissileAttacksLevel1 / ZergGroundArmorLevel1 / ZergFlyerAttacksLevel1 等",
+        "stage10_report": "artifacts/projects/cmre-porting/stage10-post-acceptance-hardening/upgrade-effects-closure.json",
+        "stage10_result": "17 upgrades scanned; 41 effect keys scanned; 41 valid; 0 invalid; verdict PASS"
       },
-      "resolution": "未修复。需开发静态引用闭包校验工具（扫描所有 UpgradeType.effects key，比对合并后的 UnitType 字段路径）。属工具链改进，非数据缺陷。"
+      "resolution": "Stage 10 已生成当前 merged m7 catalog 的静态闭包报告并通过。后续若需要持续防漂移，可把同一校验接入 CI；当前 catalog snapshot 无断裂引用。"
     },
     {
       "id": "CATALOG-COVERAGE-MAP-001",
       "severity": "low",
-      "status": "open",
+      "status": "resolved-static-report",
       "title": "catalog 单位覆盖率无自动统计",
-      "detail": "catalog 目录有 coverage.py 但无定期运行的覆盖率报告。无法回答'SC2 全部 N 项单位中 catalog 覆盖了多少'。m1-m7 合并后的单位总数、按种族分布、按建筑/单位/英雄分类均无自动统计产出。",
+      "detail": "catalog 目录有 coverage.py。Stage 10 已生成当前 merged m7 catalog 覆盖率报告，记录单位总数、按种族分布、建筑/飞行/工人/武器分类，以及 m3→m7 Zerg gap 列表。",
       "evidence": {
-        "coverage_tool_ref": "reference/sc2-ally-bot/src/sc2_simulator/catalog/coverage.py"
+        "coverage_tool_ref": "reference/sc2-ally-bot/src/sc2_simulator/catalog/coverage.py",
+        "stage10_report": "artifacts/projects/cmre-porting/stage10-post-acceptance-hardening/catalog-coverage-report.json",
+        "stage10_result": "m7_unit_count=103; race_counts={neutral:2, protoss:33, terran:35, zerg:33}; coverage_entries=696; levels={implemented:621, not_applicable:65, partial:9, unsupported:1}"
       },
-      "resolution": "未修复。建议后续接入 coverage.py 到 CI 或 stage 验证流程，产出覆盖率报告（类似 stage 08 evidence/static/catalog-graph.json 的扩展）。"
+      "resolution": "Stage 10 已产出当前 catalog 覆盖率报告。后续 CI 定期化仍可作为单独 workflow 改进，但当前验收侧已具备可审计覆盖率快照。"
     }
   ],
   "summary": {
     "total": 5,
     "by_status": {
       "resolved": 1,
+      "resolved-static-report": 2,
       "wontfix": 1,
-      "open": 3
+      "open": 1
     },
     "by_severity": {
       "medium": 1,
       "low": 4
     },
-    "key_achievement": "AC2-3（弹跳伤害模型完整）通过 CATALOG-BOUNCE-001 修复达成：启用 m7_units.py:1301 的 bounce_damage=(3, 1)，回归测试 446/446 PASS。"
+    "key_achievement": "AC2-3（弹跳伤害模型完整）通过 CATALOG-BOUNCE-001 修复达成：启用 m7_units.py:1301 的 bounce_damage=(3, 1)，Stage 09 follow-up 回归测试 448/448 PASS。Stage 10 另补 UpgradeType.effects 闭包报告与 catalog 覆盖率报告；catalog 层仅剩 CATALOG-M3-ZERG-THIN-001 为 open。"
   }
 }

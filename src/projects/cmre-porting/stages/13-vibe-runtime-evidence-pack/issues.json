@@ -1,0 +1,70 @@
+{
+  "stage_id": "13-vibe-runtime-evidence-pack",
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "VIBE-RUNTIME-EVIDENCE-001",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Stage 12 live runtime contract 尚未转为 Stage 13 runtime evidence",
+      "detail": "Stage 12 生成的 task.live.json / runtime-recipe.json / scenario.vtest 已通过合规 launcher 转为真实 SC2 runtime evidence。",
+      "evidence_type": "runtime",
+      "resolution": "run-stage13-runtime-evidence.ps1 使用 packed ASCII SC2Map、CreateGame/JoinGame、runtime-scenario.vtest、assert-results.json、ScriptError gate 与 vibe-verdict.json 收口，最终 PASS。"
+    },
+    {
+      "id": "VIBE-RUNTIME-MAP-PACK-001",
+      "severity": "high",
+      "status": "resolved",
+      "title": "SC2 API CreateGame 不能消费解包目录形态的 .SC2Map",
+      "detail": "SC2 API 对 staged 解包目录返回 file doesn't exist；需要传入实际 packed MPQ .SC2Map。",
+      "evidence_type": "runtime+static",
+      "resolution": "Stage 13 harness 使用 tools/mpq/scripts/pack_stormlib.py + StormLib.dll 生成 artifacts/projects/cmre-porting/stage13-vibe-runtime-evidence-pack/runtime-map/DeadOfNight.packed.SC2Map。"
+    },
+    {
+      "id": "VIBE-RUNTIME-FRAME-ADVANCE-001",
+      "severity": "high",
+      "status": "resolved",
+      "title": "non-realtime SC2 API session 在 join_wait 期间卡帧",
+      "detail": "CreateGame realtime=false 时，墙钟 sleep 不会推进游戏帧，用户观察到画面完全不动。",
+      "evidence_type": "runtime",
+      "resolution": "galaxy_repl.py 在 JoinGame 后用 RequestStep 主动推进 15 秒初始化窗口；spawn/kill 后也执行 settle step。最终 launcher stdout 记录 Advancing 15.0s，assert 2/2 PASS。"
+    },
+    {
+      "id": "VIBE-RUNTIME-ASSERT-BASELINE-001",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Dead of Night live map baseline marine 干扰 exact-count smoke",
+      "detail": "Stage 12 scenario 假设玩家 1 初始没有 marine，但 live mission map 中可能已有 baseline marine。",
+      "evidence_type": "runtime",
+      "resolution": "Stage 13 派生 runtime-scenario.vtest，在 spawn 前 kill marine --player 1 做 live baseline normalization；REPL 支持 kill by unit type and --player。"
+    },
+    {
+      "id": "VIBE-RUNTIME-ENCODING-TIME-001",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "UTF-8 BOM / PowerShell epoch 影响 runtime evidence 解析",
+      "detail": "UTF-8 BOM 会让 .vtest 控制台打印崩溃；PowerShell Get-Date -UFormat %s 在本环境产生本地偏移 epoch，导致 ScriptError window 元数据不可信。",
+      "evidence_type": "static+runtime",
+      "resolution": "galaxy_repl.py 用 utf-8-sig 读取 .vtest；script_error_check.py 用 utf-8-sig 读取 marker；launcher 与 stage harness 改用 DateTimeOffset.UtcNow.ToUnixTimeSeconds()。最终 ScriptError 用 Stage13 started_at 重扫，count=0。"
+    },
+    {
+      "id": "VIBE-RUNTIME-PORT-FLAKE-001",
+      "severity": "low",
+      "status": "open-nonblocking",
+      "title": "连续 SC2 launch 中 5000 端口偶发未打开",
+      "detail": "一次后续重跑出现 SC2_x64 启动但 API port 5000 未打开；无新增 ScriptError，5001 端口重跑通过。",
+      "evidence_type": "runtime",
+      "nextAction": "Stage 14 可把 launcher port selection 做成自动 fallback / retry，并把 blocked-runtime-unavailable 与 PASS run 分离保存。"
+    },
+    {
+      "id": "AI-ALLY-STRATEGY-PLAN-001",
+      "severity": "medium",
+      "status": "carried-forward",
+      "title": "AI ally × Dead of Night 下一大里程碑计划已定义但不是当前 Stage 13 主线",
+      "detail": "ai-ally-dead-of-night-plan.md 仍保留为后续候选；用户最新目标回到 vibe workflow 主线，即 simulator / Galaxy parser / skill / runtime vibe 能力贯通。",
+      "evidence_type": "static",
+      "plan": "src/projects/cmre-porting/stages/13-vibe-runtime-evidence-pack/ai-ally-dead-of-night-plan.md",
+      "nextAction": "优先进入 14-vibe-operator-workflow；AI ally strategy 可在 vibe workflow 闭环稳定后作为应用型里程碑。"
+    }
+  ]
+}

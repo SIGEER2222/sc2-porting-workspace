@@ -167,6 +167,8 @@ $pyFiles = @(
     @("host\cleanup.py", "cleanup"),
     @("host\performance.py", "performance"),
     @("host\soak.py", "soak"),
+    @("workflow_status.py", "workflow-status"),
+    @("..\..\src\projects\cmre-porting\vibe\task_manifest.py", "vibe-task-manifest"),
     @("observer\state_observer.py", "state_observer"),
     @("observer\assertion_runner.py", "assertion_runner"),
     @("visual\capture.py", "capture"),
@@ -204,6 +206,8 @@ foreach ($f in $galaxyFiles) {
 Write-Host "`n[4/7] 必需文件清单" -ForegroundColor DarkCyan
 $requiredFiles = @(
     @("vibe.ps1", "vibe.ps1 统一入口"),
+    @("workflow_status.py", "workflow_status.py 工作流状态脚本"),
+    @("..\..\src\projects\cmre-porting\vibe\task_manifest.py", "task_manifest.py 统一 task manifest 生成器"),
     @("run-all-validation.ps1", "run-all-validation.ps1 验证脚本"),
     @("transport\run-transport-probes.ps1", "P0 传输探针脚本"),
     @("tests\test_kernel.py", "P1 单元测试"),

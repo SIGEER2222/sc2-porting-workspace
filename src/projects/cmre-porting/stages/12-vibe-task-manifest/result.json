@@ -1,0 +1,98 @@
+{
+  "stage_id": "12-vibe-task-manifest",
+  "schemaVersion": 1,
+  "status": "PASS",
+  "current_phase": "unified Vibe task manifest complete",
+  "opened_at": "2026-07-31T21:36:00+08:00",
+  "closed_at": "2026-07-31T21:53:00+08:00",
+  "direction": "turn static map extraction into shared simulator, SC2 stub, and live runtime task contracts",
+  "resolved_issues": {
+    "VIBE-MANIFEST-001": {
+      "status": "resolved",
+      "evidence_type": "static+simulator",
+      "summary": "Added task_manifest.py, generated unified manifest artifacts, integrated vibe.ps1 manifest, and passed simulator smoke."
+    }
+  },
+  "verification_results": {
+    "py_compile": {
+      "command": "python -m py_compile src/projects/cmre-porting/vibe/task_manifest.py",
+      "result": "PASS",
+      "evidence_type": "static"
+    },
+    "direct_manifest": {
+      "command": "python src/projects/cmre-porting/vibe/task_manifest.py --out-dir artifacts/projects/cmre-porting/stage12-vibe-task-manifest --manifest-id dead-of-night-vibe --run-simulator-smoke",
+      "result": "PASS; spawns=1339; regions=51; simulator smoke PASS",
+      "artifact": "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/manifest.json",
+      "evidence_type": "static+simulator"
+    },
+    "json_parse": {
+      "command": "ConvertFrom-Json over manifest/scenario/regions/tasks/runtime-recipe/summary/simulator-smoke-result",
+      "result": "PASS",
+      "evidence_type": "static"
+    },
+    "vibe_ps1_manifest": {
+      "command": "powershell -ExecutionPolicy Bypass -File tools/galaxy-vibe/vibe.ps1 manifest -RunId stage12-manifest",
+      "result": "PASS; manifest.json written; simulator smoke PASS",
+      "artifact": "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/manifest.json",
+      "evidence_type": "static+simulator"
+    },
+    "vibe_ps1_validate": {
+      "command": "powershell -ExecutionPolicy Bypass -File tools/galaxy-vibe/vibe.ps1 validate -RunId stage12-validate",
+      "result": "PASS; 52 total checks; 52 passed; 0 failed; 0 warnings",
+      "artifact": "artifacts/galaxy-vibe/static-validation-report.json",
+      "evidence_type": "static"
+    },
+    "workflow_status": {
+      "command": "python tools/galaxy-vibe/workflow_status.py --out artifacts/projects/cmre-porting/stage12-vibe-task-manifest/workflow-status-direct.json",
+      "result": "PASS command; overall=warn; lane_counts={pass:5,warn:1,fail:0}",
+      "artifact": "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/workflow-status-direct.json",
+      "evidence_type": "static"
+    },
+    "git_diff_check": {
+      "command": "git diff --check",
+      "result": "PASS; CRLF warnings only",
+      "evidence_type": "static"
+    }
+  },
+  "manifest_summary": {
+    "manifest_id": "dead-of-night-vibe",
+    "scenario_name": "亡者之夜",
+    "players": 6,
+    "spawns": 1339,
+    "regions": 51,
+    "mapped_units": 578,
+    "unsupported_units": 5,
+    "scenario_hash_sha256": "f9faffb74fe2398ce8e58940005c13433cea917cee6b24f69ad1c41d849212f7",
+    "simulator_smoke_verdict": "PASS"
+  },
+  "changed_paths": [
+    "src/projects/cmre-porting/project.json",
+    "src/projects/cmre-porting/vibe/task_manifest.py",
+    "tools/galaxy-vibe/vibe.ps1",
+    "tools/galaxy-vibe/run-all-validation.ps1",
+    "tools/galaxy-vibe/workflow_status.py",
+    "src/projects/cmre-porting/stages/12-vibe-task-manifest/plan.md",
+    "src/projects/cmre-porting/stages/12-vibe-task-manifest/issues.json",
+    "src/projects/cmre-porting/stages/12-vibe-task-manifest/log.md",
+    "src/projects/cmre-porting/stages/12-vibe-task-manifest/result.json",
+    "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/manifest.json",
+    "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/scenario.json",
+    "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/regions.json",
+    "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/task.simulator.json",
+    "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/task.sc2-stub.json",
+    "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/task.live.json",
+    "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/runtime-recipe.json",
+    "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/scenario.vtest",
+    "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/summary.json",
+    "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/simulator-smoke-result.json",
+    "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/workflow-status-direct.json"
+  ],
+  "open_followups": [
+    "VIBE-MANIFEST-RUNTIME-001: live runtime task and .vtest are generated but still runtime-pending until launcher + ScriptError validation.",
+    "VIBE-MANIFEST-STATIC-UNSUPPORTED-001: 5 unsupported source objects remain nonblocking in static extraction metadata.",
+    "VIBE-WORKFLOW-WARN-001: legacy sc2-editor-toolkit registered path remains warning-only in galaxy_parser lane.",
+    "AI-ALLY-LIVE-002 remains the live-SC2 smoke rerun item.",
+    "CATALOG-M3-ZERG-THIN-001 remains the simulator catalog source-layer improvement item."
+  ],
+  "note": "Stage 12 does not launch SC2. It generates executable live runtime contracts and validates the shared manifest path through static and simulator evidence."
+}

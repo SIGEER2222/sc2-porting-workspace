@@ -28,12 +28,14 @@ int    libVibeKernel_gv_rejectedCount = 0;
 // ---- 触发器句柄 ----
 trigger libVibeKernel_gt_ChatCommand = null;
 trigger libVibeKernel_gt_BankPoll = null;
-trigger libVibeKernel_gt_MapCommand = null;
+trigger libVibeKernel_gt_UnitWake = null;
+trigger libVibeKernel_gt_PollLoop = null;
 string libVibeKernel_gv_lastPolledRequestId = "";
 
 // ---- 诊断计数器 ----
 int libVibeKernel_gv_bankPollCount = 0;
 int libVibeKernel_gv_mapCommandCount = 0;
+bool libVibeKernel_gv_pollLoopRunning = false;
 
 // ---- Bank 名称 ----
 const string libVibeKernel_gv_BankName = "GalaxyVibe";
@@ -81,10 +83,11 @@ string libVibeKernel_gf_MakeResponse(string kind, string sessionId, string reque
 void   libVibeKernel_gf_WriteResponseToBank(string requestId, string responseJson);
 void   libVibeKernel_gf_EchoChat(string message);
 
-// ---- Chat / Bank 轮询 / MapCommand 入口 ----
+// ---- Chat / Bank 轮询 / UnitWake / PollLoop 入口 ----
 bool   libVibeKernel_gt_ChatCommand_Func(bool testConds, bool runActions);
 bool   libVibeKernel_gt_BankPoll_Func(bool testConds, bool runActions);
-bool   libVibeKernel_gt_MapCommand_Func(bool testConds, bool runActions);
+bool   libVibeKernel_gt_UnitWake_Func(bool testConds, bool runActions);
+bool   libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions);
 
 // ---- 主分发器 ----
 string libVibeKernel_gf_Dispatch(string requestJson);

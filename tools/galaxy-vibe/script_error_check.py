@@ -40,7 +40,7 @@ def load_launch_time(marker: Path) -> float:
     if not marker.exists():
         return 0.0
     try:
-        data = json.loads(marker.read_text(encoding="utf-8"))
+        data = json.loads(marker.read_text(encoding="utf-8-sig"))
         return float(data.get("launched_at", 0.0))
     except Exception:
         return 0.0

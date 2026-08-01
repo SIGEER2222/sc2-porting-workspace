@@ -1,0 +1,70 @@
+{
+  "stage_id": "09-sim-semantic-completion",
+  "schemaVersion": 1,
+  "status": "PASS",
+  "current_phase": "semantic gaps closed; simulator regression green",
+  "opened_at": "2026-07-31T20:55:00+08:00",
+  "closed_at": "2026-07-31T20:55:00+08:00",
+  "direction": "complete residual sc2_simulator semantic fidelity issues",
+  "resolved_issues": {
+    "SIM-CAP-GAP-006": {
+      "status": "resolved-fixed",
+      "evidence_type": "static+runtime",
+      "summary": "Overlord is now flying in m3 source catalog and remains flying in m7 without a dedicated m7 Overlord patch."
+    },
+    "SIM-CAP-GAP-007": {
+      "status": "resolved-fixed",
+      "evidence_type": "static+runtime",
+      "summary": "Splash secondary targets now recompute damage against their own armor/attributes/behaviors."
+    }
+  },
+  "verification_results": {
+    "targeted_tests": {
+      "command": "PYTHONPATH=src python -m pytest tests/sc2_simulator/test_m1_combat.py::TestSplash::test_splash_recomputes_damage_for_secondary_target_armor tests/sc2_simulator/test_m3_races.py::TestZergSupply::test_overlord_is_flying_in_source_catalog -q",
+      "result": "2 passed",
+      "evidence_type": "runtime"
+    },
+    "m1_m3_regression": {
+      "command": "PYTHONPATH=src python -m pytest tests/sc2_simulator/test_m1_combat.py tests/sc2_simulator/test_m3_races.py -q",
+      "result": "all passed",
+      "evidence_type": "runtime"
+    },
+    "full_simulator_regression": {
+      "command": "PYTHONPATH=src python -m pytest tests/sc2_simulator -q",
+      "result": "448 passed",
+      "evidence_type": "runtime"
+    },
+    "collection_count": {
+      "command": "PYTHONPATH=src python -m pytest tests/sc2_simulator --collect-only -q -o addopts=",
+      "result": "448 tests collected",
+      "evidence_type": "runtime"
+    },
+    "catalog_probe": {
+      "command": "PYTHONPATH=src python inline m3/m7 Overlord probe",
+      "result": "m3=True/FLYING; m7=True/FLYING",
+      "evidence_type": "runtime"
+    },
+    "splash_probe": {
+      "command": "PYTHONPATH=src python inline Hellion splash probe",
+      "result": "Armored secondary target: bonus_raw=0, armor_raw=1024, final_raw=7168, splash_target_recalc=target_specific",
+      "evidence_type": "runtime"
+    }
+  },
+  "changed_paths": [
+    "src/projects/cmre-porting/project.json",
+    "src/projects/cmre-porting/stages/07-sim-value-calibration/issues.json",
+    "src/projects/cmre-porting/stages/09-sim-semantic-completion/plan.md",
+    "src/projects/cmre-porting/stages/09-sim-semantic-completion/issues.json",
+    "src/projects/cmre-porting/stages/09-sim-semantic-completion/result.json",
+    "src/projects/cmre-porting/stages/09-sim-semantic-completion/log.md",
+    "reference/sc2-ally-bot/src/sc2_simulator/catalog/m3_units.py",
+    "reference/sc2-ally-bot/src/sc2_simulator/catalog/m7_units.py",
+    "reference/sc2-ally-bot/src/sc2_simulator/systems/combat.py",
+    "reference/sc2-ally-bot/src/sc2_simulator/systems/projectile.py",
+    "reference/sc2-ally-bot/tests/sc2_simulator/test_m1_combat.py",
+    "reference/sc2-ally-bot/tests/sc2_simulator/test_m3_races.py",
+    "src/projects/cmre-porting/stages/09-sim-semantic-completion/handoff.md"
+  ],
+  "handoff": "src/projects/cmre-porting/stages/09-sim-semantic-completion/handoff.md",
+  "note": "Stage 09 closes the two Stage 07 residual semantic gaps. The project remains on simulator-first direction; no real-SC2/Galaxy transport changes were made in this stage. Remaining work is documented in handoff.md and is non-blocking for the simulator mainline."
+}

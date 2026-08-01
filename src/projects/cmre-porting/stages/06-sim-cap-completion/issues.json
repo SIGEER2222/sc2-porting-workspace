@@ -32,7 +32,8 @@
     },
     {
       "id": "SIM-CAP-GAP-006",
-      "status": "open",
+      "status": "resolved-fixed-later",
+      "resolved_by": "09-sim-semantic-completion",
       "inherited_from": "06-sim-cap-completion (self-review finding)",
       "summary": "Overlord (m3_units.py:238) 是 SC2 空中单位但未标记 is_air=True。stage 06 修复了 SIM-CAP-GAP-002 空战接线，但 Overlord 定义在 m3_units.py 中，不在 stage 06 的 writeScope 内（writeScope 只含 model.py / m7_units.py / combat.py / movement.py）。影响：Overlord 会被地面武器攻击（应只能被对空武器攻击）。Overlord 无武器，不影响战斗输出，但影响被攻击判定。",
       "evidence": [
@@ -40,18 +41,19 @@
         "src/projects/cmre-porting/project.json:18-27 (static: writeScope 不含 m3_units.py)",
         "src/projects/cmre-porting/stages/06-sim-cap-completion/plan.md §2.1 (static: 遗留说明)"
       ],
-      "resolution": "待后续 stage 扩展 writeScope 到 m3_units.py 后修复。或重构 Overlord 定义到 m7_units.py（需评估 m3 兼容性）。"
+      "resolution": "Closed later by Stage 09: Overlord source definition in m3_units.py now sets is_flying=True and movement_type=MovementType.FLYING, and m7 no longer needs a dedicated Overlord flying patch. Verified by targeted regression and full tests/sc2_simulator 448/448 PASS."
     },
     {
       "id": "SIM-CAP-GAP-007",
-      "status": "open",
+      "status": "resolved-fixed-later",
+      "resolved_by": "09-sim-semantic-completion",
       "inherited_from": "06-sim-cap-completion (self-review finding)",
       "summary": "splash 伤害使用主目标 breakdown（含主目标的 armor_add），对次要目标不重新计算护甲加成。这是 M1 既有设计近似（splash 使用主目标 final_raw * falloff），stage 06 添加 armor_add/damage_add 后使得该近似更显著：主目标有 GuardianShield 时，splash 次要目标也会受到减伤，即使它们自己没有 GuardianShield。影响场景较少（splash + 行为加成交叠），不阻塞 stage 06 完成。",
       "evidence": [
         "tools/sc2-ally-bot/src/sc2_simulator/systems/combat.py:415-420 (static: _apply_splash_instant 使用主目标 breakdown)",
         "tools/sc2-ally-bot/src/sc2_simulator/systems/projectile.py:273,318 (static: 弹体 splash 同样使用主目标 breakdown)"
       ],
-      "resolution": "待后续 stage 重构 splash 结算：对每个次要目标用其自身护甲/行为重新计算 breakdown。需要 apply_damage_breakdown 接口重构。"
+      "resolution": "Closed later by Stage 09: instant and projectile splash now recompute target-specific breakdown for each secondary target using that target's armor/attributes/behaviors. Verified by Hellion splash regression and full tests/sc2_simulator 448/448 PASS."
     }
   ]
 }

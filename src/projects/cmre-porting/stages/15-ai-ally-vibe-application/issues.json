@@ -1,0 +1,46 @@
+{
+  "stage_id": "15-ai-ally-vibe-application",
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "CMRE-DEAD-OF-NIGHT-SELECTION-FREE-001",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Dead of Night can fall into commander selection startup",
+      "detail": "The staged map previously retained the CMRE CommanderSelectionScreen fallback. The map now uses the headless startup tail and the fallback is removed from staged LibCOOC.galaxy code.",
+      "evidence_type": "static+runtime",
+      "resolution": "Map-specific launcher policy rejects -ShowSelectionUI, removes the fallback during staging, scans the startup-bearing files, and was verified through loop 300 runtime frame advancement.",
+      "evidence": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-selection-free-final/runtime-summary-launcher-packed.json"
+    },
+    {
+      "id": "AI-ALLY-LIVE-STARTING-UNITS-001",
+      "severity": "high",
+      "status": "open",
+      "title": "Live map does not expose the configured Empire starting units",
+      "detail": "The runtime observation contained one ACHeroSpawnPlacement unit, zero minerals, and zero supply after the staged map reached loop 300. The bank flag alone is not treated as proof of UnitCreate success.",
+      "evidence_type": "runtime",
+      "evidence": "src/projects/cmre-porting/artifacts/live_replay_20260801_084514.jsonl",
+      "nextAction": "Instrument the project-owned adapter at the UnitCreate result/state boundary and determine whether map initialization is skipped, units are rejected, or a later cleanup removes them."
+    },
+    {
+      "id": "AI-ALLY-LIVE-ACTIONS-001",
+      "severity": "high",
+      "status": "open",
+      "title": "Live AI actions return NotSupported",
+      "detail": "The live runner dispatched 13 commands during the 300-loop smoke and SC2 returned sc2:NotSupported for all of them. This is not counted as an action success.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-selection-free-final/runtime-summary-launcher-packed.json",
+      "nextAction": "Compare raw action ability/unit ids with the loaded map interface and add one minimal supported action assertion before expanding the policy scenario."
+    },
+    {
+      "id": "AI-ALLY-LIVE-MAP-PACK-001",
+      "severity": "medium",
+      "status": "resolved-with-workaround",
+      "title": "SC2 API rejects an unpacked staged map directory",
+      "detail": "The direct directory CreateGame attempt failed. The same staged content packed through StormLib loaded successfully.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-selection-free-final/DeadOfNight.launcher.packed.SC2Map",
+      "nextAction": "Keep packed ASCII-path map generation as a required live runtime precondition."
+    }
+  ]
+}

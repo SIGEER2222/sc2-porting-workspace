@@ -776,10 +776,35 @@ bool libVibeKernel_gt_ChatCommand_Func(bool testConds, bool runActions) {
     return true;
 }
 
-// ---- MapCommand 入口 ----
-// SC2API RequestMapCommand(trigger_cmd="vibe") 触发。
-// Host 先把完整请求写入 Bank(request/<pending_id>)，这里只负责可靠唤醒并分发。
-bool libVibeKernel_gt_MapCommand_Func(bool testConds, bool runActions) {
+// ---- UnitWake 入口（API 模式主传输路径）----
+// SC2 API 模式下 TimePeriodic/ChatMessage 触发器不触发，但 UnitCreated 触发器正常工作。
+// Host 写入 pending_request_id 后，通过 SC2API RequestDebug(create_unit) 创建一个单位唤醒 Kernel。
+// 触发器检查 Bank pending，有新请求则调用 BankPoll_Func 处理。
+bool libVibeKernel_gt_UnitWake_Func(bool testConds, bool runActions) {
+    string pendingId;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+
+    // 诊断计数
+    libVibeKernel_gv_mapCommandCount += 1;
+    libVibeKernel_gf_WriteBankInt("diag", "unitwake_count", libVibeKernel_gv_mapCommandCount);
+
+    // 检查是否有 pending 请求
+    pendingId = libVibeKernel_gf_ReadBankKey("index", "pending_request_id");
+    if (pendingId == "") { return true; }
+    if (pendingId == libVibeKernel_gv_lastPolledRequestId) { return true; }
+
+    // 有新请求，调用 BankPoll 处理（testConds=false 让函数体执行）
+    libVibeKernel_gt_BankPoll_Func(false, true);
+    return true;
+}
+
+// ---- PollLoop 入口（Wait-based 轮询，API 模式主传输路径）----
+// SC2 API 模式下 TimePeriodic/ChatMessage/UnitCreated 事件触发器不触发，
+// 但 Wait 在触发器函数中可以正常工作（每次 Wait 让出控制权给游戏循环）。
+// 本触发器使用 while(true) + Wait(0.5) 实现持续轮询 Bank pending。
+// 启动方式：TimeElapsed 0.0 + TriggerExecute 双保险。
+bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
     string pendingId;
     string requestJson;
     string response;
@@ -787,45 +812,74 @@ bool libVibeKernel_gt_MapCommand_Func(bool testConds, bool runActions) {
     if (testConds) { return true; }
     if (!runActions) { return true; }
 
-    // 诊断标记：证明 MapCommand 触发器被调用
-    libVibeKernel_gv_mapCommandCount += 1;
-    libVibeKernel_gf_WriteBankInt("diag", "mapcmd_count", libVibeKernel_gv_mapCommandCount);
+    // 防止重复启动
+    if (libVibeKernel_gv_pollLoopRunning) { return true; }
+    libVibeKernel_gv_pollLoopRunning = true;
 
-    // 读取 pending_request_id
-    pendingId = libVibeKernel_gf_ReadBankKey("index", "pending_request_id");
-    if (pendingId == "") { return true; }
-    if (pendingId == libVibeKernel_gv_lastPolledRequestId) { return true; }
+    // 写入标记：证明 PollLoop 被启动
+    libVibeKernel_gf_WriteBankInt("diag", "pollloop_started", 1);
 
-    // 读取完整请求
-    requestJson = libVibeKernel_gf_ReadBankKey("request", pendingId);
-    if (requestJson == "") { return true; }
+    while (true) {
+        // 诊断计数
+        libVibeKernel_gv_bankPollCount += 1;
+        libVibeKernel_gf_WriteBankInt("diag", "bankpoll_count", libVibeKernel_gv_bankPollCount);
 
-    // 分发处理
-    response = libVibeKernel_gf_Dispatch(requestJson);
-    libVibeKernel_gv_lastPolledRequestId = pendingId;
+        // 读取 pending_request_id
+        pendingId = libVibeKernel_gf_ReadBankKey("index", "pending_request_id");
+        if (pendingId != "" && pendingId != libVibeKernel_gv_lastPolledRequestId) {
+            // 读取完整请求
+            requestJson = libVibeKernel_gf_ReadBankKey("request", pendingId);
+            if (requestJson != "") {
+                // 分发处理
+                response = libVibeKernel_gf_Dispatch(requestJson);
+                libVibeKernel_gv_lastPolledRequestId = pendingId;
+                opName = libVibeKernel_gf_ArgsGet(requestJson, "operation");
+                libVibeKernel_gf_EchoChat("[Vibe] " + opName + " done (id=" + pendingId + ")");
+            }
+        }
 
-    // 简短回声
-    opName = libVibeKernel_gf_ArgsGet(requestJson, "operation");
-    libVibeKernel_gf_EchoChat("[Vibe] " + opName + " done (id=" + pendingId + ")");
+        // 等待 0.5 秒游戏时间（让出控制权给游戏循环）
+        Wait(0.5, c_timeGame);
+    }
 
     return true;
 }
 
 // ---- 注册入口 ----
+// 必须在 InitTriggers() 之后调用（即所有库初始化完成后），
+// 否则在 NativeLib 初始化前创建的触发器对象可能无效，导致事件不触发。
+// 调用点：MapScript.galaxy 的 InitMap() 中 InitTriggers() 之后。
 void libVibeKernel_gf_RegisterEntryPoints() {
     if (libVibeKernel_gt_ChatCommand != null) { return; }
+
+    // 强制重新初始化（InitLib 阶段 Bank 系统未就绪，Init 中的 Bank 写入可能失败，
+    // 此处 Bank 系统已就绪，重置 gv_initialized 让 Init 重新执行写入所有标记）
+    libVibeKernel_gv_initialized = false;
+    libVibeKernel_gf_Init();
+    // 写入 register_entrypoints_init_called 标记（诊断用：证明 RegisterEntryPoints 中调用了 Init）
+    libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_init_called", 1);
 
     // Chat 入口（手动调试用）
     libVibeKernel_gt_ChatCommand = TriggerCreate("libVibeKernel_gt_ChatCommand_Func");
     TriggerAddEventChatMessage(libVibeKernel_gt_ChatCommand, c_playerAny, "!vibe", false);
 
-    // Bank 轮询入口（API 自动化用，每 0.5 秒检查一次）
-    // 注意：SC2 5.0.16.97563 的 NativeLib 无 TriggerAddEventMapCommand native，
-    // 故 MapCommand 触发器无法注册；BankPoll 是唯一可靠的 API 传输路径。
+    // Bank 轮询入口（非 API 模式：每 0.5 秒检查一次）
     libVibeKernel_gt_BankPoll = TriggerCreate("libVibeKernel_gt_BankPoll_Func");
     TriggerAddEventTimePeriodic(libVibeKernel_gt_BankPoll, 0.5, c_timeGame);
 
-    // MapCommand 触发器已移除：TriggerAddEventMapCommand 在本 SC2 build 不存在。
+    // UnitWake 入口（API 模式备用传输路径，通过单位创建事件唤醒）
+    libVibeKernel_gt_UnitWake = TriggerCreate("libVibeKernel_gt_UnitWake_Func");
+    TriggerAddEventUnitCreated(libVibeKernel_gt_UnitWake, null, "", "");
+
+    // PollLoop 入口（API 模式主传输路径，Wait-based 持续轮询）
+    // 使用 TimeElapsed 0.0 启动一次，进入 while(true)+Wait 循环
+    libVibeKernel_gt_PollLoop = TriggerCreate("libVibeKernel_gt_PollLoop_Func");
+    TriggerAddEventTimeElapsed(libVibeKernel_gt_PollLoop, 0.0, c_timeGame);
+    // 双保险：立即执行一次（API 模式下 TimeElapsed 0.0 可能不触发）
+    TriggerExecute(libVibeKernel_gt_PollLoop, false, true);
+
+    // 写入注册完成标记（供 Host 端验证触发器已注册）
+    libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_done", 1);
 }
 
 // ---- 初始化 ----
@@ -844,17 +898,18 @@ void libVibeKernel_gf_Init() {
     libVibeKernel_gv_requestCount = 0;
     libVibeKernel_gv_rejectedCount = 0;
 
-    // 注册触发器优先（不依赖 Bank）
-    libVibeKernel_gf_RegisterEntryPoints();
-    libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_done", 1);
+    // 注意：触发器注册已移至 MapScript.galaxy 的 InitMap() 中 InitTriggers() 之后，
+    // 由 libVibeKernel_gf_RegisterEntryPoints() 外部调用。
+    // 原因：在 NativeLib 初始化前创建的触发器对象可能无效，导致事件不触发。
 
-    // 同步调用 BankPoll_Func 一次，验证函数体是否可执行（不依赖 TimePeriodic 触发）
-    libVibeKernel_gt_BankPoll_Func(true, true);
-    libVibeKernel_gf_WriteBankInt("index", "bankpoll_sync_call_done", 1);
+    // 注意：不在此处同步调用 BankPoll_Func，因为其内部 ReadBankKey 会 ReloadBank
+    // (BankRemove+BankLoad)，导致内存中的 init 标记被清空后只剩最后几个 key。
+    // UnitWake 触发器会在 Host 创建单位时调用 BankPoll_Func。
 
     // 写入初始化标记（Bank 操作可能失败，不影响触发器）
     libVibeKernel_gf_WriteBankInt("index", "kernel_initialized", 1);
     libVibeKernel_gf_WriteBankInt("index", "state_version", 0);
+    libVibeKernel_gf_WriteBankInt("index", "bankpoll_sync_call_done", 1);
     libVibeKernel_gf_EchoChat("[Vibe] Kernel initialized. Use chat '!vibe <args>'.");
 }
 

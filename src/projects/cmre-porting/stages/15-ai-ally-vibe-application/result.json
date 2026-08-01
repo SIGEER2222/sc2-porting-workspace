@@ -1,0 +1,74 @@
+{
+  "stage_id": "15-ai-ally-vibe-application",
+  "schemaVersion": 1,
+  "status": "PARTIAL",
+  "current_phase": "Dead of Night selection-free startup verified; AI ally behavior remains open",
+  "opened_at": "2026-08-01T07:43:05+08:00",
+  "direction": "Remove the commander-selection startup path from the staged Dead of Night map and continue the AI ally runtime application without converting transport evidence into behavior evidence.",
+  "verified_slice": {
+    "selection_free_startup": {
+      "status": "PASS",
+      "evidence_type": "static+runtime",
+      "summary": "The staged map contains no CommanderSelectionScreen token in LibCOOC.galaxy or MapScript.galaxy, and the map-specific launcher policy rejects -ShowSelectionUI."
+    },
+    "runtime_transport": {
+      "status": "PASS",
+      "evidence_type": "runtime",
+      "summary": "The compliant launcher reached API ready; packed-map CreateGame and JoinGame succeeded; non-realtime frames advanced to loop 300; the launch window had no new ScriptError."
+    }
+  },
+  "verification_results": {
+    "launcher_static": {
+      "command": "python -m pytest -q tools/launchers/tests/test_launch_cmre_alenger_static.py",
+      "result": "PASS; 6 tests",
+      "evidence_type": "static"
+    },
+    "launcher_parser": {
+      "command": "PowerShell Parser.ParseFile over tools/launchers/lib/cmre-on-demand-overlay.ps1",
+      "result": "PASS; no parse errors",
+      "evidence_type": "static"
+    },
+    "selection_free_runtime": {
+      "command": "launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander Empire -ListenPort 5011 -MapCopySuffix stage15-selection-final; python -m vibe.run_dead_of_night_live --max-loops 300",
+      "result": "PASS for selection-free map entry and frame advancement; CreateGame/JoinGame succeeded and loop reached 300",
+      "artifact": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-selection-free-final/runtime-summary-launcher-packed.json",
+      "evidence_type": "runtime"
+    },
+    "script_error_gate": {
+      "command": "python tools/galaxy-vibe/script_error_check.py --since <launcher-start> --out artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-selection-free-final/script-error-verdict.json",
+      "result": "PASS; no new errors",
+      "artifact": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-selection-free-final/script-error-verdict.json",
+      "evidence_type": "runtime"
+    },
+    "simulator": {
+      "command": "python -m vibe.run_dead_of_night --max-loops 300 --output artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/simulator-300.json",
+      "result": "PASS; victory, 32 player survivors, 424 commands dispatched, no deadlock",
+      "artifact": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/simulator-300.json",
+      "evidence_type": "simulator"
+    },
+    "operator_workflow": {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/vibe.ps1 workflow -RunId stage15-workflow-final1",
+      "result": "PASS command; workflow status warn with pass=6, warn=2, fail=0",
+      "artifact": "artifacts/projects/cmre-porting/stage14-vibe-operator-workflow/workflow-status.json",
+      "evidence_type": "static+simulator"
+    },
+    "ai_ally_behavior": {
+      "command": "python -m vibe.run_dead_of_night_live --max-loops 300",
+      "result": "OPEN; 13 actions dispatched but all returned sc2:NotSupported; custom starting units were not observed",
+      "artifact": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-selection-free-final/runtime-summary-launcher-packed.json",
+      "evidence_type": "runtime"
+    }
+  },
+  "changed_paths": [
+    "tools/launchers/launch-cmre-alenger.ps1",
+    "tools/launchers/lib/cmre-on-demand-overlay.ps1",
+    "tools/launchers/overlays/cmre-alenger/startup/tail.headless.galaxy",
+    "tools/launchers/tests/test_launch_cmre_alenger_static.py",
+    "src/projects/cmre-porting/stages/15-ai-ally-vibe-application/plan.md",
+    "src/projects/cmre-porting/stages/15-ai-ally-vibe-application/log.md",
+    "src/projects/cmre-porting/stages/15-ai-ally-vibe-application/result.json",
+    "src/projects/cmre-porting/stages/15-ai-ally-vibe-application/issues.json"
+  ],
+  "next_action": "Diagnose why the live map observes only ACHeroSpawnPlacement and why raw actions return NotSupported before claiming the AI ally behavior gate.",
+  "next_stage_plan": null
+}

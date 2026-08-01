@@ -156,9 +156,9 @@ def _unit_name_lookup():
     return lambda i: rev.get(i, str(i))
 
 
-async def send_request(ws, req_proto):
+async def send_request(ws, req_proto, timeout: float = 15.0):
     await ws.send_bytes(req_proto.SerializeToString())
-    data = await asyncio.wait_for(ws.receive_bytes(), timeout=15.0)
+    data = await asyncio.wait_for(ws.receive_bytes(), timeout=timeout)
     resp = sc_pb.Response()
     resp.ParseFromString(data)
     return resp
@@ -250,10 +250,12 @@ def _split_flags(args):
 
 
 class VibeREPL:
-    def __init__(self, port: int, resolve, name_lookup):
+    def __init__(self, port: int, resolve, name_lookup, map_path: str = "", join_wait: float = 15.0):
         self.port = port
         self.resolve = resolve
         self.name_lookup = name_lookup
+        self.map_path = map_path
+        self.join_wait = join_wait
         self.map_center = common_pb.Point2D(x=50.0, y=50.0)
         self._have_map = False
         self.assert_results: list[dict] = []
@@ -266,6 +268,8 @@ class VibeREPL:
         resp = await send_request(self.ws, sc_pb.Request(ping=sc_pb.RequestPing()))
         if resp.error:
             raise RuntimeError(f"SC2API ping error: {resp.error}")
+        if self.map_path:
+            await self.ensure_in_game(self.map_path)
         # 拉一次 GameInfo 拿地图中心（失败不影响核心功能）
         try:
             gi = await send_request(self.ws, sc_pb.Request(game_info=sc_pb.RequestGameInfo()))
@@ -275,6 +279,109 @@ class VibeREPL:
         except Exception:
             pass
         return True
+
+    async def ensure_in_game(self, map_path: str) -> None:
+        """Run CreateGame + JoinGame on the same websocket used by REPL commands."""
+        normalized_map = str(Path(map_path).resolve()).replace("\\", "/")
+        try:
+            await send_request(self.ws, sc_pb.Request(leave_game=sc_pb.RequestLeaveGame()), timeout=10.0)
+            await asyncio.sleep(1.0)
+        except Exception:
+            pass
+
+        player_sets = [
+            [sc_pb.PlayerSetup(type=1, race=1, player_name="P1")],
+            [
+                sc_pb.PlayerSetup(type=1, race=1, player_name="P1"),
+                sc_pb.PlayerSetup(type=2, race=1, difficulty=2, player_name="AI"),
+            ],
+        ]
+        created = False
+        last_error = ""
+        for setup in player_sets:
+            req = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
+                local_map=sc_pb.LocalMap(map_path=normalized_map),
+                player_setup=setup,
+                realtime=False,
+            ))
+            try:
+                resp = await send_request(self.ws, req, timeout=60.0)
+            except Exception as exc:
+                last_error = str(exc)
+                continue
+            if resp.error:
+                last_error = repr(list(resp.error))
+                continue
+            if resp.HasField("create_game") and resp.create_game.HasField("error"):
+                last_error = f"{resp.create_game.error} {resp.create_game.error_details}"
+                continue
+            created = True
+            print(f"[game] CreateGame OK: {normalized_map}")
+            break
+        if not created:
+            print(f"[game] CreateGame not confirmed, attempting JoinGame anyway: {last_error}")
+
+        join_req = sc_pb.Request(join_game=sc_pb.RequestJoinGame(
+            race=1,
+            options=sc_pb.InterfaceOptions(raw=True, score=True),
+        ))
+        joined = False
+        last_join_error = ""
+        for attempt in range(30):
+            try:
+                resp = await send_request(self.ws, join_req, timeout=30.0)
+                if resp.error:
+                    last_join_error = repr(list(resp.error))
+                    await asyncio.sleep(0.5)
+                    continue
+                if resp.HasField("join_game") and resp.join_game.HasField("error"):
+                    last_join_error = f"{resp.join_game.error} {resp.join_game.error_details}"
+                    await asyncio.sleep(0.5)
+                    continue
+                joined = True
+                player_id = resp.join_game.player_id if resp.HasField("join_game") else 0
+                print(f"[game] JoinGame OK player_id={player_id}")
+                break
+            except Exception as exc:
+                last_join_error = str(exc)
+                await asyncio.sleep(0.5)
+        if not joined:
+            try:
+                obs = await send_request(self.ws, sc_pb.Request(observation=sc_pb.RequestObservation()), timeout=15.0)
+                if not obs.error:
+                    joined = True
+                    print("[game] Observation OK; treating client as in_game")
+            except Exception as exc:
+                last_join_error = str(exc)
+        if not joined:
+            raise RuntimeError(f"JoinGame failed and client is not in_game: {last_join_error}")
+        if self.join_wait > 0:
+            print(f"[game] Advancing {self.join_wait:.1f}s for map scripts to initialize...")
+            await self.advance_game(seconds=self.join_wait, step_count=8, sleep_seconds=0.25)
+
+    async def advance_game(self, seconds: float = 0.0, step_count: int = 1, sleep_seconds: float = 0.1) -> bool:
+        """Advance frames for non-realtime CreateGame sessions while preserving wall-clock waits."""
+        deadline = time.time() + max(0.0, seconds)
+        advanced = False
+        while True:
+            try:
+                resp = await send_request(
+                    self.ws,
+                    sc_pb.Request(step=sc_pb.RequestStep(count=max(1, step_count))),
+                    timeout=5.0,
+                )
+                if resp.error:
+                    return advanced
+                advanced = True
+            except Exception:
+                return advanced
+            if time.time() >= deadline:
+                return advanced
+            await asyncio.sleep(max(0.0, sleep_seconds))
+
+    @staticmethod
+    def _unit_is_alive(unit) -> bool:
+        return getattr(unit, "health", 1) > 0
 
     async def close(self):
         try:
@@ -286,7 +393,7 @@ class VibeREPL:
     # ---------- 各命令实现 ----------
     async def cmd_ping(self, args):
         run_id = f"repl_{int(time.time() * 1000)}"
-        await send_request(self.ws, sc_pb.Request(map_command=sc_pb.RequestMapCommand(command=f"dbg ping {run_id}")))
+        await send_request(self.ws, sc_pb.Request(map_command=sc_pb.RequestMapCommand(trigger_cmd=f"dbg ping {run_id}")))
         ok, lat, sec = await wait_bank_run_id(DEFAULT_BANK, run_id, timeout=5.0)
         if ok and sec.get("result") == "pong":
             print(f"[ping] OK 闭环闭合 latency={lat*1000:.0f}ms run_id={run_id}")
@@ -299,7 +406,7 @@ class VibeREPL:
             print("[call] 用法: call <FuncName> [args...]")
             return True
         cmd = "dbg call " + " ".join(args)
-        resp = await send_request(self.ws, sc_pb.Request(map_command=sc_pb.RequestMapCommand(command=cmd)))
+        resp = await send_request(self.ws, sc_pb.Request(map_command=sc_pb.RequestMapCommand(trigger_cmd=cmd)))
         if resp.error:
             print(f"[call] error: {resp.error}")
         else:
@@ -308,7 +415,7 @@ class VibeREPL:
 
     async def cmd_echo(self, args):
         cmd = "dbg echo " + " ".join(args)
-        resp = await send_request(self.ws, sc_pb.Request(map_command=sc_pb.RequestMapCommand(command=cmd)))
+        resp = await send_request(self.ws, sc_pb.Request(map_command=sc_pb.RequestMapCommand(trigger_cmd=cmd)))
         if resp.error:
             print(f"[echo] error: {resp.error}")
         else:
@@ -346,6 +453,11 @@ class VibeREPL:
             except ValueError:
                 print("[spawn] 坐标格式错误，应为 @x,y")
                 return True
+        before_count = None
+        before_counts, before_err = await self._player_counts_by_id(player)
+        if before_err is None:
+            before_count = before_counts.get(uid, 0)
+
         req = sc_pb.Request(
             debug=sc_pb.RequestDebug(
                 debug=[
@@ -361,7 +473,22 @@ class VibeREPL:
         if resp.error:
             print(f"[spawn] error: {resp.error}")
         else:
-            print(f"[spawn] 已创建 {count}x {args[0]} -> player {player} @({pos.x},{pos.y})")
+            observed = None
+            target_count = None if before_count is None else before_count + count
+            deadline = time.time() + 3.0
+            while time.time() < deadline:
+                await self.advance_game(seconds=0.0, step_count=4, sleep_seconds=0.0)
+                await asyncio.sleep(0.1)
+                counts, err = await self._player_counts_by_id(player)
+                if err is not None:
+                    continue
+                observed = counts.get(uid, 0)
+                if (target_count is not None and observed >= target_count) or (
+                    target_count is None and observed >= count
+                ):
+                    break
+            suffix = f"; observed={observed}" if observed is not None else ""
+            print(f"[spawn] 已创建 {count}x {args[0]} -> player {player} @({pos.x},{pos.y}){suffix}")
         return True
 
     async def _collect_units(self, player=None):
@@ -375,25 +502,32 @@ class VibeREPL:
             return []
         units = []
         for u in raw.units:
-            if player is None or u.owner == player:
+            if (player is None or u.owner == player) and self._unit_is_alive(u):
                 units.append(u)
         return units
 
     async def cmd_kill(self, args):
-        if not args:
-            print("[kill] 用法: kill <all|player N|tag t1 t2 ...>")
+        rest, player_filter, _within = _split_flags(args)
+        if not rest:
+            print("[kill] 用法: kill <all|player N|tag t1 t2 ...|unit_type [--player N]>")
             return True
         targets = []
-        if args[0] == "all":
-            units = await self._collect_units()
+        if rest[0] == "all":
+            units = await self._collect_units(player_filter)
             targets = [u.tag for u in units]
-        elif args[0] == "player" and len(args) >= 2:
-            units = await self._collect_units(int(args[1]))
+        elif rest[0] == "player" and len(rest) >= 2:
+            units = await self._collect_units(int(rest[1]))
             targets = [u.tag for u in units]
-        elif args[0] == "tag":
-            targets = [int(t) for t in args[1:] if t.lstrip("-").isdigit()]
+        elif rest[0] == "tag":
+            targets = [int(t) for t in rest[1:] if t.lstrip("-").isdigit()]
         else:
-            targets = [int(t) for t in args if t.lstrip("-").isdigit()]
+            uid = self.resolve(rest[0])
+            if uid is not None:
+                player = player_filter or 1
+                units = await self._collect_units(player)
+                targets = [u.tag for u in units if u.unit_type == uid]
+            else:
+                targets = [int(t) for t in rest if t.lstrip("-").isdigit()]
         if not targets:
             print("[kill] 未解析到目标单位")
             return True
@@ -404,6 +538,7 @@ class VibeREPL:
         if resp.error:
             print(f"[kill] error: {resp.error}")
         else:
+            await self.advance_game(seconds=1.0, step_count=8, sleep_seconds=0.1)
             print(f"[kill] 已击杀 {len(targets)} 个单位")
         return True
 
@@ -738,7 +873,7 @@ class VibeREPL:
             return None, "无 raw_data（确认游戏以 raw 接口启动）"
         counts: dict[int, int] = {}
         for u in raw.units:
-            if u.owner == player:
+            if u.owner == player and self._unit_is_alive(u):
                 counts[u.unit_type] = counts.get(u.unit_type, 0) + 1
         return counts, None
 
@@ -961,8 +1096,8 @@ class VibeREPL:
             await self.dispatch(line)
 
     async def run_script(self, path: Path):
-        for raw in path.read_text(encoding="utf-8").splitlines():
-            line = raw.strip()
+        for raw in path.read_text(encoding="utf-8-sig").splitlines():
+            line = raw.strip().lstrip("\ufeff")
             if not line or line.startswith("#"):
                 continue
             print(f"vibe> {line}")
@@ -975,7 +1110,7 @@ async def amain(args):
         return 2
     resolve = _unit_id_resolver()
     name_lookup = _unit_name_lookup()
-    repl = VibeREPL(args.port, resolve, name_lookup)
+    repl = VibeREPL(args.port, resolve, name_lookup, map_path=args.map, join_wait=args.join_wait)
     try:
         await repl.connect()
     except Exception as e:
@@ -1002,6 +1137,8 @@ async def amain(args):
 def main():
     ap = argparse.ArgumentParser(description="SC2 Vibe REPL — P1 最小热循环")
     ap.add_argument("--port", type=int, default=5000)
+    ap.add_argument("--map", default="", help="CreateGame + JoinGame this map before running commands")
+    ap.add_argument("--join-wait", type=float, default=15.0, help="Seconds to wait after JoinGame for map scripts")
     ap.add_argument("--cmd", help="执行单条命令后退出")
     ap.add_argument("--script", help="逐行执行脚本文件后退出")
     ap.add_argument("--assert-file", help="逐行执行断言/scenario 文件，结束打印 PASS/FAIL 汇总并以退出码返回")
