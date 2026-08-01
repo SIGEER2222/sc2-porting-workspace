@@ -1,0 +1,52 @@
+{
+  "stage_id": "10-post-acceptance-hardening",
+  "schemaVersion": 1,
+  "status": "PASS",
+  "current_phase": "post-acceptance hardening complete",
+  "opened_at": "2026-07-31T21:05:00+08:00",
+  "closed_at": "2026-07-31T21:05:00+08:00",
+  "direction": "reconcile post-acceptance issue ledger and add catalog static observability reports",
+  "resolved_issues": {
+    "HARDEN-ISSUE-LEDGER-001": {
+      "status": "resolved",
+      "evidence_type": "static",
+      "summary": "Stage 05 and Stage 06 stale issue statuses were reconciled against Stage 06 / Stage 09 fix evidence."
+    },
+    "HARDEN-CATALOG-STATIC-001": {
+      "status": "resolved",
+      "evidence_type": "static",
+      "summary": "Generated upgrade effects closure and catalog coverage reports; Stage 08 catalog issues updated accordingly."
+    }
+  },
+  "verification_results": {
+    "upgrade_effects_closure": {
+      "command": "PYTHONPATH=reference/sc2-ally-bot/src python inline catalog closure scan",
+      "result": "17 upgrades scanned; 41 effect keys scanned; 41 valid; 0 invalid; PASS",
+      "artifact": "artifacts/projects/cmre-porting/stage10-post-acceptance-hardening/upgrade-effects-closure.json",
+      "evidence_type": "static"
+    },
+    "catalog_coverage_report": {
+      "command": "PYTHONPATH=reference/sc2-ally-bot/src python inline catalog coverage scan",
+      "result": "m7_unit_count=103; coverage_entries=696; m3_zerg_gap_remaining=25",
+      "artifact": "artifacts/projects/cmre-porting/stage10-post-acceptance-hardening/catalog-coverage-report.json",
+      "evidence_type": "static"
+    }
+  },
+  "changed_paths": [
+    "src/projects/cmre-porting/project.json",
+    "src/projects/cmre-porting/stages/05-vibe-framework/issues.json",
+    "src/projects/cmre-porting/stages/06-sim-cap-completion/issues.json",
+    "src/projects/cmre-porting/stages/08-final-acceptance/catalog-issues.json",
+    "src/projects/cmre-porting/stages/10-post-acceptance-hardening/plan.md",
+    "src/projects/cmre-porting/stages/10-post-acceptance-hardening/issues.json",
+    "src/projects/cmre-porting/stages/10-post-acceptance-hardening/log.md",
+    "src/projects/cmre-porting/stages/10-post-acceptance-hardening/result.json",
+    "artifacts/projects/cmre-porting/stage10-post-acceptance-hardening/upgrade-effects-closure.json",
+    "artifacts/projects/cmre-porting/stage10-post-acceptance-hardening/catalog-coverage-report.json"
+  ],
+  "open_followups": [
+    "AI-ALLY-LIVE-002: rerun live smoke with compliant launcher after ActionResult stats fix and check new ScriptError logs.",
+    "CATALOG-M3-ZERG-THIN-001: m3 Zerg source-layer coverage remains thin; current report measures 25 m7 Zerg entries not present in m3."
+  ],
+  "note": "Stage 10 is bounded to documentation, issue ledger, and generated static artifacts. It does not modify simulator behavior or run live SC2."
+}

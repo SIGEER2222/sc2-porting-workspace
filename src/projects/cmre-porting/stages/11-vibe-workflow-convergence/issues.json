@@ -1,0 +1,24 @@
+{
+  "stage_id": "11-vibe-workflow-convergence",
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "VIBE-WORKFLOW-001",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Vibe 工作流缺少统一状态入口",
+      "detail": "已有 simulator、project vibe adapters、Galaxy runtime、parser/toolkit、skills、launcher 多个能力面，但缺少一个离线入口说明当前 workflow 是否装配完整。",
+      "evidence_type": "static",
+      "resolution": "新增 tools/galaxy-vibe/workflow_status.py，并接入 tools/galaxy-vibe/vibe.ps1 status；静态 validation 已覆盖该脚本。"
+    },
+    {
+      "id": "VIBE-WORKFLOW-WARN-001",
+      "severity": "low",
+      "status": "open-nonblocking",
+      "title": "legacy sc2-editor-toolkit 注册路径当前为 warning",
+      "detail": "workflow status 中 galaxy_parser lane 仅有 parser.legacy_toolkit 为 warn；reference/sc2-galaxy-toolkit、map_extractor.py、cold/static_validator.py 均为 pass。该 legacy toolkit 是辅助来源，不阻塞当前 workflow status 入口。",
+      "evidence_type": "static",
+      "nextAction": "后续如果仍需要 legacy toolkit，可校正 workspace.json 中 legacy-project/tool 路径或将该来源降级为显式 optional。"
+    }
+  ]
+}

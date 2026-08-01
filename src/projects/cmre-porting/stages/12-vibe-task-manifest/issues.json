@@ -1,0 +1,42 @@
+{
+  "stage_id": "12-vibe-task-manifest",
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "VIBE-MANIFEST-001",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Vibe workflow 缺少 simulator/live 共用 task manifest",
+      "detail": "Stage 11 已有 workflow status，但 map_extractor、simulator task_runner、SC2 stub/live runtime 仍缺少同一份 task/scenario manifest 输出。",
+      "evidence_type": "static+simulator",
+      "resolution": "新增 src/projects/cmre-porting/vibe/task_manifest.py，生成 manifest/scenario/tasks/runtime recipe/.vtest，并通过 simulator smoke。"
+    },
+    {
+      "id": "VIBE-MANIFEST-RUNTIME-001",
+      "severity": "medium",
+      "status": "open-runtime-pending",
+      "title": "live runtime task 已生成但未启动 SC2 验证",
+      "detail": "task.live.json 与 scenario.vtest 已生成，且标记 requires_launcher/script_error_check_required；本阶段按离线 manifest 范围不启动 SC2。",
+      "evidence_type": "runtime-pending",
+      "nextAction": "Stage 13 使用 tools/galaxy-vibe/launch-galaxy-vibe.ps1 执行 scenario.vtest，并复核新增 ScriptError 日志。"
+    },
+    {
+      "id": "VIBE-MANIFEST-STATIC-UNSUPPORTED-001",
+      "severity": "low",
+      "status": "open-nonblocking",
+      "title": "亡者之夜静态提取仍有 5 个 unsupported/skipped source objects",
+      "detail": "manifest summary 记录 unsupported_units=5；当前 scenario 通过 player starting units 注入和 map_extractor 既有映射策略保持可加载。",
+      "evidence_type": "static",
+      "nextAction": "后续可把 ACHeroSpawnPlacement 等源对象显式转为 live/runtime fixture metadata，而不是进入 combat spawns。"
+    },
+    {
+      "id": "VIBE-WORKFLOW-WARN-001",
+      "severity": "low",
+      "status": "carried-forward",
+      "title": "legacy sc2-editor-toolkit 注册路径仍为 warning",
+      "detail": "workflow status 仍为 overall=warn，唯一 warning 来自 parser.legacy_toolkit；核心 parser/map_extractor/static_validator 均为 pass。",
+      "evidence_type": "static",
+      "nextAction": "后续校正 legacy toolkit 路径或将该来源降级为显式 optional。"
+    }
+  ]
+}

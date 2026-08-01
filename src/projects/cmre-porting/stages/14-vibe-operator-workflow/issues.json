@@ -1,0 +1,70 @@
+{
+  "stage_id": "14-vibe-operator-workflow",
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "VIBE-OPERATOR-WORKFLOW-001",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Vibe capabilities were not exposed as one operator workflow",
+      "detail": "Manifest generation, simulator smoke, Galaxy status, live runtime, and evidence generation previously required separate commands and could report stale state.",
+      "evidence_type": "static+simulator+runtime",
+      "resolution": "vibe.ps1 workflow now coordinates the lanes under one RunId and emits workflow-status.json plus a run-specific evidence bundle."
+    },
+    {
+      "id": "VIBE-OPERATOR-PORT-FALLBACK-001",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "SC2 API port selection was flaky across consecutive launches",
+      "detail": "A prior 5000 launch could leave the next runtime attempt without a usable API port.",
+      "evidence_type": "runtime",
+      "resolution": "Live workflow attempts Sc2Port and Sc2Port+1, records both outcomes, reuses a verified packed map when available, and keeps attempts isolated. stage14-live-final3 passed on port 5001."
+    },
+    {
+      "id": "VIBE-OPERATOR-EVIDENCE-001",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Runtime packaging could retain stale files from a previous attempt",
+      "detail": "A failed packaging tail could leave old launcher-exit or map-pack reports beside current generic runtime verdicts.",
+      "evidence_type": "runtime",
+      "resolution": "Each attempt is snapshotted under Stage 14; current launcher-exit is regenerated, stale pack reports are removed when the verified packed map is reused, and the final bundle contains 19 current hashed items."
+    },
+    {
+      "id": "VIBE-OPERATOR-HARNESS-TAIL-001",
+      "severity": "medium",
+      "status": "resolved-with-guard",
+      "title": "Stage 13 harness packaging tail can outlive the runtime verdict",
+      "detail": "The compliant launcher produced current runtime evidence, but the Stage 13 wrapper did not return before the operator timeout.",
+      "evidence_type": "runtime",
+      "resolution": "Stage 14 bounds each harness invocation at LiveTimeoutSec and only derives PASS from current launcher VERDICT exit code 0, current 2/2 assertions, current ScriptError has_new_errors=false, and current vibe-verdict.passed=true."
+    },
+    {
+      "id": "VIBE-PARSER-LEGACY-001",
+      "severity": "low",
+      "status": "carried-forward",
+      "title": "Registered legacy sc2-editor-toolkit path remains unavailable",
+      "detail": "workflow status reports parser.legacy_toolkit as warn; the registered Galaxy toolkit, map extractor, and cold static validator remain available and passing.",
+      "evidence_type": "static",
+      "nextAction": "Correct the registered legacy path or make the dependency explicitly optional in a later parser-focused stage."
+    },
+    {
+      "id": "VIBE-VISUAL-001",
+      "severity": "low",
+      "status": "open-nonblocking",
+      "title": "This operator smoke does not collect visual verdicts",
+      "detail": "The runtime gate is launcher/API/assertion/ScriptError based; visual-verdict.json is absent by design for this headless smoke.",
+      "evidence_type": "runtime-pending",
+      "nextAction": "Add a desktop visual lane only when the next application scenario requires visual validation."
+    },
+    {
+      "id": "AI-ALLY-APPLICATION-001",
+      "severity": "medium",
+      "status": "carried-forward",
+      "title": "AI ally x Dead of Night application scenario is not part of Stage 14",
+      "detail": "Stage 14 stabilizes the workflow control plane; it does not expand the two-assertion runtime smoke into strategic ally behavior.",
+      "evidence_type": "static",
+      "plan": "src/projects/cmre-porting/stages/13-vibe-runtime-evidence-pack/ai-ally-dead-of-night-plan.md",
+      "nextAction": "Use the Stage 14 operator workflow as the execution surface for the next AI ally application stage."
+    }
+  ]
+}
