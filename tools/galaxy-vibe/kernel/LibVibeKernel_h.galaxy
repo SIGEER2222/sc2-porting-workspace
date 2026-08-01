@@ -11,6 +11,7 @@ include "TriggerLibs/NativeLib"
 //
 // 设计原则（依据 sc2-vibe完整实施计划.md）：
 //   - 不提供任意 call FuncName 能力（白名单 100% 拒绝未知操作）
+//   - function.invoke 只允许 function-registry.json 中的显式 function_id
 //   - 重复 request_id 返回原结果不重复执行（幂等）
 //   - 过期 session/乱序/越界参数显式拒绝
 //   - 状态版本号每次副作用递增
@@ -54,6 +55,7 @@ bank   libVibeKernel_gv_bankHandle = null;
 // 若 error_code == "OK" 则表示成功
 
 string libVibeKernel_gf_HandleSystemPing(string argsJson);
+string libVibeKernel_gf_HandleFunctionInvoke(string argsJson);
 string libVibeKernel_gf_HandleScenarioReset(string argsJson);
 string libVibeKernel_gf_HandleUnitSpawn(string argsJson);
 string libVibeKernel_gf_HandleUnitKill(string argsJson);
@@ -70,6 +72,11 @@ string libVibeKernel_gf_HandleUpgradeSetLevel(string argsJson);
 string libVibeKernel_gf_HandleTechTreeCheck(string argsJson);
 string libVibeKernel_gf_HandleQueryUnitTags(string argsJson);
 string libVibeKernel_gf_HandleQueryUnitAttrs(string argsJson);
+string libVibeKernel_gf_FunctionVibeTestPing(string argsJson);
+string libVibeKernel_gf_FunctionPlayerSetResource(string argsJson);
+string libVibeKernel_gf_FunctionUnitSpawn(string argsJson);
+string libVibeKernel_gf_FunctionQueryUnits(string argsJson);
+string libVibeKernel_gf_FunctionUnitKill(string argsJson);
 
 // ---- 工具函数 ----
 void   libVibeKernel_gf_ReloadBank();

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "task_id": "stage18-action-loop",
+  "metadata": {
+    "description": "Set a resource, spawn two Marines, observe count, kill one by captured tag, observe final count.",
+    "evidence_type": "simulator-or-runtime-pending"
+  },
+  "steps": [
+    {
+      "id": "set-resource",
+      "mode": "act",
+      "function_id": "vibe.player.set_resource",
+      "args": {"player": 1, "resource": "minerals", "value": 4321},
+      "expect": [{"path": "payload.value", "equals": 4321}]
+    },
+    {
+      "id": "observe-before",
+      "mode": "observe",
+      "function_id": "vibe.query.units",
+      "args": {"player": 1, "unit_type": "Marine"},
+      "expect": [{"path": "payload.count", "equals": 0}],
+      "retries": 1
+    },
+    {
+      "id": "spawn-marines",
+      "mode": "act",
+      "function_id": "vibe.unit.spawn",
+      "args": {"unit_type": "Marine", "count": 2, "player": 1, "x": 0.0, "y": 0.0},
+      "expect": [{"path": "payload.created", "equals": 2}]
+    },
+    {
+      "id": "observe-after-spawn",
+      "mode": "observe",
+      "function_id": "vibe.query.units",
+      "args": {"player": 1, "unit_type": "Marine"},
+      "expect": [{"path": "payload.count", "equals": 2}]
+    },
+    {
+      "id": "kill-first",
+      "mode": "act",
+      "function_id": "vibe.unit.kill",
+      "args": {"unit_tag": {"$ref": "spawn-marines.payload.unit_tag"}},
+      "expect": [{"path": "payload.killed", "equals": true}]
+    },
+    {
+      "id": "observe-after-kill",
+      "mode": "observe",
+      "function_id": "vibe.query.units",
+      "args": {"player": 1, "unit_type": "Marine"},
+      "expect": [{"path": "payload.count", "equals": 1}]
+    }
+  ]
+}

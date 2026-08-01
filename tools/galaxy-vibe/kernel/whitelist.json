@@ -12,6 +12,19 @@
         "rejected_count": "integer"
       }
     },
+    "function.invoke": {
+      "category": "function",
+      "produces_side_effect": false,
+      "args": {
+        "function_id": {"type": "string", "required": true, "pattern": "^[a-z][a-z0-9._-]*$"},
+        "args": {"type": "object", "required": true}
+      },
+      "payload_schema": {
+        "function_id": "string",
+        "message": "string",
+        "nonce": "string"
+      }
+    },
     "scenario.reset": {
       "category": "scenario",
       "produces_side_effect": true,

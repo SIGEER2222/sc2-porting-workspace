@@ -8,7 +8,7 @@
 
 通信流程（P0 传输闸门）:
   1. Host 将请求写入 Bank(GalaxyVibe, section="request", key=request_id)
-  2. Host 通过 SC2API RequestMapCommand("dbg <request_id>") 触发 Kernel
+  2. Host 通过 RequestStep 驱动 Kernel 的 Bank/PollLoop 入口
   3. Kernel 从 Bank 读取请求、处理、写回响应到 section="response"
   4. Host 轮询 Bank 读取响应
 
@@ -37,6 +37,13 @@ from xml.etree import ElementTree as ET
 # vibe_host.py 位于 tools/galaxy-vibe/host/，parents[3] 才是仓库根
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "reference" / "SC2-Neuro-API-Integration"))
+sys.path.insert(0, str(REPO_ROOT / "src" / "projects" / "cmre-porting"))
+
+from vibe.function_registry import (  # noqa: E402
+    FunctionRegistryError,
+    normalize_request_args,
+    wire_function_args,
+)
 
 try:
     from s2clientprotocol import sc2api_pb2 as sc_pb
@@ -94,8 +101,13 @@ class RpcRequest:
             f"operation={self.operation}",
             f"checksum={self.checksum}",
         ]
-        for k, v in self.args.items():
-            parts.append(f"{k}={v}")
+        if self.operation == "function.invoke":
+            function_id, call_args = normalize_request_args(self.args)
+            for k, v in wire_function_args(function_id, call_args).items():
+                parts.append(f"{k}={v}")
+        else:
+            for k, v in self.args.items():
+                parts.append(f"{k}={v}")
         return ";".join(parts)
 
 
@@ -440,6 +452,18 @@ class Sc2ApiClient:
             print(f"[Sc2ApiClient] Observation exception: {e}", file=sys.stderr)
             return None
 
+    def step(self, count: int = 1, timeout: float = 30.0) -> bool:
+        """Advance a non-realtime game by ``count`` simulation steps."""
+        try:
+            resp = self._send_request(
+                sc_pb.Request(step=sc_pb.RequestStep(count=max(1, int(count)))),
+                timeout=timeout,
+            )
+            return not resp.error
+        except Exception as e:
+            print(f"[Sc2ApiClient] Step exception: {e}", file=sys.stderr)
+            return False
+
     def map_command(self, command: str) -> bool:
         """发送 RequestMapCommand，触发 Galaxy Kernel 的 MapCommand 事件。"""
         try:
@@ -484,9 +508,16 @@ class VibeHost:
         sc2_port: int = 5000,
         bank_name: str = "GalaxyVibe",
         artifacts_dir: Optional[Path] = None,
+        runtime_bank_name: str = "CMRERebornDebug",
+        require_initialization: bool = False,
     ):
         self.sc2_port = sc2_port
         self.bank_name = bank_name
+        self.runtime_bank_name = runtime_bank_name
+        self.require_initialization = require_initialization
+        self.initialization_complete = not require_initialization
+        self.initialization_status: dict[str, Any] = {}
+        self.initialization_error = ""
         self.session_id: str = ""
         self.sequence: int = 0
         self.client: Optional[Sc2ApiClient] = None
@@ -530,6 +561,9 @@ class VibeHost:
                 # 先尝试 JoinGame（SC2 可能已在 in_game 且地图正确）
                 if self.client.join_game(timeout=10.0):
                     print("[VibeHost] 已 JoinGame（SC2 之前在 in_game）", file=sys.stderr)
+                    if self.require_initialization and not self.wait_for_initialization():
+                        print(f"[VibeHost] 初始化门禁失败: {self.initialization_error}", file=sys.stderr)
+                        return False
                     return True
                 # JoinGame 失败 → SC2 可能在 in_game（地图不对）或主菜单
                 # 先 LeaveGame 确保回到主菜单，避免 CreateGame 在 in_game 状态下行为不确定
@@ -559,11 +593,76 @@ class VibeHost:
                     print("[VibeHost] JoinGame 失败（CreateGame 后）", file=sys.stderr)
                     return False
                 print("[VibeHost] CreateGame + JoinGame 成功，已进入游戏", file=sys.stderr)
+                if self.require_initialization and not self.wait_for_initialization():
+                    print(f"[VibeHost] 初始化门禁失败: {self.initialization_error}", file=sys.stderr)
+                    return False
             return True
         except Exception as e:
             print(f"[VibeHost] SC2 连接失败: {e}", file=sys.stderr)
             self.client = None
             return False
+
+    def wait_for_initialization(self, timeout: float = 120.0, stable_reads: int = 2) -> bool:
+        """Wait for map initialization before allowing Vibe function calls.
+
+        API reachability and a bridge heartbeat are weaker than map readiness.
+        The CMRE marker also proves the declared starting structures and
+        workers exist. RequestStep keeps non-realtime Galaxy waits moving.
+        """
+        self.initialization_complete = False
+        self.initialization_error = ""
+        if not self.client:
+            self.initialization_error = "SC2 API 未连接"
+            return False
+
+        required = (
+            "runtime_listener_started",
+            "runtime_listener_ready",
+            "bridge_heartbeat",
+            "initialization_complete",
+            "initialization_building_ready_p1",
+            "initialization_building_ready_p2",
+            "initialization_units_ready_p1",
+            "initialization_units_ready_p2",
+        )
+        deadline = time.monotonic() + timeout
+        consecutive = 0
+        last_status: dict[str, Any] = {}
+        while time.monotonic() < deadline:
+            debug = read_bank(self.runtime_bank_name).get("debug", {})
+            status = {key: debug.get(key, 0) for key in required}
+            status["world_cover_dialog_visible_p1"] = debug.get("world_cover_dialog_visible_p1", 0)
+            last_status = status
+            ready = all(int(status.get(key, 0) or 0) > 0 for key in required)
+            ready = ready and int(status.get("world_cover_dialog_visible_p1", 0) or 0) == 0
+            if ready:
+                consecutive += 1
+                if consecutive >= max(1, stable_reads):
+                    self.initialization_complete = True
+                    self.initialization_status = status
+                    print(
+                        "[VibeHost] map initialization gate passed: "
+                        f"heartbeat={status['bridge_heartbeat']}",
+                        file=sys.stderr,
+                    )
+                    return True
+            else:
+                consecutive = 0
+
+            # In realtime this request may be rejected; in non-realtime it is
+            # the required frame driver for the map's Wait/BankPoll triggers.
+            self.client.step(count=1, timeout=min(5.0, max(0.1, timeout)))
+            time.sleep(0.1)
+
+        self.initialization_status = last_status
+        missing = [key for key in required if int(last_status.get(key, 0) or 0) <= 0]
+        if int(last_status.get("world_cover_dialog_visible_p1", 0) or 0) != 0:
+            missing.append("world_cover_dialog_visible_p1=0")
+        self.initialization_error = (
+            "未观察到稳定的完整地图初始化 marker; "
+            f"missing={','.join(missing) or 'stable-read'}"
+        )
+        return False
 
     def disconnect(self) -> None:
         if self.client:
@@ -577,7 +676,7 @@ class VibeHost:
         operation: str,
         args: Optional[dict[str, Any]] = None,
         timeout: float = 5.0,
-        transport: str = "map_command",
+        transport: str = "bank_poll",
     ) -> RpcResponse:
         """发送 RPC 请求并等待响应。
 
@@ -585,7 +684,7 @@ class VibeHost:
             operation: 白名单操作名
             args: 操作参数
             timeout: 等待响应超时（秒）
-            transport: "map_command" | "chat" | "input" | "bank_poll"
+            transport: "bank_poll" | "chat" | "input" | "map_command"
 
         Returns:
             RpcResponse
@@ -594,6 +693,17 @@ class VibeHost:
             self.start_session()
         if args is None:
             args = {}
+
+        if operation == "function.invoke":
+            try:
+                normalize_request_args(args)
+            except FunctionRegistryError as exc:
+                return RpcResponse(
+                    kind="error", session_id=self.session_id,
+                    request_id=uuid.uuid4().hex[:12], sequence=self.sequence,
+                    operation=operation, error_code=exc.code,
+                    payload={"reason": exc.detail},
+                )
 
         self.sequence += 1
         request = RpcRequest(
@@ -638,8 +748,14 @@ class VibeHost:
                 operation=operation, error_code="INTERNAL_ERROR",
             )
 
-        # 轮询 Bank 等待响应
-        response = self._poll_response(request.request_id, timeout)
+        # 非实时 SC2 不会因为 wall-clock sleep 自行推进；BankPoll
+        # transport 必须在等待响应期间驱动 RequestStep，才能让 Galaxy PollLoop
+        # 和 BankPoll 继续执行。实时会话中 step 失败时 _poll_response 仍会继续轮询。
+        response = self._poll_response(
+            request.request_id,
+            timeout,
+            advance_frames=transport in ("map_command", "bank_poll"),
+        )
         resp_record = {
             "request_id": request.request_id,
             "operation": operation,
@@ -654,7 +770,7 @@ class VibeHost:
     def _send_via_map_command(self, request: RpcRequest) -> bool:
         """通过 SC2API RequestMapCommand 发送（仅触发 Kernel，不传请求内容）。
 
-        注：MapCommand 只能传命令标识符，不能传任意数据。
+        注：MapCommand 只能传唤醒标识符，不能传任意数据。
         请求内容先写入 Bank，Kernel 收到 MapCommand 后从 pending_request_id 读取。
         """
         if not self.client:
@@ -697,8 +813,13 @@ class VibeHost:
             print(f"[VibeHost] write_bank_request 异常: {e}", file=sys.stderr)
             return False
 
-    def _poll_response(self, request_id: str, timeout: float) -> RpcResponse:
-        """轮询 Bank 等待响应。"""
+    def _poll_response(
+        self,
+        request_id: str,
+        timeout: float,
+        advance_frames: bool = False,
+    ) -> RpcResponse:
+        """轮询 Bank 等待响应，并按需推进非实时 SC2 帧。"""
         deadline = time.time() + timeout
         while time.time() < deadline:
             bank = read_bank(self.bank_name)
@@ -706,6 +827,10 @@ class VibeHost:
             raw = resp_section.get(request_id, "")
             if raw:
                 return RpcResponse.from_json(raw)
+            if advance_frames and self.client:
+                # RequestStep 在 realtime=true 会被 SC2 拒绝，但 client.step 已
+                # 将该失败收敛为 False；这里不阻断后续 wall-clock 轮询。
+                self.client.step(count=1, timeout=min(5.0, max(0.1, timeout)))
             time.sleep(0.05)  # 50ms 轮询
         # 超时
         return RpcResponse(
@@ -737,6 +862,16 @@ class VibeHost:
     def ping(self) -> RpcResponse:
         """便捷方法：发送 system.ping。"""
         return self.request("system.ping", {})
+
+    def invoke_function(self, function_id: str, args: Optional[dict[str, Any]] = None,
+                        timeout: float = 5.0, transport: str = "bank_poll") -> RpcResponse:
+        """Invoke one explicitly registered typed function."""
+        return self.request(
+            "function.invoke",
+            {"function_id": function_id, "args": args or {}},
+            timeout=timeout,
+            transport=transport,
+        )
 
     def spawn_units(self, unit_type: str, count: int, player: int = 1,
                     x: float = 0.0, y: float = 0.0) -> RpcResponse:

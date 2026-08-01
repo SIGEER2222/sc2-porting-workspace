@@ -7,7 +7,7 @@
 
 命令（help 查看）：
   ping                              -> 调试 Mod (dbg ping)，并读回 Bank 验证闭环
-  call <FuncName> [args...]         -> 调试 Mod (dbg call) 调用任意已编译 Galaxy 函数
+  invoke <function_id> [key=value...] -> 调用显式注册的 typed Vibe function
   echo <text>                       -> 调试 Mod (dbg echo)
   spawn <type> <count> [player] [@x,y]   -> SC2API DebugCreateUnit（秒级刷兵）
   kill <all|player N|tag t1 t2...>  -> SC2API DebugKillUnit
@@ -40,7 +40,7 @@
 证据分类：
   - spawn/kill/set/cheat/query/step/info/obs 走 SC2API，字段名取自 vendored python-sc2
     client.py 与 debug_pb2 描述符文本（static 已核对）。
-  - call/ping/echo 走调试 Mod 的 Map Command 分发器（见 galaxy-debug-mod/）。
+  - invoke 走正式 Vibe Bank/PollLoop 分发器；ping/echo 保留为独立调试命令。
   - 真机闭环为 runtime 证据，待 master 真机验证。
 """
 from __future__ import annotations
@@ -51,12 +51,14 @@ import json
 import shlex
 import sys
 import time
+import uuid
 from pathlib import Path
 from datetime import datetime, timezone
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 NEURO = REPO_ROOT / "reference" / "SC2-Neuro-API-Integration"
 sys.path.insert(0, str(NEURO))
+sys.path.insert(0, str(REPO_ROOT / "tools" / "galaxy-vibe"))
 
 HAS_PROTO = False
 PROTO_ERR = ""
@@ -71,7 +73,11 @@ except Exception as e:  # pragma: no cover
 
 import aiohttp  # 同 sc2-observer
 
+from host.vibe_host import RpcRequest, write_bank_request  # noqa: E402
+from vibe.function_registry import FunctionRegistryError, coerce_cli_args  # noqa: E402
+
 DEFAULT_BANK = Path.home() / "Documents" / "StarCraft II" / "Banks" / "GalaxyVibeDebug.SC2Bank"
+DEFAULT_RPC_BANK = Path.home() / "Documents" / "StarCraft II" / "Banks" / "GalaxyVibe.SC2Bank"
 
 # 断言结果落盘（外部完全可控，不碰 Bank；供冷循环/CI 消费）
 ASSERT_REPORT_PATH = REPO_ROOT / "artifacts" / "galaxy-vibe" / "assert-results.json"
@@ -259,6 +265,8 @@ class VibeREPL:
         self.map_center = common_pb.Point2D(x=50.0, y=50.0)
         self._have_map = False
         self.assert_results: list[dict] = []
+        self.rpc_session_id = "repl_" + uuid.uuid4().hex[:12]
+        self.rpc_sequence = 0
 
     async def connect(self):
         url = f"ws://127.0.0.1:{self.port}/sc2api"
@@ -401,16 +409,72 @@ class VibeREPL:
             print(f"[ping] 未确认闭环（Mod 未挂？或 Bank 未回写）run_id={run_id}")
         return True
 
-    async def cmd_call(self, args):
+    async def cmd_invoke(self, args):
         if not args:
-            print("[call] 用法: call <FuncName> [args...]")
+            print("[invoke] usage: invoke <function_id> [key=value ...]")
             return True
-        cmd = "dbg call " + " ".join(args)
-        resp = await send_request(self.ws, sc_pb.Request(map_command=sc_pb.RequestMapCommand(trigger_cmd=cmd)))
-        if resp.error:
-            print(f"[call] error: {resp.error}")
-        else:
-            print(f"[call] 已下发 {cmd}（Mod 经 TriggerExecuteByName 执行；带参函数请改用 gf_ 包装全局变量）")
+        function_id = args[0]
+        raw_args = {}
+        for item in args[1:]:
+            if "=" not in item:
+                print("[invoke] arguments must use key=value")
+                return True
+            key, value = item.split("=", 1)
+            if not key:
+                print("[invoke] argument name cannot be empty")
+                return True
+            raw_args[key] = value
+        try:
+            call_args = coerce_cli_args(function_id, raw_args)
+        except FunctionRegistryError as exc:
+            print(f"[invoke] {exc.code}: {exc.detail}")
+            return True
+
+        self.rpc_sequence += 1
+        request = RpcRequest(
+            session_id=self.rpc_session_id,
+            request_id=uuid.uuid4().hex[:12],
+            sequence=self.rpc_sequence,
+            operation="function.invoke",
+            args={"function_id": function_id, "args": call_args},
+        )
+        try:
+            if not write_bank_request("GalaxyVibe", request.request_id, request):
+                print("[invoke] unable to write GalaxyVibe bank")
+                return True
+        except Exception as exc:
+            print(f"[invoke] bank write failed: {exc}")
+            return True
+        deadline = time.time() + 5.0
+        raw = ""
+        while time.time() < deadline:
+            data = parse_bank(DEFAULT_RPC_BANK)
+            raw = data.get("response", {}).get(request.request_id, "")
+            if raw:
+                break
+            # CreateGame(realtime=False) 只会在 RequestStep 后推进 Galaxy
+            # PollLoop/BankPoll；sleep 本身不会推进游戏帧。
+            try:
+                step_resp = await send_request(
+                    self.ws,
+                    sc_pb.Request(step=sc_pb.RequestStep(count=1)),
+                    timeout=5.0,
+                )
+                if step_resp.error:
+                    # 兼容 realtime 会话：step 被拒绝时继续 wall-clock 轮询。
+                    pass
+            except Exception:
+                pass
+            await asyncio.sleep(0.1)
+        if not raw:
+            print(f"[invoke] timeout waiting for {request.request_id}")
+            return True
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            print(f"[invoke] malformed response: {raw}")
+            return True
+        print(f"[invoke] {parsed.get('error_code')} payload={parsed.get('payload', {})}")
         return True
 
     async def cmd_echo(self, args):
@@ -1022,7 +1086,7 @@ class VibeREPL:
         args = parts[1:]
         handlers = {
             "ping": self.cmd_ping,
-            "call": self.cmd_call,
+            "invoke": self.cmd_invoke,
             "echo": self.cmd_echo,
             "spawn": self.cmd_spawn,
             "kill": self.cmd_kill,
@@ -1054,7 +1118,7 @@ class VibeREPL:
         print(
             "SC2 Vibe REPL 命令：\n"
             "  ping                                  验证 Mod 闭环\n"
-            "  call <FuncName> [args...]             调用已编译 Galaxy 函数\n"
+            "  invoke <function_id> [key=value ...]  调用显式注册的 typed Vibe function\n"
             "  echo <text>                           回显文本到 Bank\n"
             "  spawn <type> <count> [player] [@x,y]  秒级刷兵（type 可用英文名或整数 id）\n"
             "  kill <all|player N|tag t1 t2...>      击杀单位\n"
@@ -1076,7 +1140,7 @@ class VibeREPL:
             "  step [n]                               推进 n 帧\n"
             "  help | ?                               本帮助\n"
             "  exit | quit                            退出\n"
-            "注：精确设置玩家资源请用你的 Galaxy 函数 + call（本 REPL 不内置 DebugSetPlayerState）。"
+            "注：function_id 必须存在于 kernel/function-registry.json；不存在的函数会被拒绝。"
         )
         return True
 

@@ -18,11 +18,13 @@ import time
 from typing import Optional
 
 from . import protocol
+from .function_registry import FunctionRegistryError, invoke_registered_function, normalize_request_args
 from .simulator_session import KernelError, SimulatorSession
 
 # simulator-first 操作白名单（§4.5）
 SIM_OPS = {
     "system.ping",
+    "function.invoke",
     "scenario.load", "scenario.reset", "scenario.step", "scenario.run", "scenario.pause",
     "unit.spawn", "unit.kill", "unit.set_vital", "unit.order",
     "player.set_resource",
@@ -117,6 +119,13 @@ class SimulatorTransport:
         assert s is not None
         if op == "system.ping":
             return s.ping()
+        if op == "function.invoke":
+            try:
+                function_id, call_args = normalize_request_args(a)
+                return self._dispatch_function(function_id, call_args)
+            except FunctionRegistryError as e:
+                code = getattr(protocol.ErrorCode, e.code, protocol.ErrorCode.INVALID_ARGS)
+                raise KernelError(int(code), e.detail) from e
         if op == "scenario.load":
             return s.scenario_load(a.get("scenario_path"), a.get("scenario_dict"), a.get("catalog"))
         if op == "scenario.reset":
@@ -167,6 +176,48 @@ class SimulatorTransport:
         if op == "assert.eventually":
             return _assert_to_dict(s.assert_eventually(a["check"], int(a.get("max_loops", 1000)), **a.get("kwargs", {})))
         raise KernelError(int(protocol.ErrorCode.UNKNOWN_OP), f"未分发操作: {op}")
+
+    def _dispatch_function(self, function_id: str, args: dict) -> dict:
+        """Explicit function-id map; never replace this with reflection."""
+        s = self.session
+        assert s is not None
+        if function_id == "vibe.test.ping":
+            return invoke_registered_function(function_id, args)
+        if function_id == "vibe.player.set_resource":
+            resource = args["resource"]
+            value = args["value"]
+            s.player_set_resource(
+                args["player"],
+                minerals=value if resource == "minerals" else None,
+                vespene=value if resource == "vespene" else None,
+            )
+            return {"function_id": function_id, "player": args["player"],
+                    "resource": resource, "value": value}
+        if function_id == "vibe.unit.spawn":
+            first_tag = 0
+            created = 0
+            for _ in range(args["count"]):
+                result = s.unit_spawn(args["unit_type"], args["player"], args["x"], args["y"])
+                if first_tag == 0:
+                    first_tag = result["entity_id"]
+                created += 1
+            return {"function_id": function_id, "created": created, "unit_tag": first_tag,
+                    "unit_type": args["unit_type"], "player": args["player"]}
+        if function_id == "vibe.query.units":
+            player = args["player"] or None
+            result = s.query_units(player)
+            unit_type = args["unit_type"]
+            # Function-level unit queries expose live units; the lower-level
+            # query.units operation still returns dead entities for diagnostics.
+            units = [u for u in result["units"] if u.get("state") != "dead"]
+            if unit_type:
+                units = [u for u in units if u.get("unit_type_id") == unit_type]
+            return {"function_id": function_id, "count": len(units),
+                    "unit_type": unit_type, "player": args["player"]}
+        if function_id == "vibe.unit.kill":
+            s.unit_kill(args["unit_tag"])
+            return {"function_id": function_id, "unit_tag": args["unit_tag"], "killed": True}
+        raise KernelError(int(protocol.ErrorCode.FUNCTION_NOT_FOUND), str(function_id))
 
 
 def _assert_to_dict(r) -> dict:

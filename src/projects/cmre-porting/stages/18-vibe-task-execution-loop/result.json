@@ -1,0 +1,74 @@
+{
+  "stage_id": "18-vibe-task-execution-loop",
+  "schemaVersion": 1,
+  "status": "PASS",
+  "current_phase": "Simulator AI ally structure-clearance loop verified",
+  "opened_at": "2026-08-01T14:23:18Z",
+  "completed_at": "2026-08-01T15:50:41Z",
+  "verification_results": {
+    "simulator_task_loop": {
+      "status": "PASS",
+      "evidence_type": "simulator",
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/18-vibe-task-execution-loop/test_task_loop.py",
+      "summary": "Six-step observe/invoke/assert task loop passed in SimulatorTransport."
+    },
+    "static_regression": {
+      "status": "PASS",
+      "evidence_type": "static",
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/18-vibe-task-execution-loop/test_task_loop.py tools/galaxy-vibe/tests/test_kernel.py tools/launchers/tests/test_launch_cmre_alenger_static.py tools/launchers/tests/test_live_runner_unit_adapter.py",
+      "summary": "60 tests passed."
+    },
+    "native_starting_units": {
+      "status": "PASS",
+      "evidence_type": "runtime",
+      "command": "preserve-native-start.ps1 -ListenPort 5093 -MapCopySuffix stage18-preserve-native",
+      "artifact": "evidence-stage18-preserve-native-runtime/verdict.json",
+      "summary": "Native CommandCenter=1 and SCV=12 observed after initialization; replacement flags all zero."
+    },
+    "runtime_task_loop": {
+      "status": "PASS",
+      "evidence_type": "runtime",
+      "artifact": "evidence-stage18-preserve-native-runtime/task-loop-runtime.json",
+      "summary": "CreateGame + JoinGame, initialization gate, and six function.invoke steps passed in one window."
+    },
+    "script_error_gate": {
+      "status": "PASS",
+      "evidence_type": "runtime",
+      "artifact": "evidence-stage18-preserve-native-runtime/script-error-verdict.json",
+      "summary": "No new ScriptError files."
+    },
+    "evidence_bundle": {
+      "status": "PASS",
+      "evidence_type": "static+runtime",
+      "artifact": "evidence-bundles/bundle-stage18-preserve-native-runtime-20260801-153534/evidence-bundle.json",
+      "summary": "17 evidence items; overall_status=passed."
+    },
+    "clear_enemy_structures_simulator": {
+      "status": "PASS",
+      "evidence_type": "simulator",
+      "command": "python -m vibe.run_dead_of_night --mvp-fast --clear-enemy-structures --output src/projects/cmre-porting/stages/18-vibe-task-execution-loop/simulator-clear-structures.json",
+      "artifact": "src/projects/cmre-porting/stages/18-vibe-task-execution-loop/simulator-clear-structures.json",
+      "summary": "Pure simulator reached all_objectives_success at loop 1882; all 344 enemy structures were destroyed, 36 infected units spawned, 27 were cleared during day, and 306 building-reinforcement events spawned local troops."
+    },
+    "static_validation_after_clearance": {
+      "status": "PASS",
+      "evidence_type": "static",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1",
+      "artifact": "artifacts/galaxy-vibe/static-validation-report.json",
+      "summary": "52/52 static checks passed with zero warnings."
+    }
+  },
+  "warnings": [],
+  "changed_paths": [
+    "src/projects/cmre-porting/project.json",
+    "src/projects/cmre-porting/vibe/run_dead_of_night.py",
+    "src/projects/cmre-porting/vibe/task_loop.py",
+    "src/projects/cmre-porting/stages/18-vibe-task-execution-loop/test_task_loop.py",
+    "src/projects/cmre-porting/stages/18-vibe-task-execution-loop/simulator-clear-structures.json",
+    "artifacts/galaxy-vibe/static-validation-report.json",
+    "artifacts/projects/cmre-porting/stage18-vibe-task-execution-loop/temporary/preserve-native-start.ps1",
+    "src/projects/cmre-porting/stages/18-vibe-task-execution-loop/evidence-stage18-preserve-native-runtime/",
+    "src/projects/cmre-porting/stages/18-vibe-task-execution-loop/evidence-bundles/bundle-stage18-preserve-native-runtime-20260801-153534/"
+  ],
+  "next_stage_plan": "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/plan.md"
+}

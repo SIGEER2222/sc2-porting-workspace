@@ -1,0 +1,93 @@
+{
+  "stage_id": "17-vibe-action-capabilities",
+  "schemaVersion": 1,
+  "status": "PASS",
+  "current_phase": "Typed action/query function registry verified in simulator, static validation, and SC2 runtime",
+  "opened_at": "2026-08-01T13:29:36Z",
+  "completed_at": "2026-08-01T14:23:18Z",
+  "direction": "Extend the explicit function.invoke registry from a side-effect-free ping to safe typed game actions and queries without restoring arbitrary Galaxy reflection.",
+  "verified_slice": {
+    "registry_contract": {
+      "status": "PASS",
+      "evidence_type": "static+simulator",
+      "summary": "set_resource, spawn, query.units, and unit.kill are explicitly registered, typed, validated, and rejected safely on invalid input."
+    },
+    "galaxy_mirrors": {
+      "status": "PASS",
+      "evidence_type": "static",
+      "summary": "Canonical kernel, debug-mod mirror, and project map mirror contain aligned explicit handlers; dynamic unit kill resolves real UnitGetTag values instead of static editor ids."
+    },
+    "runtime_action_sequence": {
+      "status": "PASS",
+      "evidence_type": "runtime",
+      "summary": "The approved CMRE launcher entered the packed Dead of Night map and completed six function.invoke requests: resource=4321, Marine count 0->2, kill=OK, count 2->1."
+    }
+  },
+  "verification_results": {
+    "kernel_tests": {
+      "command": "python -m pytest -q tools/galaxy-vibe/tests/test_kernel.py tools/launchers/tests/test_launch_cmre_alenger_static.py tools/launchers/tests/test_live_runner_unit_adapter.py",
+      "result": "PASS; 51 tests",
+      "evidence_type": "static+simulator"
+    },
+    "full_static_validation": {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1",
+      "result": "PASS; 52/52 checks, 0 warnings",
+      "evidence_type": "static",
+      "artifact": "artifacts/galaxy-vibe/static-validation-report.json"
+    },
+    "runtime_function_actions": {
+      "command": "launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander TerranRaynor -ListenPort 5081 -ApiMinimal -DebugMode -KeepAlive -MapCopySuffix stage17-action-runtime-pass5; VibeHost function.invoke sequence",
+      "result": "PASS; connected=true, response_count=6, all response error_code values are OK",
+      "evidence_type": "runtime",
+      "artifact": "src/projects/cmre-porting/stages/17-vibe-action-capabilities/evidence-stage17-action-runtime-pass5/runtime-summary.json"
+    },
+    "runtime_assertions": {
+      "command": "summarize_verdict.py --assert-json assert-results.json --script-error-json script-error-verdict.json --out combined-verdict.json",
+      "result": "PASS; assertions 5/5",
+      "evidence_type": "runtime",
+      "artifact": "src/projects/cmre-porting/stages/17-vibe-action-capabilities/evidence-stage17-action-runtime-pass5/combined-verdict.json"
+    },
+    "script_error_gate": {
+      "command": "python tools/galaxy-vibe/script_error_check.py --logs-dir <GameLogs> --since 1785593749 --out script-error-verdict.json",
+      "result": "PASS; no new ScriptErrors",
+      "evidence_type": "runtime",
+      "artifact": "src/projects/cmre-porting/stages/17-vibe-action-capabilities/evidence-stage17-action-runtime-pass5/script-error-verdict.json"
+    },
+    "evidence_bundle": {
+      "command": "python tools/galaxy-vibe/evidence_bundle.py --run-id stage17-action-runtime-pass5-20260801-2214 --artifacts-dir <pass5-evidence-dir> --phase-status-file <phase-status>",
+      "result": "PASS; 17 items, overall_status=passed",
+      "evidence_type": "static+runtime",
+      "artifact": "src/projects/cmre-porting/stages/17-vibe-action-capabilities/evidence-bundles/bundle-stage17-action-runtime-pass5-20260801-2214/evidence-bundle.json"
+    }
+  },
+  "warnings": [
+    {
+      "id": "VIBE-PARSER-LEGACY-001",
+      "status": "carried-forward",
+      "evidence_type": "static",
+      "detail": "The registered legacy parser/catalog path retains known cross-file native/catalog warnings; it is outside the Stage 17 action capability change."
+    },
+    {
+      "id": "VIBE-VISUAL-OPTIONAL-001",
+      "status": "not-required",
+      "evidence_type": "inference",
+      "detail": "Stage 17 validates typed state/action results and does not require the optional visual verdict lane."
+    }
+  ],
+  "changed_paths": [
+    "src/projects/cmre-porting/vibe/function_registry.py",
+    "src/projects/cmre-porting/vibe/simulator_transport.py",
+    "tools/galaxy-vibe/kernel/function-registry.json",
+    "tools/galaxy-vibe/kernel/LibVibeKernel.galaxy",
+    "tools/galaxy-vibe/kernel/LibVibeKernel_h.galaxy",
+    "tools/galaxy-vibe/galaxy-debug-mod/Base.SC2Data/LibVibeKernel.galaxy",
+    "tools/galaxy-vibe/galaxy-debug-mod/Base.SC2Data/LibVibeKernel_h.galaxy",
+    "src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/LibVibeKernel.galaxy",
+    "src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/LibVibeKernel_h.galaxy",
+    "tools/galaxy-vibe/evidence_bundle.py",
+    "tools/galaxy-vibe/tests/test_kernel.py",
+    "src/projects/cmre-porting/stages/17-vibe-action-capabilities/",
+    "src/projects/cmre-porting/stages/17-vibe-action-capabilities/evidence-bundles/bundle-stage17-action-runtime-pass5-20260801-2214/"
+  ],
+  "next_stage_plan": "src/projects/cmre-porting/stages/18-vibe-task-execution-loop/plan.md"
+}

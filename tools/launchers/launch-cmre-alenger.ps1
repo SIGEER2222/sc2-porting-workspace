@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive)
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "")
 # -MapCopySuffix: 可选的地图副本后缀，用于避免多会话同时操作同一 live 地图导致 DocumentInfo 冲突。
 # 例如 -MapCopySuffix "reborn" 会使用 Maps\亡者之夜.SC2Map.reborn\ 作为 live 地图。
 # 不指定时使用原始路径（向后兼容）。
@@ -103,14 +103,15 @@ if ($alenger.PSObject.Properties.Name -contains 'commanderProfiles' -and
     $profile = $alenger.commanderProfiles.$alengerId
     Write-Host "Loaded commander profile for ${alengerId}: startingStructure=$($profile.startingStructure), startingWorker=$($profile.startingWorker)"
 }
-# 默认值（Alenger3 兼容路径）：保留旧的硬编码行为
+# 默认值仅用于启动 profile 的兼容字段。亡者之夜使用 CMRE 原生起始单位，
+# 不允许通用层移除或重建地图起始建筑。
 $adapterLibPrefix = 'A3ADAPTER'
 $adapterFiles = @("LibA3ADAPTER_h.galaxy", "LibA3ADAPTER.galaxy", "LibA3ADAPTER_Catalog.galaxy")
 $adapterModName = 'Alenger3Adapter'
-$startingStructure = '3diguoqianshaojidi'
-$startingWorker = '3diguolaogong'
+$startingStructure = 'CommandCenter'
+$startingWorker = 'SCV'
 $workerCount = 5
-$vanillaRemovals = @('CommandCenterRaynor', 'SCVRaynor', 'MarineRaynor', 'RaynorCommando', 'CoopCasterRaynor', 'CommandCenter', 'SCV')
+$vanillaRemovals = @()
 if ($profile) {
     # 注意：PowerShell if(@()) 返回 $false，所以空数组需要用 null 检查
     if ($null -ne $profile.adapterLibPrefix -and $profile.adapterLibPrefix -ne '') { $adapterLibPrefix = $profile.adapterLibPrefix }
@@ -907,7 +908,7 @@ function Install-CmreGalaxyHostOverlay {
 function Install-CmreDynamicObserver {
     param([Parameter(Mandatory = $true)][string]$MapPath)
 
-    Install-CmreObserverOverlay -WorkspaceRoot $WorkspaceRoot -MapPath $MapPath -MapName $MapName -IsAlengerCommander $isAlengerCommander -AdapterLibPrefix $adapterLibPrefix -AdapterFiles $adapterFiles -EnableReborn $EnableReborn -RebornCommander $RebornCommander
+    Install-CmreObserverOverlay -WorkspaceRoot $WorkspaceRoot -MapPath $MapPath -MapName $MapName -IsAlengerCommander $isAlengerCommander -AdapterLibPrefix $adapterLibPrefix -AdapterFiles $adapterFiles -EnableReborn $EnableReborn -RebornCommander $RebornCommander -VibeKernelOverride $VibeKernelOverride
 }
 function Patch-CmreCoreRuntimeErrors {
     param([Parameter(Mandatory = $true)][string]$MapPath)
@@ -926,10 +927,16 @@ function Write-CmreLaunchProfile {
         3 { "CustomMutators" }
         default { "Standard" }
     }
-    $createStartingUnitsP1 = if ($mapStartingUnitsPlayers -contains 1) { "1" } else { "0" }
-    $createStartingUnitsP2 = if ($mapStartingUnitsPlayers -contains 2) { "1" } else { "0" }
-    $ensurePreventDefeatP1 = if ($mapPreventDefeatPlayers -contains 1) { "1" } else { "0" }
-    $ensurePreventDefeatP2 = if ($mapPreventDefeatPlayers -contains 2) { "1" } else { "0" }
+    # 亡者之夜的起始建筑由 CMRE 完整启动链创建。任何 map-side fallback
+    # 都可能在 PreventDefeat 检查前移除/替换该建筑，导致开局直接失败。
+    # Profile flags remain explicit zeroes so older generated map glue cannot
+    # accidentally re-enable the replacement path.
+    $preserveNativeMapStartingUnits = $commanderSelectionDisabled
+    $createStartingUnitsP1 = if (-not $preserveNativeMapStartingUnits -and $mapStartingUnitsPlayers -contains 1) { "1" } else { "0" }
+    $createStartingUnitsP2 = if (-not $preserveNativeMapStartingUnits -and $mapStartingUnitsPlayers -contains 2) { "1" } else { "0" }
+    $ensurePreventDefeatP1 = if (-not $preserveNativeMapStartingUnits -and $mapPreventDefeatPlayers -contains 1) { "1" } else { "0" }
+    $ensurePreventDefeatP2 = if (-not $preserveNativeMapStartingUnits -and $mapPreventDefeatPlayers -contains 2) { "1" } else { "0" }
+    if ($preserveNativeMapStartingUnits) { $vanillaRemovals = @() }
     $rebornStartingUnitsHandled = if ($EnableReborn -and $RebornCommander -ne "") { "1" } else { "0" }
     $values = [ordered]@{
         Valid = @("int", "1"); Version = @("int", "1");
@@ -951,6 +958,7 @@ function Write-CmreLaunchProfile {
         EnsurePreventDefeatP1 = @("int", $ensurePreventDefeatP1);
         EnsurePreventDefeatP2 = @("int", $ensurePreventDefeatP2);
         RebornStartingUnitsHandled = @("int", $rebornStartingUnitsHandled);
+        CommanderRace = @("string", $commanderRace);
         VanillaRemovalCount = @("int", [string]$vanillaRemovals.Count)
     }
     for ($vr = 0; $vr -lt $vanillaRemovals.Count; $vr++) {
@@ -1245,7 +1253,21 @@ function Set-CmreRuntimeBankInt {
 
 function Reset-CmreRuntimeListenerBank {
     foreach ($path in Get-CmreRuntimeBankPaths) {
-        foreach ($key in @("runtime_listener_started", "runtime_listener_ready", "bridge_heartbeat_started", "bridge_heartbeat", "world_cover_dialog_visible_p1")) {
+        foreach ($key in @(
+            "runtime_listener_started", "runtime_listener_ready", "bridge_heartbeat_started",
+            "bridge_heartbeat", "world_cover_dialog_visible_p1", "startup_load_allied",
+            "startup_map_init", "startup_dev_begin", "startup_custom_launch",
+            "startup_dev_finish", "triggers_customscript_entered", "headless_startup_entered",
+            "map_init_entered", "stage16_before_vibe", "stage16_after_vibe",
+            "initialization_gate_started", "initialization_complete",
+            "initialization_building_ready_p1", "initialization_building_ready_p2",
+            "initialization_units_ready_p1", "initialization_units_ready_p2",
+            "bridge_starting_units_created_p1", "bridge_starting_units_created_p2",
+            "bridge_prevent_defeat_p1", "bridge_prevent_defeat_p2",
+            "bridge_prevent_defeat_created_p1", "bridge_prevent_defeat_created_p2",
+            "reborn_adapter_initialized",
+            "zerg_starting_buildings_created_p1", "zerg_starting_buildings_created_p2"
+        )) {
             Set-CmreRuntimeBankInt -Path $path -Key $key -Value 0
         }
     }
@@ -1329,7 +1351,15 @@ function Wait-CmreRuntimeListener {
         $ready = Get-CmreRuntimeBankInt -Key "runtime_listener_ready"
         $heartbeat = Get-CmreRuntimeBankInt -Key "bridge_heartbeat"
         $worldCoverVisible = Get-CmreRuntimeBankInt -Key "world_cover_dialog_visible_p1"
-        if (($started -gt 0) -and ($ready -gt 0) -and ($heartbeat -gt 0)) {
+        $initializationComplete = Get-CmreRuntimeBankInt -Key "initialization_complete"
+        $buildingReadyP1 = Get-CmreRuntimeBankInt -Key "initialization_building_ready_p1"
+        $buildingReadyP2 = Get-CmreRuntimeBankInt -Key "initialization_building_ready_p2"
+        $unitsReadyP1 = Get-CmreRuntimeBankInt -Key "initialization_units_ready_p1"
+        $unitsReadyP2 = Get-CmreRuntimeBankInt -Key "initialization_units_ready_p2"
+        $initializationReady = ($initializationComplete -gt 0) -and
+            ($buildingReadyP1 -gt 0) -and ($buildingReadyP2 -gt 0) -and
+            ($unitsReadyP1 -gt 0) -and ($unitsReadyP2 -gt 0)
+        if (($started -gt 0) -and ($ready -gt 0) -and ($heartbeat -gt 0) -and $initializationReady) {
             if ($null -eq $firstHeartbeat) {
                 $firstHeartbeat = $heartbeat
                 Start-Sleep -Seconds 3
@@ -1339,13 +1369,15 @@ function Wait-CmreRuntimeListener {
                 if ($worldCoverVisible -eq 1) {
                     throw "Runtime listener heartbeat is active, but world cover dialog is still visible; likely black screen."
                 }
-                Write-Host "Runtime listener gate: ready; heartbeat $firstHeartbeat -> $heartbeat"
+                Write-Host "Runtime listener gate: ready after complete map initialization; heartbeat $firstHeartbeat -> $heartbeat"
                 return
             }
+        } else {
+            $firstHeartbeat = $null
         }
         Start-Sleep -Seconds 1
     }
-    throw "Runtime listener gate failed: no ready marker plus increasing bridge_heartbeat within $TimeoutSeconds seconds."
+    throw "Runtime listener gate failed: complete initialization marker/building/unit checks plus increasing bridge_heartbeat were not observed within $TimeoutSeconds seconds."
 }
 
 $lock = Acquire-TestLock -TestType "cmre_alenger" -MapName $MapName -Commander $Commander
@@ -1716,6 +1748,10 @@ try {
         }
         Write-Host "SC2 API mode: ready, client can connect with CreateGame + JoinGame"
         Assert-CmreNoNewScriptErrors -Since $launchStartedAt
+        # API mode intentionally stops before CreateGame + JoinGame. Galaxy map
+        # initialization cannot run until the Host loads the map, so the Host's
+        # wait_for_initialization gate owns the post-join readiness check.
+        Write-Host "SC2 API mode: launcher gate complete; Host must CreateGame + JoinGame and wait for full map initialization before actions"
     } else {
         # 普通/WebUI 模式：沿用已验证的 CMRE baseline，地图路径作为 Switcher 位置参数。
         # 是否真正加载地图由本次 GameLogs 新增 *Alert*.txt / *ScriptError*.txt 判定。
@@ -1725,7 +1761,7 @@ try {
         Start-Process -FilePath $switcher -ArgumentList $argList -WorkingDirectory (Split-Path -Parent $switcher)
         Wait-CmreGameLogMapLoadSignal -Since $launchStartedAt -TimeoutSeconds 180 | Out-Null
         Assert-CmreNoNewScriptErrors -Since $launchStartedAt
-        Wait-CmreRuntimeListener -TimeoutSeconds 45
+        Wait-CmreRuntimeListener -TimeoutSeconds 120
         Assert-CmreNoNewScriptErrors -Since $launchStartedAt
     }
 

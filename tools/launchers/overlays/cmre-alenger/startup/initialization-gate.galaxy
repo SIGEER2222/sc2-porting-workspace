@@ -1,0 +1,104 @@
+// CMRE_ON_DEMAND_INITIALIZATION_GATE
+// Actions and Vibe RPCs are allowed only after the map startup path has
+// finished and the declared starting structures/workers are present.
+trigger gt_CmreOnDemandInitializationGate;
+
+int gf_CmreOnDemandDebugInt(string key) {
+    BankLoad("CMRERebornDebug", 1);
+    if (BankLastCreated() == null) { return 0; }
+    BankWait(BankLastCreated());
+    return BankValueGetAsInt(BankLastCreated(), "debug", key);
+}
+
+int gf_CmreOnDemandAliveCount(string unitType, int player) {
+    unitgroup lv_units;
+    if ((unitType == "") || (!CatalogEntryIsValid(c_gameCatalogUnit, unitType))) { return 0; }
+    lv_units = UnitGroup(unitType, player, RegionEntireMap(),
+        UnitFilter(0, 0, (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1);
+    return UnitGroupCount(lv_units, c_unitCountAlive);
+}
+
+bool gf_CmreOnDemandInitializationReady() {
+    string lv_structureType = "";
+    string lv_workerType = "";
+    string lv_commanderRace = "";
+    int lv_workerCount = 0;
+    int lv_createP1 = 0;
+    int lv_createP2 = 0;
+    int lv_ensureP1 = 0;
+    int lv_ensureP2 = 0;
+    int lv_rebornHandled = 0;
+    bool lv_buildingP1 = false;
+    bool lv_buildingP2 = false;
+    bool lv_unitsP1 = false;
+    bool lv_unitsP2 = false;
+
+    if (gf_CmreOnDemandDebugInt("map_init_entered") == 0) { return false; }
+    if (gf_CmreOnDemandDebugInt("startup_dev_finish") == 0) { return false; }
+    if (gf_CmreOnDemandDebugInt("runtime_listener_ready") == 0) { return false; }
+    if (gf_CmreOnDemandDebugInt("world_cover_dialog_visible_p1") != 0) { return false; }
+
+    lv_structureType = gf_CmreOnDemandProfileString("StartingStructure", "CommandCenter");
+    lv_workerType = gf_CmreOnDemandProfileString("StartingWorker", "SCV");
+    lv_commanderRace = gf_CmreOnDemandProfileString("CommanderRace", "");
+    lv_workerCount = gf_CmreOnDemandProfileInt("WorkerCount");
+    if (lv_workerCount <= 0) { lv_workerCount = 5; }
+    lv_createP1 = gf_CmreOnDemandProfileInt("CreateStartingUnitsP1");
+    lv_createP2 = gf_CmreOnDemandProfileInt("CreateStartingUnitsP2");
+    lv_ensureP1 = gf_CmreOnDemandProfileInt("EnsurePreventDefeatP1");
+    lv_ensureP2 = gf_CmreOnDemandProfileInt("EnsurePreventDefeatP2");
+    lv_rebornHandled = gf_CmreOnDemandProfileInt("RebornStartingUnitsHandled");
+
+    lv_buildingP1 = (gf_CmreOnDemandAliveCount(lv_structureType, 1) > 0);
+    lv_buildingP2 = (gf_CmreOnDemandAliveCount(lv_structureType, 2) > 0);
+    if ((lv_ensureP1 != 0) && (!lv_buildingP1)) { return false; }
+    if ((lv_ensureP2 != 0) && (!lv_buildingP2)) { return false; }
+
+    lv_unitsP1 = true;
+    lv_unitsP2 = true;
+    if (lv_createP1 != 0) {
+        lv_unitsP1 = (gf_CmreOnDemandDebugInt("bridge_starting_units_created_p1") != 0) &&
+            (gf_CmreOnDemandAliveCount(lv_workerType, 1) >= lv_workerCount);
+    }
+    if (lv_createP2 != 0) {
+        lv_unitsP2 = (gf_CmreOnDemandDebugInt("bridge_starting_units_created_p2") != 0) &&
+            (gf_CmreOnDemandAliveCount(lv_workerType, 2) >= lv_workerCount);
+    }
+    if ((!lv_unitsP1) || (!lv_unitsP2)) { return false; }
+
+    // Reborn Zerg performs an additional SwarmSetup phase after the adapter
+    // creates the basic base/workers. Wait for its mission buildings too.
+    if ((lv_rebornHandled != 0) && (lv_commanderRace == "Zerg")) {
+        if (gf_CmreOnDemandDebugInt("zerg_starting_buildings_created_p1") == 0) { return false; }
+        if ((lv_ensureP2 != 0) && (gf_CmreOnDemandDebugInt("zerg_starting_buildings_created_p2") == 0)) { return false; }
+    }
+    if ((lv_rebornHandled != 0) && (gf_CmreOnDemandDebugInt("reborn_adapter_initialized") == 0)) { return false; }
+    return true;
+}
+
+bool gt_CmreOnDemandInitializationGate_Func(bool testConds, bool runActions) {
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    libMapModBridge_gf_WriteDebugBank("initialization_gate_started", 1);
+    libMapModBridge_gf_WriteDebugBank("initialization_complete", 0);
+    while (true) {
+        if (gf_CmreOnDemandInitializationReady()) {
+            libMapModBridge_gf_WriteDebugBank("initialization_building_ready_p1", 1);
+            libMapModBridge_gf_WriteDebugBank("initialization_building_ready_p2", 1);
+            libMapModBridge_gf_WriteDebugBank("initialization_units_ready_p1", 1);
+            libMapModBridge_gf_WriteDebugBank("initialization_units_ready_p2", 1);
+            libMapModBridge_gf_WriteDebugBank("initialization_complete", 1);
+            libPortingObserver_gf_Publish("initialization_complete",
+                "CMRE map initialization complete; starting structures and workers are present", false);
+            return true;
+        }
+        Wait(0.25, c_timeReal);
+    }
+    return true;
+}
+
+void gt_CmreOnDemandInitializationGate_Init() {
+    gt_CmreOnDemandInitializationGate = TriggerCreate("gt_CmreOnDemandInitializationGate_Func");
+    TriggerExecute(gt_CmreOnDemandInitializationGate, false, true);
+}

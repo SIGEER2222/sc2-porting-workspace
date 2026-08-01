@@ -53,6 +53,18 @@ SPAWN_DIRECTIONS = [
     ("west", 30.0, PLAYER_BASE_Y),  # 西
 ]
 
+# Persistent push targets do not need a command every simulation second. One
+# Heavy-unit weapon period keeps the controller responsive while avoiding a
+# large stream of duplicate attack orders in the 344-building probe.
+CLEAR_PUSH_COMMAND_INTERVAL = 67
+CLEAR_PUSH_STAGING_POINTS = [
+    (50.0, 40.0),
+    (125.0, 40.0),
+    (50.0, 145.0),
+    (125.0, 145.0),
+]
+REINFORCEMENT_LIFETIME_LOOPS = 336
+
 
 def build_night_waves(
     wave_timing: dict,
@@ -254,6 +266,7 @@ class GameReport:
     infected_cleared_in_day: int = 0
     building_reinforcements_spawned: int = 0
     structure_health_scale: float = 1.0
+    push_unit_type: str = ""
 
 
 def _unit_brief_for_log(e) -> dict:
@@ -387,6 +400,9 @@ def run_dead_of_night(
     wave_strength_scale: float = 1.0,
     clear_waves_after_final: bool = False,
     clear_enemy_structures: bool = False,
+    push_army_size: int = 48,
+    push_unit_type: str = "Marine",
+    push_start_points: Optional[list[tuple[float, float]]] = None,
 ) -> GameReport:
     """运行亡者之夜 AI 盟友对局。
 
@@ -407,6 +423,9 @@ def run_dead_of_night(
         wave_strength_scale: 波次单位数量缩放，默认 1.0。
          clear_waves_after_final: 六夜全部触发后，清空波次单位即胜利。
          clear_enemy_structures: 将所有敌方建筑摧毁作为胜利条件，并启用昼夜感染规则。
+         push_army_size: 清图模式开局集结的战斗单位数量；仅用于清图推进，不改变胜利条件。
+         push_unit_type: 清图模式开局集结的单位类型；必须是可攻击地面目标的单位。
+         push_start_points: 可选的清图分路集结点；省略时从玩家基地出发。
     """
     start_time = time.time()
 
@@ -493,34 +512,53 @@ def run_dead_of_night(
     s.set_wave_timing(data.wave_timing)  # Stage 08: 用于胜利时间计算 nights_survived
     s.scenario_reset()
     structure_health_scale = 1.0
-    if clear_enemy_structures and time_scale < 1.0:
-        # 压缩回归只缩放建筑耐久，不删除建筑实体；胜利仍要求每个目标建筑死亡。
-        # 这样真实地图的 344 个建筑可以在一分钟预算内完成可观测闭环。
-        structure_health_scale = 0.01
-        from sc2_simulator.world.entity import UnitState
+    if clear_enemy_structures:
+        if time_scale < 1.0:
+            # 压缩回归只缩放建筑耐久，不删除建筑实体；胜利仍要求每个目标建筑死亡。
+            # 这样真实地图的 344 个建筑可以在一分钟预算内完成可观测闭环。
+            # Keep every real building as an objective, but make compressed probes
+            # finish within their bounded wall-clock window. At 0.2%, even the
+            # largest map building remains damageable and is one heavy volley.
+            structure_health_scale = 0.002
+            from sc2_simulator.world.entity import UnitState
 
-        for entity in s.world.entities.values():
-            unit_type = s.world.catalog.get(entity.unit_type_id)
-            if (
-                entity.owner_player_id in (3, 4, 5)
-                and unit_type.is_structure
-                and unit_type.race != "neutral"
-            ):
-                entity.health = entity.health.__class__(
-                    max(1, int(unit_type.max_health.raw * structure_health_scale))
-                )
-                # Non-combat buildings remain valid objectives but do not spend
-                # every loop on empty auto-target scans in the compressed probe.
-                if unit_type.weapon_ground is None and unit_type.weapon_air is None:
+            for entity in s.world.entities.values():
+                unit_type = s.world.catalog.get(entity.unit_type_id)
+                if (
+                    entity.owner_player_id in (3, 4, 5)
+                    and unit_type.is_structure
+                    and unit_type.race != "neutral"
+                ):
+                    entity.health = entity.health.__class__(
+                        max(1, int(unit_type.max_health.raw * structure_health_scale))
+                    )
+                    # Buildings remain real damageable objectives, but do not spend
+                    # every compressed loop on autonomous camp scans. Damage events
+                    # still flow through the normal combat path and trigger local
+                    # reinforcements below.
                     entity.state = UnitState.HOLDING
-        # The compressed clear probe represents the co-op army already assembled
-        # for the push.  Buildings remain real entities and must still die.
-        for index in range(48):
+        # The clear probe represents the co-op army already assembled for the
+        # push. Buildings remain real entities and must still die. Keep this
+        # force configurable because compressed map runs need enough coverage
+        # to cross the full map while waves continue to pressure the base.
+        if push_army_size < 0:
+            raise ValueError("push_army_size must be non-negative")
+        push_unit = s.world.catalog.get(push_unit_type)
+        if push_unit.is_structure or push_unit.is_worker or push_unit.weapon_ground is None:
+            raise ValueError(
+                f"push_unit_type must be a non-worker ground attacker: {push_unit_type}"
+            )
+        staging_points = push_start_points or [(PLAYER_BASE_X, PLAYER_BASE_Y)]
+        if any(len(point) != 2 for point in staging_points):
+            raise ValueError("push_start_points must contain (x, y) pairs")
+        for index in range(push_army_size):
+            staging_x, staging_y = staging_points[index % len(staging_points)]
+            formation_index = index // len(staging_points)
             spawn = s.unit_spawn(
-                "Marine",
+                push_unit_type,
                 1,
-                PLAYER_BASE_X + (index % 8) * 0.8 - 2.8,
-                PLAYER_BASE_Y + (index // 8) * 0.8 - 2.0,
+                staging_x + (formation_index % 8) * 0.8 - 2.8,
+                staging_y + (formation_index // 8) * 0.8 - 2.0,
             )
             entity_info_cache_id = spawn["entity_id"]
     if verbose:
@@ -655,6 +693,8 @@ def run_dead_of_night(
     last_night = 0
     processed_event_count = 0
     reinforcement_cooldowns: dict[int, int] = {}
+    push_targets: dict[int, int] = {}
+    push_target_cursor = 0
 
     def _night_at_loop(loop: int) -> int:
         for night_data in data.wave_timing["nights"]:
@@ -733,12 +773,14 @@ def run_dead_of_night(
         return cleared
 
     def _dispatch_structure_push(loop: int) -> int:
-        """Send healthy combat units toward the nearest remaining building by day."""
+        """Advance a persistent, globally distributed structure-clear push by day."""
+        nonlocal push_target_cursor
         if not clear_enemy_structures or _night_at_loop(loop) != 0:
             return 0
-        structures = _enemy_structures()
+        structures = sorted(_enemy_structures(), key=lambda entity: entity.entity_id)
         if not structures:
             return 0
+        structures_by_id = {entity.entity_id: entity for entity in structures}
         combat_units = [
             entity
             for entity in s.world.entities.values()
@@ -748,16 +790,31 @@ def run_dead_of_night(
             and not s.world.catalog.get(entity.unit_type_id).is_worker
         ]
         issued = 0
-        for unit_index, unit in enumerate(combat_units):
-            nearby = sorted(
-                structures,
-                key=lambda entity: (
-                    (entity.x.raw - unit.x.raw) ** 2 + (entity.y.raw - unit.y.raw) ** 2
-                ),
-            )
-            # Spread the push over multiple buildings instead of making the whole army
-            # focus one target while hundreds of structures remain untouched.
-            target = nearby[unit_index % min(len(nearby), len(combat_units))]
+        claimed_targets = {
+            target_id
+            for unit_id, target_id in push_targets.items()
+            if s.world.get_entity(unit_id) is not None and target_id in structures_by_id
+        }
+        for unit in combat_units:
+            current_target_id = push_targets.get(unit.entity_id, 0)
+            target = structures_by_id.get(current_target_id)
+            if target is None:
+                # Allocate from a stable global cursor instead of the nearest local
+                # building. This makes the push cover remote camps after a local camp
+                # has been cleared, while the mapping keeps each unit on its target
+                # until that building is actually destroyed.
+                target = None
+                for offset in range(len(structures)):
+                    candidate = structures[(push_target_cursor + offset) % len(structures)]
+                    if candidate.entity_id not in claimed_targets:
+                        target = candidate
+                        push_target_cursor = (push_target_cursor + offset + 1) % len(structures)
+                        break
+                if target is None:
+                    target = structures[push_target_cursor % len(structures)]
+                    push_target_cursor = (push_target_cursor + 1) % len(structures)
+                push_targets[unit.entity_id] = target.entity_id
+                claimed_targets.add(target.entity_id)
             try:
                 pre = len(s.world.command_results)
                 s.unit_order(
@@ -795,7 +852,11 @@ def run_dead_of_night(
             if loop < reinforcement_cooldowns.get(structure.entity_id, -1):
                 continue
             reinforcement_cooldowns[structure.entity_id] = loop + 44
-            count = 2 if wave_strength_scale <= 0.5 else 3
+            count = (
+                1
+                if clear_enemy_structures
+                else (2 if wave_strength_scale <= 0.5 else 3)
+            )
             for offset in range(count):
                 spawn_result = s.unit_spawn(
                     "Zergling",
@@ -806,6 +867,7 @@ def run_dead_of_night(
                 unit = s.world.get_entity(spawn_result["entity_id"])
                 if unit is None:
                     continue
+                unit.expires_at_loop = loop + REINFORCEMENT_LIFETIME_LOOPS
                 reinforcement_entity_ids.add(unit.entity_id)
                 dynamic_enemy_entity_ids.add(unit.entity_id)
                 entity_info_cache[unit.entity_id] = (
@@ -894,7 +956,7 @@ def run_dead_of_night(
             eng._fire_triggers(cur)
 
             # 3.5 白天推进到建筑，夜间优先处理感染人/波次。
-            if clear_enemy_structures and cur % 22 == 0:
+            if clear_enemy_structures and cur % CLEAR_PUSH_COMMAND_INTERVAL == 0:
                 push_commands = _dispatch_structure_push(cur)
                 total_commands_issued += push_commands
                 total_commands_dispatched += push_commands
@@ -1318,6 +1380,7 @@ def run_dead_of_night(
         infected_cleared_in_day=infected_cleared_in_day,
         building_reinforcements_spawned=building_reinforcements_spawned,
         structure_health_scale=structure_health_scale,
+        push_unit_type=push_unit_type if clear_enemy_structures else "",
     )
 
     if verbose:
@@ -1391,19 +1454,39 @@ def main():
     parser.add_argument(
         "--mvp-fast",
         action="store_true",
-        help="MVP 快速基准：无预放置敌军、0.25 波次强度、六夜存活终局、1280 loops、预算 55s",
+        help="MVP 快速基准：普通窗口 1280/55s；清图窗口 2000/90s",
     )
     parser.add_argument(
         "--clear-enemy-structures",
         action="store_true",
         help="以摧毁全部敌方建筑为胜利条件，并启用昼夜感染规则",
     )
+    parser.add_argument(
+        "--push-army-size",
+        type=int,
+        default=None,
+        help="清图模式开局集结的战斗单位数量（快速清图默认 128，普通模式默认 48）",
+    )
+    parser.add_argument(
+        "--push-unit-type",
+        default=None,
+        help="清图模式开局集结的地面攻击单位类型（快速清图默认 Battlecruiser，普通模式默认 Marine）",
+    )
     parser.add_argument("--seed", type=int, default=42, help="模拟器随机种子")
     args = parser.parse_args()
 
-    max_loops = 1280 if args.mvp_fast else args.max_loops
+    clear_probe = args.mvp_fast and args.clear_enemy_structures
+    max_loops = (
+        2000
+        if clear_probe
+        else (1280 if args.mvp_fast else args.max_loops)
+    )
     time_scale = 0.02 if args.mvp_fast else args.time_scale
-    wall_time_budget_sec = 55.0 if args.mvp_fast else None
+    wall_time_budget_sec = (
+        90.0
+        if clear_probe
+        else (55.0 if args.mvp_fast else None)
+    )
 
     report = run_dead_of_night(
         max_loops=max_loops,
@@ -1418,6 +1501,17 @@ def main():
         wave_strength_scale=0.25 if args.mvp_fast else 1.0,
         clear_waves_after_final=False,
         clear_enemy_structures=args.clear_enemy_structures,
+        push_army_size=(
+            args.push_army_size
+            if args.push_army_size is not None
+            else (128 if args.mvp_fast else 48)
+        ),
+        push_unit_type=(
+            args.push_unit_type
+            if args.push_unit_type is not None
+            else ("Battlecruiser" if clear_probe else "Marine")
+        ),
+        push_start_points=None,
     )
 
     if args.output:

@@ -1,0 +1,36 @@
+{
+  "stage_id": "16-vibe-function-registry",
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "VIBE-FUNCTION-REFLECTION-001",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Legacy REPL call path conflicts with the typed function contract",
+      "detail": "The existing REPL still documents dbg call and TriggerExecuteByName even though the formal Kernel only accepts allowlisted operations.",
+      "evidence_type": "static+runtime",
+      "resolution": "Stage 16 exposes only explicit registry-backed invoke in the REPL, and the live ping returned OK through the Bank transport.",
+      "evidence": "artifacts/projects/cmre-porting/stage16-vibe-function-registry/live-function-fix-20260801-2124/runtime-summary.json"
+    },
+    {
+      "id": "VIBE-FUNCTION-DELIMITER-001",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Galaxy key=value parser included operation delimiters",
+      "detail": "The inclusive StringSub end index included the semicolon after operation and request_id values.",
+      "evidence_type": "static+runtime",
+      "resolution": "All three controlled kernel mirrors now exclude the delimiter; the runtime Bank response uses the original request_id and operation=function.invoke.",
+      "evidence": "artifacts/projects/cmre-porting/stage16-vibe-function-registry/live-function-fix-20260801-2124/GalaxyVibe.SC2Bank"
+    },
+    {
+      "id": "VIBE-PARSER-LEGACY-001",
+      "severity": "low",
+      "status": "carried-forward",
+      "title": "Registered legacy parser retains known catalog/native warnings",
+      "detail": "The existing cross-file parser warnings are unrelated to the explicit function registry and remain outside this stage scope.",
+      "evidence_type": "static",
+      "resolution": "Recorded for the next parser-hardening stage; no source repository changes made.",
+      "evidence": "artifacts/galaxy-vibe/static-validation-report.json"
+    }
+  ]
+}

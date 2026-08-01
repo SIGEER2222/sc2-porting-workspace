@@ -12,6 +12,7 @@ Kernel 保存当前 session 已处理 request_id：重复请求返回原结果�
 
 MVP 操作白名单（仅这些可被 Kernel 执行，绝不提供任意 call FuncName）：
   system.ping, scenario.reset,
+  function.invoke,
   unit.spawn / unit.kill / unit.set_vital,
   player.set_resource,
   query.units / query.unit / query.mission,
@@ -29,7 +30,7 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any
 
-PROTOCOL_VERSION = "vibe-1.0"
+PROTOCOL_VERSION = "vibe/1.0"
 
 
 class ErrorCode(IntEnum):
@@ -40,11 +41,14 @@ class ErrorCode(IntEnum):
     OUT_OF_ORDER = 4
     BAD_CHECKSUM = 5
     EXEC_FAILED = 6
+    FUNCTION_NOT_FOUND = 7
+    INVALID_ARGS = 8
 
 
 # 首个消费者（cmre-porting）内的预编译白名单；后续消费者可追加，但必须显式登记。
 MVP_OPS = {
     "system.ping",
+    "function.invoke",
     "scenario.reset",
     "unit.spawn",
     "unit.kill",

@@ -33,7 +33,7 @@ GALAXY_VIBE_ROOT = Path(__file__).resolve().parent
 @dataclass
 class EvidenceItem:
     """单条证据条目。"""
-    category: str  # static | runtime | visual | inference
+    category: str  # static | simulator | runtime | visual | inference
     name: str
     source_path: str
     sha256: str = ""
@@ -89,11 +89,25 @@ class EvidenceBundler:
     # of only collecting generic artifacts/galaxy-vibe/run-* files.
     ROOT_ARTIFACTS = [
         ("runtime-summary", "runtime-summary.json", "runtime"),
+        ("task-loop-runtime", "task-loop-runtime.json", "runtime"),
+        ("simulator-result", "simulator-result.json", "simulator"),
+        ("action-loop-scenario", "action-loop.json", "static"),
+        ("simulator-fixture", "simulator-empty.json", "static"),
         ("launcher-exit", "launcher-exit.json", "runtime"),
         ("launcher-stdout", "launcher-stdout.txt", "runtime"),
         ("launcher-stderr", "launcher-stderr.txt", "runtime"),
+        ("launch-started-at", "started-at-unix.txt", "runtime"),
+        ("pack-exit", "pack-exit.txt", "static"),
+        ("pack-stdout", "pack-stdout.txt", "static"),
+        ("host-task-loop-exit", "host-task-loop-exit.txt", "runtime"),
+        ("host-task-loop-stdout", "host-task-loop-stdout.txt", "runtime"),
         ("assert-results", "assert-results.json", "runtime"),
         ("script-error-verdict", "script-error-verdict.json", "runtime"),
+        ("combined-verdict", "combined-verdict.json", "runtime"),
+        ("bank-response", "GalaxyVibe.SC2Bank", "runtime"),
+        ("host-runtime-stdout", "host-runtime-stdout.txt", "runtime"),
+        ("host-runtime-exit", "host-runtime-exit.txt", "runtime"),
+        ("runtime-requests", "runtime/requests.jsonl", "runtime"),
         ("script-error-verdict-stage13", "script-error-verdict-stage13.json", "runtime"),
         ("vibe-verdict", "vibe-verdict.json", "runtime"),
         ("visual-verdict", "visual-verdict.json", "visual"),
@@ -106,6 +120,13 @@ class EvidenceBundler:
         ("stage12-runtime-recipe", "stage12-runtime-recipe.json", "static"),
         ("stage12-scenario-vtest", "stage12-scenario.vtest", "static"),
         ("runtime-scenario-vtest", "runtime-scenario.vtest", "runtime"),
+        # Stage 15 AI-ally runtime artifacts are kept under the diagnostic
+        # attempt directory and need stable names in the generated bundle.
+        ("stage15-runtime-summary", "runtime-summary-custom-adapter-long-v1.json", "runtime"),
+        ("stage15-packed-map", "DeadOfNight.action-diagnostic.packed.SC2Map", "runtime"),
+        ("stage15-replay", "live_replay_20260801_141023.jsonl", "runtime"),
+        ("stage15-static-test-result", "static-test-result.json", "static"),
+        ("stage15-combined-verdict", "combined-verdict.json", "runtime"),
     ]
 
     def __init__(
@@ -134,6 +155,11 @@ class EvidenceBundler:
         # 2. stage/root 证据（Stage 13 等阶段目录的顶层报告）
         for name, rel, category in self.ROOT_ARTIFACTS:
             self._collect_file(items, category, name, self.artifacts_dir / rel)
+
+        # Stage evidence directories commonly keep the packed map beside the
+        # runtime reports. Include it without hard-coding a stage-specific name.
+        for packed_map in sorted(self.artifacts_dir.glob("*.packed.SC2Map")):
+            self._collect_file(items, "runtime", f"packed-map/{packed_map.name}", packed_map)
 
         # 3. runtime 证据（artifacts 下的 run-* 目录、bank、session state）
         run_dir = self.artifacts_dir / f"run-{self.run_id}"
@@ -237,7 +263,7 @@ class EvidenceBundler:
             "total_items": len(items),
             "by_category": {
                 cat: sum(1 for it in items if it.category == cat)
-                for cat in ("static", "runtime", "visual", "inference")
+                for cat in ("static", "simulator", "runtime", "visual", "inference")
             },
             "sha256_map": {it.name: it.sha256 for it in items},
         }

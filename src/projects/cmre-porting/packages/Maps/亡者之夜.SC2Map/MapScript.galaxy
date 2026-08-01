@@ -7793,19 +7793,12 @@ void InitTriggers () {
 // Map Initialization
 //--------------------------------------------------------------------------------------------------
 void InitMap () {
-    // [DEBUG] 最优先写入 Bank，证明 InitMap 被调用（不依赖任何库）
-    BankLoad("GalaxyVibe", 1);
-    BankValueSetFromInt(BankLastCreated(), "index", "initmap_entered", 1);
-    BankSave(BankLastCreated());
-
-    // [DEBUG] 创建 Marine，证明 InitMap 被调用
-    UnitCreate(1, "Marine", c_unitCreateIgnorePlacement, 1, Point(45.0, 45.0), 270.0);
-
+    libMapModBridge_gf_WriteDebugBank("stage16_before_vibe", 1);
+    libVibeKernel_gf_WriteBankInt("index", "stage16_before_vibe", 160801);
     InitLibs();
     InitGlobals();
     InitTriggers();
-
-    // Vibe Kernel 触发器注册：必须在 InitTriggers() 之后（所有库已初始化）。
-    // 原因：在 NativeLib 初始化前创建的触发器对象可能无效，导致事件不触发。
+    libVibeKernel_gf_WriteBankInt("index", "stage16_after_vibe", 160801);
     libVibeKernel_gf_RegisterEntryPoints();
+    libMapModBridge_gf_WriteDebugBank("stage16_after_vibe", 1);
 }

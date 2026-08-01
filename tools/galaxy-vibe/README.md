@@ -11,7 +11,7 @@
 | 文件 | 作用 |
 |---|---|
 | `galaxy-debug-mod/modinfo.xml` | 调试 Mod 描述 |
-| `galaxy-debug-mod/Base.SC2Data/LibVibeKernel.galaxy` | `dbg` Map Command 分发器（ping/call/echo）+ Bank 回传 |
+| `galaxy-debug-mod/Base.SC2Data/LibVibeKernel.galaxy` | 显式 Vibe operation/function.invoke 分发器 + Bank 回传 |
 | `transport_probe.py` | SC2API 连接 + 3 探针（MapCommand/Bank/QuickChat）+ `transport-verdict.json` |
 | `launch-galaxy-vibe.ps1` | 挂 Mod + 起 API 的启动器（基于现有 launcher 范式） |
 
@@ -22,9 +22,8 @@
    （`gf_VibeInit` 会创建 Bank 并注册 Map Command `"dbg"` 处理器。）
 3. 保存（Save）。得到可运行的 `.SC2Mod`。
 
-> 如果编辑器提示 `libNtve_gf_TriggerAddEventMapCommand` / `libNtve_gf_TriggerExecuteByName`
-> 找不到，从函数列表里重新选同名函数（标准 Ntve 库）即可——本地 doc mirror 缺这两条条目，
-> 但运行时确实存在（CMRE 项目、暴雪 co-op 都在用）。
+> 函数级调用必须通过 `kernel/function-registry.json` 中的显式 `function_id`；
+> 本框架不提供任意 Galaxy 函数反射调用。
 
 ## 运行 P0 闸门
 
@@ -69,10 +68,10 @@ python tools/galaxy-vibe/transport_probe.py --port 5000
 - **`spawn` / `kill` / `set` / `cheat` / `query` / `obs` / `info` / `step` 全部走 SC2API 已验证接口**
   （`RequestDebug` / `RequestObservation` / `RequestGameInfo` / `RequestStep`），**不依赖任何未验证的 Galaxy native**。
   证据：字段名取自 vendored `python-sc2/client.py` 与 `debug_pb2` 描述符文本（`static` 已核对）。
-- **`call` / `ping` / `echo` 仍走调试 Mod 的 Map Command 分发器**（P0 已落地）。
+- **`invoke` / `ping` / `echo` 走正式 Vibe Map Command/Bank 分发器**（P0 已落地）。
 - 本 vendored `debug_pb2` 版本**没有 `DebugSetPlayerState`**（只有 `game_state` 作弊枚举
-  minerals/gas/god）。故**精确设置玩家资源**请用你自己的 Galaxy 函数 + `call`
-  （例如写一个 `gf_SetResources(player, minerals, vespene)` 然后 `call gf_SetResources 1 5000 5000`），
+  minerals/gas/god）。精确设置玩家资源应注册一个 typed Vibe function，
+  再通过 `invoke <function_id> key=value` 调用，避免任意函数反射。
   REPL 不内置该字段，避免猜签名。
 
 ### 启动 + 进 REPL（推荐）
@@ -96,7 +95,7 @@ python tools/galaxy-vibe/galaxy_repl.py --port 5000
 | 命令 | 作用 |
 |---|---|
 | `ping` | 验证 Mod 闭环（下发 `dbg ping` + 读 Bank） |
-| `call <FuncName> [args...]` | 调用任意已编译 Galaxy 函数（经 `TriggerExecuteByName`） |
+| `invoke <function_id> [key=value ...]` | 调用显式注册的 typed Vibe function |
 | `echo <text>` | 回显文本到 Bank |
 | `spawn <type> <count> [player] [@x,y]` | 秒级刷兵（type 用英文名或整数 id；默认落地图中心） |
 | `kill <all\|player N\|tag t1 t2...>` | 击杀单位 |
@@ -115,13 +114,13 @@ python tools/galaxy-vibe/galaxy_repl.py --port 5000
 ```
 vibe> spawn marine 5 1          # 玩家1 刷 5 个兵
 vibe> query 1                   # 看玩家1 单位
-vibe> call gf_MyTestLogic       # 跑你刚写进 Mod 的测试函数
+vibe> invoke vibe.test.ping nonce=stage16  # 调用显式注册函数
 vibe> query 1                   # 对比前后状态
 vibe> set shields 50 player 1   # 把玩家1 所有单位护盾设 50
 vibe> kill all                  # 清场重来
 ```
 
-> 只有当你要测**全新逻辑**时才改 Galaxy/Mod 重编译一次；之后用 `call` 参数化复用，循环压到秒级。
+> 只有当你要测**全新逻辑**时才改 Galaxy/Mod 重编译一次；之后用 registry 中的 typed function 循环压到秒级。
 
 ## P2 状态断言（自动判定，告别肉眼看）
 
@@ -143,13 +142,13 @@ vibe> kill all                  # 清场重来
 
 ### 确定性 scenario（批量自动验收）
 
-把 spawn/call/assert 串进一个 `.vtest` 文本文件，用 `--assert-file` 跑：
+把 spawn/invoke/assert 串进一个 `.vtest` 文本文件，用 `--assert-file` 跑：
 
 ```text
 # my_test.vtest —— 一个确定性 scenario
 spawn marine 5 1
 assert count marine == 5 --player 1
-call gf_MyTestLogic
+invoke vibe.test.ping nonce=stage16
 assert exists zealot --player 1
 assert eventually not_exists marine --player 1 --within 10
 ```
@@ -204,9 +203,9 @@ powershell -File tools/galaxy-vibe/launch-galaxy-vibe.ps1 -Verify tools/galaxy-v
 
 （也可分步手动：先 `-Repl` 交互，退出后单独跑 `script_error_check.py` 与 `summarize_verdict.py`。）
 
-> 仓库已附示例模板 `tools/galaxy-vibe/examples/my_test.vtest`：spawn→assert→call→assert 标准节奏，
+> 仓库已附示例模板 `tools/galaxy-vibe/examples/my_test.vtest`：spawn→assert→invoke→assert 标准节奏，
 > 其中纯 SC2API 断言（spawn / count / exists / range / eventually）不依赖自定义 Galaxy 函数，
-> 可直接拿来跑；`call gf_YourTestLogic` 那两行是注释，替换成你自己的函数名即可。
+> 可直接拿来跑；新增函数必须先登记到 `kernel/function-registry.json`。
 
 ## P4 冷循环（变更感知 + 场景重建）
 

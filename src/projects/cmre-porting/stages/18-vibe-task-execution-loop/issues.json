@@ -1,0 +1,25 @@
+{
+  "stage_id": "18-vibe-task-execution-loop",
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "CMRE-NATIVE-START-PRESERVE-001",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Generic startup replacement can remove the map-owned base before PreventDefeat",
+      "detail": "The map must keep its native starting structure and workers. The preservation runtime path leaves all generic creation, PreventDefeat fallback, and vanilla-removal flags at zero, then observes the native units after the initialization gate.",
+      "evidence_type": "runtime",
+      "resolution": "Same-window packed-map run observed CommandCenter=1 and SCV=12 for player 1, passed initialization_complete, completed the six-step task loop, and produced zero new ScriptErrors.",
+      "evidence": "src/projects/cmre-porting/stages/18-vibe-task-execution-loop/evidence-stage18-preserve-native-runtime/verdict.json"
+    },
+    {
+      "id": "STAGE18-NEXT-PLAN-SCOPE-001",
+      "severity": "low",
+      "status": "resolved",
+      "title": "Next stage plan is outside the active write scope",
+      "detail": "project.json now authorizes the stage19 simulator AI ally clearance plan and artifacts.",
+      "evidence_type": "static",
+      "evidence": "src/projects/cmre-porting/project.json; src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/plan.md"
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "version": "1.0",
+  "description": "Explicit Vibe function registry. Only listed function IDs may be invoked.",
+  "functions": {
+    "vibe.test.ping": {
+      "handler": "libVibeKernel_gf_FunctionVibeTestPing",
+      "side_effect": false,
+      "args": {
+        "nonce": {
+          "type": "string",
+          "required": false,
+          "default": "",
+          "maxLength": 64
+        }
+      },
+      "returns": {
+        "function_id": "string",
+        "message": "string",
+        "nonce": "string"
+      }
+    },
+    "vibe.player.set_resource": {
+      "handler": "libVibeKernel_gf_FunctionPlayerSetResource",
+      "side_effect": true,
+      "args": {
+        "player": {"type": "integer", "required": true, "min": 1, "max": 15},
+        "resource": {"type": "string", "required": true, "enum": ["minerals", "vespene"]},
+        "value": {"type": "integer", "required": true, "min": 0, "max": 999999}
+      },
+      "returns": {
+        "function_id": "string",
+        "player": "integer",
+        "resource": "string",
+        "value": "integer"
+      }
+    },
+    "vibe.unit.spawn": {
+      "handler": "libVibeKernel_gf_FunctionUnitSpawn",
+      "side_effect": true,
+      "args": {
+        "unit_type": {"type": "string", "required": true},
+        "count": {"type": "integer", "required": true, "min": 1, "max": 200},
+        "player": {"type": "integer", "required": true, "min": 1, "max": 15},
+        "x": {"type": "fixed", "required": false, "default": 0.0},
+        "y": {"type": "fixed", "required": false, "default": 0.0}
+      },
+      "returns": {
+        "function_id": "string",
+        "created": "integer",
+        "unit_tag": "integer",
+        "unit_type": "string",
+        "player": "integer"
+      }
+    },
+    "vibe.query.units": {
+      "handler": "libVibeKernel_gf_FunctionQueryUnits",
+      "side_effect": false,
+      "args": {
+        "player": {"type": "integer", "required": false, "default": 0, "min": 0, "max": 15},
+        "unit_type": {"type": "string", "required": false, "default": ""}
+      },
+      "returns": {
+        "function_id": "string",
+        "count": "integer",
+        "unit_type": "string",
+        "player": "integer"
+      }
+    },
+    "vibe.unit.kill": {
+      "handler": "libVibeKernel_gf_FunctionUnitKill",
+      "side_effect": true,
+      "args": {
+        "unit_tag": {"type": "integer", "required": true, "min": 1}
+      },
+      "returns": {
+        "function_id": "string",
+        "unit_tag": "integer",
+        "killed": "boolean"
+      }
+    }
+  }
+}

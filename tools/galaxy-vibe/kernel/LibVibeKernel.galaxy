@@ -47,7 +47,9 @@ string libVibeKernel_gf_ArgsGet(string args, string key) {
     if (end < 0) {
         return StringSub(args, valStart, StringLength(args));
     }
-    return StringSub(args, valStart, valStart + end - 1);
+    // StringFind is 1-based and StringSub's end index is inclusive.
+    // Exclude the delimiter itself from the parsed value.
+    return StringSub(args, valStart, valStart + end - 2);
 }
 
 int libVibeKernel_gf_ArgsGetInt(string args, string key) {
@@ -69,38 +71,48 @@ fixed libVibeKernel_gf_ArgsGetFixed(string args, string key) {
 // game-side 读取路径必须先卸载旧 handle 再 BankLoad，才能看到新 pending_request_id。
 // 写入路径只 EnsureBankLoaded，避免连续写 response/index key 时 reload 丢失内存中尚未保存的键。
 void libVibeKernel_gf_ReloadBank() {
-    if (libVibeKernel_gv_bankHandle != null) {
-        BankRemove(libVibeKernel_gv_bankHandle);
-        libVibeKernel_gv_bankHandle = null;
+    if (libVibeKernel_gv_bankHandle == null) {
+        libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
+    } else {
+        BankReload(libVibeKernel_gv_bankHandle);
     }
-    libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
+    if (libVibeKernel_gv_bankHandle != null) {
+        BankWait(libVibeKernel_gv_bankHandle);
+    }
 }
 
 void libVibeKernel_gf_EnsureBankLoaded() {
     if (libVibeKernel_gv_bankHandle == null) {
         libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
+        if (libVibeKernel_gv_bankHandle != null) {
+            BankWait(libVibeKernel_gv_bankHandle);
+        }
     }
 }
 
 void libVibeKernel_gf_WriteBankKey(string section, string key, string value) {
     libVibeKernel_gf_EnsureBankLoaded();
+    if (libVibeKernel_gv_bankHandle == null) { return; }
     BankValueSetFromString(libVibeKernel_gv_bankHandle, section, key, value);
     BankSave(libVibeKernel_gv_bankHandle);
 }
 
 string libVibeKernel_gf_ReadBankKey(string section, string key) {
     libVibeKernel_gf_ReloadBank();
+    if (libVibeKernel_gv_bankHandle == null) { return ""; }
     return BankValueGetAsString(libVibeKernel_gv_bankHandle, section, key);
 }
 
 void libVibeKernel_gf_WriteBankInt(string section, string key, int value) {
     libVibeKernel_gf_EnsureBankLoaded();
+    if (libVibeKernel_gv_bankHandle == null) { return; }
     BankValueSetFromInt(libVibeKernel_gv_bankHandle, section, key, value);
     BankSave(libVibeKernel_gv_bankHandle);
 }
 
 int libVibeKernel_gf_ReadBankInt(string section, string key) {
     libVibeKernel_gf_ReloadBank();
+    if (libVibeKernel_gv_bankHandle == null) { return 0; }
     return BankValueGetAsInt(libVibeKernel_gv_bankHandle, section, key);
 }
 
@@ -510,6 +522,167 @@ string libVibeKernel_gf_HandleVisualActorOpacity(string argsJson) {
     return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "visual.actor_opacity", "OK", payload);
 }
 
+// ---- Explicit function registry handlers ----
+// This is the Galaxy-side implementation map for function-registry.json.
+// Keep this explicit: function IDs must never become arbitrary function names.
+string libVibeKernel_gf_FunctionVibeTestPing(string argsJson) {
+    string nonce;
+    nonce = libVibeKernel_gf_ArgsGet(argsJson, "arg_nonce");
+    return "{\"function_id\":\"vibe.test.ping\",\"message\":\"pong\",\"nonce\":\"" + nonce + "\"}";
+}
+
+string libVibeKernel_gf_FunctionPlayerSetResource(string argsJson) {
+    int player;
+    string resource;
+    int value;
+    player = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_player");
+    resource = libVibeKernel_gf_ArgsGet(argsJson, "arg_resource");
+    value = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_value");
+    if (player < 1 || player > 15 || (resource != "minerals" && resource != "vespene") || value < 0 || value > 999999) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
+    }
+    if (resource == "minerals") {
+        PlayerModifyPropertyInt(player, c_playerPropMinerals, c_playerPropOperSetTo, value);
+    } else {
+        PlayerModifyPropertyInt(player, c_playerPropVespene, c_playerPropOperSetTo, value);
+    }
+    libVibeKernel_gv_stateVersion += 1;
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.player.set_resource\",\"player\":" + IntToString(player) + ",\"resource\":\"" + resource + "\",\"value\":" + IntToString(value) + "}");
+}
+
+string libVibeKernel_gf_FunctionUnitSpawn(string argsJson) {
+    string unitType;
+    int count;
+    int player;
+    fixed x;
+    fixed y;
+    point spawnPoint;
+    unitgroup createdGroup;
+    unit createdUnit;
+    int created;
+    int unitTag;
+    unitType = libVibeKernel_gf_ArgsGet(argsJson, "arg_unit_type");
+    count = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_count");
+    player = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_player");
+    x = libVibeKernel_gf_ArgsGetFixed(argsJson, "arg_x");
+    y = libVibeKernel_gf_ArgsGetFixed(argsJson, "arg_y");
+    if (unitType == "" || !CatalogEntryIsValid(c_gameCatalogUnit, unitType) || count < 1 || count > 200 || player < 1 || player > 15) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
+    }
+    if (x != 0.0 || y != 0.0) {
+        spawnPoint = Point(x, y);
+    } else {
+        spawnPoint = PlayerStartLocation(player);
+    }
+    if (spawnPoint == null) { spawnPoint = Point(0.0, 0.0); }
+    createdGroup = UnitCreate(count, unitType, c_unitCreateIgnorePlacement, player, spawnPoint, 270.0);
+    created = UnitGroupCount(createdGroup, c_unitCountAlive);
+    unitTag = 0;
+    if (created > 0) {
+        createdUnit = UnitGroupUnit(createdGroup, 1);
+        if (createdUnit != null) { unitTag = UnitGetTag(createdUnit); }
+    }
+    libVibeKernel_gv_stateVersion += 1;
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.unit.spawn\",\"created\":" + IntToString(created) + ",\"unit_tag\":" + IntToString(unitTag) + ",\"unit_type\":\"" + unitType + "\",\"player\":" + IntToString(player) + "}");
+}
+
+string libVibeKernel_gf_FunctionQueryUnits(string argsJson) {
+    int player;
+    string unitType;
+    unitgroup units;
+    unit current;
+    int index;
+    int total;
+    int count;
+    int owner;
+    string currentType;
+    fixed currentLife;
+    player = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_player");
+    unitType = libVibeKernel_gf_ArgsGet(argsJson, "arg_unit_type");
+    if (player < 0 || player > 15) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
+    }
+    units = UnitGroup(unitType, player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    total = UnitGroupCount(units, c_unitCountAll);
+    count = 0;
+    for (index = 1; index <= total; index += 1) {
+        current = UnitGroupUnit(units, index);
+        if (current != null) {
+            owner = UnitGetOwner(current);
+            currentType = UnitGetType(current);
+            currentLife = UnitGetPropertyFixed(current, c_unitPropLife, true);
+            if (UnitIsAlive(current) && currentLife > 0.0 && owner >= 1 && owner <= 15 && currentType != "" &&
+                (player == 0 || owner == player) && (unitType == "" || currentType == unitType)) {
+                count += 1;
+            }
+        }
+    }
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.query.units\",\"count\":" + IntToString(count) + ",\"unit_type\":\"" + unitType + "\",\"player\":" + IntToString(player) + "}");
+}
+
+string libVibeKernel_gf_FunctionUnitKill(string argsJson) {
+    int unitTag;
+    unit target;
+    unitgroup candidates;
+    unit current;
+    int ownerPlayer;
+    int index;
+    int total;
+    bool found;
+    unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_unit_tag");
+    target = null;
+    found = false;
+    if (unitTag < 1) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "UNIT_NOT_FOUND", "{}");
+    }
+    // UnitGetTag returns a runtime tag, not the editor unit id accepted by
+    // UnitFromId. Resolve the tag against live groups before killing it.
+    for (ownerPlayer = 1; ownerPlayer <= 15; ownerPlayer += 1) {
+        if (found) { break; }
+        candidates = UnitGroup(null, ownerPlayer, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+        total = UnitGroupCount(candidates, c_unitCountAll);
+        for (index = 1; index <= total; index += 1) {
+            current = UnitGroupUnit(candidates, index);
+            if (current != null && UnitGetTag(current) == unitTag &&
+                UnitGetPropertyFixed(current, c_unitPropLife, true) > 0.0 && UnitGetType(current) != "") {
+                target = current;
+                found = true;
+                break;
+            }
+        }
+    }
+    if (!found || target == null) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "UNIT_NOT_FOUND", "{}");
+    }
+    UnitKill(target);
+    libVibeKernel_gv_stateVersion += 1;
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.unit.kill\",\"unit_tag\":" + IntToString(unitTag) + ",\"killed\":true}");
+}
+
+string libVibeKernel_gf_HandleFunctionInvoke(string argsJson) {
+    string functionId;
+    string argNames;
+    string nonce;
+    functionId = libVibeKernel_gf_ArgsGet(argsJson, "function_id");
+    argNames = libVibeKernel_gf_ArgsGet(argsJson, "arg_names");
+    if (functionId == "vibe.test.ping") {
+        if (argNames != "nonce") { return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}"); }
+        nonce = libVibeKernel_gf_ArgsGet(argsJson, "arg_nonce");
+        if (StringLength(nonce) > 64 || StringFind(nonce, ";", false) >= 0 || StringFind(nonce, "=", false) >= 0 || StringFind(nonce, "\"", false) >= 0 || StringFind(nonce, "\\", false) >= 0 || StringFind(nonce, "{", false) >= 0 || StringFind(nonce, "}", false) >= 0) {
+            return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
+        }
+        return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", libVibeKernel_gf_FunctionVibeTestPing(argsJson));
+    }
+    if (functionId == "vibe.player.set_resource" && argNames == "player,resource,value") { return libVibeKernel_gf_FunctionPlayerSetResource(argsJson); }
+    if (functionId == "vibe.unit.spawn" && argNames == "count,player,unit_type,x,y") { return libVibeKernel_gf_FunctionUnitSpawn(argsJson); }
+    if (functionId == "vibe.query.units" && argNames == "player,unit_type") { return libVibeKernel_gf_FunctionQueryUnits(argsJson); }
+    if (functionId == "vibe.unit.kill" && argNames == "unit_tag") { return libVibeKernel_gf_FunctionUnitKill(argsJson); }
+    if (functionId == "vibe.player.set_resource" || functionId == "vibe.unit.spawn" || functionId == "vibe.query.units" || functionId == "vibe.unit.kill") {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
+    }
+    return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "FUNCTION_NOT_FOUND", "{}");
+}
+
 // ---- Stage 1 动态诊断 handler ----
 
 string libVibeKernel_gf_HandleUpgradeSetLevel(string argsJson) {
@@ -666,6 +839,8 @@ string libVibeKernel_gf_Dispatch(string requestJson) {
     // 3. 白名单分发
     if (operation == "system.ping") {
         result = libVibeKernel_gf_HandleSystemPing(args);
+    } else if (operation == "function.invoke") {
+        result = libVibeKernel_gf_HandleFunctionInvoke(args);
     } else if (operation == "scenario.reset") {
         result = libVibeKernel_gf_HandleScenarioReset(args);
     } else if (operation == "unit.spawn") {
@@ -719,9 +894,11 @@ bool libVibeKernel_gt_BankPoll_Func(bool testConds, bool runActions) {
     if (testConds) { return true; }
     if (!runActions) { return true; }
 
+    // Refresh before the diagnostic write so external Host requests are not
+    // overwritten by the cached Bank handle.
+    libVibeKernel_gf_ReloadBank();
     // 诊断标记：证明 BankPoll 触发器被调用（每次递增）
     libVibeKernel_gv_bankPollCount += 1;
-    libVibeKernel_gf_WriteBankInt("diag", "bankpoll_count", libVibeKernel_gv_bankPollCount);
 
     // 读取 pending_request_id
     pendingId = libVibeKernel_gf_ReadBankKey("index", "pending_request_id");
@@ -787,7 +964,6 @@ bool libVibeKernel_gt_UnitWake_Func(bool testConds, bool runActions) {
 
     // 诊断计数
     libVibeKernel_gv_mapCommandCount += 1;
-    libVibeKernel_gf_WriteBankInt("diag", "unitwake_count", libVibeKernel_gv_mapCommandCount);
 
     // 检查是否有 pending 请求
     pendingId = libVibeKernel_gf_ReadBankKey("index", "pending_request_id");
@@ -820,9 +996,11 @@ bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
     libVibeKernel_gf_WriteBankInt("diag", "pollloop_started", 1);
 
     while (true) {
+        // Refresh before the diagnostic write so external Host requests are not
+        // overwritten by the cached Bank handle.
+        libVibeKernel_gf_ReloadBank();
         // 诊断计数
         libVibeKernel_gv_bankPollCount += 1;
-        libVibeKernel_gf_WriteBankInt("diag", "bankpoll_count", libVibeKernel_gv_bankPollCount);
 
         // 读取 pending_request_id
         pendingId = libVibeKernel_gf_ReadBankKey("index", "pending_request_id");
@@ -850,18 +1028,13 @@ bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
 // 否则在 NativeLib 初始化前创建的触发器对象可能无效，导致事件不触发。
 // 调用点：MapScript.galaxy 的 InitMap() 中 InitTriggers() 之后。
 void libVibeKernel_gf_RegisterEntryPoints() {
+    libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_entered", 1);
     if (libVibeKernel_gt_ChatCommand != null) { return; }
-
-    // 强制重新初始化（InitLib 阶段 Bank 系统未就绪，Init 中的 Bank 写入可能失败，
-    // 此处 Bank 系统已就绪，重置 gv_initialized 让 Init 重新执行写入所有标记）
-    libVibeKernel_gv_initialized = false;
-    libVibeKernel_gf_Init();
-    // 写入 register_entrypoints_init_called 标记（诊断用：证明 RegisterEntryPoints 中调用了 Init）
-    libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_init_called", 1);
 
     // Chat 入口（手动调试用）
     libVibeKernel_gt_ChatCommand = TriggerCreate("libVibeKernel_gt_ChatCommand_Func");
     TriggerAddEventChatMessage(libVibeKernel_gt_ChatCommand, c_playerAny, "!vibe", false);
+    libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_chat_done", 1);
 
     // Bank 轮询入口（非 API 模式：每 0.5 秒检查一次）
     libVibeKernel_gt_BankPoll = TriggerCreate("libVibeKernel_gt_BankPoll_Func");
@@ -880,6 +1053,7 @@ void libVibeKernel_gf_RegisterEntryPoints() {
 
     // 写入注册完成标记（供 Host 端验证触发器已注册）
     libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_done", 1);
+
 }
 
 // ---- 初始化 ----
@@ -926,10 +1100,5 @@ trigger libVibeKernel_gt_AutoInit = null;
 void libVibeKernel_InitLib() {
     // 写入银行标记，证明 InitLib 被调用（供 Host 端验证）
     libVibeKernel_gf_WriteBankInt("index", "initlib_entered", 1);
-
-    if (libVibeKernel_gt_AutoInit != null) { return; }
-    libVibeKernel_gt_AutoInit = TriggerCreate("libVibeKernel_gt_AutoInit_Func");
-    TriggerAddEventTimeElapsed(libVibeKernel_gt_AutoInit, 0.0, c_timeGame);
-    // 直接调用 Init，不依赖 TimeElapsed 触发器（API 模式下 TimeElapsed 0.0 可能不触发）
     libVibeKernel_gf_Init();
 }

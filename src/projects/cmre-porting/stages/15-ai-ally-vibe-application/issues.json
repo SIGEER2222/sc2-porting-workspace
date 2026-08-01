@@ -7,30 +7,40 @@
       "severity": "high",
       "status": "resolved",
       "title": "Dead of Night can fall into commander selection startup",
-      "detail": "The staged map previously retained the CMRE CommanderSelectionScreen fallback. The map now uses the headless startup tail and the fallback is removed from staged LibCOOC.galaxy code.",
+      "detail": "The staged map previously retained the CMRE CommanderSelectionScreen fallback. The staged headless startup path now removes it and rejects the map-specific selection flag.",
       "evidence_type": "static+runtime",
-      "resolution": "Map-specific launcher policy rejects -ShowSelectionUI, removes the fallback during staging, scans the startup-bearing files, and was verified through loop 300 runtime frame advancement.",
-      "evidence": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-selection-free-final/runtime-summary-launcher-packed.json"
+      "resolution": "Launcher staging and startup-bearing Galaxy scans passed; packed-map runtime reached loop 5504.",
+      "evidence": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-action-diagnostic-20260801-1500/launcher-stdout.txt"
     },
     {
       "id": "AI-ALLY-LIVE-STARTING-UNITS-001",
       "severity": "high",
-      "status": "open",
+      "status": "resolved",
       "title": "Live map does not expose the configured Empire starting units",
-      "detail": "The runtime observation contained one ACHeroSpawnPlacement unit, zero minerals, and zero supply after the staged map reached loop 300. The bank flag alone is not treated as proof of UnitCreate success.",
+      "detail": "The final runtime observation exposes the configured Empire starting structure and workers through the project-owned live adapter.",
       "evidence_type": "runtime",
-      "evidence": "src/projects/cmre-porting/artifacts/live_replay_20260801_084514.jsonl",
-      "nextAction": "Instrument the project-owned adapter at the UnitCreate result/state boundary and determine whether map initialization is skipped, units are rejected, or a later cleanup removes them."
+      "resolution": "Custom catalog ids 4382 and 4390 are normalized to SCV and CommandCenter; player 1 retained 15 observed units in the final long run.",
+      "evidence": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-action-diagnostic-20260801-1500/runtime-summary-custom-adapter-long-v1.json"
     },
     {
       "id": "AI-ALLY-LIVE-ACTIONS-001",
       "severity": "high",
-      "status": "open",
+      "status": "resolved",
       "title": "Live AI actions return NotSupported",
-      "detail": "The live runner dispatched 13 commands during the 300-loop smoke and SC2 returned sc2:NotSupported for all of them. This is not counted as an action success.",
+      "detail": "The live runner previously sent unsupported vanilla abilities to the custom Empire units.",
       "evidence_type": "runtime",
-      "evidence": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-selection-free-final/runtime-summary-launcher-packed.json",
-      "nextAction": "Compare raw action ability/unit ids with the loaded map interface and add one minimal supported action assertion before expanding the policy scenario."
+      "resolution": "The adapter now uses Smart ability 1 for Empire worker gather/move and custom ability 17443 for Empire CommandCenter SCV training; the final run recorded 827 Success results and no failures.",
+      "evidence": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-action-diagnostic-20260801-1500/runtime-summary-custom-adapter-long-v1.json"
+    },
+    {
+      "id": "AI-ALLY-LIVE-NEUTRAL-TARGET-001",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Neutral objects are treated as enemy threats",
+      "detail": "The observation adapter previously admitted neutral objects into the policy threat list.",
+      "evidence_type": "static+runtime",
+      "resolution": "Threat selection now requires alliance=Enemy; neutral minerals are retained only as gather targets. The final run's non-neutral action success assertion passed.",
+      "evidence": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-action-diagnostic-20260801-1500/runtime-summary-custom-adapter-long-v1.json"
     },
     {
       "id": "AI-ALLY-LIVE-MAP-PACK-001",
@@ -39,8 +49,8 @@
       "title": "SC2 API rejects an unpacked staged map directory",
       "detail": "The direct directory CreateGame attempt failed. The same staged content packed through StormLib loaded successfully.",
       "evidence_type": "runtime",
-      "evidence": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-selection-free-final/DeadOfNight.launcher.packed.SC2Map",
-      "nextAction": "Keep packed ASCII-path map generation as a required live runtime precondition."
+      "resolution": "Packed ASCII-path map generation remains a required live runtime precondition and is included in the Stage 15 evidence bundle.",
+      "evidence": "artifacts/projects/cmre-porting/stage15-ai-ally-vibe-application/live-action-diagnostic-20260801-1500/DeadOfNight.action-diagnostic.packed.SC2Map"
     }
   ]
 }

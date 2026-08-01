@@ -10,6 +10,7 @@
     - player.set_resource
     - visual.actor_*
     - query.*
+    - function.invoke (explicit registry only)
   - COLD: 冷循环操作（需要重新编译/重启）
     - galaxy.modify (修改 Galaxy 源码)
     - xml.modify (修改 XML 数据)
@@ -68,6 +69,7 @@ class IntentClassifier:
         "visual.actor_tint", "visual.actor_scale", "visual.actor_opacity",
         "query.units", "query.unit", "query.mission",
         "system.ping", "scenario.reset",
+        "function.invoke",
     }
 
     # 非法 Catalog 字段关键词

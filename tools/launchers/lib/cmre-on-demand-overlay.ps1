@@ -52,6 +52,35 @@ function Add-CmreLinesAfter {
     return $Content.Replace($Anchor, ($Anchor + [Environment]::NewLine + ($missing -join [Environment]::NewLine)))
 }
 
+function Add-CmreBlockAfter {
+    param(
+        [Parameter(Mandatory = $true)][string]$Content,
+        [Parameter(Mandatory = $true)][string]$Anchor,
+        [Parameter(Mandatory = $true)][string]$Marker,
+        [Parameter(Mandatory = $true)][string]$Block
+    )
+    if ($Content.Contains($Marker)) { return $Content }
+    if (-not $Content.Contains($Anchor)) { throw "Anchor not found: $Anchor" }
+    return $Content.Replace($Anchor, ($Anchor + [Environment]::NewLine + $Block.TrimEnd()))
+}
+
+function Add-CmreBlockAfterInFunction {
+    param(
+        [Parameter(Mandatory = $true)][string]$Content,
+        [Parameter(Mandatory = $true)][string]$FunctionAnchor,
+        [Parameter(Mandatory = $true)][string]$Anchor,
+        [Parameter(Mandatory = $true)][string]$Marker,
+        [Parameter(Mandatory = $true)][string]$Block
+    )
+    if ($Content.Contains($Marker)) { return $Content }
+    $functionIndex = $Content.IndexOf($FunctionAnchor, [System.StringComparison]::Ordinal)
+    if ($functionIndex -lt 0) { throw "Function anchor not found: $FunctionAnchor" }
+    $anchorIndex = $Content.IndexOf($Anchor, $functionIndex, [System.StringComparison]::Ordinal)
+    if ($anchorIndex -lt 0) { throw "Function-local anchor not found: $FunctionAnchor -> $Anchor" }
+    $insertIndex = $anchorIndex + $Anchor.Length
+    return $Content.Substring(0, $insertIndex) + [Environment]::NewLine + $Block.TrimEnd() + $Content.Substring($insertIndex)
+}
+
 function Add-CmreBlockBefore {
     param(
         [Parameter(Mandatory = $true)][string]$Content,
@@ -93,6 +122,11 @@ function Initialize-CmreRuntimeListenerBank {
     $banksRoot = Join-Path $env:USERPROFILE "Documents\StarCraft II\Banks"
     $bankXml = '<?xml version="1.0" encoding="utf-8"?>' + [Environment]::NewLine + '<Bank version="1">' + [Environment]::NewLine + '</Bank>'
     $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($bankXml)
+    [System.IO.Directory]::CreateDirectory($banksRoot) | Out-Null
+    $vibeBankFile = Join-Path $banksRoot "GalaxyVibe.SC2Bank"
+    if (-not (Test-Path -LiteralPath $vibeBankFile)) {
+        [System.IO.File]::WriteAllBytes($vibeBankFile, $bytes)
+    }
     foreach ($dir in @($banksRoot, (Join-Path $banksRoot "1"), (Join-Path $banksRoot "2"), (Join-Path $banksRoot "14"))) {
         [System.IO.Directory]::CreateDirectory($dir) | Out-Null
         $bankFile = Join-Path $dir "CMRERebornDebug.SC2Bank"
@@ -117,6 +151,120 @@ function Assert-CmreCommanderSelectionRemoved {
         $matchPaths = ($matches | ForEach-Object { $_.Path }) -join ", "
         throw "CMRE commander-selection code remains in staged map: $matchPaths"
     }
+}
+
+function Install-CmreStartupDebugMarkersOverlay {
+    param([Parameter(Mandatory = $true)][string]$MapPath)
+
+    $baseData = Join-Path $MapPath "Base.SC2Data"
+    $libPath = Join-Path $baseData "LibCOOC.galaxy"
+    $lib = Read-CmreUtf8 -Path $libPath
+    $markerBodies = @{
+        "void libCOOC_gf_LoadAlliedCommandersData (string lp_map, trigger lp_startTrigger) {" = "startup_load_allied"
+        "void libCOOC_gf_CC_DevStartupBegin () {" = "startup_dev_begin"
+        "void libCOOC_gf_CC_CustomStartupLaunch () {" = "startup_custom_launch"
+        "void libCOOC_gf_CC_DevStartupFinish () {" = "startup_dev_finish"
+    }
+    foreach ($anchor in $markerBodies.Keys) {
+        $key = $markerBodies[$anchor]
+        $marker = "CMRE_ON_DEMAND_STARTUP_MARKER_$key"
+        if ($lib.Contains($marker)) { continue }
+        $block = @"
+    // $marker
+    BankLoad("CMRERebornDebug", 1);
+    if (BankLastCreated() != null) {
+        BankValueSetFromInt(BankLastCreated(), "debug", "$key", 1);
+        BankSave(BankLastCreated());
+    }
+"@
+        # Galaxy requires all local declarations to precede executable code.
+        # Insert after this function's declaration section, not immediately
+        # after the signature, or the generated CMRE library will not compile.
+        $lib = Add-CmreBlockAfterInFunction -Content $lib -FunctionAnchor $anchor -Anchor '    // Implementation' -Marker $marker -Block $block
+    }
+    Write-CmreUtf8NoBom -Path $libPath -Content $lib
+
+    $mapScriptPath = Join-Path $MapPath "MapScript.galaxy"
+    $mapScript = Read-CmreUtf8 -Path $mapScriptPath
+    # Do not inject a second raw BankLoad into InitMap after the observer's
+    # map_init_entered write. On a fresh session this probe can stop map
+    # initialization before InitLibs, so startup_map_init remains a reset
+    # key for older banks but is intentionally not emitted by the map glue.
+    Write-CmreUtf8NoBom -Path $mapScriptPath -Content $mapScript
+    Write-Host "CMRE startup debug markers applied"
+}
+
+function Install-CmreTriggerCustomScriptOverlay {
+    param([Parameter(Mandatory = $true)][string]$MapPath)
+
+    $path = Join-Path $MapPath "Triggers"
+    $content = Read-CmreUtf8 -Path $path
+    $marker = "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_V1"
+    if ($content.Contains($marker)) {
+        # Upgrade maps staged by an earlier launcher revision in place. Vibe
+        # registration belongs after the generated InitTriggers graph; keeping
+        # it out of this custom InitFunc avoids creating triggers too early.
+        $registerCall = '    libVibeKernel_gf_RegisterEntryPoints();'
+        if ($content.Contains($registerCall)) {
+            $content = [regex]::Replace($content, '(?m)^[ \t]*libVibeKernel_gf_RegisterEntryPoints\(\);\r?\n', '')
+            Write-CmreUtf8NoBom -Path $path -Content $content
+            Write-Host "CMRE trigger custom-script overlay removed early Vibe registration: $path"
+        } else {
+            Write-Host "CMRE trigger custom-script overlay already has no early Vibe registration"
+        }
+        return
+    }
+
+    # Keep this first probe independent from the copied runtime libraries. A
+    # root-level map CustomScript is emitted into the generated
+    # InitCustomScript() body by the editor/runtime trigger pipeline. The
+    # editor stores the entry point in InitFunc; free-standing statements in
+    # ScriptCode are only declarations and are not invoked by the bootstrap.
+    $script = @'
+// CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_V1
+void cmre_on_demand_trigger_customscript_init() {
+    BankLoad("CMRERebornDebug", 1);
+    BankValueSetFromInt(BankLastCreated(), "debug", "triggers_customscript_entered", 1);
+    BankSave(BankLastCreated());
+    UnitCreate(1, "Marine", c_unitCreateIgnorePlacement, 1, Point(50.0, 50.0), 270.0);
+}
+'@.Trim()
+
+    # Validate the existing document before making the bounded text insertion.
+    # XML serialization would rewrite a multi-megabyte editor document and add
+    # unrelated formatting churn to the staged map.
+    $document = [System.Xml.XmlDocument]::new()
+    $document.LoadXml($content)
+    # TriggerData may contain one Root per Library followed by the actual map
+    # root. Locate the top-level map Root instead of the first library Root.
+    $lastLibraryClose = $content.LastIndexOf("</Library>", [System.StringComparison]::Ordinal)
+    $rootSearchStart = if ($lastLibraryClose -ge 0) { $lastLibraryClose + "</Library>".Length } else { 0 }
+    $rootOpenIndex = $content.IndexOf("<Root>", $rootSearchStart, [System.StringComparison]::Ordinal)
+    if ($rootOpenIndex -lt 0) { throw "Triggers map root element not found: $path" }
+    $rootIndex = $content.IndexOf("</Root>", $rootOpenIndex, [System.StringComparison]::Ordinal)
+    if ($rootIndex -lt 0) { throw "Triggers map root closing element not found: $path" }
+    $documentClose = "</TriggerData>"
+    $documentCloseIndex = $content.LastIndexOf($documentClose, [System.StringComparison]::Ordinal)
+    if ($documentCloseIndex -lt 0) { throw "Triggers document closing element not found: $path" }
+
+    $item = '    <Item Type="CustomScript" Id="C0D15A15"/>' + [Environment]::NewLine
+    $content = $content.Substring(0, $rootIndex) + $item + $content.Substring($rootIndex)
+
+    $escapedScript = [System.Security.SecurityElement]::Escape($script)
+    $element = @"
+    <Element Type="CustomScript" Id="C0D15A15">
+        <ScriptCode>
+$escapedScript
+        </ScriptCode>
+        <InitFunc>cmre_on_demand_trigger_customscript_init</InitFunc>
+    </Element>
+"@
+    # Append the element at document scope, outside all Library and Root
+    # containers. The custom-script item above is the only ownership link.
+    $documentCloseIndex = $documentCloseIndex + $item.Length
+    $content = $content.Substring(0, $documentCloseIndex) + $element.TrimEnd() + [Environment]::NewLine + $content.Substring($documentCloseIndex)
+    Write-CmreUtf8NoBom -Path $path -Content $content
+    Write-Host "CMRE trigger custom-script overlay applied: $path"
 }
 
 function Install-CmreSavedProfileStartupOverlay {
@@ -202,7 +350,8 @@ function Install-CmreObserverOverlay {
         [string]$AdapterLibPrefix = "",
         [object[]]$AdapterFiles = @(),
         [bool]$EnableReborn = $false,
-        [string]$RebornCommander = ""
+        [string]$RebornCommander = "",
+        [string]$VibeKernelOverride = ""
     )
     if ($AdapterLibPrefix -ne "") { Assert-CmreGalaxyToken -Value $AdapterLibPrefix -Name "AdapterLibPrefix" }
     $baseData = Join-Path $MapPath "Base.SC2Data"
@@ -229,6 +378,28 @@ function Install-CmreObserverOverlay {
         )
     }
     Copy-CmreOverlayFiles -Files $files -DestinationRoot $baseData
+    # The Vibe kernel is project-owned map code. The CMRE source map may carry
+    # an older mirror, so copy the active project mirror after the CMRE overlay.
+    $vibeKernelRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\packages\Maps\$MapName\Base.SC2Data"
+    if ($VibeKernelOverride -ne "") {
+        $vibeKernelRoot = $VibeKernelOverride
+        if (-not (Test-Path -LiteralPath (Join-Path $vibeKernelRoot "LibVibeKernel.galaxy"))) {
+            throw "Vibe kernel override missing LibVibeKernel.galaxy: $vibeKernelRoot"
+        }
+        if (-not (Test-Path -LiteralPath (Join-Path $vibeKernelRoot "LibVibeKernel_h.galaxy"))) {
+            throw "Vibe kernel override missing LibVibeKernel_h.galaxy: $vibeKernelRoot"
+        }
+        Write-Host "Vibe kernel diagnostic override: $vibeKernelRoot"
+    }
+    if (Test-Path -LiteralPath $vibeKernelRoot) {
+        $vibeKernelFiles = @(
+            @{ Source = Join-Path $vibeKernelRoot "LibVibeKernel_h.galaxy"; Name = "LibVibeKernel_h.galaxy" },
+            @{ Source = Join-Path $vibeKernelRoot "LibVibeKernel.galaxy"; Name = "LibVibeKernel.galaxy" }
+        )
+        Copy-CmreOverlayFiles -Files $vibeKernelFiles -DestinationRoot $baseData
+        Write-Host "Project Vibe kernel overlay: copied active 亡者之夜 mirror"
+    }
+    Install-CmreTriggerCustomScriptOverlay -MapPath $MapPath
 
     $efaPath = Join-Path $baseData "LibEFA54406.galaxy"
     $efa = Read-CmreUtf8 -Path $efaPath
@@ -245,8 +416,13 @@ function Install-CmreObserverOverlay {
 
     $mapScriptPath = Join-Path $MapPath "MapScript.galaxy"
     $mapScript = Read-CmreUtf8 -Path $mapScriptPath
-    if ($mapScript.Contains('include "LibVibeKernel_h"') -and (Test-Path -LiteralPath (Join-Path $baseData "LibVibeKernel.galaxy"))) {
+    # The map-owned Vibe kernel is a source library, not an external TriggerLib
+    # dependency. The header-only include leaves the generated compilation unit
+    # with declarations but no implementations, so InitMap never links.
+    if ($mapScript.Contains('include "LibVibeKernel_h"')) {
         $mapScript = $mapScript.Replace('include "LibVibeKernel_h"', 'include "LibVibeKernel"')
+    } elseif (-not $mapScript.Contains('include "LibVibeKernel"')) {
+        $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor 'include "LibCOUI"' -Lines @('include "LibVibeKernel"')
     }
     $includeLines = @('include "LibEFA54406"', 'include "LibNeuroCommandBridge"', 'include "LibPortingObserver"', 'include "LibDeadOfNightObserver"', 'include "LibMapModBridge"')
     if ($IsAlengerCommander -and $AdapterLibPrefix -ne "") { $includeLines += ('include "Lib' + $AdapterLibPrefix + '"') }
@@ -256,18 +432,33 @@ function Install-CmreObserverOverlay {
     $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    libCOUI_InitLib();' -Lines $initLibLines
     $fragmentName = if ($MapName -eq "亡者之夜.SC2Map") { "map-glue.dead-of-night.galaxy" } else { "map-glue.generic.galaxy" }
     $fragment = Read-CmreUtf8 -Path (Join-Path (Get-CmreOverlayRoot) $fragmentName)
+    $initializationGate = Read-CmreUtf8 -Path (Join-Path (Get-CmreOverlayRoot) "startup\initialization-gate.galaxy")
+    $fragment = $fragment.TrimEnd() + [Environment]::NewLine + [Environment]::NewLine + $initializationGate.Trim()
     $mapInitAnchor = "//--------------------------------------------------------------------------------------------------" + [Environment]::NewLine + "// Map Initialization"
     $mapScript = Add-CmreBlockBefore -Content $mapScript -Anchor $mapInitAnchor -Marker "CMRE_ON_DEMAND_MAP_GLUE" -Block $fragment
-    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    InitTriggers();' -Lines @('    libDeadOfNightObserver_InitLib();', '    gt_CmreOnDemandRuntimeListener_Init();', '    gt_CmreOnDemandDeadOfNightPoll_Init();', '    gt_CmreOnDemandCommanderStartingUnits_Init();')
+    # Register Vibe after the generated map initialization graph. Trigger
+    # objects created before InitLibs/InitTriggers are not reliable in SC2.
+    $mapScript = [regex]::Replace($mapScript, '(?m)^[ \t]*libVibeKernel_gf_RegisterEntryPoints\(\);\r?\n', '')
     $initMapFunctionAnchor = "void InitMap () " + [char]123
-    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $initMapFunctionAnchor -Lines @('    libMapModBridge_gf_WriteDebugBank("map_init_entered", 1);')
+    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $initMapFunctionAnchor -Lines @('    libMapModBridge_gf_WriteDebugBank("stage16_before_vibe", 1);', '    libVibeKernel_gf_WriteBankInt("index", "stage16_before_vibe", 160801);')
+    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    InitTriggers();' -Lines @('    libVibeKernel_gf_WriteBankInt("index", "stage16_after_vibe", 160801);', '    libVibeKernel_gf_RegisterEntryPoints();', '    libMapModBridge_gf_WriteDebugBank("stage16_after_vibe", 1);', '    libDeadOfNightObserver_InitLib();', '    gt_CmreOnDemandRuntimeListener_Init();', '    gt_CmreOnDemandDeadOfNightPoll_Init();', '    gt_CmreOnDemandCommanderStartingUnits_Init();', '    gt_CmreOnDemandInitializationGate_Init();')
+    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $initMapFunctionAnchor -Lines @(
+        '    libVibeKernel_gf_RegisterEntryPoints();',
+        '    libMapModBridge_gf_WriteDebugBank("map_init_entered", 1);'
+    )
     Write-CmreUtf8NoBom -Path $mapScriptPath -Content $mapScript
+
+    Install-CmreStartupDebugMarkersOverlay -MapPath $MapPath
 
     $bankListPath = Join-Path $MapPath "BankList.xml"
     [xml]$bankList = Read-CmreUtf8 -Path $bankListPath
     $bankChanged = $false
     foreach ($entry in @(
         @{ Name = "NeuroIntegration"; Player = "1" },
+        # GalaxyVibe is the typed Vibe RPC bank. SC2 rejects writes to an
+        # undeclared bank during map initialization, which would stop InitMap
+        # before the kernel can register its transports.
+        @{ Name = "GalaxyVibe"; Player = "1" },
         @{ Name = "CMRERebornDebug"; Player = "1" },
         @{ Name = "CMRERebornDebug"; Player = "2" },
         @{ Name = "CMRERebornDebug"; Player = "14" }

@@ -1,0 +1,238 @@
+{
+  "task_id": "stage18-action-loop",
+  "status": "PASS",
+  "evidence_type": "simulator",
+  "steps_total": 6,
+  "steps_completed": 6,
+  "trace": [
+    {
+      "step_id": "set-resource",
+      "mode": "act",
+      "function_id": "vibe.player.set_resource",
+      "attempt": 1,
+      "request_id": "task-003",
+      "state_version": 0,
+      "ok": true,
+      "error_code": 0,
+      "payload": {
+        "function_id": "vibe.player.set_resource",
+        "player": 1,
+        "resource": "minerals",
+        "value": 4321
+      },
+      "errors": []
+    },
+    {
+      "step_id": "observe-before",
+      "mode": "observe",
+      "function_id": "vibe.query.units",
+      "attempt": 1,
+      "request_id": "task-004",
+      "state_version": 0,
+      "ok": true,
+      "error_code": 0,
+      "payload": {
+        "function_id": "vibe.query.units",
+        "count": 0,
+        "unit_type": "Marine",
+        "player": 1
+      },
+      "errors": []
+    },
+    {
+      "step_id": "spawn-marines",
+      "mode": "act",
+      "function_id": "vibe.unit.spawn",
+      "attempt": 1,
+      "request_id": "task-005",
+      "state_version": 0,
+      "ok": true,
+      "error_code": 0,
+      "payload": {
+        "function_id": "vibe.unit.spawn",
+        "created": 2,
+        "unit_tag": 1,
+        "unit_type": "Marine",
+        "player": 1
+      },
+      "errors": []
+    },
+    {
+      "step_id": "observe-after-spawn",
+      "mode": "observe",
+      "function_id": "vibe.query.units",
+      "attempt": 1,
+      "request_id": "task-006",
+      "state_version": 0,
+      "ok": true,
+      "error_code": 0,
+      "payload": {
+        "function_id": "vibe.query.units",
+        "count": 2,
+        "unit_type": "Marine",
+        "player": 1
+      },
+      "errors": []
+    },
+    {
+      "step_id": "kill-first",
+      "mode": "act",
+      "function_id": "vibe.unit.kill",
+      "attempt": 1,
+      "request_id": "task-007",
+      "state_version": 0,
+      "ok": true,
+      "error_code": 0,
+      "payload": {
+        "function_id": "vibe.unit.kill",
+        "unit_tag": 1,
+        "killed": true
+      },
+      "errors": []
+    },
+    {
+      "step_id": "observe-after-kill",
+      "mode": "observe",
+      "function_id": "vibe.query.units",
+      "attempt": 1,
+      "request_id": "task-008",
+      "state_version": 0,
+      "ok": true,
+      "error_code": 0,
+      "payload": {
+        "function_id": "vibe.query.units",
+        "count": 1,
+        "unit_type": "Marine",
+        "player": 1
+      },
+      "errors": []
+    }
+  ],
+  "captures": {
+    "set-resource": {
+      "kind": "result",
+      "request_id": "task-003",
+      "sequence": 3,
+      "operation": "function.invoke",
+      "error_code": 0,
+      "payload": {
+        "function_id": "vibe.player.set_resource",
+        "player": 1,
+        "resource": "minerals",
+        "value": 4321
+      },
+      "state_version": 0,
+      "ok": true
+    },
+    "observe-before": {
+      "kind": "result",
+      "request_id": "task-004",
+      "sequence": 4,
+      "operation": "function.invoke",
+      "error_code": 0,
+      "payload": {
+        "function_id": "vibe.query.units",
+        "count": 0,
+        "unit_type": "Marine",
+        "player": 1
+      },
+      "state_version": 0,
+      "ok": true
+    },
+    "spawn-marines": {
+      "kind": "result",
+      "request_id": "task-005",
+      "sequence": 5,
+      "operation": "function.invoke",
+      "error_code": 0,
+      "payload": {
+        "function_id": "vibe.unit.spawn",
+        "created": 2,
+        "unit_tag": 1,
+        "unit_type": "Marine",
+        "player": 1
+      },
+      "state_version": 0,
+      "ok": true
+    },
+    "observe-after-spawn": {
+      "kind": "result",
+      "request_id": "task-006",
+      "sequence": 6,
+      "operation": "function.invoke",
+      "error_code": 0,
+      "payload": {
+        "function_id": "vibe.query.units",
+        "count": 2,
+        "unit_type": "Marine",
+        "player": 1
+      },
+      "state_version": 0,
+      "ok": true
+    },
+    "kill-first": {
+      "kind": "result",
+      "request_id": "task-007",
+      "sequence": 7,
+      "operation": "function.invoke",
+      "error_code": 0,
+      "payload": {
+        "function_id": "vibe.unit.kill",
+        "unit_tag": 1,
+        "killed": true
+      },
+      "state_version": 0,
+      "ok": true
+    },
+    "observe-after-kill": {
+      "kind": "result",
+      "request_id": "task-008",
+      "sequence": 8,
+      "operation": "function.invoke",
+      "error_code": 0,
+      "payload": {
+        "function_id": "vibe.query.units",
+        "count": 1,
+        "unit_type": "Marine",
+        "player": 1
+      },
+      "state_version": 0,
+      "ok": true
+    }
+  },
+  "failures": [],
+  "setup": {
+    "load": {
+      "kind": "result",
+      "request_id": "setup-load",
+      "sequence": 1,
+      "operation": "scenario.load",
+      "error_code": 0,
+      "payload": {
+        "scenario_name": "Stage 18 Empty Action Loop",
+        "schema_version": "m7.v1",
+        "catalog_hash": "122d782830cdbaa6",
+        "fidelity_summary": {
+          "approximate": 103
+        }
+      },
+      "state_version": 0,
+      "ok": true
+    },
+    "reset": {
+      "kind": "result",
+      "request_id": "setup-reset",
+      "sequence": 2,
+      "operation": "scenario.reset",
+      "error_code": 0,
+      "payload": {
+        "loop": 0,
+        "initial_snapshot_hash": "a620ffc15700724462e33545fbe6591334e2e9e08953c9a031bf1e8704b85dc9",
+        "entity_count": 0
+      },
+      "state_version": 0,
+      "ok": true
+    }
+  },
+  "transport": "SimulatorTransport"
+}

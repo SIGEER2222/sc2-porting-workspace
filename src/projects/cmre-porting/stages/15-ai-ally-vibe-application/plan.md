@@ -44,6 +44,7 @@ overlay only:
 
 - `tools/launchers/launch-cmre-alenger.ps1`
 - `tools/launchers/lib/cmre-on-demand-overlay.ps1`
+- `tools/launchers/lib/cmre-core-runtime-overlay.ps1` (bounded fix for staged-map patching)
 - `tools/launchers/overlays/cmre-alenger/startup/**`
 - `tools/launchers/tests/test_launch_cmre_alenger_static.py`
 

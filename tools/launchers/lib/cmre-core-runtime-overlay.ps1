@@ -194,13 +194,23 @@ function Install-CmreCoreRuntimeErrorOverlay {
     # 注意：Galaxy 不允许在局部变量声明之前出现可执行语句，故 guard 必须放在
     # 变量声明之后。锚点用 autoE01594B5_var（该触发器函数独有的自动变量）保证
     # 只命中 CM_HeroWaitForRevive_TriggerFunc，避免误注入到其他函数（如复活时长计算）。
-    # 用正则容忍声明之间的空行数量差异。
-    $comiAnchor10 = 'unit autoE01594B5_var;[\s\S]*?lv_commander = libCOOC_gf_ActiveCommanderForPlayer\(lp_player\);'
-    $nl = [Environment]::NewLine
-    $comiPatch10 = 'unit autoE01594B5_var;' + $nl + $nl + '    // CMRE patch: 无英雄指挥官（如 Alenger）的 cM_HeroReviver 为 null，跳过复活逻辑' + $nl + '    if (libCOMI_gv_cM_HeroReviver[lp_player] == null) { return true; }' + $nl + '    lv_commander = libCOOC_gf_ActiveCommanderForPlayer(lp_player);'
+    # Use deterministic offsets inside the uniquely named trigger function.
+    # A broad [\s\S]*? Regex.Replace here can repeatedly match generated
+    # fragments and inflate LibCOMI from 3 MB to hundreds of MB.
+    $comiFunction10 = 'bool auto_libCOMI_gf_CM_HeroWaitForRevive_TriggerFunc'
+    $comiUnitAnchor10 = '    unit autoE01594B5_var;'
+    $comiCommanderAnchor10 = '    lv_commander = libCOOC_gf_ActiveCommanderForPlayer(lp_player);'
+    $nl = if ($comi.Contains("`r`n")) { "`r`n" } else { "`n" }
+    $comiPatch10 = $comiUnitAnchor10 + $nl + $nl + '    // CMRE patch: 无英雄指挥官（如 Alenger）的 cM_HeroReviver 为 null，跳过复活逻辑' + $nl + '    if (libCOMI_gv_cM_HeroReviver[lp_player] == null) { return true; }' + $nl + $comiCommanderAnchor10
     if (-not $comi.Contains($comiPatch10)) {
-        if (-not [regex]::IsMatch($comi, $comiAnchor10)) { throw "LibCOMI patch 10 anchor not found" }
-        $comi = [regex]::Replace($comi, $comiAnchor10, $comiPatch10)
+        $functionIndex10 = $comi.IndexOf($comiFunction10, [System.StringComparison]::Ordinal)
+        if ($functionIndex10 -lt 0) { throw "LibCOMI patch 10 function anchor not found" }
+        $unitIndex10 = $comi.IndexOf($comiUnitAnchor10, $functionIndex10, [System.StringComparison]::Ordinal)
+        if ($unitIndex10 -lt 0) { throw "LibCOMI patch 10 unit anchor not found" }
+        $commanderIndex10 = $comi.IndexOf($comiCommanderAnchor10, $unitIndex10, [System.StringComparison]::Ordinal)
+        if ($commanderIndex10 -lt 0) { throw "LibCOMI patch 10 commander anchor not found" }
+        $commanderEnd10 = $commanderIndex10 + $comiCommanderAnchor10.Length
+        $comi = $comi.Substring(0, $unitIndex10) + $comiPatch10 + $comi.Substring($commanderEnd10)
         $patchCount++
     }
 

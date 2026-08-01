@@ -5,11 +5,11 @@
 #
 # 规则：每行一条 REPL 命令；# 开头为注释；空行忽略。
 #   - spawn / kill / set / cheat / query / assert  走 SC2API（无需自定义 Galaxy 函数）
-#   - call / ping / echo                          走调试 Mod 的 Map Command 分发器（需 Mod 挂上）
+#   - invoke / ping / echo                        走正式 Vibe Map Command/Bank 分发器（需 Mod 挂上）
 #   - assert 计入 vibe-verdict.json 判定；其余命令仅执行不影响通过/失败
 #
 # 本模板的断言全部基于 SC2API 层（不依赖你自定义的 Galaxy 函数），真机必过；
-# 把 `call gf_YourTestLogic` 那两行取消注释、替换成你自己的函数，即可测真实逻辑。
+# 新函数必须先加入 function-registry.json，再使用 invoke 测试。
 
 # 1) 验证调试 Mod 闭环（需 Mod 已挂；非 assert，不计入判定）
 ping
@@ -23,8 +23,7 @@ assert exists marine --player 1
 set shields 50 player 1
 
 # 4) 演示调用你自己的 Galaxy 函数（替换成你的函数名）
-# call gf_YourTestLogic
-# assert exists zealot --player 1        # 例如：你的函数应产出一个 zealot
+invoke vibe.test.ping nonce=stage16
 
 # 5) 清场，准备下一轮
 kill all

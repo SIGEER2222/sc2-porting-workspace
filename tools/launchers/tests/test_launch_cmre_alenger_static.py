@@ -81,16 +81,43 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
     assert "runtime_listener_started" in wait_body
     assert "runtime_listener_ready" in wait_body
     assert "bridge_heartbeat" in wait_body
+    assert "initialization_complete" in wait_body
+    assert "initialization_building_ready_p1" in wait_body
+    assert "initialization_units_ready_p1" in wait_body
+    assert "Wait-CmreRuntimeListener -TimeoutSeconds 120" in source
     assert "CMRERebornDebug" in overlay
+    assert '@{ Name = "GalaxyVibe"; Player = "1" }' in overlay
     assert 'Documents\\StarCraft II\\Banks' in overlay
     assert "gt_CmreOnDemandRuntimeListener_Init();" in observer_overlay_body
-    assert 'include "LibVibeKernel_h"' in observer_overlay_body
-    assert 'include "LibVibeKernel"' in observer_overlay_body
 
     assert "gt_CmreOnDemandRuntimeListener_Func" in map_glue
     assert "libMapModBridge_gf_StartHeartbeat();" in map_glue
     assert "runtime_listener_ready" in map_glue
+    assert "libVibeKernel_gf_RegisterEntryPoints();" in observer_overlay_body
     assert 'libMapModBridge_gf_WriteDebugBank("map_init_entered", 1);' in observer_overlay_body
+    assert "Install-CmreTriggerCustomScriptOverlay" in observer_overlay_body
+    assert "Install-CmreStartupDebugMarkersOverlay" in observer_overlay_body
+    assert "Add-CmreBlockAfter" in overlay
+    assert "Add-CmreBlockAfterInFunction" in overlay
+    assert "Function-local anchor not found" in overlay
+    assert "    // Implementation" in overlay
+    assert "startup_map_init" in overlay
+    assert "startup_dev_begin" in overlay
+    assert "startup_custom_launch" in overlay
+    assert "startup_dev_finish" in overlay
+    assert "Triggers" in overlay
+    assert "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_V1" in overlay
+    assert "triggers_customscript_entered" in overlay
+    assert 'BankValueSetFromInt(BankLastCreated(), "debug", "triggers_customscript_entered", 1);' in overlay
+    assert 'libVibeKernel_gf_RegisterEntryPoints();' in overlay
+    assert "registration belongs after the generated InitTriggers graph" in overlay
+    assert 'stage16_before_vibe' in overlay
+    assert 'stage16_after_vibe' in overlay
+    assert 'CMRE trigger custom-script registration anchor not found' not in overlay
+    assert "<InitFunc>cmre_on_demand_trigger_customscript_init</InitFunc>" in overlay
+    assert "void cmre_on_demand_trigger_customscript_init()" in overlay
+    assert 'LastIndexOf("</Library>"' in overlay
+    assert 'LastIndexOf($documentClose' in overlay
 
 
 def test_player_mode_launches_direct_map_from_gamelog_signal():
@@ -111,6 +138,9 @@ def test_overlay_assets_hold_galaxy_fragments_outside_launcher():
     assert "Install-CmreSavedProfileStartupOverlay" in overlay
     assert "Install-CmreObserverOverlay" in overlay
     assert "Install-CmreCoreRuntimeErrorOverlay" in core_overlay
+    assert "deterministic offsets inside the uniquely named trigger function" in core_overlay
+    assert "[regex]::Replace($comi, $comiAnchor10, $comiPatch10)" not in core_overlay
+    assert "$functionIndex10 = $comi.IndexOf($comiFunction10" in core_overlay
 
     required_assets = [
         ASSETS / "startup" / "saved-profile-body.galaxy.tpl",
@@ -119,6 +149,7 @@ def test_overlay_assets_hold_galaxy_fragments_outside_launcher():
         ASSETS / "startup" / "tail.skip-pause.galaxy",
         ASSETS / "startup" / "tail.skip-countdown.galaxy",
         ASSETS / "startup" / "tail.headless.galaxy",
+        ASSETS / "startup" / "initialization-gate.galaxy",
         ASSETS / "map-glue.generic.galaxy",
         ASSETS / "map-glue.dead-of-night.galaxy",
     ]
@@ -139,6 +170,10 @@ def test_overlay_assets_hold_galaxy_fragments_outside_launcher():
     assert "gf_CmreOnDemandProfileString" in map_glue
     assert "libMapModBridge_gf_CreateStartingUnits" in map_glue
     assert "gt_CmreOnDemandRuntimeListener_Init" in map_glue
+    initialization_gate = (ASSETS / "startup" / "initialization-gate.galaxy").read_text(encoding="utf-8-sig")
+    assert "initialization_complete" in initialization_gate
+    assert "starting structures and workers are present" in initialization_gate
+    assert "gf_CmreOnDemandAliveCount" in initialization_gate
     assert "CMUIX_ReadyBeginCountdown();" in default_tail
     assert 'TriggerSendEvent("CU_CommChoiceEventClosed")' not in default_tail
 
@@ -159,4 +194,8 @@ def test_headless_startup_is_the_default_non_selection_path():
     assert "Assert-CmreCommanderSelectionRemoved" in overlay
     assert "Join-Path $baseData \"LibCOOC.galaxy\"" in overlay
     assert "Join-Path $MapPath \"MapScript.galaxy\"" in overlay
+    assert 'Join-Path $WorkspaceRoot "src\\projects\\cmre-porting\\packages\\Maps\\$MapName\\Base.SC2Data"' in overlay
+    assert 'Copy-CmreOverlayFiles -Files $vibeKernelFiles -DestinationRoot $baseData' in overlay
+    assert "Replace('include \"LibVibeKernel_h\"', 'include \"LibVibeKernel\"')" in overlay
+    assert "declarations but no implementations" in overlay
     assert "Select-String -Pattern 'CommanderSelectionScreen' -SimpleMatch" in overlay

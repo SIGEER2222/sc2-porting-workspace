@@ -212,14 +212,21 @@ def _unit_brief_from_sc2(u, player_id: int) -> Optional[dict]:
     返回 None 表示该单位应被跳过（如中立非战斗单位）。
     """
     unit_type_int = u.unit_type
-    unit_type_name = INT_TO_NAME.get(unit_type_int, str(unit_type_int))
+    unit_type_name = _LIVE_UNIT_TYPE_ALIASES_BY_ID.get(
+        unit_type_int,
+        _canonical_live_unit_name(INT_TO_NAME.get(unit_type_int, str(unit_type_int))),
+    )
+    if unit_type_name == "ACHeroSpawnPlacement":
+        return None
     # SC2 的 pos 是 {x, y, z}，世界单位 float
     x = u.pos.x if u.HasField("pos") else 0.0
     y = u.pos.y if u.HasField("pos") else 0.0
     return {
         "entity_id": u.tag,  # SC2 用 tag 作为单位唯一标识
+        "unit_type_int": unit_type_int,
         "unit_type_id": unit_type_name,
         "owner": u.owner,
+        "alliance": int(u.alliance),
         "x": x,
         "y": y,
         "health": int(u.health * 1024) if u.health else 0,  # vibe 用 raw int（×1024）
@@ -228,6 +235,48 @@ def _unit_brief_from_sc2(u, player_id: int) -> Optional[dict]:
         "state": "",
         "max_health": int(u.health_max * 1024) if u.health_max else 0,
     }
+
+
+# The live API exposes catalog names in the enum spelling (for example
+# MARINE), while project policies use the map-extractor spelling (Marine).
+_LIVE_UNIT_NAME_ALIASES = {
+    "COMMANDCENTER": "CommandCenter",
+    "SUPPLYDEPOT": "SupplyDepot",
+    "REFINERY": "Refinery",
+    "BARRACKS": "Barracks",
+    "ENGINEERINGBAY": "EngineeringBay",
+    "MISSILETURRET": "MissileTurret",
+    "BUNKER": "Bunker",
+    "FACTORY": "Factory",
+    "STARPORT": "Starport",
+    "SCV": "SCV",
+    "MARINE": "Marine",
+    "MARAUDER": "Marauder",
+    "HELLION": "Hellion",
+    "SIEGETANK": "SiegeTank",
+    "MEDIVAC": "Medivac",
+    "VIKINGFIGHTER": "Viking",
+    "VIKING": "Viking",
+    "BANSHEE": "Banshee",
+    "RAVEN": "Raven",
+    "THOR": "Thor",
+    "MINERALFIELD": "MineralField",
+    "ACHEROSPAWNPLACEMENT": "ACHeroSpawnPlacement",
+}
+
+_LIVE_UNIT_TYPE_ALIASES_BY_ID = {
+    # CMRE catalog object; python-sc2 only knows the Blizzard catalog IDs.
+    4051: "ACHeroSpawnPlacement",
+    # Empire runtime catalog objects verified through RequestData:
+    # 3diguolaogong is the worker and 3diguoqianshaojidi is the town hall.
+    4382: "SCV",
+    4390: "CommandCenter",
+}
+
+
+def _canonical_live_unit_name(name: str) -> str:
+    """Map SC2 enum names to the canonical names consumed by vibe policies."""
+    return _LIVE_UNIT_NAME_ALIASES.get(name.upper(), name)
 
 
 def build_observation(resp: sc_pb.Response, player_id: int) -> LiveObservation:
@@ -247,12 +296,12 @@ def build_observation(resp: sc_pb.Response, player_id: int) -> LiveObservation:
                 continue
             if u.owner == player_id:
                 own_units.append(brief)
-            elif u.owner != 0 and u.alliance == 4:  # 4 = Enemy
+            # alliance: 1=Self, 2=Ally, 3=Neutral, 4=Enemy. Neutral map
+            # objects must never become policy threats.
+            elif u.alliance == 4:
                 visible_enemies.append(brief)
-            # alliance: 1=Self, 2=Ally, 4=Enemy, 3=Neutral
-            elif u.owner != 0 and u.alliance in (3, 4):
-                visible_enemies.append(brief)
-            elif u.owner == 0 and brief["unit_type_id"] == "MineralField":
+            elif (u.alliance == 3
+                  and brief["unit_type_id"] == "MineralField"):
                 # 中立矿物单位，用于 gather 命令的 target 替换
                 mineral_fields.append(brief)
 
@@ -350,7 +399,11 @@ BUILD_ABILITY_MAP: dict[str, str] = {
 }
 
 
-def build_action(a: DefendAction, player_id: int) -> Optional[sc_pb.Action]:
+def build_action(
+    a: DefendAction,
+    player_id: int,
+    source_unit_type_int: int = 0,
+) -> Optional[sc_pb.Action]:
     """把 DefendAction 转成 SC2 Action。返回 None 表示跳过（如 hold）。"""
     if a.kind == "hold":
         return None  # 不发命令 = 保持当前位置
@@ -366,14 +419,19 @@ def build_action(a: DefendAction, player_id: int) -> Optional[sc_pb.Action]:
         cmd.ability_id = _ability_id("ATTACK") or 23  # 23 = Attack default
         cmd.target_unit_tag = a.target_entity_id
     elif a.kind == "move":
-        cmd.ability_id = _ability_id("MOVE") or 16  # 16 = Move default
+        if source_unit_type_int == 4382:
+            cmd.ability_id = _ability_id("SMART") or 1
+        else:
+            cmd.ability_id = _ability_id("MOVE_MOVE") or 16  # exact raw Move
         tp = cmd.target_world_space_pos
         tp.x = a.target_x
         tp.y = a.target_y
     elif a.kind == "gather":
         if a.target_entity_id == 0:
             return None
-        cmd.ability_id = _ability_id("SMART") or 2  # 2 = Smart (right-click)
+        # Empire workers expose Smart (1) but not the vanilla Harvest ability.
+        # Right-clicking a mineral is the same command at this boundary.
+        cmd.ability_id = _ability_id("SMART") or 1
         cmd.target_unit_tag = a.target_entity_id
     elif a.kind == "train":
         # train：通过 TRAIN_ABILITY_MAP 查 ability_name，再查 ability_id
@@ -381,7 +439,11 @@ def build_action(a: DefendAction, player_id: int) -> Optional[sc_pb.Action]:
         ability_name = TRAIN_ABILITY_MAP.get(a.unit_type_id, "")
         if not ability_name:
             return None  # 未知单位类型，跳过（runner 会记 train:no_action）
-        aid = _ability_id(ability_name)
+        aid = (
+            17443
+            if source_unit_type_int == 4390 and a.unit_type_id == "SCV"
+            else _ability_id(ability_name)
+        )
         if aid == 0:
             return None  # ability_id 解析失败（ability_id.py 缺该条目）
         cmd.ability_id = aid
@@ -441,6 +503,12 @@ class LiveGameReport:
     summary: str
     cmd_ok_stats: dict = field(default_factory=dict)
     cmd_fail_stats: dict = field(default_factory=dict)
+    cmd_ok_by_kind: dict = field(default_factory=dict)
+    cmd_fail_by_kind: dict = field(default_factory=dict)
+    action_result_trace: list[dict] = field(default_factory=list)
+    runtime_assertions: dict = field(default_factory=dict)
+    behavior_verdict: str = "inconclusive"
+    local_map_path: str = ""
     replay_log_path: str = ""
 
 
@@ -479,6 +547,7 @@ async def run_live(
     decision_interval: int = 22,  # 1 秒决策一次
     verbose: bool = True,
     replay_log_path: Optional[str] = None,
+    force_map_path: bool = True,
 ) -> LiveGameReport:
     """运行真机 AI 盟友自主对局。
 
@@ -490,12 +559,17 @@ async def run_live(
         decision_interval: 决策间隔（帧数）
         verbose: 是否打印进度
         replay_log_path: JSONL 回放日志路径
+        force_map_path: 使用原生地图路径，保留 CMRE 的外部依赖链
     """
     start_time = time.time()
     conn = Sc2Connection(port)
     await conn.connect()
     cmd_ok_stats: Counter = Counter()
     cmd_fail_stats: Counter = Counter()
+    cmd_ok_by_kind: Counter = Counter()
+    cmd_fail_by_kind: Counter = Counter()
+    action_result_trace: list[dict] = []
+    action_result_count_mismatches = 0
     total_commands_issued = 0
     total_commands_dispatched = 0
 
@@ -514,6 +588,7 @@ async def run_live(
 
     final_obs: Optional[LiveObservation] = None
     map_name = os.path.basename(map_path)
+    local_map_path = ""
     player_id = PLAYER_ID
     try:
         # 1. Ping
@@ -543,13 +618,18 @@ async def run_live(
         map_data = map_file.read_bytes()
         if not map_data:
             raise ValueError(f"Packed .SC2Map is empty: {map_file}")
-        # Embed small packed artifacts so SC2 cannot resolve a stale map by
-        # name. Large cooperative maps exceed the SC2 API/WebSocket payload
-        # budget, so keep the exact packed file path for those runs.
-        if len(map_data) <= 32 * 1024 * 1024:
+        # Keep the native path by default. CMRE maps rely on external mod
+        # dependencies; embedding a small archive as TempLaunchMap.SC2Map can
+        # load the terrain while skipping the map initialization dependency
+        # chain. The old embedding path remains available for transport-only
+        # probes.
+        if not force_map_path and len(map_data) <= 32 * 1024 * 1024:
             local_map = sc_pb.LocalMap(map_data=map_data)
         else:
-            local_map = sc_pb.LocalMap(map_path=map_file.resolve().as_posix())
+            # SC2's Windows client expects a native path for dependency-bearing
+            # maps. POSIX separators can make the API resolve a different map
+            # while still returning a successful CreateGame response.
+            local_map = sc_pb.LocalMap(map_path=str(map_file.resolve()))
         req = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
             local_map=local_map,
             player_setup=[
@@ -619,8 +699,9 @@ async def run_live(
         # 5. GameInfo（获取地图名）
         r = await conn.send_request(sc_pb.Request(game_info=sc_pb.RequestGameInfo()), timeout=15)
         map_name = r.game_info.map_name or os.path.basename(map_path)
+        local_map_path = r.game_info.local_map_path
         if verbose:
-            print(f"[5] Map: {map_name}")
+            print(f"[5] Map: {map_name} | local_map_path={local_map_path}")
 
         # 6. 玩家 AI 策略
         policy = DefendBasePolicy(player_id=player_id, command_interval=decision_interval)
@@ -673,10 +754,16 @@ async def run_live(
             if current_loop - last_decide_loop >= decision_interval:
                 last_decide_loop = current_loop
                 actions = policy.decide(obs, current_loop, resources=obs.resources)
-                total_commands_issued += len(actions)
+                total_commands_issued += len([a for a in actions if a.kind != "hold"])
 
                 # 收集 action 并批量发送
                 sc2_actions: list[sc_pb.Action] = []
+                action_contexts: list[dict] = []
+                own_by_tag = {u["entity_id"]: u for u in obs.own_units}
+                target_by_tag = {
+                    u["entity_id"]: u
+                    for u in obs.visible_enemies + obs.mineral_fields
+                }
                 for a in actions:
                     if a.kind == "hold":
                         continue
@@ -699,9 +786,45 @@ async def run_live(
                             target_entity_id=nearest_mf,
                             unit_type_id=a.unit_type_id, reason=a.reason,
                         )
-                    action = build_action(a, player_id)
+                    action = build_action(
+                        a,
+                        player_id,
+                        source_unit_type_int=own_by_tag.get(a.entity_id, {}).get(
+                            "unit_type_int", 0
+                        ),
+                    )
                     if action is not None:
                         sc2_actions.append(action)
+                        raw_command = action.action_raw.unit_command
+                        target_tag = (
+                            raw_command.target_unit_tag
+                            if raw_command.HasField("target_unit_tag") else 0
+                        )
+                        action_contexts.append({
+                            "loop": current_loop,
+                            "kind": a.kind,
+                            "entity_id": a.entity_id,
+                            "unit_type_id": own_by_tag.get(a.entity_id, {}).get(
+                                "unit_type_id", ""
+                            ),
+                            "unit_type_int": own_by_tag.get(a.entity_id, {}).get(
+                                "unit_type_int", 0
+                            ),
+                            "ability_id": raw_command.ability_id,
+                            "target_entity_id": target_tag,
+                            "target_unit_type_id": target_by_tag.get(
+                                target_tag, {}
+                            ).get("unit_type_id", ""),
+                            "target_owner": target_by_tag.get(
+                                target_tag, {}
+                            ).get("owner", 0),
+                            "target_alliance": target_by_tag.get(
+                                target_tag, {}
+                            ).get("alliance", 0),
+                            "target_x": a.target_x,
+                            "target_y": a.target_y,
+                            "reason": a.reason,
+                        })
                         total_commands_dispatched += 1
                     else:
                         cmd_fail_stats[f"{a.kind}:no_action"] += 1
@@ -712,9 +835,21 @@ async def run_live(
                             actions=sc2_actions))
                         ar = await conn.send_request(action_req, timeout=10)
                         # 统计结果（注意：ActionResult.Success=1，不是 0）
-                        for result in ar.action.result:
+                        results = list(ar.action.result)
+                        if len(results) != len(action_contexts):
+                            action_result_count_mismatches += 1
+                        for index, result in enumerate(results):
+                            context = (
+                                action_contexts[index]
+                                if index < len(action_contexts) else {
+                                    "loop": current_loop,
+                                    "kind": "unmatched",
+                                }
+                            )
                             if result == error_pb2.ActionResult.Success:
                                 cmd_ok_stats["dispatched"] += 1
+                                cmd_ok_by_kind[context["kind"]] += 1
+                                result_name = "Success"
                             else:
                                 # 用 enum name 便于诊断（如 NotEnoughMinerals 而不是 9）
                                 try:
@@ -722,6 +857,13 @@ async def run_live(
                                 except ValueError:
                                     name = f"unknown({result})"
                                 cmd_fail_stats[f"sc2:{name}"] += 1
+                                cmd_fail_by_kind[f"{context['kind']}:{name}"] += 1
+                                result_name = name
+                            if len(action_result_trace) < 500:
+                                action_result_trace.append({
+                                    **context,
+                                    "result": result_name,
+                                })
                     except (ConnectionError, TimeoutError) as e:
                         if verbose:
                             print(f"  Action send failed: {e}")
@@ -781,6 +923,22 @@ async def run_live(
         verdict = "inconclusive"
         summary = f"对局在 loop {current_loop} 结束"
 
+    valid_action_success = any(
+        item.get("result") == "Success"
+        and (
+            item.get("kind") == "move"
+            or (
+                item.get("kind") == "attack"
+                and item.get("target_alliance") == 4
+            )
+            or (
+                item.get("kind") == "gather"
+                and item.get("target_alliance") == 3
+            )
+        )
+        for item in action_result_trace
+    )
+
     report = LiveGameReport(
         map_name=map_name,
         end_loop=current_loop,
@@ -794,6 +952,20 @@ async def run_live(
         summary=summary,
         cmd_ok_stats=dict(cmd_ok_stats),
         cmd_fail_stats=dict(cmd_fail_stats),
+        cmd_ok_by_kind=dict(cmd_ok_by_kind),
+        cmd_fail_by_kind=dict(cmd_fail_by_kind),
+        action_result_trace=action_result_trace,
+        runtime_assertions={
+            "frames_advanced": current_loop > 0,
+            "player_units_observed": p1_survivors > 0,
+            "action_results_correlated": action_result_count_mismatches == 0,
+            "action_success_observed": cmd_ok_stats.get("dispatched", 0) > 0,
+            "non_neutral_action_success": valid_action_success,
+        },
+        behavior_verdict=(
+            "pass" if valid_action_success else "fail"
+        ),
+        local_map_path=local_map_path,
         replay_log_path=str(replay_path),
     )
 
@@ -809,6 +981,9 @@ async def run_live(
         print(f"命令执行: {report.total_commands_dispatched}")
         print(f"命令成功: {report.cmd_ok_stats}")
         print(f"命令失败: {report.cmd_fail_stats}")
+        print(f"按类型成功: {report.cmd_ok_by_kind}")
+        print(f"按类型失败: {report.cmd_fail_by_kind}")
+        print(f"行为断言: {report.runtime_assertions}")
         print(f"总结: {report.summary}")
         print(f"回放: {report.replay_log_path}")
 
@@ -822,6 +997,11 @@ def main():
     parser.add_argument("--max-loops", type=int, default=2000, help="最大 loop 数")
     parser.add_argument("--step-size", type=int, default=4, help="每次 Step 帧数")
     parser.add_argument("--decision-interval", type=int, default=22, help="决策间隔（帧数）")
+    parser.add_argument(
+        "--embed-map-data",
+        action="store_true",
+        help="显式使用 SC2 API map_data 嵌入路径（仅用于 transport-only probes）",
+    )
     parser.add_argument("--quiet", action="store_true", help="静默模式")
     parser.add_argument("--output", type=str, default=None, help="报告输出 JSON 路径")
     args = parser.parse_args()
@@ -833,6 +1013,7 @@ def main():
         step_size=args.step_size,
         decision_interval=args.decision_interval,
         verbose=not args.quiet,
+        force_map_path=not args.embed_map_data,
     ))
 
     if args.output:
@@ -842,7 +1023,7 @@ def main():
         report_path.write_text(json.dumps(report_data, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"\n报告已写入: {report_path}")
 
-    return 0 if report.verdict == "victory" else 1
+    return 0 if report.verdict == "victory" and report.behavior_verdict == "pass" else 1
 
 
 if __name__ == "__main__":

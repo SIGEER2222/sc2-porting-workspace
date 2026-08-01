@@ -25,8 +25,12 @@ from unittest.mock import MagicMock, patch
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "tools" / "galaxy-vibe"))
+sys.path.insert(0, str(REPO_ROOT / "src" / "projects" / "cmre-porting"))
 
 from host.vibe_host import RpcRequest, RpcResponse, VibeHost, PROTOCOL_VERSION  # noqa: E402
+from vibe import protocol  # noqa: E402
+from vibe.function_registry import load_function_registry  # noqa: E402
+from vibe.simulator_transport import SimulatorTransport  # noqa: E402
 
 
 # ---- RPC 协议单元测试 ----
@@ -64,6 +68,21 @@ class TestRpcRequest(unittest.TestCase):
         self.assertIn("unit_type=Marine", s)
         self.assertIn("count=3", s)
         self.assertIn("player=1", s)
+
+    def test_function_invoke_wire_is_typed_and_explicit(self):
+        req = RpcRequest(
+            session_id="test_session_001",
+            request_id="req_function_001",
+            sequence=1,
+            operation="function.invoke",
+            args={"function_id": "vibe.test.ping", "args": {"nonce": "stage16"}},
+        )
+        s = req.to_args_string()
+        self.assertIn("operation=function.invoke", s)
+        self.assertIn("function_id=vibe.test.ping", s)
+        self.assertIn("arg_nonce=stage16", s)
+        self.assertNotIn(";nonce=stage16", s)
+        self.assertIn("arg_names=nonce", s)
 
     def test_checksum_deterministic(self):
         """相同输入应生成相同 checksum。"""
@@ -144,6 +163,35 @@ class TestWhitelist(unittest.TestCase):
         """白名单 JSON 应能加载。"""
         self.assertIn("operations", self.whitelist)
         self.assertGreater(len(self.whitelist["operations"]), 0)
+
+    def test_function_registry_loads_explicit_ping(self):
+        registry = load_function_registry()
+        self.assertEqual(registry["vibe.test.ping"]["handler"], "libVibeKernel_gf_FunctionVibeTestPing")
+        self.assertFalse(registry["vibe.test.ping"]["side_effect"])
+        self.assertEqual(registry["vibe.test.ping"]["args"]["nonce"]["type"], "string")
+
+    def test_function_registry_action_slice_is_explicit_and_typed(self):
+        registry = load_function_registry()
+        expected = {
+            "vibe.player.set_resource": ("player", "resource", "value"),
+            "vibe.unit.spawn": ("unit_type", "count", "player", "x", "y"),
+            "vibe.query.units": ("player", "unit_type"),
+            "vibe.unit.kill": ("unit_tag",),
+        }
+        for function_id, arg_names in expected.items():
+            self.assertIn(function_id, registry)
+            self.assertEqual(tuple(registry[function_id]["args"]), arg_names)
+            self.assertTrue(registry[function_id]["handler"].startswith("libVibeKernel_gf_Function"))
+
+    def test_function_registry_bounds_and_enum_are_enforced(self):
+        from vibe.function_registry import FunctionRegistryError, validate_invocation
+
+        with self.assertRaises(FunctionRegistryError):
+            validate_invocation("vibe.unit.spawn", {"unit_type": "Marine", "count": 0, "player": 1})
+        with self.assertRaises(FunctionRegistryError):
+            validate_invocation("vibe.player.set_resource", {"player": 1, "resource": "supply", "value": 1})
+        normalized = validate_invocation("vibe.query.units", {})
+        self.assertEqual(normalized, {"player": 0, "unit_type": ""})
 
     def test_mvp_operations_present(self):
         """MVP 操作集应全部在白名单中。"""
@@ -240,6 +288,77 @@ class TestVibeHostMocked(unittest.TestCase):
             resp = self.host.request("call_arbitrary_func", {"func": "UnitKillAll"})
             self.assertEqual(resp.error_code, "UNKNOWN_OPERATION")
             self.assertFalse(resp.is_ok)
+
+    def test_invoke_function_uses_typed_payload(self):
+        host = self.host
+        mock_client = MagicMock()
+        mock_client.map_command.return_value = True
+        host.client = mock_client
+        response = RpcResponse(
+            kind="result", session_id=host.session_id,
+            request_id="r1", sequence=1, operation="function.invoke",
+            error_code="OK",
+            payload={"function_id": "vibe.test.ping", "message": "pong", "nonce": "stage16"},
+            state_version=0,
+        )
+        with patch.object(host, "_poll_response", return_value=response):
+            result = host.invoke_function("vibe.test.ping", {"nonce": "stage16"})
+        self.assertTrue(result.is_ok)
+        self.assertEqual(result.payload["message"], "pong")
+
+    def test_unknown_function_rejected_before_transport(self):
+        self.host.client = MagicMock()
+        result = self.host.invoke_function("vibe.test.unknown", {})
+        self.assertFalse(result.is_ok)
+        self.assertEqual(result.error_code, "FUNCTION_NOT_FOUND")
+        self.host.client.map_command.assert_not_called()
+
+    def test_bank_poll_wait_advances_non_realtime_frames(self):
+        """Bank transport 等待期间必须 RequestStep，否则非实时游戏会冻结。"""
+        mock_client = MagicMock()
+        mock_client.step.return_value = True
+        self.host.client = mock_client
+        with patch("host.vibe_host.read_bank", return_value={}):
+            response = self.host._poll_response("waiting", timeout=0.06, advance_frames=True)
+        self.assertEqual(response.error_code, "INTERNAL_ERROR")
+        self.assertGreaterEqual(mock_client.step.call_count, 1)
+
+    def test_map_initialization_gate_is_stable_before_actions(self):
+        """Host must observe complete map initialization twice before actions."""
+        mock_client = MagicMock()
+        mock_client.step.return_value = True
+        self.host.client = mock_client
+        self.host.require_initialization = True
+        ready = {
+            "debug": {
+                "runtime_listener_started": 1,
+                "runtime_listener_ready": 1,
+                "bridge_heartbeat": 4,
+                "initialization_complete": 1,
+                "initialization_building_ready_p1": 1,
+                "initialization_building_ready_p2": 1,
+                "initialization_units_ready_p1": 1,
+                "initialization_units_ready_p2": 1,
+                "world_cover_dialog_visible_p1": 0,
+            }
+        }
+        with patch("host.vibe_host.read_bank", side_effect=[ready, ready]):
+            self.assertTrue(self.host.wait_for_initialization(timeout=0.2, stable_reads=2))
+        self.assertTrue(self.host.initialization_complete)
+        self.assertGreaterEqual(mock_client.step.call_count, 1)
+
+    def test_chat_poll_does_not_force_frame_driver(self):
+        """chat transport 不应改变现有实时轮询语义。"""
+        mock_client = MagicMock()
+        mock_client.step.return_value = True
+        self.host.client = mock_client
+        with patch.object(self.host, "_poll_response", return_value=RpcResponse(
+            kind="result", session_id=self.host.session_id, request_id="r1", sequence=1,
+            operation="system.ping", error_code="OK",
+        )) as poll:
+            self.host.request("system.ping", {}, transport="chat")
+        self.assertEqual(poll.call_args.kwargs["advance_frames"], False)
+        mock_client.step.assert_not_called()
 
     def test_spawn_count_out_of_range_rejected(self):
         """Kernel 应拒绝 count > 200。"""
@@ -412,6 +531,88 @@ class TestEndToEndContract(unittest.TestCase):
 
         host.close()
 
+
+class TestSimulatorFunctionInvoke(unittest.TestCase):
+    def test_ping_and_rejections(self):
+        transport = SimulatorTransport()
+        session_id = "sim-function-stage16"
+        transport.open_session(session_id)
+
+        ping = transport.send(protocol.make_request(
+            session_id, "function-ping", 1, "function.invoke",
+            {"function_id": "vibe.test.ping", "args": {"nonce": "stage16"}},
+        ))
+        self.assertEqual(ping.error_code, 0)
+        self.assertEqual(ping.payload["message"], "pong")
+        self.assertEqual(ping.payload["nonce"], "stage16")
+
+        unknown = transport.send(protocol.make_request(
+            session_id, "function-unknown", 2, "function.invoke",
+            {"function_id": "vibe.test.unknown", "args": {}},
+        ))
+        self.assertEqual(unknown.error_code, int(protocol.ErrorCode.FUNCTION_NOT_FOUND))
+
+        invalid = transport.send(protocol.make_request(
+            session_id, "function-invalid", 3, "function.invoke",
+            {"function_id": "vibe.test.ping", "args": {"unexpected": "x"}},
+        ))
+        self.assertEqual(invalid.error_code, int(protocol.ErrorCode.INVALID_ARGS))
+        self.assertEqual(transport.session.world, None)
+
+    def test_action_query_kill_sequence(self):
+        transport = SimulatorTransport()
+        session_id = "sim-action-stage17"
+        transport.open_session(session_id)
+        scenario_path = REPO_ROOT / "reference" / "sc2-ally-bot" / "scenarios" / "sc2-simulator" / "marine_vs_zergling.json"
+        loaded = transport.send(protocol.make_request(
+            session_id, "load-action", 1, "scenario.load", {"scenario_path": str(scenario_path)}
+        ))
+        self.assertEqual(loaded.error_code, 0)
+        reset = transport.send(protocol.make_request(session_id, "reset-action", 2, "scenario.reset"))
+        self.assertEqual(reset.error_code, 0)
+
+        before = transport.send(protocol.make_request(
+            session_id, "query-before", 3, "function.invoke",
+            {"function_id": "vibe.query.units", "args": {"player": 1, "unit_type": "Marine"}},
+        ))
+        spawn = transport.send(protocol.make_request(
+            session_id, "spawn-action", 4, "function.invoke",
+            {"function_id": "vibe.unit.spawn", "args": {
+                "unit_type": "Marine", "count": 2, "player": 1, "x": 2.0, "y": 0.0,
+            }},
+        ))
+        self.assertEqual(spawn.error_code, 0)
+        self.assertEqual(spawn.payload["created"], 2)
+        self.assertGreater(spawn.payload["unit_tag"], 0)
+
+        after_spawn = transport.send(protocol.make_request(
+            session_id, "query-after-spawn", 5, "function.invoke",
+            {"function_id": "vibe.query.units", "args": {"player": 1, "unit_type": "Marine"}},
+        ))
+        self.assertEqual(after_spawn.error_code, 0)
+        self.assertEqual(after_spawn.payload["count"], before.payload["count"] + 2)
+
+        resource = transport.send(protocol.make_request(
+            session_id, "resource-action", 6, "function.invoke",
+            {"function_id": "vibe.player.set_resource", "args": {
+                "player": 1, "resource": "minerals", "value": 1234,
+            }},
+        ))
+        self.assertEqual(resource.error_code, 0)
+        self.assertEqual(resource.payload["value"], 1234)
+
+        killed = transport.send(protocol.make_request(
+            session_id, "kill-action", 7, "function.invoke",
+            {"function_id": "vibe.unit.kill", "args": {"unit_tag": spawn.payload["unit_tag"]}},
+        ))
+        self.assertEqual(killed.error_code, 0)
+        after_kill = transport.send(protocol.make_request(
+            session_id, "query-after-kill", 8, "function.invoke",
+            {"function_id": "vibe.query.units", "args": {"player": 1, "unit_type": "Marine"}},
+        ))
+        self.assertEqual(after_kill.error_code, 0)
+        self.assertEqual(after_kill.payload["count"], before.payload["count"] + 1)
+
     def test_set_resource_then_query_mission(self):
         """P1 验收：set_resource → query.mission 返回新值。"""
         host = VibeHost(sc2_port=9999, artifacts_dir=Path(__file__).parent / "_test_artifacts")
@@ -507,12 +708,49 @@ class TestGalaxyStaticCheck(unittest.TestCase):
         self.assertIn("libVibeKernel_gt_BankPoll_Func", content)
         # Stage 1 新增 handler 应存在
         for handler in ["HandleUpgradeSetLevel", "HandleTechTreeCheck",
-                        "HandleQueryUnitTags", "HandleQueryUnitAttrs"]:
+                        "HandleQueryUnitTags", "HandleQueryUnitAttrs",
+                        "HandleFunctionInvoke", "FunctionVibeTestPing"]:
             self.assertIn(f"libVibeKernel_gf_{handler}", content)
         # Dispatch 应注册新 operation
         for op in ["upgrade.set_level", "tech_tree.check",
-                   "query.unit_tags", "query.unit_attrs"]:
+                   "query.unit_tags", "query.unit_attrs", "function.invoke"]:
             self.assertIn(f'"{op}"', content)
+        for function_id in ["vibe.test.ping", "vibe.player.set_resource",
+                            "vibe.unit.spawn", "vibe.query.units", "vibe.unit.kill"]:
+            self.assertIn(f'"{function_id}"', content)
+
+    def test_function_handler_mirrors_are_aligned(self):
+        mirror_paths = [
+            REPO_ROOT / "tools" / "galaxy-vibe" / "kernel" / "LibVibeKernel.galaxy",
+            REPO_ROOT / "tools" / "galaxy-vibe" / "galaxy-debug-mod" / "Base.SC2Data" / "LibVibeKernel.galaxy",
+            REPO_ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "亡者之夜.SC2Map" / "Base.SC2Data" / "LibVibeKernel.galaxy",
+        ]
+        for path in mirror_paths:
+            content = path.read_text(encoding="utf-8")
+            for handler in ["FunctionPlayerSetResource", "FunctionUnitSpawn",
+                            "FunctionQueryUnits", "FunctionUnitKill"]:
+                self.assertIn(f"libVibeKernel_gf_{handler}", content, str(path))
+            self.assertNotIn("valStart + end - 1", content, str(path))
+
+    def test_kernel_arg_parser_excludes_delimiter(self):
+        """Galaxy key=value parsing must not include the semicolon delimiter."""
+        kernel_paths = [
+            REPO_ROOT / "tools" / "galaxy-vibe" / "kernel" / "LibVibeKernel.galaxy",
+            REPO_ROOT / "tools" / "galaxy-vibe" / "galaxy-debug-mod" / "Base.SC2Data" / "LibVibeKernel.galaxy",
+            REPO_ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "亡者之夜.SC2Map" / "Base.SC2Data" / "LibVibeKernel.galaxy",
+        ]
+        for path in kernel_paths:
+            content = path.read_text(encoding="utf-8")
+            self.assertIn(
+                "return StringSub(args, valStart, valStart + end - 2);",
+                content,
+                str(path),
+            )
+            self.assertNotIn(
+                "return StringSub(args, valStart, valStart + end - 1);",
+                content,
+                str(path),
+            )
 
     def test_kernel_header_galaxy_valid(self):
         """LibVibeKernel_h.galaxy 应包含必要的函数声明。"""
