@@ -206,6 +206,24 @@ def parse_bank(bank_path: Path) -> dict:
     return parsed
 
 
+def _resume_sequence_from_bank(session_id: str, bank_path: Path = DEFAULT_RPC_BANK) -> int:
+    """Recover the highest response sequence for a session before sending again."""
+    highest = 0
+    for raw_response in parse_bank(bank_path).get("response", {}).values():
+        if not isinstance(raw_response, str):
+            continue
+        try:
+            response = json.loads(raw_response)
+        except json.JSONDecodeError:
+            continue
+        if response.get("session_id") != session_id:
+            continue
+        sequence = response.get("sequence")
+        if isinstance(sequence, int) and not isinstance(sequence, bool):
+            highest = max(highest, sequence)
+    return highest
+
+
 async def wait_bank_run_id(bank_path: Path, run_id: str, timeout: float = 5.0, poll: float = 0.1):
     t0 = time.time()
     while time.time() - t0 < timeout:
@@ -273,6 +291,7 @@ class VibeREPL:
         self.join_wait = join_wait
         self.map_center = common_pb.Point2D(x=50.0, y=50.0)
         self._have_map = False
+        self._resume_requested = bool(rpc_session_id)
         self.assert_results: list[dict] = []
         self.rpc_session_id = rpc_session_id or ("repl_" + uuid.uuid4().hex[:12])
         self.rpc_sequence = 0
@@ -285,6 +304,8 @@ class VibeREPL:
         resp = await send_request(self.ws, sc_pb.Request(ping=sc_pb.RequestPing()))
         if resp.error:
             raise RuntimeError(f"SC2API ping error: {resp.error}")
+        if self._resume_requested:
+            self.rpc_sequence = _resume_sequence_from_bank(self.rpc_session_id)
         if self.map_path:
             await self.ensure_in_game(self.map_path)
         # 拉一次 GameInfo 拿地图中心（失败不影响核心功能）

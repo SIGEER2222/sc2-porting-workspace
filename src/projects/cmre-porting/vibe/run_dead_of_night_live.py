@@ -210,6 +210,7 @@ class LiveObservation:
     visible_allies: list[dict] = field(default_factory=list)
     alliance_summary: list[dict] = field(default_factory=list)
     mineral_fields: list[dict] = field(default_factory=list)  # 中立矿物单位（owner=0）
+    vespene_geysers: list[dict] = field(default_factory=list)  # 中立气矿单位
 
 
 def _unit_brief_from_sc2(u, player_id: int) -> Optional[dict]:
@@ -240,10 +241,12 @@ def _unit_brief_from_sc2(u, player_id: int) -> Optional[dict]:
         "energy": int(u.energy * 1024) if u.energy else 0,
         "state": "",
         "max_health": int(u.health_max * 1024) if u.health_max else 0,
+        "build_progress": float(getattr(u, "build_progress", 1.0)),
         "orders": [
             {
                 "ability_id": int(order.ability_id),
                 "progress": float(order.progress),
+                "target_unit_tag": int(getattr(order, "target_unit_tag", 0)),
             }
             for order in getattr(u, "orders", ())
         ],
@@ -275,6 +278,8 @@ _LIVE_UNIT_NAME_ALIASES = {
     "RAVEN": "Raven",
     "THOR": "Thor",
     "MINERALFIELD": "MineralField",
+    "VESPENEGEYSER": "VespeneGeyser",
+    "SPACEPLATFORMGEYSER": "VespeneGeyser",
     "ACHEROSPAWNPLACEMENT": "ACHeroSpawnPlacement",
 }
 
@@ -307,6 +312,7 @@ def build_observation(resp: sc_pb.Response, player_id: int) -> LiveObservation:
     visible_enemies: list[dict] = []
     visible_allies: list[dict] = []
     mineral_fields: list[dict] = []
+    vespene_geysers: list[dict] = []
     if raw is not None:
         for u in raw.units:
             brief = _unit_brief_from_sc2(u, player_id)
@@ -324,6 +330,9 @@ def build_observation(resp: sc_pb.Response, player_id: int) -> LiveObservation:
                   and brief["unit_type_id"] == "MineralField"):
                 # 中立矿物单位，用于 gather 命令的 target 替换
                 mineral_fields.append(brief)
+            elif (u.alliance == 3
+                  and brief["unit_type_id"] == "VespeneGeyser"):
+                vespene_geysers.append(brief)
 
     resources = {
         "minerals": pc.minerals if pc else 0,
@@ -363,6 +372,7 @@ def build_observation(resp: sc_pb.Response, player_id: int) -> LiveObservation:
         visible_allies=visible_allies,
         alliance_summary=alliance_summary,
         mineral_fields=mineral_fields,
+        vespene_geysers=vespene_geysers,
     )
 
 
@@ -498,9 +508,12 @@ def build_action(
         if aid == 0:
             return None
         cmd.ability_id = aid
-        tp = cmd.target_world_space_pos
-        tp.x = a.target_x
-        tp.y = a.target_y
+        if a.unit_type_id == "Refinery" and a.target_entity_id:
+            cmd.target_unit_tag = a.target_entity_id
+        else:
+            tp = cmd.target_world_space_pos
+            tp.x = a.target_x
+            tp.y = a.target_y
     else:
         return None
 
@@ -600,6 +613,24 @@ def _find_nearest_mineral_field_live(mineral_fields: list[dict],
     return best_id
 
 
+def _target_state_by_tag(obs: LiveObservation) -> dict[int, dict]:
+    """Index every observable target used by native action trace records.
+
+    Gas gathering targets an owned Refinery, while mineral gathering targets a
+    neutral MineralField. Keeping both in the index makes the trace prove the
+    actual target owner/type instead of silently recording an unknown target.
+    """
+    return {
+        int(unit["entity_id"]): unit
+        for unit in (
+            obs.own_units
+            + obs.visible_allies
+            + obs.visible_enemies
+            + obs.mineral_fields
+        )
+    }
+
+
 # ---------------------------------------------------------------------------
 # 真机对局 runner
 # ---------------------------------------------------------------------------
@@ -630,6 +661,7 @@ class LiveGameReport:
     observed_player_id: int = P1_PLAYER_ID
     p2_unit_count: int = 0
     p2_alliance_values: list[int] = field(default_factory=list)
+    p1_visible_alliance_values: list[int] = field(default_factory=list)
     player_roster: dict = field(default_factory=dict)
     ally_command_trace: list[dict] = field(default_factory=list)
     chat_received: list[dict] = field(default_factory=list)
@@ -948,15 +980,14 @@ async def run_live(
             # the no-injection strategy audit.
             if current_loop - last_native_decide_loop >= decision_interval:
                 last_native_decide_loop = current_loop
-                actions = policy.decide(obs, current_loop, resources=obs.resources)
+                policy_resources = dict(obs.resources)
+                policy_resources["vespene_geysers"] = obs.vespene_geysers
+                actions = policy.decide(obs, current_loop, resources=policy_resources)
                 total_commands_issued += len([a for a in actions if a.kind != "hold"])
                 sc2_actions: list[sc_pb.Action] = []
                 action_contexts: list[dict] = []
                 own_by_tag = {u["entity_id"]: u for u in obs.own_units}
-                target_by_tag = {
-                    u["entity_id"]: u
-                    for u in obs.visible_enemies + obs.mineral_fields
-                }
+                target_by_tag = _target_state_by_tag(obs)
                 for action_decision in actions:
                     if action_decision.kind == "hold":
                         continue
@@ -1185,6 +1216,11 @@ async def run_live(
         len(_owner_state(final_obs, P1_PLAYER_ID)) if final_obs is not None else 0
     )
     p2_state = _p2_state(final_obs) if final_obs is not None else []
+    p1_visible_alliance_values = sorted({
+        int(item.get("alliance", 0))
+        for item in (final_obs.visible_allies if final_obs is not None else [])
+        if int(item.get("owner", 0)) == P1_PLAYER_ID
+    })
     if pending_command is not None:
         pending_command["p2_after"] = p2_state
         pending_command["bank_after"] = _read_runtime_bank_section()
@@ -1247,6 +1283,7 @@ async def run_live(
             "action_success_observed": cmd_ok_stats.get("dispatched", 0) > 0,
             "native_strategy_action_success": strategy_audit["status"] == "PASS",
             "p2_roster_observed": bool(p2_state),
+            "p1_visible_as_p2_ally": 2 in p1_visible_alliance_values,
             "p2_command_ack_observed": any(
                 item.get("completed")
                 and item.get("bank_after", {}).get("last_result")
@@ -1271,6 +1308,7 @@ async def run_live(
         observed_player_id=strategy_player_id,
         p2_unit_count=len(p2_state),
         p2_alliance_values=sorted({int(item.get("alliance", 0)) for item in p2_state}),
+        p1_visible_alliance_values=p1_visible_alliance_values,
         player_roster=player_roster,
         ally_command_trace=ally_command_trace,
         chat_received=chat_received,
@@ -1284,6 +1322,7 @@ async def run_live(
         print(f"耗时: {report.duration_sec}s")
         print(f"Player 1 幸存: {report.player1_survivors}")
         print(f"P2 盟友可见单位: {report.p2_unit_count} alliance={report.p2_alliance_values}")
+        print(f"P2 视角 P1 alliance: {report.p1_visible_alliance_values}")
         print(f"P1->P2 盟友命令: {len(report.ally_command_trace)}")
         print(f"敌方幸存: {report.enemy_survivors}")
         print(f"命令下发: {report.total_commands_issued}")

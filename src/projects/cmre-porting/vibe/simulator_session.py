@@ -289,6 +289,72 @@ class SimulatorSession:
             "owner": owner_player_id,
         }
 
+    def unit_add_behavior(self, entity_id: int, behavior_id: str, stacks: int) -> dict:
+        if self.world is None:
+            raise KernelError(2, "unit.add_behavior 前需 scenario.reset")
+        entity = self.world.get_entity(entity_id)
+        if entity is None or not entity.is_alive:
+            raise KernelError(2, "unit_not_found_or_stale")
+        behavior = self.world.catalog.get_behavior(behavior_id)
+        if behavior is None:
+            raise KernelError(2, f"behavior_not_found: {behavior_id}")
+        existing = next(
+            (item for item in entity.active_behaviors if item.get("id") == behavior_id),
+            None,
+        )
+        if existing is None:
+            existing = {
+                "id": behavior.id,
+                "kind": behavior.kind.value,
+                "remaining": behavior.duration,
+                "speed_multiplier": behavior.speed_multiplier,
+                "attack_speed_multiplier": behavior.attack_speed_multiplier,
+                "armor_add": behavior.armor_add,
+                "damage_add": behavior.damage_add,
+                "damage_per_tick": behavior.damage_per_tick,
+                "tick_interval": behavior.tick_interval,
+                "last_tick": 0,
+                "source_entity_id": entity_id,
+                "stacks": stacks,
+            }
+            entity.active_behaviors.append(existing)
+        else:
+            existing["stacks"] = int(existing.get("stacks", 1)) + stacks
+            existing["remaining"] = behavior.duration
+        self.world.events.schedule(
+            loop=self.world.clock.now.loop,
+            system="abilities",
+            kind="behavior_applied",
+            entity_id=entity_id,
+            payload={"behavior": behavior_id, "stacks": existing["stacks"]},
+        )
+        return {
+            "unit_tag": entity_id,
+            "behavior": behavior_id,
+            "stacks": existing["stacks"],
+            "count": existing["stacks"],
+        }
+
+    def query_behavior(self, entity_id: int, behavior_id: str) -> dict:
+        if self.world is None:
+            raise KernelError(2, "unit.query_behavior 前需 scenario.reset")
+        entity = self.world.get_entity(entity_id)
+        if entity is None:
+            raise KernelError(2, "unit_not_found_or_stale")
+        if self.world.catalog.get_behavior(behavior_id) is None:
+            raise KernelError(2, f"behavior_not_found: {behavior_id}")
+        count = sum(
+            int(item.get("stacks", 1))
+            for item in entity.active_behaviors
+            if item.get("id") == behavior_id
+        )
+        return {
+            "unit_tag": entity_id,
+            "behavior": behavior_id,
+            "count": count,
+            "has_behavior": count > 0,
+        }
+
     def unit_kill(self, entity_id: int) -> dict:
         if self.world is None:
             raise KernelError(2, "unit.kill 前需 scenario.reset")

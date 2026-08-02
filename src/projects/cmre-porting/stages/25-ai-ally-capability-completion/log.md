@@ -91,6 +91,49 @@ cooperative AI ally behavior has begun.
   Evidence:
   `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-validation-blocked.json`.
 
+## Verification Loop 2026-08-02 16:15
+
+- `static`: the corrected P2 policy now pauses economy under base threat, keeps
+  SCVs out of combat, assigns up to three SCVs to each completed Refinery, and
+  does not reserve resources for absent Factory/Starport producers. Focused
+  Stage 25 assertions pass.
+- `static`: live observation preserves `build_progress`, order target tags,
+  neutral geyser positions, and native Refinery target tags. Focused Stage 25
+  plus live adapter tests pass with `20 passed`.
+- `static`: Stage 19/20/22/23 regression passes with `25 passed, 6 subtests
+  passed`; `py_compile` and `git diff --check` pass.
+- `static`: `run-all-validation.ps1` passes `52/52` checks with zero warnings.
+- `blocked`: an approved launcher request on port `5162` was rejected before
+  `CreateGame` by the live protected KeepAlive lease on PID `34556`/port
+  `5154`; no actions were sent and no ScriptError verdict was claimed.
+  Evidence:
+  `src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-validation-blocked-pass2.json`.
+
+## Verification Loop 2026-08-02 16:23
+
+- `runtime`: the approved launcher window on port `5154` completed
+  `CreateGame + JoinGame` for the packed Dead of Night map. The hot-loaded VM
+  program called `vibe.unit.spawn_group` and created three real Marine units,
+  then used `foreach` over the returned `unit_tags` array to call
+  `vibe.unit.add_behavior` for each tag. All three calls returned
+  `count=1`; the final `vibe.unit.query_behavior` returned
+  `has_behavior=true` for `Conjoined`. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-group-20260802/vm-runtime-live.txt`.
+- `runtime`: the same VM session completed 11 instructions with status
+  `passed`, and the final trace contains the three real runtime tags
+  `146538497`, `146800641`, and `147062785`. No game restart occurred between
+  session creation and the function calls. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-group-20260802/vm-runtime-live.txt`.
+- `runtime`: the same launcher epoch ScriptError scan found zero new errors.
+  Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-group-20260802/script-error-verdict.json`.
+- `runtime`: an initial probe using `StimpackBehavior` was rejected with
+  `INVALID_ARGS` because that behavior is absent from this map's Catalog. The
+  follow-up program used the map-present `Conjoined` behavior and passed; this
+  confirms the runtime Catalog validation is active rather than silently
+  accepting arbitrary behavior IDs. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-group-20260802/vm-runtime.txt`.
+
 ## Changes
 
 - `Observation` now exposes `visible_allies` and an alliance summary filtered by
@@ -133,6 +176,14 @@ cooperative AI ally behavior has begun.
 - `approved launch-cmre-alenger.ps1 -ListenPort 5161 -DebugMode` -> blocked
   with `SC2_RUNTIME_BUSY` by the protected PID `39308`/port `5153`; exit code
   `1`, no game created.
+- `approved launch-cmre-alenger.ps1 -ListenPort 5154 -DebugMode -KeepAlive` +
+  `galaxy_repl.py --vm-program debug-vm-runtime-group.json` -> runtime VM
+  PASS; three Marines spawned, all three received `Conjoined`, final query
+  returned `has_behavior=true`, VM exit code `0`.
+- `py -3.13 tools/galaxy-vibe/script_error_check.py --since
+  2026-08-02T16:07:30.886+08:00 --out
+  artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-group-20260802/script-error-verdict.json`
+  -> zero new ScriptError files, exit code `0`.
 
 ## Stop Condition
 
@@ -142,3 +193,42 @@ until a fresh approved-launcher window proves P1/P2 participant roster, P2-owned
 native build/train/combat actions, no SCV attack, resulting state deltas, and a
 same-window ScriptError check. The historical P1 runtime report and the
 protected 5153 Debug VM window cannot satisfy this gate.
+
+## Verification Loop 2026-08-02 Map-Derived Replay Correction
+
+- `static`: the registered map source was inspected at
+  `src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map`. `Objects` contains
+  1319 ObjectUnit objects; the extractor produces 1308 supported simulator
+  entities. The only P1/P2 objects are `ACHeroSpawnPlacement` markers at
+  `(85,94)` and `(76,103)`. The map script defines P1/P2 as the human-side
+  alliance and P3/P4/P5/P7 as hostile.
+- `simulator`: the strict map-derived scenario uses `MapExtractor` output and
+  adds only the P1/P2 roster/control overlay. It injects zero starting units.
+  The map hash is
+  `3b46e6afdfe4664e1ccc2f49c973331f66746425fa36832a00f5680c056ed322`.
+  Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/map-scenario-source.json`.
+- `simulator`: the generated replay contains 41 frames from loop 0 to 40,
+  1308 entities in the first frame, 5 accepted P1 commands, and 0 P2 native
+  actions because the source map has zero P2 units. A source-consistency check
+  matched every first-frame entity by unit type, owner, source Object ID,
+  source coordinate, and resource amount.
+  Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/replay.jsonl`.
+- `static`: the self-contained browser player includes the map source path,
+  source hash, 1319/1308 native counts, exact map bounds, and P2 native spawn
+  count 0. The embedded JavaScript parsed with Node `vm.Script`. Playwright and
+  Puppeteer are not installed in this environment, so no browser screenshot
+  claim is made.
+  Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/full-map-player.html`.
+- `historical-invalid`: the previous
+  `cooperative-ai-ally-replay-20260802` remains a six-unit fixture replay. It
+  is not used as map evidence and is explicitly marked historical-invalid in
+  `result.json`.
+- `static`: Stage 25/19/20 regression passes with `22 passed, 3 subtests
+  passed`; Stage 22/23 passes with `16 passed, 3 subtests passed`; launcher and
+  kernel tests pass with `63 passed`; `run-all-validation.ps1` passes `52/52`
+  with zero warnings; focused map replay test passes as part of Stage 25's
+  `13 passed` result.
+- `blocked`: strict map fidelity does not by itself create P1/P2 commander
+  forces, and the fresh native P2 runtime remains blocked by the protected
+  KeepAlive lease. Neither the map-derived replay nor the earlier fixture may
+  be promoted to native P2 movement/combat runtime evidence.

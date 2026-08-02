@@ -254,6 +254,7 @@ class MapData:
     stats: ExtractionStats
     map_bounds: dict
     wave_timing: dict
+    native_objects: list[dict] = field(default_factory=list)
 
 
 class MapExtractor:
@@ -309,6 +310,11 @@ class MapExtractor:
                     "owner_player_id": player,
                     "x": obj["x"],
                     "y": obj["y"],
+                    # These fields are ignored by the simulator loader but keep
+                    # the replay/audit tied to the source ObjectUnit.
+                    "source_object_id": obj.get("object_id"),
+                    "source_unit_type_id": original,
+                    "resource_amount": obj.get("resource_amount"),
                 }
             )
             self.stats.units_extracted += 1
@@ -354,6 +360,7 @@ class MapExtractor:
             stats=self.stats,
             map_bounds=map_bounds,
             wave_timing=wave_timing,
+            native_objects=objects,
         )
 
     def _parse_objects(self) -> list[dict]:
@@ -365,6 +372,11 @@ class MapExtractor:
         root = tree.getroot()
         results = []
         for u in root.iter("ObjectUnit"):
+            object_id = u.get("Id", "")
+            try:
+                object_id_value = int(object_id)
+            except ValueError:
+                object_id_value = None
             unit_type = u.get("UnitType", "")
             player_str = u.get("Player", "")
             pos = u.get("Position", "0,0,0")
@@ -378,12 +390,19 @@ class MapExtractor:
                 y = float(parts[1])
             except (ValueError, IndexError):
                 continue
+            resource_amount = u.get("Resources")
+            try:
+                resource_amount_value = int(resource_amount) if resource_amount is not None else None
+            except ValueError:
+                resource_amount_value = None
             results.append(
                 {
+                    "object_id": object_id_value,
                     "unit_type": unit_type,
                     "player": player,
                     "x": x,
                     "y": y,
+                    "resource_amount": resource_amount_value,
                 }
             )
         return results
@@ -533,7 +552,11 @@ class MapExtractor:
         }
 
 
-def extract_dead_of_night(map_dir: Optional[str | Path] = None) -> MapData:
+def extract_dead_of_night(
+    map_dir: Optional[str | Path] = None,
+    *,
+    include_runtime_starting_units: bool = True,
+) -> MapData:
     """提取亡者之夜地图数据。
 
     Args:
@@ -541,8 +564,9 @@ def extract_dead_of_night(map_dir: Optional[str | Path] = None) -> MapData:
 
     亡者之夜的 Player 1/2 起始单位是 ACHeroSpawnPlacement（英雄放置点），
     不是真实单位——真实起始单位由游戏运行时触发器创建。
-    本函数给 Player 1 添加合理的起始部队（基地 + SCV + 兵营 + 防守部队），
-    位置基于 ACHeroSpawnPlacement 提取的 (85, 94)。
+    ``include_runtime_starting_units=True`` 保留旧 runner 的兼容行为：用
+    适配器构造 P1 的运行时开局。严格的地图派生场景必须传 False，
+    此时 ``spawns`` 只包含 Objects 中提取出的原生实体。
     """
     if map_dir is None:
         # 优先使用项目内已解包的地图包；开发环境没有该目录时再回退到
@@ -557,15 +581,16 @@ def extract_dead_of_night(map_dir: Optional[str | Path] = None) -> MapData:
     ex = MapExtractor(map_dir)
     data = ex.extract_all()
 
-    # 给 Player 1 添加起始部队（基于 ACHeroSpawnPlacement 位置 85, 94）
-    # 设计：合作模式中等开局，基地 + SCV + 兵营 + 防守部队
-    starting_units = _build_player_starting_units(player_id=1, cx=85.0, cy=94.0)
-    data.scenario["spawns"].extend(starting_units)
-    # 更新统计
-    for su in starting_units:
-        data.stats.units_extracted += 1
-        data.stats.unit_type_counter[su["unit_type_id"]] += 1
-        data.stats.player_counter[su["owner_player_id"]] += 1
+    if include_runtime_starting_units:
+        # Compatibility path for the older economy runner. These units are an
+        # adapter overlay, not map-native Objects, and are never used by the
+        # strict map-derived cooperative replay.
+        starting_units = _build_player_starting_units(player_id=1, cx=85.0, cy=94.0)
+        data.scenario["spawns"].extend(starting_units)
+        for su in starting_units:
+            data.stats.units_extracted += 1
+            data.stats.unit_type_counter[su["unit_type_id"]] += 1
+            data.stats.player_counter[su["owner_player_id"]] += 1
 
     # 确保 Player 1 在 players 列表中
     player_ids = {p["id"] for p in data.scenario["players"]}
@@ -582,6 +607,70 @@ def extract_dead_of_night(map_dir: Optional[str | Path] = None) -> MapData:
         # 按 id 排序
         data.scenario["players"].sort(key=lambda p: p["id"])
 
+    return data
+
+
+def build_dead_of_night_map_cooperative_scenario(
+    map_dir: Optional[str | Path] = None,
+) -> MapData:
+    """Build a strict map-derived P1/P2 cooperative scenario.
+
+    The map stores P1/P2 as ``ACHeroSpawnPlacement`` objects and creates the
+    actual commander forces at runtime. This adapter therefore carries the
+    placement markers and alliance/control semantics, but injects zero units.
+    The source entities remain exactly the output of :class:`MapExtractor`.
+    """
+    data = extract_dead_of_night(
+        map_dir=map_dir,
+        include_runtime_starting_units=False,
+    )
+    players_by_id = {
+        int(player["id"]): dict(player)
+        for player in data.scenario.get("players", [])
+    }
+
+    # MapScript.galaxy's Init02Players contract: P1/P2 are human-side, the
+    # Amon/Infested players are hostile to them, and P6/P8/P9 are neutral-side.
+    human_side = {1, 2, 6, 8, 9}
+    enemy_side = {3, 4, 5, 7}
+    for player_id, faction in PLAYER_FACTIONS.items():
+        player = players_by_id.setdefault(
+            player_id,
+            {
+                "id": player_id,
+                "name": faction["name"],
+                "race": faction["race"],
+                "allies": [],
+                "is_ai": True,
+            },
+        )
+        if player_id in (1, 2):
+            player["is_ai"] = player_id == 2
+            player["relation"] = "leader" if player_id == 1 else "ally"
+        elif player_id in enemy_side:
+            player["relation"] = "enemy"
+        else:
+            player["relation"] = "neutral"
+
+        if player_id in human_side:
+            player["allies"] = sorted(human_side - {player_id})
+        elif player_id in enemy_side:
+            player["allies"] = sorted(enemy_side - {player_id})
+        else:
+            player["allies"] = []
+
+    # Preserve the neutral resource owner emitted by Objects, even though it
+    # is not part of PLAYER_FACTIONS.
+    for player_id, player in players_by_id.items():
+        if player_id not in PLAYER_FACTIONS:
+            player.setdefault("relation", "neutral")
+            player.setdefault("allies", [])
+            player.setdefault("is_ai", True)
+
+    data.scenario["players"] = [players_by_id[player_id] for player_id in sorted(players_by_id)]
+    data.scenario["_cooperative_enemy_player_ids"] = sorted(enemy_side)
+    data.scenario["_map_source_kind"] = "map_extractor"
+    data.scenario["_map_native_starting_force"] = False
     return data
 
 

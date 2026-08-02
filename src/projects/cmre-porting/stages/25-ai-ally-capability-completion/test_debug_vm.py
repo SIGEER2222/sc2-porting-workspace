@@ -32,6 +32,32 @@ class FakeBridge:
         return {"kind": "result", "error_code": "OK", "state_version": self.loop, "payload": {"loop": self.loop}}
 
 
+class UnitBridge(FakeBridge):
+    async def call(self, function_id: str, args: dict):
+        self.calls.append((function_id, args))
+        if function_id == "vibe.unit.spawn_group":
+            return {
+                "kind": "result",
+                "error_code": "OK",
+                "state_version": self.loop,
+                "payload": {"function_id": function_id, "created": 3, "unit_tags": [101, 102, 103]},
+            }
+        if function_id == "vibe.unit.add_behavior":
+            return {
+                "kind": "result",
+                "error_code": "OK",
+                "state_version": self.loop,
+                "payload": {
+                    "function_id": function_id,
+                    "unit_tag": args["unit_tag"],
+                    "behavior": args["behavior"],
+                    "stacks": args["stacks"],
+                    "count": args["stacks"],
+                },
+            }
+        return await super().call(function_id, args)
+
+
 class DebugVmTests(unittest.TestCase):
     def run_vm(self, program, *, metadata=None, catalog=None):
         return asyncio.run(DebugVm(
@@ -143,6 +169,43 @@ class DebugVmTests(unittest.TestCase):
         }))
         self.assertEqual(result["status"], "failed")
         self.assertIn("budget", result["error"])
+
+    def test_foreach_applies_behavior_to_every_returned_unit_tag(self):
+        bridge = UnitBridge()
+        result = asyncio.run(DebugVm(
+            bridge,
+            function_metadata=load_function_metadata(),
+        ).run({
+            "vm": "vibe-debug/1",
+            "steps": [
+                {
+                    "op": "call",
+                    "fn": "vibe.unit.spawn_group",
+                    "args": {"unit_type": "Marine", "count": 3, "player": 1},
+                    "save": "squad",
+                },
+                {
+                    "op": "foreach",
+                    "source": "$vars.squad.unit_tags",
+                    "item": "unit_tag",
+                    "steps": [
+                        {
+                            "op": "call",
+                            "fn": "vibe.unit.add_behavior",
+                            "args": {
+                                "unit_tag": "$vars.unit_tag",
+                                "behavior": "StimpackBehavior",
+                                "stacks": 1,
+                            },
+                        },
+                        {"op": "assert", "source": "$last", "path": "count", "equals": 1},
+                    ],
+                },
+            ],
+        }))
+        self.assertEqual(result["status"], "passed")
+        behavior_calls = [call for call in bridge.calls if call[0] == "vibe.unit.add_behavior"]
+        self.assertEqual([args["unit_tag"] for _, args in behavior_calls], [101, 102, 103])
 
 
 if __name__ == "__main__":

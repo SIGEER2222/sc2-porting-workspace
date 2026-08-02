@@ -111,6 +111,7 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
     summary_json = json.dumps(summary, ensure_ascii=False, separators=(",", ":"))
     owner_roles = header.get("owner_roles") or frames[0].get("owner_roles", {})
     owner_roles_json = json.dumps(owner_roles, ensure_ascii=False, separators=(",", ":"))
+    map_metadata = header.get("map_metadata") or frames[0].get("map_metadata") or {}
 
     # 计算地图边界（从所有帧的实体位置）
     all_x, all_y = [], []
@@ -120,7 +121,16 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
                 if e.get("alive"):
                     all_x.append(e["x"])
                     all_y.append(e["y"])
-    if all_x:
+    source_bounds = map_metadata.get("map_bounds") or {}
+    has_source_bounds = all(
+        key in source_bounds for key in ("min_x", "max_x", "min_y", "max_y")
+    )
+    if has_source_bounds:
+        min_x = float(source_bounds["min_x"])
+        max_x = float(source_bounds["max_x"])
+        min_y = float(source_bounds["min_y"])
+        max_y = float(source_bounds["max_y"])
+    elif all_x:
         min_x, max_x = min(all_x), max(all_x)
         min_y, max_y = min(all_y), max(all_y)
         pad = max(5.0, (max_x - min_x) * 0.05)
@@ -128,6 +138,12 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
         min_y -= pad; max_y += pad
     else:
         min_x, max_x, min_y, max_y = 0, 100, 0, 100
+
+    map_source_text = map_metadata.get("map_path", "scenario fixture")
+    map_hash_text = map_metadata.get("map_hash", "n/a")
+    native_object_count = map_metadata.get("native_object_count", "n/a")
+    native_spawn_count = map_metadata.get("native_spawn_count", "n/a")
+    p2_native_spawn_count = header.get("p2_native_spawn_count", "n/a")
 
     # 单位颜色映射（JSON 给 JS 用）
     colors_json = json.dumps({str(k): v for k, v in PLAYER_COLORS.items()})
@@ -261,7 +277,11 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
     <div class="meta">
       回放日志: {_esc(jsonl_path.name)}<br>
       总帧数: {len(frames)}<br>
-      地图边界: [{min_x:.0f},{min_y:.0f}] - [{max_x:.0f},{max_y:.0f}]
+      地图来源: {_esc(map_source_text)}<br>
+      地图哈希: {_esc(map_hash_text)}<br>
+      原生对象/实体: {_esc(native_object_count)} / {_esc(native_spawn_count)}<br>
+      原生 P2 单位: {_esc(p2_native_spawn_count)}<br>
+      地图边界: [{min_x:.1f},{min_y:.1f}] - [{max_x:.1f},{max_y:.1f}]
     </div>
   </div>
 </div>
@@ -381,7 +401,10 @@ function drawFrame(idx) {{
     const color = colorFor(pid);
     for (const e of ents) {{
       if (!e.alive) continue;
-      const [cx, cy] = worldToCanvas(e.x, e.y);
+      const [cx, cy] = worldToCanvas(
+        e.source_x ?? e.x,
+        e.source_y ?? e.y,
+      );
       const r = radiusFor(e.t);
       // 中立资源点用小方块
       if (pidStr === '0') {{

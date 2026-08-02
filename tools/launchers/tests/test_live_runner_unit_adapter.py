@@ -36,6 +36,18 @@ def test_live_unit_adapter_maps_empire_units_and_filters_hero_placement():
     assert hero_placement is None
 
 
+def test_live_unit_adapter_preserves_construction_and_order_target_state():
+    barracks = _unit(100, tag=21)
+    barracks.build_progress = 0.5
+    order = barracks.orders.add(ability_id=1, progress=0.25, target_unit_tag=77)
+
+    brief = runner._unit_brief_from_sc2(barracks, player_id=1)
+
+    assert brief["build_progress"] == 0.5
+    assert brief["orders"][0]["target_unit_tag"] == 77
+    assert brief["orders"][0]["progress"] == 0.25
+
+
 def test_live_action_adapter_uses_empire_gather_and_train_abilities():
     gather = runner.build_action(
         DefendAction(entity_id=11, kind="gather", target_entity_id=99),
@@ -69,6 +81,21 @@ def test_live_action_adapter_uses_empire_gather_and_train_abilities():
     assert build_barracks.action_raw.unit_command.ability_id == 321
     assert build_barracks.action_raw.unit_command.target_world_space_pos.x == 15.0
 
+    build_refinery = runner.build_action(
+        DefendAction(
+            entity_id=11,
+            kind="build",
+            unit_type_id="Refinery",
+            target_entity_id=77,
+            target_x=15.0,
+            target_y=20.0,
+        ),
+        player_id=2,
+        source_unit_type_int=4382,
+    )
+    assert build_refinery is not None
+    assert build_refinery.action_raw.unit_command.target_unit_tag == 77
+
 
 def test_live_ally_command_is_a_p1_team_chat_message():
     action = runner.build_ally_chat_action("!ally defend stage25-test")
@@ -87,3 +114,56 @@ def test_live_roster_requires_p1_and_p2_participants():
         "1": {"type": 1},
         "2": {"type": 2},
     })
+
+
+def test_live_observation_keeps_p1_as_p2_visible_ally():
+    response = runner.sc_pb.Response()
+    observation = response.observation.observation
+    observation.game_loop = 10
+    observation.player_common.food_cap = 15
+    observation.player_common.food_used = 2
+    own = observation.raw_data.units.add(
+        unit_type=4382, owner=2, alliance=1, tag=11, health=45, health_max=45
+    )
+    own.pos.x = 10.0
+    own.pos.y = 20.0
+    ally = observation.raw_data.units.add(
+        unit_type=4382, owner=1, alliance=2, tag=12, health=45, health_max=45
+    )
+    ally.pos.x = 11.0
+    ally.pos.y = 20.0
+    enemy = observation.raw_data.units.add(
+        unit_type=4382, owner=3, alliance=4, tag=13, health=45, health_max=45
+    )
+    enemy.pos.x = 30.0
+    enemy.pos.y = 20.0
+
+    live = runner.build_observation(response, player_id=2)
+
+    assert [unit["owner"] for unit in live.own_units] == [2]
+    assert [unit["owner"] for unit in live.visible_allies] == [1]
+    assert [unit["owner"] for unit in live.visible_enemies] == [3]
+    assert live.visible_allies[0]["alliance"] == 2
+
+
+def test_live_trace_indexes_owned_refinery_as_gas_target():
+    observation = runner.LiveObservation(
+        loop=1,
+        player_id=2,
+        own_units=[
+            {"entity_id": 11, "owner": 2, "unit_type_id": "SCV"},
+            {"entity_id": 12, "owner": 2, "unit_type_id": "Refinery"},
+        ],
+        visible_enemies=[],
+        resources={},
+        mission={},
+        mineral_fields=[
+            {"entity_id": 99, "owner": 0, "unit_type_id": "MineralField"},
+        ],
+    )
+
+    targets = runner._target_state_by_tag(observation)
+
+    assert targets[12]["unit_type_id"] == "Refinery"
+    assert targets[12]["owner"] == 2
+    assert targets[99]["unit_type_id"] == "MineralField"

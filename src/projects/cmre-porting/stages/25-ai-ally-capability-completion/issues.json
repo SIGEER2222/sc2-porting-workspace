@@ -7,11 +7,22 @@
       "severity": "medium",
       "status": "blocked",
       "title": "Fresh corrected P2 native runtime is blocked by protected lease",
-      "detail": "The corrected runner now requires P1/P2 participant slots and joins P2, but the fresh approved launcher request on port 5161 was rejected before CreateGame by the protected KeepAlive runtime on port 5153. The earlier native report is historical-invalid because it operated P1 and issued SCV attacks.",
+      "detail": "The corrected runner now requires P1/P2 participant slots and joins P2, but fresh approved launcher requests on ports 5161 and 5162 were rejected before CreateGame by protected KeepAlive runtimes on ports 5153 and 5154. The latest blocker is recorded in runtime-p2-validation-blocked-pass2.json. The earlier native report is historical-invalid because it operated P1 and issued SCV attacks. This blocker does not apply to the separate Debug VM group probe, which has now passed in the protected 5154 window.",
       "evidence_type": "blocked",
-      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-validation-blocked.json",
+      "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-validation-blocked-pass2.json",
       "owner": "stage25",
-      "nextAction": "After the protected runtime owner releases PID 39308/port 5153, rerun the approved launcher on a new port and require P2 participant ownership, successful Barracks/Refinery/Marine transitions, no SCV attack, and same-window ScriptError evidence."
+      "nextAction": "After the protected runtime owner releases the current PID 34556/port 5154 lease, rerun the approved launcher on a new port and require P2 participant ownership, successful Barracks/Refinery/Marine transitions, no SCV attack, and same-window ScriptError evidence."
+    },
+    {
+      "id": "MAP-DERIVED-P2-NATIVE-ROSTER-ABSENT",
+      "severity": "medium",
+      "status": "open",
+      "title": "Dead of Night Objects has no native P1/P2 units",
+      "detail": "The source map contains one ACHeroSpawnPlacement for P1 at (85,94) and one for P2 at (76,103), but no native P1/P2 ObjectUnit force. The strict map-derived replay therefore injects zero units and cannot claim a P2 movement/combat dispatch. P1 commands and P2 text acknowledgements are recorded, while native P2 action validation remains a separate gap.",
+      "evidence_type": "simulator",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/map-scenario-source.json",
+      "owner": "stage25",
+      "nextAction": "Use a separately documented runtime/commander initialization source to supply the real P1/P2 forces before claiming native P2 action success; do not add fixture units to this map-derived replay."
     }
   ]
 }

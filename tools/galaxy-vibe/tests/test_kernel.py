@@ -38,9 +38,25 @@ from host.vibe_host import (  # noqa: E402
 from vibe import protocol  # noqa: E402
 from vibe.function_registry import load_function_registry  # noqa: E402
 from vibe.simulator_transport import SimulatorTransport  # noqa: E402
+from galaxy_repl import _resume_sequence_from_bank  # noqa: E402
 
 
 # ---- RPC 协议单元测试 ----
+
+class TestReplSessionResume(unittest.TestCase):
+    def test_resume_reads_highest_sequence_for_selected_session(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bank = Path(tmp) / "GalaxyVibe.SC2Bank"
+            bank.write_text(
+                '<?xml version="1.0"?><Bank version="1">'
+                '<Section name="response">'
+                '<Key name="old"><Value string="{&quot;session_id&quot;:&quot;other&quot;,&quot;sequence&quot;:99}"/></Key>'
+                '<Key name="first"><Value string="{&quot;session_id&quot;:&quot;resume&quot;,&quot;sequence&quot;:4}"/></Key>'
+                '<Key name="last"><Value string="{&quot;session_id&quot;:&quot;resume&quot;,&quot;sequence&quot;:7}"/></Key>'
+                '</Section></Bank>',
+                encoding="utf-8",
+            )
+            self.assertEqual(_resume_sequence_from_bank("resume", bank), 7)
 
 class TestRpcRequest(unittest.TestCase):
     """RpcRequest 序列化与 checksum 测试。"""
@@ -789,7 +805,9 @@ class TestGalaxyStaticCheck(unittest.TestCase):
         for handler in ["HandleUpgradeSetLevel", "HandleTechTreeCheck",
                         "HandleQueryUnitTags", "HandleQueryUnitAttrs",
                         "HandleFunctionInvoke", "FunctionVibeTestPing",
-                        "FunctionUnitAttack", "FunctionQueryStructures"]:
+                        "FunctionUnitAttack", "FunctionQueryStructures",
+                        "FunctionUnitSpawnGroup", "FunctionUnitAddBehavior",
+                        "FunctionUnitQueryBehavior"]:
             self.assertIn(f"libVibeKernel_gf_{handler}", content)
         self.assertIn("libVibeKernel_gt_AllyCommand_Func", content)
         self.assertIn("libVibeKernel_gt_AllyCommand", content)
@@ -799,7 +817,9 @@ class TestGalaxyStaticCheck(unittest.TestCase):
             self.assertIn(f'"{op}"', content)
         for function_id in ["vibe.test.ping", "vibe.player.set_resource",
                             "vibe.unit.spawn", "vibe.query.units", "vibe.unit.kill",
-                            "vibe.unit.attack", "vibe.query.structures"]:
+                            "vibe.unit.attack", "vibe.query.structures",
+                            "vibe.unit.spawn_group", "vibe.unit.add_behavior",
+                            "vibe.unit.query_behavior"]:
             self.assertIn(f'"{function_id}"', content)
 
     def test_function_handler_mirrors_are_aligned(self):
@@ -812,7 +832,9 @@ class TestGalaxyStaticCheck(unittest.TestCase):
             content = path.read_text(encoding="utf-8")
             for handler in ["FunctionPlayerSetResource", "FunctionUnitSpawn",
                             "FunctionQueryUnits", "FunctionUnitKill",
-                            "FunctionUnitAttack", "FunctionQueryStructures"]:
+                            "FunctionUnitAttack", "FunctionQueryStructures",
+                            "FunctionUnitSpawnGroup", "FunctionUnitAddBehavior",
+                            "FunctionUnitQueryBehavior"]:
                 self.assertIn(f"libVibeKernel_gf_{handler}", content, str(path))
             self.assertIn("libVibeKernel_gt_AllyCommand_Func", content, str(path))
             self.assertIn("TriggerAddEventChatMessage", content, str(path))
@@ -851,6 +873,9 @@ class TestGalaxyStaticCheck(unittest.TestCase):
             self.assertIn(f"libVibeKernel_gf_Handle{op}", content)
         self.assertIn("libVibeKernel_gf_FunctionUnitAttack", content)
         self.assertIn("libVibeKernel_gf_FunctionQueryStructures", content)
+        self.assertIn("libVibeKernel_gf_FunctionUnitSpawnGroup", content)
+        self.assertIn("libVibeKernel_gf_FunctionUnitAddBehavior", content)
+        self.assertIn("libVibeKernel_gf_FunctionUnitQueryBehavior", content)
         self.assertIn("libVibeKernel_gt_AllyCommand_Func", content)
 
 

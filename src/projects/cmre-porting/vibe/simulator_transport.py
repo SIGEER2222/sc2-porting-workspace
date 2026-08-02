@@ -203,6 +203,28 @@ class SimulatorTransport:
                 created += 1
             return {"function_id": function_id, "created": created, "unit_tag": first_tag,
                     "unit_type": args["unit_type"], "player": args["player"]}
+        if function_id == "vibe.unit.spawn_group":
+            unit_tags = []
+            for _ in range(args["count"]):
+                result = s.unit_spawn(args["unit_type"], args["player"], args["x"], args["y"])
+                unit_tags.append(result["entity_id"])
+            return {
+                "function_id": function_id,
+                "created": len(unit_tags),
+                "unit_tags": unit_tags,
+                "unit_type": args["unit_type"],
+                "player": args["player"],
+            }
+        if function_id == "vibe.unit.add_behavior":
+            return {
+                "function_id": function_id,
+                **s.unit_add_behavior(args["unit_tag"], args["behavior"], args["stacks"]),
+            }
+        if function_id == "vibe.unit.query_behavior":
+            return {
+                "function_id": function_id,
+                **s.query_behavior(args["unit_tag"], args["behavior"]),
+            }
         if function_id == "vibe.query.units":
             player = args["player"] or None
             result = s.query_units(player)

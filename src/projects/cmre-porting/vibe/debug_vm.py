@@ -148,6 +148,8 @@ class DebugVm:
                 self._set(instruction, scope, position)
             elif op == "repeat":
                 await self._repeat(instruction, scope, position)
+            elif op == "foreach":
+                await self._foreach(instruction, scope, position)
             elif op == "catalog.search":
                 self._catalog_search(instruction, scope, position)
             else:
@@ -287,6 +289,28 @@ class DebugVm:
             raise DebugVmError(f"{scope}[{position}] repeat.steps must be an array")
         for index in range(count):
             await self._execute_steps(steps, scope=f"{scope}[{position}].repeat[{index}]")
+
+    async def _foreach(self, instruction: dict[str, Any], scope: str, position: int) -> None:
+        item = instruction.get("item")
+        steps = instruction.get("steps")
+        if not isinstance(item, str) or not item:
+            raise DebugVmError(f"{scope}[{position}] foreach.item is required")
+        if not isinstance(steps, list):
+            raise DebugVmError(f"{scope}[{position}] foreach.steps must be an array")
+        try:
+            source = self._resolve(instruction.get("source"))
+        except KeyError as exc:
+            raise DebugVmError(f"{scope}[{position}] foreach.source does not exist") from exc
+        if not isinstance(source, list):
+            raise DebugVmError(f"{scope}[{position}] foreach.source must resolve to an array")
+        max_items = instruction.get("max_items", 1000)
+        if isinstance(max_items, bool) or not isinstance(max_items, int) or not 1 <= max_items <= 10000:
+            raise DebugVmError(f"{scope}[{position}] foreach.max_items must be 1..10000")
+        if len(source) > max_items:
+            raise DebugVmError(f"{scope}[{position}] foreach source exceeds max_items")
+        for index, value in enumerate(source):
+            self._vars[item] = value
+            await self._execute_steps(steps, scope=f"{scope}[{position}].foreach[{index}]")
 
     def _catalog_search(self, instruction: dict[str, Any], scope: str, position: int) -> None:
         pattern = str(instruction.get("name", "")).lower()

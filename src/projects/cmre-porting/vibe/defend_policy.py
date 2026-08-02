@@ -125,6 +125,7 @@ class DefendBasePolicy:
     # SCV 数量阈值：低于此值时 SCV 训练优先级提升；高于此值时让位给战斗单位
     SCV_FLOOR = 4      # 低于此值强制造 SCV（即使抢资源）
     SCV_CEIL = 16      # 达到此值停止造 SCV
+    GAS_WORKERS_PER_REFINERY = 3
 
     def __init__(self, player_id: int,
                  base_region: tuple[float, float, float] = (PLAYER_BASE_X, PLAYER_BASE_Y, 15.0),
@@ -146,6 +147,8 @@ class DefendBasePolicy:
         self._last_actions: list[DefendAction] = []
         # 已发过采集命令的 SCV id 集合（避免重复发命令）
         self._gathering_scvs: set[int] = set()
+        # 已分配到已建成 Refinery 的 SCV id 集合。
+        self._gas_workers: set[int] = set()
         # 已发过训练命令的建筑 id 集合（本轮已发，等下一轮）
         self._producers_in_queue: set[int] = set()
         self._build_issued: set[str] = set()
@@ -242,7 +245,9 @@ class DefendBasePolicy:
 
         # ===== 经济决策（较低频率）=====
         econ_due = loop - self._last_econ_loop >= self.econ_interval
-        if econ_due and resources is not None:
+        # 基地受袭时，经济层必须让位给撤退/防守，避免同一 SCV 在
+        # 一个决策周期同时收到 move/build/gather 等互相覆盖的命令。
+        if econ_due and resources is not None and not base_threats:
             self._last_econ_loop = loop
             self._producers_in_queue.clear()  # 新一轮，清空队列记录
             econ_actions = self._decide_economy(obs, resources, econ_units, producers, enemies)
@@ -296,11 +301,36 @@ class DefendBasePolicy:
             if builder is None:
                 continue
             offset_x, offset_y = build["offset"]
+            target_x = self.base_x + offset_x
+            target_y = self.base_y + offset_y
+            if building_type == "Refinery":
+                geysers = [
+                    geyser for geyser in resources.get("vespene_geysers", [])
+                    if isinstance(geyser, dict)
+                    and "x" in geyser
+                    and "y" in geyser
+                ]
+                if geysers:
+                    geyser = min(
+                        geysers,
+                        key=lambda item: self._dist(
+                            float(item["x"]), float(item["y"]),
+                            self.base_x, self.base_y,
+                        ),
+                    )
+                    target_x = float(geyser["x"])
+                    target_y = float(geyser["y"])
+                    target_entity_id = int(geyser["entity_id"])
+                else:
+                    target_entity_id = 0
+            else:
+                target_entity_id = 0
             actions.append(DefendAction(
                 builder["entity_id"],
                 "build",
-                target_x=self.base_x + offset_x,
-                target_y=self.base_y + offset_y,
+                target_entity_id=target_entity_id,
+                target_x=target_x,
+                target_y=target_y,
                 unit_type_id=building_type,
                 reason=f"build_{building_type}",
             ))
@@ -310,10 +340,63 @@ class DefendBasePolicy:
             minerals -= build["min_m"]
             vespene -= build["min_v"]
 
-        # 2. Empty SCVs gather minerals. A builder is never double-booked.
+        # 2. Assign up to three idle SCVs per completed refinery before minerals.
+        # The gather target is the owned Refinery, matching native SC2 worker
+        # semantics; a geyser is only a build target for the initial construction.
+        refineries = [
+            unit for unit in obs.own_units
+            if unit.get("unit_type_id") == "Refinery"
+            and float(unit.get("build_progress", 1.0)) >= 1.0
+        ]
+        live_worker_ids = {int(worker["entity_id"]) for worker in econ_units}
+        self._gas_workers.intersection_update(live_worker_ids)
+        self._gathering_scvs.intersection_update(live_worker_ids)
+        for refinery in refineries:
+            assigned = sum(
+                1 for worker_id in self._gas_workers
+                if any(
+                    int(worker["entity_id"]) == worker_id
+                    and int(worker.get("orders", [{}])[0].get("target_unit_tag", 0))
+                    == int(refinery["entity_id"])
+                    for worker in econ_units
+                    if worker.get("orders")
+                )
+            )
+            # The set is also used as a stable reservation between observations
+            # where SC2 has not populated the worker order yet.
+            assigned = max(
+                assigned,
+                sum(
+                    1 for worker in econ_units
+                    if int(worker["entity_id"]) in self._gas_workers
+                ),
+            )
+            need = max(0, self.GAS_WORKERS_PER_REFINERY - assigned)
+            for worker in econ_units:
+                if need <= 0:
+                    break
+                worker_id = int(worker["entity_id"])
+                if worker_id in builder_ids or worker_id in self._gas_workers:
+                    continue
+                if worker.get("orders"):
+                    continue
+                actions.append(DefendAction(
+                    worker_id,
+                    "gather",
+                    target_entity_id=int(refinery["entity_id"]),
+                    reason="gather_gas",
+                ))
+                self._gas_workers.add(worker_id)
+                self._gathering_scvs.add(worker_id)
+                need -= 1
+
+        # 3. Empty SCVs gather minerals. A builder or gas worker is never
+        # double-booked.
         for u in econ_units:
             uid = u["entity_id"]
-            if uid not in builder_ids and uid not in self._gathering_scvs:
+            if (uid not in builder_ids
+                    and uid not in self._gathering_scvs
+                    and not u.get("orders")):
                 actions.append(DefendAction(
                     uid, "gather",
                     target_entity_id=0,  # runner 会替换为最近 MineralField id
@@ -321,7 +404,7 @@ class DefendBasePolicy:
                 ))
                 self._gathering_scvs.add(uid)
 
-        # 3. 战斗单位配兵（按 ARMY_COMP 的 priority 升序：0=最高优先）
+        # 4. 战斗单位配兵（按 ARMY_COMP 的 priority 升序：0=最高优先）
         # 统计现有战斗单位总数和各兵种数量（含训练中）
         own_types: dict[str, int] = {}
         for u in obs.own_units:
@@ -341,20 +424,13 @@ class DefendBasePolicy:
             if (current_prop >= info["proportion"]
                     and combat_total >= MIN_ARMY_BEFORE_PROP):
                 continue
-            # 资源检查（用 can_afford 扣除已 reserve 的部分）
-            if not self._econ.can_afford(info["min_m"], info["min_v"],
-                                          minerals, vespene):
-                # 造不起本兵种 → continue 尝试更便宜的低优先级兵种
-                # （原 ares 模式用 break 锁资源给高优先级，但前提是收入能攒够；
-                #  这里经济规模小，break 会导致 Marine 永远造不出，故用 continue）
-                continue
-            if supply_remaining < info["supply"]:
-                continue
             # 找空闲生产建筑
             producer_type = info["producer"]
             idle_producer = None
             for p in producers:
                 if p.get("unit_type_id") != producer_type:
+                    continue
+                if float(p.get("build_progress", 1.0)) < 1.0:
                     continue
                 if (p["entity_id"] in self._producers_in_queue
                         or p.get("orders")):
@@ -362,9 +438,14 @@ class DefendBasePolicy:
                 idle_producer = p
                 break
             if idle_producer is None:
-                # 没有空闲建筑 → reserve 资源（sharpy ActUnit priority 模式），
-                # 让后续低优先级单位造不起，避免抢资源
-                self._econ.reserve(info["min_m"], info["min_v"])
+                # 不存在生产建筑时不能预留资源，否则不存在的 Factory/
+                # Starport 会阻塞已经可用的 Barracks Marine 生产。
+                continue
+            # 资源检查（用 can_afford 扣除已 reserve 的部分）
+            if not self._econ.can_afford(info["min_m"], info["min_v"],
+                                          minerals, vespene):
+                continue
+            if supply_remaining < info["supply"]:
                 continue
             # 下单
             actions.append(DefendAction(
@@ -381,7 +462,7 @@ class DefendBasePolicy:
             own_types[unit_type] = own_types.get(unit_type, 0) + 1
             combat_total += 1
 
-        # 4. SCV 训练（受 reserve 池约束）
+        # 5. SCV 训练（受 reserve 池约束）
         # SCV 数量 < SCV_FLOOR 时强制训练（不检查 reserve，紧急恢复经济）
         # SCV 数量 >= SCV_CEIL 时停止
         # 中间区间：通过 can_afford 检查（已扣战斗单位 reserve）
@@ -389,6 +470,8 @@ class DefendBasePolicy:
             cc_idle = None
             for p in producers:
                 if p.get("unit_type_id") != "CommandCenter":
+                    continue
+                if float(p.get("build_progress", 1.0)) < 1.0:
                     continue
                 if (p["entity_id"] in self._producers_in_queue
                         or p.get("orders")):

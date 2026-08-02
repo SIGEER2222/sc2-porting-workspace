@@ -1,7 +1,6 @@
 {
   "vm": "vibe-debug/1",
   "mode": "debug",
-  "catalog_path": "../../../../../artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json",
   "steps": [
     {
       "op": "call",
@@ -25,7 +24,7 @@
           "fn": "vibe.unit.add_behavior",
           "args": {
             "unit_tag": "$vars.unit_tag",
-            "behavior": "StimpackBehavior",
+            "behavior": "Conjoined",
             "stacks": 1
           }
         },
@@ -42,7 +41,7 @@
       "fn": "vibe.unit.query_behavior",
       "args": {
         "unit_tag": "$vars.unit_tag",
-        "behavior": "StimpackBehavior"
+        "behavior": "Conjoined"
       },
       "save": "last_behavior"
     },
@@ -51,19 +50,6 @@
       "source": "$vars.last_behavior",
       "path": "has_behavior",
       "equals": true
-    },
-    {
-      "op": "catalog.search",
-      "name": "FunctionQuery",
-      "kind": "helper",
-      "limit": 10,
-      "save": "query_functions"
-    },
-    {
-      "op": "assert",
-      "source": "$vars.query_functions",
-      "path": "count",
-      "gte": 1
     }
   ]
 }

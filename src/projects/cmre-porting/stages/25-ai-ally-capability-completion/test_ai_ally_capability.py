@@ -26,6 +26,7 @@ from vibe.defend_policy import DefendBasePolicy  # noqa: E402
 from vibe.contracts import Observation  # noqa: E402
 from vibe.simulator_session import SimulatorSession  # noqa: E402
 from vibe.replay_player import load_replay, render_player_html  # noqa: E402
+from vibe.map_replay import load_dead_of_night_map_cooperative_scenario  # noqa: E402
 
 
 def _cooperative_scenario(seed: int = 42) -> dict:
@@ -134,7 +135,8 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
             ],
             visible_enemies=[],
             resources={"minerals": 500, "vespene": 0, "supply_used": 3,
-                       "supply_cap": 15},
+                       "supply_cap": 15,
+                       "vespene_geysers": [{"entity_id": 900, "x": 14.0, "y": 13.0}]},
             mission={},
         )
 
@@ -143,6 +145,9 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
 
         self.assertEqual({action.unit_type_id for action in builds}, {"Barracks", "Refinery"})
         self.assertEqual({action.entity_id for action in builds}, {202, 203})
+        refinery = next(action for action in builds if action.unit_type_id == "Refinery")
+        self.assertEqual(refinery.target_entity_id, 900)
+        self.assertEqual((refinery.target_x, refinery.target_y), (14.0, 13.0))
         self.assertTrue(all(action.entity_id not in {202, 203} or action.kind == "build"
                             for action in actions if action.kind != "hold"))
 
@@ -178,6 +183,104 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
                             for action in train_actions))
         self.assertFalse(any(action.kind == "attack" and action.entity_id == 303
                              for action in actions))
+
+    def test_base_threat_pauses_economy_and_keeps_scv_non_combat(self):
+        policy = DefendBasePolicy(player_id=2, command_interval=1, econ_interval=1)
+        observation = Observation(
+            loop=1,
+            player_id=2,
+            own_units=[
+                {"entity_id": 401, "unit_type_id": "CommandCenter", "owner": 2,
+                 "x": 85.0, "y": 94.0, "health": 1400 * 1024,
+                 "max_health": 1400 * 1024},
+                {"entity_id": 402, "unit_type_id": "SCV", "owner": 2,
+                 "x": 84.0, "y": 94.0, "health": 45 * 1024,
+                 "max_health": 45 * 1024},
+            ],
+            visible_enemies=[
+                {"entity_id": 499, "unit_type_id": "Zergling", "owner": 3,
+                 "x": 85.0, "y": 94.0, "health": 35 * 1024,
+                 "max_health": 35 * 1024},
+            ],
+            resources={"minerals": 500, "vespene": 0, "supply_used": 2,
+                       "supply_cap": 15},
+            mission={},
+        )
+
+        actions = policy.decide(observation, loop=1, resources=observation.resources)
+
+        self.assertEqual(
+            [(action.entity_id, action.kind) for action in actions],
+            [(402, "move")],
+        )
+
+    def test_completed_refinery_gets_three_scvs_and_remaining_workers_mine(self):
+        policy = DefendBasePolicy(player_id=2, command_interval=1, econ_interval=1)
+        workers = [
+            {"entity_id": 500 + index, "unit_type_id": "SCV", "owner": 2,
+             "x": 80.0 + index, "y": 94.0, "health": 45 * 1024,
+             "max_health": 45 * 1024}
+            for index in range(5)
+        ]
+        observation = Observation(
+            loop=1,
+            player_id=2,
+            own_units=[
+                {"entity_id": 501, "unit_type_id": "CommandCenter", "owner": 2,
+                 "x": 85.0, "y": 94.0, "health": 1400 * 1024,
+                 "max_health": 1400 * 1024},
+                {"entity_id": 502, "unit_type_id": "Barracks", "owner": 2,
+                 "x": 90.0, "y": 94.0, "health": 800 * 1024,
+                 "max_health": 800 * 1024},
+                {"entity_id": 503, "unit_type_id": "Refinery", "owner": 2,
+                 "x": 82.0, "y": 99.0, "health": 500 * 1024,
+                 "max_health": 500 * 1024},
+                *workers,
+            ],
+            visible_enemies=[],
+            resources={"minerals": 0, "vespene": 0, "supply_used": 7,
+                       "supply_cap": 15},
+            mission={},
+        )
+
+        actions = policy.decide(observation, loop=1, resources=observation.resources)
+        gas = [action for action in actions if action.reason == "gather_gas"]
+        minerals = [action for action in actions if action.reason == "gather_minerals"]
+
+        self.assertEqual(len(gas), 3)
+        self.assertEqual({action.target_entity_id for action in gas}, {503})
+        self.assertEqual(len(minerals), 2)
+
+    def test_missing_high_tech_producers_do_not_block_barracks_marine(self):
+        policy = DefendBasePolicy(player_id=2, command_interval=1, econ_interval=1)
+        observation = Observation(
+            loop=1,
+            player_id=2,
+            own_units=[
+                {"entity_id": 601, "unit_type_id": "CommandCenter", "owner": 2,
+                 "x": 85.0, "y": 94.0, "health": 1400 * 1024,
+                 "max_health": 1400 * 1024},
+                {"entity_id": 602, "unit_type_id": "Barracks", "owner": 2,
+                 "x": 90.0, "y": 94.0, "health": 800 * 1024,
+                 "max_health": 800 * 1024},
+                {"entity_id": 603, "unit_type_id": "Refinery", "owner": 2,
+                 "x": 82.0, "y": 99.0, "health": 500 * 1024,
+                 "max_health": 500 * 1024},
+            ],
+            visible_enemies=[],
+            resources={"minerals": 1000, "vespene": 300, "supply_used": 3,
+                       "supply_cap": 15},
+            mission={},
+        )
+
+        actions = policy.decide(observation, loop=1, resources=observation.resources)
+
+        self.assertTrue(any(
+            action.kind == "train"
+            and action.entity_id == 602
+            and action.unit_type_id == "Marine"
+            for action in actions
+        ))
 
     def test_roster_requires_reciprocal_p1_p2_and_ai_identity(self):
         roster = validate_cooperative_roster(_cooperative_scenario())
@@ -340,6 +443,106 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
             self.assertIn("P1 指令 / P2 回执", html)
             self.assertIn('"relation":"ally"', html)
             self.assertIn('"kind":"player_command"', html)
+
+    def test_map_derived_replay_matches_dead_of_night_objects_without_fixture_units(self):
+        data, metadata = load_dead_of_night_map_cooperative_scenario()
+        scenario = data.scenario
+        self.assertEqual(metadata["source_kind"], "map_extractor")
+        self.assertEqual(metadata["native_object_count"], 1319)
+        self.assertEqual(metadata["native_spawn_count"], len(scenario["spawns"]))
+        self.assertEqual(metadata["native_spawn_counts_by_owner"].get(1, 0), 0)
+        self.assertEqual(metadata["native_spawn_counts_by_owner"].get(2, 0), 0)
+        self.assertEqual(
+            sorted(
+                (marker["owner_player_id"], marker["x"], marker["y"])
+                for marker in metadata["placement_markers"]
+            ),
+            [(1, 85.0, 94.0), (2, 76.0, 103.0)],
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            replay_path = Path(directory) / "dead-of-night-map-replay.jsonl"
+            html_path = Path(directory) / "full-map-player.html"
+            result = run_ally_scenario(
+                scenario,
+                AllyPolicy(
+                    player_id=2,
+                    leader_entity_id=0,
+                    leader_player_id=1,
+                    base_region=(85.0, 94.0, 15.0),
+                    command_interval=1,
+                ),
+                ally_player_id=2,
+                leader_player_id=1,
+                max_loops=8,
+                latency_loops=0,
+                require_cooperative_roster=True,
+                player_commands=[
+                    {"loop": 0, "text": "!ally follow", "command_id": "map-follow"},
+                    {"loop": 2, "text": "!ally attack", "command_id": "map-attack"},
+                    {"loop": 4, "text": "!ally defend", "command_id": "map-defend"},
+                    {"loop": 6, "text": "!ally status", "command_id": "map-status"},
+                ],
+                replay_log_path=replay_path,
+            )
+            records = load_replay(replay_path)
+            header = records[0]
+            frames = [record for record in records if record.get("record_type") == "frame"]
+            actions = [record for record in records if record.get("record_type") == "action"]
+            first = frames[0]
+            first_entities = sorted(
+                (entity for entities in first["entities_by_player"].values() for entity in entities),
+                key=lambda entity: entity["id"],
+            )
+            actual = [
+                (
+                    entity["t"],
+                    entity["p"],
+                    round(entity.get("source_x", entity["x"]), 4),
+                    round(entity.get("source_y", entity["y"]), 4),
+                    entity.get("source_object_id"),
+                    entity.get("source_unit_type_id"),
+                    entity.get("resource_amount"),
+                )
+                for entity in first_entities
+            ]
+            expected = [
+                (
+                    spawn["unit_type_id"],
+                    spawn["owner_player_id"],
+                    round(spawn["x"], 4),
+                    round(spawn["y"], 4),
+                    spawn.get("source_object_id"),
+                    spawn.get("source_unit_type_id"),
+                    spawn.get("resource_amount"),
+                )
+                for spawn in scenario["spawns"]
+            ]
+
+            self.assertTrue(result.roster_ready, result.roster_issues)
+            self.assertEqual(header["map_metadata"]["source_kind"], "map_extractor")
+            self.assertEqual(header["map_metadata"]["map_hash"], metadata["map_hash"])
+            self.assertEqual(header["p1_native_spawn_count"], 0)
+            self.assertEqual(header["p2_native_spawn_count"], 0)
+            self.assertEqual(len(first_entities), 1308)
+            self.assertEqual(actual, expected)
+            self.assertNotIn(1, {entity["p"] for entity in first_entities})
+            self.assertNotIn(2, {entity["p"] for entity in first_entities})
+            self.assertEqual(
+                {action["owner"] for action in actions if action["kind"] == "ally_action"},
+                set(),
+            )
+            self.assertEqual(
+                sum(1 for action in actions if action["kind"] == "player_command"),
+                4,
+            )
+            self.assertTrue(all(action["accepted"] for action in actions if action["kind"] == "player_command"))
+
+            render_player_html(records, replay_path, html_path)
+            html = html_path.read_text(encoding="utf-8")
+            self.assertIn("map_extractor", html)
+            self.assertIn("原生对象/实体: 1319 / 1308", html)
+            self.assertIn("原生 P2 单位: 0", html)
 
 
 if __name__ == "__main__":

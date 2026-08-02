@@ -725,10 +725,12 @@ def run_ally_scenario(
         raise ValueError(
             f"policy player {policy.player_id} must match ally_player_id {ally_player_id}"
         )
+    configured_enemy_ids = scenario_dict.get("_cooperative_enemy_player_ids")
     roster = validate_cooperative_roster(
         scenario_dict,
         leader_player_id=leader_player_id,
         ally_player_id=ally_player_id,
+        enemy_player_ids=configured_enemy_ids,
     )
     if require_cooperative_roster and not roster.valid:
         raise ValueError("invalid cooperative roster: " + ", ".join(roster.issues))
@@ -748,6 +750,16 @@ def run_ally_scenario(
         latency_loops=latency_loops,
         controlled_player_id=policy.player_id,
     )
+    replay_source_spawn_by_entity_id: dict[int, dict] = {}
+    if scenario_dict.get("_map_metadata", {}).get("source_kind") == "map_extractor":
+        # Simulator entity ids are allocated in scenario spawn order. Preserve
+        # the source ObjectUnit identity beside each replay entity so the first
+        # frame can be audited back to the map, not just to a generated id.
+        for entity, spawn in zip(
+            sorted(s.world.entities.values(), key=lambda item: item.entity_id),
+            scenario_dict.get("spawns", []),
+        ):
+            replay_source_spawn_by_entity_id[int(entity.entity_id)] = dict(spawn)
 
     decisions: list[AllyDecisionTrace] = []
     deadlock_loops = 0
@@ -765,10 +777,13 @@ def run_ally_scenario(
         str(player_id): {
             "name": str(player.get("name", f"Player{player_id}")),
             "is_ai": bool(player.get("is_ai", False)),
-            "relation": (
-                "leader" if int(player_id) == int(leader_player_id)
-                else "ally" if int(player_id) == int(ally_player_id)
-                else "enemy"
+            "relation": player.get(
+                "relation",
+                (
+                    "leader" if int(player_id) == int(leader_player_id)
+                    else "ally" if int(player_id) == int(ally_player_id)
+                    else "enemy"
+                ),
             ),
         }
         for player_id, player in sorted(
@@ -776,11 +791,20 @@ def run_ally_scenario(
             key=lambda item: item[0],
         )
     }
+    replay_map_metadata = dict(scenario_dict.get("_map_metadata", {}))
+    if not replay_map_metadata and scenario_dict.get("_map_source_kind"):
+        replay_map_metadata = {
+            "source_kind": scenario_dict["_map_source_kind"],
+            "native_starting_force": bool(
+                scenario_dict.get("_map_native_starting_force", False)
+            ),
+        }
 
     def _replay_entities() -> dict[str, list[dict]]:
         grouped: dict[str, list[dict]] = {}
         for entity in sorted(s.world.entities.values(), key=lambda item: item.entity_id):
-            grouped.setdefault(str(entity.owner_player_id), []).append({
+            source_spawn = replay_source_spawn_by_entity_id.get(int(entity.entity_id), {})
+            entity_record = {
                 "id": entity.entity_id,
                 "t": entity.unit_type_id,
                 "p": entity.owner_player_id,
@@ -789,7 +813,18 @@ def run_ally_scenario(
                 "hp": entity.health.raw,
                 "alive": bool(entity.is_alive),
                 "state": entity.state.value if hasattr(entity.state, "value") else str(entity.state),
-            })
+            }
+            if source_spawn:
+                entity_record.update({
+                    "source_object_id": source_spawn.get("source_object_id"),
+                    "source_unit_type_id": source_spawn.get(
+                        "source_unit_type_id", source_spawn.get("unit_type_id")
+                    ),
+                    "source_x": source_spawn.get("x"),
+                    "source_y": source_spawn.get("y"),
+                    "resource_amount": source_spawn.get("resource_amount"),
+                })
+            grouped.setdefault(str(entity.owner_player_id), []).append(entity_record)
         return grouped
 
     def _replay_resources() -> dict[str, dict]:
@@ -831,7 +866,7 @@ def run_ally_scenario(
             return False
         p1_alive, p1_types = _count_units({int(leader_player_id)})
         p2_alive, p2_types = _count_units({int(ally_player_id)})
-        enemy_ids = set(replay_owner_roles) - {str(leader_player_id), str(ally_player_id)}
+        enemy_ids = set(roster.enemy_player_ids)
         enemy_alive, enemy_types = _count_units({int(pid) for pid in enemy_ids})
         p2_observation = _replay_observation()
         resources = p2_observation["resources_by_player"]
@@ -844,6 +879,7 @@ def run_ally_scenario(
             "replay_id": scenario_dict.get("name", "cooperative-ally-scenario"),
             "evidence_type": "simulator",
             "runtime_claim": "none; simulator evidence only",
+            "map_metadata": replay_map_metadata,
             "owner_roles": replay_owner_roles,
             "loop": int(loop),
             "real_sec": round(int(loop) / 22.4, 3),
@@ -1052,18 +1088,40 @@ def run_ally_scenario(
             "replay_id": scenario_dict.get("name", "cooperative-ally-scenario"),
             "evidence_type": "simulator",
             "runtime_claim": "none; simulator evidence only",
+            "map_metadata": replay_map_metadata,
             "leader_player_id": int(leader_player_id),
             "ally_player_id": int(ally_player_id),
             "enemy_player_ids": list(roster.enemy_player_ids),
             "owner_roles": replay_owner_roles,
             "commands_are": "P1 chat/signal input; P2-only dispatched actions",
+            "p1_native_spawn_count": sum(
+                1
+                for spawn in scenario_dict.get("spawns", [])
+                if int(spawn.get("owner_player_id", -1)) == int(leader_player_id)
+            ),
+            "p2_native_spawn_count": sum(
+                1
+                for spawn in scenario_dict.get("spawns", [])
+                if int(spawn.get("owner_player_id", -1)) == int(ally_player_id)
+            ),
         }
         summary = {
             "record_type": "summary",
             "replay_schema": "cmre-ai-ally-replay.v1",
             "status": "PASS" if roster.valid and not deadlock and not storm else "FAIL",
+            "status_detail": (
+                "map_derived_replay_p2_native_roster_absent"
+                if replay_map_metadata.get("source_kind") == "map_extractor"
+                and sum(
+                    1
+                    for spawn in scenario_dict.get("spawns", [])
+                    if int(spawn.get("owner_player_id", -1)) == int(ally_player_id)
+                ) == 0
+                else "cooperative_simulator_run"
+            ),
             "evidence_type": "simulator",
             "runtime_claim": "none; simulator evidence only",
+            "map_metadata": replay_map_metadata,
             "loop_start": 0,
             "loop_end": int(s.world.clock.now.loop),
             "timeline_frames": len(replay_frame_records),

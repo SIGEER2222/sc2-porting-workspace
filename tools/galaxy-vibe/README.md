@@ -65,7 +65,7 @@ python tools/galaxy-vibe/galaxy_repl.py --port 5152 `
   --vm-program src/projects/cmre-porting/stages/25-ai-ally-capability-completion/debug-vm-smoke.json
 ```
 
-程序格式固定为 `vibe-debug/1`，支持 `call`、`step`、`assert`、`set`、`repeat` 和
+程序格式固定为 `vibe-debug/1`，支持 `call`、`step`、`assert`、`set`、`repeat`、`foreach` 和
 `catalog.search`。`mode: "strategy"` 会拒绝 `debug_only` 函数，例如刷兵、改资源和
 强制击杀；`debug` 模式也只能调用 registry 中的显式 ID，不会执行 `eval` 或任意
 Galaxy 函数名。
@@ -82,6 +82,18 @@ node src/projects/cmre-porting/stages/25-ai-ally-capability-completion/discover_
 新增可运行函数时，先在 registry 增加 typed schema，再在 Host、Galaxy Kernel 和
 simulator 各自的显式 dispatch map 增加同名适配器；只把稳定、可验证的函数提升为
 callable，等待适配器的内部函数继续保留在 catalog 中供搜索和定位。
+
+### 群体召唤与动态 Behavior
+
+`debug-vm-smoke.json` 展示了完整热调试链路：`vibe.unit.spawn_group` 返回创建单位的
+`unit_tags`，VM 用 `foreach` 逐个调用 `vibe.unit.add_behavior`，最后用
+`vibe.unit.query_behavior` 断言 Behavior 已经生效。这里的“动态技能”采用 Galaxy
+Behavior/Buff 语义；它可以验证运行时状态和叠层，不等同于给单位凭空增加一个未配置的
+Ability。整个程序可在同一个已恢复的 RPC session 中重复执行，不需要重启游戏。
+
+`debug-vm-runtime-group.json` 是亡者之夜当前 Catalog 的 live-map 版本，使用该地图实际
+存在的 `Conjoined` Behavior；不同地图应先从自身 Catalog/脚本中选取 Behavior ID，Kernel
+会拒绝当前地图不存在的 ID。
 
 ## 运行 P0 闸门
 
