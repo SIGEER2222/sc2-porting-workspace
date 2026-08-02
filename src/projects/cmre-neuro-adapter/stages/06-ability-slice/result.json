@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "06-ability-slice",
+  "status": "PASS",
+  "completed_at": "2026-08-02T05:20:00+08:00",
+  "outputs": [
+    "cmre_neuro_adapter/abilities/__init__.py",
+    "cmre_neuro_adapter/abilities/definitions.py",
+    "cmre_neuro_adapter/abilities/registry.py",
+    "cmre_neuro_adapter/abilities/executor.py",
+    "cmre_neuro_adapter/abilities/state.py",
+    "cmre_neuro_adapter/persistence/ability_state.py",
+    "cmre_neuro_adapter/mission/mission_state.py",
+    "cmre_neuro_adapter/persistence/state_store.py",
+    "cmre_neuro_adapter/persistence/migrations.py",
+    "tests/test_abilities.py",
+    "tests/test_ability_replay.py"
+  ],
+  "gate_results": {
+    "G1-definitions": {"status": "PASS", "evidence_type": "simulator"},
+    "G2-requirements": {"status": "PASS", "evidence_type": "simulator"},
+    "G3-effects": {"status": "PASS", "evidence_type": "simulator"},
+    "G4-persistence": {"status": "PASS", "evidence_type": "simulator"},
+    "G5-replay": {"status": "PASS", "evidence_type": "simulator"},
+    "G6-compatibility": {"status": "PASS", "evidence_type": "static"}
+  },
+  "verification": {
+    "ability_mvp": {
+      "status": "PASS",
+      "tests": 7,
+      "command": "python -m unittest discover -s tests -p 'test_ability*.py' -v",
+      "evidence_type": "simulator",
+      "observed": "Four definitions were registered, successful and rejected uses were evaluated, ability state was saved and restored, and repeated traces matched."
+    },
+    "persistent_state_regression": {
+      "status": "PASS",
+      "tests": 10,
+      "command": "python -m unittest discover -s tests -p 'test_state*.py' -v",
+      "evidence_type": "simulator"
+    },
+    "python_3_13_unittest": {
+      "status": "PASS",
+      "tests": 56,
+      "command": "python -m unittest discover -s tests -v",
+      "evidence_type": "simulator"
+    },
+    "python_3_13_compileall": {
+      "status": "PASS",
+      "command": "python -m compileall -q cmre_neuro_adapter tests",
+      "evidence_type": "static"
+    },
+    "python_3_11_grammar": {
+      "status": "PASS",
+      "files": 47,
+      "command": "python -c \"import ast, pathlib; ... ast.parse(path.read_text(encoding='utf-8'), feature_version=(3,11)) ...\"",
+      "reason": "No Python 3.11 runtime is installed; this is syntax compatibility rather than a runtime execution claim.",
+      "evidence_type": "static"
+    },
+    "diff_check": {
+      "status": "PASS",
+      "command": "git diff --check -- src/projects/cmre-neuro-adapter",
+      "evidence_type": "static"
+    }
+  },
+  "runtime_claims": [],
+  "resolved_limitations": [],
+  "next_stage": "07-real-adapters",
+  "next_stage_plan": "stages/07-real-adapters/plan.md"
+}

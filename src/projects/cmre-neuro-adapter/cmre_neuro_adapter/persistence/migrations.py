@@ -10,7 +10,7 @@ from collections.abc import Mapping
 
 
 CURRENT_SCHEMA_VERSION = 1
-DOMAINS = frozenset({"campaign", "mission", "runtime"})
+DOMAINS = frozenset({"abilities", "campaign", "mission", "runtime"})
 _ENVELOPE_FIELDS = frozenset({"domain", "schema_version", "payload", "checksum"})
 
 
@@ -168,6 +168,7 @@ def _migrate_one(
         )
     migrated = dict(payload)
     aliases = {
+        "abilities": {},
         "campaign": {"campaign_id": "id"},
         "mission": {"map_name": "map"},
         "runtime": {

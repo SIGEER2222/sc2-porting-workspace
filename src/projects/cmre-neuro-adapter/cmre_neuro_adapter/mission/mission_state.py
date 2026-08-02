@@ -129,13 +129,17 @@ class MissionSnapshot:
     campaign: CampaignState
     mission: MissionState
     runtime: RuntimeState
+    abilities: Any | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "campaign": self.campaign.to_dict(),
             "mission": self.mission.to_dict(),
             "runtime": self.runtime.to_dict(),
         }
+        if self.abilities is not None:
+            payload["abilities"] = self.abilities.to_dict()
+        return payload
 
 
 __all__ = [

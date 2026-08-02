@@ -13,6 +13,8 @@ from ..mission.mission_state import (
     MissionSnapshot,
     RuntimeState,
 )
+from ..abilities.state import AbilityState
+from .ability_state import decode_ability_state, encode_ability_state
 from .campaign_state import decode_campaign_state, encode_campaign_state
 from .migrations import (
     DOMAINS,
@@ -50,6 +52,7 @@ class StateStore:
     """Persist only public Stage 04 state, with one file per state domain."""
 
     _FILENAMES = {
+        "abilities": "abilities.json",
         "campaign": "campaign.json",
         "mission": "mission.json",
         "runtime": "runtime.json",
@@ -76,6 +79,9 @@ class StateStore:
     def save_runtime(self, state: RuntimeState) -> None:
         self._save("runtime", encode_runtime_state(state))
 
+    def save_abilities(self, state: AbilityState) -> None:
+        self._save("abilities", encode_ability_state(state))
+
     def save_snapshot(self, snapshot: MissionSnapshot) -> None:
         if not isinstance(snapshot, MissionSnapshot):
             raise StateValidationError("snapshot has the wrong type")
@@ -86,6 +92,8 @@ class StateStore:
         }
         for domain, payload in payloads.items():
             self._save(domain, payload)
+        if snapshot.abilities is not None:
+            self.save_abilities(snapshot.abilities)
 
     def load_campaign(self) -> CampaignState:
         loaded = self._load("campaign")
@@ -102,17 +110,36 @@ class StateStore:
         self.last_load_recovered = loaded.recovered
         return decode_runtime_state(loaded.envelope.payload)
 
+    def load_abilities(self) -> AbilityState:
+        loaded = self._load("abilities")
+        self.last_load_recovered = loaded.recovered
+        return decode_ability_state(loaded.envelope.payload)
+
     def load_snapshot(self) -> MissionSnapshot:
         campaign = self._load("campaign")
         mission = self._load("mission")
         runtime = self._load("runtime")
+        abilities = None
+        if (
+            self.path_for("abilities").exists()
+            or self.backup_path_for("abilities").exists()
+        ):
+            abilities = self._load("abilities")
         self.last_load_recovered = (
-            campaign.recovered or mission.recovered or runtime.recovered
+            campaign.recovered
+            or mission.recovered
+            or runtime.recovered
+            or (abilities.recovered if abilities is not None else False)
         )
         return MissionSnapshot(
             campaign=decode_campaign_state(campaign.envelope.payload),
             mission=decode_mission_state(mission.envelope.payload),
             runtime=decode_runtime_state(runtime.envelope.payload),
+            abilities=(
+                decode_ability_state(abilities.envelope.payload)
+                if abilities is not None
+                else None
+            ),
         )
 
     def _save(self, domain: str, payload: dict[str, Any]) -> None:
