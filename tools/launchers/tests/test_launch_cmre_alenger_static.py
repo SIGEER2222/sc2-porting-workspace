@@ -222,6 +222,18 @@ def test_secondary_client_does_not_mutate_shared_runtime_banks():
     assert "SecondaryClient: skipping shared CampaignXCore bank writes" in source
 
 
+def test_secondary_client_can_reuse_an_existing_staged_map_without_restaging():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "[switch]$ReuseStagedMap" in source
+    assert "-ReuseStagedMap requires -MapCopySuffix <existing-suffix>" in source
+    assert "if (-not $ReuseStagedMap) {" in source
+    assert "Reusing existing staged map: $liveMap" in source
+    assert "[string]$DataDirOverride = \"\"" in source
+    assert "-DataDirOverride is reserved for -SecondaryClient" in source
+    assert "$sc2DataDir = if ($DataDirOverride -ne \"\")" in source
+
+
 def test_api_port_owner_is_scalar_before_pid_conversion():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
 

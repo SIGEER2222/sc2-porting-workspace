@@ -702,6 +702,8 @@ class LiveGameReport:
     behavior_verdict: str = "inconclusive"
     local_map_path: str = ""
     replay_log_path: str = ""
+    native_replay_path: str = ""
+    native_replay_error: str = ""
     observed_player_id: int = P1_PLAYER_ID
     p2_unit_count: int = 0
     p2_alliance_values: list[int] = field(default_factory=list)
@@ -1024,6 +1026,8 @@ async def run_live(
 
     final_obs: Optional[LiveObservation] = None
     initial_obs: Optional[LiveObservation] = None
+    native_replay_path = ""
+    native_replay_error = ""
     map_name = os.path.basename(map_path)
     local_map_path = ""
     strategy_player_id = P2_PLAYER_ID
@@ -1633,6 +1637,29 @@ async def run_live(
         except Exception:
             pass
 
+        # RequestSaveReplay is the native SC2 replay artifact. The JSONL file
+        # above is intentionally kept as an auditable observation/browser
+        # replay, but it cannot replace SC2's own replay container.
+        try:
+            native_response = await conn.send_request(
+                sc_pb.Request(save_replay=sc_pb.RequestSaveReplay()),
+                timeout=45,
+                max_retries=2,
+            )
+            replay_data = bytes(native_response.save_replay.data)
+            if not replay_data:
+                native_replay_error = "RequestSaveReplay returned empty data"
+            else:
+                native_path = replay_path.with_suffix(".SC2Replay")
+                native_path.write_bytes(replay_data)
+                native_replay_path = str(native_path)
+                if verbose:
+                    print(f"  Native SC2 replay: {native_path}")
+        except Exception as exc:
+            native_replay_error = str(exc)
+            if verbose:
+                print(f"  Native SC2 replay unavailable: {exc}")
+
     finally:
         await conn.close()
         replay_fp.close()
@@ -1739,6 +1766,8 @@ async def run_live(
         ),
         local_map_path=local_map_path,
         replay_log_path=str(replay_path),
+        native_replay_path=native_replay_path,
+        native_replay_error=native_replay_error,
         observed_player_id=strategy_player_id,
         p2_unit_count=len(p2_state),
         p2_alliance_values=sorted({int(item.get("alliance", 0)) for item in p2_state}),

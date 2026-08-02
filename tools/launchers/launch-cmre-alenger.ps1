@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient)
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "")
 # -MapCopySuffix: 可选的地图副本后缀，用于避免多会话同时操作同一 live 地图导致 DocumentInfo 冲突。
 # 例如 -MapCopySuffix "reborn" 会使用 Maps\亡者之夜.SC2Map.reborn\ 作为 live 地图。
 # 不指定时使用原始路径（向后兼容）。
@@ -16,6 +16,15 @@ if ($SecondaryClient) {
         throw "-SecondaryClient requires -DebugMode -ListenPort <port>"
     }
     Write-Host "SecondaryClient: explicit second SC2 participant client mode enabled"
+}
+if ($ReuseStagedMap) {
+    if ([string]::IsNullOrWhiteSpace($MapCopySuffix)) {
+        throw "-ReuseStagedMap requires -MapCopySuffix <existing-suffix>"
+    }
+    Write-Host "ReuseStagedMap: existing map copy will be read without restaging"
+}
+if ($DataDirOverride -ne "" -and -not $SecondaryClient) {
+    throw "-DataDirOverride is reserved for -SecondaryClient"
 }
 $WorkspaceRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Sc2WorkspaceRoot = Split-Path -Parent $WorkspaceRoot
@@ -1529,7 +1538,14 @@ try {
         throw (Format-Sc2RuntimeBusyMessage -Processes @(Get-Sc2RuntimeProcesses) -Lease (Get-Sc2RuntimeLease))
     }
 
-    if (-not $SecondaryClient) {
+    if ($ReuseStagedMap) {
+        $liveMap = Join-Path (Join-Path $Sc2Root "Maps\$MapCopySuffix") $MapName
+        if (-not (Test-Path -LiteralPath $liveMap -PathType Container)) {
+            throw "-ReuseStagedMap requires an existing staged map directory: $liveMap"
+        }
+        Write-Host "Reusing existing staged map: $liveMap"
+    }
+    if (-not $SecondaryClient -and -not $ReuseStagedMap) {
         $lock = Acquire-TestLock -TestType "cmre_alenger" -MapName $MapName -Commander $Commander
     }
 
@@ -1544,12 +1560,13 @@ try {
             throw (Format-Sc2RuntimeBusyMessage -Processes $existing -Lease (Get-Sc2RuntimeLease))
         }
     }
-    $sc2RuntimeLeaseSession = if ($lock) { [string]$lock.session_id } else { "secondary-$PID-$ListenPort" }
+    $sc2RuntimeLeaseSession = if ($lock) { [string]$lock.session_id } elseif ($SecondaryClient) { "secondary-$PID-$ListenPort" } else { "reuse-primary-$PID-$ListenPort" }
     if (-not $SecondaryClient) {
         Write-Sc2RuntimeLease -State "staging" -OwnerSession $sc2RuntimeLeaseSession -Port $ListenPort
     }
     if (Test-Path $debugPidFile) { Remove-Item $debugPidFile -Force -ErrorAction SilentlyContinue }
     if (-not $SecondaryClient) { Clear-GameLogs }
+    if (-not $ReuseStagedMap) {
     # A secondary SC2 client reuses the primary client's already-synchronized
     # installation.  Touching shared mod files here can race the primary
     # process and is unnecessary because the secondary client only joins the
@@ -1768,6 +1785,7 @@ try {
     } else {
         Write-Host "SecondaryClient: skipping shared CMRE launch profile bank write"
     }
+    }
     if ($NoLaunch) { Write-Host "CMRE Alenger composition staged: $liveMap"; exit 0 }
     $existing = @(Get-Sc2RuntimeProcesses)
     if ($existing.Count -gt 0 -and -not $SecondaryClient) {
@@ -1828,9 +1846,13 @@ try {
         # Match python-sc2's explicit installation data root as well. The
         # embedded quotes are required because the Windows install path has a
         # space and Start-Process joins ArgumentList before launching Switcher.
-        $sc2DataDirArg = '"' + $Sc2Root + '"'
+        $sc2DataDir = if ($DataDirOverride -ne "") { $DataDirOverride } else { $Sc2Root }
+        if (-not (Test-Path -LiteralPath $sc2DataDir -PathType Container)) {
+            throw "SC2 data directory does not exist: $sc2DataDir"
+        }
+        $sc2DataDirArg = '"' + $sc2DataDir + '"'
         $argList += @("-dataDir", $sc2DataDirArg, "-tempDir", $runtimeTempDir)
-        Write-Host "SC2 runtime data directory: $Sc2Root"
+        Write-Host "SC2 runtime data directory: $sc2DataDir"
         Write-Host "SC2 runtime temp directory: $runtimeTempDir"
         $launchStartedAt = Get-Date
         Start-Process -FilePath $switcher -ArgumentList $argList -WorkingDirectory $Sc2Root
