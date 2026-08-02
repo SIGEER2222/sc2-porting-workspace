@@ -5,6 +5,30 @@
 In progress. The stage is active because implementation of the requested P1/P2
 cooperative AI ally behavior has begun.
 
+## Native Task Simulator Verification 2026-08-02
+
+- `simulator`: the project-owned native task now controls P2 explicitly and
+  starts from a real P2 CommandCenter plus six SCVs, neutral mineral fields,
+  and a neutral geyser. It does not call `unit.spawn`,
+  `player.set_resource`, or `unit.kill` during the strategy loop.
+- `simulator`: seeds `42`, `7`, and `99` all passed the same end-to-end loop.
+  Each run built a SupplyDepot and Refinery at loop `0`, built a Barracks at
+  loop `30`, trained three Marines, recorded mineral and vespene deposits, and
+  issued a successful Marine attack. The final P2 census was one
+  CommandCenter, eight SCVs, one SupplyDepot, one Refinery, one Barracks, and
+  three Marines.
+- `simulator`: every strategy action was issued by owner P2; no SCV attack,
+  friendly-fire rejection, command error, or debug injection was recorded.
+  All three deterministic action traces have SHA-256
+  `52d77af26c2dc89bada4a1c09660084e98a9b257030089df11be7bb7281bf65b`.
+- `simulator`: the native task also exercises the corrected simulator
+  semantics for neutral-resource filtering, reserved-resource affordability,
+  duplicate attack suppression, and point-target `smart` normalization.
+  Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/native-task-multiseed-20260802.json`.
+- `runtime`: this simulator result is not native SC2 evidence. The corrected
+  P2 runtime probe remains blocked by the protected launcher lease and is kept
+  separate below; no P2 runtime action is promoted from this run.
+
 ## Evidence
 
 - `static`: Stage 25 plan and write scope were reviewed before editing.
@@ -340,3 +364,24 @@ protected 5153 Debug VM window cannot satisfy this gate.
   `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/playback-smoke-after-fix.png`.
 - `static`: focused replay tests passed (`2 passed`), and
   `py_compile` passed for the player and Stage 25 test module.
+
+## Verification Loop 2026-08-02 Fresh Runtime VM Rerun
+
+- `runtime`: the previous `5201` lease was explicitly released after the
+  requested restart. The approved launcher then acquired a fresh lease on
+  port `5194`, started SC2 PID `35904`, reached API ready, and passed its
+  launcher ScriptError gate.
+- `runtime`: the current staged map overlay was packed with StormLib into
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-rerun-20260802/vm-rerun.packed.SC2Map`.
+  `galaxy_repl.py` completed `CreateGame + JoinGame` with `player_id=1` and
+  advanced 10 seconds before dispatching VM instructions.
+- `runtime`: the 11-instruction Debug VM passed in the real SC2 window. It
+  created three real Marines, added `Conjoined` count `1` to all three
+  runtime unit tags, and the final query returned `has_behavior=true`.
+  Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-rerun-20260802/vm-runtime-live.txt`.
+- `runtime`: the same launcher epoch `1785664955` ScriptError scan returned
+  `has_new_errors=false`, `count=0`. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-rerun-20260802/script-error-verdict.json`.
+- `blocked`: this rerun validates the typed Debug VM path only. It does not
+  satisfy the separate native P2 gather/train/move/attack acceptance, which
+  remains blocked by the map roster and native strategy lane.

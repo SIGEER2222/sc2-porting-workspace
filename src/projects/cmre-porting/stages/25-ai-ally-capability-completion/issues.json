@@ -7,7 +7,7 @@
       "severity": "medium",
       "status": "blocked",
       "title": "Fresh corrected P2 native runtime is blocked by protected lease",
-      "detail": "The corrected runner now requires P1/P2 participant slots and joins P2, but fresh approved launcher requests on ports 5161 and 5162 were rejected before CreateGame by protected KeepAlive runtimes on ports 5153 and 5154. The latest blocker is recorded in runtime-p2-validation-blocked-pass2.json. The earlier native report is historical-invalid because it operated P1 and issued SCV attacks. This blocker does not apply to the separate Debug VM group probe, which has now passed in the protected 5154 window.",
+      "detail": "The corrected runner now requires P1/P2 participant slots and joins P2, but fresh approved launcher requests on ports 5161 and 5162 were rejected before CreateGame by protected KeepAlive runtimes on ports 5153 and 5154. The latest blocker is recorded in runtime-p2-validation-blocked-pass2.json. The earlier native report is historical-invalid because it operated P1 and issued SCV attacks. The P2 native-task simulator is now PASS across seeds 42, 7, and 99, but that simulator evidence cannot substitute for the blocked native SC2 window. This blocker does not apply to the separate Debug VM group probe, which has now passed in the protected 5154 window.",
       "evidence_type": "blocked",
       "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-validation-blocked-pass2.json",
       "owner": "stage25",
@@ -35,6 +35,18 @@
       "owner": "stage25",
       "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/webui-api-runtime.json",
       "nextAction": "Keep future browser traces separate from native strategy evidence and rerun the same-window ScriptError gate after runtime changes."
+    },
+    {
+      "id": "RUNTIME-DEBUG-VM-REVALIDATED",
+      "severity": "low",
+      "status": "resolved",
+      "title": "Fresh restarted SC2 Debug VM rerun passed",
+      "detail": "After releasing the stale 5201 lease, a fresh approved launcher window on port 5194 completed CreateGame/JoinGame and the full 11-instruction group VM against the current staged map. This confirms the typed Debug VM runtime path; it is intentionally separate from native P2 strategy acceptance.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-rerun-20260802/vm-runtime-live.txt",
+      "owner": "stage25",
+      "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-rerun-20260802/script-error-verdict.json",
+      "nextAction": "Keep the native P2 gather/train/move/attack blocker open until a participant-owned P2 runtime window passes without debug injection."
     }
   ]
 }

@@ -3,7 +3,7 @@
   "stage": "25-ai-ally-capability-completion",
   "status": "IN_PROGRESS",
   "evidence_type": "mixed",
-  "summary": "AST catalog, bounded Debug VM, simulator, strict dynamic Dead of Night map-derived replay, static regressions, fresh runtime group VM, and browser-originated function.invoke/run-vm all pass. The old fixture replay is historical-invalid as map evidence. The map contains P1/P2 placement markers but zero native P1/P2 units, so the regenerated replay preserves the native source frame and adds only an explicitly tagged MapScript.galaxy P5 wave overlay; P2 native action validation remains unexercised and the separate native-strategy lane remains blocked.",
+  "summary": "AST catalog, bounded Debug VM, cooperative simulator, P2 native-task simulator, strict dynamic Dead of Night map-derived replay, static regressions, fresh runtime group VM, and browser-originated function.invoke/run-vm all pass. The old fixture replay is historical-invalid as map evidence. The map contains P1/P2 placement markers but zero native P1/P2 units, so the regenerated replay preserves the native source frame and adds only an explicitly tagged MapScript.galaxy P5 wave overlay. Simulator P2 native-task behavior is complete and deterministic; fresh native SC2 P2 action validation remains blocked by the protected launcher lease.",
   "changed_paths": [
     "src/projects/cmre-porting/project.json",
     "DESIGN.md",
@@ -34,6 +34,7 @@
     "src/projects/cmre-porting/vibe/simulator_session.py",
     "src/projects/cmre-porting/vibe/replay_player.py",
     "src/projects/cmre-porting/vibe/defend_policy.py",
+    "src/projects/cmre-porting/vibe/native_task.py",
     "src/projects/cmre-porting/vibe/run_dead_of_night_live.py",
     "tools/galaxy-vibe/kernel/LibVibeKernel.galaxy",
     "tools/galaxy-vibe/kernel/LibVibeKernel_h.galaxy",
@@ -46,6 +47,7 @@
     "tools/galaxy-vibe/tests/test_kernel.py",
     "tools/launchers/tests/test_live_runner_unit_adapter.py",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/simulator-multiseed.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/native-task-multiseed-20260802.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cooperative-ai-ally-replay-20260802/replay.jsonl",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cooperative-ai-ally-replay-20260802/full-map-player.html",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/map-scenario-source.json",
@@ -83,6 +85,7 @@
   ],
   "validation": [
     {"evidence_type": "simulator", "command": "inline Python run_ally_scenario for seeds 42, 7, 99", "status": "PASS", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/simulator-multiseed.json"},
+    {"evidence_type": "simulator", "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -c run_native_task for seeds 42, 7, 99", "status": "PASS", "detail": "P2-only native economy loop built SupplyDepot/Refinery/Barracks, trained three Marines, gathered minerals and vespene, issued Marine attacks, recorded zero SCV attacks, zero debug injections, and zero command errors; all three action traces share SHA-256 52d77af26c2dc89bada4a1c09660084e98a9b257030089df11be7bb7281bf65b.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/native-task-multiseed-20260802.json"},
     {"evidence_type": "historical-invalid", "command": "seed 42 run_ally_scenario with replay_log_path", "status": "HISTORICAL_INVALID", "detail": "The prior replay is a six-unit fixture and is retained only for policy regression context; it is not map evidence.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cooperative-ai-ally-replay-20260802/replay.jsonl"},
     {"evidence_type": "static", "command": "python -m vibe.replay_player plus embedded JavaScript parse", "status": "PASS", "detail": "self-contained full-map-player.html generated; loop 0 -> 40", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cooperative-ai-ally-replay-20260802/full-map-player.html"},
     {"evidence_type": "static", "command": "python -m pytest -q Stage 25 + Stage 19 + Stage 20", "status": "PASS", "detail": "15 passed, 3 subtests passed"},
@@ -122,7 +125,8 @@
     ,{"evidence_type": "static", "command": "Chrome headless file replay smoke screenshot after playback position fix", "status": "PASS", "detail": "Chrome loaded the regenerated full-map-player.html and wrote a non-empty 362714-byte screenshot.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/playback-smoke-after-fix.png"}
     ,{"evidence_type": "runtime", "command": "approved launcher port 5192 + StormLib packed map + galaxy_repl.py group VM", "status": "PASS", "detail": "Fresh CreateGame/JoinGame; 11 VM instructions passed; three real Marines were created, each received Conjoined count=1, and final query returned has_behavior=true.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/runtime-vm-cli.json"}
     ,{"evidence_type": "runtime", "command": "WebUI 8768 session resume + /api/vibe/invoke + /api/vibe/run-vm on port 5192", "status": "PASS", "detail": "Browser-originated backend path resumed session repl_32f2ed98ec89; ping returned pong/error_code=OK; VM passed with 11 instructions and backend trace count=11.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/webui-api-runtime.json"}
-    ,{"evidence_type": "runtime", "command": "py -3.13 tools/galaxy-vibe/script_error_check.py --since 1785662534", "status": "PASS", "detail": "Zero new non-empty ScriptError files in the fresh 5192 launcher window.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/script-error-verdict.json"}
+    ,{"evidence_type": "runtime", "command": "approved launcher port 5194 + current staged map StormLib pack + galaxy_repl.py --vm-program debug-vm-runtime-group.json", "status": "PASS", "detail": "Fresh restarted SC2 PID 35904; API ready; CreateGame/JoinGame player_id=1; 11 VM instructions passed; three real Marines received Conjoined count=1 and final has_behavior=true.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-rerun-20260802/vm-runtime-live.txt"}
+    ,{"evidence_type": "runtime", "command": "py -3.13 tools/galaxy-vibe/script_error_check.py --since 1785664955", "status": "PASS", "detail": "Zero new non-empty ScriptError files in the fresh 5194 launcher window.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-rerun-20260802/script-error-verdict.json"}
   ],
   "issues": [
     "Corrected P2 native runtime remains blocked by protected launcher lease; do not use the historical P1 report or protected Debug VM window as native-task evidence.",
