@@ -122,7 +122,8 @@
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-tempdir-20260802",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-datadir-20260802",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-realtime-probe-20260802",
-    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-map-matrix-20260802-rerun/matrix-summary.json"
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-map-matrix-20260802-rerun/matrix-summary.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-budget-fixed-20260802.json"
   ],
   "validation": [
     {"evidence_type": "simulator", "command": "inline Python run_ally_scenario for seeds 42, 7, 99", "status": "PASS", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/simulator-multiseed.json"},
@@ -203,6 +204,7 @@
     ,{"evidence_type": "static", "command": "py -3.13 -m pytest -q Stage 19/20/22/23 + Stage 25 + kernel + launcher regression --tb=short", "status": "PASS", "detail": "130 tests passed and 6 subtests passed after the budget fix; historical ally, runtime adapter, kernel, launcher, ladder, and Debug VM contracts remain green.", "evidence": "tools/launchers/tests/test_live_runner_unit_adapter.py"}
     ,{"evidence_type": "static", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1", "status": "PASS", "detail": "52/52 Galaxy/Vibe static checks passed with zero warnings after the ladder budget fix.", "evidence": "artifacts/galaxy-vibe/static-validation-report.json"}
     ,{"evidence_type": "simulator", "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.run_cmre_map_matrix --seed 42 --max-loops 320 --output-dir artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-map-matrix-20260802-rerun", "status": "PASS", "detail": "15/15 CMRE cooperative maps extracted and reached TACTICAL_PASS; all runs reported zero dispatch errors, deadlock, command storm, friendly-fire, and hidden-state violations.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-map-matrix-20260802-rerun/matrix-summary.json"}
+    ,{"evidence_type": "simulator", "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.ladder_ai --batch --max-loops 5000 --no-replay --out artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-budget-fixed-20260802.json", "status": "PASS", "detail": "Seeds 42, 7, and 99 all reached enemy_elimination with victory=true, empty final enemy units, empty error_breakdown, and all macro/tactical safety checks true after same-batch budget repair.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-budget-fixed-20260802.json"}
   ],
   "issues": [
     "Corrected P2 native runtime remains blocked at participant topology/JoinGame ownership; the older SC2Data repair-marker attempt is historical and the fresh single-client Ability VM is valid runtime evidence but not native-task evidence.",

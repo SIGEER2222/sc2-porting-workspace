@@ -779,9 +779,15 @@ Evidence:
   dispatch errors, deadlock, command storm, friendly-fire, and hidden-state
   violations. The matrix is simulator-only and does not claim native mission
   completion.
+- `simulator`: the final direct ladder batch report passed for seeds `42`, `7`,
+  and `99`. Every run reached `enemy_elimination` with `victory=true`, empty
+  `final_enemy_units_by_type`, empty `error_breakdown`, and all macro/tactical
+  safety checks true. This report supersedes the retained failure-first debug
+  artifact; both remain clearly labeled by purpose.
 
 Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-map-matrix-20260802-rerun/matrix-summary.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-budget-fixed-20260802.json`,
 `src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ladder_ai.py`,
 `src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py`.
 
