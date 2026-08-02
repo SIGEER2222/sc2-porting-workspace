@@ -226,6 +226,7 @@ class TestWhitelist(unittest.TestCase):
             "vibe.unit.attack": ("attacker_tag", "target_tag"),
             "vibe.query.structures": ("owner_player", "unit_type"),
             "vibe.unit.add_ability": ("unit_tag", "ability"),
+            "vibe.unit.query_ability": ("unit_tag", "ability"),
         }
         for function_id, arg_names in expected.items():
             self.assertIn(function_id, registry)
