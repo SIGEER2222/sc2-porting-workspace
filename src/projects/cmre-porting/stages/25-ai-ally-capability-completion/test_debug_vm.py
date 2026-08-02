@@ -345,10 +345,10 @@ class DebugVmTests(unittest.TestCase):
         self.assertEqual(result["status"], "passed", result["error"])
         self.assertGreaterEqual(result["instructions_executed"], 40)
         self.assertEqual(transport.session.world.get_entity(1).health.to_float(), 12.5)
-        self.assertEqual(transport.session._catalog_overrides[("unit", "Marine", "LifeMax", 0)], "60.5")
-        self.assertEqual(transport.session._catalog_overrides[("unit", "Marine", "CostResource[0]", 0)], "25")
-        self.assertEqual(transport.session._catalog_overrides[("unit", "Marine", "CostResource[1]", 0)], "10")
-        self.assertEqual(transport.session._catalog_overrides[("abil", "BarracksTrain_7", "InfoArray[0].Unit", 0)], "Marauder")
+        self.assertEqual(transport.session._catalog_overrides[("unit", "Marine", "LifeMax", 1)], "60.5")
+        self.assertEqual(transport.session._catalog_overrides[("unit", "Marine", "CostResource[0]", 1)], "25")
+        self.assertEqual(transport.session._catalog_overrides[("unit", "Marine", "CostResource[1]", 1)], "10")
+        self.assertEqual(transport.session._catalog_overrides[("abil", "BarracksTrainNova", "InfoArray[0].Unit", 1)], "Marauder")
         self.assertEqual(
             transport.session._visual_overrides[1],
             {
