@@ -515,6 +515,7 @@ def run_dead_of_night(
     s.set_wave_timing(data.wave_timing)  # Stage 08: 用于胜利时间计算 nights_survived
     s.scenario_reset()
     structure_health_scale = 1.0
+    push_unit_ids: set[int] = set()
     if clear_enemy_structures:
         if time_scale < 1.0:
             # 压缩回归只缩放建筑耐久，不删除建筑实体；胜利仍要求每个目标建筑死亡。
@@ -563,6 +564,7 @@ def run_dead_of_night(
                 staging_x + (formation_index % 8) * 0.8 - 2.8,
                 staging_y + (formation_index // 8) * 0.8 - 2.0,
             )
+            push_unit_ids.add(spawn["entity_id"])
     if verbose:
         print(f"  初始单位数: {len(s.world.entities)}")
         p1_count = sum(1 for e in s.world.entities.values() if e.owner_player_id == 1)
@@ -697,13 +699,6 @@ def run_dead_of_night(
     reinforcement_cooldowns: dict[int, int] = {}
     push_targets: dict[int, int] = {}
     push_target_cursor = 0
-    push_unit_ids = {
-        entity.entity_id
-        for entity in s.world.entities.values()
-        if entity.owner_player_id == 1
-        and entity.unit_type_id == push_unit_type
-        and clear_enemy_structures
-    }
     filtered_dead_push_unit_ids: set[int] = set()
     push_dispatch_cycles = 0
     push_target_allocations = 0
@@ -1300,6 +1295,12 @@ def run_dead_of_night(
 
     # 计算结果
     elapsed = time.time() - start_time
+    event_counts = _Counter(event.get("kind", "unknown") for event in all_key_events)
+    event_payload_totals = _Counter()
+    for event in all_key_events:
+        count = event.get("count")
+        if isinstance(count, int):
+            event_payload_totals[event.get("kind", "unknown")] += count
     p1_survivors = sum(
         1 for e in s.world.entities.values() if e.owner_player_id == 1 and e.is_alive
     )
@@ -1416,13 +1417,8 @@ def run_dead_of_night(
         structure_health_scale=structure_health_scale,
         push_unit_type=push_unit_type if clear_enemy_structures else "",
         event_summary={
-            "counts": dict(
-                sorted(
-                    __import__("collections").Counter(
-                        event.get("kind", "unknown") for event in all_key_events
-                    ).items()
-                )
-            ),
+            "counts": dict(sorted(event_counts.items())),
+            "payload_totals": dict(sorted(event_payload_totals.items())),
             "total": len(all_key_events),
         },
         target_allocation_summary={

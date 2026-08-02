@@ -1,0 +1,43 @@
+{
+  "stage_id": "20-simulator-ai-ally-adversarial-hardening",
+  "schemaVersion": 1,
+  "status": "IN_PROGRESS",
+  "current_phase": "Event and target-allocation audit summaries added and focused cases verified",
+  "opened_at": "2026-08-01T23:52:30Z",
+  "completed_at": null,
+  "verification_results": {
+    "focused_audit_regression": {
+      "status": "PASS",
+      "evidence_type": "simulator",
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/test_adversarial_hardening.py",
+      "summary": "Three cases passed: stale-target reallocation summary, controlled push loss accounting, and event-count versus payload-total accounting."
+    },
+    "prior_clearance_baseline": {
+      "status": "PASS",
+      "evidence_type": "simulator",
+      "artifacts": [
+        "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/simulator-seed-42.json",
+        "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/simulator-seed-7.json",
+        "src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/simulator-seed-99.json"
+      ],
+      "summary": "The three-seed clearance baseline remains all_objectives_success with zero remaining enemy structures."
+    },
+    "static_regression": {
+      "status": "PASS",
+      "evidence_type": "static",
+      "command": "python -m py_compile src/projects/cmre-porting/vibe/run_dead_of_night.py src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/test_adversarial_hardening.py; git diff --check",
+      "summary": "Python compilation and diff checks passed."
+    }
+  },
+  "warnings": [
+    "The three real-map seeds must be rerun after the event-summary implementation is finalized before stage 20 can close."
+  ],
+  "changed_paths": [
+    "src/projects/cmre-porting/vibe/run_dead_of_night.py",
+    "src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/test_adversarial_hardening.py",
+    "src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/result.json",
+    "src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/log.md",
+    "src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/issues.json"
+  ],
+  "next_stage_plan": null
+}
