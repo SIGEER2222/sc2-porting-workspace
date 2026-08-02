@@ -1,0 +1,67 @@
+{
+  "stage_id": "24-final-acceptance",
+  "schemaVersion": 1,
+  "status": "PASS",
+  "current_phase": "Final acceptance summary verified against all primary Stage 14-23 outputs and Stage 23 runtime evidence",
+  "opened_at": "2026-08-02T13:34:52+08:00",
+  "completed_at": "2026-08-02T13:40:00+08:00",
+  "verification_results": {
+    "prior_stage_integrity": {
+      "status": "PASS",
+      "evidence_type": "static",
+      "command": "PowerShell evidence-integrity check over the primary Stage 14-23 result.json/log.md/issues.json files and final acceptance inputs",
+      "artifact": "artifacts/projects/cmre-porting/stage24-final-acceptance/workflow-status-explicit.json",
+      "summary": "All primary Stage 14 through Stage 23 result files exist and report PASS; all 15 required JSON evidence files parse successfully."
+    },
+    "workflow_status": {
+      "status": "PASS",
+      "evidence_type": "static+runtime",
+      "command": "python tools/galaxy-vibe/workflow_status.py --repo-root . --runtime-artifacts-dir artifacts/projects/cmre-porting/stage24-final-acceptance --evidence-bundle artifacts/projects/cmre-porting/stage23-runtime-full-structure-clearance/evidence-bundle-pass14.json --out artifacts/projects/cmre-porting/stage24-final-acceptance/workflow-status-explicit.json --json",
+      "artifact": "artifacts/projects/cmre-porting/stage24-final-acceptance/workflow-status-explicit.json",
+      "summary": "Overall WARN with 7 pass, 1 warning, and 0 fail lanes; runtime_vibe is PASS with 5/5 assertions and zero ScriptErrors."
+    },
+    "bounded_regression": {
+      "status": "PASS",
+      "evidence_type": "static",
+      "command": "PYTHONPATH=src/projects/cmre-neuro-adapter python -m pytest -q src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/test_full_structure_clearance.py src/projects/cmre-porting/stages/22-runtime-typed-combat-census/test_typed_combat_census.py tools/galaxy-vibe/tests/test_kernel.py tools/launchers/tests/test_launch_cmre_alenger_static.py",
+      "summary": "71 tests passed with 3 subtests."
+    },
+    "evidence_integrity": {
+      "status": "PASS",
+      "evidence_type": "static",
+      "command": "PowerShell required-file and JSON parse check for Stage 14-23 results plus Stage 24 runtime summary/assertions/ScriptError/evidence bundle",
+      "summary": "15/15 required files exist and parse; all referenced paths are repository-relative."
+    }
+  },
+  "warnings": [
+    {
+      "id": "PARSER-LEGACY-DEPENDENCY",
+      "severity": "low",
+      "status": "open",
+      "evidence_type": "static",
+      "detail": "workflow_status reports the registered legacy sc2-editor-toolkit as an optional parser warning; the registered Galaxy toolkit, project extractor, and static validator pass.",
+      "nextAction": "Replace or formally retire the legacy parser registration in a separately scoped dependency-maintenance task."
+    },
+    {
+      "id": "STAGE20-SOAK-BRANCH-UNRECORDED",
+      "severity": "low",
+      "status": "open",
+      "evidence_type": "static",
+      "detail": "The parallel stage20-simulator-ai-ally-soak directory has no result.json; the primary Stage 20 adversarial-hardening chain is PASS and is the chain consumed by this acceptance.",
+      "nextAction": "Record the optional soak branch separately if it becomes a release requirement."
+    }
+  ],
+  "changed_paths": [
+    "src/projects/cmre-porting/project.json",
+    "src/projects/cmre-porting/stages/24-final-acceptance/plan.md",
+    "src/projects/cmre-porting/stages/24-final-acceptance/result.json",
+    "src/projects/cmre-porting/stages/24-final-acceptance/log.md",
+    "src/projects/cmre-porting/stages/24-final-acceptance/issues.json",
+    "artifacts/projects/cmre-porting/stage24-final-acceptance/runtime-summary.json",
+    "artifacts/projects/cmre-porting/stage24-final-acceptance/assert-results.json",
+    "artifacts/projects/cmre-porting/stage24-final-acceptance/script-error-verdict.json",
+    "artifacts/projects/cmre-porting/stage24-final-acceptance/workflow-status-explicit.json"
+  ],
+  "next_stage_plan": null,
+  "next_stage_note": "No Stage 25 is defined for this project; Stage 24 is the terminal final-acceptance stage."
+}

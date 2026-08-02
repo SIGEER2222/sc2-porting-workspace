@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "PARSER-LEGACY-DEPENDENCY",
+      "severity": "low",
+      "status": "open",
+      "title": "Registered legacy parser dependency remains unavailable",
+      "detail": "The final workflow status is WARN because the optional legacy sc2-editor-toolkit source is unavailable.",
+      "evidence_type": "static",
+      "evidence": "artifacts/projects/cmre-porting/stage24-final-acceptance/workflow-status-explicit.json",
+      "owner": "dependency-maintenance",
+      "nextAction": "Replace or retire the legacy registration in a separate scoped task."
+    },
+    {
+      "id": "STAGE20-SOAK-BRANCH-UNRECORDED",
+      "severity": "low",
+      "status": "open",
+      "title": "Optional Stage 20 soak branch has no result record",
+      "detail": "The active primary chain uses Stage 20 adversarial hardening, which is PASS; the separate soak branch is not required by the Stage 24 plan.",
+      "evidence_type": "static",
+      "evidence": "src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/result.json",
+      "owner": "qa-maintenance",
+      "nextAction": "Add a dedicated soak result only if the optional soak branch becomes a release gate."
+    }
+  ]
+}

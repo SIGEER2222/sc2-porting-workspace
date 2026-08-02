@@ -21,7 +21,7 @@ zero-ScriptError result.
 
 ## Verification
 
-- `static`: focused Stage 23 contract tests passed: `11 passed`.
+- `static`: focused Stage 23 contract tests passed: `13 passed`.
 - `static`: cross-stage regression passed: `71 passed, 3 subtests passed`.
 - `static`: Python compilation and `git diff --check` passed.
 - `static`: `pwsh -NoProfile -ExecutionPolicy Bypass -File
