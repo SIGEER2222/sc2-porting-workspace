@@ -369,12 +369,14 @@ class Sc2ApiClient:
         map_data: Optional[bytes] = None,
         map_path: Optional[str] = None,
         timeout: float = 120.0,
+        realtime: bool = True,
     ) -> bool:
         """发送 CreateGame 请求加载地图（SC2 在主菜单时调用）。
 
         Args:
             map_data: MPQ 格式的 .SC2Map 字节流（优先于 map_path）
             map_path: SC2 可见的本地地图路径
+            realtime: 是否让 SC2 自动推进；False 时由 RequestStep 驱动
             timeout: 超时秒数（地图大时加载慢）
 
         Returns:
@@ -398,7 +400,7 @@ class Sc2ApiClient:
                     difficulty=2, player_name="AI",
                 ),
             ],
-            realtime=True,
+            realtime=realtime,
         ))
         try:
             resp = self._send_request(req, timeout=timeout)
@@ -510,11 +512,13 @@ class VibeHost:
         artifacts_dir: Optional[Path] = None,
         runtime_bank_name: str = "CMRERebornDebug",
         require_initialization: bool = False,
+        realtime: bool = True,
     ):
         self.sc2_port = sc2_port
         self.bank_name = bank_name
         self.runtime_bank_name = runtime_bank_name
         self.require_initialization = require_initialization
+        self.realtime = realtime
         self.initialization_complete = not require_initialization
         self.initialization_status: dict[str, Any] = {}
         self.initialization_error = ""
@@ -573,13 +577,17 @@ class VibeHost:
                 # CreateGame 加载新地图
                 if map_data:
                     print(f"[VibeHost] CreateGame with map_data ({len(map_data)} bytes)...", file=sys.stderr)
-                    if not self.client.create_game(map_data=map_data, timeout=120.0):
+                    if not self.client.create_game(
+                        map_data=map_data, timeout=120.0, realtime=self.realtime
+                    ):
                         print("[VibeHost] CreateGame 失败", file=sys.stderr)
                         return False
                 else:
                     # map_path 模式（SC2 直接访问路径，不读文件到内存）
                     print(f"[VibeHost] CreateGame with map_path: {map_path}", file=sys.stderr)
-                    if not self.client.create_game(map_path=map_path, timeout=120.0):
+                    if not self.client.create_game(
+                        map_path=map_path, timeout=120.0, realtime=self.realtime
+                    ):
                         print("[VibeHost] CreateGame 失败", file=sys.stderr)
                         return False
                 # CreateGame 后短暂等待 SC2 处理（参考 sc2api_load_map.py）
@@ -942,6 +950,26 @@ class VibeHost:
         return self.request("query.unit_attrs", {
             "unit_tag": unit_tag,
         })
+
+    def attack_unit(self, attacker_tag: int, target_tag: int,
+                    timeout: float = 5.0, transport: str = "bank_poll") -> RpcResponse:
+        """Issue the explicit typed combat function against one target tag."""
+        return self.invoke_function(
+            "vibe.unit.attack",
+            {"attacker_tag": attacker_tag, "target_tag": target_tag},
+            timeout=timeout,
+            transport=transport,
+        )
+
+    def query_structures(self, owner_player: int = 0, unit_type: str = "",
+                         timeout: float = 5.0, transport: str = "bank_poll") -> RpcResponse:
+        """Read the live structure census without changing game state."""
+        return self.invoke_function(
+            "vibe.query.structures",
+            {"owner_player": owner_player, "unit_type": unit_type},
+            timeout=timeout,
+            transport=transport,
+        )
 
     # ---- 清理 ----
 

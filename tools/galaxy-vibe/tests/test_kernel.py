@@ -177,6 +177,8 @@ class TestWhitelist(unittest.TestCase):
             "vibe.unit.spawn": ("unit_type", "count", "player", "x", "y"),
             "vibe.query.units": ("player", "unit_type"),
             "vibe.unit.kill": ("unit_tag",),
+            "vibe.unit.attack": ("attacker_tag", "target_tag"),
+            "vibe.query.structures": ("owner_player", "unit_type"),
         }
         for function_id, arg_names in expected.items():
             self.assertIn(function_id, registry)
@@ -192,6 +194,10 @@ class TestWhitelist(unittest.TestCase):
             validate_invocation("vibe.player.set_resource", {"player": 1, "resource": "supply", "value": 1})
         normalized = validate_invocation("vibe.query.units", {})
         self.assertEqual(normalized, {"player": 0, "unit_type": ""})
+        self.assertEqual(
+            validate_invocation("vibe.query.structures", {}),
+            {"owner_player": 0, "unit_type": ""},
+        )
 
     def test_mvp_operations_present(self):
         """MVP 操作集应全部在白名单中。"""
@@ -709,14 +715,16 @@ class TestGalaxyStaticCheck(unittest.TestCase):
         # Stage 1 新增 handler 应存在
         for handler in ["HandleUpgradeSetLevel", "HandleTechTreeCheck",
                         "HandleQueryUnitTags", "HandleQueryUnitAttrs",
-                        "HandleFunctionInvoke", "FunctionVibeTestPing"]:
+                        "HandleFunctionInvoke", "FunctionVibeTestPing",
+                        "FunctionUnitAttack", "FunctionQueryStructures"]:
             self.assertIn(f"libVibeKernel_gf_{handler}", content)
         # Dispatch 应注册新 operation
         for op in ["upgrade.set_level", "tech_tree.check",
                    "query.unit_tags", "query.unit_attrs", "function.invoke"]:
             self.assertIn(f'"{op}"', content)
         for function_id in ["vibe.test.ping", "vibe.player.set_resource",
-                            "vibe.unit.spawn", "vibe.query.units", "vibe.unit.kill"]:
+                            "vibe.unit.spawn", "vibe.query.units", "vibe.unit.kill",
+                            "vibe.unit.attack", "vibe.query.structures"]:
             self.assertIn(f'"{function_id}"', content)
 
     def test_function_handler_mirrors_are_aligned(self):
@@ -728,7 +736,8 @@ class TestGalaxyStaticCheck(unittest.TestCase):
         for path in mirror_paths:
             content = path.read_text(encoding="utf-8")
             for handler in ["FunctionPlayerSetResource", "FunctionUnitSpawn",
-                            "FunctionQueryUnits", "FunctionUnitKill"]:
+                            "FunctionQueryUnits", "FunctionUnitKill",
+                            "FunctionUnitAttack", "FunctionQueryStructures"]:
                 self.assertIn(f"libVibeKernel_gf_{handler}", content, str(path))
             self.assertNotIn("valStart + end - 1", content, str(path))
 
@@ -762,6 +771,8 @@ class TestGalaxyStaticCheck(unittest.TestCase):
         # 所有 handler 应声明（Galaxy 命名约定: gf_Handle<Op>，无下划线）
         for op in ["SystemPing", "UnitSpawn", "UnitKill", "QueryUnits", "QueryMission"]:
             self.assertIn(f"libVibeKernel_gf_Handle{op}", content)
+        self.assertIn("libVibeKernel_gf_FunctionUnitAttack", content)
+        self.assertIn("libVibeKernel_gf_FunctionQueryStructures", content)
 
 
 if __name__ == "__main__":

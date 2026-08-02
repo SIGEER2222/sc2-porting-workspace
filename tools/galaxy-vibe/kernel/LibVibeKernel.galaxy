@@ -659,6 +659,123 @@ string libVibeKernel_gf_FunctionUnitKill(string argsJson) {
     return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.unit.kill\",\"unit_tag\":" + IntToString(unitTag) + ",\"killed\":true}");
 }
 
+string libVibeKernel_gf_FunctionUnitAttack(string argsJson) {
+    int attackerTag;
+    int targetTag;
+    unitgroup candidates;
+    unit current;
+    unit attacker;
+    unit target;
+    int index;
+    int total;
+    int attackerOwner;
+    int targetOwner;
+    string targetType;
+    attackerTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_attacker_tag");
+    targetTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_target_tag");
+    attacker = null;
+    target = null;
+    if (attackerTag < 1 || targetTag < 1 || attackerTag == targetTag) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{\"reason\":\"invalid_tags\"}");
+    }
+
+    // Resolve runtime tags from live units. UnitFromId accepts editor ids,
+    // while UnitGetTag returns the runtime tag exposed by this API.
+    candidates = UnitGroup(null, c_playerAny, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    total = UnitGroupCount(candidates, c_unitCountAll);
+    for (index = 1; index <= total; index += 1) {
+        current = UnitGroupUnit(candidates, index);
+        if (current != null && UnitIsAlive(current) &&
+            UnitGetPropertyFixed(current, c_unitPropLife, true) > 0.0) {
+            if (UnitGetTag(current) == attackerTag) { attacker = current; }
+            if (UnitGetTag(current) == targetTag) { target = current; }
+            if (attacker != null && target != null) { break; }
+        }
+    }
+    if (attacker == null) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{\"reason\":\"attacker_not_found\"}");
+    }
+    if (target == null) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{\"reason\":\"target_not_found_or_stale\"}");
+    }
+    attackerOwner = UnitGetOwner(attacker);
+    targetOwner = UnitGetOwner(target);
+    if (attackerOwner < 1 || attackerOwner > 15) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{\"reason\":\"attacker_owner_invalid\"}");
+    }
+    if (targetOwner < 1 || targetOwner > 15) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{\"reason\":\"target_neutral\"}");
+    }
+    if (!PlayerGroupHasPlayer(PlayerGroupAlliance(c_playerGroupEnemy, attackerOwner), targetOwner)) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{\"reason\":\"target_ally\"}");
+    }
+
+    targetType = UnitGetType(target);
+    UnitIssueOrder(attacker, OrderTargetingUnit(AbilityCommand("attack", 0), target), c_orderQueueReplace);
+    libVibeKernel_gv_stateVersion += 1;
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.unit.attack\",\"attacker_tag\":" + IntToString(attackerTag) + ",\"target_tag\":" + IntToString(targetTag) + ",\"target_owner\":" + IntToString(targetOwner) + ",\"target_type\":\"" + targetType + "\",\"issued\":true}");
+}
+
+string libVibeKernel_gf_FunctionQueryStructures(string argsJson) {
+    int ownerPlayer;
+    int firstOwner;
+    int lastOwner;
+    int scanOwner;
+    string unitType;
+    string currentType;
+    unitgroup structures;
+    unit current;
+    int index;
+    int total;
+    int count;
+    string entries;
+    int currentOwner;
+    int currentTag;
+    ownerPlayer = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_owner_player");
+    unitType = libVibeKernel_gf_ArgsGet(argsJson, "arg_unit_type");
+    if (ownerPlayer < 0 || ownerPlayer > 15) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{\"reason\":\"owner_out_of_range\"}");
+    }
+    if (unitType != "" && !CatalogEntryIsValid(c_gameCatalogUnit, unitType)) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{\"reason\":\"unit_type_not_found\"}");
+    }
+
+    firstOwner = 1;
+    lastOwner = 15;
+    if (ownerPlayer > 0) {
+        firstOwner = ownerPlayer;
+        lastOwner = ownerPlayer;
+    }
+    count = 0;
+    entries = "[";
+    for (scanOwner = firstOwner; scanOwner <= lastOwner; scanOwner += 1) {
+        if (unitType == "") {
+            structures = UnitGroup(null, scanOwner, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+        } else {
+            structures = UnitGroup(unitType, scanOwner, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+        }
+        total = UnitGroupCount(structures, c_unitCountAll);
+        for (index = 1; index <= total; index += 1) {
+            current = UnitGroupUnit(structures, index);
+            if (current != null && UnitIsAlive(current) &&
+                UnitGetPropertyFixed(current, c_unitPropLife, true) > 0.0) {
+                currentType = UnitGetType(current);
+                currentOwner = UnitGetOwner(current);
+                if (currentOwner == scanOwner &&
+                    UnitTypeTestAttribute(currentType, c_unitAttributeStructure)) {
+                    currentTag = UnitGetTag(current);
+                    if (count > 0) { entries = entries + ","; }
+                    entries = entries + "{\"owner\":" + IntToString(currentOwner) + ",\"unit_type\":\"" + currentType + "\",\"unit_tag\":" + IntToString(currentTag) + "}";
+                    count += 1;
+                }
+            }
+        }
+    }
+    entries = entries + "]";
+    // This query is observational and deliberately does not change state_version.
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.query.structures\",\"owner_player\":" + IntToString(ownerPlayer) + ",\"unit_type\":\"" + unitType + "\",\"live_count\":" + IntToString(count) + ",\"structures\":" + entries + "}");
+}
+
 string libVibeKernel_gf_HandleFunctionInvoke(string argsJson) {
     string functionId;
     string argNames;
@@ -677,7 +794,9 @@ string libVibeKernel_gf_HandleFunctionInvoke(string argsJson) {
     if (functionId == "vibe.unit.spawn" && argNames == "count,player,unit_type,x,y") { return libVibeKernel_gf_FunctionUnitSpawn(argsJson); }
     if (functionId == "vibe.query.units" && argNames == "player,unit_type") { return libVibeKernel_gf_FunctionQueryUnits(argsJson); }
     if (functionId == "vibe.unit.kill" && argNames == "unit_tag") { return libVibeKernel_gf_FunctionUnitKill(argsJson); }
-    if (functionId == "vibe.player.set_resource" || functionId == "vibe.unit.spawn" || functionId == "vibe.query.units" || functionId == "vibe.unit.kill") {
+    if (functionId == "vibe.unit.attack" && argNames == "attacker_tag,target_tag") { return libVibeKernel_gf_FunctionUnitAttack(argsJson); }
+    if (functionId == "vibe.query.structures" && argNames == "owner_player,unit_type") { return libVibeKernel_gf_FunctionQueryStructures(argsJson); }
+    if (functionId == "vibe.player.set_resource" || functionId == "vibe.unit.spawn" || functionId == "vibe.query.units" || functionId == "vibe.unit.kill" || functionId == "vibe.unit.attack" || functionId == "vibe.query.structures") {
         return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
     }
     return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "FUNCTION_NOT_FOUND", "{}");

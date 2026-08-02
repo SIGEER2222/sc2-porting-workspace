@@ -217,6 +217,36 @@ class SimulatorTransport:
         if function_id == "vibe.unit.kill":
             s.unit_kill(args["unit_tag"])
             return {"function_id": function_id, "unit_tag": args["unit_tag"], "killed": True}
+        if function_id == "vibe.unit.attack":
+            world = s.world
+            assert world is not None
+            attacker = world.get_entity(args["attacker_tag"])
+            if attacker is None or not attacker.is_alive:
+                raise KernelError(int(protocol.ErrorCode.INVALID_ARGS), "attacker_not_found")
+            target = world.get_entity(args["target_tag"])
+            if target is None or not target.is_alive:
+                raise KernelError(int(protocol.ErrorCode.INVALID_ARGS), "target_not_found_or_stale")
+            if target.owner_player_id <= 0:
+                raise KernelError(int(protocol.ErrorCode.INVALID_ARGS), "target_neutral")
+            if not world.players.is_enemy(attacker.owner_player_id, target.owner_player_id):
+                raise KernelError(int(protocol.ErrorCode.INVALID_ARGS), "target_ally")
+            s.unit_order(
+                [attacker.entity_id], "attack_unit", attacker.owner_player_id,
+                target_entity_id=target.entity_id,
+            )
+            return {
+                "function_id": function_id,
+                "attacker_tag": attacker.entity_id,
+                "target_tag": target.entity_id,
+                "target_owner": target.owner_player_id,
+                "target_type": target.unit_type_id,
+                "issued": True,
+            }
+        if function_id == "vibe.query.structures":
+            return {
+                "function_id": function_id,
+                **s.query_structures(args["owner_player"], args["unit_type"]),
+            }
         raise KernelError(int(protocol.ErrorCode.FUNCTION_NOT_FOUND), str(function_id))
 
 

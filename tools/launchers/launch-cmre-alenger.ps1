@@ -32,6 +32,9 @@ $script:LauncherScriptsRoot = Join-Path $LegacyRoot "scripts\sc2-launcher"
 . (Join-Path $PSScriptRoot "lib\cmre-on-demand-overlay.ps1")
 . (Join-Path $PSScriptRoot "lib\cmre-core-runtime-overlay.ps1")
 
+$script:Sc2RuntimeMutexName = "Global\SC2VibeTools-SC2Runtime"
+$script:Sc2RuntimeLeasePath = Join-Path $WorkspaceRoot "artifacts\runtime\sc2-runtime-lease.json"
+
 function Convert-TestCommanderToCommanderPowerKey {
     param([string]$Commander)
     return (Convert-CommanderPowerCommanderToBankKey -Commander $Commander -WorkspaceRoot $LegacyRoot)
@@ -1380,39 +1383,148 @@ function Wait-CmreRuntimeListener {
     throw "Runtime listener gate failed: complete initialization marker/building/unit checks plus increasing bridge_heartbeat were not observed within $TimeoutSeconds seconds."
 }
 
-$lock = Acquire-TestLock -TestType "cmre_alenger" -MapName $MapName -Commander $Commander
-$debugPidFile = Join-Path $env:TEMP "cmre-debug-sc2.pid"
-try {
-    if ($PlayerMode) {
-        # PlayerMode：不清理任何 SC2 进程，避免杀玩家游戏。已有 SC2 在跑则报错退出。
-        $existing = Get-Process -Name "SC2_x64","SC2","StarCraft II" -ErrorAction SilentlyContinue
-        if ($existing) {
-            throw "检测到 SC2 已在运行（PID: $($existing.Id -join ',')）。PlayerMode 不会自动关闭已有游戏，请先手动关闭 SC2 再启动。"
-        }
-        # 无 SC2 运行时清理 GameLogs，避免旧 Alerts.txt 被 wait-for-game-ready.ps1 误判为加载完成信号
-        Clear-GameLogs
-    } elseif ($DebugMode) {
-        # DebugMode：只清理自己上次启动的 SC2（按 PID 文件，禁止按进程名 kill 避免误杀玩家游戏）
-        if (Test-Path $debugPidFile) {
-            $oldPid = Get-Content $debugPidFile -ErrorAction SilentlyContinue
-            if ($oldPid) {
-                Write-Host "DebugMode: 清理上次调试启动的 SC2 (PID=$oldPid)"
-                Stop-Process -Id $oldPid -Force -ErrorAction SilentlyContinue
-            }
-            Remove-Item $debugPidFile -Force -ErrorAction SilentlyContinue
-        }
-        Start-Sleep 2
-        Clear-GameLogs
-    } else {
-        # 命令行手动启动（都不传）：走原有全量清理逻辑
-        Stop-RunningSc2
-        # Stop-RunningSc2 only targets SC2_x64/SC2Switcher_x64, but the live process
-        # is often named "SC2". Stop it as well so Clear-GameLogs does not hit locked
-        # SystemInfo.txt (which causes the launcher to abort with IOException).
-        Get-Process -Name "SC2","StarCraft II" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-        Start-Sleep 2
-        Clear-GameLogs
+$script:Sc2RuntimeLeasePath = [System.IO.Path]::GetFullPath($script:Sc2RuntimeLeasePath)
+
+function Get-Sc2RuntimeLease {
+    if (-not [System.IO.File]::Exists($script:Sc2RuntimeLeasePath)) { return $null }
+    try {
+        return [System.IO.File]::ReadAllText($script:Sc2RuntimeLeasePath) | ConvertFrom-Json
+    } catch {
+        return $null
     }
+}
+
+function Write-Sc2RuntimeLease {
+    param(
+        [Parameter(Mandatory = $true)][string]$State,
+        [Parameter(Mandatory = $true)][string]$OwnerSession,
+        [int]$RuntimePid = 0,
+        [int]$Port = 0
+    )
+    $leaseParent = Split-Path -Parent $script:Sc2RuntimeLeasePath
+    [System.IO.Directory]::CreateDirectory($leaseParent) | Out-Null
+    $lease = [ordered]@{
+        schemaVersion = 1
+        ownerPid = [int]$PID
+        ownerSessionId = $OwnerSession
+        runtimePid = [int]$RuntimePid
+        port = [int]$Port
+        state = $State
+        mapName = $MapName
+        commander = $Commander
+        launcher = $MyInvocation.PSCommandPath
+        startedAt = [DateTimeOffset]::Now.ToString("o")
+        heartbeatAt = [DateTimeOffset]::Now.ToString("o")
+    }
+    $existing = Get-Sc2RuntimeLease
+    if ($null -ne $existing -and $existing.ownerSessionId -eq $OwnerSession) {
+        $lease.startedAt = $existing.startedAt
+    }
+    $tmp = Join-Path $leaseParent (".sc2-runtime-lease.$PID.$([Guid]::NewGuid().ToString('N')).tmp")
+    try {
+        [System.IO.File]::WriteAllText($tmp, ($lease | ConvertTo-Json -Depth 5), [System.Text.UTF8Encoding]::new($false))
+        if ([System.IO.File]::Exists($script:Sc2RuntimeLeasePath)) {
+            # File.Replace treats a null backup path as an empty path on this
+            # PowerShell/.NET build. Move with overwrite keeps the operation
+            # atomic within the lease directory without creating a backup.
+            [System.IO.File]::Move($tmp, $script:Sc2RuntimeLeasePath, $true)
+        } else {
+            [System.IO.File]::Move($tmp, $script:Sc2RuntimeLeasePath)
+        }
+    } finally {
+        if ([System.IO.File]::Exists($tmp)) { [System.IO.File]::Delete($tmp) }
+    }
+}
+
+function Remove-Sc2RuntimeLease {
+    param([string]$OwnerSession = "", [switch]$Force)
+    $existing = Get-Sc2RuntimeLease
+    if ($null -eq $existing) { return }
+    if (-not $Force -and $OwnerSession -ne $existing.ownerSessionId) { return }
+    try { [System.IO.File]::Delete($script:Sc2RuntimeLeasePath) } catch { }
+}
+
+function Get-Sc2RuntimeProcesses {
+    $names = @("SC2_x64", "SC2", "StarCraft II", "SC2Switcher_x64", "SC2Switcher")
+    $processes = foreach ($name in $names) {
+        @(Get-Process -Name $name -ErrorAction SilentlyContinue)
+    }
+    return @($processes | Sort-Object Id -Unique)
+}
+
+function Get-Sc2GameProcesses {
+    return @(Get-Sc2RuntimeProcesses | Where-Object { $_.ProcessName -notmatch "Switcher" })
+}
+
+function Format-Sc2RuntimeBusyMessage {
+    param([object[]]$Processes, $Lease)
+    $ownerPid = "unknown"
+    $ownerPort = "unknown"
+    $ownerSession = "unknown"
+    if ($null -ne $Lease) {
+        if ($Lease.ownerPid) { $ownerPid = $Lease.ownerPid }
+        if ($Lease.runtimePid -and $Lease.runtimePid -gt 0) { $ownerPid = $Lease.runtimePid }
+        if ($Lease.port -and $Lease.port -gt 0) { $ownerPort = $Lease.port }
+        if ($Lease.ownerSessionId) { $ownerSession = $Lease.ownerSessionId }
+    }
+    if ($ownerPid -eq "unknown" -and @($Processes).Count -gt 0) {
+        $ownerPid = (@($Processes)[0]).Id
+    }
+    return "SC2_RUNTIME_BUSY`nowner_pid=$ownerPid`nowner_port=$ownerPort`nowner_session=$ownerSession"
+}
+
+function Wait-Sc2RuntimeProcess {
+    param(
+        [Parameter(Mandatory = $true)][int]$RuntimePid,
+        [Parameter(Mandatory = $true)]$LockContext,
+        [Parameter(Mandatory = $true)][string]$OwnerSession,
+        [int]$Port = 0
+    )
+    Write-Host "SC2 runtime lease: KeepAlive holds the global lease while PID=$RuntimePid is alive"
+    while ($null -ne (Get-Process -Id $RuntimePid -ErrorAction SilentlyContinue)) {
+        try { Renew-TestLock -LockContext $LockContext -AdditionalSeconds 300 | Out-Null } catch { }
+        Write-Sc2RuntimeLease -State "keepalive" -OwnerSession $OwnerSession -RuntimePid $RuntimePid -Port $Port
+        Start-Sleep -Seconds 5
+    }
+    Write-Host "SC2 runtime lease: PID=$RuntimePid exited; releasing the global lease"
+}
+
+$lock = $null
+$sc2RuntimeMutex = $null
+$sc2RuntimeMutexAcquired = $false
+$sc2RuntimeLeaseSession = ""
+$runtimePid = 0
+$runtimeReady = $false
+$debugPidFile = Join-Path $env:TEMP "cmre-debug-sc2-$PID.pid"
+try {
+    $sc2RuntimeMutex = [System.Threading.Mutex]::new($false, $script:Sc2RuntimeMutexName)
+    try {
+        $sc2RuntimeMutexAcquired = $sc2RuntimeMutex.WaitOne(0)
+    } catch [System.Threading.AbandonedMutexException] {
+        $sc2RuntimeMutexAcquired = $true
+        Write-Host "SC2 runtime lease: recovered an abandoned global mutex" -ForegroundColor Yellow
+    }
+    if (-not $sc2RuntimeMutexAcquired) {
+        throw (Format-Sc2RuntimeBusyMessage -Processes @(Get-Sc2RuntimeProcesses) -Lease (Get-Sc2RuntimeLease))
+    }
+
+    $lock = Acquire-TestLock -TestType "cmre_alenger" -MapName $MapName -Commander $Commander
+
+    if ($PlayerMode) {
+        # PlayerMode and DebugMode share the same preflight: a launcher never kills
+        # a runtime that may belong to another AI session or to the human player.
+        Write-Host "SC2 runtime lease: PlayerMode requested; existing runtime will be rejected, never killed"
+    }
+    if (-not $NoLaunch) {
+        $existing = @(Get-Sc2RuntimeProcesses)
+        if ($existing.Count -gt 0) {
+            throw (Format-Sc2RuntimeBusyMessage -Processes $existing -Lease (Get-Sc2RuntimeLease))
+        }
+    }
+    $sc2RuntimeLeaseSession = [string]$lock.session_id
+    Write-Sc2RuntimeLease -State "staging" -OwnerSession $sc2RuntimeLeaseSession -Port $ListenPort
+    if (Test-Path $debugPidFile) { Remove-Item $debugPidFile -Force -ErrorAction SilentlyContinue }
+    Clear-GameLogs
     Sync-ModSet -ModRelPaths $cmre.baseMods -ProjRoot $LegacyRoot -Sc2Root $Sc2Root
     # basePackageMods: 来自 packages 目录的基础 mod（如 CMRE_BuffPatch），与 baseMods 互补
     if ($cmre.PSObject.Properties.Name -contains 'basePackageMods' -and @($cmre.basePackageMods).Count -gt 0) {
@@ -1620,6 +1732,10 @@ try {
         Write-CmreLaunchProfile
     }
     if ($NoLaunch) { Write-Host "CMRE Alenger composition staged: $liveMap"; exit 0 }
+    $existing = @(Get-Sc2RuntimeProcesses)
+    if ($existing.Count -gt 0) {
+        throw (Format-Sc2RuntimeBusyMessage -Processes $existing -Lease (Get-Sc2RuntimeLease))
+    }
     if ($MapCopySuffix -ne "" -and $ListenPort -le 0) {
         throw "-MapCopySuffix is for staging/API isolation only in this launcher. Direct SC2 map launch must use Maps\\$MapName so GameLogs emits the Alerts/ScriptError load signal; omit -MapCopySuffix for WebUI/player launch."
     }
@@ -1698,6 +1814,8 @@ try {
             }
         }
         Write-Host "SC2 API mode: API listening on 127.0.0.1:$ListenPort (SC2_x64 PID=$($proc.Id))"
+        $runtimePid = [int]$proc.Id
+        Write-Sc2RuntimeLease -State "api_listening" -OwnerSession $sc2RuntimeLeaseSession -RuntimePid $runtimePid -Port $ListenPort
         # DebugMode：记录 PID 到文件（用于退出时按 PID 关闭，避免误杀玩家游戏）+ 最小化窗口
         if ($DebugMode) {
             Set-Content -Path $debugPidFile -Value $proc.Id -Encoding UTF8
@@ -1748,6 +1866,8 @@ try {
         }
         Write-Host "SC2 API mode: ready, client can connect with CreateGame + JoinGame"
         Assert-CmreNoNewScriptErrors -Since $launchStartedAt
+        $runtimeReady = $true
+        Write-Sc2RuntimeLease -State "ready" -OwnerSession $sc2RuntimeLeaseSession -RuntimePid $runtimePid -Port $ListenPort
         # API mode intentionally stops before CreateGame + JoinGame. Galaxy map
         # initialization cannot run until the Host loads the map, so the Host's
         # wait_for_initialization gate owns the post-join readiness check.
@@ -1763,6 +1883,12 @@ try {
         Assert-CmreNoNewScriptErrors -Since $launchStartedAt
         Wait-CmreRuntimeListener -TimeoutSeconds 120
         Assert-CmreNoNewScriptErrors -Since $launchStartedAt
+        $runtimeReady = $true
+        $runtimeProcess = @(Get-Sc2GameProcesses | Select-Object -First 1)
+        if ($runtimeProcess.Count -gt 0) {
+            $runtimePid = [int]$runtimeProcess[0].Id
+            Write-Sc2RuntimeLease -State "ready" -OwnerSession $sc2RuntimeLeaseSession -RuntimePid $runtimePid -Port 0
+        }
     }
 
     # === 黑屏检测（基于心跳 + 世界覆盖层状态）===
@@ -1810,8 +1936,11 @@ try {
         Write-Host ""
     }
 } finally {
-    # DebugMode 退出时按 PID 关闭自己启动的 SC2（禁止按进程名 kill，避免误杀玩家游戏）
-    # -KeepAlive: 保留 SC2 进程运行（用于 SC2API 集成测试，客户端需要在 launcher 退出后连接 SC2）
+    # DebugMode 默认只关闭本次 launcher 记录的 PID；绝不按进程名杀别人的 SC2。
+    # -KeepAlive 期间 launcher 自身持续持有 named mutex，避免留下无人保护的 runtime。
+    if ($KeepAlive -and $runtimeReady -and $runtimePid -gt 0) {
+        Wait-Sc2RuntimeProcess -RuntimePid $runtimePid -LockContext $lock -OwnerSession $sc2RuntimeLeaseSession -Port $ListenPort
+    }
     if ($DebugMode -and -not $KeepAlive -and (Test-Path $debugPidFile)) {
         $debugPid = Get-Content $debugPidFile -ErrorAction SilentlyContinue
         if ($debugPid) {
@@ -1819,8 +1948,19 @@ try {
             Stop-Process -Id $debugPid -Force -ErrorAction SilentlyContinue
         }
         Remove-Item $debugPidFile -Force -ErrorAction SilentlyContinue
-    } elseif ($DebugMode -and $KeepAlive) {
-        Write-Host "DebugMode + KeepAlive: 保留 SC2 进程运行 (PID 文件: $debugPidFile)"
     }
-    Release-TestLock -LockContext $lock
+    if ($sc2RuntimeLeaseSession) {
+        $liveRuntime = @(Get-Sc2GameProcesses)
+        if ($liveRuntime.Count -gt 0 -and ($runtimeReady -or $runtimePid -gt 0) -and -not $KeepAlive) {
+            if ($runtimePid -le 0) { $runtimePid = [int]$liveRuntime[0].Id }
+            try { Write-Sc2RuntimeLease -State "detached" -OwnerSession $sc2RuntimeLeaseSession -RuntimePid $runtimePid -Port $ListenPort } catch { }
+        } else {
+            Remove-Sc2RuntimeLease -OwnerSession $sc2RuntimeLeaseSession
+        }
+    }
+    if ($null -ne $lock) { Release-TestLock -LockContext $lock }
+    if ($sc2RuntimeMutexAcquired -and $null -ne $sc2RuntimeMutex) {
+        try { $sc2RuntimeMutex.ReleaseMutex() } catch { }
+    }
+    if ($null -ne $sc2RuntimeMutex) { $sc2RuntimeMutex.Dispose() }
 }

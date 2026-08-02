@@ -392,6 +392,37 @@ class SimulatorSession:
         )
         return {"units": [_entity_brief(e) for e in es], "count": len(es)}
 
+    def query_structures(
+        self, owner_player_id: int = 0, unit_type_id: str = ""
+    ) -> dict:
+        """Return a read-only census of live player-owned structures."""
+        if self.world is None:
+            raise KernelError(2, "query.structures 前需 scenario.reset")
+        if owner_player_id < 0 or owner_player_id > 15:
+            raise KernelError(2, f"owner_player_id 超出范围: {owner_player_id}")
+        structures = []
+        for entity in sorted(self.world.entities.values(), key=lambda item: item.entity_id):
+            if not entity.is_alive or entity.owner_player_id <= 0:
+                continue
+            if owner_player_id and entity.owner_player_id != owner_player_id:
+                continue
+            unit_type = self.world.catalog.get(entity.unit_type_id)
+            if not unit_type.is_structure or getattr(unit_type, "race", "") == "neutral":
+                continue
+            if unit_type_id and entity.unit_type_id != unit_type_id:
+                continue
+            structures.append({
+                "owner": entity.owner_player_id,
+                "unit_type": entity.unit_type_id,
+                "unit_tag": entity.entity_id,
+            })
+        return {
+            "owner_player": owner_player_id,
+            "unit_type": unit_type_id,
+            "live_count": len(structures),
+            "structures": structures,
+        }
+
     def query_unit(self, entity_id: int) -> dict:
         if self.world is None:
             raise KernelError(2, "query.unit 前需 scenario.reset")

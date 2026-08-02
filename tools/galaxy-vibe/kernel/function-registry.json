@@ -77,6 +77,37 @@
         "unit_tag": "integer",
         "killed": "boolean"
       }
+    },
+    "vibe.unit.attack": {
+      "handler": "libVibeKernel_gf_FunctionUnitAttack",
+      "side_effect": true,
+      "args": {
+        "attacker_tag": {"type": "integer", "required": true, "min": 1},
+        "target_tag": {"type": "integer", "required": true, "min": 1}
+      },
+      "returns": {
+        "function_id": "string",
+        "attacker_tag": "integer",
+        "target_tag": "integer",
+        "target_owner": "integer",
+        "target_type": "string",
+        "issued": "boolean"
+      }
+    },
+    "vibe.query.structures": {
+      "handler": "libVibeKernel_gf_FunctionQueryStructures",
+      "side_effect": false,
+      "args": {
+        "owner_player": {"type": "integer", "required": false, "default": 0, "min": 0, "max": 15},
+        "unit_type": {"type": "string", "required": false, "default": ""}
+      },
+      "returns": {
+        "function_id": "string",
+        "owner_player": "integer",
+        "unit_type": "string",
+        "live_count": "integer",
+        "structures": "array"
+      }
     }
   }
 }

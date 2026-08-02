@@ -22,7 +22,7 @@ Use this skill to drive one SC2 Vibe task from static inputs to verified evidenc
 ## Runtime Rules
 
 - A non-realtime SC2 API session needs RequestStep calls; wall-clock sleep alone leaves the game frame frozen.
-- A Chinese or unpacked .SC2Map input may need staging and MPQ packing before CreateGame. Preserve the source path in metadata and pass an ASCII packed path to SC2 when required.
+- A Chinese or unpacked .SC2Map input may need staging and MPQ packing before CreateGame. `CreateGame` must receive a packed map file, not a staging directory; in this runtime setup the runner must resolve the packed path before calling SC2. Preserve only repo-relative source and artifact paths in committed evidence.
 - Clear stale assertion/verdict files before a run. A missing assertion file is not a passing result.
 - Use UTF-8-SIG when reading PowerShell-generated JSON or .vtest files.
 - Use a real UTC Unix epoch for ScriptError launch windows.

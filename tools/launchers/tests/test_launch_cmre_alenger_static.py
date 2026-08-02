@@ -199,3 +199,15 @@ def test_headless_startup_is_the_default_non_selection_path():
     assert "Replace('include \"LibVibeKernel_h\"', 'include \"LibVibeKernel\"')" in overlay
     assert "declarations but no implementations" in overlay
     assert "Select-String -Pattern 'CommanderSelectionScreen' -SimpleMatch" in overlay
+
+
+def test_launcher_serializes_sc2_runtime_and_never_kills_an_existing_instance():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert 'Global\\SC2VibeTools-SC2Runtime' in source
+    assert 'artifacts\\runtime\\sc2-runtime-lease.json' in source
+    assert 'SC2_RUNTIME_BUSY' in source
+    assert 'Wait-Sc2RuntimeProcess' in source
+    assert 'ReleaseMutex()' in source
+    assert 'Stop-RunningSc2' not in source
+    assert 'Get-Process -Name "SC2","StarCraft II"' not in source
