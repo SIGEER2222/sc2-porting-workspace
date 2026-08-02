@@ -83,6 +83,18 @@
       "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-20260802.json",
       "owner": "stage25",
       "nextAction": "Keep this caveat attached to simulator evidence; only replace the fixture with native economy timing after the two-client runtime P2 topology gate is available."
+    },
+    {
+      "id": "RUNTIME-P2-TOPOLOGY-HANDSHAKE-PASS12",
+      "severity": "medium",
+      "status": "blocked",
+      "title": "Dual-client P2 JoinGame handshake still does not return a participant",
+      "detail": "Two fresh SC2 processes launched through the approved launcher passed independent Ping. P1 completed CreateGame, and both clients submitted the reference-shaped 1v1 Portconfig with server ports 5500/5501 and guest client ports 5502/5503. P1 JoinGame and P2 JoinGame then remained in the SC2 peer handshake until timeout; no P2 player_id=2 and no P1/P2 participant roster appeared in GameInfo. This run provides no native P2 action evidence.",
+      "evidence_type": "blocked",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-pass12-20260802/topology-handshake-blocked.json",
+      "owner": "stage25",
+      "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-pass12-20260802/p2-runner-5451-ports.stdout.txt",
+      "nextAction": "Compare the approved launcher API startup with a reference python-sc2 multi-process launch that owns the same Portconfig, then rerun only after the peer handshake path is changed or independently proven."
     }
   ]
 }

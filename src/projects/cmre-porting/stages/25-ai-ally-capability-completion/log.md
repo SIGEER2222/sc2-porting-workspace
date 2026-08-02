@@ -692,3 +692,25 @@ Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion
 
 Evidence path produced by the default CLI:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-replay/seed-42/state-driven-player.html`.
+
+## Verification Loop 2026-08-02 Dual-Client P2 Participant Topology
+
+- `runtime`: two fresh SC2 processes launched through the approved launcher
+  listened independently on API ports `5450` and `5451`. Both clients passed
+  `Ping`; the P1 anchor completed `CreateGame`.
+- `runtime`: the P1/P2 clients submitted the same reference-shaped 1v1
+  `Portconfig`: server ports `5500/5501` and one guest client pair
+  `5502/5503`.
+- `blocked`: P1 `JoinGame` did not return during the 180-second handshake
+  window, and P2 `JoinGame` likewise did not return a participant response or
+  `player_id=2`. `GameInfo` therefore never proved a P1/P2 participant roster;
+  no native P2 action was sent and no same-window ScriptError PASS was claimed.
+- `blocked`: the preceding minimal topology run proved that P2 without
+  `server_ports/client_ports` is rejected by SC2 as `Must first start a game
+  with CreateGame or specify ports to join another client's game`. This is
+  protocol evidence, not a native strategy result.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-pass12-20260802/topology-handshake-blocked.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-pass12-20260802/p1-anchor-5450-ports.stdout.txt`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-pass12-20260802/p2-runner-5451-ports.stdout.txt`.
