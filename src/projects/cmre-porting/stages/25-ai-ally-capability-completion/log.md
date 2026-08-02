@@ -406,3 +406,31 @@ protected 5153 Debug VM window cannot satisfy this gate.
 - `blocked`: this rerun validates the typed Debug VM path only. It does not
   satisfy the separate native P2 gather/train/move/attack acceptance, which
   remains blocked by the map roster and native strategy lane.
+
+## Verification Loop 2026-08-02 Simulator Ally Economy Integration
+
+- `static`: `AllyPolicy` now composes the project-owned `DefendBasePolicy`
+  economy planner. P2 receives only `gather`, `build`, and `train` actions from
+  that planner; worker/building entities are excluded from combat formation
+  control, so SCVs are not sent into attacks.
+- `static`: `ActionAdapter` now dispatches P2-owned `gather`, `build`, and
+  `train` orders through the existing typed `SimulatorSession.unit_order`
+  boundary. Replay/result records include action kind counts, event kinds,
+  final P2 unit composition, and final resources.
+- `simulator`: the integrated `AllyPolicy` native opening passed for seeds
+  `42`, `7`, and `99`. Each run dispatched `build=3`, `gather=8`, `train=5`,
+  and `attack=2`; final P2 composition was
+  `CommandCenter=1, SupplyDepot=1, Barracks=1, Refinery=1, SCV=8,
+  Marine=3`. All runs had zero dispatch errors, zero friendly-fire
+  rejections, no deadlock, no command storm, and the same trace hash.
+  Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ally-policy-native-opening-20260802.json`.
+- `simulator`: visible enemy contact transitions the policy into
+  `assist_attack`; combat units share a deterministic focus target and use
+  formation offsets for follow/regroup movement. Stale repeated attack orders
+  are suppressed before dispatch.
+- `static`: focused Stage 25 tests pass with `19 passed`; Stage 19/20 pass with
+  `9 passed, 3 subtests passed`; Stage 22/23 pass with `16 passed, 3 subtests
+  passed`; launcher/kernel tests pass with `63 passed`; `run-all-validation.ps1`
+  passes `52/52` with zero warnings; changed modules compile and `git diff
+  --check` passes.

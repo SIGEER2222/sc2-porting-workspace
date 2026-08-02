@@ -48,6 +48,7 @@
     "tools/launchers/tests/test_live_runner_unit_adapter.py",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/simulator-multiseed.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/native-task-multiseed-20260802.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ally-policy-native-opening-20260802.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cooperative-ai-ally-replay-20260802/replay.jsonl",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cooperative-ai-ally-replay-20260802/full-map-player.html",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/map-scenario-source.json",
@@ -137,6 +138,8 @@
     ,{"evidence_type": "runtime", "command": "approved launcher port 5194 + current staged map StormLib pack + galaxy_repl.py --vm-program debug-vm-runtime-group.json", "status": "PASS", "detail": "Fresh restarted SC2 PID 35904; API ready; CreateGame/JoinGame player_id=1; 11 VM instructions passed; three real Marines received Conjoined count=1 and final has_behavior=true.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-rerun-20260802/vm-runtime-live.txt"}
     ,{"evidence_type": "runtime", "command": "py -3.13 tools/galaxy-vibe/script_error_check.py --since 1785664955", "status": "PASS", "detail": "Zero new non-empty ScriptError files in the fresh 5194 launcher window.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-rerun-20260802/script-error-verdict.json"}
     ,{"evidence_type": "blocked", "command": "approved launcher port 5200 + packed staged map + P1 anchor and P2 join-existing runner", "status": "BLOCKED", "detail": "Launcher ready and P1 CreateGame/JoinGame passed, but GameInfo exposed only P1; P2 runner received Already in a game and failed closed after observation player_id=1. No native P2 actions were sent and no same-window ScriptError verdict was claimed.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/runtime-topology-verdict.json"}
+    ,{"evidence_type": "simulator", "command": "py -3.13 -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py", "status": "PASS", "detail": "19 tests passed; AllyPolicy itself completed the P2 native opening with build/gather/train/focus-attack across seeds 42, 7, and 99, with zero dispatch errors and deterministic trace hashes.", "evidence": "artifacts/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py"}
+    ,{"evidence_type": "static", "command": "py -3.13 -m py_compile + git diff --check for AllyPolicy integration", "status": "PASS", "detail": "Changed policy, test, and evidence files compile and have no whitespace errors.", "evidence": "src/projects/cmre-porting/vibe/consumers/ally_ai.py"}
   ],
   "issues": [
     "Corrected P2 native runtime remains blocked by protected launcher lease; do not use the historical P1 report or protected Debug VM window as native-task evidence.",
