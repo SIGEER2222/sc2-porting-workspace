@@ -132,6 +132,42 @@
       "evidence_type": "static",
       "detail": "Static map-record tests imported the live SC2 capture module eagerly and failed when optional aiohttp runtime dependencies were unavailable.",
       "resolution": "The live capture module is now loaded only by runtime probe functions; static map metadata and simulator replay imports remain dependency-light without changing the live launcher path."
+    },
+    {
+      "id": "REPLAY-008",
+      "severity": "high",
+      "status": "resolved",
+      "evidence_type": "static",
+      "detail": "The real-map replay generators replaced ObjectUnit@Id with an enumeration index, so dynamic simulator entities and source-map structures could not be joined back to the original map.",
+      "resolution": "The shared map_alignment parser preserves source_object_id and source_map_id as map-<ObjectUnit@Id>; simulator frames and structure-destroyed events now carry the same source identity.",
+      "artifact": "artifacts/real-map-replay-20260803/real-map-static-aligned.jsonl"
+    },
+    {
+      "id": "REPLAY-009",
+      "severity": "high",
+      "status": "resolved",
+      "evidence_type": "simulator",
+      "detail": "The browser always drew every static Object even after a simulator structure-destroyed event, making destroyed enemy buildings appear alive forever.",
+      "resolution": "The player accumulates source-linked infested_structure_destroyed events by frame, renders the matching static object as a destroyed cross-marked remnant, and exposes destroyed in the entity table.",
+      "artifact": "artifacts/full-game-replay-20260803/map-aligned-timescaled.html"
+    },
+    {
+      "id": "REPLAY-010",
+      "severity": "medium",
+      "status": "resolved",
+      "evidence_type": "static",
+      "detail": "Map geometry was duplicated as unvalidated 16..176 and 48..208 literals in multiple replay paths, while the extractor separately reported an Object coordinate envelope.",
+      "resolution": "MapInfo dimensions, terrain grid dimensions, minimap content bounds, world bounds, coordinate orientation, and placement markers are now generated once and embedded in both replay entry points.",
+      "artifact": "artifacts/real-map-replay-20260803/real-map-static-aligned.jsonl"
+    },
+    {
+      "id": "SIM-008",
+      "severity": "high",
+      "status": "deferred",
+      "evidence_type": "blocked",
+      "detail": "The current real-time-scale full simulator replay did not complete within a 300 second validation window, so the latest map-alignment changes do not yet have a fresh six-night victory artifact.",
+      "resolution": "Short simulator and time-scaled end-to-end alignment evidence is captured; optimize or profile the full combat loop before promoting a new full-game victory artifact.",
+      "artifact": "artifacts/full-game-replay-20260803/map-aligned-timescaled.jsonl"
     }
   ],
   "residual_risks": [

@@ -166,8 +166,8 @@ class ReplayPlayerTests(unittest.TestCase):
                 '<terrain><heightMap dim="193 193 "/></terrain>', encoding="utf-8"
             )
             (source / "Objects").write_text(
-                '<root><ObjectUnit UnitType="MineralField" Player="0" Position="85,94,0"/>'
-                '<ObjectUnit UnitType="Barracks" Player="1" Position="80,90,0"/></root>',
+                '<root><ObjectUnit Id="7" UnitType="MineralField" Player="0" Position="85,94,0"/>'
+                '<ObjectUnit Id="8" UnitType="Barracks" Player="1" Position="80,90,0"/></root>',
                 encoding="utf-8",
             )
             record = build_map_record(map_path, source)
@@ -175,6 +175,80 @@ class ReplayPlayerTests(unittest.TestCase):
             self.assertEqual(record["terrain_height_map_dim"], [193, 193])
             self.assertEqual(len(record["static_objects"]), 2)
             self.assertEqual(record["static_objects"][1]["unit_type_id"], "Barracks")
+            self.assertEqual(record["static_objects"][1]["id"], "map-8")
+            self.assertEqual(record["static_objects"][1]["source_object_id"], 8)
+
+    def test_real_map_geometry_and_spawn_markers_are_source_aligned(self) -> None:
+        source = Path(__file__).parents[1] / "artifacts" / "real-map-source-20260802"
+        if not (source / "Objects").is_file():
+            self.skipTest("real map extraction artifact is unavailable")
+        with tempfile.TemporaryDirectory() as directory:
+            map_path = Path(directory) / "dead-of-night.SC2Map"
+            map_path.write_bytes(b"packed-map")
+            record = build_map_record(map_path, source)
+        self.assertEqual(record["map_size"], {"width": 192, "height": 192})
+        self.assertEqual(record["terrain_height_map_dim"], [193, 193])
+        self.assertEqual(record["image_rect_px"], {"x": 48, "y": 48, "w": 160, "h": 160})
+        self.assertEqual(record["world_bounds"], {"min_x": 16.0, "max_x": 176.0, "min_y": 16.0, "max_y": 176.0})
+        self.assertEqual(len(record["static_objects"]), 1319)
+        self.assertEqual(len({item["source_object_id"] for item in record["static_objects"]}), 1319)
+        markers = {item["owner"]: item for item in record["placement_markers"]}
+        self.assertEqual((markers[1]["x"], markers[1]["y"]), (85.0, 94.0))
+        self.assertEqual((markers[2]["x"], markers[2]["y"]), (76.0, 103.0))
+
+    def test_player_contains_source_destroyed_state_projection(self) -> None:
+        records = [
+            {"record_type": "header", "replay_id": "alignment"},
+            {
+                "record_type": "map",
+                "map_name": "亡者之夜.SC2Map",
+                "minimap_data_url": "data:image/png;base64,AAAA",
+                "world_bounds": {"min_x": 16, "max_x": 176, "min_y": 16, "max_y": 176},
+                "static_objects": [
+                    {
+                        "id": "map-42",
+                        "source_object_id": 42,
+                        "source_unit_type_id": "Bunker",
+                        "unit_type_id": "Bunker",
+                        "owner": 3,
+                        "x": 101.5,
+                        "y": 149.5,
+                    }
+                ],
+                "friendly_players": [1, 2],
+            },
+            {"record_type": "frame", "loop": 0, "entities_by_player": {}, "events": []},
+            {
+                "record_type": "frame",
+                "loop": 112,
+                "entities_by_player": {},
+                "events": [{"kind": "infested_structure_destroyed", "source_object_id": 42}],
+            },
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "alignment-player.html"
+            render_player_html(records, output)
+            html = output.read_text(encoding="utf-8")
+        self.assertIn("destroyedSourceObjectIds", html)
+        self.assertIn("source_object_id", html)
+        self.assertIn("drawStaticObject(object,destroyedIds)", html)
+
+    def test_static_preview_without_frames_has_safe_empty_frame(self) -> None:
+        records = [
+            {"record_type": "header", "replay_id": "empty-static"},
+            {
+                "record_type": "map",
+                "map_name": "亡者之夜.SC2Map",
+                "static_objects": [],
+            },
+            {"record_type": "summary", "status": "STATIC_PREVIEW", "evidence_type": "static"},
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "empty-static.html"
+            render_player_html(records, output)
+            html = output.read_text(encoding="utf-8")
+        self.assertIn("const EMPTY_FRAME", html)
+        self.assertIn("FRAMES[0] || EMPTY_FRAME", html)
 
     def test_macro_replay_is_state_driven_and_starts_without_army(self) -> None:
         replay = build_macro_replay(max_loops=10_400)

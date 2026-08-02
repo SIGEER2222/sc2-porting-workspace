@@ -9,13 +9,10 @@ same world coordinates.
 from __future__ import annotations
 
 import argparse
-import base64
-import hashlib
 import json
 import math
 import random
 import sys
-import xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
@@ -37,6 +34,8 @@ from .replay_player import render_player_html
 ensure_simulator_on_path()
 
 from sc2_simulator.catalog.m7_units import m7_catalog  # noqa: E402
+
+from .real_map_replay import build_map_record as build_real_map_record
 
 
 PLAYER_ID = 1
@@ -65,6 +64,10 @@ DEFAULT_OUTPUT = (
 )
 DEFAULT_HTML = DEFAULT_OUTPUT.with_suffix(".html")
 DYNAMIC_ENEMY_HEALTH_SCALE = 0.10
+DEFAULT_DYNAMIC_ENEMY_DAMAGE_SCALE = 0.25
+DEFAULT_STRUCTURE_HEALTH_SCALE = 0.20
+NIGHT_DEFENDER_COOLDOWN_LOOPS = round(30.0 * LOOPS_PER_SECOND)
+NIGHT_DEFENDER_LIFE_THRESHOLD = 150.0
 
 
 # These are the normal-difficulty calls in the native MapScript triggers.  The
@@ -131,6 +134,7 @@ _SOURCE_TO_SIM = {
     "InfestedCivilian": "Marine",
     "InfestedTerranCampaign": "Marine",
     "InfestedAbomination": "Roach",
+    "InfestedExploder": "Baneling",
 }
 _SPECIAL_TYPES = {
     1: [("Hunterling", "Zergling", "south_west", 3)],
@@ -140,6 +144,20 @@ _SPECIAL_TYPES = {
     5: [("Spotter", "Mutalisk", "north_east", 3), ("Choker", "Roach", "south_west", 3), ("Kaboomer", "Baneling", "south_east", 3)],
     6: [("Spotter", "Mutalisk", "north_east", 4), ("Choker", "Roach", "north_west", 4), ("Stank", "Ultralisk", "south_east", 1)],
 }
+_NIGHT_DEFENDER_COMPOSITION = {
+    1: (("InfestedCivilian", "Marine", 1),),
+    2: (("InfestedCivilian", "Marine", 1), ("InfestedTerranCampaign", "Marine", 1)),
+    3: (("InfestedCivilian", "Marine", 1), ("InfestedTerranCampaign", "Marine", 1)),
+    4: (("InfestedCivilian", "Marine", 1), ("InfestedTerranCampaign", "Marine", 1), ("InfestedAbomination", "Roach", 1)),
+    5: (("InfestedCivilian", "Marine", 1), ("InfestedTerranCampaign", "Marine", 1), ("InfestedAbomination", "Roach", 1)),
+    6: (("InfestedCivilian", "Marine", 1), ("InfestedTerranCampaign", "Marine", 4), ("InfestedAbomination", "Roach", 1)),
+}
+
+
+def _scaled_count(base_count: int, scale: float) -> int:
+    if base_count <= 0 or scale <= 0:
+        return 0
+    return max(1, int(round(base_count * scale)))
 
 
 def _region_lookup(regions: Iterable[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -147,55 +165,9 @@ def _region_lookup(regions: Iterable[dict[str, Any]]) -> dict[str, dict[str, Any
 
 
 def _build_map_record(map_path: Path, map_source: Path) -> dict[str, Any]:
-    """Read only the static map inputs needed by the browser player."""
+    """Use the same source-derived map metadata as the live-map replay."""
 
-    minimap = map_source / "minimap.png"
-    objects_path = map_source / "Objects"
-    terrain_path = map_source / "t3Terrain.xml"
-    if not minimap.is_file() or not objects_path.is_file() or not terrain_path.is_file():
-        raise FileNotFoundError(f"map source is incomplete: {map_source}")
-    root = ET.parse(objects_path).getroot()
-    objects: list[dict[str, Any]] = []
-    for index, unit in enumerate(root.iter("ObjectUnit"), start=1):
-        parts = unit.get("Position", "0,0,0").split(",")
-        if len(parts) < 2:
-            continue
-        try:
-            x, y = float(parts[0]), float(parts[1])
-            owner = int(unit.get("Player", "0"))
-        except ValueError:
-            continue
-        objects.append({
-            "id": f"map-{index}",
-            "unit_type_id": unit.get("UnitType", ""),
-            "owner": owner,
-            "x": x,
-            "y": y,
-            "source": "Objects",
-        })
-    terrain_root = ET.parse(terrain_path).getroot()
-    height_map = terrain_root.find("heightMap")
-    dimension = [193, 193]
-    if height_map is not None:
-        raw = (height_map.get("dim") or "193 193").split()
-        if len(raw) >= 2:
-            dimension = [int(raw[0]), int(raw[1])]
-    return {
-        "record_type": "map",
-        "map_id": "dead-of-night",
-        "map_name": MAP_NAME,
-        "evidence_type": "static",
-        "source_map": str(map_path.relative_to(REPO_ROOT)).replace("\\", "/"),
-        "source_components": str(map_source.relative_to(REPO_ROOT)).replace("\\", "/"),
-        "packed_map_sha256": hashlib.sha256(map_path.read_bytes()).hexdigest(),
-        "minimap_data_url": "data:image/png;base64," + base64.b64encode(minimap.read_bytes()).decode("ascii"),
-        "minimap_source": str(minimap.relative_to(REPO_ROOT)).replace("\\", "/"),
-        "image_rect_px": {"x": 48, "y": 48, "w": 160, "h": 160},
-        "world_bounds": {"min_x": 16.0, "max_x": 176.0, "min_y": 16.0, "max_y": 176.0},
-        "terrain_height_map_dim": dimension,
-        "friendly_players": [1, 2],
-        "static_objects": objects,
-    }
+    return build_real_map_record(map_path, map_source)
 
 
 def _source_wave_specs(data: Any, *, time_scale: float, strength_scale: float, seed: int) -> list[dict[str, Any]]:
@@ -214,7 +186,7 @@ def _source_wave_specs(data: Any, *, time_scale: float, strength_scale: float, s
             spawns: list[dict[str, Any]] = []
             region = regions[_DIRECTION_REGIONS[direction]]
             for source_type, base_count in source_types.items():
-                count = int(round(base_count * strength_scale))
+                count = _scaled_count(base_count, strength_scale)
                 for spawn_index in range(count):
                     angle = rng.random() * 6.283185307
                     radius = min(max(float(region.get("r", 3.0)) * 0.35, 0.7), 2.8)
@@ -325,6 +297,68 @@ def _clean_scenario(
         "initial_vespene": 0,
     }
     return scenario, enemy_structures, len(all_enemy_structures)
+
+
+def _source_entity_metadata(scenario: dict[str, Any], session: Any) -> dict[int, dict[str, Any]]:
+    """Attach native ObjectUnit identity to entities created from map spawns."""
+
+    pending: dict[tuple[int, str, float, float], list[dict[str, Any]]] = {}
+    for spawn in scenario.get("spawns", []):
+        source_object_id = spawn.get("source_object_id")
+        if source_object_id is None:
+            continue
+        key = (
+            int(spawn["owner_player_id"]),
+            str(spawn["unit_type_id"]),
+            round(float(spawn["x"]), 3),
+            round(float(spawn["y"]), 3),
+        )
+        pending.setdefault(key, []).append(spawn)
+    metadata: dict[int, dict[str, Any]] = {}
+    for entity in session.world.entities.values():
+        key = (
+            int(entity.owner_player_id),
+            str(entity.unit_type_id),
+            round(entity.x.to_float(), 3),
+            round(entity.y.to_float(), 3),
+        )
+        candidates = pending.get(key, [])
+        if not candidates:
+            continue
+        spawn = candidates.pop(0)
+        source_object_id = int(spawn["source_object_id"])
+        metadata[int(entity.entity_id)] = {
+            "source": "Objects",
+            "source_object_id": source_object_id,
+            "source_map_id": f"map-{source_object_id}",
+            "source_unit_type_id": str(spawn.get("source_unit_type_id", spawn["unit_type_id"])),
+        }
+    return metadata
+
+
+def _annotate_map_record_for_simulation(
+    map_record: dict[str, Any],
+    scenario: dict[str, Any],
+) -> None:
+    """Mark which native map objects are represented by this finite replay."""
+
+    source_spawns = {
+        int(spawn["source_object_id"]): spawn
+        for spawn in scenario.get("spawns", [])
+        if spawn.get("source_object_id") is not None
+    }
+    for static_object in map_record.get("static_objects", []):
+        source_object_id = static_object.get("source_object_id")
+        spawn = source_spawns.get(int(source_object_id)) if source_object_id is not None else None
+        static_object["simulated_in_replay"] = spawn is not None
+        if spawn is not None:
+            static_object["simulation_unit_type_id"] = str(spawn["unit_type_id"])
+    map_record["simulation_alignment"] = {
+        "source_object_count": len(map_record.get("static_objects", [])),
+        "simulated_source_object_count": len(source_spawns),
+        "unmodeled_source_objects_remain_static": True,
+        "dynamic_entities_use_source_object_id": True,
+    }
 
 
 def _unit_record(entity: Any, meta: dict[int, dict[str, Any]]) -> dict[str, Any]:
@@ -478,6 +512,7 @@ def _build_context(
     time_scale: float,
     last_night: int,
     structure_count: int,
+    meta: dict[int, dict[str, Any]],
 ) -> dict[str, Any]:
     loop = int(session.world.clock.now.loop)
     night = _current_night(wave_timing, loop, time_scale=time_scale)
@@ -486,12 +521,12 @@ def _build_context(
         for item in wave_timing["nights"]
     )
     visible_enemies = [
-        _unit_record(entity, {})
+        _unit_record(entity, meta)
         for entity in session.world.entities.values()
         if entity.is_alive and int(entity.owner_player_id) in ENEMY_PLAYERS
     ]
     own_units = [
-        _unit_record(entity, {})
+        _unit_record(entity, meta)
         for entity in session.world.entities.values()
         if entity.is_alive and int(entity.owner_player_id) == PLAYER_ID
     ]
@@ -571,16 +606,21 @@ def _add_wave_events(
     meta: dict[int, dict[str, Any]],
     event_buffer: list[dict[str, Any]],
     known_ids: set[int],
+    spawned_ids: list[int] | None = None,
     enemy_health_scale: float = DYNAMIC_ENEMY_HEALTH_SCALE,
     enemy_damage_scale: float = 1.0,
 ) -> None:
     for spec in wave_specs:
         if spec["name"] not in mission._waves_fired:
             continue
-        ids = [entity_id for entity_id in session.world.entities if entity_id not in known_ids]
+        ids = list(spawned_ids or [entity_id for entity_id in session.world.entities if entity_id not in known_ids])
         if not ids:
             continue
         ids = [entity_id for entity_id in ids if session.world.get_entity(entity_id).owner_player_id == 5]
+        spawn_by_entity_id = {
+            entity_id: spawn
+            for entity_id, spawn in zip(ids, spec.get("spawns", []), strict=False)
+        }
         for entity_id in ids:
             entity = session.world.get_entity(entity_id)
             if entity is None:
@@ -588,11 +628,23 @@ def _add_wave_events(
             max_health = session.world.catalog.get(entity.unit_type_id).max_health.raw
             entity.health = entity.health.__class__(max(1, int(max_health * enemy_health_scale)))
             _apply_dynamic_enemy_damage_scale(entity, session.world.catalog, enemy_damage_scale)
+            source_spawn = spawn_by_entity_id.get(entity_id)
             meta[entity_id] = {
                 "source": "MapScript.galaxy",
                 "source_wave": spec["name"],
                 "source_direction": spec["direction"],
-                "source_unit_type_id": next((spawn["source_unit_type_id"] for spawn in spec["spawns"] if spawn["unit_type_id"] == entity.unit_type_id), ""),
+                "source_unit_type_id": (
+                    source_spawn.get("source_unit_type_id", "")
+                    if source_spawn is not None
+                    else next(
+                        (
+                            spawn["source_unit_type_id"]
+                            for spawn in spec["spawns"]
+                            if spawn["unit_type_id"] == entity.unit_type_id
+                        ),
+                        "",
+                    )
+                ),
             }
             session.unit_order([entity_id], "attack_move", 5, target_x=BASE_X, target_y=BASE_Y)
             known_ids.add(entity_id)
@@ -773,7 +825,7 @@ def build_full_game_replay(
     _configure_replay_policy(policy)
     marine_army_comp = dict(policy.ARMY_COMP)
     rng = random.Random(seed + 100)
-    meta: dict[int, dict[str, Any]] = {}
+    meta: dict[int, dict[str, Any]] = _source_entity_metadata(scenario, session)
     events: list[dict[str, Any]] = []
     records: list[dict[str, Any]] = []
     action_records: list[dict[str, Any]] = []
@@ -784,11 +836,12 @@ def build_full_game_replay(
     action_id = 0
     reported_waves: set[str] = set()
     previous_alive_ids = set(session.world.entities)
-    source_building_ids = [
+    source_building_ids = sorted({
         entity.entity_id
         for entity in session.world.entities.values()
         if entity.owner_player_id in ENEMY_PLAYERS and catalog.get(entity.unit_type_id).is_structure
-    ]
+    })
+    source_building_id_set = set(source_building_ids)
     infected_ids: set[int] = set()
     special_ids: set[int] = set()
     dynamic_enemy_ids: set[int] = set()
@@ -839,6 +892,7 @@ def build_full_game_replay(
             time_scale=time_scale,
             last_night=last_night,
             structure_count=_enemy_structure_count(session),
+            meta=meta,
         )
         records.append(_frame(session, context, list(events), meta, time_scale=time_scale))
         events.clear()
@@ -1304,9 +1358,18 @@ def build_full_game_replay(
         for removed_id in previous_alive_ids - current_ids:
             old_meta = meta.get(removed_id, {})
             owner = old_meta.get("owner", 0)
-            if removed_id in source_building_ids:
+            if removed_id in source_building_id_set:
                 destroyed_structures += 1
-                events.append({"loop": loop, "kind": "infested_structure_destroyed", "entity_id": removed_id, "remaining": _enemy_structure_count(session)})
+                destroy_event = {
+                    "loop": loop,
+                    "kind": "infested_structure_destroyed",
+                    "entity_id": removed_id,
+                    "remaining": _enemy_structure_count(session),
+                }
+                for field in ("source_object_id", "source_map_id", "source_unit_type_id"):
+                    if field in old_meta:
+                        destroy_event[field] = old_meta[field]
+                events.append(destroy_event)
             elif removed_id in active_enemy_ids:
                 events.append({"loop": loop, "kind": "enemy_unit_destroyed", "entity_id": removed_id, "owner": owner})
             active_enemy_ids.discard(removed_id)
@@ -1324,6 +1387,7 @@ def build_full_game_replay(
     record_frame(force=True)
 
     map_record = _build_map_record(map_path, map_source)
+    _annotate_map_record_for_simulation(map_record, scenario)
     map_record["display_note"] = "真实地图 Objects + 原始坐标 simulator 动态回放"
     replay_events = [event for frame in records for event in frame.get("events", [])]
     mineral_deposits = [event for event in replay_events if event.get("kind") == "mineral_deposited"]

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "stage_id": "07-real-adapters",
   "status": "BLOCKED",
-  "updated_at": "2026-08-02T22:02:56+08:00",
+  "updated_at": "2026-08-03T07:32:00+08:00",
   "outputs": [
     "cmre_neuro_adapter/transports/__init__.py",
     "cmre_neuro_adapter/transports/common.py",
@@ -17,6 +17,7 @@
     "cmre_neuro_adapter/neuro/simulator_transport.py",
     "tests/test_basic_actions.py",
     "tests/test_replay_player.py",
+    "cmre_neuro_adapter/map_alignment.py",
     "cmre_neuro_adapter/real_map_replay.py",
     "cmre_neuro_adapter/full_game_replay.py",
     "artifacts/real-map-source-20260802/",
@@ -42,6 +43,12 @@
     "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.jsonl",
     "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.html",
     "artifacts/full-game-replay-20260802/dead-of-night-full-simulator-browser.png",
+    "artifacts/real-map-replay-20260803/real-map-static-aligned.jsonl",
+    "artifacts/real-map-replay-20260803/real-map-static-aligned.html",
+    "artifacts/real-map-replay-20260803/static-aligned.png",
+    "artifacts/full-game-replay-20260803/map-aligned-timescaled.jsonl",
+    "artifacts/full-game-replay-20260803/map-aligned-timescaled.html",
+    "artifacts/full-game-replay-20260803/timescaled.png",
     "stages/07-real-adapters/log.md",
     "stages/07-real-adapters/result.json",
     "stages/07-real-adapters/issues.json"
@@ -229,10 +236,44 @@
     },
     "full_game_replay_tests": {
       "status": "PASS",
-      "tests": 76,
+      "tests": 79,
       "command": "python -m unittest discover -s tests -v",
-      "summary": "The full adapter test suite passed after the complete replay implementation; compileall and diff-check also passed.",
+      "summary": "The full adapter test suite passed with the source-object alignment and static-preview regression coverage; compileall and diff-check also passed.",
       "evidence_type": "simulator"
+    },
+    "map_source_alignment": {
+      "status": "PASS",
+      "tests": 11,
+      "command": "python -m unittest tests.test_replay_player -q; python -m compileall -q cmre_neuro_adapter tests",
+      "summary": "The map record now derives geometry from MapInfo, t3Terrain.xml, and minimap.png, preserves all 1319 unique ObjectUnit IDs, and exposes P1=(85,94) and P2=(76,103) placement markers. Static previews with zero frames also render through the safe empty-frame path.",
+      "artifacts": [
+        "artifacts/real-map-replay-20260803/real-map-static-aligned.jsonl",
+        "artifacts/real-map-replay-20260803/real-map-static-aligned.html"
+      ],
+      "evidence_type": "static"
+    },
+    "map_dynamic_source_linkage": {
+      "status": "PASS",
+      "command": "python -m cmre_neuro_adapter.full_game_replay --max-loops 700 --replay-interval 112 --output artifacts/map-alignment-smoke/replay.jsonl --html-output artifacts/map-alignment-smoke/replay.html",
+      "summary": "The short simulator path records the real map geometry, 1319 static Objects, source-linked simulator snapshots, and a 56-object finite simulation overlay. The run intentionally ends with max_loops_reached and is not a gameplay victory claim.",
+      "artifact": "artifacts/map-alignment-smoke/replay.jsonl",
+      "evidence_type": "simulator"
+    },
+    "map_player_browser_alignment": {
+      "status": "PASS",
+      "command": "Edge headless opened real-map-static-aligned.html and map-aligned-timescaled.html; System.Drawing counted rendered pixels",
+      "summary": "The static and dynamic map players rendered at 1200x1000 with 908722 and 908814 non-empty pixels respectively. The screenshots show the minimap, 1319 Objects layer, source IDs in the table, and dynamic map entities on original coordinates.",
+      "screenshots": [
+        "artifacts/real-map-replay-20260803/static-aligned.png",
+        "artifacts/full-game-replay-20260803/timescaled.png"
+      ],
+      "evidence_type": "runtime"
+    },
+    "current_full_game_replay_performance": {
+      "status": "BLOCKED",
+      "command": "python -m cmre_neuro_adapter.full_game_replay --wave-strength-scale 0.25 --max-loops 65000 --replay-interval 448 --output artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl --html-output artifacts/full-game-replay-20260803/map-aligned-full-game.html",
+      "summary": "The current real-time-scale full replay did not finish within the 300 second validation window and produced no final JSONL. This is recorded as a simulator performance gap; no full-game victory claim is made for the current working tree.",
+      "evidence_type": "blocked"
     },
     "real_map_launcher_staging": {
       "status": "PASS",

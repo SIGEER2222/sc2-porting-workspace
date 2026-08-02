@@ -352,3 +352,48 @@ Evidence:
 The replay is still simulator/browser evidence only. The approved live SC2 launcher lease remains
 occupied by an unrelated session, so G4 and real runtime effects remain blocked and are not
 represented by this artifact.
+
+## Map Source Alignment Correction 2026-08-03 07:32 +08:00
+
+The current priority is map fidelity. Static replay generation previously enumerated
+`ObjectUnit` records as `map-1..map-N`, which discarded the source `ObjectUnit@Id`; dynamic
+simulator structures therefore had no stable way to refer back to the original map. The player
+also kept drawing all static Objects after a structure-destroyed event, and the two replay entry
+points duplicated geometry literals without validating them against the map source.
+
+`cmre_neuro_adapter/map_alignment.py` is now the shared source for real-map extraction. It reads
+the `MapInfo` dimensions (`192x192`), `t3Terrain.xml` height-map dimension (`193x193`), the
+non-black minimap content rectangle (`48,48,160,160`), and derives the world bounds
+`16..176` with the SC2 bottom-left/Y-inverted coordinate contract. It preserves source ID,
+original unit type, owner, position, rotation, scale, variation, and user tag for all `1319`
+Objects. The extracted placement markers verify P1 at `(85,94)` and P2 at `(76,103)`.
+
+The simulator now joins initial source spawns to world entities by owner, mapped unit type, and
+source coordinates, then records `source_object_id` and `source_map_id` in context/frame records.
+Finite replay metadata marks which source Objects are simulated and which remain static. Structure
+destruction events carry the same source identity. The browser accumulates those events while
+seeking and renders matching static structures as destroyed cross-marked remnants; static map
+previews with no dynamic frames use an explicit empty frame and remain renderable.
+
+Evidence:
+
+- `static`: `python -m unittest tests.test_replay_player -q` -> `11` tests passed.
+- `simulator`: `python -m unittest discover -s tests -v` -> `79` tests passed after the final
+  change set; `python -m compileall -q cmre_neuro_adapter tests` -> pass.
+- `simulator`: short source-linkage run -> `1319` static Objects, `56` finite source Objects
+  represented in the simulator overlay, source-linked frame snapshots, and no failed actions;
+  it intentionally ends at `max_loops_reached` and is not a victory claim.
+- `runtime` (local browser): Edge headless rendered both the static and time-scaled players at
+  `1200x1000`; non-empty pixel counts were `908722` and `908814`. Screenshots show the real
+  minimap, the full Objects layer, original `map-<ObjectUnit@Id>` rows, and dynamic entities on
+  the same world coordinates. Artifacts:
+  `artifacts/real-map-replay-20260803/static-aligned.png` and
+  `artifacts/full-game-replay-20260803/timescaled.png`.
+- `blocked`: the current real-time-scale full simulator command did not finish within the
+  `300000ms` validation window and produced no final JSONL. A time-scaled probe reached Night 1
+  and exercised waves, special infested spawns, resource collection, and SCV production, but
+  ended with `player_base_destroyed`; neither run is promoted as a six-night victory.
+
+This correction proves map extraction and replay projection alignment, not live SC2 runtime
+effects. G4 remains blocked by the existing SC2 runtime lease, and full real-time-scale simulator
+performance remains a deferred risk before the next victory artifact is promoted.

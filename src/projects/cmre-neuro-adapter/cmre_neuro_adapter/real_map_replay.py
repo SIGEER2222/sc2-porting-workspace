@@ -16,10 +16,11 @@ import hashlib
 import json
 import sys
 import time
-import xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
 from typing import Any
+
+from .map_alignment import build_map_static_metadata
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 CMRE_PORTING_SRC = REPO_ROOT / "src" / "projects" / "cmre-porting"
@@ -46,10 +47,6 @@ DEFAULT_OUTPUT = (
     / "dead-of-night-real-runtime.jsonl"
 )
 DEFAULT_HTML = DEFAULT_OUTPUT.with_suffix(".html")
-MAP_WORLD_BOUNDS = {"min_x": 16.0, "max_x": 176.0, "min_y": 16.0, "max_y": 176.0}
-MAP_IMAGE_RECT = {"x": 48, "y": 48, "w": 160, "h": 160}
-
-
 def _live_module() -> Any:
     """Load live SC2 dependencies only for runtime probing paths."""
 
@@ -66,29 +63,6 @@ def _relative(path: Path) -> str:
         return resolved.name
 
 
-def _static_objects(objects_path: Path) -> list[dict[str, Any]]:
-    root = ET.parse(objects_path).getroot()
-    objects: list[dict[str, Any]] = []
-    for index, unit in enumerate(root.iter("ObjectUnit"), start=1):
-        position = unit.get("Position", "0,0,0").split(",")
-        try:
-            x, y = float(position[0]), float(position[1])
-            owner = int(unit.get("Player", "0"))
-        except (ValueError, IndexError):
-            continue
-        objects.append(
-            {
-                "id": f"map-{index}",
-                "unit_type_id": unit.get("UnitType", ""),
-                "owner": owner,
-                "x": x,
-                "y": y,
-                "source": "Objects",
-            }
-        )
-    return objects
-
-
 def build_map_record(map_path: Path, map_source: Path) -> dict[str, Any]:
     """Build static metadata from the packed map and its extracted components."""
 
@@ -100,14 +74,19 @@ def build_map_record(map_path: Path, map_source: Path) -> dict[str, Any]:
             "real map source must contain minimap.png, Objects, and t3Terrain.xml: "
             f"{map_source}"
         )
-    terrain_root = ET.parse(terrain_path).getroot()
-    height_map = terrain_root.find("heightMap")
-    dimension = [193, 193]
-    if height_map is not None:
-        raw_dim = (height_map.get("dim") or "193 193").split()
-        if len(raw_dim) >= 2:
-            dimension = [int(raw_dim[0]), int(raw_dim[1])]
+    geometry, objects = build_map_static_metadata(map_source)
     image_data = base64.b64encode(minimap.read_bytes()).decode("ascii")
+    placement_markers = [
+        {
+            "source_object_id": item["source_object_id"],
+            "unit_type_id": item["source_unit_type_id"],
+            "owner": item["owner"],
+            "x": item["x"],
+            "y": item["y"],
+        }
+        for item in objects
+        if item.get("source_unit_type_id") == "ACHeroSpawnPlacement"
+    ]
     return {
         "record_type": "map",
         "map_id": "dead-of-night",
@@ -118,11 +97,10 @@ def build_map_record(map_path: Path, map_source: Path) -> dict[str, Any]:
         "packed_map_sha256": hashlib.sha256(map_path.read_bytes()).hexdigest(),
         "minimap_data_url": f"data:image/png;base64,{image_data}",
         "minimap_source": _relative(minimap),
-        "image_rect_px": MAP_IMAGE_RECT,
-        "world_bounds": MAP_WORLD_BOUNDS,
-        "terrain_height_map_dim": dimension,
+        **geometry,
         "friendly_players": [1, 2],
-        "static_objects": _static_objects(objects_path),
+        "static_objects": objects,
+        "placement_markers": placement_markers,
     }
 
 
