@@ -26,6 +26,14 @@
       "detail": "The approved Stage 07 live launcher could not acquire the SC2 runtime lease because owner_pid=36840, owner_port=5121, and owner_session=cmre_alenger-20260802-124748-6ee40c06 already held it.",
       "evidence": "artifacts/projects/cmre-neuro-adapter/artifacts/stage07-real-runtime-20260802-125047/launcher-stderr.txt",
       "resolution": "Wait for the existing owner session to release its lease, then rerun the approved launcher and collect CreateGame, JoinGame, runtime listener/heartbeat, and same-window ScriptError evidence. Do not terminate or take over the unknown session."
+    },
+    {
+      "id": "BASIC-001",
+      "severity": "medium",
+      "status": "resolved",
+      "evidence_type": "simulator",
+      "detail": "The adapter had typed ability and transport contracts but no shared explicit route catalog for the basic SC2 command surface.",
+      "resolution": "Added 19 fixed basic-command routes, typed grouped-unit validation, and simulator-backed move/build/produce regressions. Live transport behavior remains covered by RUNTIME-001."
     }
   ],
   "residual_risks": [

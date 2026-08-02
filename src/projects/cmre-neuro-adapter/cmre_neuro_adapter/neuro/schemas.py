@@ -107,6 +107,31 @@ def _validate_value(name: str, value: Any, schema: Mapping[str, Any]) -> None:
         if not isinstance(value, bool):
             raise SchemaValidationError(f"argument '{name}' must be a boolean")
         return
+    if expected_type == "array":
+        if not isinstance(value, list):
+            raise SchemaValidationError(f"argument '{name}' must be an array")
+        minimum = schema.get("minItems")
+        maximum = schema.get("maxItems")
+        if minimum is not None and len(value) < minimum:
+            raise SchemaValidationError(
+                f"argument '{name}' must contain at least {minimum} item(s)"
+            )
+        if maximum is not None and len(value) > maximum:
+            raise SchemaValidationError(
+                f"argument '{name}' must contain at most {maximum} item(s)"
+            )
+        item_schema = schema.get("items")
+        if item_schema is None:
+            raise SchemaValidationError(
+                f"array schema for '{name}' must define items", schema_error=True
+            )
+        if not isinstance(item_schema, Mapping):
+            raise SchemaValidationError(
+                f"items schema for '{name}' must be an object", schema_error=True
+            )
+        for index, item in enumerate(value):
+            _validate_value(f"{name}[{index}]", item, item_schema)
+        return
     raise SchemaValidationError(
         f"unsupported schema type for '{name}': {expected_type!r}",
         schema_error=True,

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "stage_id": "07-real-adapters",
   "status": "BLOCKED",
-  "updated_at": "2026-08-02T12:51:30+08:00",
+  "updated_at": "2026-08-02T13:11:44+08:00",
   "outputs": [
     "cmre_neuro_adapter/transports/__init__.py",
     "cmre_neuro_adapter/transports/common.py",
@@ -10,6 +10,10 @@
     "cmre_neuro_adapter/transports/bank_neuro.py",
     "cmre_neuro_adapter/transports/input_neuro.py",
     "tests/test_transport_adapters.py",
+    "cmre_neuro_adapter/neuro/basic_actions.py",
+    "cmre_neuro_adapter/neuro/schemas.py",
+    "cmre_neuro_adapter/neuro/simulator_transport.py",
+    "tests/test_basic_actions.py",
     "stages/07-real-adapters/log.md",
     "stages/07-real-adapters/result.json",
     "stages/07-real-adapters/issues.json"
@@ -22,6 +26,13 @@
     "G5-packaging": {"status": "PASS", "evidence_type": "static"}
   },
   "verification": {
+    "basic_command_foundation": {
+      "status": "PASS",
+      "tests": 6,
+      "command": "python -m unittest tests.test_basic_actions -v",
+      "summary": "Nineteen explicit command routes were validated; simulator-backed move, build, and production commands changed real simulator state.",
+      "evidence_type": "simulator"
+    },
     "transport_tests": {
       "status": "PASS",
       "tests": 6,
@@ -30,9 +41,9 @@
     },
     "project_tests": {
       "status": "PASS",
-      "tests": 62,
+      "tests": 68,
       "subtests": 22,
-      "command": "python -m pytest -q",
+      "command": "python -m unittest discover -s tests -v",
       "evidence_type": "simulator"
     },
     "python_3_13_compileall": {
@@ -42,7 +53,7 @@
     },
     "python_3_11_grammar": {
       "status": "PASS",
-      "files": 53,
+      "files": 55,
       "command": "python -c \"import ast, pathlib; ... ast.parse(path.read_text(encoding='utf-8'), feature_version=(3,11)) ...\"",
       "reason": "No Python 3.11 runtime is installed; this is syntax compatibility rather than a runtime execution claim.",
       "evidence_type": "static"

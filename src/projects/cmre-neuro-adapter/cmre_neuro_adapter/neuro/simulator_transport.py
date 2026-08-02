@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
 from .actions import ActionCommand, ExecutionResult
+from .basic_actions import BASIC_ACTION_ROUTES, route_basic_action
 from .mission_projection import MissionContextProjector, PublicMissionContext
 
 
@@ -176,8 +177,12 @@ class SimulatorTransport:
             )
 
         try:
-            raw = self.backend.execute(operation, args)
-            result = self._result_from_backend(command, operation, raw)
+            dispatch_operation = operation
+            dispatch_args = args
+            if command.name in BASIC_ACTION_ROUTES and operation == "unit.order":
+                dispatch_operation, dispatch_args = route_basic_action(command)
+            raw = self.backend.execute(dispatch_operation, dispatch_args)
+            result = self._result_from_backend(command, dispatch_operation, raw)
         except Exception as exc:  # Boundary turns backend failures into typed results.
             result = _failed(
                 command,

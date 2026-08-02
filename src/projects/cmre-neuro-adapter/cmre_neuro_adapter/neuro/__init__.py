@@ -1,6 +1,13 @@
 """Typed contracts for the Neuro game API boundary."""
 
 from .actions import ActionCommand, ActionDefinition, ExecutionResult
+from .basic_actions import (
+    BASIC_ACTION_ROUTES,
+    BasicActionRoute,
+    basic_action_definitions,
+    basic_action_operations,
+    route_basic_action,
+)
 from .context import ContextEnvelope
 from .errors import ContractErrorCode, ContractViolation
 from .evidence import EvidenceRecord, EvidenceType
@@ -27,6 +34,10 @@ from .simulator_transport import (
 __all__ = [
     "ActionCommand",
     "ActionDefinition",
+    "BASIC_ACTION_ROUTES",
+    "BasicActionRoute",
+    "basic_action_definitions",
+    "basic_action_operations",
     "ContextEnvelope",
     "ContractErrorCode",
     "ContractViolation",
@@ -49,6 +60,7 @@ __all__ = [
     "StaleContextError",
     "ThreatSummary",
     "parse_incoming_message",
+    "route_basic_action",
     "project_observation",
     "validate_action_arguments",
 ]

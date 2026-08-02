@@ -9,6 +9,23 @@ Map the verified Neuro/session, mission context, simulator action, and ability c
 the supported real transports without moving mission authority into the adapter. The stage must
 separate SC2 API observation/action, Bank-mediated action/context, and input fallback behavior.
 
+## Foundation Priority
+
+Before advancing the CMRE porting stages, complete the transport-neutral basic command surface
+that the latest Neuro-WoL reference relies on around its campaign-specific abilities. The
+reference emits movement, hold, patrol, stop, and attack as game activity context; CMRE therefore
+needs explicit typed command routes for those operations instead of treating them as hidden
+context-only behavior.
+
+The first command slice is:
+
+`move_units`, `stop_units`, `hold_units`, `patrol_units`, `attack_move_units`, `attack_units`,
+`gather_resources`, `build_structure`, `produce_unit`, `research_upgrade`, the three cast forms,
+`repair_units`, `morph_unit`, `cancel_order`, `load_units`, `unload_units`, and `rally_producer`.
+Each route maps to one fixed SC2 command kind and is reusable by the simulator, SC2 API, Bank,
+and input transports. Neuro-specific `call_merc` and `ability_*` actions remain an upper-layer
+ability registry, not part of this generic command catalog.
+
 ## Contract
 
 - Each transport consumes and produces the existing typed contracts; it must not expose hidden
@@ -35,13 +52,15 @@ stages/07-real-adapters/issues.json
 
 1. Run static discovery against the registered Neuro API and WoL repositories; document exact
    reference message, Bank, and input boundaries before writing adapters.
-2. Implement a transport protocol and offline fakes that preserve `PublicMissionContext`,
+2. Implement the typed basic command catalog and offline simulator proof before real transport
+   probing. Array arguments must declare item schemas and all command routes must be explicit.
+3. Implement a transport protocol and offline fakes that preserve `PublicMissionContext`,
    `ActionCommand`, `ExecutionResult`, and `AbilityEffectRequest` shapes.
-3. Add reconnect, timeout, stale-state, duplicate, and transport-error tests without requiring
+4. Add reconnect, timeout, stale-state, duplicate, command-routing, and transport-error tests without requiring
    an SC2 executable.
-4. Wire the approved launcher path for the first real runtime probe. Do not launch
+5. Wire the approved launcher path for the first real runtime probe. Do not launch
    `SC2_x64.exe` directly.
-5. Review fresh `GameLogs/*ScriptError*.txt`, capture runtime listener/heartbeat evidence, and
+6. Review fresh `GameLogs/*ScriptError*.txt`, capture runtime listener/heartbeat evidence, and
    record any unavailable transport as an explicit issue.
 
 ## Gates
