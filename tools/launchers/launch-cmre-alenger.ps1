@@ -1424,10 +1424,10 @@ function Write-Sc2RuntimeLease {
     try {
         [System.IO.File]::WriteAllText($tmp, ($lease | ConvertTo-Json -Depth 5), [System.Text.UTF8Encoding]::new($false))
         if ([System.IO.File]::Exists($script:Sc2RuntimeLeasePath)) {
-            # File.Replace treats a null backup path as an empty path on this
-            # PowerShell/.NET build. Move with overwrite keeps the operation
-            # atomic within the lease directory without creating a backup.
-            [System.IO.File]::Move($tmp, $script:Sc2RuntimeLeasePath, $true)
+            # Windows PowerShell/.NET does not expose the newer three-argument
+            # File.Move overload. Move-Item provides the required overwrite
+            # behavior while keeping the temporary file in the lease directory.
+            Move-Item -LiteralPath $tmp -Destination $script:Sc2RuntimeLeasePath -Force
         } else {
             [System.IO.File]::Move($tmp, $script:Sc2RuntimeLeasePath)
         }
