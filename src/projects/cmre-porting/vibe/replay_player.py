@@ -401,10 +401,9 @@ function drawFrame(idx) {{
     const color = colorFor(pid);
     for (const e of ents) {{
       if (!e.alive) continue;
-      const [cx, cy] = worldToCanvas(
-        e.source_x ?? e.x,
-        e.source_y ?? e.y,
-      );
+      // source_x/source_y preserve the map's original ObjectUnit position;
+      // the replay must draw the entity's current simulated position.
+      const [cx, cy] = worldToCanvas(e.x, e.y);
       const r = radiusFor(e.t);
       // 中立资源点用小方块
       if (pidStr === '0') {{

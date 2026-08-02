@@ -1004,6 +1004,9 @@ def run_dead_of_night(
                     "vespene": p1_query["resources"]["vespene"],
                     "supply_used": p1_query["resources"].get("supply_used", 0),
                     "supply_cap": p1_query["resources"].get("supply_cap", 0),
+                    # Keep resource placement in the observation boundary so
+                    # Refinery construction is issued against a real geyser.
+                    "vespene_geysers": obs.vespene_geysers,
                 }
                 actions = policy.decide(obs, cur, resources=resources)
                 # 分发动作（立即执行，无延迟）
@@ -1016,6 +1019,9 @@ def run_dead_of_night(
                         unit = s.world.get_entity(a.entity_id)
                         if unit is None or not unit.is_alive:
                             cmd_fail_stats[f"{a.kind}:unit_missing"] += 1
+                            continue
+                        if unit.owner_player_id != 1:
+                            cmd_fail_stats[f"{a.kind}:not_owned"] += 1
                             continue
                         if a.kind == "attack":
                             if a.target_entity_id == 0:
@@ -1085,8 +1091,9 @@ def run_dead_of_night(
                                 "build",
                                 1,
                                 unit_type_id=a.unit_type_id,
-                                target_x=PLAYER_BASE_X + 3.0,
-                                target_y=PLAYER_BASE_Y + 3.0,
+                                target_entity_id=a.target_entity_id,
+                                target_x=a.target_x,
+                                target_y=a.target_y,
                             )
                             _tally_cmd_results(
                                 s.world, pre, "build", cmd_ok_stats, cmd_fail_stats

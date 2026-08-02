@@ -25,8 +25,12 @@ from vibe.consumers.ally_ai import (  # noqa: E402
 from vibe.defend_policy import DefendBasePolicy  # noqa: E402
 from vibe.contracts import Observation  # noqa: E402
 from vibe.simulator_session import SimulatorSession  # noqa: E402
+from vibe.native_task import build_native_task_scenario, run_native_task  # noqa: E402
 from vibe.replay_player import load_replay, render_player_html  # noqa: E402
-from vibe.map_replay import load_dead_of_night_map_cooperative_scenario  # noqa: E402
+from vibe.map_replay import (  # noqa: E402
+    DeadOfNightMapScriptOverlay,
+    load_dead_of_night_map_cooperative_scenario,
+)
 
 
 def _cooperative_scenario(seed: int = 42) -> dict:
@@ -57,6 +61,133 @@ def _cooperative_scenario(seed: int = 42) -> dict:
 
 
 class Stage25AiAllyCapabilityTests(unittest.TestCase):
+    def test_native_task_multiseed_completes_real_p2_economy_and_tactics(self):
+        for seed in (42, 7, 99):
+            report = run_native_task(seed=seed)
+            self.assertEqual(report.status, "PASS", (seed, report.to_dict()))
+            self.assertTrue(all(report.checks.values()), (seed, report.checks))
+            self.assertEqual(report.error_counts, {}, (seed, report.error_counts))
+            self.assertTrue(any(
+                action["kind"] == "attack"
+                and action["unit_type_id"] == "Marine"
+                for action in report.action_trace
+            ))
+            self.assertFalse(any(
+                action["kind"] == "attack"
+                and action["unit_type_id"] == "SCV"
+                for action in report.action_trace
+            ))
+
+    def test_ally_policy_independently_builds_trains_and_focuses_attack(self):
+        result = run_ally_scenario(
+            build_native_task_scenario(seed=42),
+            AllyPolicy(
+                player_id=2,
+                leader_entity_id=1,
+                leader_player_id=1,
+                base_region=(85.0, 94.0, 8.0),
+                command_interval=1,
+            ),
+            ally_player_id=2,
+            max_loops=320,
+            latency_loops=0,
+            require_cooperative_roster=True,
+        )
+
+        self.assertTrue(result.roster_ready, result.roster_issues)
+        self.assertEqual(result.error_breakdown, {})
+        self.assertEqual(result.friendly_fire_rejections, 0)
+        self.assertFalse(result.deadlock_detected)
+        self.assertFalse(result.command_storm_detected)
+        self.assertGreaterEqual(result.action_kind_counts.get("gather", 0), 1)
+        self.assertGreaterEqual(result.action_kind_counts.get("build", 0), 3)
+        self.assertGreaterEqual(result.action_kind_counts.get("train", 0), 1)
+        self.assertGreater(result.action_kind_counts.get("attack", 0), 0)
+        self.assertIn("SupplyDepot", result.final_units_by_type)
+        self.assertIn("Barracks", result.final_units_by_type)
+        self.assertIn("Refinery", result.final_units_by_type)
+        self.assertGreaterEqual(result.final_units_by_type.get("Marine", 0), 1)
+        self.assertIn("build_completed", result.event_kinds)
+        self.assertIn("train_completed", result.event_kinds)
+        self.assertIn("mineral_deposited", result.event_kinds)
+        self.assertIn("assist_attack:visible_enemy_contact", result.mode_history)
+
+        for decision in result.decisions:
+            attack_targets = {
+                action.target_entity_id
+                for action in decision.actions
+                if action.kind == "attack"
+            }
+            self.assertLessEqual(len(attack_targets), 1)
+            self.assertFalse(any(
+                action.kind == "attack"
+                and any(
+                    unit.get("entity_id") == action.entity_id
+                    and unit.get("unit_type_id") == "SCV"
+                    for unit in decision.observation.get("own_units", [])
+                )
+                for action in decision.actions
+            ))
+
+    def test_ally_policy_native_opening_is_deterministic_across_seeds(self):
+        results = []
+        for seed in (42, 7, 99):
+            result = run_ally_scenario(
+                build_native_task_scenario(seed=seed),
+                AllyPolicy(
+                    player_id=2,
+                    leader_entity_id=1,
+                    leader_player_id=1,
+                    base_region=(85.0, 94.0, 8.0),
+                    command_interval=1,
+                ),
+                ally_player_id=2,
+                max_loops=320,
+                latency_loops=0,
+                require_cooperative_roster=True,
+            )
+            self.assertEqual(result.error_breakdown, {}, seed)
+            self.assertEqual(result.friendly_fire_rejections, 0, seed)
+            self.assertFalse(result.deadlock_detected, seed)
+            self.assertFalse(result.command_storm_detected, seed)
+            self.assertEqual(
+                result.action_kind_counts,
+                {"attack": 2, "build": 3, "gather": 8, "train": 5},
+                seed,
+            )
+            results.append(result)
+
+        self.assertEqual(
+            {result.trace_hash for result in results},
+            {results[0].trace_hash},
+        )
+
+    def test_observation_keeps_neutral_resources_out_of_enemy_view(self):
+        session = SimulatorSession()
+        session.scenario_load(scenario_dict=build_native_task_scenario(), catalog="m7")
+        session.scenario_reset()
+        observation = Observation.from_world(session.world, 2)
+        self.assertEqual(observation.visible_enemies, [])
+        self.assertEqual(len(observation.mineral_fields), 6)
+        self.assertEqual(len(observation.vespene_geysers), 1)
+
+    def test_point_smart_order_is_normalized_to_move(self):
+        session = SimulatorSession()
+        session.scenario_load(scenario_dict=build_native_task_scenario(), catalog="m7")
+        session.scenario_reset()
+        scv = next(
+            entity for entity in session.world.entities.values()
+            if entity.owner_player_id == 2 and entity.unit_type_id == "SCV"
+        )
+        session.unit_order(
+            [scv.entity_id], "smart", 2,
+            target_x=76.0, target_y=94.0,
+        )
+        result = session.world.command_results[-1]
+        # This map coordinate is intentionally not a valid path target; the
+        # contract under test is that SMART point dispatch is normalized to a
+        # MOVE result instead of raising the reference runner's fallback bug.
+        self.assertEqual(result.command_kind.value, "move")
     def test_native_policy_never_attacks_with_scv_or_mission_caster(self):
         policy = DefendBasePolicy(
             player_id=1,
@@ -123,9 +254,12 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
             loop=1,
             player_id=2,
             own_units=[
-                {"entity_id": 201, "unit_type_id": "CommandCenter", "owner": 2,
-                 "x": 10.0, "y": 10.0, "health": 1400 * 1024,
-                 "max_health": 1400 * 1024},
+                 {"entity_id": 201, "unit_type_id": "CommandCenter", "owner": 2,
+                  "x": 10.0, "y": 10.0, "health": 1400 * 1024,
+                  "max_health": 1400 * 1024},
+                 {"entity_id": 204, "unit_type_id": "SupplyDepot", "owner": 2,
+                  "x": 6.0, "y": 10.0, "health": 400 * 1024,
+                  "max_health": 400 * 1024},
                 {"entity_id": 202, "unit_type_id": "SCV", "owner": 2,
                  "x": 8.0, "y": 10.0, "health": 45 * 1024,
                  "max_health": 45 * 1024},
@@ -143,7 +277,10 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
         actions = policy.decide(observation, loop=1, resources=observation.resources)
         builds = [action for action in actions if action.kind == "build"]
 
-        self.assertEqual({action.unit_type_id for action in builds}, {"Barracks", "Refinery"})
+        self.assertEqual(
+            {action.unit_type_id for action in builds},
+            {"Barracks", "Refinery"},
+        )
         self.assertEqual({action.entity_id for action in builds}, {202, 203})
         refinery = next(action for action in builds if action.unit_type_id == "Refinery")
         self.assertEqual(refinery.target_entity_id, 900)
@@ -545,6 +682,34 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
             self.assertIn("map_extractor", html)
             self.assertIn("原生对象/实体: 1319 / 1308", html)
             self.assertIn("原生 P2 单位: 0", html)
+            self.assertIn("worldToCanvas(e.x, e.y)", html)
+            self.assertNotIn("e.source_x ?? e.x", html)
+
+    def test_map_script_overlay_uses_timing_and_real_movement_step(self):
+        data, _ = load_dead_of_night_map_cooperative_scenario()
+        overlay = DeadOfNightMapScriptOverlay(
+            data.scenario["_map_wave_timing"],
+            data.scenario["_map_regions"],
+            difficulty="normal",
+        )
+        self.assertEqual(overlay.frame_state(4704)["current_night"], 1)
+        self.assertEqual(overlay.frame_state(4703)["current_night"], 0)
+
+        session = SimulatorSession()
+        session.scenario_load(scenario_dict=data.scenario, catalog="m7")
+        session.scenario_reset()
+        overlay.start(session, data.scenario)
+        events = overlay.before_step(session, 5740)
+        wave_event = next(event for event in events if event["entity_ids"])
+        self.assertEqual(wave_event["kind"], "map_script_wave_spawned")
+        self.assertEqual(len(wave_event["entity_ids"]), 8)
+
+        dynamic_id = wave_event["entity_ids"][0]
+        dynamic = session.world.get_entity(dynamic_id)
+        before = (dynamic.x.to_float(), dynamic.y.to_float())
+        session.scenario_step_movement_only()
+        after = (dynamic.x.to_float(), dynamic.y.to_float())
+        self.assertNotEqual(before, after)
 
 
 if __name__ == "__main__":

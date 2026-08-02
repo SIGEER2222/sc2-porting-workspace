@@ -81,7 +81,16 @@
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-group-20260802/vm-runtime.txt",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-group-20260802/script-error-verdict.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-validation-blocked.json",
-    "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-validation-blocked-pass2.json"
+    "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-validation-blocked-pass2.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/launcher.stdout.txt",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/launcher.stderr.txt",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/pack.stdout.txt",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/stage25-p2-native-retry.packed.SC2Map",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/p1-anchor-pass3.stdout.txt",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/p1-anchor-pass3.stderr.txt",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/p2-runner.stdout.txt",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/p2-runner.stderr.txt",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/runtime-topology-verdict.json"
   ],
   "validation": [
     {"evidence_type": "simulator", "command": "inline Python run_ally_scenario for seeds 42, 7, 99", "status": "PASS", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/simulator-multiseed.json"},
@@ -127,6 +136,7 @@
     ,{"evidence_type": "runtime", "command": "WebUI 8768 session resume + /api/vibe/invoke + /api/vibe/run-vm on port 5192", "status": "PASS", "detail": "Browser-originated backend path resumed session repl_32f2ed98ec89; ping returned pong/error_code=OK; VM passed with 11 instructions and backend trace count=11.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/webui-api-runtime.json"}
     ,{"evidence_type": "runtime", "command": "approved launcher port 5194 + current staged map StormLib pack + galaxy_repl.py --vm-program debug-vm-runtime-group.json", "status": "PASS", "detail": "Fresh restarted SC2 PID 35904; API ready; CreateGame/JoinGame player_id=1; 11 VM instructions passed; three real Marines received Conjoined count=1 and final has_behavior=true.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-rerun-20260802/vm-runtime-live.txt"}
     ,{"evidence_type": "runtime", "command": "py -3.13 tools/galaxy-vibe/script_error_check.py --since 1785664955", "status": "PASS", "detail": "Zero new non-empty ScriptError files in the fresh 5194 launcher window.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-rerun-20260802/script-error-verdict.json"}
+    ,{"evidence_type": "blocked", "command": "approved launcher port 5200 + packed staged map + P1 anchor and P2 join-existing runner", "status": "BLOCKED", "detail": "Launcher ready and P1 CreateGame/JoinGame passed, but GameInfo exposed only P1; P2 runner received Already in a game and failed closed after observation player_id=1. No native P2 actions were sent and no same-window ScriptError verdict was claimed.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/runtime-topology-verdict.json"}
   ],
   "issues": [
     "Corrected P2 native runtime remains blocked by protected launcher lease; do not use the historical P1 report or protected Debug VM window as native-task evidence.",

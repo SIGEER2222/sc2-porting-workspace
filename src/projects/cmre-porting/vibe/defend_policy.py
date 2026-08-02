@@ -114,9 +114,15 @@ class DefendBasePolicy:
     # train units.  Keep this list deterministic so a trace can prove which
     # SCV built which missing structure.
     BUILD_PLAN = (
+        # Barracks has a real Terran SupplyDepot prerequisite in the M2/M7
+        # catalog; keep that prerequisite visible in the strategy trace.
+        {"unit_type_id": "SupplyDepot", "min_m": 100, "min_v": 0, "offset": (-5.0, 0.0)},
         {"unit_type_id": "Barracks", "min_m": 150, "min_v": 0, "offset": (5.0, 0.0)},
         {"unit_type_id": "Refinery", "min_m": 75, "min_v": 0, "offset": (0.0, 5.0)},
     )
+    BUILD_REQUIREMENTS = {
+        "Barracks": ("SupplyDepot",),
+    }
 
     # SCV 训练参数
     SCV_COST_M = 50
@@ -126,6 +132,10 @@ class DefendBasePolicy:
     SCV_FLOOR = 4      # 低于此值强制造 SCV（即使抢资源）
     SCV_CEIL = 16      # 达到此值停止造 SCV
     GAS_WORKERS_PER_REFINERY = 3
+    # A CommandCenter footprint is not a valid ground destination.  Retreat
+    # and regroup to a deterministic perimeter point instead of repeatedly
+    # issuing an invalid order to the structure's center cell.
+    SAFE_RALLY_OFFSET = (-4.0, -4.0)
 
     def __init__(self, player_id: int,
                  base_region: tuple[float, float, float] = (PLAYER_BASE_X, PLAYER_BASE_Y, 15.0),
@@ -171,8 +181,14 @@ class DefendBasePolicy:
         self._last_decide_loop = loop
 
         own_by_id = {u["entity_id"]: u for u in obs.own_units}
-        enemies = obs.visible_enemies
+        enemies = [
+            enemy for enemy in obs.visible_enemies
+            if enemy.get("owner", self.player_id) != 0
+        ]
         actions: list[DefendAction] = []
+
+        rally_x = self.base_x + self.SAFE_RALLY_OFFSET[0]
+        rally_y = self.base_y + self.SAFE_RALLY_OFFSET[1]
 
         # ===== 战斗决策 =====
         # 基地内威胁
@@ -209,18 +225,22 @@ class DefendBasePolicy:
             if hp_ratio < self.retreat_threshold and not base_threats:
                 actions.append(DefendAction(
                     uid, "move",
-                    target_x=self.base_x, target_y=self.base_y,
+                    target_x=rally_x, target_y=rally_y,
                     reason=f"retreat_low_hp({hp_ratio:.0%})",
                 ))
                 continue
 
             if base_threats:
                 tgt = self._nearest(u, base_threats)
+                if self._has_attack_order(u, tgt["entity_id"]):
+                    continue
                 actions.append(DefendAction(uid, "attack",
                                             target_entity_id=tgt["entity_id"],
                                             reason="base_threat"))
             elif near_threats:
                 tgt = self._nearest(u, near_threats)
+                if self._has_attack_order(u, tgt["entity_id"]):
+                    continue
                 actions.append(DefendAction(uid, "attack",
                                             target_entity_id=tgt["entity_id"],
                                             reason="near_threat"))
@@ -234,7 +254,7 @@ class DefendBasePolicy:
                 # 基地受袭，SCV 撤退（避免被屠农）
                 actions.append(DefendAction(
                     uid, "move",
-                    target_x=self.base_x, target_y=self.base_y,
+                    target_x=rally_x, target_y=rally_y,
                     reason="worker_retreat_base_threat",
                 ))
             else:
@@ -272,11 +292,24 @@ class DefendBasePolicy:
         # 每个经济决策周期开头重置 reserve 池
         self._econ.reset()
 
-        minerals = resources.get("minerals", 0)
-        vespene = resources.get("vespene", 0)
+        # Simulator observations expose both the resource bank and resources
+        # already reserved by construction/production queues.  Decisions must
+        # use the spendable balance or the transport will reject the order.
+        minerals = max(
+            0,
+            resources.get("minerals", 0) - resources.get("reserved_minerals", 0),
+        )
+        vespene = max(
+            0,
+            resources.get("vespene", 0) - resources.get("reserved_vespene", 0),
+        )
         supply_used = resources.get("supply_used", 0)
         supply_cap = resources.get("supply_cap", 200)
-        supply_remaining = supply_cap - supply_used
+        supply_remaining = (
+            supply_cap
+            - supply_used
+            - resources.get("reserved_supply", 0)
+        )
 
         # 1. Build the native production opening before training or gathering.
         builder_ids: set[int] = set()
@@ -287,17 +320,38 @@ class DefendBasePolicy:
                 continue
             if building_type in self._build_issued:
                 continue
+            requirements = self.BUILD_REQUIREMENTS.get(building_type, ())
+            if any(
+                not any(
+                    unit.get("unit_type_id") == requirement
+                    and float(unit.get("build_progress", 1.0)) >= 1.0
+                    for unit in obs.own_units
+                )
+                for requirement in requirements
+            ):
+                continue
             if not self._econ.can_afford(
                     build["min_m"], build["min_v"], minerals, vespene):
                 continue
+            candidates = [
+                worker for worker in econ_units
+                if worker["entity_id"] not in builder_ids
+            ]
+            # A native SCV can be pulled off minerals to build.  Prefer an
+            # idle worker, then a mineral worker, and keep gas workers on the
+            # refinery unless no other worker exists.
             builder = next(
-                (
-                    worker for worker in econ_units
-                    if worker["entity_id"] not in builder_ids
-                    and not worker.get("orders")
-                ),
+                (worker for worker in candidates if not worker.get("orders")),
                 None,
             )
+            if builder is None:
+                builder = next(
+                    (
+                        worker for worker in candidates
+                        if worker["entity_id"] not in self._gas_workers
+                    ),
+                    candidates[0] if candidates else None,
+                )
             if builder is None:
                 continue
             offset_x, offset_y = build["offset"]
@@ -335,6 +389,8 @@ class DefendBasePolicy:
                 reason=f"build_{building_type}",
             ))
             builder_ids.add(builder["entity_id"])
+            self._gathering_scvs.discard(builder["entity_id"])
+            self._gas_workers.discard(builder["entity_id"])
             self._build_issued.add(building_type)
             self._econ.reserve(build["min_m"], build["min_v"])
             minerals -= build["min_m"]
@@ -466,7 +522,15 @@ class DefendBasePolicy:
         # SCV 数量 < SCV_FLOOR 时强制训练（不检查 reserve，紧急恢复经济）
         # SCV 数量 >= SCV_CEIL 时停止
         # 中间区间：通过 can_afford 检查（已扣战斗单位 reserve）
-        if scv_count < self.SCV_CEIL:
+        opening_incomplete = any(
+            not any(
+                unit.get("unit_type_id") == build["unit_type_id"]
+                and float(unit.get("build_progress", 1.0)) >= 1.0
+                for unit in obs.own_units
+            )
+            for build in self.BUILD_PLAN
+        )
+        if scv_count < self.SCV_CEIL and not opening_incomplete:
             cc_idle = None
             for p in producers:
                 if p.get("unit_type_id") != "CommandCenter":
@@ -517,3 +581,11 @@ class DefendBasePolicy:
         }
         max_hp = max_hp_map.get(unit.get("unit_type_id", ""), 100)
         return min(1.0, health / 1024.0 / max_hp)
+
+    @staticmethod
+    def _has_attack_order(unit: dict, target_entity_id: int) -> bool:
+        return any(
+            order.get("ability_id") == "Attack"
+            and int(order.get("target_unit_tag", 0)) == int(target_entity_id)
+            for order in unit.get("orders", [])
+        )

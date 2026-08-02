@@ -63,11 +63,16 @@ except Exception:
 # 因此真机 runner 可直接 import 而不会触发模拟器依赖链。
 try:
     from .defend_policy import DefendAction, DefendBasePolicy
+    from .consumers.ally_ai import AllyAction, AllyPolicy
     from .strategy_audit import audit_native_strategy
 except ImportError:
     # Support the documented direct-script invocation as well as package imports.
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from defend_policy import DefendAction, DefendBasePolicy  # type: ignore
+    # ally_ai uses package-relative imports, so retain the project root on
+    # sys.path and import it through the ``vibe`` package in direct mode.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from vibe.consumers.ally_ai import AllyAction, AllyPolicy  # type: ignore
     from strategy_audit import audit_native_strategy  # type: ignore
 
 # 默认地图（已验证可加载，3MB 打包版）
@@ -75,6 +80,10 @@ DEFAULT_MAP = r"E:\SC2\SC2new\StarCraft II\Maps\亡者之夜_p0_default_packed.S
 P1_PLAYER_ID = 1
 P2_PLAYER_ID = 2
 PLAYER_ID = P1_PLAYER_ID
+# SC2 requires every participant in a local multiplayer game to submit the
+# same server/client port topology during JoinGame.
+MULTIPLAYER_SERVER_PORTS = (5200, 5201)
+MULTIPLAYER_CLIENT_PORTS = ((5202, 5203),)
 
 
 # ---------------------------------------------------------------------------
@@ -526,6 +535,14 @@ def build_ally_chat_action(message: str) -> sc_pb.Action:
     normalized = str(message).strip()
     if not normalized.startswith("!ally "):
         raise ValueError("ally chat messages must start with '!ally '")
+    return build_team_chat_action(normalized)
+
+
+def build_team_chat_action(message: str) -> sc_pb.Action:
+    """Build a team chat action for P1 commands and P2 acknowledgements."""
+    normalized = str(message).strip()
+    if not normalized:
+        raise ValueError("team chat messages must not be empty")
     return sc_pb.Action(
         action_chat=sc_pb.ActionChat(
             channel=sc_pb.ActionChat.Team,
@@ -665,6 +682,9 @@ class LiveGameReport:
     player_roster: dict = field(default_factory=dict)
     ally_command_trace: list[dict] = field(default_factory=list)
     chat_received: list[dict] = field(default_factory=list)
+    p1_command_trace: list[dict] = field(default_factory=list)
+    p2_signal_trace: list[dict] = field(default_factory=list)
+    ally_mode_history: list[str] = field(default_factory=list)
 
 
 def _write_replay_frame(fp, loop: int, obs: LiveObservation,
@@ -709,6 +729,144 @@ def _write_replay_frame(fp, loop: int, obs: LiveObservation,
     fp.flush()
 
 
+async def run_p1_anchor(
+    port: int,
+    map_path: str,
+    wait_sec: float = 90.0,
+    commands: Optional[list[str]] = None,
+    verbose: bool = True,
+    output_path: Optional[str] = None,
+) -> dict:
+    """Create the two-participant game and hold the real P1 API client.
+
+    SC2 assigns the first JoinGame client to P1.  The native P2 strategy must
+    therefore join through a second client; this anchor owns CreateGame and
+    also provides the real P1 chat/signal source for the P2 policy.
+    """
+    conn = Sc2Connection(port)
+    report: dict = {
+        "status": "inconclusive",
+        "port": port,
+        "map_path": str(Path(map_path)),
+        "player_id": 0,
+        "player_roster": {},
+        "commands": [],
+    }
+    await conn.connect()
+    try:
+        ping = await conn.send_request(sc_pb.Request(ping=sc_pb.RequestPing()))
+        if verbose:
+            print(f"[anchor] Ping: version={ping.ping.game_version}")
+        try:
+            await conn.send_request(
+                sc_pb.Request(leave_game=sc_pb.RequestLeaveGame()), timeout=10
+            )
+        except Exception:
+            pass
+        await asyncio.sleep(2)
+
+        map_file = Path(map_path)
+        if not map_file.is_file() or not map_file.read_bytes():
+            raise FileNotFoundError(f"P1 anchor requires a packed map: {map_file}")
+        create = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
+            local_map=sc_pb.LocalMap(map_path=str(map_file.resolve())),
+            player_setup=[
+                sc_pb.PlayerSetup(type=1, race=1, player_name="P1"),
+                sc_pb.PlayerSetup(type=1, race=1, player_name="P2"),
+            ],
+            realtime=False,
+        ))
+        response = await conn.send_request(create, timeout=60, max_retries=5)
+        if response.error:
+            raise RuntimeError(f"P1 anchor CreateGame failed: {list(response.error)}")
+        if verbose:
+            print("[anchor] CreateGame OK")
+
+        join = sc_pb.Request(join_game=sc_pb.RequestJoinGame(
+            race=1,
+            player_name="P1",
+            options=sc_pb.InterfaceOptions(raw=True),
+        ))
+        joined = False
+        for attempt in range(30):
+            response = await conn.send_request(join, timeout=30, max_retries=2)
+            if not response.error:
+                joined = True
+                break
+            if verbose and attempt == 0:
+                print(f"[anchor] JoinGame retry: {list(response.error)}")
+            await asyncio.sleep(0.5)
+        if not joined or not response.HasField("join_game"):
+            raise RuntimeError("P1 anchor JoinGame did not return a join_game response")
+        report["player_id"] = int(response.join_game.player_id)
+        if report["player_id"] != P1_PLAYER_ID:
+            raise RuntimeError(
+                f"P1 anchor expected player_id=1, got {report['player_id']}"
+            )
+        if verbose:
+            print(f"[anchor] JoinGame OK! player_id={report['player_id']}")
+
+        info = await conn.send_request(
+            sc_pb.Request(game_info=sc_pb.RequestGameInfo()), timeout=15
+        )
+        report["player_roster"] = {
+            str(item.player_id): {
+                "player_id": int(item.player_id),
+                "type": int(item.type),
+                "race_requested": int(item.race_requested),
+                "race_actual": int(item.race_actual),
+                "player_name": item.player_name,
+            }
+            for item in info.game_info.player_info
+        }
+        if not _has_p1_p2_participant_roster(report["player_roster"]):
+            raise RuntimeError(
+                f"P1 anchor did not observe P1/P2 participant roster: {report['player_roster']}"
+            )
+
+        scheduled = commands or [
+            "!ally status stage25_p1_anchor_status",
+            "!ally defend stage25_p1_anchor_defend",
+            "!ally attack stage25_p1_anchor_attack",
+        ]
+        start = time.monotonic()
+        cursor = 0
+        command_times = [8.0, 24.0, 42.0]
+        while time.monotonic() - start < wait_sec:
+            elapsed = time.monotonic() - start
+            if cursor < len(scheduled) and elapsed >= command_times[min(cursor, len(command_times) - 1)]:
+                message = str(scheduled[cursor]).strip()
+                result = await conn.send_request(
+                    sc_pb.Request(action=sc_pb.RequestAction(
+                        actions=[build_ally_chat_action(message)]
+                    )),
+                    timeout=10,
+                )
+                entry = {
+                    "elapsed_sec": round(elapsed, 2),
+                    "message": message,
+                    "request_ok": not bool(result.error),
+                    "response_errors": list(result.error),
+                    "source_player_id": P1_PLAYER_ID,
+                    "target_player_id": P2_PLAYER_ID,
+                }
+                report["commands"].append(entry)
+                if verbose:
+                    print(f"[anchor] P1 -> P2: {message} ok={entry['request_ok']}")
+                cursor += 1
+            await asyncio.sleep(0.5)
+        report["status"] = "PASS"
+    finally:
+        await conn.close()
+    if output_path:
+        destination = Path(output_path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(
+            json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    return report
+
+
 async def run_live(
     port: int = 5000,
     map_path: str = DEFAULT_MAP,
@@ -719,6 +877,8 @@ async def run_live(
     replay_log_path: Optional[str] = None,
     force_map_path: bool = True,
     ally_commands: Optional[list[str]] = None,
+    join_existing: bool = False,
+    multiplayer_ports: bool = False,
 ) -> LiveGameReport:
     """运行真机 AI 盟友自主对局。
 
@@ -731,6 +891,8 @@ async def run_live(
         verbose: 是否打印进度
         replay_log_path: JSONL 回放日志路径
         force_map_path: 使用原生地图路径，保留 CMRE 的外部依赖链
+        join_existing: 跳过建局，仅加入另一个 API client 已创建的当前对局
+        multiplayer_ports: 为多 SC2 client JoinGame 提交共享端口拓扑
     """
     start_time = time.time()
     conn = Sc2Connection(port)
@@ -772,56 +934,60 @@ async def run_live(
         if verbose:
             print(f"[1] Ping: version={r.ping.game_version} base={r.ping.base_build}")
 
-        # 2. LeaveGame（清理之前状态；失败正常，说明之前不在游戏中）
-        try:
-            await conn.send_request(
-                sc_pb.Request(leave_game=sc_pb.RequestLeaveGame()), timeout=10)
+        if join_existing:
             if verbose:
-                print("[2] LeaveGame OK")
-        except Exception as e:
-            if verbose:
-                print(f"[2] LeaveGame skipped: {e}")
-        await asyncio.sleep(2)
+                print("[2-3] Join existing game; P1 anchor owns CreateGame")
+        else:
+            # 2. LeaveGame（清理之前状态；失败正常，说明之前不在游戏中）
+            try:
+                await conn.send_request(
+                    sc_pb.Request(leave_game=sc_pb.RequestLeaveGame()), timeout=10)
+                if verbose:
+                    print("[2] LeaveGame OK")
+            except Exception as e:
+                if verbose:
+                    print(f"[2] LeaveGame skipped: {e}")
+            await asyncio.sleep(2)
 
-        # 3. CreateGame（realtime=False 避免异步通知干扰）
-        if verbose:
-            print(f"[3] CreateGame: {os.path.basename(map_path)}")
-        map_file = Path(map_path)
-        if not map_file.is_file():
-            raise FileNotFoundError(
-                f"Live runtime requires a packed .SC2Map file: {map_file}"
-            )
-        map_data = map_file.read_bytes()
-        if not map_data:
-            raise ValueError(f"Packed .SC2Map is empty: {map_file}")
-        # Keep the native path by default. CMRE maps rely on external mod
-        # dependencies; embedding a small archive as TempLaunchMap.SC2Map can
-        # load the terrain while skipping the map initialization dependency
-        # chain. The old embedding path remains available for transport-only
-        # probes.
-        if not force_map_path and len(map_data) <= 32 * 1024 * 1024:
-            local_map = sc_pb.LocalMap(map_data=map_data)
-        else:
-            # SC2's Windows client expects a native path for dependency-bearing
-            # maps. POSIX separators can make the API resolve a different map
-            # while still returning a successful CreateGame response.
-            local_map = sc_pb.LocalMap(map_path=str(map_file.resolve()))
-        req = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
-            local_map=local_map,
-            player_setup=[
-                sc_pb.PlayerSetup(type=1, race=1, player_name="P1"),  # Human player slot
-                sc_pb.PlayerSetup(type=1, race=1, player_name="P2"),  # Vibe strategy slot
-            ],
-            realtime=False,
-        ))
-        r = await conn.send_request(req, timeout=60, max_retries=5)
-        if r.HasField("create_game") and r.create_game.HasField("error"):
-            err = r.create_game.error
+            # 3. CreateGame（realtime=False 避免异步通知干扰）
             if verbose:
-                print(f"  CreateGame error: {err} (可能已在 in_game，尝试直接 JoinGame)")
-        else:
-            if verbose:
-                print("  CreateGame OK")
+                print(f"[3] CreateGame: {os.path.basename(map_path)}")
+            map_file = Path(map_path)
+            if not map_file.is_file():
+                raise FileNotFoundError(
+                    f"Live runtime requires a packed .SC2Map file: {map_file}"
+                )
+            map_data = map_file.read_bytes()
+            if not map_data:
+                raise ValueError(f"Packed .SC2Map is empty: {map_file}")
+            # Keep the native path by default. CMRE maps rely on external mod
+            # dependencies; embedding a small archive as TempLaunchMap.SC2Map can
+            # load the terrain while skipping the map initialization dependency
+            # chain. The old embedding path remains available for transport-only
+            # probes.
+            if not force_map_path and len(map_data) <= 32 * 1024 * 1024:
+                local_map = sc_pb.LocalMap(map_data=map_data)
+            else:
+                # SC2's Windows client expects a native path for dependency-bearing
+                # maps. POSIX separators can make the API resolve a different map
+                # while still returning a successful CreateGame response.
+                local_map = sc_pb.LocalMap(map_path=str(map_file.resolve()))
+            req = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
+                local_map=local_map,
+                player_setup=[
+                    sc_pb.PlayerSetup(type=1, race=1, player_name="P1"),  # Human player slot
+                    sc_pb.PlayerSetup(type=1, race=1, player_name="P2"),  # Vibe strategy slot
+                ],
+                realtime=False,
+            ))
+            r = await conn.send_request(req, timeout=60, max_retries=5)
+            if r.HasField("create_game") and r.create_game.HasField("error"):
+                err = r.create_game.error
+                if verbose:
+                    print(f"  CreateGame error: {err} (可能已在 in_game，尝试直接 JoinGame)")
+            else:
+                if verbose:
+                    print("  CreateGame OK")
 
         # 4. JoinGame（raw 接口）—— 参考 RealProfile：重试 30 次每次 500ms
         if verbose:
@@ -831,6 +997,13 @@ async def run_live(
             player_name="P2",
             options=sc_pb.InterfaceOptions(raw=True),
         ))
+        if multiplayer_ports:
+            join_req.join_game.server_ports.game_port = MULTIPLAYER_SERVER_PORTS[0]
+            join_req.join_game.server_ports.base_port = MULTIPLAYER_SERVER_PORTS[1]
+            for game_port, base_port in MULTIPLAYER_CLIENT_PORTS:
+                client_ports = join_req.join_game.client_ports.add()
+                client_ports.game_port = game_port
+                client_ports.base_port = base_port
         joined = False
         for attempt in range(30):
             try:
@@ -865,6 +1038,10 @@ async def run_live(
                 raise RuntimeError(f"JoinGame failed: {r.join_game.error} {r.join_game.error_details}")
         if r.HasField("join_game"):
             player_id = r.join_game.player_id
+        elif r.HasField("observation"):
+            observed_common = r.observation.observation.player_common
+            if observed_common.player_id:
+                player_id = observed_common.player_id
         if player_id != strategy_player_id:
             raise RuntimeError(
                 f"Vibe strategy must join P2, but SC2 assigned player_id={player_id}"
@@ -902,10 +1079,18 @@ async def run_live(
 
         # 6. Native P2 task policy. P1 is the human player; this runner owns
         # only P2 units and every raw action is issued by the P2 participant.
-        policy = DefendBasePolicy(player_id=player_id, command_interval=decision_interval)
+        # The base marker is the map-owned P2 placement; the first observation
+        # may refine it to the actual native CommandCenter position.
+        policy: Optional[DefendBasePolicy] = None
+        ally_policy: Optional[AllyPolicy] = None
+        p1_command_trace: list[dict] = []
+        p2_signal_trace: list[dict] = []
+        default_p2_base = (76.0, 103.0, 15.0)
 
-        # 7. P1 -> P2 chat is intentionally disabled in the P2 participant
-        # runner. It is a separate player-command channel, not Vibe strategy.
+        # 7. P1 chat is a real participant-to-participant command channel.
+        # P2 parses it through the same AllyPolicy contract used by the
+        # simulator, emits a P2 acknowledgement, and then continues its own
+        # native economy/tactical loop.
         run_token = str(int(start_time))
         commands = [] if player_id == P2_PLAYER_ID else (ally_commands or [
             f"!ally status stage25_{run_token}_status",
@@ -969,11 +1154,116 @@ async def run_live(
                 break
 
             for received in r.observation.chat:
-                chat_received.append({
+                chat_entry = {
                     "loop": current_loop,
                     "player_id": int(received.player_id),
                     "message": received.message,
-                })
+                }
+                chat_received.append(chat_entry)
+                if (
+                    int(received.player_id) == P1_PLAYER_ID
+                    and str(received.message).strip().startswith("!ally")
+                ):
+                    if ally_policy is None:
+                        ally_policy = AllyPolicy(
+                            player_id=P2_PLAYER_ID,
+                            leader_entity_id=0,
+                            base_region=default_p2_base,
+                            leader_player_id=P1_PLAYER_ID,
+                            command_interval=decision_interval,
+                        )
+                    notice = ally_policy.receive_player_command(
+                        str(received.message),
+                        source_player_id=P1_PLAYER_ID,
+                        loop=current_loop,
+                        command_id=f"p1:{current_loop}:{received.message}",
+                    )
+                    command_record = {
+                        **chat_entry,
+                        "accepted": bool(notice.accepted),
+                        "command_kind": notice.kind,
+                        "mode": notice.mode,
+                        "response": notice.message,
+                    }
+                    p1_command_trace.append(command_record)
+                    try:
+                        response = await conn.send_request(
+                            sc_pb.Request(action=sc_pb.RequestAction(
+                                actions=[build_team_chat_action(
+                                    f"[P2 AI] {notice.message}"
+                                )]
+                            )),
+                            timeout=10,
+                        )
+                        p2_signal_trace.append({
+                            "loop": current_loop,
+                            "message": f"[P2 AI] {notice.message}",
+                            "recipient_player_id": P1_PLAYER_ID,
+                            "request_ok": not bool(response.error),
+                            "response_errors": list(response.error),
+                        })
+                    except (ConnectionError, TimeoutError) as exc:
+                        p2_signal_trace.append({
+                            "loop": current_loop,
+                            "message": f"[P2 AI] {notice.message}",
+                            "recipient_player_id": P1_PLAYER_ID,
+                            "request_ok": False,
+                            "error": str(exc),
+                        })
+
+            if policy is None:
+                native_base = next(
+                    (
+                        unit for unit in obs.own_units
+                        if unit.get("unit_type_id") in {
+                            "CommandCenter", "OrbitalCommand", "PlanetaryFortress"
+                        }
+                    ),
+                    None,
+                )
+                base_region = (
+                    (
+                        float(native_base.get("x", default_p2_base[0])),
+                        float(native_base.get("y", default_p2_base[1])),
+                        default_p2_base[2],
+                    )
+                    if native_base is not None else default_p2_base
+                )
+                policy = DefendBasePolicy(
+                    player_id=player_id,
+                    base_region=base_region,
+                    command_interval=decision_interval,
+                )
+            if ally_policy is None:
+                leader_unit = next(
+                    (
+                        unit for unit in obs.visible_allies
+                        if int(unit.get("owner", 0)) == P1_PLAYER_ID
+                    ),
+                    None,
+                )
+                ally_policy = AllyPolicy(
+                    player_id=P2_PLAYER_ID,
+                    leader_entity_id=(
+                        int(leader_unit["entity_id"]) if leader_unit else 0
+                    ),
+                    base_region=(policy.base_x, policy.base_y, policy.base_r),
+                    leader_player_id=P1_PLAYER_ID,
+                    command_interval=decision_interval,
+                )
+                ally_policy.base_x = policy.base_x
+                ally_policy.base_y = policy.base_y
+                ally_policy.base_r = policy.base_r
+            elif ally_policy.leader_entity_id == 0:
+                leader_unit = next(
+                    (
+                        unit for unit in obs.visible_allies
+                        if int(unit.get("owner", 0)) == P1_PLAYER_ID
+                    ),
+                    None,
+                )
+                if leader_unit is not None:
+                    ally_policy.leader_entity_id = int(leader_unit["entity_id"])
 
             # Native strategy action adapter. Every entry in
             # action_result_trace comes from this block and is eligible for
@@ -982,11 +1272,41 @@ async def run_live(
                 last_native_decide_loop = current_loop
                 policy_resources = dict(obs.resources)
                 policy_resources["vespene_geysers"] = obs.vespene_geysers
+                own_by_tag = {u["entity_id"]: u for u in obs.own_units}
                 actions = policy.decide(obs, current_loop, resources=policy_resources)
+                tactical_actions = ally_policy.decide(obs, current_loop)
+                tactical_ids = {
+                    int(action.entity_id)
+                    for action in tactical_actions
+                    if action.kind != "hold"
+                    and int(action.entity_id) in own_by_tag
+                    and own_by_tag[int(action.entity_id)].get("unit_type_id", "")
+                    not in (
+                        DefendBasePolicy.WORKER_TYPES
+                        | DefendBasePolicy.BUILDING_TYPES
+                        | set(DefendBasePolicy.PRODUCER_TYPES)
+                        | DefendBasePolicy.NON_COMBAT_TYPES
+                    )
+                }
+                if tactical_ids:
+                    actions = [
+                        action for action in actions
+                        if int(action.entity_id) not in tactical_ids
+                    ]
+                    for tactical in tactical_actions:
+                        if int(tactical.entity_id) not in tactical_ids:
+                            continue
+                        actions.append(DefendAction(
+                            entity_id=int(tactical.entity_id),
+                            kind="move" if tactical.kind == "follow" else tactical.kind,
+                            target_entity_id=int(tactical.target_entity_id),
+                            target_x=float(tactical.target_x),
+                            target_y=float(tactical.target_y),
+                            reason=tactical.reason,
+                        ))
                 total_commands_issued += len([a for a in actions if a.kind != "hold"])
                 sc2_actions: list[sc_pb.Action] = []
                 action_contexts: list[dict] = []
-                own_by_tag = {u["entity_id"]: u for u in obs.own_units}
                 target_by_tag = _target_state_by_tag(obs)
                 for action_decision in actions:
                     if action_decision.kind == "hold":
@@ -1296,6 +1616,13 @@ async def run_live(
             "native_strategy_state_delta": strategy_audit["checks"][
                 "state_observed_before_after"
             ],
+            "p1_command_received": bool(p1_command_trace),
+            "p2_signal_sent": any(
+                item.get("request_ok") for item in p2_signal_trace
+            ),
+            "ally_mode_observed": bool(
+                ally_policy is not None and ally_policy.mode_history
+            ),
         },
         strategy_audit=strategy_audit,
         behavior_verdict=(
@@ -1312,6 +1639,9 @@ async def run_live(
         player_roster=player_roster,
         ally_command_trace=ally_command_trace,
         chat_received=chat_received,
+        p1_command_trace=p1_command_trace,
+        p2_signal_trace=p2_signal_trace,
+        ally_mode_history=(ally_policy.mode_history if ally_policy is not None else []),
     )
 
     if verbose:
@@ -1342,6 +1672,23 @@ def main():
     parser = argparse.ArgumentParser(description="亡者之夜 AI 盟友真机自主对局")
     parser.add_argument("--port", type=int, default=5000, help="SC2 API 端口")
     parser.add_argument("--map", type=str, default=DEFAULT_MAP, help="地图文件路径")
+    parser.add_argument(
+        "--anchor",
+        action="store_true",
+        help="作为 P1 anchor 创建双 participant 对局并发送真实 P1 盟友指令",
+    )
+    parser.add_argument(
+        "--anchor-wait-sec",
+        type=float,
+        default=90.0,
+        help="P1 anchor 保持连接并提供命令通道的秒数",
+    )
+    parser.add_argument(
+        "--anchor-output",
+        type=str,
+        default=None,
+        help="P1 anchor 报告 JSON 路径",
+    )
     parser.add_argument("--max-loops", type=int, default=2000, help="最大 loop 数")
     parser.add_argument("--step-size", type=int, default=4, help="每次 Step 帧数")
     parser.add_argument("--decision-interval", type=int, default=22, help="决策间隔（帧数）")
@@ -1350,9 +1697,31 @@ def main():
         action="store_true",
         help="显式使用 SC2 API map_data 嵌入路径（仅用于 transport-only probes）",
     )
+    parser.add_argument(
+        "--join-existing",
+        action="store_true",
+        help="跳过 CreateGame，加入由另一个 API client 创建的当前对局",
+    )
+    parser.add_argument(
+        "--multiplayer-ports",
+        action="store_true",
+        help="JoinGame 时提交共享 server/client 端口拓扑（需要多个 SC2 client）",
+    )
     parser.add_argument("--quiet", action="store_true", help="静默模式")
     parser.add_argument("--output", type=str, default=None, help="报告输出 JSON 路径")
     args = parser.parse_args()
+
+    if args.anchor:
+        anchor_report = asyncio.run(run_p1_anchor(
+            port=args.port,
+            map_path=args.map,
+            wait_sec=args.anchor_wait_sec,
+            verbose=not args.quiet,
+            output_path=args.anchor_output or args.output,
+        ))
+        if args.quiet:
+            print(json.dumps(anchor_report, ensure_ascii=False))
+        return 0 if anchor_report.get("status") == "PASS" else 1
 
     report = asyncio.run(run_live(
         port=args.port,
@@ -1362,6 +1731,8 @@ def main():
         decision_interval=args.decision_interval,
         verbose=not args.quiet,
         force_map_path=not args.embed_map_data,
+        join_existing=args.join_existing,
+        multiplayer_ports=args.multiplayer_ports,
     ))
 
     if args.output:

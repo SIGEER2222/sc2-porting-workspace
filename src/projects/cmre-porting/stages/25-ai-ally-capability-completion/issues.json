@@ -7,11 +7,11 @@
       "severity": "medium",
       "status": "blocked",
       "title": "Fresh corrected P2 native runtime is blocked by protected lease",
-      "detail": "The corrected runner now requires P1/P2 participant slots and joins P2, but fresh approved launcher requests on ports 5161 and 5162 were rejected before CreateGame by protected KeepAlive runtimes on ports 5153 and 5154. The latest blocker is recorded in runtime-p2-validation-blocked-pass2.json. The earlier native report is historical-invalid because it operated P1 and issued SCV attacks. The P2 native-task simulator is now PASS across seeds 42, 7, and 99, but that simulator evidence cannot substitute for the blocked native SC2 window. This blocker does not apply to the separate Debug VM group probe, which has now passed in the protected 5154 window.",
+      "detail": "The P2 native-task simulator is PASS across seeds 42, 7, and 99, but native SC2 validation remains blocked. The latest fresh probe on port 5200 passed launcher readiness and P1 CreateGame/JoinGame, then exposed only P1 in GameInfo; a second runner on the same SC2 client received Already in a game and failed closed as player 1 before sending actions. Earlier attempts were also blocked by protected KeepAlive leases, and the historical native report is invalid because it operated P1 and issued SCV attacks. The separate Debug VM group probe remains valid runtime evidence but is not native strategy evidence.",
       "evidence_type": "blocked",
-      "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-validation-blocked-pass2.json",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/runtime-topology-verdict.json",
       "owner": "stage25",
-      "nextAction": "After the protected runtime owner releases the current PID 34556/port 5154 lease, rerun the approved launcher on a new port and require P2 participant ownership, successful Barracks/Refinery/Marine transitions, no SCV attack, and same-window ScriptError evidence."
+      "nextAction": "Implement or provide two independent SC2 participant client/API processes: keep P1 anchor CreateGame on one client and join P2 through a second client, then require P2 ownership, successful Barracks/Refinery/Marine transitions, no SCV attack, and same-window ScriptError evidence."
     },
     {
       "id": "MAP-DERIVED-P2-NATIVE-ROSTER-ABSENT",

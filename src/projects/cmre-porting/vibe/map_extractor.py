@@ -671,6 +671,12 @@ def build_dead_of_night_map_cooperative_scenario(
     data.scenario["_cooperative_enemy_player_ids"] = sorted(enemy_side)
     data.scenario["_map_source_kind"] = "map_extractor"
     data.scenario["_map_native_starting_force"] = False
+    # The source map creates the commander forces from these placement markers,
+    # then drives the mission through MapScript.galaxy. Keep the timing and
+    # extracted region geometry beside the scenario so a replay can simulate
+    # those map-owned transitions without changing the native ObjectUnit set.
+    data.scenario["_map_wave_timing"] = data.wave_timing
+    data.scenario["_map_regions"] = data.regions
     return data
 
 

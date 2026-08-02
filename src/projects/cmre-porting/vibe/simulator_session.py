@@ -244,6 +244,31 @@ class SimulatorSession:
             self.world.clock.now.loop, self.terminated, end_reason, snap_hash
         )
 
+    def scenario_step_movement_only(self) -> StepResult:
+        """Advance a static-map replay through the real movement system.
+
+        Map-derived replay frames can contain more than a thousand native
+        structures and resource nodes but no P1/P2 units. Running the complete
+        combat/economy/vision stack for every idle native entity makes a long
+        map-script timeline impractical. This bounded path still applies the
+        simulator's actual movement implementation to dynamic overlay units,
+        then advances the game clock; it is not a replacement for full mission
+        simulation.
+        """
+        if self.world is None:
+            raise KernelError(2, "scenario.step_movement_only 前需 scenario.reset")
+        from sc2_simulator.systems import movement
+
+        movement.step(self.world)
+        self.world.events.pop_due(self.world.clock.now.loop)
+        self.world.clock.tick()
+        return StepResult(
+            self.world.clock.now.loop,
+            self.terminated,
+            "",
+            "",
+        )
+
     def scenario_run(self, max_loops: Optional[int] = None) -> dict:
         """运行到终局。重置后从头跑（保留当前 world 也可，但 P1 约定 run = reset+到终局）。"""
         if self.world is None:
@@ -412,18 +437,100 @@ class SimulatorSession:
             raise KernelError(1, f"未知命令 kind: {kind}")
         from sc2_simulator.scenario.runner import _dispatch_command
 
+        effective_target_entity_id = target_entity_id
+        # The project policy uses native SC2 semantics for gas gathering:
+        # workers right-click the completed Refinery.  The read-only M2
+        # simulator still models the resource source as VespeneGeyser.  Keep
+        # the public command native and resolve only at this transport
+        # boundary, preserving the real resource state machine.
+        if kind == "smart" and target_entity_id:
+            target = self.world.get_entity(target_entity_id)
+            if target is not None and target.unit_type_id == "Refinery":
+                geysers = [
+                    entity for entity in self.world.entities.values()
+                    if entity.is_alive
+                    and entity.unit_type_id == "VespeneGeyser"
+                ]
+                if geysers:
+                    effective_target_entity_id = min(
+                        geysers,
+                        key=lambda entity: (
+                            (entity.x.raw - target.x.raw) ** 2
+                            + (entity.y.raw - target.y.raw) ** 2,
+                            entity.entity_id,
+                        ),
+                    ).entity_id
+
+        # The reference runner's SMART fallback has a local-import bug when
+        # no target entity is supplied.  Native point-smart semantics are a
+        # move in that case, so normalize at this owned transport boundary.
+        dispatch_kind = (
+            "move" if kind == "smart" and not effective_target_entity_id else kind
+        )
         cmd = Command(
-            kind=_CMD_KIND_MAP[kind],
+            kind=_CMD_KIND_MAP[dispatch_kind],
             issuer_player_id=issuer_player_id,
             entity_ids=tuple(entity_ids),
-            target_entity_id=target_entity_id,
+            target_entity_id=effective_target_entity_id,
             target_x=fixed_from(target_x),
             target_y=fixed_from(target_y),
             unit_type_id=unit_type_id,
             ability_id=ability_id,
             issued_loop=self.world.clock.now.loop,
         )
-        _dispatch_command(self.world, cmd)
+        original_validate_placement = None
+        if kind == "build" and unit_type_id == "Refinery":
+            # The reference M2 placement guard reserves all neutral resource
+            # cells for ordinary structures.  A Refinery is the intentional
+            # exception: it occupies the geyser footprint.  Keep the shared
+            # terrain/structure checks, but omit only the resource reservation
+            # check for this one native building type.
+            original_validate_placement = self.world.validate_structure_placement
+
+            def validate_refinery_placement(
+                product_id,
+                x,
+                y,
+                *,
+                exclude_entity_id=0,
+            ):
+                if product_id != "Refinery" or self.world.terrain is None:
+                    return original_validate_placement(
+                        product_id,
+                        x,
+                        y,
+                        exclude_entity_id=exclude_entity_id,
+                    )
+                unit_type = self.world.catalog.get(product_id)
+                if self.world.terrain_is_explicit:
+                    valid, reason, cells = self.world.terrain.can_place_footprint(
+                        x,
+                        y,
+                        unit_type.footprint_width,
+                        unit_type.footprint_height,
+                    )
+                    if not valid:
+                        return False, reason
+                else:
+                    cells = self.world.terrain.footprint_cells(
+                        x,
+                        y,
+                        unit_type.footprint_width,
+                        unit_type.footprint_height,
+                    )
+                if any(
+                    cell in self.world.occupied_structure_cells(exclude_entity_id)
+                    for cell in cells
+                ):
+                    return False, "occupied"
+                return True, ""
+
+            self.world.validate_structure_placement = validate_refinery_placement
+        try:
+            _dispatch_command(self.world, cmd)
+        finally:
+            if original_validate_placement is not None:
+                del self.world.validate_structure_placement
         return {
             "issued": True,
             "kind": kind,

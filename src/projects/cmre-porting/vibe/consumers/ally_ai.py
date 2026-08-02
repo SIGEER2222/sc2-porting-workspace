@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 from ..contracts import Observation
+from ..defend_policy import DefendAction, DefendBasePolicy
 from ..sim_path import ensure_simulator_on_path
 
 ensure_simulator_on_path()
@@ -237,10 +238,11 @@ class AllyAction:
     """盟友 AI 决策动作。"""
 
     entity_id: int
-    kind: str  # "follow" | "attack" | "move" | "hold"
+    kind: str  # "follow" | "attack" | "move" | "hold" | "gather" | "build" | "train"
     target_entity_id: int = 0
     target_x: float = 0.0
     target_y: float = 0.0
+    unit_type_id: str = ""  # train/build 用
     reason: str = ""  # 决策理由（写入 trace）
 
 
@@ -253,6 +255,7 @@ class QueuedCommand:
     target_entity_id: int
     target_x: float
     target_y: float
+    unit_type_id: str
     reason: str
     issue_loop: int
     dispatch_loop: int  # issue_loop + latency_loops
@@ -320,6 +323,10 @@ class AllyRunResult:
     friendly_fire_rejections: int = 0
     replay_path: str = ""
     replay_frame_count: int = 0
+    action_kind_counts: dict[str, int] = field(default_factory=dict)
+    event_kinds: list[str] = field(default_factory=list)
+    final_units_by_type: dict[str, int] = field(default_factory=dict)
+    final_resources: dict = field(default_factory=dict)
 
 
 class AllyPolicy:
@@ -352,6 +359,16 @@ class AllyPolicy:
         self._mode = AllyMode.FOLLOW
         self._commands = PlayerCommandAdapter((self.leader_player_id,))
         self._notices: list[PlayerNotice] = []
+        # Reuse the project-owned economy planner for P2.  AllyPolicy keeps
+        # authority over tactical modes, while the economy planner owns the
+        # worker/producer reservation state needed for build and train orders.
+        self._economy = DefendBasePolicy(
+            player_id=self.player_id,
+            base_region=base_region,
+            support_range=support_range,
+            command_interval=1,
+            econ_interval=max(1, int(command_interval)),
+        )
 
     @property
     def mode(self) -> AllyMode:
@@ -449,6 +466,16 @@ class AllyPolicy:
             leader = own_by_id.get(self.leader_entity_id)
 
         enemies = list(obs.visible_enemies)
+        workers = [
+            unit for unit in own_by_id.values()
+            if unit.get("unit_type_id") in DefendBasePolicy.WORKER_TYPES
+        ]
+        combat_units = [
+            unit for unit in own_by_id.values()
+            if unit.get("unit_type_id") not in DefendBasePolicy.WORKER_TYPES
+            and unit.get("unit_type_id") not in DefendBasePolicy.BUILDING_TYPES
+            and unit.get("unit_type_id") not in DefendBasePolicy.NON_COMBAT_TYPES
+        ]
         base_threats = [
             enemy for enemy in enemies
             if self._dist(enemy["x"], enemy["y"], self.base_x, self.base_y) <= self.base_r
@@ -463,11 +490,28 @@ class AllyPolicy:
             self._last_actions = []
             return []
 
+        # The economy planner sees only the public Observation contract.  The
+        # geyser list is attached to the resource snapshot because a refinery
+        # build needs a visible native target but the bank itself does not
+        # contain map resources.
+        economy_resources = dict(obs.resources)
+        economy_resources["vespene_geysers"] = list(obs.vespene_geysers)
+        economy_actions = self._economy.decide(
+            obs,
+            loop,
+            resources=economy_resources,
+        )
+        actions: list[AllyAction] = [
+            self._from_defend_action(action)
+            for action in economy_actions
+            if action.kind in {"gather", "build", "train"}
+        ]
+
         # Safety always overrides a player attack/follow request.
         critically_wounded = any(
             unit.get("max_health", 0) > 0
             and unit.get("health", 0) <= unit["max_health"] * 0.15
-            for unit in own_by_id.values()
+            for unit in combat_units
         )
         if critically_wounded:
             mode = AllyMode.RETREAT
@@ -475,25 +519,43 @@ class AllyPolicy:
         elif base_threats:
             mode = AllyMode.DEFEND_BASE
             mode_reason = "base_threat_priority"
-        elif leader_threats and self._mode in {
+        elif (leader_threats or enemies) and self._mode in {
             AllyMode.FOLLOW, AllyMode.REGROUP, AllyMode.ASSIST_ATTACK,
         }:
             mode = AllyMode.ASSIST_ATTACK
-            mode_reason = "leader_support_threat"
+            mode_reason = "leader_support_threat" if leader_threats else "visible_enemy_contact"
         else:
             mode = self._mode
             mode_reason = "player_command" if self._mode != AllyMode.FOLLOW else "follow_leader"
         self._record_mode(mode, mode_reason)
 
-        actions: list[AllyAction] = []
-        for uid, unit in sorted(own_by_id.items()):
-            target = self._nearest(unit, base_threats or leader_threats or enemies)
-            if mode in {AllyMode.DEFEND_BASE, AllyMode.ASSIST_ATTACK} and target is not None:
+        # Workers are never tactical combatants.  They retreat only while the
+        # base is threatened; otherwise the economy planner keeps them on
+        # minerals/gas without repeatedly overwriting their orders.
+        if base_threats:
+            for worker in sorted(workers, key=lambda unit: unit["entity_id"]):
+                actions.append(AllyAction(
+                    worker["entity_id"],
+                    "move",
+                    target_x=self.base_x,
+                    target_y=self.base_y,
+                    reason="worker_retreat_base_threat",
+                ))
+
+        focus_target = self._focus_target(
+            base_threats or leader_threats or enemies,
+            leader,
+        )
+        for index, unit in enumerate(sorted(combat_units, key=lambda item: item["entity_id"])):
+            uid = unit["entity_id"]
+            if mode in {AllyMode.DEFEND_BASE, AllyMode.ASSIST_ATTACK} and focus_target is not None:
+                if self._has_attack_order(unit, focus_target["entity_id"]):
+                    continue
                 actions.append(AllyAction(
                     uid,
                     "attack",
-                    target_entity_id=target["entity_id"],
-                    reason=mode_reason,
+                    target_entity_id=focus_target["entity_id"],
+                    reason=f"{mode_reason}:focus_fire",
                 ))
                 continue
 
@@ -501,13 +563,18 @@ class AllyPolicy:
             if mode == AllyMode.HOLD:
                 actions.append(AllyAction(uid, "hold", reason="player_hold"))
             elif destination is not None:
+                formation_destination = self._formation_destination(
+                    destination,
+                    index,
+                    mode,
+                )
                 kind = "follow" if mode == AllyMode.FOLLOW else "move"
                 actions.append(AllyAction(
                     uid,
                     kind,
-                    target_x=destination[0],
-                    target_y=destination[1],
-                    reason=mode_reason,
+                    target_x=formation_destination[0],
+                    target_y=formation_destination[1],
+                    reason=f"{mode_reason}:formation",
                 ))
             else:
                 actions.append(AllyAction(uid, "hold", reason="leader_not_visible"))
@@ -517,6 +584,53 @@ class AllyPolicy:
             self._action_history.pop(0)
         self._last_actions = actions
         return actions
+
+    @staticmethod
+    def _from_defend_action(action: DefendAction) -> AllyAction:
+        return AllyAction(
+            entity_id=action.entity_id,
+            kind=action.kind,
+            target_entity_id=action.target_entity_id,
+            target_x=action.target_x,
+            target_y=action.target_y,
+            unit_type_id=action.unit_type_id,
+            reason=action.reason,
+        )
+
+    @staticmethod
+    def _focus_target(candidates: list[dict], leader: Optional[dict]) -> Optional[dict]:
+        if not candidates:
+            return None
+        anchor = leader or candidates[0]
+        return min(
+            candidates,
+            key=lambda candidate: (
+                int(candidate.get("health", 0)),
+                AllyPolicy._dist(
+                    candidate["x"], candidate["y"], anchor["x"], anchor["y"]
+                ),
+                int(candidate["entity_id"]),
+            ),
+        )
+
+    @staticmethod
+    def _formation_destination(
+        destination: tuple[float, float], index: int, mode: AllyMode
+    ) -> tuple[float, float]:
+        """Return deterministic line/wedge slots instead of stacking units."""
+        x, y = destination
+        slot = int(index) // 2 + 1
+        lateral = (-1.0 if index % 2 == 0 else 1.0) * float(slot)
+        depth = 1.5 if mode == AllyMode.REGROUP else 1.0
+        return x + lateral, y - depth * slot
+
+    @staticmethod
+    def _has_attack_order(unit: dict, target_entity_id: int) -> bool:
+        return any(
+            order.get("ability_id") == "Attack"
+            and int(order.get("target_unit_tag", 0)) == int(target_entity_id)
+            for order in unit.get("orders", [])
+        )
 
     def _record_mode(self, mode: AllyMode, reason: str) -> None:
         self._mode = mode
@@ -599,6 +713,7 @@ class ActionAdapter:
                 entity_id=a.entity_id, kind=a.kind,
                 target_entity_id=a.target_entity_id,
                 target_x=a.target_x, target_y=a.target_y,
+                unit_type_id=a.unit_type_id,
                 reason=a.reason, issue_loop=loop,
                 dispatch_loop=loop + self.latency_loops,
             )
@@ -681,7 +796,65 @@ class ActionAdapter:
                 return DispatchResult(qc.entity_id, qc.kind, False,
                                       f"dispatch_error:{type(e).__name__}",
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
-        # 5) 未知 kind
+        # 5) Native worker economy and producer queues.  A target id of zero
+        # means the nearest visible mineral field, matching the simulator
+        # policy contract; refinery targets remain explicit entity ids.
+        if qc.kind == "gather":
+            target_entity_id = qc.target_entity_id
+            if target_entity_id == 0:
+                minerals = [
+                    entity for entity in world.entities.values()
+                    if entity.is_alive and entity.unit_type_id == "MineralField"
+                ]
+                if not minerals:
+                    return DispatchResult(qc.entity_id, qc.kind, False, "no_resource",
+                                          qc.issue_loop, qc.dispatch_loop, qc.reason)
+                target_entity_id = min(
+                    minerals,
+                    key=lambda entity: (
+                        (entity.x.raw - unit.x.raw) ** 2
+                        + (entity.y.raw - unit.y.raw) ** 2,
+                        entity.entity_id,
+                    ),
+                ).entity_id
+            target = world.get_entity(target_entity_id)
+            if target is None or not target.is_alive:
+                return DispatchResult(qc.entity_id, qc.kind, False, "invalid_target",
+                                      qc.issue_loop, qc.dispatch_loop, qc.reason)
+            try:
+                self.session.unit_order(
+                    [qc.entity_id],
+                    "smart",
+                    issuer_player_id=self.controlled_player_id or issuer,
+                    target_entity_id=target_entity_id,
+                )
+                return DispatchResult(qc.entity_id, qc.kind, True, None,
+                                      qc.issue_loop, qc.dispatch_loop, qc.reason)
+            except Exception as e:  # noqa: BLE001
+                return DispatchResult(qc.entity_id, qc.kind, False,
+                                      f"dispatch_error:{type(e).__name__}",
+                                      qc.issue_loop, qc.dispatch_loop, qc.reason)
+        if qc.kind in {"build", "train"}:
+            if not qc.unit_type_id:
+                return DispatchResult(qc.entity_id, qc.kind, False, "missing_unit_type",
+                                      qc.issue_loop, qc.dispatch_loop, qc.reason)
+            try:
+                self.session.unit_order(
+                    [qc.entity_id],
+                    qc.kind,
+                    issuer_player_id=self.controlled_player_id or issuer,
+                    target_entity_id=qc.target_entity_id,
+                    target_x=qc.target_x,
+                    target_y=qc.target_y,
+                    unit_type_id=qc.unit_type_id,
+                )
+                return DispatchResult(qc.entity_id, qc.kind, True, None,
+                                      qc.issue_loop, qc.dispatch_loop, qc.reason)
+            except Exception as e:  # noqa: BLE001
+                return DispatchResult(qc.entity_id, qc.kind, False,
+                                      f"dispatch_error:{type(e).__name__}",
+                                      qc.issue_loop, qc.dispatch_loop, qc.reason)
+        # 6) 未知 kind
         return DispatchResult(qc.entity_id, qc.kind, False, "unknown_kind",
                               qc.issue_loop, qc.dispatch_loop, qc.reason)
 
@@ -716,6 +889,7 @@ def run_ally_scenario(
     player_commands: Optional[Iterable[dict | str]] = None,
     replay_log_path: Optional[str | Path] = None,
     replay_log_interval: int = 1,
+    simulator_overlay: Optional[object] = None,
 ) -> AllyRunResult:
     """跑一个盟友 AI 场景。
 
@@ -745,6 +919,19 @@ def run_ally_scenario(
     s = SimulatorSession()
     s.scenario_load(scenario_dict=scenario_dict, catalog="m7")
     s.scenario_reset()
+    if simulator_overlay is not None:
+        start = getattr(simulator_overlay, "start", None)
+        if start is not None:
+            start(s, scenario_dict)
+    lightweight_map_replay = bool(
+        simulator_overlay is not None
+        and getattr(simulator_overlay, "lightweight", False)
+        and not any(
+            int(entity.owner_player_id) == int(ally_player_id)
+            and entity.is_alive
+            for entity in s.world.entities.values()
+        )
+    )
     adapter = ActionAdapter(
         s,
         latency_loops=latency_loops,
@@ -832,6 +1019,12 @@ def run_ally_scenario(
                     "source_y": source_spawn.get("y"),
                     "resource_amount": source_spawn.get("resource_amount"),
                 })
+            if simulator_overlay is not None:
+                decorate = getattr(simulator_overlay, "decorate_entity", None)
+                if decorate is not None:
+                    decorated = decorate(entity, entity_record)
+                    if decorated is not None:
+                        entity_record = decorated
             grouped.setdefault(str(entity.owner_player_id), []).append(entity_record)
         return grouped
 
@@ -869,7 +1062,8 @@ def run_ally_scenario(
 
     def _capture_replay_frame(loop: int, events: Optional[list[dict]] = None) -> bool:
         nonlocal replay_frames
-        if replay_log_path is None or replay_frames % max(1, int(replay_log_interval)) != 0:
+        should_capture = bool(events) or replay_frames % max(1, int(replay_log_interval)) == 0
+        if replay_log_path is None or not should_capture:
             replay_frames += 1
             return False
         p1_alive, p1_types = _count_units({int(leader_player_id)})
@@ -911,6 +1105,12 @@ def run_ally_scenario(
             "context": p2_observation,
             "ally_mode": policy.mode.value,
         }
+        if simulator_overlay is not None:
+            frame_state = getattr(simulator_overlay, "frame_state", None)
+            if frame_state is not None:
+                overlay_state = frame_state(loop)
+                if overlay_state:
+                    frame.update(dict(overlay_state))
         replay_frames += 1
         replay_frame_records.append(frame)
         return True
@@ -920,6 +1120,12 @@ def run_ally_scenario(
 
     while not s.terminated and s.world.clock.now.loop < max_loops:
         loop = s.world.clock.now.loop
+
+        if simulator_overlay is not None:
+            before_step = getattr(simulator_overlay, "before_step", None)
+            if before_step is not None:
+                overlay_events = before_step(s, loop) or []
+                replay_events.extend(overlay_events)
 
         # 1) 分发到期命令（在本 loop 模拟前生效）
         dispatched = adapter.dispatch_due(loop)
@@ -956,9 +1162,10 @@ def run_ally_scenario(
         if dispatched_ok > max_cmds_per_loop:
             max_cmds_per_loop = dispatched_ok
 
-        # 2) 取 Observation（仅玩家可见状态）
+        # 2) 取 Observation（仅玩家可见状态）。严格地图回放没有 P2 原生单位，
+        # 只在采样帧构造观察；通用盟友场景仍每 loop 走完整策略路径。
         from ..contracts import Observation
-        obs = Observation.from_world(s.world, ally_player_id)
+        obs = None if lightweight_map_replay else Observation.from_world(s.world, ally_player_id)
 
         # 3) 从 P1 命令通道接收本 loop 的指令，再让 P2 策略决策。
         for scheduled in scheduled_commands.get(loop, []):
@@ -998,83 +1205,103 @@ def run_ally_scenario(
                 "mode": notice.mode,
             })
 
-        # 4) 验证策略不访问隐藏状态：动作实体必须是 P2 自有或可见目标。
-        actions = policy.decide(obs, loop)
-        own_ids = {u["entity_id"] for u in obs.own_units}
-        visible_ids = own_ids | {
-            entity["entity_id"] for entity in obs.visible_enemies + obs.visible_allies
-        }
-        for a in actions:
-            if a.entity_id not in own_ids:
-                hidden_violations += 1
-            if a.target_entity_id and a.target_entity_id not in visible_ids:
-                hidden_violations += 1
-
-        # 5) 入队新命令
-        receipts = adapter.issue(actions, loop)
-        queued_this_loop = len(receipts)
-        receipts_by_entity = {int(receipt["entity_id"]): receipt for receipt in receipts}
-        for action in actions:
-            receipt = receipts_by_entity.get(int(action.entity_id))
-            replay_action = {
-                "record_type": "action",
-                "action_id": f"p2-action-{len(replay_actions) + 1:03d}",
-                "name": f"P2 {action.kind}",
-                "kind": "ally_action",
-                "loop": int(loop),
-                "owner": int(policy.player_id),
-                "issuer_player_id": int(policy.player_id),
-                "entity_id": int(action.entity_id),
-                "reason": action.reason,
-                "arguments": {
-                    "kind": action.kind,
-                    "target_entity_id": int(action.target_entity_id),
-                    "target_x": action.target_x,
-                    "target_y": action.target_y,
-                },
-                "accepted": receipt is not None,
-                "queued": receipt,
-                "dispatched": None,
-                "mode": policy.mode.value,
+        actions = []
+        queued_this_loop = 0
+        if not lightweight_map_replay:
+            # 4) 验证策略不访问隐藏状态：动作实体必须是 P2 自有或可见目标。
+            actions = policy.decide(obs, loop)
+            own_ids = {u["entity_id"] for u in obs.own_units}
+            visible_ids = own_ids | {
+                entity["entity_id"] for entity in obs.visible_enemies + obs.visible_allies
             }
-            replay_actions.append(replay_action)
-            if receipt is not None:
-                replay_action_by_key[(int(loop), int(action.entity_id), str(action.kind))] = replay_action
-            replay_events.append({
-                "loop": int(loop),
-                "kind": "p2_action_queued",
-                "entity_id": int(action.entity_id),
-                "command_kind": action.kind,
-                "accepted": receipt is not None,
-                "issuer_player_id": int(policy.player_id),
-                "reason": action.reason,
-            })
+            for a in actions:
+                if a.entity_id not in own_ids:
+                    hidden_violations += 1
+                if a.target_entity_id and a.target_entity_id not in visible_ids:
+                    hidden_violations += 1
+
+            # 5) 入队新命令
+            receipts = adapter.issue(actions, loop)
+            queued_this_loop = len(receipts)
+            receipts_by_entity = {int(receipt["entity_id"]): receipt for receipt in receipts}
+            for action in actions:
+                receipt = receipts_by_entity.get(int(action.entity_id))
+                replay_action = {
+                    "record_type": "action",
+                    "action_id": f"p2-action-{len(replay_actions) + 1:03d}",
+                    "name": f"P2 {action.kind}",
+                    "kind": "ally_action",
+                    "loop": int(loop),
+                    "owner": int(policy.player_id),
+                    "issuer_player_id": int(policy.player_id),
+                    "entity_id": int(action.entity_id),
+                    "reason": action.reason,
+                    "arguments": {
+                        "kind": action.kind,
+                        "target_entity_id": int(action.target_entity_id),
+                        "target_x": action.target_x,
+                        "target_y": action.target_y,
+                        "unit_type_id": action.unit_type_id,
+                    },
+                    "accepted": receipt is not None,
+                    "queued": receipt,
+                    "dispatched": None,
+                    "mode": policy.mode.value,
+                }
+                replay_actions.append(replay_action)
+                if receipt is not None:
+                    replay_action_by_key[(int(loop), int(action.entity_id), str(action.kind))] = replay_action
+                replay_events.append({
+                    "loop": int(loop),
+                    "kind": "p2_action_queued",
+                    "entity_id": int(action.entity_id),
+                    "command_kind": action.kind,
+                    "accepted": receipt is not None,
+                    "issuer_player_id": int(policy.player_id),
+                    "reason": action.reason,
+                })
 
         # 6) 死锁检测：连续 N loop 既无分发又无 pending（AI 完全停滞）
         #    只 pending 未到期的命令不算死锁（在等延迟）
-        if dispatched_ok == 0 and adapter.pending_count == 0 and queued_this_loop == 0:
+        if not lightweight_map_replay and dispatched_ok == 0 and adapter.pending_count == 0 and queued_this_loop == 0:
             deadlock_loops += 1
         else:
             deadlock_loops = 0
 
-        decisions.append(AllyDecisionTrace(
-            loop=loop,
-            observation={"own_count": len(obs.own_units),
-                         "enemy_count": len(obs.visible_enemies)},
-            actions=actions,
-            rejected_over_limit=adapter.rejected_over_limit,
-            queued_this_loop=queued_this_loop,
-            dispatched_this_loop=dispatched_ok,
-            dispatch_errors_this_loop=errors_this_loop,
-            pending_in_queue=adapter.pending_count,
-            safety_flags={"deadlock_loops": deadlock_loops,
-                          "dispatched_ok": dispatched_ok},
-            mode=policy.mode.value,
-        ))
+        if not lightweight_map_replay:
+            decisions.append(AllyDecisionTrace(
+                loop=loop,
+                observation={"own_count": len(obs.own_units),
+                             "enemy_count": len(obs.visible_enemies),
+                             "own_units": [
+                                 {
+                                     "entity_id": int(unit["entity_id"]),
+                                     "unit_type_id": unit.get("unit_type_id", ""),
+                                 }
+                                 for unit in obs.own_units
+                             ]},
+                actions=actions,
+                rejected_over_limit=adapter.rejected_over_limit,
+                queued_this_loop=queued_this_loop,
+                dispatched_this_loop=dispatched_ok,
+                dispatch_errors_this_loop=errors_this_loop,
+                pending_in_queue=adapter.pending_count,
+                safety_flags={"deadlock_loops": deadlock_loops,
+                              "dispatched_ok": dispatched_ok},
+                mode=policy.mode.value,
+            ))
 
         # 7) 推进一 loop（长跑时禁快照：scenario_step 每次建 SnapshotHandle 会序列化 growing
         #    events/command_results，导致 O(N²)；长跑 13200 loop 时单 loop 从 0.07ms 飙到 30ms）
-        s.scenario_step(1, snapshot=False)
+        if lightweight_map_replay and hasattr(s, "scenario_step_movement_only"):
+            s.scenario_step_movement_only()
+        else:
+            s.scenario_step(1, snapshot=False)
+        if simulator_overlay is not None:
+            after_step = getattr(simulator_overlay, "after_step", None)
+            if after_step is not None:
+                after_events = after_step(s, s.world.clock.now.loop) or []
+                replay_events.extend(after_events)
         if _capture_replay_frame(s.world.clock.now.loop, replay_events):
             replay_events = []
 
@@ -1112,6 +1339,7 @@ def run_ally_scenario(
                 for spawn in scenario_dict.get("spawns", [])
                 if int(spawn.get("owner_player_id", -1)) == int(ally_player_id)
             ),
+            "simulation_step_mode": "movement_only_map_overlay" if lightweight_map_replay else "full_simulator",
         }
         summary = {
             "record_type": "summary",
@@ -1146,10 +1374,25 @@ def run_ally_scenario(
             "roster_ready": roster.valid,
             "roster_issues": list(roster.issues),
         }
+        if simulator_overlay is not None:
+            overlay_summary = getattr(simulator_overlay, "summary", None)
+            if overlay_summary is not None:
+                summary["simulator_overlay"] = dict(overlay_summary())
         with path.open("w", encoding="utf-8") as replay_file:
             for record in [header, *replay_frame_records, *replay_actions, summary]:
                 replay_file.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
 
+    action_kind_counts: dict[str, int] = {}
+    for result in adapter.dispatch_history:
+        if result.dispatched:
+            action_kind_counts[result.kind] = action_kind_counts.get(result.kind, 0) + 1
+    event_kinds = [str(getattr(event, "kind", "")) for event in s.world.events.emitted]
+    final_units_by_type: dict[str, int] = {}
+    for entity in s.world.entities.values():
+        if entity.is_alive and entity.owner_player_id == int(ally_player_id):
+            final_units_by_type[entity.unit_type_id] = (
+                final_units_by_type.get(entity.unit_type_id, 0) + 1
+            )
     return AllyRunResult(
         end_loop=s.world.clock.now.loop,
         end_reason=getattr(s, "end_reason", "") or "max_loops_reached",
@@ -1171,6 +1414,10 @@ def run_ally_scenario(
         friendly_fire_rejections=adapter.friendly_fire_rejections,
         replay_path=replay_path,
         replay_frame_count=len(replay_frame_records),
+        action_kind_counts=action_kind_counts,
+        event_kinds=event_kinds,
+        final_units_by_type=final_units_by_type,
+        final_resources=s.query_player(int(ally_player_id))["resources"],
     )
 
 

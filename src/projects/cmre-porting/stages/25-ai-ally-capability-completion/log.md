@@ -29,6 +29,27 @@ cooperative AI ally behavior has begun.
   P2 runtime probe remains blocked by the protected launcher lease and is kept
   separate below; no P2 runtime action is promoted from this run.
 
+## Native Runtime Topology Probe 2026-08-02
+
+- `runtime`: the approved launcher started a fresh isolated map on port `5200`,
+  passed its ready gate, and reported no new ScriptError at startup. The P1
+  anchor completed `CreateGame` and `JoinGame` as player `1`.
+- `blocked`: the anchor's `GameInfo` roster contained only P1. The second
+  `run_dead_of_night_live.py --join-existing --multiplayer-ports` runner got
+  `Already in a game`; its observation fallback remained player `1`, so the
+  fail-closed P2 ownership assertion stopped before any native action was sent.
+- `blocked`: this isolates the remaining live gap to participant topology: a
+  second websocket into the same single `SC2_x64` client/window does not create
+  a second participant. The runtime result is not a strategy failure and is
+  not promoted to native P2 evidence. The launcher and SC2 process started by
+  this probe were stopped after capture.
+- `blocked`: evidence is recorded at
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/runtime-topology-verdict.json`.
+- `inference`: the next runtime attempt needs two independent SC2 participant
+  client processes/API endpoints, with P1 retaining CreateGame and P2 joining
+  as the second participant, before native gather/train/move/attack can be
+  evaluated.
+
 ## Evidence
 
 - `static`: Stage 25 plan and write scope were reviewed before editing.

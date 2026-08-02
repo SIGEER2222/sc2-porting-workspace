@@ -185,6 +185,10 @@ class Observation:
     mission: dict  # 任务/目标摘要（P4D 填充；P1 仅占位）
     visible_allies: list[dict] = field(default_factory=list)
     alliance_summary: list[dict] = field(default_factory=list)
+    # Neutral resources are part of the visible tactical surface.  Keeping
+    # them on Observation prevents policies from reaching into WorldState.
+    mineral_fields: list[dict] = field(default_factory=list)
+    vespene_geysers: list[dict] = field(default_factory=list)
 
     @classmethod
     def from_world(cls, world, player_id: int) -> "Observation":
@@ -194,6 +198,7 @@ class Observation:
         vis = [
             _entity_brief(e, world)
             for e in vision_system.visible_enemies(world, player_id)
+            if not _is_neutral_entity(world, e)
         ]
         allies = [
             _entity_brief(e, world)
@@ -201,6 +206,13 @@ class Observation:
             if e.is_alive
             and e.owner_player_id != player_id
             and world.players.is_ally(player_id, e.owner_player_id)
+            and vision_system.is_visible(world, player_id, e)
+        ]
+        visible_resources = [
+            _entity_brief(e, world)
+            for e in world.entities.values()
+            if e.is_alive
+            and e.unit_type_id in {"MineralField", "VespeneGeyser"}
             and vision_system.is_visible(world, player_id, e)
         ]
         res = world.get_resources(player_id).snapshot()
@@ -237,6 +249,14 @@ class Observation:
             mission={"win_condition": getattr(world, "_win_condition", "annihilation")},
             visible_allies=allies,
             alliance_summary=alliance_summary,
+            mineral_fields=[
+                resource for resource in visible_resources
+                if resource["unit_type_id"] == "MineralField"
+            ],
+            vespene_geysers=[
+                resource for resource in visible_resources
+                if resource["unit_type_id"] == "VespeneGeyser"
+            ],
         )
 
 
@@ -262,9 +282,65 @@ def _entity_brief(e, world=None) -> dict:
         try:
             ut = world.catalog.get(e.unit_type_id)
             d["max_health"] = ut.max_health.raw
+            d["build_progress"] = (
+                1.0
+                if e.build_total_loops <= 0
+                else min(1.0, e.build_progress / e.build_total_loops)
+            )
         except Exception:  # noqa: BLE001 — catalog 缺失时优雅降级
             d["max_health"] = 0
+            d["build_progress"] = 1.0
+
+        # Mirror the subset of SC2 raw orders consumed by the strategy.  The
+        # old facade omitted this state, so a producer or builder looked idle
+        # on every observation and received duplicate commands.
+        orders: list[dict] = []
+        state = e.state.value if hasattr(e.state, "value") else str(e.state)
+        unit_type = world.catalog.get(e.unit_type_id)
+        has_weapon = (
+            getattr(unit_type, "weapon_ground", None) is not None
+            or getattr(unit_type, "weapon_air", None) is not None
+        )
+        if e.attack_target_id and has_weapon:
+            orders.append({
+                "ability_id": "Attack",
+                "target_unit_tag": int(e.attack_target_id),
+            })
+        elif state == "building" and e.build_target_id:
+            orders.append({
+                "ability_id": "Build",
+                "target_unit_tag": int(e.build_target_id),
+                "unit_type_id": e.build_product_unit_id,
+            })
+        elif state == "gathering" and e.gather_target_id:
+            orders.append({
+                "ability_id": "Smart",
+                "target_unit_tag": int(e.gather_target_id),
+            })
+        elif e.production_queue or e.secondary_production_queue:
+            queue = e.production_queue or e.secondary_production_queue
+            item = queue[0]
+            orders.append({
+                "ability_id": "Train",
+                "unit_type_id": item.product_unit_id,
+                "remaining_loops": int(item.remaining_loops),
+            })
+        d["orders"] = orders
     return d
+
+
+def _is_neutral_entity(world, entity) -> bool:
+    """Keep neutral map objects out of the policy's hostile-unit view.
+
+    The read-only simulator's player relation primitive treats every
+    non-ally owner as hostile, including player 0 neutral resources.  The
+    project-owned observation contract must preserve the SC2 distinction:
+    neutral resources are exposed through ``mineral_fields``/``vespene_geysers``
+    but are never tactical enemies.
+    """
+    unit_type = world.catalog.get(entity.unit_type_id)
+    race = getattr(unit_type, "race", "")
+    return getattr(race, "value", race) == "neutral"
 
 
 # ---------------------------------------------------------------------------
