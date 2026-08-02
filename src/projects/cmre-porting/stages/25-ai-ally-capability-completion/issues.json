@@ -6,7 +6,7 @@
       "id": "RUNTIME-P2-NATIVE-VALIDATION-BLOCKED",
       "severity": "medium",
       "status": "blocked",
-      "title": "Fresh corrected P2 native runtime is blocked by SC2 installation repair",
+      "title": "Fresh corrected P2 native runtime is blocked by participant topology",
       "detail": "The P2 native-task simulator is PASS across seeds 42, 7, and 99, but fresh two-client native SC2 validation remains blocked at participant topology/JoinGame ownership. The runner polls GameInfo until a second client joins, uses explicit P1/P2 server/client port tuples, and fails closed unless the strategy observes player_id=2. The post-reinstall single-client Ability VM passed on port 5310, but it is debug injection evidence and does not satisfy native P2 acceptance. The historical native report remains invalid because it operated P1 and issued SCV attacks.",
       "evidence_type": "blocked",
       "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-native-20260802/topology-blocked.json",
@@ -106,6 +106,17 @@
       "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-followup-20260802/topology-handshake-blocked.json",
       "owner": "stage25",
       "nextAction": "Reproduce the complete python-sc2 multi-process launch contract or identify a runtime configuration that exposes a real second Participant; require player_id=2 and GameInfo roster before native task actions."
+    },
+    {
+      "id": "RUNTIME-P2-PRIMARY-LEASE-RETRY-20260802",
+      "severity": "medium",
+      "status": "blocked",
+      "title": "Independent P1/P2 retry rejected by protected runtime lease",
+      "detail": "The approved primary launcher on API port 5620 exited with SC2_RUNTIME_BUSY before SC2 launch. Existing lease runtimePid=19648, port=5600, ownerPid=40128, state=keepalive, session=cmre_alenger-20260802-223507-9f170899. The secondary port 5621 was not attempted because no independent P1 anchor was created.",
+      "evidence_type": "blocked",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/primary-secondary-blocked.json",
+      "owner": "environment",
+      "nextAction": "After the protected lease is released by its owner, rerun the approved primary 5620 plus secondary 5621 launcher window and require player_id=2, reciprocal alliance roster, RequestStep frame deltas, P2-owned native actions, native replay, and same-window ScriptError evidence."
     }
   ]
 }

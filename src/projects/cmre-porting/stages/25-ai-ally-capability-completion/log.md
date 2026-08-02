@@ -5,6 +5,20 @@
 In progress. The stage is active because implementation of the requested P1/P2
 cooperative AI ally behavior has begun.
 
+## Verification Loop 2026-08-02 Independent Primary/Secondary Retry
+
+- `blocked`: the approved primary launcher attempt used API port `5620` and
+  isolated map suffix `stage25-p2-retry-5620`. It exited with
+  `SC2_RUNTIME_BUSY` before SC2 launch because the existing protected lease
+  owns runtime PID `19648`, port `5600`, owner PID `40128`, and session
+  `cmre_alenger-20260802-223507-9f170899` in `keepalive` state.
+- `blocked`: because no independent P1 anchor was created, the legal secondary
+  P2 join on port `5621` was not attempted. No CreateGame, JoinGame,
+  participant/alliance roster, RequestStep, P2-owned action/state delta,
+  native replay, or same-window ScriptError result exists for this retry.
+- `blocked`: the existing PID/lease was not terminated, replaced, or reused.
+  Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/primary-secondary-blocked.json`.
+
 ## Native P1/P2 Client Topology Repair 2026-08-02
 
 - `static`: `run_dead_of_night_live.py` now exposes a real `--anchor` mode. It
@@ -737,3 +751,41 @@ Evidence:
 
 Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-followup-20260802/topology-handshake-blocked.json`.
+
+## Verification Loop 2026-08-02 Ladder Same-Batch Budget Repair
+
+- `simulator`: the failure-first ladder run reached
+  `enemy_elimination`, but one `SupplyDepot` order was rejected with
+  `sim_error:insufficient_minerals` because the ladder macro layer did not
+  account for a same-batch 100-mineral Hellion order. The rejection was
+  observed at loop `2857` for `ladder_SupplyDepot5`; the victory result was
+  therefore not accepted as clean.
+- `static`: `LadderAI._action_cost()` now uses the existing
+  `DefendBasePolicy` cost tables to subtract same-batch train/build/research
+  commitments before adding expansion, production, or supply orders. This
+  keeps the real simulator budget check authoritative and avoids suppressing
+  dispatch errors.
+- `simulator`: the focused ladder suite passed with `4 passed`; complete
+  victory and deterministic seed checks now report an empty error breakdown.
+- `static`: the combined Stage 25 AI ally, ladder, and Debug VM suites passed
+  with `38 passed`.
+- `static`: the cross-stage regression collection passed with `130 passed` and
+  `6 subtests passed`, covering Stage 19/20/22/23, Stage 25, Debug VM, Galaxy
+  kernel, launcher, and live-runner adapter tests.
+- `static`: `run-all-validation.ps1` passed `52/52` checks with zero warnings
+  after the ladder budget fix.
+- `simulator`: the post-fix CMRE matrix passed `15/15` maps at seed `42` and
+  `max_loops=320`. Every map reached `TACTICAL_PASS`; each run reported zero
+  dispatch errors, deadlock, command storm, friendly-fire, and hidden-state
+  violations. The matrix is simulator-only and does not claim native mission
+  completion.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-map-matrix-20260802-rerun/matrix-summary.json`,
+`src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ladder_ai.py`,
+`src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py`.
+
+- `blocked`: corrected native P2 gather/train/move/attack validation remains
+  open because the approved dual-client SC2 JoinGame path still does not
+  expose a participant-owned `player_id=2`; simulator passes do not close
+  this runtime gate.
