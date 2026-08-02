@@ -211,3 +211,20 @@ def test_launcher_serializes_sc2_runtime_and_never_kills_an_existing_instance():
     assert 'ReleaseMutex()' in source
     assert 'Stop-RunningSc2' not in source
     assert 'Get-Process -Name "SC2","StarCraft II"' not in source
+
+
+def test_secondary_client_does_not_mutate_shared_runtime_banks():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "if (-not $SecondaryClient) {\n        Reset-CmreRuntimeListenerBank" in source
+    assert "SecondaryClient: skipping shared runtime listener bank reset" in source
+    assert "SecondaryClient: skipping shared CMRE launch profile bank write" in source
+    assert "SecondaryClient: skipping shared CampaignXCore bank writes" in source
+
+
+def test_api_port_owner_is_scalar_before_pid_conversion():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "$portOwner = @(Get-NetTCPConnection" in source
+    assert "$ownerPid = @($portOwner.OwningProcess) | Select-Object -First 1" in source
+    assert "$proc = @(Get-Process -Id ([int]$ownerPid)" in source

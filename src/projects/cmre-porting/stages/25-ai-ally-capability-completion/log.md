@@ -5,6 +5,37 @@
 In progress. The stage is active because implementation of the requested P1/P2
 cooperative AI ally behavior has begun.
 
+## Native P1/P2 Client Topology Repair 2026-08-02
+
+- `static`: `run_dead_of_night_live.py` now exposes a real `--anchor` mode. It
+  creates a two-participant P1/P2 game, joins P1 with explicit server/client
+  ports, and sends real P1 `!ally` chat commands while the second client runs
+  the P2 strategy.
+- `static`: the P2 runner remains fail-closed on `player_id != 2`, joins only
+  through `--join-existing --multiplayer-ports`, and now parses P1 commands
+  through the project-owned `AllyPolicy`. It emits P2 acknowledgements to the
+  team chat and records command, signal, and mode traces. Economy/build/train
+  actions remain P2-owned `DefendBasePolicy` actions; tactical overrides are
+  filtered to P2 combat units, so SCVs cannot be selected as attack issuers.
+- `static`: `launch-cmre-alenger.ps1` now has an explicit
+  `-SecondaryClient` mode. It uses a per-port mutex, skips the primary
+  runtime/test lock and shared mod/Bank writes, does not replace the primary
+  runtime lease, and still starts the second SC2 API client only through the
+  approved launcher.
+- `static`: the secondary launcher staging smoke passed and produced an
+  isolated map copy with no primary lease replacement. Evidence:
+  `src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-native-20260802/topology-blocked.json`.
+- `blocked`: a fresh primary attempt on port `5203` was rejected before
+  CreateGame by the protected PID `23896` / port `5196` lease. A handshake
+  against that protected port was disconnected, so it was not reused or
+  terminated. The prior single-client attempt on `5201` correctly received
+  `player_id=1` and failed closed before actions. Evidence:
+  `src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-native-20260802/topology-blocked.json`.
+- `blocked`: no fresh P2 action, P1/P2 native roster, or same-window ScriptError
+  verdict is claimed from these attempts. The next runtime command must launch
+  a primary approved client and a secondary approved client on separate API
+  ports, then run the P1 anchor and P2 `--join-existing` runner together.
+
 ## Native Task Simulator Verification 2026-08-02
 
 - `simulator`: the project-owned native task now controls P2 explicitly and
@@ -435,3 +466,81 @@ protected 5153 Debug VM window cannot satisfy this gate.
   passed`; launcher/kernel tests pass with `63 passed`; `run-all-validation.ps1`
   passes `52/52` with zero warnings; changed modules compile and `git diff
   --check` passes.
+
+## Verification Loop 2026-08-02 Native P2 Topology and Replay Contract
+
+- `static`: `run_p1_anchor` now polls authoritative `GameInfo` until the
+  second participant completes `JoinGame`; a single read before P2 joins is no
+  longer treated as a topology failure. The P1 and P2 clients retain distinct
+  server/client port tuples and P2 remains fail-closed on `player_id != 2`.
+- `static`: `-SecondaryClient` skips shared runtime listener, launch-profile,
+  and CampaignXCore Bank writes while staging its isolated map copy. Launcher
+  static tests and Python compilation pass.
+- `static`: live runtime JSONL now exports current P1/P2/enemy/neutral entity
+  coordinates, health, owner, and alive state, plus a map metadata header and
+  auditable runtime summary. `--replay-log` exposes the path to the existing
+  `vibe.replay_player` HTML renderer. The unit contract proves a P2 entity can
+  move in the generated browser timeline; this is not native runtime evidence.
+- `static`: Stage 25/19/20 regression passes with `38 passed, 3 subtests`; the
+  Stage 22/23, launcher, and kernel suite passes with `82 passed, 3 subtests`;
+  `run-all-validation.ps1` passes `52/52`; replay/live runner compilation and
+  `git diff --check` pass.
+- `blocked`: the attempted real two-client run reused pre-existing ports
+  `5196` and `5210`, but both windows exited between the read-only port check
+  and websocket handshake. No CreateGame, JoinGame, P2 action, or ScriptError
+  claim was made. Other concurrent secondary keepalive windows were left
+  untouched. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-pass8-20260802/topology-handshake-blocked.json`.
+
+## Verification Loop 2026-08-02 Failure-First and Port-Owner Repair
+
+- `static`: the requested failure-first cross-stage regression initially
+  exposed one determinism failure: `111 passed, 6 subtests passed, 1 failed`;
+  seed `42` observed `move=54, attack=1` instead of the expected `attack=2`.
+  The isolated test and the full regression rerun both passed, so no assertion
+  was weakened and the transient failure is retained as a test-order/flakiness
+  signal for follow-up.
+- `static`: after the launcher port-owner repair, the Stage 25 focused plus
+  Stage 19/20/22/23/kernel/launcher regression passed with `112 passed, 6
+  subtests passed`; launcher/kernel subset passed with `58 passed`.
+- `static`: PowerShell parser validation passed, `run-all-validation.ps1`
+  passed `52/52`, and the Stage 25 runtime/policy modules compiled.
+- `runtime`: the approved secondary-client launcher probe on port `5220`
+  staged the map and started SC2 through the launcher, but the API port did not
+  listen within 120 seconds and the launcher exited nonzero. No runtime
+  listener, heartbeat, or native P2 action is claimed from this probe.
+  Port `5215` was rejected before launch because it was already occupied.
+  Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-secondary-port-owner-fix-20260802/launcher-output.txt`.
+
+## Verification Loop 2026-08-02 Follow-up Failure and Formation Boundary Fix
+
+- `static`: the next full regression first failed in
+  `test_p2_receives_commands_and_transitions_across_cooperative_modes` with
+  `total_dispatched=0`. Isolated reproduction showed that the policy emitted
+  formation targets `(-1,-1)` and `(1,-1)` for a leader at `(0,0)`; the typed
+  simulator transport correctly rejected those targets as `invalid_target`.
+- `static`: the existing `AllyPolicy._formation_destination` boundary repair
+  now clamps formation coordinates to the non-negative SC2 playable space.
+  The isolated failure test passed after the repair, with no assertion change.
+- `static`: the complete Stage 25/19/20/22/23, kernel, launcher, and live
+  runner regression passed with `120 passed, 6 subtests passed`; PowerShell
+  parser validation passed and `run-all-validation.ps1` passed `52/52` with
+  zero warnings. Runtime native P2 validation remains separately blocked by
+  the protected lease and is not promoted by this static pass.
+
+## Verification Loop 2026-08-02 Fresh Native P2 Launcher Crash
+
+- `blocked`: a fresh approved launcher attempt used API port `5230` and an
+  isolated map copy. Staging completed, but `SC2_x64` crashed before the API
+  port listened, so no CreateGame, JoinGame, participant roster, P2 action, or
+  replay claim was made.
+- `runtime`: the same-window GameLog `NGDP.txt` reported
+  `e_fileCorruptRepairable (NGDP:E_REPAIR)` and
+  `repair marker detected in SC2Data (EEV_REPAIR_CONTAINER)`. The installation
+  contains `SC2Data/CASCRepair.mrk`; this is an installation-level blocker,
+  separate from the P2 topology contract.
+- `simulator`: the fresh local regression remains green (`37 passed`), with
+  Python compilation, `git diff --check`, and Stage 25 JSON parsing passing.
+- `blocked`: native P2 acceptance remains open. The launcher/GameLog evidence
+  is retained at
+  `src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-native-next-20260802/launch-crash-blocked.json`.

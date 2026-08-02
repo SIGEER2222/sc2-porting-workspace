@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "")
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient)
 # -MapCopySuffix: 可选的地图副本后缀，用于避免多会话同时操作同一 live 地图导致 DocumentInfo 冲突。
 # 例如 -MapCopySuffix "reborn" 会使用 Maps\亡者之夜.SC2Map.reborn\ 作为 live 地图。
 # 不指定时使用原始路径（向后兼容）。
@@ -10,6 +10,12 @@ if ($DebugMode) {
     if ($ListenPort -le 0) { throw "-DebugMode 必须配合 -ListenPort <port> 使用" }
     $ApiMinimal = $true
     Write-Host "DebugMode: 自动启用 ApiMinimal，SC2 窗口将最小化，launcher 退出时自动关闭 SC2"
+}
+if ($SecondaryClient) {
+    if (-not $DebugMode -or $ListenPort -le 0) {
+        throw "-SecondaryClient requires -DebugMode -ListenPort <port>"
+    }
+    Write-Host "SecondaryClient: explicit second SC2 participant client mode enabled"
 }
 $WorkspaceRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Sc2WorkspaceRoot = Split-Path -Parent $WorkspaceRoot
@@ -32,7 +38,11 @@ $script:LauncherScriptsRoot = Join-Path $LegacyRoot "scripts\sc2-launcher"
 . (Join-Path $PSScriptRoot "lib\cmre-on-demand-overlay.ps1")
 . (Join-Path $PSScriptRoot "lib\cmre-core-runtime-overlay.ps1")
 
-$script:Sc2RuntimeMutexName = "Global\SC2VibeTools-SC2Runtime"
+$script:Sc2RuntimeMutexName = if ($SecondaryClient) {
+    "Global\SC2VibeTools-SC2Runtime-Secondary-$ListenPort"
+} else {
+    "Global\SC2VibeTools-SC2Runtime"
+}
 $script:Sc2RuntimeLeasePath = Join-Path $WorkspaceRoot "artifacts\runtime\sc2-runtime-lease.json"
 
 function Convert-TestCommanderToCommanderPowerKey {
@@ -1489,6 +1499,17 @@ function Wait-Sc2RuntimeProcess {
     Write-Host "SC2 runtime lease: PID=$RuntimePid exited; releasing the global lease"
 }
 
+function Wait-Sc2SecondaryRuntimeProcess {
+    param(
+        [Parameter(Mandatory = $true)][int]$RuntimePid
+    )
+    Write-Host "SC2 secondary client: KeepAlive holds PID=$RuntimePid without replacing the primary runtime lease"
+    while ($null -ne (Get-Process -Id $RuntimePid -ErrorAction SilentlyContinue)) {
+        Start-Sleep -Seconds 5
+    }
+    Write-Host "SC2 secondary client: PID=$RuntimePid exited; releasing the secondary test lock"
+}
+
 $lock = $null
 $sc2RuntimeMutex = $null
 $sc2RuntimeMutexAcquired = $false
@@ -1508,23 +1529,32 @@ try {
         throw (Format-Sc2RuntimeBusyMessage -Processes @(Get-Sc2RuntimeProcesses) -Lease (Get-Sc2RuntimeLease))
     }
 
-    $lock = Acquire-TestLock -TestType "cmre_alenger" -MapName $MapName -Commander $Commander
+    if (-not $SecondaryClient) {
+        $lock = Acquire-TestLock -TestType "cmre_alenger" -MapName $MapName -Commander $Commander
+    }
 
     if ($PlayerMode) {
         # PlayerMode and DebugMode share the same preflight: a launcher never kills
         # a runtime that may belong to another AI session or to the human player.
         Write-Host "SC2 runtime lease: PlayerMode requested; existing runtime will be rejected, never killed"
     }
-    if (-not $NoLaunch) {
+    if (-not $NoLaunch -and -not $SecondaryClient) {
         $existing = @(Get-Sc2RuntimeProcesses)
         if ($existing.Count -gt 0) {
             throw (Format-Sc2RuntimeBusyMessage -Processes $existing -Lease (Get-Sc2RuntimeLease))
         }
     }
-    $sc2RuntimeLeaseSession = [string]$lock.session_id
-    Write-Sc2RuntimeLease -State "staging" -OwnerSession $sc2RuntimeLeaseSession -Port $ListenPort
+    $sc2RuntimeLeaseSession = if ($lock) { [string]$lock.session_id } else { "secondary-$PID-$ListenPort" }
+    if (-not $SecondaryClient) {
+        Write-Sc2RuntimeLease -State "staging" -OwnerSession $sc2RuntimeLeaseSession -Port $ListenPort
+    }
     if (Test-Path $debugPidFile) { Remove-Item $debugPidFile -Force -ErrorAction SilentlyContinue }
-    Clear-GameLogs
+    if (-not $SecondaryClient) { Clear-GameLogs }
+    # A secondary SC2 client reuses the primary client's already-synchronized
+    # installation.  Touching shared mod files here can race the primary
+    # process and is unnecessary because the secondary client only joins the
+    # game created by P1.
+    if (-not $SecondaryClient) {
     Sync-ModSet -ModRelPaths $cmre.baseMods -ProjRoot $LegacyRoot -Sc2Root $Sc2Root
     # basePackageMods: 来自 packages 目录的基础 mod（如 CMRE_BuffPatch），与 baseMods 互补
     if ($cmre.PSObject.Properties.Name -contains 'basePackageMods' -and @($cmre.basePackageMods).Count -gt 0) {
@@ -1635,6 +1665,7 @@ try {
     if ($starCoopRemovedCount -gt 0) {
         Write-Host "StarCoop dependency removed from $starCoopRemovedCount Commanders mod(s)"
     }
+    }
     # MapCopySuffix: 使用独立的 live 地图副本，避免多会话同时操作同一地图导致 DocumentInfo 冲突。
     # 例如 -MapCopySuffix "reborn" → Maps\reborn\亡者之夜.SC2Map\
     # 注意：SC2 要求地图目录名以 .SC2Map 结尾，所以后缀作为子目录而非文件名扩展。
@@ -1709,18 +1740,22 @@ try {
     if (-not $roundtrip.Valid) { throw "Document dependency roundtrip failed: $($roundtrip.Errors -join '; ')" }
     # CampaignXCore 银行映射仅覆盖官方/Alenger 指挥官；Reborn 专属指挥官（Izsha/Karass/
     # Naktul/Narud/Tosh/Urun/Warfield）不在映射表中，跳过成就银行写入而非抛异常中断。
-    try {
-        Set-CampaignXCorePrimaryCommander -SelectedCommanders @($Commander)
-        Set-CampaignXCoreTestRunId -RunId "CMREAlenger"
-    } catch {
-        Write-Host "WARN: CampaignXCore mapping skipped for $Commander (non-fatal for Reborn commanders): $_"
+    if (-not $SecondaryClient) {
+        try {
+            Set-CampaignXCorePrimaryCommander -SelectedCommanders @($Commander)
+            Set-CampaignXCoreTestRunId -RunId "CMREAlenger"
+        } catch {
+            Write-Host "WARN: CampaignXCore mapping skipped for $Commander (non-fatal for Reborn commanders): $_"
+        }
+    } else {
+        Write-Host "SecondaryClient: skipping shared CampaignXCore bank writes"
     }
     # Reborn 模式：预写 cryswarmcoop.SC2Bank，让重生虫心 mod 读取指定指挥官并自动执行 SwarmSetup。
     # 必须在 -EnableReborn 模式下使用，且 RebornCommander 必须是重生虫心支持的指挥官名称。
     if ($EnableReborn -and $RebornCommander -ne "") {
         Set-RebornCommander -Commander $RebornCommander -Difficulty $RebornDifficulty -Speed $RebornSpeed -UnlockAllMaps
     }
-    if ($ShowSelectionUI -and -not $commanderSelectionDisabled) {
+    if ($ShowSelectionUI -and -not $commanderSelectionDisabled -and -not $SecondaryClient) {
         # 删除已有的 LaunchProfile 银行文件，确保 CMRE 不会自动应用已保存的配置，
         # 而是显示指挥官选择界面。
         $bankPath = "C:\Users\22448\Documents\StarCraft II\Banks\CMCoopLaunchProfile.SC2Bank"
@@ -1728,18 +1763,24 @@ try {
             [System.IO.File]::Delete($bankPath)
             Write-Host "CMRE ShowSelectionUI: deleted existing CMCoopLaunchProfile.SC2Bank to force selection UI"
         }
-    } else {
+    } elseif (-not $SecondaryClient) {
         Write-CmreLaunchProfile
+    } else {
+        Write-Host "SecondaryClient: skipping shared CMRE launch profile bank write"
     }
     if ($NoLaunch) { Write-Host "CMRE Alenger composition staged: $liveMap"; exit 0 }
     $existing = @(Get-Sc2RuntimeProcesses)
-    if ($existing.Count -gt 0) {
+    if ($existing.Count -gt 0 -and -not $SecondaryClient) {
         throw (Format-Sc2RuntimeBusyMessage -Processes $existing -Lease (Get-Sc2RuntimeLease))
     }
     if ($MapCopySuffix -ne "" -and $ListenPort -le 0) {
         throw "-MapCopySuffix is for staging/API isolation only in this launcher. Direct SC2 map launch must use Maps\\$MapName so GameLogs emits the Alerts/ScriptError load signal; omit -MapCopySuffix for WebUI/player launch."
     }
-    Reset-CmreRuntimeListenerBank
+    if (-not $SecondaryClient) {
+        Reset-CmreRuntimeListenerBank
+    } else {
+        Write-Host "SecondaryClient: skipping shared runtime listener bank reset"
+    }
     $switcher = Join-Path $Sc2Root "Support64\SC2Switcher_x64.exe"
     if ($ListenPort -gt 0) {
         # API 模式：用 SC2Switcher -listen <host> -port <port> 启动 SC2。
@@ -1786,8 +1827,8 @@ try {
         $deadline = (Get-Date).AddSeconds(120)
         $listening = $false
         while ((Get-Date) -lt $deadline) {
-            $proc = Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue
-            if ($null -eq $proc) {
+            $sc2Processes = @(Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue)
+            if ($sc2Processes.Count -eq 0) {
                 Start-Sleep -Seconds 2
                 continue
             }
@@ -1798,6 +1839,18 @@ try {
                 if ($ok -and $tcp.Connected) {
                     $tcp.EndConnect($iar)
                     $tcp.Close()
+                    # Multiple participant clients may be alive at once. Resolve
+                    # the process that owns this API port instead of coercing the
+                    # complete SC2 process list to an Int32.
+                    $portOwner = @(Get-NetTCPConnection -LocalAddress "127.0.0.1" -LocalPort $ListenPort -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1) | Select-Object -First 1
+                    if ($null -eq $portOwner) {
+                        throw "SC2 API port $ListenPort connected but has no owning process"
+                    }
+                    $ownerPid = @($portOwner.OwningProcess) | Select-Object -First 1
+                    if ($null -eq $ownerPid) {
+                        throw "SC2 API port $ListenPort has no scalar owning process id"
+                    }
+                    $proc = @(Get-Process -Id ([int]$ownerPid) -ErrorAction Stop) | Select-Object -First 1
                     $listening = $true
                     break
                 }
@@ -1815,7 +1868,9 @@ try {
         }
         Write-Host "SC2 API mode: API listening on 127.0.0.1:$ListenPort (SC2_x64 PID=$($proc.Id))"
         $runtimePid = [int]$proc.Id
-        Write-Sc2RuntimeLease -State "api_listening" -OwnerSession $sc2RuntimeLeaseSession -RuntimePid $runtimePid -Port $ListenPort
+        if (-not $SecondaryClient) {
+            Write-Sc2RuntimeLease -State "api_listening" -OwnerSession $sc2RuntimeLeaseSession -RuntimePid $runtimePid -Port $ListenPort
+        }
         # DebugMode：记录 PID 到文件（用于退出时按 PID 关闭，避免误杀玩家游戏）+ 最小化窗口
         if ($DebugMode) {
             Set-Content -Path $debugPidFile -Value $proc.Id -Encoding UTF8
@@ -1867,7 +1922,9 @@ try {
         Write-Host "SC2 API mode: ready, client can connect with CreateGame + JoinGame"
         Assert-CmreNoNewScriptErrors -Since $launchStartedAt
         $runtimeReady = $true
-        Write-Sc2RuntimeLease -State "ready" -OwnerSession $sc2RuntimeLeaseSession -RuntimePid $runtimePid -Port $ListenPort
+        if (-not $SecondaryClient) {
+            Write-Sc2RuntimeLease -State "ready" -OwnerSession $sc2RuntimeLeaseSession -RuntimePid $runtimePid -Port $ListenPort
+        }
         # API mode intentionally stops before CreateGame + JoinGame. Galaxy map
         # initialization cannot run until the Host loads the map, so the Host's
         # wait_for_initialization gate owns the post-join readiness check.
@@ -1887,7 +1944,9 @@ try {
         $runtimeProcess = @(Get-Sc2GameProcesses | Select-Object -First 1)
         if ($runtimeProcess.Count -gt 0) {
             $runtimePid = [int]$runtimeProcess[0].Id
-            Write-Sc2RuntimeLease -State "ready" -OwnerSession $sc2RuntimeLeaseSession -RuntimePid $runtimePid -Port 0
+            if (-not $SecondaryClient) {
+                Write-Sc2RuntimeLease -State "ready" -OwnerSession $sc2RuntimeLeaseSession -RuntimePid $runtimePid -Port 0
+            }
         }
     }
 
@@ -1939,7 +1998,11 @@ try {
     # DebugMode 默认只关闭本次 launcher 记录的 PID；绝不按进程名杀别人的 SC2。
     # -KeepAlive 期间 launcher 自身持续持有 named mutex，避免留下无人保护的 runtime。
     if ($KeepAlive -and $runtimeReady -and $runtimePid -gt 0) {
-        Wait-Sc2RuntimeProcess -RuntimePid $runtimePid -LockContext $lock -OwnerSession $sc2RuntimeLeaseSession -Port $ListenPort
+        if ($SecondaryClient) {
+            Wait-Sc2SecondaryRuntimeProcess -RuntimePid $runtimePid
+        } else {
+            Wait-Sc2RuntimeProcess -RuntimePid $runtimePid -LockContext $lock -OwnerSession $sc2RuntimeLeaseSession -Port $ListenPort
+        }
     }
     if ($DebugMode -and -not $KeepAlive -and (Test-Path $debugPidFile)) {
         $debugPid = Get-Content $debugPidFile -ErrorAction SilentlyContinue
@@ -1949,7 +2012,7 @@ try {
         }
         Remove-Item $debugPidFile -Force -ErrorAction SilentlyContinue
     }
-    if ($sc2RuntimeLeaseSession) {
+    if ($sc2RuntimeLeaseSession -and -not $SecondaryClient) {
         $liveRuntime = @(Get-Sc2GameProcesses)
         if ($liveRuntime.Count -gt 0 -and ($runtimeReady -or $runtimePid -gt 0) -and -not $KeepAlive) {
             if ($runtimePid -le 0) { $runtimePid = [int]$liveRuntime[0].Id }
