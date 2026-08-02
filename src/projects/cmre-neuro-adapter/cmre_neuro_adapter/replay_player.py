@@ -63,10 +63,15 @@ body { margin:0; background:var(--bg); color:var(--text); font:13px/1.4 "Segoe U
 button,input { font:inherit; }
 button { min-height:30px; padding:0 10px; color:var(--text); background:#202832; border:1px solid var(--line); border-radius:4px; cursor:pointer; }
 button:hover,button.active { background:#28567b; border-color:var(--blue); }
+button:disabled { cursor:not-allowed; opacity:.42; }
+button:disabled:hover { background:#202832; border-color:var(--line); }
 .shell { max-width:1700px; margin:0 auto; padding:12px; }
 .header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; padding:10px 14px; background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--green); }
 .header h1 { margin:0; font-size:17px; }
+.header-right { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
 .header .meta { color:var(--muted); font:11px Consolas,monospace; }
+.replay-status { padding:3px 7px; border:1px solid var(--green); color:var(--green); font:11px Consolas,monospace; }
+.replay-status.static { border-color:var(--orange); color:var(--orange); }
 .layout { display:grid; grid-template-columns:minmax(600px,1fr) 430px; gap:10px; }
 .map-panel,.panel { background:var(--panel); border:1px solid var(--line); border-radius:5px; }
 .map-panel { padding:9px; }
@@ -122,7 +127,7 @@ details { color:var(--muted); font-size:11px; }.raw { max-height:220px; overflow
 </head>
 <body>
 <main class="shell">
-  <header class="header"><h1>CMRE Dead of Night 经济推进回放</h1><div class="meta" id="headerMeta"></div></header>
+  <header class="header"><h1>CMRE Dead of Night 经济推进回放</h1><div class="header-right"><div class="meta" id="headerMeta"></div><div id="replayStatus" class="replay-status"></div></div></header>
   <section class="layout">
     <div class="map-panel">
       <div class="map-wrap"><canvas id="map" width="900" height="900"></canvas><div id="mapHud" class="map-hud"></div><div id="tooltip" class="tooltip"></div></div>
@@ -152,6 +157,7 @@ const FRAMES = RECORDS.filter(r => r.record_type === "frame" || r.entities_by_pl
 const ACTIONS = RECORDS.filter(r => r.record_type === "action");
 const SUMMARY = RECORDS.find(r => r.record_type === "summary") || {};
 const MAP_META = RECORDS.find(r => r.record_type === "map") || {};
+const IS_STATIC_PREVIEW = SUMMARY.status === "STATIC_PREVIEW" || (SUMMARY.evidence_type === "static" && FRAMES.length < 2);
 const COLORS = {"0":"#a5aeb7","1":"#55a9ff","2":"#ff6b6b","3":"#65d69a","4":"#f4b860","5":"#bd83ff","6":"#62d3cb"};
 const BUILDINGS = new Set(["CommandCenter","Nexus","Hatchery","Barracks","Factory","Starport","SupplyDepot","Bunker","EngineeringBay","MissileTurret","SensorTower","Refinery","Pylon","PhotonCannon","SpineCrawler","SporeCrawler","Gateway","Forge","SpawningPool","HydraliskDen","RoachWarren","GhostAcademy","RoboticsFacility"]);
 const RESOURCES = new Set(["MineralField","VespeneGeyser"]);
@@ -216,13 +222,13 @@ function renderEvents(f) { const items=[...eventsOf(f),...(f.command_results||[]
 function drawEconomy(cur) { const chart=document.getElementById("economy"), c=chart.getContext("2d"), w=chart.width,h=chart.height; c.fillStyle="#101419";c.fillRect(0,0,w,h);const vals=FRAMES.map(f=>Number(resourcesOf(f).minerals||0)), max=Math.max(50,...vals);c.strokeStyle="#55a9ff";c.lineWidth=2;c.beginPath();vals.forEach((v,i)=>{const x=i/(Math.max(1,vals.length-1))*w,y=h-v/max*h;i?c.lineTo(x,y):c.moveTo(x,y);});c.stroke();c.strokeStyle="#fff";c.lineWidth=1;const x=cur/Math.max(1,FRAMES.length-1)*w;c.beginPath();c.moveTo(x,0);c.lineTo(x,h);c.stroke();c.fillStyle="#8c98a5";c.font="10px Consolas";c.fillText("Minerals",5,12);c.fillText(String(max),w-40,12); }
 function setIndex(value) { index=Math.max(0,Math.min(FRAMES.length-1,Number(value)));fractional=index;draw(); }
 function stop() { playing=false;document.getElementById("play").textContent="▶";document.getElementById("play").classList.remove("active"); }
-function toggle() { playing=!playing;document.getElementById("play").textContent=playing?"⏸":"▶";document.getElementById("play").classList.toggle("active",playing);if(playing){lastTime=performance.now();requestAnimationFrame(tick);} }
+function toggle() { if(IS_STATIC_PREVIEW || FRAMES.length < 2)return; playing=!playing;document.getElementById("play").textContent=playing?"⏸":"▶";document.getElementById("play").classList.toggle("active",playing);if(playing){lastTime=performance.now();requestAnimationFrame(tick);} }
 function tick(time) { if(!playing)return;const delta=Math.min(100,time-lastTime);lastTime=time;fractional+=delta*speed/250;if(fractional>=FRAMES.length-1){setIndex(FRAMES.length-1);stop();return;}index=Math.floor(fractional);draw();requestAnimationFrame(tick); }
 function jumpToLoop(loop) { const target=FRAMES.reduce((best,item,i)=>Math.abs(item.loop-loop)<Math.abs(FRAMES[best].loop-loop)?i:best,0);stop();setIndex(target); }
 function setupMarkers() { const strip=document.getElementById("markers"),den=Math.max(1,FRAMES.length-1);ACTIONS.forEach(a=>{const m=document.createElement("span");m.className="marker action";m.title=`${a.name} @ loop ${a.loop}`;m.style.left=`${FRAMES.findIndex(f=>f.loop>=a.loop)/den*100}%`;m.onclick=()=>jumpToLoop(a.loop);strip.appendChild(m);});FRAMES.forEach((f,i)=>eventsOf(f).forEach(ev=>{const m=document.createElement("span");m.className="marker";m.title=`${ev.kind} @ loop ${ev.loop}`;m.style.left=`${i/den*100}%`;m.onclick=()=>setIndex(i);strip.appendChild(m);})); }
 document.getElementById("play").onclick=toggle;document.getElementById("back").onclick=()=>{stop();setIndex(index-1);};document.getElementById("forward").onclick=()=>{stop();setIndex(index+1);};document.getElementById("start").onclick=()=>{stop();setIndex(0);};document.getElementById("end").onclick=()=>{stop();setIndex(FRAMES.length-1);};document.getElementById("seek").oninput=e=>{stop();setIndex(e.target.value);};document.querySelectorAll(".speed").forEach(button=>button.onclick=()=>{speed=Number(button.dataset.speed);document.querySelectorAll(".speed").forEach(item=>item.classList.remove("active"));button.classList.add("active");});document.getElementById("staticLayer").onchange=draw;document.getElementById("entitySearch").oninput=e=>{search=e.target.value.toLowerCase();renderEntities(entitiesOf(current()));};document.addEventListener("keydown",e=>{if(e.code==="Space"){e.preventDefault();toggle();}else if(e.code==="ArrowLeft"){stop();setIndex(index-1);}else if(e.code==="ArrowRight"){stop();setIndex(index+1);}else if(e.code==="Home"){stop();setIndex(0);}else if(e.code==="End"){stop();setIndex(FRAMES.length-1);}});
 canvas.addEventListener("mousemove",e=>{const f=current(),es=entitiesOf(f),rect=canvas.getBoundingClientRect(),mx=(e.clientX-rect.left)*canvas.width/rect.width,my=(e.clientY-rect.top)*canvas.height/rect.height;let found=null;for(const unit of [...es].reverse()){const [x,y]=pos(unit.x,unit.y),r=radius(unit.type)+6;if((mx-x)**2+(my-y)**2<=r*r){found=unit;break;}}if(!found){tooltip.style.display="none";return;}tooltip.innerHTML=`${esc(ownerName(found.owner))} · ${esc(found.type)}<br>ID=${found.id} · state=${esc(found.state)}<br>HP=${hpValue(found.hp).toFixed(0)}/${maxHp(found.type)} · shield=${hpValue(found.shields).toFixed(0)} · energy=${hpValue(found.energy).toFixed(0)}<br>(${found.x.toFixed(2)}, ${found.y.toFixed(2)})`;tooltip.style.display="block";tooltip.style.left=`${e.clientX-rect.left+12}px`;tooltip.style.top=`${e.clientY-rect.top+12}px`;});canvas.addEventListener("mouseleave",()=>tooltip.style.display="none");
-document.getElementById("headerMeta").textContent=`${SUMMARY.replay_id||"replay"} · ${SUMMARY.evidence_type||"simulator"}`;document.getElementById("footerMeta").textContent=`${SUMMARY.actions_successful??0}/${SUMMARY.actions_total??0} actions · ${SUMMARY.event_count??0} events · ${allEntities.length} entity snapshots · trace ${String(SUMMARY.trace_sha256||"").slice(0,12)}`;document.getElementById("seek").max=Math.max(0,FRAMES.length-1);document.getElementById("timeStart").textContent=`Loop ${FRAMES[0].loop} · ${formatTime(FRAMES[0].loop)}`;document.getElementById("timeEnd").textContent=`Loop ${FRAMES[FRAMES.length-1].loop} · ${formatTime(FRAMES[FRAMES.length-1].loop)}`;setupMarkers();draw();
+document.getElementById("headerMeta").textContent=`${SUMMARY.replay_id||"replay"} · ${SUMMARY.evidence_type||"simulator"}`;document.getElementById("footerMeta").textContent=`${SUMMARY.actions_successful??0}/${SUMMARY.actions_total??0} actions · ${SUMMARY.event_count??0} events · ${allEntities.length} entity snapshots · trace ${String(SUMMARY.trace_sha256||"").slice(0,12)}`;document.getElementById("seek").max=Math.max(0,FRAMES.length-1);document.getElementById("timeStart").textContent=`Loop ${FRAMES[0].loop} · ${formatTime(FRAMES[0].loop)}`;document.getElementById("timeEnd").textContent=`Loop ${FRAMES[FRAMES.length-1].loop} · ${formatTime(FRAMES[FRAMES.length-1].loop)}`;const replayStatus=document.getElementById("replayStatus");replayStatus.textContent=IS_STATIC_PREVIEW?"静态地图预览 · 无动态回放帧":`${FRAMES.length} frames · 可播放`;replayStatus.classList.toggle("static",IS_STATIC_PREVIEW);if(IS_STATIC_PREVIEW){document.querySelectorAll("#play,#back,#forward,#start,#end,#seek,.speed").forEach(control=>control.disabled=true);}setupMarkers();draw();
 </script>
 </body>
 </html>

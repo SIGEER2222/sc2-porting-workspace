@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "stage_id": "07-real-adapters",
   "status": "BLOCKED",
-  "updated_at": "2026-08-02T17:42:00+08:00",
+  "updated_at": "2026-08-02T18:03:11+08:00",
   "outputs": [
     "cmre_neuro_adapter/transports/__init__.py",
     "cmre_neuro_adapter/transports/common.py",
@@ -169,6 +169,13 @@
       "summary": "The real 亡者之夜.SC2Map source is represented by its minimap, world bounds 16..176, 193x193 terrain height map, and all 1319 original Objects records.",
       "artifact": "artifacts/real-map-replay-20260802/real-map-static-preview.html",
       "evidence_type": "static"
+    },
+    "replay_player_static_preview_guard": {
+      "status": "PASS",
+      "command": "python -m unittest tests.test_replay_player -v; Chrome headless --dump-dom real-map-static-preview.html; Chrome headless --dump-dom state-driven-player.html",
+      "summary": "The static real-map page reports no dynamic replay frames and disables play, frame stepping, speed, and seeking. The multi-frame state-driven player retains an active play button and a 0..146 timeline.",
+      "artifact": "artifacts/real-map-replay-20260802/real-map-static-preview.html",
+      "evidence_type": "runtime"
     },
     "real_map_launcher_staging": {
       "status": "PASS",

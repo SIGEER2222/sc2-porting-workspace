@@ -96,6 +96,21 @@ class ReplayPlayerTests(unittest.TestCase):
             self.assertIn('"MineralField"', html)
             self.assertIn('"Marine"', html)
 
+    def test_render_player_marks_single_frame_static_preview(self) -> None:
+        records = [
+            {"record_type": "header", "replay_id": "static-preview", "evidence_type": "static"},
+            {"record_type": "frame", "loop": 0, "entities_by_player": {}},
+            {"record_type": "summary", "evidence_type": "static", "status": "STATIC_PREVIEW"},
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "static-player.html"
+            render_player_html(records, output)
+            html = output.read_text(encoding="utf-8")
+            self.assertIn("IS_STATIC_PREVIEW", html)
+            self.assertIn("replayStatus", html)
+            self.assertIn("无动态回放帧", html)
+            self.assertIn("control.disabled=true", html)
+
     def test_render_player_embeds_real_map_layer_metadata(self) -> None:
         records = [
             {"record_type": "header", "replay_id": "real-map"},

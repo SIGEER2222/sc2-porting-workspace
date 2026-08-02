@@ -63,6 +63,15 @@
       "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl"
     },
     {
+      "id": "REPLAY-003",
+      "severity": "low",
+      "status": "resolved",
+      "evidence_type": "runtime",
+      "detail": "The real-map static preview exposed ordinary playback controls even though its JSONL contained only one loop-0 frame.",
+      "resolution": "The generated player now detects STATIC_PREVIEW or a static single-frame payload, labels it as non-playable, and disables playback, frame stepping, speed, and seeking. Multi-frame simulator/runtime payloads retain active controls.",
+      "artifact": "artifacts/real-map-replay-20260802/real-map-static-preview.html"
+    },
+    {
       "id": "MACRO-001",
       "severity": "high",
       "status": "resolved",

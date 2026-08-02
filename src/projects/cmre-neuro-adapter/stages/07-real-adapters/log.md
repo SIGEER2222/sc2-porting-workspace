@@ -241,3 +241,27 @@ Follow-up retry at `2026-08-02T17:50:11+08:00` also lost the free window to a va
 KeepAlive session `owner_pid=38060`, `runtime_pid=5000`, `port=5201`, session
 `cmre_alenger-20260802-175011-03672d29`. The retry was stopped before any connection to that
 session; G4 remains blocked.
+
+## Playback Guard Refresh 2026-08-02 18:03 +08:00
+
+The opened `real-map-static-preview.html` is intentionally a static real-map inspection, not a
+runtime replay. Its JSONL contains one `frame` at loop 0 plus `header`, `map`, and `summary`
+records, so playback has no second state to advance to. The player previously exposed normal
+playback controls for that single-frame input, which made the control appear broken.
+
+The player now detects `STATIC_PREVIEW` or a static single-frame payload, shows
+`静态地图预览 · 无动态回放帧`, and disables play, frame stepping, speed, and seeking. The
+existing state-driven simulator replay remains a separate playable artifact with 147 frames.
+
+Evidence:
+
+- `simulator`: `python -m unittest tests.test_replay_player -v` -> `7` tests passed.
+- `static`: `python -m compileall -q cmre_neuro_adapter tests` -> pass.
+- `static`: `git diff --check -- src/projects/cmre-neuro-adapter/...` -> pass.
+- `runtime`: Chrome headless DOM load of `real-map-static-preview.html` -> status text rendered,
+  play/step/seek controls rendered with `disabled`.
+- `runtime`: Chrome headless DOM load of `state-driven-player.html` -> play button remained
+  enabled and the timeline range was `0..146`.
+
+This does not change the live runtime blocker. A genuine real-map dynamic replay still requires
+an independent approved SC2 runtime lease and `CreateGame + JoinGame + RequestStep` evidence.
