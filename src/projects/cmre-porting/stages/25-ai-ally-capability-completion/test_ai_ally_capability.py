@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -24,6 +25,7 @@ from vibe.consumers.ally_ai import (  # noqa: E402
 from vibe.defend_policy import DefendBasePolicy  # noqa: E402
 from vibe.contracts import Observation  # noqa: E402
 from vibe.simulator_session import SimulatorSession  # noqa: E402
+from vibe.replay_player import load_replay, render_player_html  # noqa: E402
 
 
 def _cooperative_scenario(seed: int = 42) -> dict:
@@ -280,6 +282,64 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
             for decision in result.decisions
             for action in decision.actions
         ))
+
+    def test_cooperative_replay_exports_p1_p2_timeline_and_html(self):
+        scenario = _cooperative_scenario()
+        with tempfile.TemporaryDirectory() as directory:
+            replay_path = Path(directory) / "cooperative-replay.jsonl"
+            html_path = Path(directory) / "full-map-player.html"
+            policy = AllyPolicy(
+                player_id=2,
+                leader_entity_id=1,
+                leader_player_id=1,
+                base_region=(0.0, 0.0, 2.0),
+                support_range=8.0,
+                command_interval=1,
+            )
+            result = run_ally_scenario(
+                scenario,
+                policy,
+                ally_player_id=2,
+                max_loops=16,
+                latency_loops=0,
+                require_cooperative_roster=True,
+                player_commands=[
+                    {"loop": 0, "text": "!ally follow", "command_id": "follow"},
+                    {"loop": 4, "text": "!ally defend", "command_id": "defend"},
+                    {"loop": 8, "text": "!ally retreat", "command_id": "retreat"},
+                ],
+                replay_log_path=replay_path,
+            )
+
+            records = load_replay(replay_path)
+            frames = [record for record in records if record.get("record_type") == "frame"]
+            actions = [record for record in records if record.get("record_type") == "action"]
+            self.assertTrue(replay_path.exists())
+            self.assertEqual(result.replay_path, str(replay_path))
+            self.assertEqual(result.replay_frame_count, len(frames))
+            self.assertGreaterEqual(len(frames), 2)
+            self.assertEqual(records[0]["record_type"], "header")
+            self.assertEqual(records[0]["owner_roles"]["1"]["relation"], "leader")
+            self.assertEqual(records[0]["owner_roles"]["2"]["relation"], "ally")
+            self.assertTrue(any(action["kind"] == "player_command" for action in actions))
+            self.assertTrue(any(
+                action["kind"] == "ally_action"
+                and action["owner"] == 2
+                and action["issuer_player_id"] == 2
+                for action in actions
+            ))
+            self.assertTrue(any(
+                frame["context"]["visible_allies"]
+                and all(unit["owner"] == 1 for unit in frame["context"]["visible_allies"])
+                for frame in frames
+            ))
+
+            render_player_html(records, replay_path, html_path)
+            html = html_path.read_text(encoding="utf-8")
+            self.assertIn("P2 AI 盟友存活", html)
+            self.assertIn("P1 指令 / P2 回执", html)
+            self.assertIn('"relation":"ally"', html)
+            self.assertIn('"kind":"player_command"', html)
 
 
 if __name__ == "__main__":

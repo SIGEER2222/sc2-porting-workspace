@@ -27,6 +27,7 @@ import json
 import math
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Iterable, Optional
 
 from ..contracts import Observation
@@ -317,6 +318,8 @@ class AllyRunResult:
     mode_history: list[str] = field(default_factory=list)
     notices: list[PlayerNotice] = field(default_factory=list)
     friendly_fire_rejections: int = 0
+    replay_path: str = ""
+    replay_frame_count: int = 0
 
 
 class AllyPolicy:
@@ -711,6 +714,8 @@ def run_ally_scenario(
     leader_player_id: int = 1,
     require_cooperative_roster: bool = False,
     player_commands: Optional[Iterable[dict | str]] = None,
+    replay_log_path: Optional[str | Path] = None,
+    replay_log_interval: int = 1,
 ) -> AllyRunResult:
     """跑一个盟友 AI 场景。
 
@@ -751,6 +756,124 @@ def run_ally_scenario(
     total_dispatched = 0
     total_errors = 0
 
+    replay_path = "" if replay_log_path is None else str(Path(replay_log_path))
+    replay_frames = 0
+    replay_actions: list[dict] = []
+    replay_events: list[dict] = []
+    replay_action_by_key: dict[tuple[int, int, str], dict] = {}
+    replay_owner_roles = {
+        str(player_id): {
+            "name": str(player.get("name", f"Player{player_id}")),
+            "is_ai": bool(player.get("is_ai", False)),
+            "relation": (
+                "leader" if int(player_id) == int(leader_player_id)
+                else "ally" if int(player_id) == int(ally_player_id)
+                else "enemy"
+            ),
+        }
+        for player_id, player in sorted(
+            ((int(item["id"]), item) for item in scenario_dict.get("players", [])),
+            key=lambda item: item[0],
+        )
+    }
+
+    def _replay_entities() -> dict[str, list[dict]]:
+        grouped: dict[str, list[dict]] = {}
+        for entity in sorted(s.world.entities.values(), key=lambda item: item.entity_id):
+            grouped.setdefault(str(entity.owner_player_id), []).append({
+                "id": entity.entity_id,
+                "t": entity.unit_type_id,
+                "p": entity.owner_player_id,
+                "x": entity.x.to_float(),
+                "y": entity.y.to_float(),
+                "hp": entity.health.raw,
+                "alive": bool(entity.is_alive),
+                "state": entity.state.value if hasattr(entity.state, "value") else str(entity.state),
+            })
+        return grouped
+
+    def _replay_resources() -> dict[str, dict]:
+        return {
+            str(player_id): dict(s.world.get_resources(player_id).snapshot())
+            for player_id in sorted(replay_owner_roles)
+            if int(player_id) in s.world.players.players
+        }
+
+    def _replay_observation() -> dict:
+        from ..contracts import Observation
+
+        obs = Observation.from_world(s.world, ally_player_id)
+        resources_by_player = _replay_resources()
+        return {
+            "loop": obs.loop,
+            "player_id": obs.player_id,
+            "own_units": obs.own_units,
+            "visible_allies": obs.visible_allies,
+            "visible_enemies": obs.visible_enemies,
+            "alliance_summary": obs.alliance_summary,
+            "resources": obs.resources,
+            "resources_by_player": resources_by_player,
+            "mission": obs.mission,
+            "ally_mode": policy.mode.value,
+        }
+
+    def _count_units(owner_ids: set[int]) -> tuple[int, dict[str, int]]:
+        counts: dict[str, int] = {}
+        for entity in s.world.entities.values():
+            if entity.is_alive and entity.owner_player_id in owner_ids:
+                counts[entity.unit_type_id] = counts.get(entity.unit_type_id, 0) + 1
+        return sum(counts.values()), counts
+
+    def _capture_replay_frame(loop: int, events: Optional[list[dict]] = None) -> bool:
+        nonlocal replay_frames
+        if replay_log_path is None or replay_frames % max(1, int(replay_log_interval)) != 0:
+            replay_frames += 1
+            return False
+        p1_alive, p1_types = _count_units({int(leader_player_id)})
+        p2_alive, p2_types = _count_units({int(ally_player_id)})
+        enemy_ids = set(replay_owner_roles) - {str(leader_player_id), str(ally_player_id)}
+        enemy_alive, enemy_types = _count_units({int(pid) for pid in enemy_ids})
+        p2_observation = _replay_observation()
+        resources = p2_observation["resources_by_player"]
+        replay_actions_at_loop = [
+            action for action in replay_actions if int(action.get("loop", -1)) == int(loop)
+        ]
+        frame = {
+            "record_type": "frame",
+            "replay_schema": "cmre-ai-ally-replay.v1",
+            "replay_id": scenario_dict.get("name", "cooperative-ally-scenario"),
+            "evidence_type": "simulator",
+            "runtime_claim": "none; simulator evidence only",
+            "owner_roles": replay_owner_roles,
+            "loop": int(loop),
+            "real_sec": round(int(loop) / 22.4, 3),
+            "state_version": int(loop),
+            "current_night": 0,
+            "waves_fired": 0,
+            "total_cmds": total_dispatched,
+            "p1_alive": p1_alive,
+            "p2_alive": p2_alive,
+            "enemy_alive": enemy_alive,
+            "p1_units_by_type": p1_types,
+            "p2_units_by_type": p2_types,
+            "enemy_units_by_type": enemy_types,
+            "p1_resources": resources.get(str(leader_player_id), {}),
+            "p2_resources": resources.get(str(ally_player_id), {}),
+            "resources_by_player": resources,
+            "entities_by_player": _replay_entities(),
+            "events": list(events or []),
+            "key_events": list(events or []),
+            "replay_actions": replay_actions_at_loop,
+            "context": p2_observation,
+            "ally_mode": policy.mode.value,
+        }
+        replay_frames += 1
+        replay_frame_records.append(frame)
+        return True
+
+    replay_frame_records: list[dict] = []
+    _capture_replay_frame(0)
+
     while not s.terminated and s.world.clock.now.loop < max_loops:
         loop = s.world.clock.now.loop
 
@@ -762,6 +885,30 @@ def run_ally_scenario(
                                 and d.kind != "hold"])
         total_dispatched += dispatched_ok
         total_errors += errors_this_loop
+        for result in dispatched:
+            key = (int(result.issue_loop), int(result.entity_id), str(result.kind))
+            action = replay_action_by_key.get(key)
+            if action is not None:
+                action["dispatched"] = {
+                    "success": bool(result.dispatched or result.error is None),
+                    "dispatched": bool(result.dispatched),
+                    "error": result.error,
+                    "loop": int(loop),
+                    "dispatch_loop": int(result.dispatch_loop),
+                    "issuer_player_id": int(policy.player_id),
+                }
+            replay_events.append({
+                "loop": int(loop),
+                "kind": "p2_dispatch",
+                "entity_id": int(result.entity_id),
+                "command_kind": result.kind,
+                "success": bool(result.dispatched or result.error is None),
+                "dispatched": bool(result.dispatched),
+                "error": result.error,
+                "issue_loop": int(result.issue_loop),
+                "dispatch_loop": int(result.dispatch_loop),
+                "issuer_player_id": int(policy.player_id),
+            })
         if dispatched_ok > max_cmds_per_loop:
             max_cmds_per_loop = dispatched_ok
 
@@ -772,14 +919,40 @@ def run_ally_scenario(
         # 3) 从 P1 命令通道接收本 loop 的指令，再让 P2 策略决策。
         for scheduled in scheduled_commands.get(loop, []):
             if isinstance(scheduled, str):
-                policy.receive_player_command(scheduled, leader_player_id, loop)
+                notice = policy.receive_player_command(scheduled, leader_player_id, loop)
+                command_id = f"{leader_player_id}:{loop}:{scheduled}"
             else:
-                policy.receive_player_command(
+                notice = policy.receive_player_command(
                     scheduled.get("text", scheduled.get("message", "")),
                     int(scheduled.get("source_player_id", leader_player_id)),
                     loop,
                     scheduled.get("command_id"),
                 )
+                command_id = str(scheduled.get("command_id") or f"{leader_player_id}:{loop}")
+            replay_actions.append({
+                "record_type": "action",
+                "action_id": f"p1-command-{len(replay_actions) + 1:03d}",
+                "name": "P1 -> P2",
+                "kind": "player_command",
+                "loop": int(loop),
+                "owner": int(leader_player_id),
+                "issuer_player_id": int(leader_player_id),
+                "command_id": command_id,
+                "text": notice.message,
+                "arguments": {"text": scheduled if isinstance(scheduled, str) else scheduled.get("text", scheduled.get("message", ""))},
+                "accepted": bool(notice.accepted),
+                "notice": notice.message,
+                "mode": notice.mode,
+            })
+            replay_events.append({
+                "loop": int(loop),
+                "kind": "p1_command",
+                "source_player_id": int(leader_player_id),
+                "command_id": command_id,
+                "message": notice.message,
+                "accepted": bool(notice.accepted),
+                "mode": notice.mode,
+            })
 
         # 4) 验证策略不访问隐藏状态：动作实体必须是 P2 自有或可见目标。
         actions = policy.decide(obs, loop)
@@ -796,6 +969,42 @@ def run_ally_scenario(
         # 5) 入队新命令
         receipts = adapter.issue(actions, loop)
         queued_this_loop = len(receipts)
+        receipts_by_entity = {int(receipt["entity_id"]): receipt for receipt in receipts}
+        for action in actions:
+            receipt = receipts_by_entity.get(int(action.entity_id))
+            replay_action = {
+                "record_type": "action",
+                "action_id": f"p2-action-{len(replay_actions) + 1:03d}",
+                "name": f"P2 {action.kind}",
+                "kind": "ally_action",
+                "loop": int(loop),
+                "owner": int(policy.player_id),
+                "issuer_player_id": int(policy.player_id),
+                "entity_id": int(action.entity_id),
+                "reason": action.reason,
+                "arguments": {
+                    "kind": action.kind,
+                    "target_entity_id": int(action.target_entity_id),
+                    "target_x": action.target_x,
+                    "target_y": action.target_y,
+                },
+                "accepted": receipt is not None,
+                "queued": receipt,
+                "dispatched": None,
+                "mode": policy.mode.value,
+            }
+            replay_actions.append(replay_action)
+            if receipt is not None:
+                replay_action_by_key[(int(loop), int(action.entity_id), str(action.kind))] = replay_action
+            replay_events.append({
+                "loop": int(loop),
+                "kind": "p2_action_queued",
+                "entity_id": int(action.entity_id),
+                "command_kind": action.kind,
+                "accepted": receipt is not None,
+                "issuer_player_id": int(policy.player_id),
+                "reason": action.reason,
+            })
 
         # 6) 死锁检测：连续 N loop 既无分发又无 pending（AI 完全停滞）
         #    只 pending 未到期的命令不算死锁（在等延迟）
@@ -822,6 +1031,8 @@ def run_ally_scenario(
         # 7) 推进一 loop（长跑时禁快照：scenario_step 每次建 SnapshotHandle 会序列化 growing
         #    events/command_results，导致 O(N²)；长跑 13200 loop 时单 loop 从 0.07ms 飙到 30ms）
         s.scenario_step(1, snapshot=False)
+        if _capture_replay_frame(s.world.clock.now.loop, replay_events):
+            replay_events = []
 
         # 8) 每 safety_window loop 截断一次决策历史（避免内存爆）
         if len(decisions) > safety_window * 2:
@@ -832,6 +1043,47 @@ def run_ally_scenario(
     storm = max_cmds_per_loop > storm_threshold
 
     from sc2_simulator.reporting.trace import trace_hash
+    if replay_log_path is not None:
+        path = Path(replay_log_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        header = {
+            "record_type": "header",
+            "replay_schema": "cmre-ai-ally-replay.v1",
+            "replay_id": scenario_dict.get("name", "cooperative-ally-scenario"),
+            "evidence_type": "simulator",
+            "runtime_claim": "none; simulator evidence only",
+            "leader_player_id": int(leader_player_id),
+            "ally_player_id": int(ally_player_id),
+            "enemy_player_ids": list(roster.enemy_player_ids),
+            "owner_roles": replay_owner_roles,
+            "commands_are": "P1 chat/signal input; P2-only dispatched actions",
+        }
+        summary = {
+            "record_type": "summary",
+            "replay_schema": "cmre-ai-ally-replay.v1",
+            "status": "PASS" if roster.valid and not deadlock and not storm else "FAIL",
+            "evidence_type": "simulator",
+            "runtime_claim": "none; simulator evidence only",
+            "loop_start": 0,
+            "loop_end": int(s.world.clock.now.loop),
+            "timeline_frames": len(replay_frame_records),
+            "actions_total": len(replay_actions),
+            "actions_successful": sum(
+                1 for action in replay_actions
+                if (action.get("dispatched") or {}).get("success")
+                or (action.get("kind") == "player_command" and action.get("accepted"))
+            ),
+            "total_dispatched": total_dispatched,
+            "friendly_fire_rejections": adapter.friendly_fire_rejections,
+            "trace_hash": trace_hash(s.world),
+            "mode_history": policy.mode_history,
+            "roster_ready": roster.valid,
+            "roster_issues": list(roster.issues),
+        }
+        with path.open("w", encoding="utf-8") as replay_file:
+            for record in [header, *replay_frame_records, *replay_actions, summary]:
+                replay_file.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+
     return AllyRunResult(
         end_loop=s.world.clock.now.loop,
         end_reason=getattr(s, "end_reason", "") or "max_loops_reached",
@@ -851,6 +1103,8 @@ def run_ally_scenario(
         mode_history=policy.mode_history,
         notices=policy.drain_notices(),
         friendly_fire_rejections=adapter.friendly_fire_rejections,
+        replay_path=replay_path,
+        replay_frame_count=len(replay_frame_records),
     )
 
 

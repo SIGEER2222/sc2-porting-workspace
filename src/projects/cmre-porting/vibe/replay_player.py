@@ -69,13 +69,13 @@ UNIT_MAX_HP = {
 
 
 def load_replay(jsonl_path: Path) -> list[dict]:
-    frames = []
+    records = []
     with open(jsonl_path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
-                frames.append(json.loads(line))
-    return frames
+                records.append(json.loads(line))
+    return records
 
 
 def _esc(s) -> str:
@@ -88,8 +88,29 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
         output_path.write_text("<html><body>无回放数据</body></html>", encoding="utf-8")
         return
 
+    records = list(frames)
+    frame_records = [
+        record for record in records
+        if record.get("record_type") == "frame" or "entities_by_player" in record
+    ]
+    if frame_records:
+        frames = frame_records
+    actions = [record for record in records if record.get("record_type") == "action"]
+    summary = next(
+        (record for record in records if record.get("record_type") == "summary"),
+        {},
+    )
+    header = next(
+        (record for record in records if record.get("record_type") == "header"),
+        {},
+    )
+
     # 嵌入 JSONL 数据（压缩：去掉多余空白）
     frames_json = json.dumps(frames, ensure_ascii=False, separators=(",", ":"))
+    actions_json = json.dumps(actions, ensure_ascii=False, separators=(",", ":"))
+    summary_json = json.dumps(summary, ensure_ascii=False, separators=(",", ":"))
+    owner_roles = header.get("owner_roles") or frames[0].get("owner_roles", {})
+    owner_roles_json = json.dumps(owner_roles, ensure_ascii=False, separators=(",", ":"))
 
     # 计算地图边界（从所有帧的实体位置）
     all_x, all_y = [], []
@@ -115,8 +136,8 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
 
     last = frames[-1]
     first = frames[0]
-    verdict = "VICTORY" if last.get("p1_alive", 0) > 0 else "DEFEAT"
-    verdict_color = "#4ae24a" if verdict == "VICTORY" else "#e24a4a"
+    verdict = summary.get("status") or ("VICTORY" if last.get("p1_alive", 0) > 0 else "DEFEAT")
+    verdict_color = "#4ae24a" if verdict in {"VICTORY", "PASS"} else "#e24a4a"
 
     html_doc = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -197,28 +218,39 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
       <div class="stat-row"><span class="label">Loop</span><span class="value" id="curLoop">0</span></div>
       <div class="stat-row"><span class="label">游戏时间</span><span class="value" id="curTime">0s</span></div>
       <div class="stat-row"><span class="label">当前夜晚</span><span class="value" id="curNight">-</span></div>
-      <div class="stat-row"><span class="label">P1 存活</span><span class="value" id="p1Alive" style="color:#4a90e2;">0</span></div>
+      <div class="stat-row"><span class="label">P1 玩家存活</span><span class="value" id="p1Alive" style="color:#4a90e2;">0</span></div>
+      <div class="stat-row"><span class="label">P2 AI 盟友存活</span><span class="value" id="p2Alive" style="color:#4ae2c8;">0</span></div>
       <div class="stat-row"><span class="label">敌方存活</span><span class="value" id="enemyAlive" style="color:#e24a4a;">0</span></div>
       <div class="stat-row"><span class="label">波次触发</span><span class="value" id="wavesFired">0</span></div>
       <div class="stat-row"><span class="label">命令总数</span><span class="value" id="totalCmds">0</span></div>
     </div>
 
     <div class="panel">
-      <h3>经济指标 (P1)</h3>
-      <div class="stat-row"><span class="label">矿物</span><span class="value" id="p1Minerals" style="color:#4a90e2;">0</span></div>
+      <h3>经济指标 (P2 AI 盟友)</h3>
+      <div class="stat-row"><span class="label">矿物</span><span class="value" id="p1Minerals" style="color:#4ae2c8;">0</span></div>
       <div class="stat-row"><span class="label">瓦斯</span><span class="value" id="p1Vespene" style="color:#4ae24a;">0</span></div>
       <div class="stat-row"><span class="label">补给</span><span class="value" id="p1Supply">0/0</span></div>
       <canvas class="econ-chart" id="econChart" width="300" height="120"></canvas>
     </div>
 
     <div class="panel">
-      <h3>P1 兵种构成</h3>
+      <h3>P1 玩家兵种构成</h3>
       <div id="p1Types" style="font-size:11px;font-family:Consolas,monospace;line-height:1.6;"></div>
     </div>
 
     <div class="panel">
-      <h3>敌方兵种</h3>
+      <h3>P2 AI 盟友兵种构成</h3>
       <div id="enemyTypes" style="font-size:11px;font-family:Consolas,monospace;line-height:1.6;"></div>
+    </div>
+
+    <div class="panel">
+      <h3>敌方兵种</h3>
+      <div id="enemyTypesHostile" style="font-size:11px;font-family:Consolas,monospace;line-height:1.6;"></div>
+    </div>
+
+    <div class="panel">
+      <h3>P1 指令 / P2 回执</h3>
+      <div id="allyActions" style="font-size:11px;line-height:1.5;max-height:180px;overflow:auto;"></div>
     </div>
 
     <div class="panel">
@@ -236,6 +268,9 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
 
 <script>
 const FRAMES = {frames_json};
+const ACTIONS = {actions_json};
+const SUMMARY = {summary_json};
+const OWNER_ROLES = {owner_roles_json};
 const COLORS = {colors_json};
 const RADIUS = {radius_json};
 const MAX_HP = {maxhp_json};
@@ -280,6 +315,26 @@ function colorFor(pid) {{
   return COLORS[String(pid)] || '#888';
 }}
 
+function roleFor(pid) {{
+  return OWNER_ROLES[String(pid)] || {{relation: Number(pid) === 1 ? 'leader' : 'enemy', name: `P${{pid}}`}};
+}}
+
+function ownerLabel(pid) {{
+  const role = roleFor(pid);
+  if (role.relation === 'leader') return `P${{pid}} 玩家`;
+  if (role.relation === 'ally') return `P${{pid}} AI 盟友`;
+  if (role.relation === 'enemy') return `P${{pid}} 敌军`;
+  return role.name || `P${{pid}}`;
+}}
+
+function relationOf(pid) {{
+  return roleFor(pid).relation || 'enemy';
+}}
+
+function isHostile(pid) {{
+  return relationOf(pid) === 'enemy';
+}}
+
 function drawFrame(idx) {{
   if (idx < 0) idx = 0;
   if (idx >= TOTAL_FRAMES) idx = TOTAL_FRAMES - 1;
@@ -314,8 +369,11 @@ function drawFrame(idx) {{
   ctx.font = '10px sans-serif';
   ctx.fillText('BASE', bx-12, by-22);
 
-  // 实体（先画中立 Player 0，再画其他）
-  const drawOrder = ['0', '6', '3', '4', '5', '1', '2'];
+  // 实体按中立、敌军、P1、P2 绘制，确保 P1/P2 关系在画面上稳定可辨。
+  const drawOrder = Object.keys(f.entities_by_player || {{}}).sort((a, b) => {{
+    const rank = pid => pid === '0' ? 0 : isHostile(Number(pid)) ? 1 : Number(pid) === 1 ? 2 : 3;
+    return rank(a) - rank(b) || Number(a) - Number(b);
+  }});
   for (const pidStr of drawOrder) {{
     const ents = f.entities_by_player[pidStr];
     if (!ents) continue;
@@ -385,16 +443,17 @@ function updateSidebar(f, idx) {{
   document.getElementById('curTime').textContent = (f.real_sec || f.ts_sec || 0).toFixed(1) + 's';
   document.getElementById('curNight').textContent = f.current_night > 0 ? `Night ${{f.current_night}}` : '白天';
   document.getElementById('p1Alive').textContent = f.p1_alive || 0;
+  document.getElementById('p2Alive').textContent = f.p2_alive || 0;
   document.getElementById('enemyAlive').textContent = f.enemy_alive || 0;
   document.getElementById('wavesFired').textContent = f.waves_fired || 0;
   document.getElementById('totalCmds').textContent = f.total_cmds || 0;
-  const res = f.p1_resources || {{}};
+  const res = f.p2_resources || f.p1_resources || {{}};
   document.getElementById('p1Minerals').textContent = res.minerals || 0;
   document.getElementById('p1Vespene').textContent = res.vespene || 0;
   document.getElementById('p1Supply').textContent = `${{res.supply_used||0}}/${{res.supply_cap||0}}`;
   document.getElementById('timeCur').textContent = `Loop ${{f.loop}} (${{(f.real_sec||f.ts_sec||0).toFixed(0)}}s)`;
 
-  // P1 兵种
+  // P1 玩家兵种
   const p1t = f.p1_units_by_type || {{}};
   let p1html = '';
   const p1sorted = Object.entries(p1t).sort((a,b) => b[1]-a[1]);
@@ -403,14 +462,46 @@ function updateSidebar(f, idx) {{
   }}
   document.getElementById('p1Types').innerHTML = p1html || '<span style="color:#666;">无存活单位</span>';
 
-  // 敌方兵种
+  // P2 AI 盟友兵种
+  const at = f.p2_units_by_type || {{}};
+  let allyhtml = '';
+  const asorted = Object.entries(at).sort((a,b) => b[1]-a[1]);
+  for (const [t, n] of asorted) {{
+    allyhtml += `<div><span style="color:#4ae2c8;">●</span> ${{t}}: ${{n}}</div>`;
+  }}
+  document.getElementById('enemyTypes').innerHTML = allyhtml || '<span style="color:#666;">无存活单位</span>';
+
   const et = f.enemy_units_by_type || {{}};
   let ehtml = '';
   const esorted = Object.entries(et).sort((a,b) => b[1]-a[1]);
   for (const [t, n] of esorted) {{
     ehtml += `<div><span style="color:#e24a4a;">●</span> ${{t}}: ${{n}}</div>`;
   }}
-  document.getElementById('enemyTypes').innerHTML = ehtml || '<span style="color:#666;">无敌方单位</span>';
+  document.getElementById('enemyTypesHostile').innerHTML = ehtml || '<span style="color:#666;">无敌方单位</span>';
+  renderAllyActions(f.loop);
+}}
+
+function renderAllyActions(loop) {{
+  const visible = ACTIONS
+    .filter(action => Number(action.loop ?? 0) <= Number(loop))
+    .slice(-24)
+    .reverse();
+  const target = document.getElementById('allyActions');
+  target.innerHTML = visible.map(action => {{
+    const isCommand = action.kind === 'player_command';
+    const accepted = isCommand ? action.accepted : action.dispatched?.success;
+    const color = isCommand ? '#55a9ff' : '#4ae2c8';
+    const label = isCommand
+      ? `P1 -> P2: ${{action.arguments?.text || action.notice || ''}}`
+      : `${{action.name || 'P2 action'}}${{action.reason ? ` · ${{action.reason}}` : ''}}`;
+    const result = isCommand
+      ? (accepted ? '已接收' : '已拒绝')
+      : (action.dispatched ? (action.dispatched.success ? '已执行' : `失败: ${{action.dispatched.error || 'unknown'}}`) : '排队中');
+    return `<div style="border-left:2px solid ${{color}};padding:3px 6px;margin:3px 0;background:#111;">
+      <div style="color:${{color}};">L${{action.loop}} · ${{label}}</div>
+      <div style="color:#888;">${{result}}${{action.mode ? ` · mode=${{action.mode}}` : ''}}</div>
+    </div>`;
+  }}).join('') || '<span style="color:#666;">暂无 P1/P2 指令</span>';
 }}
 
 function drawEconChart(curIdx) {{
@@ -425,7 +516,7 @@ function drawEconChart(curIdx) {{
   const minerals = [];
   const vespene = [];
   for (const f of FRAMES) {{
-    const r = f.p1_resources || {{}};
+    const r = f.p2_resources || f.p1_resources || {{}};
     minerals.push(r.minerals || 0);
     vespene.push(r.vespene || 0);
   }}
@@ -584,7 +675,7 @@ canvas.addEventListener('mousemove', (e) => {{
     tooltip.style.display = 'block';
     tooltip.style.left = (e.clientX - rect.left + 10) + 'px';
     tooltip.style.top = (e.clientY - rect.top + 10) + 'px';
-    tooltip.innerHTML = `P${{found.p}} ${{found.t}}<br>HP: ${{(found.hp/1024).toFixed(0)}}/${{maxHp}} (${{hpRatio}}%)<br>id=${{found.id}}<br>(${{found.x.toFixed(1)}}, ${{found.y.toFixed(1)}})`;
+    tooltip.innerHTML = `${{ownerLabel(found.p)}} ${{found.t}}<br>HP: ${{(found.hp/1024).toFixed(0)}}/${{maxHp}} (${{hpRatio}}%)<br>id=${{found.id}}<br>(${{found.x.toFixed(1)}}, ${{found.y.toFixed(1)}})`;
   }} else {{
     tooltip.style.display = 'none';
   }}
@@ -599,11 +690,11 @@ function renderLegend() {{
     counts[pidStr] = f.entities_by_player[pidStr].filter(e => e.alive).length;
   }}
   const legend = document.getElementById('legend');
-  const names = {{'0':'中立资源','1':'P1 玩家','2':'P2 玩家','3':'P3 Amon','4':'P4 Amon/波次','5':'P5 感染物','6':'P6 设施'}};
+  const names = {{'0':'中立资源'}};
   let html = '';
   for (const pidStr of ['1','2','3','4','5','6','0']) {{
     if (!counts[pidStr]) continue;
-    html += `<div class="legend-item"><span class="legend-dot" style="background:${{colorFor(parseInt(pidStr))}}"></span>${{names[pidStr]||('P'+pidStr)}} (${{counts[pidStr]}})</div>`;
+    html += `<div class="legend-item"><span class="legend-dot" style="background:${{colorFor(parseInt(pidStr))}}"></span>${{names[pidStr]||ownerLabel(parseInt(pidStr))}} (${{counts[pidStr]}})</div>`;
   }}
   legend.innerHTML = html;
 }}
@@ -654,12 +745,16 @@ def main():
 
     output_path = Path(args.output) if args.output else jsonl_path.with_suffix(".player.html")
 
-    frames = load_replay(jsonl_path)
+    records = load_replay(jsonl_path)
+    frames = [
+        record for record in records
+        if record.get("record_type") == "frame" or "entities_by_player" in record
+    ]
     if not frames:
         print("错误：JSONL 为空", file=sys.stderr)
         return 1
 
-    render_player_html(frames, jsonl_path, output_path)
+    render_player_html(records, jsonl_path, output_path)
     print(f"可动回放 HTML 已生成: {output_path}")
     print(f"  帧数: {len(frames)}")
     print(f"  Loop 范围: {frames[0]['loop']} -> {frames[-1]['loop']}")
