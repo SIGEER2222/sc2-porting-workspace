@@ -422,7 +422,8 @@ protected 5153 Debug VM window cannot satisfy this gate.
   and `attack=2`; final P2 composition was
   `CommandCenter=1, SupplyDepot=1, Barracks=1, Refinery=1, SCV=8,
   Marine=3`. All runs had zero dispatch errors, zero friendly-fire
-  rejections, no deadlock, no command storm, and the same trace hash.
+  rejections, zero hidden-state violations, no deadlock, no command storm,
+  and the same trace hash.
   Evidence:
   `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ally-policy-native-opening-20260802.json`.
 - `simulator`: visible enemy contact transitions the policy into

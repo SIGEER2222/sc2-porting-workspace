@@ -1213,6 +1213,9 @@ def run_ally_scenario(
             own_ids = {u["entity_id"] for u in obs.own_units}
             visible_ids = own_ids | {
                 entity["entity_id"] for entity in obs.visible_enemies + obs.visible_allies
+            } | {
+                resource["entity_id"]
+                for resource in obs.mineral_fields + obs.vespene_geysers
             }
             for a in actions:
                 if a.entity_id not in own_ids:

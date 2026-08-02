@@ -96,6 +96,7 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
 
         self.assertTrue(result.roster_ready, result.roster_issues)
         self.assertEqual(result.error_breakdown, {})
+        self.assertEqual(result.hidden_state_access_violations, 0)
         self.assertEqual(result.friendly_fire_rejections, 0)
         self.assertFalse(result.deadlock_detected)
         self.assertFalse(result.command_storm_detected)
@@ -147,6 +148,7 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
                 require_cooperative_roster=True,
             )
             self.assertEqual(result.error_breakdown, {}, seed)
+            self.assertEqual(result.hidden_state_access_violations, 0, seed)
             self.assertEqual(result.friendly_fire_rejections, 0, seed)
             self.assertFalse(result.deadlock_detected, seed)
             self.assertFalse(result.command_storm_detected, seed)
