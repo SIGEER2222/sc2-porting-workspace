@@ -5,6 +5,8 @@
     "vibe.test.ping": {
       "handler": "libVibeKernel_gf_FunctionVibeTestPing",
       "side_effect": false,
+      "debug_only": false,
+      "capability": "diagnostic",
       "args": {
         "nonce": {
           "type": "string",
@@ -22,6 +24,8 @@
     "vibe.player.set_resource": {
       "handler": "libVibeKernel_gf_FunctionPlayerSetResource",
       "side_effect": true,
+      "debug_only": true,
+      "capability": "debug-injection",
       "args": {
         "player": {"type": "integer", "required": true, "min": 1, "max": 15},
         "resource": {"type": "string", "required": true, "enum": ["minerals", "vespene"]},
@@ -37,6 +41,8 @@
     "vibe.unit.spawn": {
       "handler": "libVibeKernel_gf_FunctionUnitSpawn",
       "side_effect": true,
+      "debug_only": true,
+      "capability": "debug-injection",
       "args": {
         "unit_type": {"type": "string", "required": true},
         "count": {"type": "integer", "required": true, "min": 1, "max": 200},
@@ -55,6 +61,8 @@
     "vibe.query.units": {
       "handler": "libVibeKernel_gf_FunctionQueryUnits",
       "side_effect": false,
+      "debug_only": false,
+      "capability": "observation",
       "args": {
         "player": {"type": "integer", "required": false, "default": 0, "min": 0, "max": 15},
         "unit_type": {"type": "string", "required": false, "default": ""}
@@ -69,6 +77,8 @@
     "vibe.unit.kill": {
       "handler": "libVibeKernel_gf_FunctionUnitKill",
       "side_effect": true,
+      "debug_only": true,
+      "capability": "debug-injection",
       "args": {
         "unit_tag": {"type": "integer", "required": true, "min": 1}
       },
@@ -81,6 +91,8 @@
     "vibe.unit.attack": {
       "handler": "libVibeKernel_gf_FunctionUnitAttack",
       "side_effect": true,
+      "debug_only": false,
+      "capability": "control",
       "args": {
         "attacker_tag": {"type": "integer", "required": true, "min": 1},
         "target_tag": {"type": "integer", "required": true, "min": 1}
@@ -97,6 +109,8 @@
     "vibe.query.structures": {
       "handler": "libVibeKernel_gf_FunctionQueryStructures",
       "side_effect": false,
+      "debug_only": false,
+      "capability": "observation",
       "args": {
         "owner_player": {"type": "integer", "required": false, "default": 0, "min": 0, "max": 15},
         "unit_type": {"type": "string", "required": false, "default": ""}

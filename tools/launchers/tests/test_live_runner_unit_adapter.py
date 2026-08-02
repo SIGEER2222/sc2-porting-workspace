@@ -54,6 +54,21 @@ def test_live_action_adapter_uses_empire_gather_and_train_abilities():
     assert train_scv is not None
     assert train_scv.action_raw.unit_command.ability_id == 17443
 
+    build_barracks = runner.build_action(
+        DefendAction(
+            entity_id=11,
+            kind="build",
+            unit_type_id="Barracks",
+            target_x=15.0,
+            target_y=20.0,
+        ),
+        player_id=2,
+        source_unit_type_int=4382,
+    )
+    assert build_barracks is not None
+    assert build_barracks.action_raw.unit_command.ability_id == 321
+    assert build_barracks.action_raw.unit_command.target_world_space_pos.x == 15.0
+
 
 def test_live_ally_command_is_a_p1_team_chat_message():
     action = runner.build_ally_chat_action("!ally defend stage25-test")

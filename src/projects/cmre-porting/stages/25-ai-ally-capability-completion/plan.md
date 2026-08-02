@@ -8,6 +8,11 @@ diagnosis, while the strategy path must observe a native opening, gather real
 resources, train real units, issue real movement/combat commands, and verify
 state transitions without injecting units or resources.
 
+The runtime debug path also includes a bounded external Debug VM. Debug
+programs are hot-loaded JSON instructions executed through the typed registry;
+they may query the complete function catalog but may call only explicit runtime
+adapters. A running SC2 session must be reusable across many debug programs.
+
 The cooperative ally model remains in scope: the simulator and runtime must
 represent a leader and a distinct AI-controlled ally, expose only visible
 allied state, and prevent friendly-fire commands. Stage 24 remains the
@@ -48,45 +53,51 @@ even if the mission objectives are cleared.
 
 ### In scope
 
-1. Define the runtime debug contract for `function.invoke`: explicit function
+1. Discover all Galaxy function declarations in the registered CMRE package and
+   owned packages into a source-relative catalog. Record signatures, effects,
+   trigger/initializer classification, and whether an explicit adapter exists.
+2. Define the runtime debug contract for `function.invoke`: explicit function
    IDs, typed arguments, request/response correlation, state versions, and
    structured rejection of unknown functions or invalid arguments. Keep this
    separate from strategy-side action accounting.
-2. Add the smallest typed native action/query surface needed by the MVP:
+3. Implement the bounded Debug VM with `call`, `step`, `assert`, `set`,
+   `repeat`, and `catalog.search`. Enforce instruction budgets, typed registry
+   checks, and strategy-mode rejection of debug-only functions.
+4. Add the smallest typed native action/query surface needed by the MVP:
    resource/unit observation, gather, train, move, attack, and mission state.
    The simulator, Host, registry, and Galaxy mirror must agree on names and
    argument types. Do not add arbitrary Galaxy reflection.
-3. Define a strategy audit that records every operation family and rejects
+5. Define a strategy audit that records every operation family and rejects
    debug injection (`spawn`, resource mutation, forced kill, or equivalent)
    during native strategy runs.
-4. Define a project-owned cooperative roster contract for leader P1, AI ally
+6. Define a project-owned cooperative roster contract for leader P1, AI ally
    P2, and enemy players. The simulator roster must validate reciprocal
    alliances, reject asymmetric or unknown ally IDs, and record an explicit
    `ally_joined`/roster-ready transition in the report.
-5. Extend the observation contract with `visible_allies` and an alliance
+7. Extend the observation contract with `visible_allies` and an alliance
    summary containing player ID, unit counts, base/leader position, and alive
    state. Keep hidden entities inaccessible to policy code.
-6. Upgrade `AllyPolicy` into a bounded state machine with explicit modes:
+8. Upgrade `AllyPolicy` into a bounded state machine with explicit modes:
    `follow`, `regroup`, `defend_base`, `assist_attack`, and `retreat`.
    Priority must be deterministic: self-preservation and base defense first,
    explicit leader/objective assistance second, regroup/follow third, hold
    last.
-7. Extend the action adapter only through existing typed simulator/runtime
+9. Extend the action adapter only through existing typed simulator/runtime
    boundaries. Commands must be attributed to P2, obey per-unit rate limits,
    tolerate stale targets, and never issue attacks against P1 or other allies.
-8. Add a Dead of Night native-task scenario that keeps mission-owned P1
+10. Add a Dead of Night native-task scenario that keeps mission-owned P1
    initialization intact, starts from the observed native economy, and records
    gather/train/move/attack deltas. Add the cooperative roster to the same
    scenario only where the live map exposes the required team identity.
-9. Add a Dead of Night cooperative scenario that keeps mission-owned P1
+11. Add a Dead of Night cooperative scenario that keeps mission-owned P1
    initialization intact, gives P2 an AI ally roster entry and controlled
    starting force, and retains P3/P4/P5 as enemies. Do not modify the source
    map or canonical commander behavior.
-10. Add simulator evidence for native task transitions, debug-operation
+12. Add simulator evidence for native task transitions, debug-operation
    rejection, ally visibility, same-team targeting rejection,
    assist/follow/defend transitions, reinforcement and ally-loss recovery,
    deterministic multi-seed behavior, and command/error accounting.
-11. Add one bounded runtime probe through `tools/launchers/` that first calls
+13. Add one bounded runtime probe through `tools/launchers/` that first calls
    a safe registered debug/query function, then observes raw
    alliance values and owner IDs, confirms P2 is allied to P1 and hostile to
    the declared enemy set, runs native gather/train/move/attack actions without
@@ -106,41 +117,48 @@ even if the mission objectives are cleared.
 
 ## Implementation steps
 
-1. Add the explicit function metadata and strategy/debug capability labels;
+1. Run the AST catalog discovery and review the inventory-only versus
+   callable-adapter split.
+2. Add the explicit function metadata and strategy/debug capability labels;
    keep the implementation map explicit in Python and Galaxy.
-2. Add the typed native action/query path in the simulator and Host. For the
+3. Implement and unit-test the Debug VM against a fake bridge, then expose it
+   through the existing REPL without adding a second transport.
+4. Add the typed native action/query path in the simulator and Host. For the
    live map, reuse the existing raw SC2 action adapter where it is the native
    transport, but record equivalent typed action names and pre/post state.
-3. Add the strategy audit and no-injection assertions before changing policy
+5. Add the strategy audit and no-injection assertions before changing policy
    behavior.
-4. Add the cooperative roster and alliance invariants in the project-owned
+6. Add the cooperative roster and alliance invariants in the project-owned
    simulator path. Prefer the existing `ScenarioPlayer.allies` and
    `PlayerRegistry` primitives; add only the smallest validator/report fields
    required by two consumers (simulator policy and runtime probe).
-5. Extend `Observation` and its tests with ally views while preserving all
+7. Extend `Observation` and its tests with ally views while preserving all
    existing consumers and the hidden-state guard. Add a stable `team_id` or
    equivalent derived roster identity only if the current owner/allies fields
    cannot express the contract without duplication.
-6. Refactor `AllyPolicy`/`ActionAdapter` around the explicit mode state machine,
+8. Refactor `AllyPolicy`/`ActionAdapter` around the explicit mode state machine,
    P2 issuer ownership, ally-safe target filtering, bounded retries, and
    decision traces that record mode transitions and reasons.
-7. Build the project-owned native-task and cooperative Dead of Night simulator
+9. Build the project-owned native-task and cooperative Dead of Night simulator
    scenarios and Stage 25 focused tests. Keep debug injection tests in a
    separate test class and never mix their evidence into native strategy.
-   stage25 focused tests. Keep Stage 19/20 clearance tests and Stage 23 typed
-   combat tests in the regression set.
-8. Run simulator-first validation across at least seeds 42, 7, and 99. Require
+   Keep Stage 19/20 clearance tests and Stage 23 typed combat tests in the
+   regression set.
+10. Run simulator-first validation across at least seeds 42, 7, and 99. Require
    native task transitions, zero debug injections, and truthful rejection
    evidence before ally-specific checks.
-9. Run simulator-first validation across at least seeds 42, 7, and 99. Require
+11. Run the complete function catalog and Debug VM smoke validation. Require
+   zero parser errors, registry/catalog alignment, typed argument rejection
+   before transport, and a truthful nonzero VM exit on failure.
+12. Run simulator-first validation across at least seeds 42, 7, and 99. Require
    roster-ready evidence, no friendly-fire commands, nonzero ally assist/follow
    transitions, truthful error accounting, and deterministic report hashes or
    an explicitly documented allowed variance.
-10. Run the bounded runtime probe through the approved launcher after the
+13. Run the bounded runtime probe through the approved launcher after the
    simulator contract passes. Capture CreateGame/JoinGame, raw alliance
    observations, P1/P2 owner counts, typed action correlation, frame advance,
    resulting state delta, and same-window ScriptError evidence.
-11. Record `result.json`, `log.md`, and `issues.json`; promote `currentStage`
+14. Record `result.json`, `log.md`, and `issues.json`; promote `currentStage`
    from Stage 24 only when implementation begins and keep simulator, static,
    runtime, blocked, and inference evidence separate.
 
@@ -163,36 +181,40 @@ or external repositories may be modified.
 
 ## Acceptance criteria
 
-1. The debug runtime contract passes with a successful safe `function.invoke`,
+1. The catalog contains every discovered function with zero parser errors, and
+   inventory-only entries cannot be invoked by the Debug VM.
+2. The Debug VM executes a hot-loaded program containing call, state assertion,
+   repeat, step, and catalog search without restarting the game session.
+3. The debug runtime contract passes with a successful safe `function.invoke`,
    request/response correlation, typed validation, and rejection of unknown or
    malformed calls. The same contract reports zero ScriptErrors in fresh SC2.
-2. A simulator native-task scenario starts without debug injection and proves
+4. A simulator native-task scenario starts without debug injection and proves
    at least one real gather transition, one real train transition, and one
    real move or attack transition through pre/post observations.
-3. Native strategy evidence contains zero `unit.spawn`,
+5. Native strategy evidence contains zero `unit.spawn`,
    `player.set_resource`, `unit.kill`, or equivalent forced-state operations;
    the negative gate fails closed if any appears.
-4. A simulator scenario contains P1 and P2 with reciprocal alliance entries;
+6. A simulator scenario contains P1 and P2 with reciprocal alliance entries;
    P2 is `is_ai=true`, P1/P2 are not enemies in either direction, and P3/P4/P5
    remain hostile. An asymmetric/unknown roster fails before simulation.
-5. The policy receives allied units through `Observation.visible_allies`,
+7. The policy receives allied units through `Observation.visible_allies`,
    never accesses `world.entities`, and emits a trace showing at least three
    distinct valid modes across the scenario: follow/regroup, defend/assist,
    and retreat or hold.
-6. No issued or dispatched action targets an allied unit; all P2 commands are
+8. No issued or dispatched action targets an allied unit; all P2 commands are
    owner-valid, per-unit rate-limited, correlated, and accounted for when a
    unit or target becomes stale.
-7. Seeds 42, 7, and 99 pass the focused simulator scenario with roster-ready
+9. Seeds 42, 7, and 99 pass the focused simulator scenario with roster-ready
    evidence, no friendly-fire result, nonzero cooperative action evidence, and
    no deadlock, oscillation, or command-storm safety failure.
-8. Existing Stage 19/20 simulator tests, Stage 22/23 typed combat tests, and
+10. Existing Stage 19/20 simulator tests, Stage 22/23 typed combat tests, and
    launcher/kernel static validation remain green.
-9. A fresh approved-launcher runtime window observes the native P1/P2 team
+11. A fresh approved-launcher runtime window observes the native P1/P2 team
    relationship, advances frames, receives at least one successful typed P2
    action result, records a resulting observable state delta, and reports zero
    new ScriptErrors in that same window. A blocked runtime remains BLOCKED,
    never PASS.
-10. Stage artifacts contain repo-relative evidence paths, valid JSON schemas,
+12. Stage artifacts contain repo-relative evidence paths, valid JSON schemas,
    explicit evidence classifications, and no claim that simulator success is
    runtime success.
 
@@ -233,6 +255,8 @@ after the runtime recipe exists and the simulator gate passes.
 ## Deliverables
 
 - Stage 25 plan, log, result, and issues records.
+- AST-derived complete function catalog and repeatable discovery command.
+- Bounded Debug VM implementation, smoke program, and focused tests.
 - Project-owned cooperative simulator scenario and focused regression tests.
 - Runtime recipe and evidence bundle proving native P1/P2 team identity and a
   typed cooperative action, or a truthful blocked record with next action.

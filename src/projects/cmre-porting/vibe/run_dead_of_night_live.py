@@ -523,6 +523,7 @@ def build_ally_chat_action(message: str) -> sc_pb.Action:
 
 def _p2_state(obs: LiveObservation) -> list[dict]:
     """Return P2 state used for runtime before/after evidence."""
+    units = obs.own_units if obs.player_id == P2_PLAYER_ID else obs.visible_allies
     return [
         {
             "entity_id": unit["entity_id"],
@@ -532,9 +533,15 @@ def _p2_state(obs: LiveObservation) -> list[dict]:
             "x": round(float(unit.get("x", 0.0)), 3),
             "y": round(float(unit.get("y", 0.0)), 3),
         }
-        for unit in obs.visible_allies
+        for unit in units
         if int(unit.get("owner", 0)) == P2_PLAYER_ID
     ]
+
+
+def _owner_state(obs: LiveObservation, owner_player_id: int) -> list[dict]:
+    """Return only the requested owner from self/allied visible units."""
+    units = obs.own_units + obs.visible_allies
+    return [unit for unit in units if int(unit.get("owner", 0)) == owner_player_id]
 
 
 def _read_runtime_bank_section(bank_name: str = "GalaxyVibe") -> dict:
@@ -641,13 +648,20 @@ def _write_replay_frame(fp, loop: int, obs: LiveObservation,
     frame = {
         "loop": loop,
         "ts_sec": round(loop / 22.4, 1),
-        "p1_alive": len(obs.own_units),
+        "p1_alive": len(_owner_state(obs, P1_PLAYER_ID)),
         "enemy_alive": len(obs.visible_enemies),
-        "p1_units_by_type": p1_units_by_type,
+        "p1_units_by_type": {
+            unit_type: count
+            for unit_type, count in Counter(
+                unit.get("unit_type_id", "")
+                for unit in _owner_state(obs, P1_PLAYER_ID)
+            ).items()
+        },
         "enemy_units_by_type": enemy_units_by_type,
         "p2_alive": len(_p2_state(obs)),
         "p2_units_by_type": p2_units_by_type,
-        "p1_resources": obs.resources,
+        "strategy_player_id": obs.player_id,
+        "strategy_player_resources": obs.resources,
         "total_cmds": total_cmds,
         "key_events": key_events,
     }
@@ -707,7 +721,8 @@ async def run_live(
     initial_obs: Optional[LiveObservation] = None
     map_name = os.path.basename(map_path)
     local_map_path = ""
-    player_id = P1_PLAYER_ID
+    strategy_player_id = P2_PLAYER_ID
+    player_id = strategy_player_id
     player_roster: dict = {}
     ally_command_trace: list[dict] = []
     chat_received: list[dict] = []
@@ -754,8 +769,8 @@ async def run_live(
         req = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
             local_map=local_map,
             player_setup=[
-                sc_pb.PlayerSetup(type=1, race=1, player_name="P1"),  # Terran Participant
-                sc_pb.PlayerSetup(type=2, race=1, difficulty=2, player_name="AI"),  # Terran Computer
+                sc_pb.PlayerSetup(type=1, race=1, player_name="P1"),  # Human player slot
+                sc_pb.PlayerSetup(type=1, race=1, player_name="P2"),  # Vibe strategy slot
             ],
             realtime=False,
         ))
@@ -773,6 +788,7 @@ async def run_live(
             print("[4] JoinGame...")
         join_req = sc_pb.Request(join_game=sc_pb.RequestJoinGame(
             race=1,  # Terran
+            player_name="P2",
             options=sc_pb.InterfaceOptions(raw=True),
         ))
         joined = False
@@ -809,6 +825,10 @@ async def run_live(
                 raise RuntimeError(f"JoinGame failed: {r.join_game.error} {r.join_game.error_details}")
         if r.HasField("join_game"):
             player_id = r.join_game.player_id
+        if player_id != strategy_player_id:
+            raise RuntimeError(
+                f"Vibe strategy must join P2, but SC2 assigned player_id={player_id}"
+            )
         if verbose:
             print(f"  JoinGame OK! player_id={player_id}")
 
@@ -835,19 +855,18 @@ async def run_live(
         if verbose:
             print(f"[5] Map: {map_name} | local_map_path={local_map_path}")
 
-        # 6. Native P1 task policy. This channel owns only P1 units and raw
-        # typed actions; the P1 -> P2 ally chat channel below is audited
-        # separately and can never make native strategy pass.
+        # 6. Native P2 task policy. P1 is the human player; this runner owns
+        # only P2 units and every raw action is issued by the P2 participant.
         policy = DefendBasePolicy(player_id=player_id, command_interval=decision_interval)
 
-        # 7. P1 -> P2 ally command channel. P2 is operated by Galaxy, not by
-        # a raw action issued as if P1 owned its units.
+        # 7. P1 -> P2 chat is intentionally disabled in the P2 participant
+        # runner. It is a separate player-command channel, not Vibe strategy.
         run_token = str(int(start_time))
-        commands = ally_commands or [
+        commands = [] if player_id == P2_PLAYER_ID else (ally_commands or [
             f"!ally status stage25_{run_token}_status",
             f"!ally defend stage25_{run_token}_defend",
             f"!ally attack stage25_{run_token}_attack",
-        ]
+        ])
         command_cursor = 0
         command_due_loops = [0, max(1, max_loops // 4), max(2, max_loops // 2)]
         pending_command: Optional[dict] = None
@@ -993,7 +1012,10 @@ async def run_live(
                         "loop": current_loop,
                         "kind": action_for_transport.kind,
                         "entity_id": action_for_transport.entity_id,
+                        "issuer_player_id": player_id,
+                        "source_owner": source_unit.get("owner", 0),
                         "unit_type_id": source_unit.get("unit_type_id", ""),
+                        "command_unit_type_id": action_for_transport.unit_type_id,
                         "unit_type_int": source_unit.get("unit_type_int", 0),
                         "ability_id": raw_command.ability_id,
                         "target_entity_id": target_tag,
@@ -1076,7 +1098,7 @@ async def run_live(
                         pending_command = {
                             "loop": current_loop,
                             "message": command,
-                            "source_player_id": P1_PLAYER_ID,
+                    "source_player_id": player_id,
                             "target_player_id": P2_PLAYER_ID,
                             "transport": "sc2api_action_chat",
                             "request_ok": sent_ok,
@@ -1089,7 +1111,7 @@ async def run_live(
                         pending_command = {
                             "loop": current_loop,
                             "message": command,
-                            "source_player_id": P1_PLAYER_ID,
+                            "source_player_id": player_id,
                             "target_player_id": P2_PLAYER_ID,
                             "transport": "sc2api_action_chat",
                             "request_ok": False,
@@ -1146,7 +1168,9 @@ async def run_live(
 
     # 计算结果
     elapsed = time.time() - start_time
-    p1_survivors = len(final_obs.own_units) if final_obs is not None else 0
+    p1_survivors = (
+        len(_owner_state(final_obs, P1_PLAYER_ID)) if final_obs is not None else 0
+    )
     p2_state = _p2_state(final_obs) if final_obs is not None else []
     if pending_command is not None:
         pending_command["p2_after"] = p2_state
@@ -1179,6 +1203,9 @@ async def run_live(
         action_result_trace,
         initial_observation=(initial_obs.__dict__ if initial_obs is not None else None),
         final_observation=(final_obs.__dict__ if final_obs is not None else None),
+        expected_player_id=strategy_player_id,
+        required_buildings=("Barracks", "Refinery"),
+        required_units=("Marine",),
     )
 
     report = LiveGameReport(
@@ -1200,6 +1227,8 @@ async def run_live(
         runtime_assertions={
             "frames_advanced": current_loop > 0,
             "player_units_observed": p1_survivors > 0,
+            "strategy_player_id_is_p2": strategy_player_id == P2_PLAYER_ID,
+            "strategy_player_units_observed": len(p2_state) > 0,
             "action_results_correlated": action_result_count_mismatches == 0,
             "action_success_observed": cmd_ok_stats.get("dispatched", 0) > 0,
             "native_strategy_action_success": strategy_audit["status"] == "PASS",
@@ -1225,7 +1254,7 @@ async def run_live(
         ),
         local_map_path=local_map_path,
         replay_log_path=str(replay_path),
-        observed_player_id=player_id,
+        observed_player_id=strategy_player_id,
         p2_unit_count=len(p2_state),
         p2_alliance_values=sorted({int(item.get("alliance", 0)) for item in p2_state}),
         player_roster=player_roster,

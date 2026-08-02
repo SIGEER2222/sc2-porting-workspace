@@ -1,0 +1,32 @@
+{
+  "vm": "vibe-debug/1",
+  "mode": "debug",
+  "catalog_path": "../../../../../artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json",
+  "steps": [
+    {
+      "op": "call",
+      "fn": "vibe.test.ping",
+      "args": {"nonce": "vm-smoke"},
+      "save": "ping"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.ping",
+      "path": "message",
+      "equals": "pong"
+    },
+    {
+      "op": "catalog.search",
+      "name": "FunctionQuery",
+      "kind": "helper",
+      "limit": 10,
+      "save": "query_functions"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.query_functions",
+      "path": "count",
+      "gte": 1
+    }
+  ]
+}

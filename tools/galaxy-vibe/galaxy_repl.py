@@ -74,6 +74,7 @@ except Exception as e:  # pragma: no cover
 import aiohttp  # 同 sc2-observer
 
 from host.vibe_host import RpcRequest, write_bank_request  # noqa: E402
+from vibe.debug_vm import DebugVm, load_function_catalog, load_function_metadata  # noqa: E402
 from vibe.function_registry import FunctionRegistryError, coerce_cli_args  # noqa: E402
 
 DEFAULT_BANK = Path.home() / "Documents" / "StarCraft II" / "Banks" / "GalaxyVibeDebug.SC2Bank"
@@ -256,7 +257,15 @@ def _split_flags(args):
 
 
 class VibeREPL:
-    def __init__(self, port: int, resolve, name_lookup, map_path: str = "", join_wait: float = 15.0):
+    def __init__(
+        self,
+        port: int,
+        resolve,
+        name_lookup,
+        map_path: str = "",
+        join_wait: float = 15.0,
+        rpc_session_id: str = "",
+    ):
         self.port = port
         self.resolve = resolve
         self.name_lookup = name_lookup
@@ -265,7 +274,7 @@ class VibeREPL:
         self.map_center = common_pb.Point2D(x=50.0, y=50.0)
         self._have_map = False
         self.assert_results: list[dict] = []
-        self.rpc_session_id = "repl_" + uuid.uuid4().hex[:12]
+        self.rpc_session_id = rpc_session_id or ("repl_" + uuid.uuid4().hex[:12])
         self.rpc_sequence = 0
 
     async def connect(self):
@@ -409,27 +418,12 @@ class VibeREPL:
             print(f"[ping] 未确认闭环（Mod 未挂？或 Bank 未回写）run_id={run_id}")
         return True
 
-    async def cmd_invoke(self, args):
-        if not args:
-            print("[invoke] usage: invoke <function_id> [key=value ...]")
-            return True
-        function_id = args[0]
-        raw_args = {}
-        for item in args[1:]:
-            if "=" not in item:
-                print("[invoke] arguments must use key=value")
-                return True
-            key, value = item.split("=", 1)
-            if not key:
-                print("[invoke] argument name cannot be empty")
-                return True
-            raw_args[key] = value
+    async def invoke_function_request(self, function_id: str, call_args: dict):
+        """Send one validated function.invoke and return its structured result."""
         try:
-            call_args = coerce_cli_args(function_id, raw_args)
+            coerce_cli_args(function_id, {key: str(value) for key, value in call_args.items()})
         except FunctionRegistryError as exc:
-            print(f"[invoke] {exc.code}: {exc.detail}")
-            return True
-
+            return {"kind": "error", "error_code": exc.code, "payload": {"reason": exc.detail}}
         self.rpc_sequence += 1
         request = RpcRequest(
             session_id=self.rpc_session_id,
@@ -440,11 +434,9 @@ class VibeREPL:
         )
         try:
             if not write_bank_request("GalaxyVibe", request.request_id, request):
-                print("[invoke] unable to write GalaxyVibe bank")
-                return True
+                return {"kind": "error", "error_code": "INTERNAL_ERROR", "payload": {"reason": "bank_write_failed"}}
         except Exception as exc:
-            print(f"[invoke] bank write failed: {exc}")
-            return True
+            return {"kind": "error", "error_code": "INTERNAL_ERROR", "payload": {"reason": str(exc)}}
         deadline = time.time() + 5.0
         raw = ""
         while time.time() < deadline:
@@ -467,15 +459,91 @@ class VibeREPL:
                 pass
             await asyncio.sleep(0.1)
         if not raw:
-            print(f"[invoke] timeout waiting for {request.request_id}")
-            return True
+            return {
+                "kind": "error",
+                "error_code": "INTERNAL_ERROR",
+                "request_id": request.request_id,
+                "payload": {"reason": "timeout"},
+            }
         try:
-            parsed = json.loads(raw)
+            return json.loads(raw)
         except json.JSONDecodeError:
-            print(f"[invoke] malformed response: {raw}")
+            return {
+                "kind": "error",
+                "error_code": "INTERNAL_ERROR",
+                "request_id": request.request_id,
+                "payload": {"reason": "malformed_response", "raw": raw},
+            }
+
+    async def cmd_invoke(self, args):
+        if not args:
+            print("[invoke] usage: invoke <function_id> [key=value ...]")
             return True
+        function_id = args[0]
+        raw_args = {}
+        for item in args[1:]:
+            if "=" not in item:
+                print("[invoke] arguments must use key=value")
+                return True
+            key, value = item.split("=", 1)
+            if not key:
+                print("[invoke] argument name cannot be empty")
+                return True
+            raw_args[key] = value
+        try:
+            call_args = coerce_cli_args(function_id, raw_args)
+        except FunctionRegistryError as exc:
+            print(f"[invoke] {exc.code}: {exc.detail}")
+            return True
+        parsed = await self.invoke_function_request(function_id, call_args)
         print(f"[invoke] {parsed.get('error_code')} payload={parsed.get('payload', {})}")
         return True
+
+    async def cmd_vm(self, args):
+        if not args:
+            print("[vm] usage: vm <program.json>")
+            return True
+        program_path = Path(args[0]).resolve()
+        if not program_path.exists():
+            print(f"[vm] program not found: {program_path}")
+            return False
+        try:
+            program = json.loads(program_path.read_text(encoding="utf-8-sig"))
+            metadata = load_function_metadata()
+            catalog_path = program.get("catalog_path")
+            if catalog_path:
+                catalog_file = (program_path.parent / catalog_path).resolve()
+            else:
+                catalog_file = REPO_ROOT / "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json"
+            if not catalog_file.is_relative_to(REPO_ROOT):
+                print(f"[vm] catalog path must stay inside repository: {catalog_file}")
+                return False
+            catalog = load_function_catalog(catalog_file) if catalog_file.exists() else []
+
+            class ReplBridge:
+                async def call(inner_self, function_id, call_args):
+                    return await self.invoke_function_request(function_id, call_args)
+
+                async def step(inner_self, loops):
+                    response = await send_request(
+                        self.ws,
+                        sc_pb.Request(step=sc_pb.RequestStep(count=loops)),
+                        timeout=10.0,
+                    )
+                    if response.error:
+                        return {"kind": "error", "error_code": "STEP_FAILED", "payload": {"errors": list(response.error)}}
+                    return {"kind": "result", "error_code": "OK", "payload": {"requested_loops": loops}}
+
+            result = await DebugVm(
+                ReplBridge(),
+                function_metadata=metadata,
+                catalog=catalog,
+            ).run(program)
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return result["status"] == "passed"
+        except Exception as exc:
+            print(f"[vm] {exc}")
+            return False
 
     async def cmd_echo(self, args):
         cmd = "dbg echo " + " ".join(args)
@@ -1087,6 +1155,7 @@ class VibeREPL:
         handlers = {
             "ping": self.cmd_ping,
             "invoke": self.cmd_invoke,
+            "vm": self.cmd_vm,
             "echo": self.cmd_echo,
             "spawn": self.cmd_spawn,
             "kill": self.cmd_kill,
@@ -1109,16 +1178,17 @@ class VibeREPL:
             print(f"[?] 未知命令: {op}（输入 help 查看）")
             return True
         try:
-            await h(args)
+            return await h(args)
         except Exception as e:  # pragma: no cover
             print(f"[!] 执行 {op} 异常: {e}")
-        return True
+            return False
 
     async def cmd_help(self, args):
         print(
             "SC2 Vibe REPL 命令：\n"
             "  ping                                  验证 Mod 闭环\n"
             "  invoke <function_id> [key=value ...]  调用显式注册的 typed Vibe function\n"
+            "  vm <program.json>                      热加载并执行 Debug VM 程序\n"
             "  echo <text>                           回显文本到 Bank\n"
             "  spawn <type> <count> [player] [@x,y]  秒级刷兵（type 可用英文名或整数 id）\n"
             "  kill <all|player N|tag t1 t2...>      击杀单位\n"
@@ -1174,7 +1244,14 @@ async def amain(args):
         return 2
     resolve = _unit_id_resolver()
     name_lookup = _unit_name_lookup()
-    repl = VibeREPL(args.port, resolve, name_lookup, map_path=args.map, join_wait=args.join_wait)
+    repl = VibeREPL(
+        args.port,
+        resolve,
+        name_lookup,
+        map_path=args.map,
+        join_wait=args.join_wait,
+        rpc_session_id=args.rpc_session_id,
+    )
     try:
         await repl.connect()
     except Exception as e:
@@ -1183,14 +1260,19 @@ async def amain(args):
         return 2
 
     try:
-        if args.cmd:
-            await repl.dispatch(args.cmd)
+        command_ok = True
+        if args.vm_program:
+            command_ok = await repl.dispatch(f"vm {shlex.quote(args.vm_program)}")
+        elif args.cmd:
+            command_ok = await repl.dispatch(args.cmd)
         elif args.script or args.assert_file:
             await repl.run_script(Path(args.assert_file or args.script))
         else:
             await repl.run_interactive()
         repl.write_assert_report()
         rc = 0
+        if command_ok is False:
+            rc = 1
         if repl.assert_results and not all(r["pass"] for r in repl.assert_results):
             rc = 1
         return rc
@@ -1203,7 +1285,9 @@ def main():
     ap.add_argument("--port", type=int, default=5000)
     ap.add_argument("--map", default="", help="CreateGame + JoinGame this map before running commands")
     ap.add_argument("--join-wait", type=float, default=15.0, help="Seconds to wait after JoinGame for map scripts")
+    ap.add_argument("--rpc-session-id", default="", help="恢复当前游戏内已有的 Vibe Kernel session_id")
     ap.add_argument("--cmd", help="执行单条命令后退出")
+    ap.add_argument("--vm-program", help="加载并执行 JSON Debug VM 程序后退出")
     ap.add_argument("--script", help="逐行执行脚本文件后退出")
     ap.add_argument("--assert-file", help="逐行执行断言/scenario 文件，结束打印 PASS/FAIL 汇总并以退出码返回")
     a = ap.parse_args()

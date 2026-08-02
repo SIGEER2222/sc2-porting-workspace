@@ -54,7 +54,7 @@ def _cooperative_scenario(seed: int = 42) -> dict:
 
 
 class Stage25AiAllyCapabilityTests(unittest.TestCase):
-    def test_native_policy_does_not_attack_with_mission_caster(self):
+    def test_native_policy_never_attacks_with_scv_or_mission_caster(self):
         policy = DefendBasePolicy(
             player_id=1,
             base_region=(0.0, 0.0, 6.0),
@@ -103,7 +103,79 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
         actions = policy.decide(observation, loop=1, resources=observation.resources)
 
         attacks = [action for action in actions if action.kind == "attack"]
-        self.assertEqual([action.entity_id for action in attacks], [102])
+        self.assertEqual(attacks, [])
+        self.assertTrue(all(
+            action.entity_id != 102 or action.kind in {"move", "hold", "gather", "build", "train"}
+            for action in actions
+        ))
+
+    def test_p2_opening_builds_barracks_and_refinery_with_scvs(self):
+        policy = DefendBasePolicy(
+            player_id=2,
+            base_region=(10.0, 10.0, 6.0),
+            command_interval=1,
+            econ_interval=1,
+        )
+        observation = Observation(
+            loop=1,
+            player_id=2,
+            own_units=[
+                {"entity_id": 201, "unit_type_id": "CommandCenter", "owner": 2,
+                 "x": 10.0, "y": 10.0, "health": 1400 * 1024,
+                 "max_health": 1400 * 1024},
+                {"entity_id": 202, "unit_type_id": "SCV", "owner": 2,
+                 "x": 8.0, "y": 10.0, "health": 45 * 1024,
+                 "max_health": 45 * 1024},
+                {"entity_id": 203, "unit_type_id": "SCV", "owner": 2,
+                 "x": 8.0, "y": 11.0, "health": 45 * 1024,
+                 "max_health": 45 * 1024},
+            ],
+            visible_enemies=[],
+            resources={"minerals": 500, "vespene": 0, "supply_used": 3,
+                       "supply_cap": 15},
+            mission={},
+        )
+
+        actions = policy.decide(observation, loop=1, resources=observation.resources)
+        builds = [action for action in actions if action.kind == "build"]
+
+        self.assertEqual({action.unit_type_id for action in builds}, {"Barracks", "Refinery"})
+        self.assertEqual({action.entity_id for action in builds}, {202, 203})
+        self.assertTrue(all(action.entity_id not in {202, 203} or action.kind == "build"
+                            for action in actions if action.kind != "hold"))
+
+    def test_p2_producer_trains_combat_unit_but_not_scv_as_attacker(self):
+        policy = DefendBasePolicy(player_id=2, command_interval=1, econ_interval=1)
+        observation = Observation(
+            loop=1,
+            player_id=2,
+            own_units=[
+                {"entity_id": 301, "unit_type_id": "CommandCenter", "owner": 2,
+                 "x": 85.0, "y": 94.0, "health": 1400 * 1024,
+                 "max_health": 1400 * 1024},
+                {"entity_id": 302, "unit_type_id": "Barracks", "owner": 2,
+                 "x": 90.0, "y": 94.0, "health": 800 * 1024,
+                 "max_health": 800 * 1024},
+                {"entity_id": 303, "unit_type_id": "SCV", "owner": 2,
+                 "x": 82.0, "y": 94.0, "health": 45 * 1024,
+                 "max_health": 45 * 1024},
+            ],
+            visible_enemies=[
+                {"entity_id": 399, "unit_type_id": "Zergling", "owner": 3,
+                 "x": 100.0, "y": 100.0, "health": 35 * 1024,
+                 "max_health": 35 * 1024},
+            ],
+            resources={"minerals": 500, "vespene": 0, "supply_used": 3,
+                       "supply_cap": 15},
+            mission={},
+        )
+
+        actions = policy.decide(observation, loop=1, resources=observation.resources)
+        train_actions = [action for action in actions if action.kind == "train"]
+        self.assertTrue(any(action.entity_id == 302 and action.unit_type_id == "Marine"
+                            for action in train_actions))
+        self.assertFalse(any(action.kind == "attack" and action.entity_id == 303
+                             for action in actions))
 
     def test_roster_requires_reciprocal_p1_p2_and_ai_identity(self):
         roster = validate_cooperative_roster(_cooperative_scenario())

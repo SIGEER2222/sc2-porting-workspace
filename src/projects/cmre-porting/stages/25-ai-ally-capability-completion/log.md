@@ -49,6 +49,34 @@ cooperative AI ally behavior has begun.
   observations, but the fresh runtime report still has empty `bank_after` and
   `p2_command_ack_observed=false`; P2 alliance/owner observation is valid, but
   Galaxy command acknowledgement and resulting order cannot be claimed.
+- `static`: the AST catalog was regenerated from the registered CMRE development
+  package and owned project packages. It contains 35,404 function declarations,
+  0 parser errors, 35,390 inventory-only entries, and 14 source declarations
+  matched to 7 explicit callable registry IDs. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json`.
+- `simulator`: the Debug VM executed a hot-loaded program through the real
+  `SimulatorTransport`: ping returned `pong`, the typed unit query returned one
+  Marine, one scenario step reached loop 1, and catalog search returned 4
+  matches. The program passed 8 instructions with 5 transport requests and did
+  not restart the session. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/debug-vm-simulator-smoke.json`.
+- `static`: VM malformed wire arguments are rejected before bridge dispatch;
+  the REPL returns exit code 1 for a failed VM program and confines catalog
+  loading to repository paths. Focused Debug VM tests report 8 passed.
+- `runtime`: the first fresh KeepAlive window on port 5153 passed CreateGame,
+  JoinGame, `vibe.test.ping`, and catalog search through `galaxy_repl.py` with
+  VM exit code 0. Same-window ScriptError scan from launcher epoch
+  `2026-08-02T15:28:11+08:00` found zero new errors. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-20260802/script-error-verdict.json`.
+- `runtime`: a negative contract probe confirmed that a second independent REPL
+  process with a random session is rejected by the Galaxy Kernel session lock;
+  no game restart or process injection was attempted. The REPL now supports
+  `--rpc-session-id` to resume the existing session across processes. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-20260802/session-isolation-rejection.json`.
+- `runtime`: after resuming the original session with `--rpc-session-id`, a
+  second REPL process executed the same VM on port 5153 without CreateGame or
+  JoinGame. It returned `pong`, found 4 catalog entries, and exited 0. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-20260802/vm-resume.json`.
 
 ## Changes
 
@@ -74,6 +102,13 @@ cooperative AI ally behavior has begun.
 - `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` -> `52/52 passed, 0 warnings`.
 - `python -m py_compile` over Stage 25 runtime/policy modules and focused tests -> pass.
 - `git diff --check` -> pass.
+- `node src/projects/cmre-porting/stages/25-ai-ally-capability-completion/discover_function_catalog.mjs ...` -> 35,404 declarations, 0 parser errors, 14 callable-adapter source declarations.
+- `py -3.13 -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_debug_vm.py` -> `7 passed`.
+- `inline Python DebugVm bridge over SimulatorTransport` -> VM smoke PASS; 8 instructions, 5 transport requests, no session restart.
+- `approved launch-cmre-alenger.ps1 -ListenPort 5153 -DebugMode -KeepAlive` + `galaxy_repl.py --map ... --vm-program ...` -> runtime VM PASS; `vibe.test.ping=pong`, catalog search count=4, exit code 0.
+- `script_error_check.py --since 2026-08-02T15:28:11+08:00` -> zero new ScriptError files, exit code 0.
+- `galaxy_repl.py --port 5153 --join-wait 0 --vm-program ...` with a new random session -> expected session-lock timeout; follow-up recovery uses `--rpc-session-id`.
+- `galaxy_repl.py --port 5153 --join-wait 0 --rpc-session-id <existing-session> --vm-program ...` -> runtime VM PASS without CreateGame/JoinGame or game restart.
 - `python tools/mpq/scripts/pack_stormlib.py ...` -> packed 76 files; the
   existing `verify_mpq.py` cannot inspect this StormLib archive because its
   reader does not support encryption, so SC2 `CreateGame + JoinGame` is the

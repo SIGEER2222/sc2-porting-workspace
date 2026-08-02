@@ -74,6 +74,13 @@ class DefendBasePolicy:
 
     # 单位类型分类
     WORKER_TYPES = {"SCV", "Probe", "Drone"}
+    BUILDING_TYPES = {
+        "CommandCenter", "OrbitalCommand", "PlanetaryFortress", "SupplyDepot",
+        "Refinery", "Barracks", "Factory", "Starport", "EngineeringBay",
+        "MissileTurret", "Bunker", "SensorTower", "BarracksTechLab",
+        "BarracksReactor", "FactoryTechLab", "FactoryReactor", "StarportTechLab",
+        "StarportReactor",
+    }
     # Mission/commander caster units can appear in raw observations but do not
     # expose a weapon. They must not be treated as combat units by the policy.
     NON_COMBAT_TYPES = {
@@ -102,6 +109,14 @@ class DefendBasePolicy:
         "Marauder": {"proportion": 0.15, "priority": 3, "producer": "Barracks",
                       "min_m": 100, "min_v": 25,  "supply": 2},
     }
+
+    # The native opening must establish production before the army policy can
+    # train units.  Keep this list deterministic so a trace can prove which
+    # SCV built which missing structure.
+    BUILD_PLAN = (
+        {"unit_type_id": "Barracks", "min_m": 150, "min_v": 0, "offset": (5.0, 0.0)},
+        {"unit_type_id": "Refinery", "min_m": 75, "min_v": 0, "offset": (0.0, 5.0)},
+    )
 
     # SCV 训练参数
     SCV_COST_M = 50
@@ -133,6 +148,7 @@ class DefendBasePolicy:
         self._gathering_scvs: set[int] = set()
         # 已发过训练命令的建筑 id 集合（本轮已发，等下一轮）
         self._producers_in_queue: set[int] = set()
+        self._build_issued: set[str] = set()
         # 资源预留池（借鉴 sharpy-sc2 Knowledge.reserve）
         # 每个经济决策周期开头 reset()，先为高优先级战斗单位 reserve，
         # 再让 SCV 训练通过 can_afford 检查（已扣预留）
@@ -178,26 +194,10 @@ class DefendBasePolicy:
                 econ_units.append(u)
             elif ut in self.PRODUCER_TYPES:
                 producers.append(u)
-            elif ut in self.NON_COMBAT_TYPES:
+            elif ut in self.NON_COMBAT_TYPES or ut in self.BUILDING_TYPES:
                 continue
             else:
                 combat_units.append(u)
-
-        # Some commander maps start with only workers plus a mission caster.
-        # A real SCV can still defend the base; use one worker as a bounded
-        # fallback instead of issuing an impossible attack from the caster.
-        worker_combat_ids: set[int] = set()
-        if not combat_units and (base_threats or near_threats) and econ_units:
-            threat_pool = base_threats or near_threats
-            worker = min(
-                econ_units,
-                key=lambda unit: min(
-                    self._dist(unit["x"], unit["y"], threat["x"], threat["y"])
-                    for threat in threat_pool
-                ),
-            )
-            combat_units.append(worker)
-            worker_combat_ids.add(worker["entity_id"])
 
         # 战斗决策：战斗单位优先处理威胁
         for u in combat_units:
@@ -227,8 +227,6 @@ class DefendBasePolicy:
         # SCV 决策：有基地威胁时撤退到基地，否则保持采集
         for u in econ_units:
             uid = u["entity_id"]
-            if uid in worker_combat_ids:
-                continue
             if base_threats:
                 # 基地受袭，SCV 撤退（避免被屠农）
                 actions.append(DefendAction(
@@ -256,13 +254,14 @@ class DefendBasePolicy:
     def _decide_economy(self, obs, resources: dict,
                         econ_units: list[dict], producers: list[dict],
                         enemies: list[dict]) -> list[DefendAction]:
-        """经济决策：SCV 采集 + 战斗单位配兵 + SCV 训练。
+        """经济决策：SCV 建造/采集 + 战斗单位配兵 + SCV 训练。
 
         决策顺序（借鉴 sharpy reserve 池 + ares 比例配兵）：
         1. 重置 reserve 池
-        2. 空闲 SCV 派去采集
-        3. 按配兵 dict 优先级训练战斗单位（高优先级先训，造不起就 break 不让低优先级抢钱）
-        4. SCV 训练：通过 can_afford 检查（已扣 reserve），SCV 数量 >= SCV_CEIL 时停止
+        2. 缺少兵营/气矿时派空闲 SCV 建造
+        3. 其余空闲 SCV 派去采集
+        4. 按配兵 dict 优先级训练战斗单位
+        5. SCV 训练：通过 can_afford 检查，SCV 数量 >= SCV_CEIL 时停止
         """
         actions: list[DefendAction] = []
         # 每个经济决策周期开头重置 reserve 池
@@ -274,10 +273,47 @@ class DefendBasePolicy:
         supply_cap = resources.get("supply_cap", 200)
         supply_remaining = supply_cap - supply_used
 
-        # 1. 空闲 SCV 派去采集矿物
+        # 1. Build the native production opening before training or gathering.
+        builder_ids: set[int] = set()
+        for build in self.BUILD_PLAN:
+            building_type = build["unit_type_id"]
+            if any(u.get("unit_type_id") == building_type for u in obs.own_units):
+                self._build_issued.discard(building_type)
+                continue
+            if building_type in self._build_issued:
+                continue
+            if not self._econ.can_afford(
+                    build["min_m"], build["min_v"], minerals, vespene):
+                continue
+            builder = next(
+                (
+                    worker for worker in econ_units
+                    if worker["entity_id"] not in builder_ids
+                    and not worker.get("orders")
+                ),
+                None,
+            )
+            if builder is None:
+                continue
+            offset_x, offset_y = build["offset"]
+            actions.append(DefendAction(
+                builder["entity_id"],
+                "build",
+                target_x=self.base_x + offset_x,
+                target_y=self.base_y + offset_y,
+                unit_type_id=building_type,
+                reason=f"build_{building_type}",
+            ))
+            builder_ids.add(builder["entity_id"])
+            self._build_issued.add(building_type)
+            self._econ.reserve(build["min_m"], build["min_v"])
+            minerals -= build["min_m"]
+            vespene -= build["min_v"]
+
+        # 2. Empty SCVs gather minerals. A builder is never double-booked.
         for u in econ_units:
             uid = u["entity_id"]
-            if uid not in self._gathering_scvs:
+            if uid not in builder_ids and uid not in self._gathering_scvs:
                 actions.append(DefendAction(
                     uid, "gather",
                     target_entity_id=0,  # runner 会替换为最近 MineralField id
@@ -285,7 +321,7 @@ class DefendBasePolicy:
                 ))
                 self._gathering_scvs.add(uid)
 
-        # 2. 战斗单位配兵（按 ARMY_COMP 的 priority 升序：0=最高优先）
+        # 3. 战斗单位配兵（按 ARMY_COMP 的 priority 升序：0=最高优先）
         # 统计现有战斗单位总数和各兵种数量（含训练中）
         own_types: dict[str, int] = {}
         for u in obs.own_units:
@@ -345,7 +381,7 @@ class DefendBasePolicy:
             own_types[unit_type] = own_types.get(unit_type, 0) + 1
             combat_total += 1
 
-        # 3. SCV 训练（受 reserve 池约束）
+        # 4. SCV 训练（受 reserve 池约束）
         # SCV 数量 < SCV_FLOOR 时强制训练（不检查 reserve，紧急恢复经济）
         # SCV 数量 >= SCV_CEIL 时停止
         # 中间区间：通过 can_afford 检查（已扣战斗单位 reserve）

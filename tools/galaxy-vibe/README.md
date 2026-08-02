@@ -25,6 +25,64 @@
 > 函数级调用必须通过 `kernel/function-registry.json` 中的显式 `function_id`；
 > 本框架不提供任意 Galaxy 函数反射调用。
 
+## Debug VM：同一游戏窗口反复调函数
+
+Stage 25 增加了一个外部 Debug VM。它热加载 JSON 程序，仍通过现有
+`function.invoke` Bank 通道调用 typed registry，因此同一 SC2 会话可以连续执行多组
+查询、断言和动作，不需要为每次函数测试重启游戏。
+
+函数发现和函数执行分成两层：
+
+- `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json`
+  收录 AST 发现的全部函数，包含源文件、行号、签名、分类和效果；当前扫描为
+  `35404` 个函数、`0` 个解析错误。
+- `kernel/function-registry.json` 只收录有明确参数/返回值/副作用定义和 Galaxy
+  handler 的适配器；当前为 `7` 个 function ID（对应 `14` 个头文件/实现声明）。其余
+  函数已注册到 inventory catalog，但在适配器完成前不能被 VM 调用。
+
+交互式会话中执行热调试程序：
+
+```powershell
+python tools/galaxy-vibe/galaxy_repl.py --port 5152
+vibe> vm src/projects/cmre-porting/stages/25-ai-ally-capability-completion/debug-vm-smoke.json
+vibe> vm another-program.json
+```
+
+同一个 REPL 进程内会连续复用 Kernel session。若需要从另一个 REPL 进程接续，使用
+上一次成功 response 中的 `session_id`：
+
+```powershell
+python tools/galaxy-vibe/galaxy_repl.py --port 5152 --rpc-session-id repl_<existing-session>
+```
+
+不要在同一游戏里随机生成新的 session 后直接调用；Kernel 会拒绝跨 session 请求，
+这是会话隔离，不是游戏需要重启。
+
+也可以一次执行后返回结果码：
+
+```powershell
+python tools/galaxy-vibe/galaxy_repl.py --port 5152 `
+  --vm-program src/projects/cmre-porting/stages/25-ai-ally-capability-completion/debug-vm-smoke.json
+```
+
+程序格式固定为 `vibe-debug/1`，支持 `call`、`step`、`assert`、`set`、`repeat` 和
+`catalog.search`。`mode: "strategy"` 会拒绝 `debug_only` 函数，例如刷兵、改资源和
+强制击杀；`debug` 模式也只能调用 registry 中的显式 ID，不会执行 `eval` 或任意
+Galaxy 函数名。
+
+重新生成完整目录时，只读扫描两个已注册源：
+
+```powershell
+node src/projects/cmre-porting/stages/25-ai-ally-capability-completion/discover_function_catalog.mjs `
+  --out artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json `
+  --source cmre-dev-package=<registered-CMRE-package-root> `
+  --source cmre-owned-project=src/projects/cmre-porting/packages
+```
+
+新增可运行函数时，先在 registry 增加 typed schema，再在 Host、Galaxy Kernel 和
+simulator 各自的显式 dispatch map 增加同名适配器；只把稳定、可验证的函数提升为
+callable，等待适配器的内部函数继续保留在 catalog 中供搜索和定位。
+
 ## 运行 P0 闸门
 
 任选其一：
