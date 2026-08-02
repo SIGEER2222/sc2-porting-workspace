@@ -234,6 +234,10 @@ simulator evidence and must remain separate from native SC2 runtime evidence.
    and gas economy, expansion, scaled production, high-tech structures,
    upgrades, mixed army production, scouting, pressure response, tactical
    attacks, and zero safety/dispatch errors.
+14. The ladder simulator CLI produces a replay JSONL and a single-file
+   `state-driven-player.html` by default; the HTML contains real timeline
+   frames and can be opened directly with a `file:///` URL. `--no-replay` is
+   available only as an explicit opt-out.
 
 ## Verification commands
 
@@ -245,6 +249,7 @@ python -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-compl
 python -m py_compile src/projects/cmre-porting/vibe/contracts.py src/projects/cmre-porting/vibe/consumers/ally_ai.py src/projects/cmre-porting/vibe/run_dead_of_night.py src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1
 PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.ladder_ai --batch --max-loops 5000 --out artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-20260802.json
+PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.ladder_ai --seed 42 --max-loops 5000
 ```
 
 ### Runtime
@@ -277,6 +282,7 @@ after the runtime recipe exists and the simulator gate passes.
 - Bounded Debug VM implementation, smoke program, and focused tests.
 - Project-owned cooperative simulator scenario and focused regression tests.
 - Ladder-style full-game simulator AI and multi-seed victory evidence.
+- Default simulator replay JSONL and single-file HTML player.
 - Runtime recipe and evidence bundle proving native P1/P2 team identity and a
   typed cooperative action, or a truthful blocked record with next action.
 - Updated project handoff only after all evidence and validation gates agree.

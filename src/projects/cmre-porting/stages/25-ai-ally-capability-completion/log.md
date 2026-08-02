@@ -673,3 +673,22 @@ Evidence:
   evidence.
 
 Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-20260802.json`.
+
+## Verification Loop 2026-08-02 Ladder Replay Tool
+
+- `simulator`: `vibe.ladder_ai` now enables replay output by default. A run
+  writes `replay.jsonl` and the self-contained
+  `state-driven-player.html` under
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-replay/seed-<seed>/`.
+  Batch mode creates one directory per seed; `--no-replay` is an explicit
+  opt-out for callers that only need the JSON report.
+- `simulator`: the generated replay contains real full-simulation frame state,
+  P1/P2/enemy entity ownership, resource snapshots, action dispatch records,
+  pressure-wave events, and the `enemy_elimination` terminal frame. The player
+  title identifies it as `CMRE 梯队 AI 完整局回放` and remains marked
+  `runtime_claim=none; simulator evidence only`.
+- `static`: the replay export test passed with a non-empty frame timeline and
+  generated HTML containing the simulator-only evidence marker.
+
+Evidence path produced by the default CLI:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-replay/seed-42/state-driven-player.html`.
