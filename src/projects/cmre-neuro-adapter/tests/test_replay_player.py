@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from cmre_neuro_adapter.macro_replay import build_macro_replay
+from cmre_neuro_adapter.real_map_replay import build_map_record
 from cmre_neuro_adapter.replay_player import load_records, render_player_html
 
 
@@ -94,6 +95,55 @@ class ReplayPlayerTests(unittest.TestCase):
             self.assertIn('"entities_by_player"', html)
             self.assertIn('"MineralField"', html)
             self.assertIn('"Marine"', html)
+
+    def test_render_player_embeds_real_map_layer_metadata(self) -> None:
+        records = [
+            {"record_type": "header", "replay_id": "real-map"},
+            {
+                "record_type": "map",
+                "map_name": "亡者之夜.SC2Map",
+                "minimap_data_url": "data:image/png;base64,AAAA",
+                "world_bounds": {"min_x": 16, "max_x": 176, "min_y": 16, "max_y": 176},
+                "static_objects": [{"id": "map-1", "unit_type_id": "MineralField", "owner": 0, "x": 85, "y": 94}],
+                "friendly_players": [1, 2],
+            },
+            {
+                "record_type": "frame",
+                "loop": 0,
+                "entities_by_player": {"2": [{"entity_id": 7, "unit_type_id": "SCV", "owner": 2, "x": 85, "y": 94, "health": 46080}]},
+            },
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "real-map-player.html"
+            render_player_html(records, output)
+            html = output.read_text(encoding="utf-8")
+            self.assertIn("const MAP_META", html)
+            self.assertIn("minimap_data_url", html)
+            self.assertIn("staticLayer", html)
+            self.assertIn("world_bounds", html)
+            self.assertIn("亡者之夜.SC2Map", html)
+
+    def test_build_map_record_preserves_original_objects(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            map_path = root / "亡者之夜.SC2Map"
+            source = root / "source"
+            source.mkdir()
+            map_path.write_bytes(b"packed-map")
+            (source / "minimap.png").write_bytes(b"png")
+            (source / "t3Terrain.xml").write_text(
+                '<terrain><heightMap dim="193 193 "/></terrain>', encoding="utf-8"
+            )
+            (source / "Objects").write_text(
+                '<root><ObjectUnit UnitType="MineralField" Player="0" Position="85,94,0"/>'
+                '<ObjectUnit UnitType="Barracks" Player="1" Position="80,90,0"/></root>',
+                encoding="utf-8",
+            )
+            record = build_map_record(map_path, source)
+            self.assertEqual(record["map_name"], "亡者之夜.SC2Map")
+            self.assertEqual(record["terrain_height_map_dim"], [193, 193])
+            self.assertEqual(len(record["static_objects"]), 2)
+            self.assertEqual(record["static_objects"][1]["unit_type_id"], "Barracks")
 
     def test_macro_replay_is_state_driven_and_starts_without_army(self) -> None:
         replay = build_macro_replay(max_loops=1_400)

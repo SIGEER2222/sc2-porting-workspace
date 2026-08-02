@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "stage_id": "07-real-adapters",
   "status": "BLOCKED",
-  "updated_at": "2026-08-02T16:20:00+08:00",
+  "updated_at": "2026-08-02T17:42:00+08:00",
   "outputs": [
     "cmre_neuro_adapter/transports/__init__.py",
     "cmre_neuro_adapter/transports/common.py",
@@ -17,6 +17,11 @@
     "cmre_neuro_adapter/neuro/simulator_transport.py",
     "tests/test_basic_actions.py",
     "tests/test_replay_player.py",
+    "cmre_neuro_adapter/real_map_replay.py",
+    "artifacts/real-map-source-20260802/",
+    "artifacts/real-map-replay-20260802/real-map-static-preview.jsonl",
+    "artifacts/real-map-replay-20260802/real-map-static-preview.html",
+    "artifacts/real-map-replay-20260802/real-map-static-preview.png",
     "stages/07-real-adapters/macro-economy-implementation-plan.md",
     "artifacts/stage07-basic-command-replay-20260802/replay.jsonl",
     "artifacts/stage07-basic-command-replay-20260802/simulator-events.jsonl",
@@ -158,6 +163,27 @@
       "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-player-smoke.png",
       "evidence_type": "runtime"
     },
+    "real_map_static_metadata": {
+      "status": "PASS",
+      "command": "python -c \"from cmre_neuro_adapter.real_map_replay import build_map_record; ...\"",
+      "summary": "The real 亡者之夜.SC2Map source is represented by its minimap, world bounds 16..176, 193x193 terrain height map, and all 1319 original Objects records.",
+      "artifact": "artifacts/real-map-replay-20260802/real-map-static-preview.html",
+      "evidence_type": "static"
+    },
+    "real_map_launcher_staging": {
+      "status": "PASS",
+      "command": "approved launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander TerranRaynor -DebugMode -NoLaunch -MapCopySuffix real-map-replay-live1/live2/live4/live6",
+      "summary": "Four isolated staged map directories were created by the approved launcher and each was packed successfully from 76 files. This proves staging/packaging only; no CreateGame or runtime effect is claimed.",
+      "artifact": "artifacts/real-map-replay-20260802/",
+      "evidence_type": "runtime"
+    },
+    "real_map_runtime_replay": {
+      "status": "BLOCKED",
+      "command": "approved launcher KeepAlive + cmre_neuro_adapter.real_map_replay --port 5191",
+      "summary": "No independent runtime window was available: external valid KeepAlive owner_pid=27016/runtime_pid=38420/port=5192 remained active. The attempted capture produced no JSONL and is not runtime evidence.",
+      "artifact": "artifacts/runtime/sc2-runtime-lease.json",
+      "evidence_type": "blocked"
+    },
     "legacy_full_map_replay_reference": {
       "status": "RETIRED",
       "command": "source review of dead_of_night_replay_20260802_124446.jsonl",
@@ -167,7 +193,7 @@
     }
   },
   "runtime_claims": [],
-  "open_blockers": ["RUNTIME-001"],
+  "open_blockers": ["RUNTIME-001", "RUNTIME-003"],
   "next_stage": null,
   "next_stage_plan": null
 }

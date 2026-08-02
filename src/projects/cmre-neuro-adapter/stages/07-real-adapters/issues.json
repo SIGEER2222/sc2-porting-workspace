@@ -28,6 +28,15 @@
       "resolution": "Wait for the existing owner session to release its lease, then rerun the approved launcher and collect CreateGame, JoinGame, runtime listener/heartbeat, and same-window ScriptError evidence. Do not terminate or take over the unknown session."
     },
     {
+      "id": "RUNTIME-003",
+      "severity": "high",
+      "status": "blocked",
+      "evidence_type": "runtime",
+      "detail": "The requested real-map replay could not obtain an independent approved launcher window. A valid external KeepAlive session owner_pid=27016, runtime_pid=38420, port=5192, session=cmre_alenger-20260802-172211-66826c28 held the global lease throughout the final polling window.",
+      "evidence": "artifacts/runtime/sc2-runtime-lease.json",
+      "resolution": "Do not connect to or terminate the external session. After it releases naturally, rerun the approved launcher on a fresh port, pack that run's staged map directory, then collect CreateGame, JoinGame, RequestStep, raw entities, resource/production events, and a same-window ScriptError verdict."
+    },
+    {
       "id": "BASIC-001",
       "severity": "medium",
       "status": "resolved",

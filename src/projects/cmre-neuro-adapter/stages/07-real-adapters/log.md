@@ -202,3 +202,37 @@ Stage 07 remains the active stage. Re-run the live probe through the approved la
 the existing runtime lease is released, then perform `CreateGame + JoinGame`, collect runtime
 listener/heartbeat evidence, and run a same-window `ScriptError` check. Do not mark G4 PASS or
 write a next-stage plan from the current evidence.
+
+## Real Map Replay Attempt 2026-08-02
+
+The requested replay target was confirmed as the real `亡者之夜.SC2Map` map. The encrypted live
+map was unpacked with `tools/mpq/MPQEditor.exe` into
+`artifacts/real-map-source-20260802/`; the source contains `Minimap.tga`, `Objects`, terrain,
+regions, and the complete map data. `Objects` contains 1319 original `ObjectUnit` records and
+the terrain height map is 193x193. `Minimap.tga` was converted to `minimap.png` and its map
+content rectangle is recorded as pixels 48..208 over world bounds 16..176.
+
+`static`: `python -m cmre_neuro_adapter.real_map_replay` metadata construction and the focused
+replay tests pass. The player now embeds the real minimap, world-coordinate transform, all
+original `Objects`, P1/P2 friendly ownership, and a toggleable static layer; playback still
+supports seeking, pause/play, and 0.5x..16x speed.
+
+`runtime`: the approved launcher successfully staged isolated CMRE overlays for
+`real-map-replay-live1`, `live2`, `live4`, and `live6`; each staged directory packed successfully
+with `tools/mpq/scripts/pack-sc2map.ps1` (76 files, 3,285,137 bytes). These are staging/packaging
+claims only. Attempts to hold a dedicated 5191 runtime were repeatedly blocked or lost because
+other valid KeepAlive sessions occupied the global lease; the latest external owner was
+`owner_pid=27016`, `runtime_pid=38420`, `port=5192`, session
+`cmre_alenger-20260802-172211-66826c28`. The owner heartbeat remained valid throughout the final
+polling window. A connection-refused capture and a shell-lifecycle timeout produced no replay
+JSONL and are not promoted to runtime evidence.
+
+`blocked`: no `CreateGame + JoinGame + RequestStep` evidence, runtime entity/resource/action
+trace, or same-window ScriptError verdict was obtained for this run. Do not use the static preview
+or simulator macro replay as a real runtime substitute. Re-run the approved launcher after the
+external 5192 lease is released; keep the real-map source and player implementation unchanged.
+
+The extracted map source and packed staging copies remain local under `artifacts/` and are
+intentionally not included in the code commit because they are generated 60+ MB map copies.
+Their paths and hashes are recorded by the stage artifacts and this log; the committed change
+contains the replay implementation, player, tests, and stage evidence updates.
