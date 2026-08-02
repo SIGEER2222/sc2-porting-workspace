@@ -66,6 +66,27 @@ fixed libVibeKernel_gf_ArgsGetFixed(string args, string key) {
     return StringToFixed(v);
 }
 
+// UnitGetTag returns a runtime tag; UnitFromId expects an editor unit id.
+unit libVibeKernel_gf_FindUnitByTag(int unitTag) {
+    int ownerPlayer;
+    int index;
+    int total;
+    unitgroup candidates;
+    unit current;
+    if (unitTag < 1) { return null; }
+    for (ownerPlayer = 1; ownerPlayer <= 15; ownerPlayer += 1) {
+        candidates = UnitGroup(null, ownerPlayer, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+        total = UnitGroupCount(candidates, c_unitCountAll);
+        for (index = 1; index <= total; index += 1) {
+            current = UnitGroupUnit(candidates, index);
+            if (current != null && UnitIsAlive(current) && UnitGetTag(current) == unitTag && UnitGetType(current) != "") {
+                return current;
+            }
+        }
+    }
+    return null;
+}
+
 // ---- Bank 工具 ----
 // SC2 会缓存已加载的 Bank。Host 从进程外改写 SC2Bank 文件后，
 // game-side 读取路径必须先卸载旧 handle 再 BankLoad，才能看到新 pending_request_id。
@@ -315,7 +336,7 @@ string libVibeKernel_gf_HandleUnitSetVital(string argsJson) {
     vital = libVibeKernel_gf_ArgsGet(argsJson, "vital");
     value = libVibeKernel_gf_ArgsGetFixed(argsJson, "value");
 
-    lv_u = UnitFromId(unitTag);
+    lv_u = libVibeKernel_gf_FindUnitByTag(unitTag);
     if (lv_u == null) {
         return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "unit.set_vital", "UNIT_NOT_FOUND", "{}");
     }
@@ -404,7 +425,7 @@ string libVibeKernel_gf_HandleQueryUnit(string argsJson) {
     fixed py;
     string payload;
     unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "unit_tag");
-    lv_u = UnitFromId(unitTag);
+    lv_u = libVibeKernel_gf_FindUnitByTag(unitTag);
     if (lv_u == null) {
         return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "query.unit", "UNIT_NOT_FOUND", "{}");
     }
@@ -463,7 +484,7 @@ string libVibeKernel_gf_HandleVisualActorTint(string argsJson) {
     unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "unit_tag");
     colorStr = libVibeKernel_gf_ArgsGet(argsJson, "color");
 
-    lv_u = UnitFromId(unitTag);
+    lv_u = libVibeKernel_gf_FindUnitByTag(unitTag);
     if (lv_u == null) {
         return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "visual.actor_tint", "UNIT_NOT_FOUND", "{}");
     }
@@ -483,7 +504,7 @@ string libVibeKernel_gf_HandleVisualActorScale(string argsJson) {
     unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "unit_tag");
     scale = libVibeKernel_gf_ArgsGetFixed(argsJson, "scale");
 
-    lv_u = UnitFromId(unitTag);
+    lv_u = libVibeKernel_gf_FindUnitByTag(unitTag);
     if (lv_u == null) {
         return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "visual.actor_scale", "UNIT_NOT_FOUND", "{}");
     }
@@ -506,7 +527,7 @@ string libVibeKernel_gf_HandleVisualActorOpacity(string argsJson) {
     unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "unit_tag");
     opacity = libVibeKernel_gf_ArgsGetFixed(argsJson, "opacity");
 
-    lv_u = UnitFromId(unitTag);
+    lv_u = libVibeKernel_gf_FindUnitByTag(unitTag);
     if (lv_u == null) {
         return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "visual.actor_opacity", "UNIT_NOT_FOUND", "{}");
     }
@@ -737,6 +758,187 @@ string libVibeKernel_gf_FunctionUnitQueryAbility(string argsJson) {
     hasAbility = "false";
     if (UnitAbilityExists(target, ability)) { hasAbility = "true"; }
     return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.unit.query_ability\",\"unit_tag\":" + IntToString(unitTag) + ",\"ability\":\"" + ability + "\",\"has_ability\":" + hasAbility + "}");
+}
+
+string libVibeKernel_gf_FunctionUnitSetVital(string argsJson) {
+    int unitTag;
+    string vital;
+    fixed value;
+    unit target;
+    unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_unit_tag");
+    vital = libVibeKernel_gf_ArgsGet(argsJson, "arg_vital");
+    value = libVibeKernel_gf_ArgsGetFixed(argsJson, "arg_value");
+    target = libVibeKernel_gf_FindUnitByTag(unitTag);
+    if (target == null || unitTag < 1 || value < 0.0 || (vital != "life" && vital != "shield" && vital != "energy")) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
+    }
+    if (vital == "life") { UnitSetPropertyFixed(target, c_unitPropLife, value); }
+    else if (vital == "shield") { UnitSetPropertyFixed(target, c_unitPropShields, value); }
+    else { UnitSetPropertyFixed(target, c_unitPropEnergy, value); }
+    libVibeKernel_gv_stateVersion += 1;
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.unit.set_vital\",\"unit_tag\":" + IntToString(unitTag) + ",\"vital\":\"" + vital + "\",\"value\":" + FixedToString(value, 3) + "}");
+}
+
+string libVibeKernel_gf_FunctionUnitQueryAttrs(string argsJson) {
+    int unitTag;
+    unit target;
+    string typeName;
+    fixed life;
+    fixed maxLife;
+    fixed shields;
+    fixed energy;
+    fixed armor;
+    unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_unit_tag");
+    target = libVibeKernel_gf_FindUnitByTag(unitTag);
+    if (target == null || unitTag < 1) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "UNIT_NOT_FOUND", "{}");
+    }
+    typeName = UnitGetType(target);
+    life = UnitGetPropertyFixed(target, c_unitPropLife, true);
+    maxLife = UnitGetPropertyFixed(target, c_unitPropLifeMax, true);
+    shields = UnitGetPropertyFixed(target, c_unitPropShields, true);
+    energy = UnitGetPropertyFixed(target, c_unitPropEnergy, true);
+    armor = libNtve_gf_CatalogFieldValueGetAsReal(c_gameCatalogUnit, typeName, "ArmorArray[0].Value", UnitGetOwner(target));
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.unit.query_attrs\",\"unit_tag\":" + IntToString(unitTag) + ",\"unit_type\":\"" + typeName + "\",\"life\":" + FixedToString(life, 3) + ",\"max_life\":" + FixedToString(maxLife, 3) + ",\"shields\":" + FixedToString(shields, 3) + ",\"energy\":" + FixedToString(energy, 3) + ",\"armor\":" + FixedToString(armor, 3) + "}");
+}
+
+int libVibeKernel_gf_CatalogType(string catalogName) {
+    if (catalogName == "unit") { return c_gameCatalogUnit; }
+    if (catalogName == "abil") { return c_gameCatalogAbil; }
+    if (catalogName == "behavior") { return c_gameCatalogBehavior; }
+    if (catalogName == "weapon") { return c_gameCatalogWeapon; }
+    if (catalogName == "effect") { return c_gameCatalogEffect; }
+    if (catalogName == "upgrade") { return c_gameCatalogUpgrade; }
+    if (catalogName == "button") { return c_gameCatalogButton; }
+    if (catalogName == "actor") { return c_gameCatalogActor; }
+    return -1;
+}
+
+string libVibeKernel_gf_FunctionCatalogGet(string argsJson) {
+    string catalogName;
+    string entry;
+    string field;
+    string value;
+    int player;
+    int catalogType;
+    int catalogPlayer;
+    catalogName = libVibeKernel_gf_ArgsGet(argsJson, "arg_catalog");
+    entry = libVibeKernel_gf_ArgsGet(argsJson, "arg_entry");
+    field = libVibeKernel_gf_ArgsGet(argsJson, "arg_field");
+    player = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_player");
+    catalogType = libVibeKernel_gf_CatalogType(catalogName);
+    catalogPlayer = player;
+    if (catalogPlayer == 0) { catalogPlayer = c_playerAny; }
+    if (catalogType < 0 || entry == "" || field == "" || !CatalogEntryIsValid(catalogType, entry)) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
+    }
+    value = CatalogFieldValueGet(catalogType, entry, field, catalogPlayer);
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.catalog.get\",\"catalog\":\"" + catalogName + "\",\"entry\":\"" + entry + "\",\"field\":\"" + field + "\",\"player\":" + IntToString(player) + ",\"value\":\"" + value + "\"}");
+}
+
+string libVibeKernel_gf_FunctionCatalogSet(string argsJson) {
+    string catalogName;
+    string entry;
+    string field;
+    string value;
+    string oldValue;
+    string requestedValue;
+    int player;
+    int catalogType;
+    int catalogPlayer;
+    int writePlayer;
+    bool wrote;
+    catalogName = libVibeKernel_gf_ArgsGet(argsJson, "arg_catalog");
+    entry = libVibeKernel_gf_ArgsGet(argsJson, "arg_entry");
+    field = libVibeKernel_gf_ArgsGet(argsJson, "arg_field");
+    player = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_player");
+    value = libVibeKernel_gf_ArgsGet(argsJson, "arg_value");
+    catalogType = libVibeKernel_gf_CatalogType(catalogName);
+    catalogPlayer = player;
+    if (catalogPlayer == 0) { catalogPlayer = c_playerAny; }
+    // Catalog reads accept c_playerAny, but writes need a concrete player.
+    writePlayer = player;
+    if (writePlayer == 0) { writePlayer = 1; }
+    if (catalogType < 0 || entry == "" || field == "" || value == "" || !CatalogEntryIsValid(catalogType, entry) || StringFind(value, ";", false) >= 0 || StringFind(value, "=", false) >= 0 || StringFind(value, "\"", false) >= 0 || StringFind(value, "\\", false) >= 0) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
+    }
+    requestedValue = value;
+    oldValue = CatalogFieldValueGet(catalogType, entry, field, catalogPlayer);
+    if (catalogType == c_gameCatalogUnit && (field == "LifeMax" || field == "Speed")) {
+        wrote = libNtve_gf_CatalogFieldValueSetAsReal(catalogType, entry, field, writePlayer, StringToFixed(value));
+    } else {
+        wrote = CatalogFieldValueSet(catalogType, entry, field, writePlayer, value);
+    }
+    value = CatalogFieldValueGet(catalogType, entry, field, writePlayer);
+    if (!wrote || (catalogType == c_gameCatalogUnit && (field == "LifeMax" || field == "Speed") && StringToFixed(value) != StringToFixed(requestedValue))) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "CATALOG_WRITE_FAILED", "{}");
+    }
+    libVibeKernel_gv_stateVersion += 1;
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.catalog.set\",\"catalog\":\"" + catalogName + "\",\"entry\":\"" + entry + "\",\"field\":\"" + field + "\",\"player\":" + IntToString(player) + ",\"old_value\":\"" + oldValue + "\",\"value\":\"" + value + "\"}");
+}
+
+string libVibeKernel_gf_FunctionVisualModelSwap(string argsJson) {
+    int unitTag;
+    int variation;
+    string model;
+    unit target;
+    unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_unit_tag");
+    model = libVibeKernel_gf_ArgsGet(argsJson, "arg_model");
+    variation = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_variation");
+    target = libVibeKernel_gf_FindUnitByTag(unitTag);
+    if (target == null || unitTag < 1 || model == "" || variation < 0 || variation > 255) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
+    }
+    ActorScopeSend(ActorScopeFromUnit(target), "ModelSwap " + model + " " + IntToString(variation));
+    libVibeKernel_gv_stateVersion += 1;
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.visual.model_swap\",\"unit_tag\":" + IntToString(unitTag) + ",\"model\":\"" + model + "\",\"variation\":" + IntToString(variation) + ",\"applied\":true}");
+}
+
+string libVibeKernel_gf_FunctionVisualSetScale(string argsJson) {
+    int unitTag;
+    fixed scale;
+    unit target;
+    unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_unit_tag");
+    scale = libVibeKernel_gf_ArgsGetFixed(argsJson, "arg_scale");
+    target = libVibeKernel_gf_FindUnitByTag(unitTag);
+    if (target == null || unitTag < 1 || scale < 0.01 || scale > 100.0) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
+    }
+    ActorScopeSend(ActorScopeFromUnit(target), "SetScale " + FixedToString(scale, 3));
+    libVibeKernel_gv_stateVersion += 1;
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.visual.set_scale\",\"unit_tag\":" + IntToString(unitTag) + ",\"scale\":" + FixedToString(scale, 3) + ",\"applied\":true}");
+}
+
+string libVibeKernel_gf_FunctionVisualSetTint(string argsJson) {
+    int unitTag;
+    string colorValue;
+    unit target;
+    unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_unit_tag");
+    colorValue = libVibeKernel_gf_ArgsGet(argsJson, "arg_color");
+    target = libVibeKernel_gf_FindUnitByTag(unitTag);
+    if (target == null || unitTag < 1 || colorValue == "") {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
+    }
+    ActorScopeSend(ActorScopeFromUnit(target), "SetTintColor " + colorValue);
+    libVibeKernel_gv_stateVersion += 1;
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.visual.set_tint\",\"unit_tag\":" + IntToString(unitTag) + ",\"color\":\"" + colorValue + "\",\"applied\":true}");
+}
+
+string libVibeKernel_gf_FunctionVisualSetOpacity(string argsJson) {
+    int unitTag;
+    fixed opacity;
+    int opacityPct;
+    unit target;
+    unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_unit_tag");
+    opacity = libVibeKernel_gf_ArgsGetFixed(argsJson, "arg_opacity");
+    target = libVibeKernel_gf_FindUnitByTag(unitTag);
+    if (target == null || unitTag < 1 || opacity < 0.0 || opacity > 1.0) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
+    }
+    opacityPct = FixedToInt(opacity * 100.0);
+    ActorScopeSend(ActorScopeFromUnit(target), "SetOpacity " + IntToString(opacityPct));
+    libVibeKernel_gv_stateVersion += 1;
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.visual.set_opacity\",\"unit_tag\":" + IntToString(unitTag) + ",\"opacity\":" + FixedToString(opacity, 3) + ",\"applied\":true}");
 }
 
 string libVibeKernel_gf_FunctionUnitQueryBehavior(string argsJson) {
@@ -988,11 +1190,19 @@ string libVibeKernel_gf_HandleFunctionInvoke(string argsJson) {
     if (functionId == "vibe.unit.add_ability" && argNames == "ability,unit_tag") { return libVibeKernel_gf_FunctionUnitAddAbility(argsJson); }
     if (functionId == "vibe.unit.query_ability" && argNames == "ability,unit_tag") { return libVibeKernel_gf_FunctionUnitQueryAbility(argsJson); }
     if (functionId == "vibe.unit.query_behavior" && argNames == "behavior,unit_tag") { return libVibeKernel_gf_FunctionUnitQueryBehavior(argsJson); }
+    if (functionId == "vibe.unit.set_vital" && argNames == "unit_tag,value,vital") { return libVibeKernel_gf_FunctionUnitSetVital(argsJson); }
+    if (functionId == "vibe.unit.query_attrs" && argNames == "unit_tag") { return libVibeKernel_gf_FunctionUnitQueryAttrs(argsJson); }
+    if (functionId == "vibe.catalog.get" && argNames == "catalog,entry,field,player") { return libVibeKernel_gf_FunctionCatalogGet(argsJson); }
+    if (functionId == "vibe.catalog.set" && argNames == "catalog,entry,field,player,value") { return libVibeKernel_gf_FunctionCatalogSet(argsJson); }
+    if (functionId == "vibe.visual.model_swap" && argNames == "model,unit_tag,variation") { return libVibeKernel_gf_FunctionVisualModelSwap(argsJson); }
+    if (functionId == "vibe.visual.set_scale" && argNames == "scale,unit_tag") { return libVibeKernel_gf_FunctionVisualSetScale(argsJson); }
+    if (functionId == "vibe.visual.set_tint" && argNames == "color,unit_tag") { return libVibeKernel_gf_FunctionVisualSetTint(argsJson); }
+    if (functionId == "vibe.visual.set_opacity" && argNames == "opacity,unit_tag") { return libVibeKernel_gf_FunctionVisualSetOpacity(argsJson); }
     if (functionId == "vibe.query.units" && argNames == "player,unit_type") { return libVibeKernel_gf_FunctionQueryUnits(argsJson); }
     if (functionId == "vibe.unit.kill" && argNames == "unit_tag") { return libVibeKernel_gf_FunctionUnitKill(argsJson); }
     if (functionId == "vibe.unit.attack" && argNames == "attacker_tag,target_tag") { return libVibeKernel_gf_FunctionUnitAttack(argsJson); }
     if (functionId == "vibe.query.structures" && argNames == "owner_player,unit_type") { return libVibeKernel_gf_FunctionQueryStructures(argsJson); }
-    if (functionId == "vibe.player.set_resource" || functionId == "vibe.unit.spawn" || functionId == "vibe.unit.spawn_group" || functionId == "vibe.unit.add_behavior" || functionId == "vibe.unit.add_ability" || functionId == "vibe.unit.query_ability" || functionId == "vibe.unit.query_behavior" || functionId == "vibe.query.units" || functionId == "vibe.unit.kill" || functionId == "vibe.unit.attack" || functionId == "vibe.query.structures") {
+    if (functionId == "vibe.player.set_resource" || functionId == "vibe.unit.spawn" || functionId == "vibe.unit.spawn_group" || functionId == "vibe.unit.add_behavior" || functionId == "vibe.unit.add_ability" || functionId == "vibe.unit.query_ability" || functionId == "vibe.unit.query_behavior" || functionId == "vibe.unit.set_vital" || functionId == "vibe.unit.query_attrs" || functionId == "vibe.catalog.get" || functionId == "vibe.catalog.set" || functionId == "vibe.visual.model_swap" || functionId == "vibe.visual.set_scale" || functionId == "vibe.visual.set_tint" || functionId == "vibe.visual.set_opacity" || functionId == "vibe.query.units" || functionId == "vibe.unit.kill" || functionId == "vibe.unit.attack" || functionId == "vibe.query.structures") {
         return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
     }
     return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "FUNCTION_NOT_FOUND", "{}");
@@ -1100,7 +1310,7 @@ string libVibeKernel_gf_HandleQueryUnitAttrs(string argsJson) {
     fixed armor;
     string payload;
     unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "unit_tag");
-    lv_u = UnitFromId(unitTag);
+    lv_u = libVibeKernel_gf_FindUnitByTag(unitTag);
     if (lv_u == null) {
         return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "query.unit_attrs", "UNIT_NOT_FOUND", "{}");
     }

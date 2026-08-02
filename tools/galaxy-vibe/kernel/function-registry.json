@@ -145,6 +145,150 @@
         "has_behavior": "boolean"
       }
     },
+    "vibe.unit.set_vital": {
+      "handler": "libVibeKernel_gf_FunctionUnitSetVital",
+      "side_effect": true,
+      "debug_only": true,
+      "capability": "debug-injection",
+      "args": {
+        "unit_tag": {"type": "integer", "required": true, "min": 1},
+        "vital": {"type": "string", "required": true, "enum": ["life", "shield", "energy"]},
+        "value": {"type": "fixed", "required": true, "min": 0.0, "max": 1000000.0}
+      },
+      "returns": {
+        "function_id": "string",
+        "unit_tag": "integer",
+        "vital": "string",
+        "value": "fixed"
+      }
+    },
+    "vibe.unit.query_attrs": {
+      "handler": "libVibeKernel_gf_FunctionUnitQueryAttrs",
+      "side_effect": false,
+      "debug_only": false,
+      "capability": "observation",
+      "args": {
+        "unit_tag": {"type": "integer", "required": true, "min": 1}
+      },
+      "returns": {
+        "function_id": "string",
+        "unit_tag": "integer",
+        "unit_type": "string",
+        "life": "fixed",
+        "max_life": "fixed",
+        "shields": "fixed",
+        "energy": "fixed",
+        "armor": "fixed"
+      }
+    },
+    "vibe.catalog.get": {
+      "handler": "libVibeKernel_gf_FunctionCatalogGet",
+      "side_effect": false,
+      "debug_only": false,
+      "capability": "catalog-observation",
+      "args": {
+        "catalog": {"type": "string", "required": true, "enum": ["unit", "abil", "behavior", "weapon", "effect", "upgrade", "button", "actor"]},
+        "entry": {"type": "string", "required": true, "maxLength": 128, "pattern": "^[A-Za-z0-9_.-]+$"},
+        "field": {"type": "string", "required": true, "maxLength": 256, "pattern": "^[A-Za-z0-9_.\\[\\]-]+$"},
+        "player": {"type": "integer", "required": false, "default": 0, "min": 0, "max": 15}
+      },
+      "returns": {
+        "function_id": "string",
+        "catalog": "string",
+        "entry": "string",
+        "field": "string",
+        "player": "integer",
+        "value": "string"
+      }
+    },
+    "vibe.catalog.set": {
+      "handler": "libVibeKernel_gf_FunctionCatalogSet",
+      "side_effect": true,
+      "debug_only": true,
+      "capability": "catalog-mutation",
+      "args": {
+        "catalog": {"type": "string", "required": true, "enum": ["unit", "abil", "behavior", "weapon", "effect", "upgrade", "button", "actor"]},
+        "entry": {"type": "string", "required": true, "maxLength": 128, "pattern": "^[A-Za-z0-9_.-]+$"},
+        "field": {"type": "string", "required": true, "maxLength": 256, "pattern": "^[A-Za-z0-9_.\\[\\]-]+$"},
+        "player": {"type": "integer", "required": false, "default": 0, "min": 0, "max": 15},
+        "value": {"type": "string", "required": true, "maxLength": 256}
+      },
+      "returns": {
+        "function_id": "string",
+        "catalog": "string",
+        "entry": "string",
+        "field": "string",
+        "player": "integer",
+        "old_value": "string",
+        "value": "string"
+      }
+    },
+    "vibe.visual.model_swap": {
+      "handler": "libVibeKernel_gf_FunctionVisualModelSwap",
+      "side_effect": true,
+      "debug_only": true,
+      "capability": "visual",
+      "args": {
+        "unit_tag": {"type": "integer", "required": true, "min": 1},
+        "model": {"type": "string", "required": true, "maxLength": 128},
+        "variation": {"type": "integer", "required": false, "default": 0, "min": 0, "max": 255}
+      },
+      "returns": {
+        "function_id": "string",
+        "unit_tag": "integer",
+        "model": "string",
+        "variation": "integer",
+        "applied": "boolean"
+      }
+    },
+    "vibe.visual.set_scale": {
+      "handler": "libVibeKernel_gf_FunctionVisualSetScale",
+      "side_effect": true,
+      "debug_only": true,
+      "capability": "visual",
+      "args": {
+        "unit_tag": {"type": "integer", "required": true, "min": 1},
+        "scale": {"type": "fixed", "required": true, "min": 0.01, "max": 100.0}
+      },
+      "returns": {
+        "function_id": "string",
+        "unit_tag": "integer",
+        "scale": "fixed",
+        "applied": "boolean"
+      }
+    },
+    "vibe.visual.set_tint": {
+      "handler": "libVibeKernel_gf_FunctionVisualSetTint",
+      "side_effect": true,
+      "debug_only": true,
+      "capability": "visual",
+      "args": {
+        "unit_tag": {"type": "integer", "required": true, "min": 1},
+        "color": {"type": "string", "required": true, "maxLength": 64}
+      },
+      "returns": {
+        "function_id": "string",
+        "unit_tag": "integer",
+        "color": "string",
+        "applied": "boolean"
+      }
+    },
+    "vibe.visual.set_opacity": {
+      "handler": "libVibeKernel_gf_FunctionVisualSetOpacity",
+      "side_effect": true,
+      "debug_only": true,
+      "capability": "visual",
+      "args": {
+        "unit_tag": {"type": "integer", "required": true, "min": 1},
+        "opacity": {"type": "fixed", "required": true, "min": 0.0, "max": 1.0}
+      },
+      "returns": {
+        "function_id": "string",
+        "unit_tag": "integer",
+        "opacity": "fixed",
+        "applied": "boolean"
+      }
+    },
     "vibe.query.units": {
       "handler": "libVibeKernel_gf_FunctionQueryUnits",
       "side_effect": false,
