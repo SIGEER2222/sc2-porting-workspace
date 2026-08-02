@@ -236,3 +236,8 @@ The extracted map source and packed staging copies remain local under `artifacts
 intentionally not included in the code commit because they are generated 60+ MB map copies.
 Their paths and hashes are recorded by the stage artifacts and this log; the committed change
 contains the replay implementation, player, tests, and stage evidence updates.
+
+Follow-up retry at `2026-08-02T17:50:11+08:00` also lost the free window to a valid external
+KeepAlive session `owner_pid=38060`, `runtime_pid=5000`, `port=5201`, session
+`cmre_alenger-20260802-175011-03672d29`. The retry was stopped before any connection to that
+session; G4 remains blocked.
