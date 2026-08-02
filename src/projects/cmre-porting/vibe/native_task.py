@@ -9,7 +9,7 @@ combat state transitions without debug injection.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Iterable
 
 from .contracts import Observation
 from .defend_policy import DefendAction, DefendBasePolicy
@@ -89,6 +89,136 @@ def build_native_task_scenario(seed: int = 42, max_loops: int = 320) -> dict:
         "initial_minerals": 500,
         "initial_vespene": 0,
     }
+
+
+def build_native_recovery_scenario(seed: int = 42, max_loops: int = 640) -> dict:
+    """Build a native-economy scenario with a real enemy reinforcement wave.
+
+    P2's initial Marine/Medivac are ordinary scenario starting units, while
+    replacement Marines must come from the policy's Barracks train queue.  The
+    overlay below only issues enemy attack orders; it never creates or removes
+    P2 entities and never edits P2 resources.
+    """
+
+    scenario = build_native_task_scenario(seed=seed, max_loops=max_loops)
+    scenario["name"] = "stage25-p2-native-tactical-recovery"
+    scenario["initial_minerals"] = 3000
+    scenario["initial_vespene"] = 1000
+    scenario["spawns"] = [
+        spawn for spawn in scenario["spawns"]
+        if not (
+            spawn["unit_type_id"] == "Zergling"
+            and int(spawn["owner_player_id"]) == ENEMY_PLAYER_ID
+        )
+    ]
+    scenario["spawns"].extend([
+        {
+            "unit_type_id": "Marine",
+            "owner_player_id": P2_PLAYER_ID,
+            # Keep the starting tactical force in open space.  The P2
+            # production ring is intentionally exercised separately and
+            # should not trap a retreating Marine behind its footprints.
+            "x": 60.0,
+            "y": P2_BASE[1],
+            "health_override": 20.0,
+        },
+        {
+            "unit_type_id": "Marine",
+            "owner_player_id": P2_PLAYER_ID,
+            "x": 61.0,
+            "y": P2_BASE[1],
+        },
+        {
+            "unit_type_id": "Medivac",
+            "owner_player_id": P2_PLAYER_ID,
+            "x": 60.0,
+            "y": P2_BASE[1] + 2.0,
+        },
+    ])
+    for index, (dx, dy) in enumerate(((-2.0, 0.0), (0.0, 0.0), (2.0, 0.0), (0.0, 2.0))):
+        scenario["spawns"].append({
+            "unit_type_id": "Roach",
+            "owner_player_id": ENEMY_PLAYER_ID,
+            "x": 70.0 + dx,
+            "y": P2_BASE[1] + dy,
+        })
+    return scenario
+
+
+class NativeRecoveryWaveOverlay:
+    """Issue pre-existing enemy attack orders at deterministic wave loops."""
+
+    def __init__(self, attack_loops: Iterable[int] = (120, 300)) -> None:
+        self.attack_loops = frozenset(int(loop) for loop in attack_loops)
+        self.wave_count = 0
+        self.attack_order_count = 0
+        self.wave_records: list[dict] = []
+
+    def start(self, session: SimulatorSession, scenario: dict) -> None:
+        self.wave_count = 0
+        self.attack_order_count = 0
+        self.wave_records = []
+
+    def before_step(self, session: SimulatorSession, loop: int) -> list[dict]:
+        if int(loop) not in self.attack_loops:
+            return []
+        world = session.world
+        p2_targets = [
+            entity for entity in world.entities.values()
+            if entity.is_alive
+            and int(entity.owner_player_id) == P2_PLAYER_ID
+            and entity.unit_type_id in {
+                "Marine", "Marauder", "Hellion", "SiegeTank", "Viking"
+            }
+        ]
+        attackers = [
+            entity for entity in world.entities.values()
+            if entity.is_alive
+            and int(entity.owner_player_id) == ENEMY_PLAYER_ID
+            and entity.unit_type_id == "Roach"
+        ]
+        if not p2_targets or not attackers:
+            return [{
+                "loop": int(loop),
+                "kind": "recovery_wave_skipped",
+                "reason": "no_live_target_or_attacker",
+            }]
+        target = min(
+            p2_targets,
+            key=lambda entity: (
+                int(entity.health.raw),
+                int(entity.entity_id),
+            ),
+        )
+        issued_ids: list[int] = []
+        for attacker in sorted(attackers, key=lambda entity: entity.entity_id):
+            session.unit_order(
+                [attacker.entity_id],
+                "attack_unit",
+                int(attacker.owner_player_id),
+                target_entity_id=target.entity_id,
+            )
+            issued_ids.append(int(attacker.entity_id))
+        self.wave_count += 1
+        self.attack_order_count += len(issued_ids)
+        record = {
+            "loop": int(loop),
+            "kind": "recovery_wave_attack_ordered",
+            "attacker_entity_ids": issued_ids,
+            "target_entity_id": int(target.entity_id),
+            "target_unit_type_id": str(target.unit_type_id),
+        }
+        self.wave_records.append(record)
+        return [record]
+
+    def summary(self) -> dict:
+        return {
+            "overlay": "native_recovery_wave",
+            "wave_count": self.wave_count,
+            "enemy_attack_orders": self.attack_order_count,
+            "wave_records": list(self.wave_records),
+            "p2_injection": False,
+        }
 
 
 @dataclass(frozen=True)

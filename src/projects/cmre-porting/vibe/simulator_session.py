@@ -233,7 +233,7 @@ class SimulatorSession:
                     payload={"unit_type": d.unit_type_id},
                 )
             self.world.events.pop_due(cur)
-            winner, end_reason = check_win_condition(self.world)
+            winner, end_reason = self._check_scenario_win(check_win_condition, scenario)
             if winner is not None or end_reason:
                 self.terminated = True
                 self.end_reason = end_reason
@@ -243,6 +243,53 @@ class SimulatorSession:
         return StepResult(
             self.world.clock.now.loop, self.terminated, end_reason, snap_hash
         )
+
+    def _check_scenario_win(self, default_checker, scenario):
+        """Apply project-owned victory contracts before stock simulator rules."""
+        win_condition = str(getattr(scenario, "win_condition", "annihilation"))
+        params = dict(getattr(scenario, "win_condition_params", {}) or {})
+        if win_condition == "enemy_elimination":
+            enemy_ids = {
+                int(player_id)
+                for player_id in params.get("enemy_player_ids", ())
+            }
+            if not enemy_ids:
+                ally_ids = {
+                    int(player_id)
+                    for player_id in params.get("ally_player_ids", ())
+                }
+                enemy_ids = {
+                    int(player.id)
+                    for player in self.world.players.players.values()
+                    if int(player.id) != 0
+                    and int(player.id) not in ally_ids
+                }
+            enemy_alive = any(
+                entity.is_alive and int(entity.owner_player_id) in enemy_ids
+                for entity in self.world.entities.values()
+            )
+            if not enemy_alive:
+                return int(params.get("winner_player_id", 1)), "enemy_elimination"
+            ally_ids = {
+                int(player_id)
+                for player_id in params.get("ally_player_ids", ())
+            }
+            if ally_ids and not any(
+                entity.is_alive and int(entity.owner_player_id) in ally_ids
+                for entity in self.world.entities.values()
+            ):
+                return None, "ally_annihilation"
+            return None, ""
+
+        # Existing legacy scenarios use "custom" as a runner-side sentinel;
+        # preserve that behavior while forwarding supported native rules.
+        supported = {
+            "annihilation", "survival", "escort", "hold_point",
+            "capture", "custom_assertion",
+        }
+        if win_condition in supported:
+            return default_checker(self.world, win_condition, params)
+        return default_checker(self.world)
 
     def scenario_step_movement_only(self) -> StepResult:
         """Advance a static-map replay through the real movement system.

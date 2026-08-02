@@ -25,7 +25,12 @@ from vibe.consumers.ally_ai import (  # noqa: E402
 from vibe.defend_policy import DefendBasePolicy  # noqa: E402
 from vibe.contracts import Observation  # noqa: E402
 from vibe.simulator_session import SimulatorSession  # noqa: E402
-from vibe.native_task import build_native_task_scenario, run_native_task  # noqa: E402
+from vibe.native_task import (  # noqa: E402
+    NativeRecoveryWaveOverlay,
+    build_native_recovery_scenario,
+    build_native_task_scenario,
+    run_native_task,
+)
 from vibe.replay_player import load_replay, render_player_html  # noqa: E402
 from vibe.map_replay import (  # noqa: E402
     DeadOfNightMapScriptOverlay,
@@ -170,6 +175,59 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
                 set(result.final_tech["completed_upgrades"])
             ), (seed, result.final_tech))
             self.assertIn("vespene_deposited", result.event_kinds, seed)
+
+    def test_tactical_recovery_replaces_losses_and_medivac_heals_across_seeds(self):
+        fingerprints = []
+        for seed in (42, 7, 99):
+            overlay = NativeRecoveryWaveOverlay()
+            scenario = build_native_recovery_scenario(seed=seed)
+            result = run_ally_scenario(
+                scenario,
+                AllyPolicy(
+                    player_id=2,
+                    leader_entity_id=0,
+                    leader_player_id=1,
+                    base_region=(85.0, 94.0, 8.0),
+                    command_interval=1,
+                ),
+                ally_player_id=2,
+                max_loops=640,
+                latency_loops=0,
+                require_cooperative_roster=True,
+                simulator_overlay=overlay,
+            )
+
+            self.assertTrue(result.roster_ready, (seed, result.roster_issues))
+            self.assertEqual(result.error_breakdown, {}, seed)
+            self.assertEqual(result.hidden_state_access_violations, 0, seed)
+            self.assertEqual(result.friendly_fire_rejections, 0, seed)
+            self.assertFalse(result.deadlock_detected, seed)
+            self.assertFalse(result.command_storm_detected, seed)
+            self.assertGreaterEqual(result.p2_loss_count, 1, seed)
+            self.assertGreaterEqual(result.p2_losses_by_type.get("Marine", 0), 1, seed)
+            self.assertGreaterEqual(result.p2_train_completed_after_loss, 1, seed)
+            self.assertGreaterEqual(result.action_kind_counts.get("train", 0), 1, seed)
+            self.assertGreaterEqual(result.action_kind_counts.get("heal", 0), 1, seed)
+            self.assertGreaterEqual(result.heal_event_count, 1, seed)
+            self.assertEqual(overlay.wave_count, 2, seed)
+            self.assertEqual(overlay.attack_order_count, 8, seed)
+            self.assertFalse(overlay.summary()["p2_injection"], seed)
+
+            initial_medivac_id = next(
+                index + 1
+                for index, spawn in enumerate(scenario["spawns"])
+                if spawn["unit_type_id"] == "Medivac"
+                and int(spawn["owner_player_id"]) == 2
+            )
+            self.assertFalse(any(
+                action.kind == "attack" and action.entity_id == initial_medivac_id
+                for decision in result.decisions
+                for action in decision.actions
+            ), seed)
+            fingerprints.append((result.trace_hash, result.action_kind_counts,
+                                 result.p2_loss_count, result.heal_event_count))
+
+        self.assertEqual({str(item) for item in fingerprints}, {str(fingerprints[0])})
 
     def test_ally_policy_native_opening_is_deterministic_across_seeds(self):
         results = []

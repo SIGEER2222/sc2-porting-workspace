@@ -304,6 +304,12 @@ def _entity_brief(e, world=None) -> dict:
         try:
             ut = world.catalog.get(e.unit_type_id)
             d["max_health"] = ut.max_health.raw
+            attributes = {
+                getattr(attribute, "value", str(attribute))
+                for attribute in getattr(ut, "attributes", ())
+            }
+            d["attributes"] = sorted(attributes)
+            d["is_biological"] = "biological" in attributes
             d["build_progress"] = (
                 1.0
                 if e.build_total_loops <= 0
@@ -325,7 +331,11 @@ def _entity_brief(e, world=None) -> dict:
         )
         if e.attack_target_id and has_weapon:
             orders.append({
-                "ability_id": "Attack",
+                "ability_id": (
+                    "Heal"
+                    if getattr(unit_type.weapon_ground, "is_heal", False)
+                    else "Attack"
+                ),
                 "target_unit_tag": int(e.attack_target_id),
             })
         elif state == "building" and e.build_target_id:
@@ -338,6 +348,12 @@ def _entity_brief(e, world=None) -> dict:
             orders.append({
                 "ability_id": "Smart",
                 "target_unit_tag": int(e.gather_target_id),
+            })
+        elif state in {"moving", "attack_moving"}:
+            orders.append({
+                "ability_id": "Move",
+                "target_x": e.move_target_x.to_float(),
+                "target_y": e.move_target_y.to_float(),
             })
         elif e.production_queue or e.secondary_production_queue:
             queue = e.production_queue or e.secondary_production_queue

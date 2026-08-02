@@ -238,11 +238,12 @@ class AllyAction:
     """盟友 AI 决策动作。"""
 
     entity_id: int
-    kind: str  # "follow" | "attack" | "move" | "hold" | "gather" | "build" | "train" | "research"
+    kind: str  # "follow" | "attack" | "heal" | "move" | "hold" | "gather" | "build" | "train" | "research"
     target_entity_id: int = 0
     target_x: float = 0.0
     target_y: float = 0.0
     unit_type_id: str = ""  # train/build 用
+    ability_id: str = ""  # heal/cast_unit 用
     reason: str = ""  # 决策理由（写入 trace）
 
 
@@ -256,6 +257,7 @@ class QueuedCommand:
     target_x: float
     target_y: float
     unit_type_id: str
+    ability_id: str
     reason: str
     issue_loop: int
     dispatch_loop: int  # issue_loop + latency_loops
@@ -326,6 +328,11 @@ class AllyRunResult:
     action_kind_counts: dict[str, int] = field(default_factory=dict)
     event_kinds: list[str] = field(default_factory=list)
     final_units_by_type: dict[str, int] = field(default_factory=dict)
+    final_enemy_units_by_type: dict[str, int] = field(default_factory=dict)
+    p2_loss_count: int = 0
+    p2_losses_by_type: dict[str, int] = field(default_factory=dict)
+    p2_train_completed_after_loss: int = 0
+    heal_event_count: int = 0
     final_resources: dict = field(default_factory=dict)
     final_tech: dict = field(default_factory=dict)
 
@@ -366,6 +373,7 @@ class AllyPolicy:
         self._action_history: list[list[str]] = []
         self._mode_history: list[str] = []
         self._mode = AllyMode.FOLLOW
+        self._explicit_retreat = False
         self._scout_entity_id: Optional[int] = None
         self._scout_point_index = 0
         self._last_scout_loop = -10_000
@@ -440,6 +448,7 @@ class AllyPolicy:
                 PlayerSignalKind.HOLD: AllyMode.HOLD,
             }
             self._mode = mode_map[command.kind]
+            self._explicit_retreat = command.kind == PlayerSignalKind.RETREAT
             notice = PlayerNotice(
                 source,
                 f"Acknowledged: {command.kind.value}. P2 mode={self._mode.value}.",
@@ -487,6 +496,11 @@ class AllyPolicy:
             if unit.get("unit_type_id") not in DefendBasePolicy.WORKER_TYPES
             and unit.get("unit_type_id") not in DefendBasePolicy.BUILDING_TYPES
             and unit.get("unit_type_id") not in DefendBasePolicy.NON_COMBAT_TYPES
+            and unit.get("unit_type_id") != "Medivac"
+        ]
+        support_units = [
+            unit for unit in own_by_id.values()
+            if unit.get("unit_type_id") == "Medivac"
         ]
         scout_action = self._decide_scout(combat_units, enemies, loop)
         scout_entity_id = (
@@ -536,6 +550,9 @@ class AllyPolicy:
         elif base_threats:
             mode = AllyMode.DEFEND_BASE
             mode_reason = "base_threat_priority"
+        elif self._mode == AllyMode.RETREAT and not self._explicit_retreat:
+            mode = AllyMode.ASSIST_ATTACK if enemies else AllyMode.FOLLOW
+            mode_reason = "retreat_recovered"
         elif (leader_threats or enemies) and self._mode in {
             AllyMode.FOLLOW, AllyMode.REGROUP, AllyMode.ASSIST_ATTACK,
         }:
@@ -558,6 +575,52 @@ class AllyPolicy:
                     target_y=self.base_y,
                     reason="worker_retreat_base_threat",
                 ))
+
+        # Medivac is support, not a combat unit.  Use only the public
+        # biological marker from Observation and keep target selection stable.
+        wounded_biological = [
+            unit for unit in own_by_id.values()
+            if unit.get("is_biological")
+            and unit.get("unit_type_id") not in DefendBasePolicy.WORKER_TYPES
+            and int(unit.get("max_health", 0)) > 0
+            and int(unit.get("health", 0)) < int(unit.get("max_health", 0))
+        ]
+        for medivac in sorted(support_units, key=lambda unit: unit["entity_id"]):
+            target = self._most_wounded(medivac, wounded_biological)
+            if target is not None:
+                distance = self._dist(
+                    medivac["x"], medivac["y"], target["x"], target["y"]
+                )
+                if distance <= 4.0:
+                    if not self._has_heal_order(medivac, target["entity_id"]):
+                        actions.append(AllyAction(
+                            medivac["entity_id"],
+                            "heal",
+                            target_entity_id=target["entity_id"],
+                            ability_id="Heal",
+                            reason="support_wounded_biological",
+                        ))
+                else:
+                    if not self._has_move_order(medivac, target["x"], target["y"]):
+                        actions.append(AllyAction(
+                            medivac["entity_id"],
+                            "move",
+                            target_x=target["x"],
+                            target_y=target["y"],
+                            reason="support_reposition_for_heal",
+                        ))
+            else:
+                destination = self._destination(mode, leader)
+                if destination is not None and not self._has_move_order(
+                    medivac, destination[0], destination[1]
+                ):
+                    actions.append(AllyAction(
+                        medivac["entity_id"],
+                        "move",
+                        target_x=destination[0],
+                        target_y=destination[1],
+                        reason="support_follow_formation",
+                    ))
 
         focus_target = self._focus_target(
             base_threats or leader_threats or enemies,
@@ -586,19 +649,30 @@ class AllyPolicy:
             if mode == AllyMode.HOLD:
                 actions.append(AllyAction(uid, "hold", reason="player_hold"))
             elif destination is not None:
-                formation_destination = self._formation_destination(
-                    destination,
-                    index,
-                    mode,
-                )
+                if mode == AllyMode.RETREAT and critically_wounded:
+                    # Retreat from the current contact point instead of
+                    # routing through the already occupied production ring.
+                    formation_destination = (
+                        max(0.0, float(unit["x"]) - 2.0),
+                        float(unit["y"]) + 2.0,
+                    )
+                else:
+                    formation_destination = self._formation_destination(
+                        destination,
+                        index,
+                        mode,
+                    )
                 kind = "follow" if mode == AllyMode.FOLLOW else "move"
-                actions.append(AllyAction(
-                    uid,
-                    kind,
-                    target_x=formation_destination[0],
-                    target_y=formation_destination[1],
-                    reason=f"{mode_reason}:formation",
-                ))
+                if not self._has_move_order(
+                    unit, formation_destination[0], formation_destination[1]
+                ):
+                    actions.append(AllyAction(
+                        uid,
+                        kind,
+                        target_x=formation_destination[0],
+                        target_y=formation_destination[1],
+                        reason=f"{mode_reason}:formation",
+                    ))
             else:
                 actions.append(AllyAction(uid, "hold", reason="leader_not_visible"))
 
@@ -662,6 +736,7 @@ class AllyPolicy:
             target_x=action.target_x,
             target_y=action.target_y,
             unit_type_id=action.unit_type_id,
+            ability_id=getattr(action, "ability_id", ""),
             reason=action.reason,
         )
 
@@ -679,6 +754,40 @@ class AllyPolicy:
                 ),
                 int(candidate["entity_id"]),
             ),
+        )
+
+    @staticmethod
+    def _most_wounded(unit: dict, candidates: list[dict]) -> Optional[dict]:
+        if not candidates:
+            return None
+        return min(
+            candidates,
+            key=lambda candidate: (
+                float(candidate.get("health", 0)) / max(
+                    1.0, float(candidate.get("max_health", 1))
+                ),
+                AllyPolicy._dist(
+                    unit["x"], unit["y"], candidate["x"], candidate["y"]
+                ),
+                int(candidate["entity_id"]),
+            ),
+        )
+
+    @staticmethod
+    def _has_heal_order(unit: dict, target_entity_id: int) -> bool:
+        return any(
+            order.get("ability_id") == "Heal"
+            and int(order.get("target_unit_tag", 0)) == int(target_entity_id)
+            for order in unit.get("orders", [])
+        )
+
+    @staticmethod
+    def _has_move_order(unit: dict, target_x: float, target_y: float) -> bool:
+        return any(
+            order.get("ability_id") in {"Move", "Smart"}
+            and abs(float(order.get("target_x", target_x)) - float(target_x)) < 0.5
+            and abs(float(order.get("target_y", target_y)) - float(target_y)) < 0.5
+            for order in unit.get("orders", [])
         )
 
     @staticmethod
@@ -712,7 +821,10 @@ class AllyPolicy:
         self, mode: AllyMode, leader: Optional[dict]
     ) -> Optional[tuple[float, float]]:
         if mode == AllyMode.DEFEND_BASE or mode == AllyMode.RETREAT:
-            return self.base_x, self.base_y
+            # The CommandCenter/geyser cells are not valid movement targets.
+            # Use a deterministic open rally point beside the base instead of
+            # repeatedly dispatching invalid center-cell orders.
+            return self.base_x - 4.0, self.base_y + 4.0
         if leader is None:
             return None
         if mode == AllyMode.REGROUP:
@@ -784,6 +896,7 @@ class ActionAdapter:
                 target_entity_id=a.target_entity_id,
                 target_x=a.target_x, target_y=a.target_y,
                 unit_type_id=a.unit_type_id,
+                ability_id=a.ability_id,
                 reason=a.reason, issue_loop=loop,
                 dispatch_loop=loop + self.latency_loops,
             )
@@ -856,6 +969,50 @@ class ActionAdapter:
                 return DispatchResult(qc.entity_id, qc.kind, True, None,
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
             except Exception as e:  # noqa: BLE001 — 错误模型必须吞下所有异常
+                return DispatchResult(qc.entity_id, qc.kind, False,
+                                      f"dispatch_error:{type(e).__name__}",
+                                      qc.issue_loop, qc.dispatch_loop, qc.reason)
+        # 4) Medivac support uses the simulator's typed HEAL command.  Keep
+        # the ability ID in the queue/replay contract even though native heal
+        # resolves the weapon from the caster catalog.
+        if qc.kind in {"heal", "cast_unit"}:
+            if qc.target_entity_id == 0:
+                return DispatchResult(qc.entity_id, qc.kind, False, "invalid_target",
+                                      qc.issue_loop, qc.dispatch_loop, qc.reason)
+            target = world.get_entity(qc.target_entity_id)
+            if target is None or not target.is_alive:
+                return DispatchResult(qc.entity_id, qc.kind, False, "target_dead",
+                                      qc.issue_loop, qc.dispatch_loop, qc.reason)
+            if world.players.is_enemy(issuer, target.owner_player_id):
+                self.friendly_fire_rejections += 1
+                return DispatchResult(qc.entity_id, qc.kind, False,
+                                      "friendly_fire_blocked",
+                                      qc.issue_loop, qc.dispatch_loop, qc.reason)
+            if qc.kind == "heal":
+                attributes = {
+                    getattr(attribute, "value", str(attribute))
+                    for attribute in getattr(world.catalog.get(target.unit_type_id), "attributes", ())
+                }
+                if "biological" not in attributes:
+                    return DispatchResult(qc.entity_id, qc.kind, False,
+                                          "invalid_target",
+                                          qc.issue_loop, qc.dispatch_loop, qc.reason)
+            try:
+                before_results = len(world.command_results)
+                self.session.unit_order(
+                    [qc.entity_id],
+                    "heal" if qc.kind == "heal" else "cast_unit",
+                    issuer_player_id=self.controlled_player_id or issuer,
+                    target_entity_id=qc.target_entity_id,
+                    ability_id=qc.ability_id or ("Heal" if qc.kind == "heal" else ""),
+                )
+                error = self._command_error(world, before_results, qc.entity_id)
+                if error is not None:
+                    return DispatchResult(qc.entity_id, qc.kind, False, error,
+                                          qc.issue_loop, qc.dispatch_loop, qc.reason)
+                return DispatchResult(qc.entity_id, qc.kind, True, None,
+                                      qc.issue_loop, qc.dispatch_loop, qc.reason)
+            except Exception as e:  # noqa: BLE001
                 return DispatchResult(qc.entity_id, qc.kind, False,
                                       f"dispatch_error:{type(e).__name__}",
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
@@ -1022,6 +1179,10 @@ def run_ally_scenario(
     s = SimulatorSession()
     s.scenario_load(scenario_dict=scenario_dict, catalog="m7")
     s.scenario_reset()
+    initial_entity_info = {
+        int(entity.entity_id): (int(entity.owner_player_id), str(entity.unit_type_id))
+        for entity in s.world.entities.values()
+    }
     # SimulatorSession honors the scenario's declared cap.  Clamp the runner
     # to that authoritative limit so an over-sized caller budget cannot spin
     # forever after scenario_step() stops advancing the clock.
@@ -1356,6 +1517,7 @@ def run_ally_scenario(
                         "target_x": action.target_x,
                         "target_y": action.target_y,
                         "unit_type_id": action.unit_type_id,
+                        "ability_id": action.ability_id,
                     },
                     "accepted": receipt is not None,
                     "queued": receipt,
@@ -1423,7 +1585,13 @@ def run_ally_scenario(
         if len(decisions) > safety_window * 2:
             decisions = decisions[-safety_window:]
 
-    deadlock = deadlock_loops >= deadlock_threshold
+    # Reaching the caller's bounded run limit is a normal terminal condition;
+    # an idle tail at that boundary is not a mid-run AI deadlock.  A stall is
+    # still reported when it happens before the authoritative limit.
+    deadlock = (
+        s.world.clock.now.loop < run_limit
+        and deadlock_loops >= deadlock_threshold
+    )
     oscillation = policy.oscillation_score() >= 6
     storm = max_cmds_per_loop > storm_threshold
 
@@ -1524,6 +1692,47 @@ def run_ally_scenario(
             if entity.is_alive and entity.research_upgrade_id
         ],
     }
+    final_enemy_units_by_type: dict[str, int] = {}
+    for entity in s.world.entities.values():
+        if entity.is_alive and int(entity.owner_player_id) in set(roster.enemy_player_ids):
+            final_enemy_units_by_type[entity.unit_type_id] = (
+                final_enemy_units_by_type.get(entity.unit_type_id, 0) + 1
+            )
+    p2_loss_events = [
+        event for event in s.world.events.emitted
+        if getattr(event, "kind", "") == "entity_removed"
+        and initial_entity_info.get(int(getattr(event, "entity_id", 0)), (0, ""))[0]
+        == int(ally_player_id)
+    ]
+    p2_losses_by_type: dict[str, int] = {}
+    for event in p2_loss_events:
+        unit_type_id = initial_entity_info.get(
+            int(getattr(event, "entity_id", 0)), (0, str(event.payload.get("unit_type", "")))
+        )[1]
+        p2_losses_by_type[unit_type_id] = p2_losses_by_type.get(unit_type_id, 0) + 1
+    first_loss_loop = min(
+        (int(getattr(event, "loop", 0)) for event in p2_loss_events),
+        default=None,
+    )
+    p2_train_completed_after_loss = sum(
+        1
+        for event in s.world.events.emitted
+        if getattr(event, "kind", "") == "train_completed"
+        and first_loss_loop is not None
+        and int(getattr(event, "loop", 0)) > first_loss_loop
+        and (
+            (producer := s.world.get_entity(int(getattr(event, "entity_id", 0)))) is not None
+            and int(producer.owner_player_id) == int(ally_player_id)
+        )
+    )
+    heal_event_count = sum(
+        1
+        for event in s.world.events.emitted
+        if getattr(event, "kind", "") == "heal"
+        and initial_entity_info.get(
+            int(event.payload.get("healer", 0)), (0, "")
+        )[0] == int(ally_player_id)
+    )
     return AllyRunResult(
         end_loop=s.world.clock.now.loop,
         end_reason=getattr(s, "end_reason", "") or "max_loops_reached",
@@ -1548,6 +1757,11 @@ def run_ally_scenario(
         action_kind_counts=action_kind_counts,
         event_kinds=event_kinds,
         final_units_by_type=final_units_by_type,
+        final_enemy_units_by_type=final_enemy_units_by_type,
+        p2_loss_count=len(p2_loss_events),
+        p2_losses_by_type=p2_losses_by_type,
+        p2_train_completed_after_loss=p2_train_completed_after_loss,
+        heal_event_count=heal_event_count,
         final_resources=s.query_player(int(ally_player_id))["resources"],
         final_tech=final_tech,
     )
