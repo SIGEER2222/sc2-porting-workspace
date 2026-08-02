@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "05-persistent-state",
+  "status": "PASS",
+  "completed_at": "2026-08-02T01:05:00+08:00",
+  "outputs": [
+    "cmre_neuro_adapter/persistence/__init__.py",
+    "cmre_neuro_adapter/persistence/campaign_state.py",
+    "cmre_neuro_adapter/persistence/mission_state.py",
+    "cmre_neuro_adapter/persistence/runtime_state.py",
+    "cmre_neuro_adapter/persistence/state_store.py",
+    "cmre_neuro_adapter/persistence/migrations.py",
+    "tests/test_state_store.py",
+    "tests/test_state_migrations.py"
+  ],
+  "gate_results": {
+    "G1-domain-separation": {"status": "PASS", "evidence_type": "simulator"},
+    "G2-atomicity": {"status": "PASS", "evidence_type": "simulator"},
+    "G3-migration": {"status": "PASS", "evidence_type": "simulator"},
+    "G4-restart": {"status": "PASS", "evidence_type": "simulator"},
+    "G5-replay": {"status": "PASS", "evidence_type": "simulator"},
+    "G6-compatibility": {"status": "PASS", "evidence_type": "static"}
+  },
+  "verification": {
+    "persistent_state_mvp": {
+      "status": "PASS",
+      "tests": 10,
+      "command": "python -m unittest discover -s tests -p 'test_state*.py' -v",
+      "evidence_type": "simulator",
+      "observed": "Three independent state files were saved, loaded after a new store instance, recovered after checksum corruption, and compared in deterministic replay traces."
+    },
+    "python_3_13_unittest": {
+      "status": "PASS",
+      "tests": 49,
+      "command": "python -m unittest discover -s tests -v",
+      "evidence_type": "simulator"
+    },
+    "python_3_13_compileall": {
+      "status": "PASS",
+      "command": "python -m compileall -q cmre_neuro_adapter tests",
+      "evidence_type": "static"
+    },
+    "python_3_11_grammar": {
+      "status": "PASS",
+      "files": 39,
+      "command": "python -c \"import ast, pathlib; ... ast.parse(path.read_text(encoding='utf-8'), feature_version=(3,11)) ...\"",
+      "reason": "No Python 3.11 runtime is installed, so this is a syntax-compatibility check rather than a runtime execution claim.",
+      "evidence_type": "static"
+    },
+    "diff_check": {
+      "status": "PASS",
+      "command": "git diff --check -- src/projects/cmre-neuro-adapter",
+      "evidence_type": "static"
+    }
+  },
+  "runtime_claims": [],
+  "resolved_limitations": ["ENV-001"],
+  "next_stage": "06-ability-slice",
+  "next_stage_plan": "stages/06-ability-slice/plan.md"
+}
