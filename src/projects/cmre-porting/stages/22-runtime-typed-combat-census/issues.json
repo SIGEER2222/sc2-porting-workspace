@@ -1,0 +1,36 @@
+{
+  "stage_id": "22-runtime-typed-combat-census",
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "RUNTIME-TYPED-COMBAT-CENSUS-001",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Real SC2 lacked a typed structure census and bounded combat probe",
+      "detail": "Stage 21 had live typed action control but no read-only structure census or target-class combat boundary.",
+      "evidence_type": "runtime",
+      "resolution": "The canonical kernel, mirrors, Host, simulator, and registry now expose typed census and attack handlers. The fresh Stage 22 window passed all census, invalid-target, valid-attack, frame, and initialization assertions.",
+      "evidence": "artifacts/projects/cmre-porting/stage22-runtime-typed-combat-census/runtime-20260802-1010/runtime-result-relative-fixed.json"
+    },
+    {
+      "id": "RUNTIME-MAP-INPUT-001",
+      "severity": "low",
+      "status": "resolved",
+      "title": "SC2 CreateGame rejected the staging directory and an unresolved packed path",
+      "detail": "A raw staging directory and an early relative packed-map call both returned CreateGame error 2.",
+      "evidence_type": "runtime",
+      "resolution": "The map is now packed with the existing StormLib tool, the runner resolves the map before CreateGame, and the repo-relative final invocation passed. The portable path rule is recorded in the project-local vibe-operator-workflow skill.",
+      "evidence": "artifacts/projects/cmre-porting/stage22-runtime-typed-combat-census/runtime-20260802-1010/runtime-result-relative-fixed.json"
+    },
+    {
+      "id": "RUNTIME-FULL-STRUCTURE-CLEARANCE-001",
+      "severity": "high",
+      "status": "open",
+      "title": "Full real-SC2 objective clearance remains unverified",
+      "detail": "The typed probe destroyed one target and observed 194 remaining enemy structures. This is a combat/census boundary, not a runtime all-objectives-success result.",
+      "evidence_type": "runtime",
+      "nextAction": "Implement a temporary Stage 23 controller that repeatedly censuses valid enemy structures, issues typed attacks, advances frames, handles stale targets and reinforcements, and asserts zero remaining objective structures without changing native initialization.",
+      "evidence": "artifacts/projects/cmre-porting/stage22-runtime-typed-combat-census/runtime-20260802-1010/runtime-result-relative-fixed.json"
+    }
+  ]
+}
