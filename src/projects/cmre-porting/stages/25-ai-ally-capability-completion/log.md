@@ -24,6 +24,10 @@ cooperative AI ally behavior has begun.
   with `SC2_RUNTIME_BUSY` for the protected PID `37884`/port `5151`; no fresh
   ScriptError verdict was claimed. Evidence:
   `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802/runtime-verdict.json`.
+- `blocked`: after the first protected process exited, a second fresh launcher
+  attempt was rejected by a new protected lease, PID `40408`/port `5152`.
+  Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802-pass1/runtime-verdict.json`.
 
 ## Changes
 
@@ -50,6 +54,6 @@ cooperative AI ally behavior has begun.
 ## Stop Condition
 
 Simulator and static gates are complete. Stage 25 remains `IN_PROGRESS` until
-the protected runtime lease is released and a fresh approved-launcher window
+all protected runtime leases are released and a fresh approved-launcher window
 proves P1 ActionChat -> Galaxy P2 order -> RequestStep state change with a
 same-window ScriptError check.

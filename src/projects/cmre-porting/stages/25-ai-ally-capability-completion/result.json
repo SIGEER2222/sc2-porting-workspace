@@ -24,16 +24,19 @@
     "tools/launchers/tests/test_live_runner_unit_adapter.py",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/simulator-multiseed.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802/runtime-verdict.json",
-    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802/preexisting-runtime-observation.json"
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802/preexisting-runtime-observation.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802-pass1/runtime-verdict.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802-pass1/launcher.stdout.txt",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802-pass1/launcher.stderr.txt"
   ],
   "validation": [
     {"evidence_type": "simulator", "command": "inline Python run_ally_scenario for seeds 42, 7, 99", "status": "PASS", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/simulator-multiseed.json"},
     {"evidence_type": "static", "command": "python -m pytest -q ...", "status": "PASS", "detail": "focused 5 passed; Stage 19/20 9 passed + 3 subtests; kernel/launcher/live 58 passed"},
     {"evidence_type": "static", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1", "status": "PASS", "detail": "52/52 checks passed, 0 warnings"},
-    {"evidence_type": "blocked", "command": "approved launcher on port 5142", "status": "BLOCKED", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802/runtime-verdict.json"}
+    {"evidence_type": "blocked", "command": "approved launcher on port 5142 (two fresh attempts)", "status": "BLOCKED", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802-pass1/runtime-verdict.json"}
   ],
   "issues": [
-    "Fresh runtime P1 ActionChat -> P2 Galaxy order -> state delta remains blocked by protected SC2 runtime lease PID 37884 on port 5151."
+    "Fresh runtime P1 ActionChat -> P2 Galaxy order -> state delta remains blocked by protected SC2 runtime leases (PID 40408 on port 5152 after the earlier PID 37884 on port 5151)."
   ],
   "next_stage_plan": null
 }
