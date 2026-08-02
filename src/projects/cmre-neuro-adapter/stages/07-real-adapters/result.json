@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "stage_id": "07-real-adapters",
   "status": "BLOCKED",
-  "updated_at": "2026-08-02T19:15:00+08:00",
+  "updated_at": "2026-08-02T22:02:56+08:00",
   "outputs": [
     "cmre_neuro_adapter/transports/__init__.py",
     "cmre_neuro_adapter/transports/common.py",
@@ -18,6 +18,7 @@
     "tests/test_basic_actions.py",
     "tests/test_replay_player.py",
     "cmre_neuro_adapter/real_map_replay.py",
+    "cmre_neuro_adapter/full_game_replay.py",
     "artifacts/real-map-source-20260802/",
     "artifacts/real-map-replay-20260802/real-map-static-preview.jsonl",
     "artifacts/real-map-replay-20260802/real-map-static-preview.html",
@@ -38,6 +39,9 @@
     "artifacts/stage07-basic-command-replay-20260802/browser-verification.json",
     "artifacts/stage07-basic-command-replay-20260802/state-driven-player-browser.png",
     "artifacts/stage07-basic-command-replay-20260802/state-driven-player-victory.png",
+    "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.jsonl",
+    "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.html",
+    "artifacts/full-game-replay-20260802/dead-of-night-full-simulator-browser.png",
     "stages/07-real-adapters/log.md",
     "stages/07-real-adapters/result.json",
     "stages/07-real-adapters/issues.json"
@@ -205,6 +209,30 @@
         "artifacts/stage07-basic-command-replay-20260802/state-driven-player-victory.png"
       ],
       "evidence_type": "runtime"
+    },
+    "full_game_simulator_replay": {
+      "status": "PASS",
+      "command": "python -m cmre_neuro_adapter.full_game_replay --wave-strength-scale 0.25 --max-loops 65000 --replay-interval 448 --output artifacts/full-game-replay-20260802/dead-of-night-full-simulator.jsonl --html-output artifacts/full-game-replay-20260802/dead-of-night-full-simulator.html",
+      "summary": "The clean simulator opening starts with 1 CommandCenter, 8 SCVs, and 250 minerals, then records resource collection, 4 SCV completions, 3 Barracks, 1 Refinery, 4 SupplyDepots, 109 Marines, 39/39 waves, six completed nights, all 30 infestation structures destroyed, and victory at loop 63841 with 2240/2240 successful actions.",
+      "artifact": "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.jsonl",
+      "evidence_type": "simulator"
+    },
+    "full_game_replay_browser": {
+      "status": "PASS",
+      "command": "Edge/Playwright opened dead-of-night-full-simulator.html and exercised canvas rendering, 16x playback, seeking, end-state, and immediate play/pause controls",
+      "summary": "The self-contained player rendered 810000 non-empty canvas pixels, 144 playable frames, and all 1319 static map Objects; seeking reached loop 45696 at Night 4 / 17 and the end reached loop 63841 with victory, all_objectives_success, Night 6 / 39. Immediate play and pause both changed the playback state without page errors.",
+      "artifacts": [
+        "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.html",
+        "artifacts/full-game-replay-20260802/dead-of-night-full-simulator-browser.png"
+      ],
+      "evidence_type": "runtime"
+    },
+    "full_game_replay_tests": {
+      "status": "PASS",
+      "tests": 76,
+      "command": "python -m unittest discover -s tests -v",
+      "summary": "The full adapter test suite passed after the complete replay implementation; compileall and diff-check also passed.",
+      "evidence_type": "simulator"
     },
     "real_map_launcher_staging": {
       "status": "PASS",

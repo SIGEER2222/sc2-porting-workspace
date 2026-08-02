@@ -25,8 +25,6 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 CMRE_PORTING_SRC = REPO_ROOT / "src" / "projects" / "cmre-porting"
 sys.path.insert(0, str(CMRE_PORTING_SRC))
 
-from vibe import run_dead_of_night_live as live  # type: ignore
-
 from .replay_player import render_player_html
 
 DEFAULT_MAP = REPO_ROOT / "artifacts" / "live-maps" / "亡者之夜_live_packed.SC2Map"
@@ -50,6 +48,14 @@ DEFAULT_OUTPUT = (
 DEFAULT_HTML = DEFAULT_OUTPUT.with_suffix(".html")
 MAP_WORLD_BOUNDS = {"min_x": 16.0, "max_x": 176.0, "min_y": 16.0, "max_y": 176.0}
 MAP_IMAGE_RECT = {"x": 48, "y": 48, "w": 160, "h": 160}
+
+
+def _live_module() -> Any:
+    """Load live SC2 dependencies only for runtime probing paths."""
+
+    from vibe import run_dead_of_night_live as live  # type: ignore
+
+    return live
 
 
 def _relative(path: Path) -> str:
@@ -121,6 +127,7 @@ def build_map_record(map_path: Path, map_source: Path) -> dict[str, Any]:
 
 
 def _entity_brief(unit: Any, player_id: int) -> dict[str, Any] | None:
+    live = _live_module()
     brief = live._unit_brief_from_sc2(unit, player_id)
     if brief is None:
         return None
@@ -200,6 +207,7 @@ def _frame(response: Any, player_id: int, map_name: str, previous: dict[str, dic
 
 
 async def _create_game(connection: Any, map_path: Path) -> int:
+    live = _live_module()
     await connection.send_request(live.sc_pb.Request(ping=live.sc_pb.RequestPing()), timeout=30)
     try:
         await connection.send_request(live.sc_pb.Request(leave_game=live.sc_pb.RequestLeaveGame()), timeout=10)
@@ -244,6 +252,7 @@ async def capture_real_replay(
     record_interval: int = 25,
     decision_interval: int = 22,
 ) -> dict[str, Any]:
+    live = _live_module()
     if not map_path.is_file():
         raise FileNotFoundError(f"packed map not found: {map_path}")
     map_record = build_map_record(map_path, map_source)

@@ -106,6 +106,32 @@
       "detail": "The prior replay stopped after the macro acceptance point at loop 1056, leaving night=0, terminated=false, and no mission victory.",
       "resolution": "The runner now continues through MissionEngine with map-derived first-night timing, wave events, public mission state, and a survive_first_night objective. The final state reaches loop 10081 with night=1, nights_survived=1, terminated=true, and end_reason=all_objectives_success.",
       "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl"
+    },
+    {
+      "id": "REPLAY-006",
+      "severity": "high",
+      "status": "resolved",
+      "evidence_type": "simulator",
+      "detail": "The first full-strength replay lost the CommandCenter during Night 3 because dynamic wave units retained full catalog weapon damage, and the policy froze the economy when static structures were seen as base threats.",
+      "resolution": "Added explicit per-entity dynamic enemy damage scaling, filtered static structures from policy threat observations, and kept workers on the economy loop. The final difficulty-scaled replay reaches all six nights and all objectives successfully.",
+      "artifact": "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.jsonl"
+    },
+    {
+      "id": "REPLAY-007",
+      "severity": "medium",
+      "status": "resolved",
+      "evidence_type": "runtime",
+      "detail": "Recording a full entity census for every combat event made the self-contained player unnecessarily large and delayed control initialization.",
+      "resolution": "The runner now samples entity frames at the configured replay interval while aggregating every simulator event into the sampled frame. The player timeline marks mission, wave, construction, production, and cleanup events without creating one DOM marker per damage event.",
+      "artifact": "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.html"
+    },
+    {
+      "id": "ENV-002",
+      "severity": "medium",
+      "status": "resolved",
+      "evidence_type": "static",
+      "detail": "Static map-record tests imported the live SC2 capture module eagerly and failed when optional aiohttp runtime dependencies were unavailable.",
+      "resolution": "The live capture module is now loaded only by runtime probe functions; static map metadata and simulator replay imports remain dependency-light without changing the live launcher path."
     }
   ],
   "residual_risks": [

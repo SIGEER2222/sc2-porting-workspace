@@ -321,3 +321,34 @@ Evidence:
 
 This remains simulator/browser evidence only. No live SC2 runtime effect or real-map dynamic
 entity trace is promoted; the independent launcher lease blocker for G4 remains open.
+
+## Complete Six-Night Simulator Replay 2026-08-02 22:02 +08:00
+
+The owned adapter now produces a complete playable Dead of Night simulator match from a clean
+opening. The run uses the extracted real map timing and coordinates, keeps the full `1319`
+Objects minimap/table layer, starts with exactly `1 CommandCenter`, `8 SCV`, and `250` minerals,
+then lets the simulator execute gathering, construction, production, combat, day cleanup, and
+mission objectives. The six-night source timing ends at loop `63840`; the final victory frame is
+loop `63841`.
+
+The replay profile is explicit simulator difficulty scaling, not a live or normal-strength
+claim: wave count follows the source 39 calls and directions, while dynamic wave count,
+health, and damage use `wave_strength_scale=0.25`, `dynamic_enemy_health_scale=0.10`, and
+`dynamic_enemy_damage_scale=0.25`. Static map structures remain source-derived; the 30 active
+objective structures use the existing finite simulator health probe scale. The player strategy
+filters static structures out of tactical threat decisions, keeps SCVs on the economy loop,
+and uses combat units for the perimeter, so the final run does not freeze production when a
+wave reaches the outer base radius.
+
+Evidence:
+
+- `simulator`: `python -m cmre_neuro_adapter.full_game_replay --wave-strength-scale 0.25 --max-loops 65000 --replay-interval 448 --output artifacts/full-game-replay-20260802/dead-of-night-full-simulator.jsonl --html-output artifacts/full-game-replay-20260802/dead-of-night-full-simulator.html` -> `PASS`, `end_reason=all_objectives_success`, loop `63841`, `6/6` nights, `39/39` waves, `0` structures remaining, `2240/2240` actions successful.
+- `simulator`: final summary records `12550` minerals and `6208` vespene collected, `2510` mineral deposits, `1552` vespene deposits, `109` Marine completions, `4` SCV completions, `3` Barracks, `1` Refinery, and `4` SupplyDepot completions.
+- `runtime` (local browser replay): Edge/Playwright opened the final self-contained HTML, rendered `810000` non-empty map canvas pixels, reported `144 frames`, `1319` map Objects, activated `16x`, sought to loop `45696` (`Night 4 / 17`), and reached loop `63841`, `victory`, `all_objectives_success`, `Night 6 / 39`. No page errors were observed. Artifact: `artifacts/full-game-replay-20260802/dead-of-night-full-simulator-browser.png`.
+- `runtime` (local browser replay): direct control assertion found play enabled, click-to-play active immediately and after 50 ms, then click-to-pause cleared the active state.
+- `simulator`: `python -m unittest discover -s tests -v` -> `76 tests`, `OK`.
+- `static`: `python -m compileall -q cmre_neuro_adapter tests` and `git diff --check -- src/projects/cmre-neuro-adapter` -> pass.
+
+The replay is still simulator/browser evidence only. The approved live SC2 launcher lease remains
+occupied by an unrelated session, so G4 and real runtime effects remain blocked and are not
+represented by this artifact.
