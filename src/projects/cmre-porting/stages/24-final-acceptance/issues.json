@@ -2,6 +2,17 @@
   "schemaVersion": 1,
   "issues": [
     {
+      "id": "WORKSPACE-PYTEST-LF-COLLECTION",
+      "severity": "low",
+      "status": "open",
+      "title": "Workspace-wide last-failed pytest collection is not package-safe",
+      "detail": "python -m pytest --lf -q exits during collection with 87 errors because archived, external, and copied evidence tests are discovered without their package import roots. The canonical bounded regression passes.",
+      "evidence_type": "static",
+      "evidence": "The current Stage 24 failure-first pytest invocation",
+      "owner": "qa-maintenance",
+      "nextAction": "Add a separately scoped test-discovery configuration or keep package-specific validation commands explicit."
+    },
+    {
       "id": "PARSER-LEGACY-DEPENDENCY",
       "severity": "low",
       "status": "open",

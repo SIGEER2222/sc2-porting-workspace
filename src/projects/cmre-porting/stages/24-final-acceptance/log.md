@@ -20,6 +20,10 @@ dependency remains unavailable.
 
 ## Verification
 
+- `static`: the failure-first check `python -m pytest --lf -q` exited during
+  collection with 87 errors before assertions ran. The errors are from
+  archived, external, and copied evidence tests discovered without their
+  package import roots; the canonical bounded regression below remained clean.
 - `static`: bounded Stage 22/23, Host, and launcher regression passed with
   `71 passed, 3 subtests passed`.
 - `static`: evidence-integrity check found `15/15` required JSON inputs present

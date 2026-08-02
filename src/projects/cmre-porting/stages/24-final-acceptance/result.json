@@ -6,6 +6,12 @@
   "opened_at": "2026-08-02T13:34:52+08:00",
   "completed_at": "2026-08-02T13:40:00+08:00",
   "verification_results": {
+    "failure_first_recheck": {
+      "status": "WARN",
+      "evidence_type": "static",
+      "command": "python -m pytest --lf -q",
+      "summary": "The workspace-wide last-failed invocation produced 87 collection errors before assertions because archived, external, and copied evidence tests lack their package import roots; no canonical Stage 23 assertion failed."
+    },
     "prior_stage_integrity": {
       "status": "PASS",
       "evidence_type": "static",
@@ -23,7 +29,7 @@
     "bounded_regression": {
       "status": "PASS",
       "evidence_type": "static",
-      "command": "PYTHONPATH=src/projects/cmre-neuro-adapter python -m pytest -q src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/test_full_structure_clearance.py src/projects/cmre-porting/stages/22-runtime-typed-combat-census/test_typed_combat_census.py tools/galaxy-vibe/tests/test_kernel.py tools/launchers/tests/test_launch_cmre_alenger_static.py",
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/test_full_structure_clearance.py src/projects/cmre-porting/stages/22-runtime-typed-combat-census/test_typed_combat_census.py tools/galaxy-vibe/tests/test_kernel.py tools/launchers/tests/test_launch_cmre_alenger_static.py",
       "summary": "71 tests passed with 3 subtests."
     },
     "evidence_integrity": {
@@ -34,6 +40,14 @@
     }
   },
   "warnings": [
+    {
+      "id": "WORKSPACE-PYTEST-LF-COLLECTION",
+      "severity": "low",
+      "status": "open",
+      "evidence_type": "static",
+      "detail": "Workspace-wide pytest --lf collection includes archived, external, and copied evidence tests without their package import roots.",
+      "nextAction": "Add a separately scoped test-discovery configuration or keep package-specific validation commands explicit."
+    },
     {
       "id": "PARSER-LEGACY-DEPENDENCY",
       "severity": "low",
