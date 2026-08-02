@@ -1,0 +1,56 @@
+{
+  "stage_id": "21-runtime-ai-ally-clearance",
+  "schemaVersion": 1,
+  "status": "PASS",
+  "current_phase": "Runtime native initialization, typed task loop, and live AI ally control slice verified",
+  "opened_at": "2026-08-02T00:07:44Z",
+  "completed_at": "2026-08-02T00:17:35Z",
+  "verification_results": {
+    "native_initialization_and_task_loop": {
+      "status": "PASS",
+      "evidence_type": "runtime",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File artifacts/projects/cmre-porting/stage18-vibe-task-execution-loop/temporary/preserve-native-start.ps1 -ListenPort 5094 -MapCopySuffix stage21-runtime-native -Commander TerranRaynor",
+      "artifact": "artifacts/projects/cmre-porting/stage21-runtime-ai-ally-clearance/runtime-native-20260802-001145/verdict.json",
+      "summary": "Approved launcher entered the map; native CommandCenter=1 and SCV=12; all replacement/removal flags were zero; typed Vibe task loop completed 6/6."
+    },
+    "live_ai_ally_control": {
+      "status": "PASS",
+      "evidence_type": "runtime",
+      "command": "launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander TerranRaynor -ListenPort 5095 -ApiMinimal -DebugMode -KeepAlive -MapCopySuffix stage21-runtime-live; python -m vibe.run_dead_of_night_live --port 5095 --map artifacts/projects/cmre-porting/stage21-runtime-ai-ally-clearance/live-ai-ally-20260802-0016/runtime-live.packed.SC2Map --max-loops 1500 --step-size 4 --decision-interval 22",
+      "artifact": "artifacts/projects/cmre-porting/stage21-runtime-ai-ally-clearance/live-ai-ally-20260802-0016/live-runtime-summary.json",
+      "summary": "SC2 frames advanced to loop 1500; 21/21 action results succeeded (15 gather, 6 train), P1 ended with 17 observed units, and all live runtime assertions passed."
+    },
+    "script_error_gates": {
+      "status": "PASS",
+      "evidence_type": "runtime",
+      "commands": [
+        "python tools/galaxy-vibe/script_error_check.py --since 1785629505 --out artifacts/projects/cmre-porting/stage21-runtime-ai-ally-clearance/runtime-native-20260802-001145/script-error-verdict.json",
+        "python tools/galaxy-vibe/script_error_check.py --since 1785629702 --out artifacts/projects/cmre-porting/stage21-runtime-ai-ally-clearance/live-ai-ally-20260802-0016/script-error-verdict.json"
+      ],
+      "summary": "Both fresh launch windows reported zero new ScriptError files."
+    },
+    "static_regression": {
+      "status": "PASS",
+      "evidence_type": "static",
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/test_adversarial_hardening.py; powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1",
+      "summary": "Stage 20 audit tests passed and the full static validation remained 52/52 with zero warnings before the runtime windows."
+    }
+  },
+  "warnings": [
+    {
+      "id": "RUNTIME-FULL-STRUCTURE-CLEARANCE-DEFERRED",
+      "status": "open",
+      "evidence_type": "runtime",
+      "detail": "This stage proves real Vibe observation/action control but does not prove that all 344 enemy structures are cleared in SC2. The live adapter is defensive/economic and did not emit a full structure census."
+    }
+  ],
+  "changed_paths": [
+    "src/projects/cmre-porting/stages/21-runtime-ai-ally-clearance/plan.md",
+    "src/projects/cmre-porting/stages/21-runtime-ai-ally-clearance/log.md",
+    "src/projects/cmre-porting/stages/21-runtime-ai-ally-clearance/result.json",
+    "src/projects/cmre-porting/stages/21-runtime-ai-ally-clearance/issues.json",
+    "artifacts/projects/cmre-porting/stage21-runtime-ai-ally-clearance/runtime-native-20260802-001145/",
+    "artifacts/projects/cmre-porting/stage21-runtime-ai-ally-clearance/live-ai-ally-20260802-0016/"
+  ],
+  "next_stage_plan": null
+}

@@ -1,0 +1,26 @@
+{
+  "stage_id": "21-runtime-ai-ally-clearance",
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "RUNTIME-AI-ALLY-CLEAR-001",
+      "severity": "medium",
+      "status": "open",
+      "title": "The real live adapter has no typed structure-census and combat-clear path yet",
+      "detail": "The 1500-loop SC2 run proves frame advancement and successful gather/train action results, but it does not issue a controlled building-clear sequence or observe all 344 objective buildings.",
+      "evidence_type": "runtime",
+      "nextAction": "Add a typed combat/census boundary and run it through the approved launcher without changing native initialization or replacing buildings.",
+      "evidence": "artifacts/projects/cmre-porting/stage21-runtime-ai-ally-clearance/live-ai-ally-20260802-0016/live-runtime-summary.json"
+    },
+    {
+      "id": "RUNTIME-AI-ALLY-INIT-001",
+      "severity": "low",
+      "status": "resolved",
+      "title": "Runtime startup could regress into commander selection or replacement behavior",
+      "detail": "The fresh Stage 21 native-start window entered the map directly and observed native starting units.",
+      "evidence_type": "runtime",
+      "resolution": "CommandCenter=1, SCV=12, replacement/removal flags zero, task loop 6/6, and same-window ScriptError count zero.",
+      "evidence": "artifacts/projects/cmre-porting/stage21-runtime-ai-ally-clearance/runtime-native-20260802-001145/verdict.json"
+    }
+  ]
+}
