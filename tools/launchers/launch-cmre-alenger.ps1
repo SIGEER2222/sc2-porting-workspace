@@ -1820,6 +1820,18 @@ try {
             Write-Host "Working directory: $Sc2Root"
             Write-Host "Live map staged at: $liveMap (client loads it via CreateGame + map_data)"
         }
+        # Multiple native participant clients must not share SC2's default temp
+        # directory. python-sc2 creates one per SC2Process; mirror that contract
+        # here while keeping the approved Switcher launch path.
+        $runtimeTempDir = Join-Path $env:TEMP "sc2-vibe-$PID-$ListenPort"
+        New-Item -ItemType Directory -Force -Path $runtimeTempDir | Out-Null
+        # Match python-sc2's explicit installation data root as well. The
+        # embedded quotes are required because the Windows install path has a
+        # space and Start-Process joins ArgumentList before launching Switcher.
+        $sc2DataDirArg = '"' + $Sc2Root + '"'
+        $argList += @("-dataDir", $sc2DataDirArg, "-tempDir", $runtimeTempDir)
+        Write-Host "SC2 runtime data directory: $Sc2Root"
+        Write-Host "SC2 runtime temp directory: $runtimeTempDir"
         $launchStartedAt = Get-Date
         Start-Process -FilePath $switcher -ArgumentList $argList -WorkingDirectory $Sc2Root
         # API 模式下轮询 TCP 端口，直到 SC2 API 监听就绪（最多等 120s）。

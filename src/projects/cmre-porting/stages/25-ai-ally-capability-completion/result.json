@@ -116,7 +116,12 @@
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ally-policy-recovery-20260802.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ally-policy-recovery-seed42-20260802.jsonl",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ally-policy-recovery-seed7-20260802.jsonl",
-    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ally-policy-recovery-seed99-20260802.jsonl"
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ally-policy-recovery-seed99-20260802.jsonl",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-followup-20260802/topology-handshake-blocked.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-hostip-empty-pass2-20260802",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-tempdir-20260802",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-datadir-20260802",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-realtime-probe-20260802"
   ],
   "validation": [
     {"evidence_type": "simulator", "command": "inline Python run_ally_scenario for seeds 42, 7, 99", "status": "PASS", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/simulator-multiseed.json"},
@@ -191,6 +196,7 @@
     ,{"evidence_type": "simulator", "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.ladder_ai --seed 42 --max-loops 5000 --out artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-default-report-20260802.json", "status": "PASS", "detail": "The default CLI produced a full simulator replay JSONL and a single-file state-driven-player.html with 3298 frames, terminal loop 3296, victory=true, and end_reason=enemy_elimination; the report exposes replay_path, replay_html_path, and replay_frame_count. --no-replay remains an explicit opt-out.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-replay/seed-42/state-driven-player.html"},
     {"evidence_type": "static", "command": "Microsoft Edge headless opened the generated file:/// replay and captured state-driven-player-smoke.png", "status": "PASS", "detail": "Canvas, units, controls, economy panel, CMRE ladder title, and VICTORY verdict rendered from the embedded simulator timeline.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-replay/seed-42/state-driven-player-smoke.png"},
     {"evidence_type": "blocked", "command": "approved launcher dual-client P1/P2 + run_dead_of_night_live.py --anchor/--join-existing --multiplayer-ports --multiplayer-port-base 5500", "status": "BLOCKED", "detail": "Two independent SC2 API processes passed Ping and P1 CreateGame. Both submitted server ports 5500/5501 plus guest client ports 5502/5503, but neither JoinGame returned a participant response; P2 player_id=2 and the P1/P2 GameInfo participant roster were not observed. No native P2 action or same-window ScriptError PASS was claimed.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-pass12-20260802/topology-handshake-blocked.json"}
+    ,{"evidence_type": "blocked", "command": "approved launcher dual-client A/B topology follow-up on API ports 5530/5531, 5540/5541, 5550/5551, and 5560/5561", "status": "BLOCKED", "detail": "Four fresh windows reached API ready and P1 CreateGame. Omitting host_ip, matching python-sc2 participant setup, distinct per-client tempDir, explicit dataDir, and realtime=True did not return player_id=2 or a P1/P2 GameInfo participant roster; realtime=True closed P1 websocket during JoinGame. No P2 action, native replay, or native strategy ScriptError PASS was claimed.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-followup-20260802/topology-handshake-blocked.json"}
   ],
   "issues": [
     "Corrected P2 native runtime remains blocked at participant topology/JoinGame ownership; the older SC2Data repair-marker attempt is historical and the fresh single-client Ability VM is valid runtime evidence but not native-task evidence.",

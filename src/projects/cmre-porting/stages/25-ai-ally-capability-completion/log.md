@@ -714,3 +714,26 @@ Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-pass12-20260802/topology-handshake-blocked.json`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-pass12-20260802/p1-anchor-5450-ports.stdout.txt`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-pass12-20260802/p2-runner-5451-ports.stdout.txt`.
+
+## Verification Loop 2026-08-02 Dual-Client Topology Follow-up
+
+- `static`: `run_dead_of_night_live.py` now matches the reference participant
+  setup more closely: `CreateGame` uses two unqualified Participant entries,
+  both JoinGame requests omit `host_ip`, and the existing shared
+  `server=[base,base+1]` / `client=[[base+2,base+3]]` Portconfig is retained.
+- `static`: the approved launcher now gives each API client a distinct
+  `-tempDir` and explicit `-dataDir`; launcher output and SC2 command lines
+  confirm the values for the tested primary/secondary windows.
+- `runtime`: four fresh approved-launcher A/B windows reached independent API
+  ready and P1 `CreateGame` success. The no-`host_ip`, isolated-temp, and
+  isolated-data/temp variants all left both JoinGame requests pending. The
+  `realtime=True` variant closed P1's websocket during JoinGame and left P2
+  pending.
+- `blocked`: no tested window returned `player_id=2`, no P1/P2 participant
+  roster appeared in GameInfo, and no P2 native action or native replay was
+  produced. Simulator replay artifacts remain simulator-only.
+- `static`: focused Stage 25, launcher, and live-runner validation passed with
+  `38 passed`; `run-all-validation.ps1` passed `52/52` with zero warnings.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-followup-20260802/topology-handshake-blocked.json`.

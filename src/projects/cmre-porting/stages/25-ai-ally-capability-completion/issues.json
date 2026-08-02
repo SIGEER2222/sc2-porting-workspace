@@ -95,6 +95,17 @@
       "owner": "stage25",
       "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-pass12-20260802/p2-runner-5451-ports.stdout.txt",
       "nextAction": "Compare the approved launcher API startup with a reference python-sc2 multi-process launch that owns the same Portconfig, then rerun only after the peer handshake path is changed or independently proven."
+    },
+    {
+      "id": "RUNTIME-P2-TOPOLOGY-HANDSHAKE-FOLLOWUP-20260802",
+      "severity": "medium",
+      "status": "blocked",
+      "title": "Reference-shaped dual-client JoinGame remains blocked after launcher isolation fixes",
+      "detail": "Four fresh approved-launcher variants reached independent API readiness and P1 CreateGame success. Omitting host_ip, matching python-sc2 participant setup, using distinct per-client temp directories, adding explicit dataDir, and testing realtime=True did not produce player_id=2 or a P1/P2 participant roster. The realtime variant closed P1's websocket during JoinGame. No P2 native action or native replay was claimed.",
+      "evidence_type": "blocked",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-followup-20260802/topology-handshake-blocked.json",
+      "owner": "stage25",
+      "nextAction": "Reproduce the complete python-sc2 multi-process launch contract or identify a runtime configuration that exposes a real second Participant; require player_id=2 and GameInfo roster before native task actions."
     }
   ]
 }

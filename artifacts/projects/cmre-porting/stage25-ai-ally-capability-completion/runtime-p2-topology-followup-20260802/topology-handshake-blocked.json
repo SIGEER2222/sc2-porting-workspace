@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "stage": "25-ai-ally-capability-completion",
+  "status": "BLOCKED",
+  "evidence_type": "blocked",
+  "runtime_claim": "none",
+  "map": "亡者之夜.SC2Map",
+  "launcher": "tools/launchers/launch-cmre-alenger.ps1",
+  "protocol": {
+    "create_game": "P1 CreateGame returned success",
+    "server_ports": [
+      5620,
+      5621
+    ],
+    "client_ports": [
+      [
+        5622,
+        5623
+      ]
+    ],
+    "player_setup": "two Participant entries without fixed race/name, matching python-sc2",
+    "join_fields": "race and raw InterfaceOptions; host_ip omitted",
+    "player_ids_observed": [],
+    "roster_observed": false,
+    "native_p2_actions": 0,
+    "native_replay": null
+  },
+  "ab_variants": [
+    {
+      "name": "host_ip_empty",
+      "api_ports": [
+        5530,
+        5531
+      ],
+      "result": "both JoinGame requests remained pending",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-hostip-empty-pass2-20260802"
+    },
+    {
+      "name": "isolated_tempdir",
+      "api_ports": [
+        5540,
+        5541
+      ],
+      "result": "both JoinGame requests remained pending",
+      "launcher_contract": "each SC2 process used a distinct -tempDir",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-tempdir-20260802"
+    },
+    {
+      "name": "isolated_tempdir_and_datadir",
+      "api_ports": [
+        5550,
+        5551
+      ],
+      "result": "both JoinGame requests remained pending",
+      "launcher_contract": "each SC2 process used distinct -tempDir and explicit -dataDir",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-datadir-20260802"
+    },
+    {
+      "name": "realtime_true",
+      "api_ports": [
+        5560,
+        5561
+      ],
+      "result": "P1 websocket closed during JoinGame; P2 remained pending",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-realtime-probe-20260802"
+    }
+  ],
+  "negative_evidence": [
+    "no player_id=2",
+    "no P1/P2 participant roster from GameInfo",
+    "no P2-owned gather/train/move/attack result",
+    "no native replay JSONL or HTML",
+    "no same-window native strategy ScriptError PASS claim"
+  ],
+  "static_validation": {
+    "focused_tests": "38 passed",
+    "run_all_validation": "52/52 passed, 0 warnings",
+    "git_diff_check": "passed"
+  },
+  "next_action": "Reproduce the complete python-sc2 multi-process launch contract or use a runtime configuration that exposes a real second Participant before attempting native P2 actions again."
+}

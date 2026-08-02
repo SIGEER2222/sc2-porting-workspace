@@ -825,8 +825,8 @@ async def run_p1_anchor(
         create = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
             local_map=sc_pb.LocalMap(map_path=str(map_file.resolve())),
             player_setup=[
-                sc_pb.PlayerSetup(type=1, race=1, player_name="P1"),
-                sc_pb.PlayerSetup(type=1, race=1, player_name="P2"),
+                sc_pb.PlayerSetup(type=1),
+                sc_pb.PlayerSetup(type=1),
             ],
             realtime=False,
         ))
@@ -839,7 +839,6 @@ async def run_p1_anchor(
         join = sc_pb.Request(join_game=sc_pb.RequestJoinGame(
             race=1,
             player_name="P1",
-            host_ip="127.0.0.1" if multiplayer_ports else "",
             options=sc_pb.InterfaceOptions(raw=True),
         ))
         # The default stays on SC2's local JoinGame path. A real two-client
@@ -1079,8 +1078,8 @@ async def run_live(
             req = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
                 local_map=local_map,
                 player_setup=[
-                    sc_pb.PlayerSetup(type=1, race=1, player_name="P1"),  # Human player slot
-                    sc_pb.PlayerSetup(type=1, race=1, player_name="P2"),  # Vibe strategy slot
+                    sc_pb.PlayerSetup(type=1),  # Human player slot
+                    sc_pb.PlayerSetup(type=1),  # Vibe strategy slot
                 ],
                 realtime=False,
             ))
@@ -1099,7 +1098,6 @@ async def run_live(
         join_req = sc_pb.Request(join_game=sc_pb.RequestJoinGame(
             race=1,  # Terran
             player_name="P2",
-            host_ip="127.0.0.1",
             options=sc_pb.InterfaceOptions(raw=True),
         ))
         if multiplayer_ports:
