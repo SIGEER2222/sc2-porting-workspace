@@ -28,6 +28,7 @@ from .consumers.ally_ai import (
     run_ally_scenario,
 )
 from .defend_policy import DefendBasePolicy
+from .replay_player import load_replay, render_player_html
 from .sim_path import ensure_simulator_on_path
 
 ensure_simulator_on_path()
@@ -40,6 +41,15 @@ NEUTRAL_PLAYER_ID = 0
 MAIN_BASE = (85.0, 94.0)
 EXPANSION_BASE = (110.0, 80.0)
 ENEMY_BASE = (145.0, 94.0)
+REPO_ROOT = Path(__file__).resolve().parents[4]
+DEFAULT_REPLAY_DIR = (
+    REPO_ROOT
+    / "artifacts"
+    / "projects"
+    / "cmre-porting"
+    / "stage25-ai-ally-capability-completion"
+    / "ladder-full-game-replay"
+)
 
 
 class LadderPhase(str, Enum):
@@ -530,6 +540,9 @@ class LadderGameReport:
     final_resources: dict
     final_tech: dict
     pressure_summary: dict
+    replay_path: str = ""
+    replay_html_path: str = ""
+    replay_frame_count: int = 0
 
     def to_dict(self) -> dict:
         return {
@@ -548,17 +561,30 @@ class LadderGameReport:
             "final_resources": self.final_resources,
             "final_tech": self.final_tech,
             "pressure_summary": self.pressure_summary,
+            "replay_path": self.replay_path,
+            "replay_html_path": self.replay_html_path,
+            "replay_frame_count": self.replay_frame_count,
             "evidence_type": "simulator",
             "runtime_claim": "none; simulator evidence only",
         }
 
 
-def run_ladder_game(seed: int = 42, max_loops: int = 6000) -> LadderGameReport:
+def run_ladder_game(
+    seed: int = 42,
+    max_loops: int = 6000,
+    replay_dir: Optional[Path] = None,
+) -> LadderGameReport:
     """Run one complete macro-to-victory game through the simulator."""
 
     scenario = build_ladder_game_scenario(seed=seed, max_loops=max_loops)
     policy = LadderAI()
     pressure = LadderPressureOverlay()
+    replay_path: Optional[Path] = None
+    replay_html_path: Optional[Path] = None
+    if replay_dir is not None:
+        seed_dir = Path(replay_dir) / f"seed-{int(seed)}"
+        replay_path = seed_dir / "replay.jsonl"
+        replay_html_path = seed_dir / "state-driven-player.html"
     result: AllyRunResult = run_ally_scenario(
         scenario,
         policy,
@@ -570,8 +596,19 @@ def run_ladder_game(seed: int = 42, max_loops: int = 6000) -> LadderGameReport:
         latency_loops=1,
         leader_player_id=P1_PLAYER_ID,
         require_cooperative_roster=True,
+        replay_log_path=replay_path,
         simulator_overlay=pressure,
     )
+    replay_frame_count = 0
+    if replay_path is not None and replay_html_path is not None:
+        records = load_replay(replay_path)
+        replay_frame_count = sum(
+            1
+            for record in records
+            if record.get("record_type") == "frame"
+            or "entities_by_player" in record
+        )
+        render_player_html(records, replay_path, replay_html_path)
     completed_upgrades = set(result.final_tech.get("completed_upgrades", ()))
     checks = {
         "victory": result.end_reason == "enemy_elimination",
@@ -619,11 +656,23 @@ def run_ladder_game(seed: int = 42, max_loops: int = 6000) -> LadderGameReport:
         final_resources=result.final_resources,
         final_tech=result.final_tech,
         pressure_summary=pressure.summary(),
+        replay_path=str(replay_path) if replay_path is not None else "",
+        replay_html_path=(
+            str(replay_html_path) if replay_html_path is not None else ""
+        ),
+        replay_frame_count=replay_frame_count,
     )
 
 
-def run_ladder_batch(seeds: Iterable[int] = (42, 7, 99), max_loops: int = 6000) -> dict:
-    reports = [run_ladder_game(seed=int(seed), max_loops=max_loops) for seed in seeds]
+def run_ladder_batch(
+    seeds: Iterable[int] = (42, 7, 99),
+    max_loops: int = 6000,
+    replay_dir: Optional[Path] = None,
+) -> dict:
+    reports = [
+        run_ladder_game(seed=int(seed), max_loops=max_loops, replay_dir=replay_dir)
+        for seed in seeds
+    ]
     return {
         "status": "PASS" if all(report.status == "PASS" for report in reports) else "FAIL",
         "evidence_type": "simulator",
@@ -637,8 +686,28 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--max-loops", type=int, default=6000)
     parser.add_argument("--batch", action="store_true")
     parser.add_argument("--out", type=Path, default=None)
+    parser.add_argument(
+        "--replay-dir",
+        type=Path,
+        default=DEFAULT_REPLAY_DIR,
+        help="输出 JSONL 回放和 state-driven-player.html 的目录（默认开启）",
+    )
+    parser.add_argument(
+        "--no-replay",
+        action="store_true",
+        help="关闭默认回放输出",
+    )
     args = parser.parse_args(argv)
-    report = run_ladder_batch(max_loops=args.max_loops) if args.batch else run_ladder_game(args.seed, args.max_loops).to_dict()
+    replay_dir = None if args.no_replay else args.replay_dir
+    report = (
+        run_ladder_batch(max_loops=args.max_loops, replay_dir=replay_dir)
+        if args.batch
+        else run_ladder_game(
+            args.seed,
+            args.max_loops,
+            replay_dir=replay_dir,
+        ).to_dict()
+    )
     rendered = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)

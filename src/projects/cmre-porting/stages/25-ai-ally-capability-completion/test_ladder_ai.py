@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -49,6 +50,26 @@ class LadderAiFullGameTests(unittest.TestCase):
         self.assertTrue(all(run["victory"] for run in batch["runs"]))
         self.assertTrue(all(run["checks"]["research"] for run in batch["runs"]))
         self.assertTrue(all(run["checks"]["pressure_response"] for run in batch["runs"]))
+
+    def test_tool_exports_default_style_jsonl_and_single_file_player(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = run_ladder_game(
+                seed=42,
+                max_loops=5000,
+                replay_dir=Path(directory),
+            )
+            replay_path = Path(report.replay_path)
+            player_path = Path(report.replay_html_path)
+            self.assertTrue(replay_path.is_file())
+            self.assertTrue(player_path.is_file())
+            self.assertEqual(replay_path.name, "replay.jsonl")
+            self.assertEqual(player_path.name, "state-driven-player.html")
+            self.assertGreater(report.replay_frame_count, 100)
+            html = player_path.read_text(encoding="utf-8")
+            self.assertIn("CMRE 梯队 AI 完整局回放", html)
+            self.assertIn(">VICTORY<", html)
+            self.assertIn('"end_reason":"enemy_elimination"', html)
+            self.assertIn('"runtime_claim":"none; simulator evidence only"', html)
 
 
 if __name__ == "__main__":

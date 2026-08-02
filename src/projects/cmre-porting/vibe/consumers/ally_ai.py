@@ -1594,6 +1594,14 @@ def run_ally_scenario(
     )
     oscillation = policy.oscillation_score() >= 6
     storm = max_cmds_per_loop > storm_threshold
+    terminal_end_reason = str(getattr(s, "end_reason", "") or "max_loops_reached")
+    terminal_victory = terminal_end_reason == "enemy_elimination"
+    if replay_frame_records:
+        replay_frame_records[-1].update({
+            "terminal": True,
+            "victory": terminal_victory,
+            "end_reason": terminal_end_reason,
+        })
 
     from sc2_simulator.reporting.trace import trace_hash
     if replay_log_path is not None:
@@ -1642,6 +1650,16 @@ def run_ally_scenario(
             "map_metadata": replay_map_metadata,
             "loop_start": 0,
             "loop_end": int(s.world.clock.now.loop),
+            "victory": terminal_victory,
+            "winner_player_id": (
+                int(
+                    (scenario_dict.get("win_condition_params") or {})
+                    .get("winner_player_id", leader_player_id)
+                )
+                if terminal_victory
+                else None
+            ),
+            "end_reason": terminal_end_reason,
             "timeline_frames": len(replay_frame_records),
             "actions_total": len(replay_actions),
             "actions_successful": sum(

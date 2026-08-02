@@ -152,15 +152,25 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
 
     last = frames[-1]
     first = frames[0]
-    verdict = summary.get("status") or ("VICTORY" if last.get("p1_alive", 0) > 0 else "DEFEAT")
+    verdict = (
+        "VICTORY"
+        if summary.get("victory") or last.get("victory")
+        else summary.get("status") or ("DEFEAT" if last.get("terminal") else "RUN")
+    )
     verdict_color = "#4ae24a" if verdict in {"VICTORY", "PASS"} else "#e24a4a"
+    replay_id = str(header.get("replay_id") or summary.get("replay_id") or "")
+    title_text = (
+        "CMRE 梯队 AI 完整局回放"
+        if "ladder" in replay_id.lower()
+        else "亡者之夜 AI 盟友对局回放"
+    )
 
     html_doc = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>亡者之夜 AI 盟友对局回放</title>
+<title>{title_text}</title>
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{ background: #0d0d0d; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; padding: 12px; }}
@@ -195,7 +205,7 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
 </head>
 <body>
 <div class="header">
-  <h1>亡者之夜 AI 盟友对局回放</h1>
+  <h1>{title_text}</h1>
   <div class="verdict">{verdict}</div>
 </div>
 
