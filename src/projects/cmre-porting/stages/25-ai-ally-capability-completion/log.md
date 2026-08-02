@@ -795,3 +795,48 @@ Evidence:
   open because the approved dual-client SC2 JoinGame path still does not
   expose a participant-owned `player_id=2`; simulator passes do not close
   this runtime gate.
+
+## Verification Loop 2026-08-02 Debug VM Capability Pass
+
+- `runtime` `WARN`: an initial fresh launcher window on API port `5630` was
+  reachable, but the VM was started with `--join-wait 0` and no `--map`. The
+  first `vibe.catalog.set` call timed out before map initialization; this is
+  retained as a startup-order diagnostic, not as a capability result.
+- `runtime`: the approved launcher was restarted on port `5640`, the staged map
+  was packed with the existing `pack_stormlib.py`, and `galaxy_repl.py` ran
+  `CreateGame/JoinGame player_id=1` with `--map` and `--join-wait 15` in the
+  same process. The hot-loaded `debug-vm-runtime-capability.json` completed
+  `47/47` instructions with `status=passed`, without a second game restart.
+- `runtime`: the VM created a real Marine and Medivac, added the non-native
+  `MedivacHeal` ability to the Marine and read back `has_ability=true`, wrote
+  and read Medivac energy, lowered and read Marine life, and changed Marine
+  `LifeMax` to `60.5` and `Speed` to `4.5` through Catalog writes.
+- `runtime`: the VM changed Marine mineral/gas cost fields to `25/10` and
+  changed the loaded `BarracksTrainNova.InfoArray[0].Unit` reference from
+  `Marine_BlackOpsSpawnerUnit` to `Marauder`; both values were read back from
+  the live Catalog. The tested visual handlers returned `applied=true` for
+  model variation, scale `1.5`, tint, and opacity `0.5`, but no screenshot or
+  pixel-level visual assertion was made.
+- `runtime`: the same 5640 launcher epoch ScriptError scan returned
+  `has_new_errors=false`, `count=0`, and no files.
+- `static`: `test_debug_vm.py` passed `12` tests, `test_kernel.py` passed `49`
+  tests, and `run-all-validation.ps1` passed `52/52` checks with zero warnings.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-capability-5640-20260802/vm-runtime-live.txt`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-capability-5640-20260802/script-error-verdict.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-capability-5640-20260802/vm-capability-5640.packed.SC2Map`,
+`src/projects/cmre-porting/stages/25-ai-ally-capability-completion/debug-vm-runtime-capability.json`.
+
+- `blocked`: this Debug VM pass is debug-mode injection evidence and does not
+  close the separate native P2 participant/topology gate. Visual presentation
+  remains open until a runtime screenshot or equivalent pixel assertion is
+  captured.
+- `runtime` `BLOCKED`: `VisualCapture` captured the 5640 SC2 window at
+  `2560x1440`, but the image had `0` non-black and `0` non-transparent pixels;
+  `ApiMinimal` therefore provided no usable visual frame. This confirms the
+  screenshot path and preserves the artifact, but does not validate the visual
+  mutation on screen.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-capability-5640-20260802/screenshots/visual-capability-final-20260802-230749-5640.png`.

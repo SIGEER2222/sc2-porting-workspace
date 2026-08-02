@@ -117,6 +117,29 @@
       "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-native-retry-20260802/primary-secondary-blocked.json",
       "owner": "environment",
       "nextAction": "After the protected lease is released by its owner, rerun the approved primary 5620 plus secondary 5621 launcher window and require player_id=2, reciprocal alliance roster, RequestStep frame deltas, P2-owned native actions, native replay, and same-window ScriptError evidence."
+    },
+    {
+      "id": "RUNTIME-DEBUG-VM-CAPABILITY-5640",
+      "severity": "low",
+      "status": "resolved",
+      "title": "Debug VM runtime capability matrix passed in a fresh window",
+      "detail": "A fresh approved launcher window on port 5640 completed the hot-loaded 47-instruction capability VM after explicit CreateGame/JoinGame and 15 seconds of RequestStep initialization. The live VM read back a cross-unit ability, vitals, Catalog values, training reference, and successful visual handler responses with zero same-window ScriptErrors.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-capability-5640-20260802/vm-runtime-live.txt",
+      "owner": "stage25",
+      "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-capability-5640-20260802/script-error-verdict.json",
+      "nextAction": "Use the hot-loaded Debug VM for subsequent dynamic function experiments; keep visual screenshot proof and native P2 topology as separate gates."
+    },
+    {
+      "id": "RUNTIME-DEBUG-VM-VISUAL-PIXEL-UNVERIFIED",
+      "severity": "low",
+      "status": "open",
+      "title": "Debug VM visual mutation lacks screenshot-level proof",
+      "detail": "The live VM returned applied=true for model variation, scale, tint, and opacity. A 2560x1440 screenshot was captured from the 5640 window, but pixel inspection found nonblack=0 and nontransparent=0 because ApiMinimal produced a headless/minimized frame. The current claim is handler/application success, not confirmed on-screen presentation.",
+      "evidence_type": "blocked",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-capability-5640-20260802/screenshots/visual-capability-final-20260802-230749-5640.png",
+      "owner": "stage25",
+      "nextAction": "Add a screenshot or equivalent runtime visual assertion around the mutated Marine before promoting visual presentation to PASS."
     }
   ]
 }
