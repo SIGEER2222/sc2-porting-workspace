@@ -37,9 +37,11 @@ cooperative AI ally behavior has begun.
 - `runtime`: the current staged map was repacked with the existing StormLib
   tool and passed a fresh `CreateGame + JoinGame`; same-websocket
   `function.invoke` returned `vibe.test.ping -> pong` and
-  `vibe.query.units(SCV) -> count=12`. The typed client rejected the unknown
-  function locally as `FUNCTION_NOT_FOUND`. Evidence:
+  `vibe.query.units(SCV) -> count=12`. Evidence:
   `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/debug-function-probe-pass7.txt`.
+- `static`: the same probe's typed client rejected the unknown function before
+  transport as `FUNCTION_NOT_FOUND`; this is registry validation evidence, not
+  Galaxy-side rejection evidence.
 - `runtime`: the same launcher epoch has no new non-empty ScriptError files.
   Evidence:
   `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/script-error-verdict.json`.
