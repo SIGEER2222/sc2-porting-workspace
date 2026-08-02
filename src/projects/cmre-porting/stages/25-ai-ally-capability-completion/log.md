@@ -28,6 +28,25 @@ cooperative AI ally behavior has begun.
   attempt was rejected by a new protected lease, PID `40408`/port `5152`.
   Evidence:
   `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802-pass1/runtime-verdict.json`.
+- `runtime`: fresh approved launcher epoch `2026-08-02T14:50:24+08:00` on
+  port `5152` passed `CreateGame + JoinGame`, and the same-window native task
+  reached loop `5504` with victory. Native action success counts were
+  `gather=17`, `train=6`, `move=442`, `attack=35`; strategy audit was PASS
+  with empty debug/injection operation lists. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/runtime-native-strategy-pass7.json`.
+- `runtime`: the current staged map was repacked with the existing StormLib
+  tool and passed a fresh `CreateGame + JoinGame`; same-websocket
+  `function.invoke` returned `vibe.test.ping -> pong` and
+  `vibe.query.units(SCV) -> count=12`. The typed client rejected the unknown
+  function locally as `FUNCTION_NOT_FOUND`. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/debug-function-probe-pass7.txt`.
+- `runtime`: the same launcher epoch has no new non-empty ScriptError files.
+  Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/script-error-verdict.json`.
+- `blocked`: P1 `ActionChat(!ally ...)` messages are visible in SC2
+  observations, but the fresh runtime report still has empty `bank_after` and
+  `p2_command_ack_observed=false`; P2 alliance/owner observation is valid, but
+  Galaxy command acknowledgement and resulting order cannot be claimed.
 
 ## Changes
 
@@ -41,19 +60,27 @@ cooperative AI ally behavior has begun.
   it no longer sends P1-owned raw actions as the AI ally.
 - The Galaxy kernel and its debug/map mirrors register the P1-only `!ally`
   trigger. It issues orders only to P2 units and writes status/result signals.
+- Removed the stray `+` before the cooperative ally section in the project map
+  Galaxy mirror before repacking the current runtime map.
 
 ## Validation
 
-- `python -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py` -> `5 passed`.
-- `python -m pytest -q src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/test_simulator_ai_ally_clearance.py src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/test_adversarial_hardening.py` -> `9 passed, 3 subtests passed`.
+- `python -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py` -> `6 passed`.
+- Stage 25 + Stage 19 + Stage 20 regression -> `15 passed, 3 subtests passed`.
+- Stage 22 + Stage 23 typed combat regression -> `16 passed, 3 subtests passed`.
 - `python -m pytest -q tools/launchers/tests/test_live_runner_unit_adapter.py tools/galaxy-vibe/tests/test_kernel.py tools/launchers/tests/test_launch_cmre_alenger_static.py` -> `58 passed`.
 - `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` -> `52/52 passed, 0 warnings`.
-- `python -m py_compile src/projects/cmre-porting/vibe/run_dead_of_night_live.py tools/launchers/tests/test_live_runner_unit_adapter.py` -> pass.
-- `git diff --check` -> pass; only line-ending normalization warnings were emitted.
+- `python -m py_compile` over Stage 25 runtime/policy modules and focused tests -> pass.
+- `git diff --check` -> pass.
+- `python tools/mpq/scripts/pack_stormlib.py ...` -> packed 76 files; the
+  existing `verify_mpq.py` cannot inspect this StormLib archive because its
+  reader does not support encryption, so SC2 `CreateGame + JoinGame` is the
+  runtime packaging evidence.
 
 ## Stop Condition
 
-Simulator and static gates are complete. Stage 25 remains `IN_PROGRESS` until
-all protected runtime leases are released and a fresh approved-launcher window
-proves P1 ActionChat -> Galaxy P2 order -> RequestStep state change with a
-same-window ScriptError check.
+Simulator, static, native-task, and typed debug-function gates are complete.
+Stage 25 remains `IN_PROGRESS` with issue `RUNTIME-P2-ALLIANCE-UNVERIFIED`
+until a fresh approved-launcher window proves P1 ActionChat -> Galaxy P2 order
+-> RequestStep state change and a same-window ScriptError check. Do not promote
+the P2 command lane from `BLOCKED` based on P2 visibility or position deltas.

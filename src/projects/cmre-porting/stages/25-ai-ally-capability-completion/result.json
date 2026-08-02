@@ -3,7 +3,7 @@
   "stage": "25-ai-ally-capability-completion",
   "status": "IN_PROGRESS",
   "evidence_type": "mixed",
-  "summary": "P1 human / P2 AI ally cooperative simulator and Galaxy control paths are implemented and simulator/static gates pass; fresh runtime acceptance is blocked by an existing protected SC2 lease.",
+  "summary": "P1 human / P2 AI ally simulator, native task strategy, and typed runtime debug function paths pass. Fresh native runtime observes the P2 roster and executes native actions without injection, but the P1 ActionChat to P2 Galaxy acknowledgement lane remains blocked.",
   "changed_paths": [
     "src/projects/cmre-porting/project.json",
     "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/plan.md",
@@ -27,16 +27,26 @@
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802/preexisting-runtime-observation.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802-pass1/runtime-verdict.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802-pass1/launcher.stdout.txt",
-    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802-pass1/launcher.stderr.txt"
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802-pass1/launcher.stderr.txt",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/launcher-stdout.txt",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/debug-function-probe-pass7.txt",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/runtime-native-strategy-pass7.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/script-error-verdict.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/stage25_pass7_current.packed.SC2Map"
   ],
   "validation": [
     {"evidence_type": "simulator", "command": "inline Python run_ally_scenario for seeds 42, 7, 99", "status": "PASS", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/simulator-multiseed.json"},
-    {"evidence_type": "static", "command": "python -m pytest -q ...", "status": "PASS", "detail": "focused 5 passed; Stage 19/20 9 passed + 3 subtests; kernel/launcher/live 58 passed"},
+    {"evidence_type": "static", "command": "python -m pytest -q Stage 25 + Stage 19 + Stage 20", "status": "PASS", "detail": "15 passed, 3 subtests passed"},
+    {"evidence_type": "static", "command": "python -m pytest -q Stage 22 + Stage 23", "status": "PASS", "detail": "16 passed, 3 subtests passed"},
+    {"evidence_type": "runtime", "command": "approved launcher port 5152 + native runner on stage25_pass7_current.packed.SC2Map", "status": "PASS", "detail": "CreateGame/JoinGame; loop 5504 victory; gather 17, train 6, move 442, attack 35; strategy audit PASS; zero debug injection; P2 alliance [2] and 5 visible units", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/runtime-native-strategy-pass7.json"},
+    {"evidence_type": "runtime", "command": "same-window galaxy_repl debug-function-probe on stage25_pass7_current.packed.SC2Map", "status": "PASS", "detail": "vibe.test.ping pong; vibe.query.units SCV count=12; typed unknown function rejection", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/debug-function-probe-pass7.txt"},
+    {"evidence_type": "runtime", "command": "same launcher epoch ScriptError scan", "status": "PASS", "detail": "zero new non-empty ScriptError files", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/script-error-verdict.json"},
+    {"evidence_type": "blocked", "command": "P1 ActionChat -> P2 Galaxy acknowledgement", "status": "BLOCKED", "detail": "chat messages visible, ally Bank last_result absent, p2_command_ack_observed=false", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/runtime-native-strategy-pass7.json"},
     {"evidence_type": "static", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1", "status": "PASS", "detail": "52/52 checks passed, 0 warnings"},
-    {"evidence_type": "blocked", "command": "approved launcher on port 5142 (two fresh attempts)", "status": "BLOCKED", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802-pass1/runtime-verdict.json"}
+    {"evidence_type": "static", "command": "git diff --check and py_compile", "status": "PASS", "detail": "no whitespace errors; Stage 25 runtime/policy modules compile"}
   ],
   "issues": [
-    "Fresh runtime P1 ActionChat -> P2 Galaxy order -> state delta remains blocked by protected SC2 runtime leases (PID 40408 on port 5152 after the earlier PID 37884 on port 5151)."
+    "P1 ActionChat is observed, but P2 Galaxy acknowledgement/order evidence remains blocked; do not promote from P2 roster visibility or position deltas."
   ],
   "next_stage_plan": null
 }
