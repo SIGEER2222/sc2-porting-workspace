@@ -74,6 +74,14 @@ class DefendBasePolicy:
 
     # 单位类型分类
     WORKER_TYPES = {"SCV", "Probe", "Drone"}
+    # Mission/commander caster units can appear in raw observations but do not
+    # expose a weapon. They must not be treated as combat units by the policy.
+    NON_COMBAT_TYPES = {
+        "CoopCasterRaynor",
+        "CoopCasterFenix",
+        "CoopAssistCasterRaynor",
+        "CoopAssistCasterFenix",
+    }
     PRODUCER_TYPES = {
         "CommandCenter": ["SCV"],
         "Barracks": ["Marine", "Marauder"],
@@ -170,8 +178,26 @@ class DefendBasePolicy:
                 econ_units.append(u)
             elif ut in self.PRODUCER_TYPES:
                 producers.append(u)
+            elif ut in self.NON_COMBAT_TYPES:
+                continue
             else:
                 combat_units.append(u)
+
+        # Some commander maps start with only workers plus a mission caster.
+        # A real SCV can still defend the base; use one worker as a bounded
+        # fallback instead of issuing an impossible attack from the caster.
+        worker_combat_ids: set[int] = set()
+        if not combat_units and (base_threats or near_threats) and econ_units:
+            threat_pool = base_threats or near_threats
+            worker = min(
+                econ_units,
+                key=lambda unit: min(
+                    self._dist(unit["x"], unit["y"], threat["x"], threat["y"])
+                    for threat in threat_pool
+                ),
+            )
+            combat_units.append(worker)
+            worker_combat_ids.add(worker["entity_id"])
 
         # 战斗决策：战斗单位优先处理威胁
         for u in combat_units:
@@ -201,6 +227,8 @@ class DefendBasePolicy:
         # SCV 决策：有基地威胁时撤退到基地，否则保持采集
         for u in econ_units:
             uid = u["entity_id"]
+            if uid in worker_combat_ids:
+                continue
             if base_threats:
                 # 基地受袭，SCV 撤退（避免被屠农）
                 actions.append(DefendAction(
@@ -292,7 +320,8 @@ class DefendBasePolicy:
             for p in producers:
                 if p.get("unit_type_id") != producer_type:
                     continue
-                if p["entity_id"] in self._producers_in_queue:
+                if (p["entity_id"] in self._producers_in_queue
+                        or p.get("orders")):
                     continue
                 idle_producer = p
                 break
@@ -325,7 +354,8 @@ class DefendBasePolicy:
             for p in producers:
                 if p.get("unit_type_id") != "CommandCenter":
                     continue
-                if p["entity_id"] in self._producers_in_queue:
+                if (p["entity_id"] in self._producers_in_queue
+                        or p.get("orders")):
                     continue
                 cc_idle = p
                 break
