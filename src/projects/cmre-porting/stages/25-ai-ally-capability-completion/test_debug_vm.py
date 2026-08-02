@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(ROOT / "src" / "projects" / "cmre-porting"))
 
 from vibe.debug_vm import DebugVm, load_function_metadata  # noqa: E402
+from vibe import protocol  # noqa: E402
+from vibe.simulator_transport import SimulatorTransport  # noqa: E402
 
 
 class FakeBridge:
@@ -286,6 +288,76 @@ class DebugVmTests(unittest.TestCase):
         self.assertEqual(program["steps"][5]["fn"], "vibe.unit.add_ability")
         self.assertEqual(program["steps"][5]["args"]["ability"], "MedivacHeal")
         self.assertEqual(program["steps"][7]["args"]["ability"], "MedivacHeal")
+
+    def test_comprehensive_capability_program_runs_against_simulator_transport(self):
+        program_path = Path(__file__).with_name("debug-vm-runtime-capability.json")
+        program = json.loads(program_path.read_text(encoding="utf-8"))
+        transport = SimulatorTransport()
+        session_id = "stage25-debug-vm-capability"
+        transport.open_session(session_id)
+        scenario = {
+            "schema_version": "m7.v1",
+            "name": "Stage 25 Debug VM capability probe",
+            "players": [{"id": 1, "name": "Debugger", "race": "terran", "allies": []}],
+            "spawns": [],
+            "max_loops": 20,
+            "seed": 25,
+            "strict": True,
+            "win_condition": "survival",
+        }
+        loaded = transport.send(protocol.make_request(
+            session_id, "cap-load", 1, "scenario.load", {"scenario_dict": scenario},
+        ))
+        self.assertEqual(loaded.error_code, 0, loaded.payload)
+        reset = transport.send(protocol.make_request(
+            session_id, "cap-reset", 2, "scenario.reset",
+        ))
+        self.assertEqual(reset.error_code, 0, reset.payload)
+
+        class TransportBridge:
+            async def call(self, function_id, args):
+                response = transport.send(protocol.make_request(
+                    session_id,
+                    f"vm-call-{transport.executed + 1}",
+                    transport.executed + 3,
+                    "function.invoke",
+                    {"function_id": function_id, "args": args},
+                ))
+                return response
+
+            async def step(self, loops):
+                return transport.send(protocol.make_request(
+                    session_id,
+                    f"vm-step-{transport.executed + 1}",
+                    transport.executed + 3,
+                    "scenario.step",
+                    {"loops": loops},
+                ))
+
+        catalog_path = ROOT / "artifacts" / "projects" / "cmre-porting" / "stage25-ai-ally-capability-completion" / "discovery" / "function-catalog.json"
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))["functions"]
+        result = asyncio.run(DebugVm(
+            TransportBridge(),
+            function_metadata=load_function_metadata(),
+            catalog=catalog,
+            max_instructions=256,
+        ).run(program))
+        self.assertEqual(result["status"], "passed", result["error"])
+        self.assertGreaterEqual(result["instructions_executed"], 40)
+        self.assertEqual(transport.session.world.get_entity(1).health.to_float(), 12.5)
+        self.assertEqual(transport.session._catalog_overrides[("unit", "Marine", "LifeMax", 0)], "60.5")
+        self.assertEqual(transport.session._catalog_overrides[("unit", "Marine", "CostResource[0]", 0)], "25")
+        self.assertEqual(transport.session._catalog_overrides[("unit", "Marine", "CostResource[1]", 0)], "10")
+        self.assertEqual(transport.session._catalog_overrides[("abil", "BarracksTrain_7", "InfoArray[0].Unit", 0)], "Marauder")
+        self.assertEqual(
+            transport.session._visual_overrides[1],
+            {
+                "model": {"model": "Marine", "variation": 2},
+                "scale": 1.5,
+                "color": "{1,0.1,0.1,1}",
+                "opacity": 0.5,
+            },
+        )
 
 
 if __name__ == "__main__":

@@ -691,21 +691,32 @@ class AllyPolicy:
         """Send one non-worker through declared points while unengaged."""
         if not self.scout_points or enemies or not combat_units:
             return None
-        live_ids = {int(unit["entity_id"]) for unit in combat_units}
+        # A unit that is still attacking from the last visible contact may be
+        # standing on a footprint that was completed during the same opening
+        # (for example a Refinery).  Reissuing a scout move from that blocked
+        # cell only creates a deterministic command-error storm.  Wait for an
+        # actually idle scout, and let the tactical branch retain engaged units.
+        scout_candidates = [
+            unit for unit in combat_units
+            if unit.get("state") not in {"moving", "attacking", "building"}
+        ]
+        if not scout_candidates:
+            return None
+        live_ids = {int(unit["entity_id"]) for unit in scout_candidates}
         if self._scout_entity_id not in live_ids:
             preferred = next(
                 (
-                    unit for unit in combat_units
+                    unit for unit in scout_candidates
                     if unit.get("unit_type_id") in {"Reaper", "Viking"}
                 ),
                 None,
             )
             selected = preferred or min(
-                combat_units, key=lambda item: int(item["entity_id"])
+                scout_candidates, key=lambda item: int(item["entity_id"])
             )
             self._scout_entity_id = int(selected["entity_id"])
         scout = next(
-            unit for unit in combat_units
+            unit for unit in scout_candidates
             if int(unit["entity_id"]) == int(self._scout_entity_id)
         )
         point = self.scout_points[self._scout_point_index % len(self.scout_points)]

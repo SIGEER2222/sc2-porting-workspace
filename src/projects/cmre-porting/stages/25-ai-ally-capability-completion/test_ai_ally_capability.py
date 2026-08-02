@@ -36,6 +36,7 @@ from vibe.map_replay import (  # noqa: E402
     DeadOfNightMapScriptOverlay,
     load_dead_of_night_map_cooperative_scenario,
 )
+from vibe.run_cmre_map_matrix import run_matrix  # noqa: E402
 
 
 def _cooperative_scenario(seed: int = 42) -> dict:
@@ -66,6 +67,37 @@ def _cooperative_scenario(seed: int = 42) -> dict:
 
 
 class Stage25AiAllyCapabilityTests(unittest.TestCase):
+    def test_all_cmre_maps_extract_and_pass_bounded_tactical_matrix(self):
+        # Keep the matrix output under the repository so generated evidence
+        # remains repo-relative, then remove it when the regression finishes.
+        with tempfile.TemporaryDirectory(dir=REPO_ROOT / "artifacts") as directory:
+            report = run_matrix(max_loops=80, output_dir=Path(directory))
+
+            self.assertEqual(report["status"], "PASS")
+            self.assertEqual(report["map_count"], 15)
+            self.assertEqual(report["inventory_map_count"], 15)
+            self.assertEqual(len(report["runs"]), 15)
+            for run in report["runs"]:
+                self.assertEqual(run["status"], "PASS", run)
+                self.assertTrue(run["profile"]["objectives"], run["map_name"])
+                self.assertTrue(run["geometry"]["attack_points"], run["map_name"])
+                self.assertTrue(run["geometry"]["scout_route"], run["map_name"])
+                self.assertGreater(
+                    run["action_kind_counts"].get("build", 0)
+                    + run["action_kind_counts"].get("train", 0)
+                    + run["action_kind_counts"].get("gather", 0),
+                    0,
+                )
+                self.assertGreater(
+                    run["action_kind_counts"].get("move", 0)
+                    + run["action_kind_counts"].get("attack", 0),
+                    0,
+                )
+                self.assertEqual(run["error_breakdown"], {})
+                self.assertEqual(run["friendly_fire_rejections"], 0)
+                self.assertTrue(all(run["checks"].values()), run)
+                self.assertTrue(Path(run["replay_html_path"]).is_file())
+
     def test_native_task_multiseed_completes_real_p2_economy_and_tactics(self):
         for seed in (42, 7, 99):
             report = run_native_task(seed=seed)

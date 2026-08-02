@@ -1,0 +1,268 @@
+{
+  "vm": "vibe-debug/1",
+  "mode": "debug",
+  "catalog_path": "../../../../../artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json",
+  "steps": [
+    {
+      "op": "call",
+      "fn": "vibe.unit.spawn_group",
+      "args": {"unit_type": "Marine", "count": 1, "player": 1, "x": 85.0, "y": 94.0},
+      "save": "target"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.target",
+      "path": "created",
+      "equals": 1
+    },
+    {
+      "op": "call",
+      "fn": "vibe.unit.query_attrs",
+      "args": {"unit_tag": "$vars.target.unit_tags.0"},
+      "save": "attrs_before"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.attrs_before",
+      "path": "max_life",
+      "equals": 45.0
+    },
+    {
+      "op": "call",
+      "fn": "vibe.unit.spawn_group",
+      "args": {"unit_type": "Medivac", "count": 1, "player": 1, "x": 86.5, "y": 94.0},
+      "save": "energy_target"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.energy_target",
+      "path": "created",
+      "equals": 1
+    },
+    {
+      "op": "call",
+      "fn": "vibe.unit.set_vital",
+      "args": {"unit_tag": "$vars.energy_target.unit_tags.0", "vital": "energy", "value": 37.5}
+    },
+    {
+      "op": "call",
+      "fn": "vibe.unit.query_attrs",
+      "args": {"unit_tag": "$vars.energy_target.unit_tags.0"},
+      "save": "energy_after"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.energy_after",
+      "path": "energy",
+      "gte": 30.0
+    },
+    {
+      "op": "call",
+      "fn": "vibe.unit.add_ability",
+      "args": {"unit_tag": "$vars.target.unit_tags.0", "ability": "MedivacHeal"}
+    },
+    {
+      "op": "call",
+      "fn": "vibe.unit.query_ability",
+      "args": {"unit_tag": "$vars.target.unit_tags.0", "ability": "MedivacHeal"},
+      "save": "ability_after"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.ability_after",
+      "path": "has_ability",
+      "equals": true
+    },
+    {
+      "op": "call",
+      "fn": "vibe.unit.set_vital",
+      "args": {"unit_tag": "$vars.target.unit_tags.0", "vital": "life", "value": 12.5}
+    },
+    {
+      "op": "call",
+      "fn": "vibe.unit.query_attrs",
+      "args": {"unit_tag": "$vars.target.unit_tags.0"},
+      "save": "attrs_vital"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.attrs_vital",
+      "path": "life",
+      "lt": 45.0
+    },
+    {
+      "op": "assert",
+      "source": "$vars.attrs_vital",
+      "path": "life",
+      "gte": 1.0
+    },
+    {
+      "op": "call",
+      "fn": "vibe.catalog.set",
+      "args": {"catalog": "unit", "entry": "Marine", "field": "LifeMax", "player": 1, "value": "60.5"}
+    },
+    {
+      "op": "call",
+      "fn": "vibe.unit.query_attrs",
+      "args": {"unit_tag": "$vars.target.unit_tags.0"},
+      "save": "attrs_catalog"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.attrs_catalog",
+      "path": "max_life",
+      "equals": 60.5
+    },
+    {
+      "op": "repeat",
+      "count": 2,
+      "steps": [
+        {
+          "op": "call",
+          "fn": "vibe.catalog.get",
+          "args": {"catalog": "unit", "entry": "Marine", "field": "LifeMax", "player": 1},
+          "save": "life_max_readback"
+        }
+      ]
+    },
+    {
+      "op": "assert",
+      "source": "$vars.life_max_readback",
+      "path": "value",
+      "equals": "60.5"
+    },
+    {
+      "op": "call",
+      "fn": "vibe.catalog.set",
+      "args": {"catalog": "unit", "entry": "Marine", "field": "Speed", "player": 1, "value": "4.5"}
+    },
+    {
+      "op": "call",
+      "fn": "vibe.catalog.get",
+      "args": {"catalog": "unit", "entry": "Marine", "field": "Speed", "player": 1},
+      "save": "speed_readback"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.speed_readback",
+      "path": "value",
+      "equals": "4.5"
+    },
+    {
+      "op": "call",
+      "fn": "vibe.catalog.set",
+      "args": {"catalog": "unit", "entry": "Marine", "field": "CostResource[0]", "player": 1, "value": "25"}
+    },
+    {
+      "op": "call",
+      "fn": "vibe.catalog.set",
+      "args": {"catalog": "unit", "entry": "Marine", "field": "CostResource[1]", "player": 1, "value": "10"}
+    },
+    {
+      "op": "call",
+      "fn": "vibe.catalog.get",
+      "args": {"catalog": "unit", "entry": "Marine", "field": "CostResource[0]", "player": 1},
+      "save": "mineral_cost_readback"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.mineral_cost_readback",
+      "path": "value",
+      "equals": "25"
+    },
+    {
+      "op": "call",
+      "fn": "vibe.catalog.get",
+      "args": {"catalog": "unit", "entry": "Marine", "field": "CostResource[1]", "player": 1},
+      "save": "gas_cost_readback"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.gas_cost_readback",
+      "path": "value",
+      "equals": "10"
+    },
+    {
+      "op": "call",
+      "fn": "vibe.catalog.set",
+      "args": {"catalog": "abil", "entry": "BarracksTrain_7", "field": "InfoArray[0].Unit", "player": 1, "value": "Marauder"}
+    },
+    {
+      "op": "call",
+      "fn": "vibe.catalog.get",
+      "args": {"catalog": "abil", "entry": "BarracksTrain_7", "field": "InfoArray[0].Unit", "player": 1},
+      "save": "train_slot_readback"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.train_slot_readback",
+      "path": "value",
+      "equals": "Marauder"
+    },
+    {
+      "op": "call",
+      "fn": "vibe.visual.model_swap",
+      "args": {"unit_tag": "$vars.target.unit_tags.0", "model": "Marine", "variation": 2},
+      "save": "model_result"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.model_result",
+      "path": "applied",
+      "equals": true
+    },
+    {
+      "op": "call",
+      "fn": "vibe.visual.set_scale",
+      "args": {"unit_tag": "$vars.target.unit_tags.0", "scale": 1.5},
+      "save": "scale_result"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.scale_result",
+      "path": "applied",
+      "equals": true
+    },
+    {
+      "op": "call",
+      "fn": "vibe.visual.set_tint",
+      "args": {"unit_tag": "$vars.target.unit_tags.0", "color": "{1,0.1,0.1,1}"},
+      "save": "tint_result"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.tint_result",
+      "path": "applied",
+      "equals": true
+    },
+    {
+      "op": "call",
+      "fn": "vibe.visual.set_opacity",
+      "args": {"unit_tag": "$vars.target.unit_tags.0", "opacity": 0.5},
+      "save": "opacity_result"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.opacity_result",
+      "path": "applied",
+      "equals": true
+    },
+    {
+      "op": "step",
+      "loops": 1,
+      "save": "after_step"
+    },
+    {
+      "op": "catalog.search",
+      "name": "FunctionUnit",
+      "limit": 20,
+      "save": "function_search"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.function_search",
+      "path": "count",
+      "gte": 1
+    }
+  ]
+}

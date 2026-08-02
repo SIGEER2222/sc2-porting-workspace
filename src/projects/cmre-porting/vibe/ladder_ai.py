@@ -188,26 +188,70 @@ class LadderAI(AllyPolicy):
         command_interval: int = 8,
         max_workers: int = 24,
         army_threshold: int = 8,
+        base_position: tuple[float, float] = MAIN_BASE,
+        expansion_position: tuple[float, float] = EXPANSION_BASE,
+        attack_points: Optional[Iterable[tuple[float, float]]] = None,
+        scout_route: Optional[Iterable[tuple[float, float]]] = None,
+        base_radius: float = 12.0,
+        allow_expansion: bool = True,
+        build_offsets: Optional[dict[str, tuple[float, float]]] = None,
     ) -> None:
+        self.base_position = (float(base_position[0]), float(base_position[1]))
+        self.base_radius = float(base_radius)
+        self.allow_expansion = bool(allow_expansion)
+        self.expansion_position = (
+            float(expansion_position[0]), float(expansion_position[1])
+        )
+        self.attack_points = tuple(
+            (float(x), float(y))
+            for x, y in (attack_points or (
+                (102.0, 94.0), (118.0, 94.0), (132.0, 94.0), ENEMY_BASE,
+            ))
+        ) or (self.expansion_position,)
+        self.scout_route = tuple(
+            (float(x), float(y))
+            for x, y in (scout_route or (
+                (102.0, 94.0), (118.0, 94.0), (132.0, 94.0), (140.0, 94.0),
+            ))
+        ) or (self.base_position,)
+        base_x, base_y = self.base_position
+        self.build_targets = {
+            "SupplyDepot2": (base_x + 6.0, base_y + 12.0),
+            "SupplyDepot3": (base_x + 12.0, base_y + 12.0),
+            "SupplyDepot4": (base_x + 18.0, base_y + 12.0),
+            "SupplyDepot5": (base_x + 24.0, base_y + 12.0),
+            # Keep the production ring on the side of the AI base away from
+            # the leader.  A map-derived P1/P2 pair can be close together,
+            # and building through the leader's footprint is a real placement
+            # failure rather than a harmless replay artifact.
+            "Barracks2": (base_x - 10.0, base_y - 10.0),
+            "Factory2": (base_x - 4.0, base_y - 10.0),
+        }
+        if build_offsets:
+            for unit_type_id, offset in build_offsets.items():
+                target = (
+                    base_x + float(offset[0]), base_y + float(offset[1])
+                )
+                self.build_targets[unit_type_id] = target
+                if not unit_type_id.startswith("SupplyDepot"):
+                    self.build_targets[f"{unit_type_id}2"] = target
         super().__init__(
             player_id=player_id,
             leader_entity_id=leader_entity_id,
             leader_player_id=leader_player_id,
-            base_region=(*MAIN_BASE, 12.0),
+            base_region=(*self.base_position, self.base_radius),
             support_range=14.0,
             command_interval=command_interval,
-            scout_points=((102.0, 94.0), (118.0, 94.0), (132.0, 94.0)),
+            scout_points=self.scout_route[:3],
             scout_interval=32,
         )
         self._economy.SCV_CEIL = int(max_workers)
+        if build_offsets:
+            self._economy.BUILD_PLAN = tuple(
+                {**build, "offset": tuple(build_offsets.get(build["unit_type_id"], build["offset"]))}
+                for build in self._economy.BUILD_PLAN
+            )
         self.army_threshold = max(1, int(army_threshold))
-        self.expansion_position = EXPANSION_BASE
-        self.attack_points = (
-            (102.0, 94.0), (118.0, 94.0), (132.0, 94.0), ENEMY_BASE,
-        )
-        self.scout_route = (
-            (102.0, 94.0), (118.0, 94.0), (132.0, 94.0), (140.0, 94.0),
-        )
         self._scout_route_index = 0
         self._last_ladder_scout_loop = -10_000
         self._last_ladder_tactical_loop = -10_000
@@ -216,6 +260,8 @@ class LadderAI(AllyPolicy):
         self._phase = LadderPhase.OPENING
         self._phase_history: list[str] = []
         self._action_reason_counts: dict[str, int] = {}
+        self._last_observation_own_units: list[dict] = []
+        self._map_adapter_mode = bool(build_offsets)
 
     @property
     def phase(self) -> LadderPhase:
@@ -238,11 +284,12 @@ class LadderAI(AllyPolicy):
             unit for unit in obs.own_units
             if int(unit.get("owner", self.player_id)) == self.player_id
         ]
+        self._last_observation_own_units = own_units
         combat_units = [unit for unit in own_units if self._is_combat(unit)]
         enemies = list(obs.visible_enemies)
         base_threats = [
             enemy for enemy in enemies
-            if self._dist(enemy["x"], enemy["y"], *MAIN_BASE) <= 12.0
+            if self._dist(enemy["x"], enemy["y"], *self.base_position) <= self.base_radius
         ]
         wounded = [
             unit for unit in combat_units
@@ -280,6 +327,12 @@ class LadderAI(AllyPolicy):
                 self._decide_tactical(combat_units, enemies, base_threats, phase)
             )
 
+        # The map-derived ring is selected from static Objects, while the
+        # ladder macro can add a second production building or a depot after
+        # the opening.  Repair targets against the current public observation
+        # before dispatch so two valid plans cannot converge on one footprint.
+        self._repair_build_targets(actions, obs)
+
         for action in actions:
             self._action_reason_counts[action.reason] = (
                 self._action_reason_counts.get(action.reason, 0) + 1
@@ -304,6 +357,19 @@ class LadderAI(AllyPolicy):
             - int(resources.get("supply_used", 0))
             - int(resources.get("reserved_supply", 0))
         )
+        # The base economy policy and the ladder macro planner share one
+        # decision batch.  Simulator reservations cover earlier dispatched
+        # orders, but not actions returned by the base policy in this batch.
+        # Remove those costs before considering an additional macro order so
+        # the combined batch cannot overspend the public balance.
+        planned_minerals = 0
+        planned_vespene = 0
+        for action in actions:
+            cost_m, cost_v = self._action_cost(action)
+            planned_minerals += cost_m
+            planned_vespene += cost_v
+        minerals = max(0, minerals - planned_minerals)
+        vespene = max(0, vespene - planned_vespene)
         planned = {action.entity_id for action in actions}
         planned_types = {action.unit_type_id for action in actions if action.kind == "build"}
 
@@ -328,7 +394,7 @@ class LadderAI(AllyPolicy):
             )
             if builder is None:
                 return False
-            target = self.BUILD_TARGETS.get(key, self.expansion_position)
+            target = self.build_targets.get(key, self.expansion_position)
             actions[:] = [action for action in actions if action.entity_id != builder["entity_id"]]
             actions.append(AllyAction(
                 int(builder["entity_id"]), "build",
@@ -350,7 +416,8 @@ class LadderAI(AllyPolicy):
 
         army_size = len(combat_units)
         if (
-            counts.get("CommandCenter", 0) < 2
+            self.allow_expansion
+            and counts.get("CommandCenter", 0) < 2
             and army_size >= 4
             and minerals >= 650
         ):
@@ -371,13 +438,125 @@ class LadderAI(AllyPolicy):
         ):
             queue_build("Factory2", "Factory", 150, 100, ("Barracks",))
 
+    @staticmethod
+    def _action_cost(action: AllyAction) -> tuple[int, int]:
+        """Return the canonical cost for an already planned typed action."""
+
+        unit_type_id = str(action.unit_type_id or "")
+        if action.kind == "train":
+            if unit_type_id == "SCV":
+                return DefendBasePolicy.SCV_COST_M, DefendBasePolicy.SCV_COST_V
+            info = DefendBasePolicy.ARMY_COMP.get(unit_type_id)
+            if info is not None:
+                return int(info["min_m"]), int(info["min_v"])
+        elif action.kind == "build":
+            for build in DefendBasePolicy.BUILD_PLAN:
+                if unit_type_id == str(build["unit_type_id"]):
+                    return int(build["min_m"]), int(build["min_v"])
+            macro_costs = {
+                "CommandCenter": (400, 0),
+                "Barracks": (150, 0),
+                "Factory": (150, 100),
+            }
+            if unit_type_id in macro_costs:
+                return macro_costs[unit_type_id]
+        elif action.kind == "research":
+            for research in DefendBasePolicy.RESEARCH_PLAN:
+                if unit_type_id == str(research["upgrade_id"]):
+                    return int(research["min_m"]), int(research["min_v"])
+        return 0, 0
+
+    def _repair_build_targets(self, actions: list[AllyAction], obs) -> None:
+        """Move map-adapter build orders to the next visible free placement.
+
+        ``DefendBasePolicy`` already handles add-on socket placement from the
+        exact parent Factory.  All other build orders are point placements and
+        can be checked using only the public observation plus earlier actions
+        in the same decision batch.
+        """
+
+        building_types = set(DefendBasePolicy.BUILDING_TYPES)
+        resources = list(getattr(obs, "mineral_fields", ()))
+        resources.extend(getattr(obs, "vespene_geysers", ()))
+        occupied = [
+            (float(unit.get("x", 0.0)), float(unit.get("y", 0.0)))
+            for unit in obs.own_units
+            if unit.get("unit_type_id") in building_types
+        ]
+        if self._map_adapter_mode:
+            occupied.extend(
+                (float(unit.get("x", 0.0)), float(unit.get("y", 0.0)))
+                for unit in getattr(obs, "visible_allies", ())
+                if unit.get("unit_type_id") in building_types
+            )
+        occupied.extend(
+            (float(resource.get("x", 0.0)), float(resource.get("y", 0.0)))
+            for resource in resources
+        )
+        placed: list[tuple[float, float]] = []
+        candidate_offsets = (
+            (0.0, 0.0), (0.0, -12.0), (12.0, 0.0), (-12.0, 0.0),
+            (0.0, 12.0), (12.0, -12.0), (-12.0, -12.0),
+            (12.0, 12.0), (-12.0, 12.0), (18.0, -6.0), (-18.0, -6.0),
+        )
+        if self._map_adapter_mode:
+            candidate_offsets += (
+                (18.0, 6.0), (-18.0, 6.0), (24.0, -12.0), (-24.0, -12.0),
+                (24.0, 12.0), (-24.0, 12.0), (30.0, 0.0), (-30.0, 0.0),
+                (0.0, 30.0), (0.0, -30.0), (36.0, 0.0), (-36.0, 0.0),
+            )
+        placement_clearance = 12.0 if self._map_adapter_mode else 9.0
+
+        for action in actions:
+            if action.kind != "build" or action.unit_type_id == "FactoryTechLab":
+                continue
+            preferred = (float(action.target_x), float(action.target_y))
+            # A build action without a point is invalid for this adapter; let
+            # the existing dispatch error model report it truthfully.
+            if preferred == (0.0, 0.0):
+                continue
+            candidates = [
+                preferred,
+                *(
+                    (preferred[0] + dx, preferred[1] + dy)
+                    for dx, dy in candidate_offsets[1:]
+                ),
+            ]
+            selected = None
+            for candidate in candidates:
+                if any(self._dist(candidate[0], candidate[1], x, y) < placement_clearance for x, y in occupied):
+                    continue
+                if any(self._dist(candidate[0], candidate[1], x, y) < placement_clearance for x, y in placed):
+                    continue
+                selected = candidate
+                break
+            if selected is None:
+                continue
+            action.target_x, action.target_y = selected
+            placed.append(selected)
+
     def _decide_tactical(self, combat_units, enemies, base_threats, phase) -> list[AllyAction]:
         if not combat_units:
             return []
         target = self._focus_target(enemies, None)
         actions: list[AllyAction] = []
         if not enemies:
-            scout = min(combat_units, key=lambda unit: int(unit["entity_id"]))
+            structure_points = [
+                (float(unit.get("x", 0.0)), float(unit.get("y", 0.0)))
+                for unit in getattr(self, "_last_observation_own_units", ())
+                if unit.get("unit_type_id") in DefendBasePolicy.BUILDING_TYPES
+            ]
+            scout_candidates = [
+                unit for unit in combat_units
+                if unit.get("state") not in {"moving", "attacking", "building"}
+                and not any(
+                    self._dist(unit["x"], unit["y"], x, y) < 4.0
+                    for x, y in structure_points
+                )
+            ]
+            if not scout_candidates:
+                return actions
+            scout = min(scout_candidates, key=lambda unit: int(unit["entity_id"]))
             point = self.scout_route[self._scout_route_index]
             if self._dist(scout["x"], scout["y"], *point) <= 3.0:
                 self._scout_route_index = min(
@@ -402,7 +581,7 @@ class LadderAI(AllyPolicy):
         for unit in sorted(combat_units, key=lambda item: int(item["entity_id"])):
             entity_id = int(unit["entity_id"])
             if self._hp_ratio(unit) < 0.25 and not base_threats:
-                retreat = (MAIN_BASE[0] - 5.0, MAIN_BASE[1] - 5.0)
+                retreat = (self.base_position[0] - 5.0, self.base_position[1] - 5.0)
                 if not self._has_move_order(unit, *retreat):
                     actions.append(AllyAction(
                         entity_id, "move", target_x=retreat[0], target_y=retreat[1],
@@ -454,7 +633,8 @@ class LadderAI(AllyPolicy):
     def _has_expansion(self, obs) -> bool:
         return any(
             unit.get("unit_type_id") == "CommandCenter"
-            and abs(float(unit.get("x", 0)) - EXPANSION_BASE[0]) <= 3.0
+            and abs(float(unit.get("x", 0)) - self.expansion_position[0]) <= 3.0
+            and abs(float(unit.get("y", 0)) - self.expansion_position[1]) <= 3.0
             for unit in obs.own_units
         )
 

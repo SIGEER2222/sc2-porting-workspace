@@ -112,6 +112,9 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
     owner_roles = header.get("owner_roles") or frames[0].get("owner_roles", {})
     owner_roles_json = json.dumps(owner_roles, ensure_ascii=False, separators=(",", ":"))
     map_metadata = header.get("map_metadata") or frames[0].get("map_metadata") or {}
+    objective_profile = map_metadata.get("objective_profile") or {}
+    geometry = map_metadata.get("geometry") or {}
+    static_objects = map_metadata.get("static_objects") or []
 
     # 计算地图边界（从所有帧的实体位置）
     all_x, all_y = [], []
@@ -159,11 +162,17 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
     )
     verdict_color = "#4ae24a" if verdict in {"VICTORY", "PASS"} else "#e24a4a"
     replay_id = str(header.get("replay_id") or summary.get("replay_id") or "")
-    title_text = (
-        "CMRE 梯队 AI 完整局回放"
-        if "ladder" in replay_id.lower()
-        else "亡者之夜 AI 盟友对局回放"
-    )
+    if map_metadata.get("source_kind") == "cmre_map_catalog":
+        title_text = f"{map_metadata.get('map_name', 'CMRE')} 合作 AI 战术回放"
+    elif "ladder" in replay_id.lower():
+        title_text = "CMRE 梯队 AI 完整局回放"
+    else:
+        title_text = "亡者之夜 AI 盟友对局回放"
+    objective_lines = "".join(
+        f"<div style=\"margin:3px 0;\"><span style=\"color:#d8b24a;\">{_esc(item.get('objective_id', 'objective'))}</span> "
+        f"{_esc(item.get('label', ''))}<br><span style=\"color:#777;\">{_esc(item.get('tactic', ''))}</span></div>"
+        for item in objective_profile.get("objectives", [])
+    ) or "<span style=\"color:#666;\">未提供地图任务画像</span>"
 
     html_doc = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -275,6 +284,11 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
     </div>
 
     <div class="panel">
+      <h3>地图任务画像</h3>
+      <div style="font-size:11px;line-height:1.45;">{objective_lines}</div>
+    </div>
+
+    <div class="panel">
       <h3>P1 指令 / P2 回执</h3>
       <div id="allyActions" style="font-size:11px;line-height:1.5;max-height:180px;overflow:auto;"></div>
     </div>
@@ -304,6 +318,9 @@ const OWNER_ROLES = {owner_roles_json};
 const COLORS = {colors_json};
 const RADIUS = {radius_json};
 const MAX_HP = {maxhp_json};
+const STATIC_OBJECTS = {json.dumps(static_objects, ensure_ascii=False, separators=(',', ':'))};
+const OBJECTIVES = {json.dumps(objective_profile.get('objectives', []), ensure_ascii=False, separators=(',', ':'))};
+const GEOMETRY = {json.dumps(geometry, ensure_ascii=False, separators=(',', ':'))};
 const MAP_BOUNDS = {{minX: {min_x}, maxX: {max_x}, minY: {min_y}, maxY: {max_y}}};
 const TOTAL_FRAMES = FRAMES.length;
 
@@ -390,14 +407,44 @@ function drawFrame(idx) {{
     ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
   }}
 
-  // 玩家基地标记
-  const [bx, by] = worldToCanvas(85.0, 94.0);
+  // 地图派生的玩家基地标记
+  const basePosition = GEOMETRY.base_position || [85.0, 94.0];
+  const [bx, by] = worldToCanvas(basePosition[0], basePosition[1]);
   ctx.strokeStyle = '#4a90e2';
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(bx, by, 20, 0, 2*Math.PI); ctx.stroke();
   ctx.fillStyle = '#4a90e2';
   ctx.font = '10px sans-serif';
   ctx.fillText('BASE', bx-12, by-22);
+
+  // 原生地图 Objects 静态层。它不会随模拟器实体移动，用来校验点位与
+  // 运行时切片的关系；动态实体仍由下方 entities_by_player 绘制。
+  for (const object of STATIC_OBJECTS) {{
+    const [sx, sy] = worldToCanvas(Number(object.x), Number(object.y));
+    const type = String(object.t || '');
+    const isResource = type.includes('Mineral') || type.includes('Geyser');
+    const color = colorFor(Number(object.p || 0));
+    ctx.globalAlpha = isResource ? 0.28 : 0.18;
+    ctx.fillStyle = color;
+    if (isResource) {{
+      ctx.fillRect(sx - 2, sy - 2, 4, 4);
+    }} else {{
+      ctx.beginPath(); ctx.arc(sx, sy, 2.2, 0, 2*Math.PI); ctx.fill();
+    }}
+  }}
+  ctx.globalAlpha = 1.0;
+
+  // 任务区域/攻击点来自地图画像，不是天梯固定坐标。
+  const attackPoints = GEOMETRY.attack_points || [];
+  attackPoints.forEach((point, index) => {{
+    const [tx, ty] = worldToCanvas(Number(point[0]), Number(point[1]));
+    ctx.strokeStyle = '#d8b24a';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(tx, ty, 10, 0, 2*Math.PI); ctx.stroke();
+    ctx.fillStyle = '#d8b24a';
+    ctx.font = '10px sans-serif';
+    ctx.fillText(String(index + 1), tx + 7, ty - 7);
+  }});
 
   // 实体按中立、敌军、P1、P2 绘制，确保 P1/P2 关系在画面上稳定可辨。
   const drawOrder = Object.keys(f.entities_by_player || {{}}).sort((a, b) => {{

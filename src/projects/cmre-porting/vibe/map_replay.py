@@ -98,6 +98,17 @@ def _map_metadata(data: MapData, map_dir: Path) -> dict:
         "native_spawn_counts_by_owner": dict(sorted(spawn_owner_counts.items())),
         "native_spawn_types_by_owner": type_counts_by_owner,
         "native_spawn_fingerprint": _native_spawn_fingerprint(data),
+        "static_objects": [
+            {
+                "id": obj.get("object_id"),
+                "t": obj.get("unit_type"),
+                "p": int(obj.get("player", 0)),
+                "x": float(obj.get("x", 0.0)),
+                "y": float(obj.get("y", 0.0)),
+                "resource_amount": obj.get("resource_amount"),
+            }
+            for obj in native_objects
+        ],
         "placement_markers": placements,
         "adapter_overlay": {
             "added_player_ids": [1, 2, 7, 8, 9],

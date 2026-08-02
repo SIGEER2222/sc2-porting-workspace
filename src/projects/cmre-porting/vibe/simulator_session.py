@@ -40,12 +40,29 @@ ensure_simulator_on_path()
 
 from sc2_simulator.catalog.model import CatalogSnapshot  # noqa: E402
 from sc2_simulator.catalog.m7_units import m7_catalog  # noqa: E402
-from sc2_simulator.fixed import Fixed, fixed_from  # noqa: E402
+from sc2_simulator.fixed import Fixed  # noqa: E402
 from sc2_simulator.scenario.model import ScenarioDefinition  # noqa: E402
 from sc2_simulator.world.orders import Command, CommandKind  # noqa: E402
 
 # 命令 kind 字符串 -> CommandKind
 _CMD_KIND_MAP = {k.value: k for k in CommandKind}
+
+
+def _fixed_from_input(value: int | float | Fixed) -> Fixed:
+    """Convert an API boundary value without truncating fractional floats.
+
+    The reference simulator's ``fixed_from`` accepts ``SupportsInt`` before
+    checking ``float``; Python floats therefore take the integer path and
+    ``12.5`` becomes ``12.0``. Vibe debug calls are user-provided numeric
+    boundaries, so preserve the declared fixed-point value here.
+    """
+    if isinstance(value, Fixed):
+        return value
+    if isinstance(value, bool):
+        raise TypeError("boolean is not a fixed-point value")
+    if isinstance(value, int):
+        return Fixed.from_int(value)
+    return Fixed.from_float(float(value))
 
 
 class KernelError(Exception):
@@ -95,6 +112,12 @@ class SimulatorSession:
         )
         # Stage 08: 波次时机数据（用于胜利时间计算 nights_survived）
         self._wave_timing: Optional[dict] = None
+        # Debug VM state is intentionally separate from the read-only Catalog
+        # snapshot and from strategy state. It models the same per-instance
+        # and per-player overlays exposed by the native bridge.
+        self._unit_abilities: dict[int, set[str]] = {}
+        self._catalog_overrides: dict[tuple[str, str, str, int], str] = {}
+        self._visual_overrides: dict[int, dict[str, Any]] = {}
 
     # ----- system -----
     def ping(self) -> dict:
@@ -160,6 +183,9 @@ class SimulatorSession:
         self.terminated = False
         self.paused = False
         self._snapshots.clear()
+        self._unit_abilities.clear()
+        self._catalog_overrides.clear()
+        self._visual_overrides.clear()
         self._initial_snapshot = SnapshotHandle.from_world(self.world)
         return {
             "loop": 0,
@@ -353,7 +379,7 @@ class SimulatorSession:
         if self.world is None:
             raise KernelError(2, "unit.spawn 前需 scenario.reset")
         e = self.world.create_entity(
-            unit_type_id, owner_player_id, fixed_from(x), fixed_from(y)
+            unit_type_id, owner_player_id, _fixed_from_input(x), _fixed_from_input(y)
         )
         return {
             "entity_id": e.entity_id,
@@ -407,6 +433,124 @@ class SimulatorSession:
             "count": existing["stacks"],
         }
 
+    def unit_add_ability(self, entity_id: int, ability_id: str) -> dict:
+        if self.world is None:
+            raise KernelError(2, "unit.add_ability 前需 scenario.reset")
+        entity = self.world.get_entity(entity_id)
+        if entity is None or not entity.is_alive:
+            raise KernelError(2, "unit_not_found_or_stale")
+        if not ability_id:
+            raise KernelError(2, "ability_not_found")
+        self._unit_abilities.setdefault(entity_id, set()).add(ability_id)
+        return {
+            "unit_tag": entity_id,
+            "ability": ability_id,
+            "has_ability": True,
+        }
+
+    def query_ability(self, entity_id: int, ability_id: str) -> dict:
+        if self.world is None:
+            raise KernelError(2, "unit.query_ability 前需 scenario.reset")
+        entity = self.world.get_entity(entity_id)
+        if entity is None:
+            raise KernelError(2, "unit_not_found_or_stale")
+        if not ability_id:
+            raise KernelError(2, "ability_not_found")
+        has_ability = ability_id in self._unit_abilities.get(entity_id, set())
+        return {
+            "unit_tag": entity_id,
+            "ability": ability_id,
+            "has_ability": has_ability,
+        }
+
+    def unit_query_attrs(self, entity_id: int) -> dict:
+        if self.world is None:
+            raise KernelError(2, "unit.query_attrs 前需 scenario.reset")
+        entity = self.world.get_entity(entity_id)
+        if entity is None:
+            raise KernelError(2, "unit_not_found_or_stale")
+        unit_type = self.world.catalog.get(entity.unit_type_id)
+        def catalog_fixed(field: str, fallback: Fixed) -> float:
+            raw = self.catalog_get(
+                "unit", entity.unit_type_id, field, entity.owner_player_id
+            )["value"]
+            try:
+                return float(raw)
+            except (TypeError, ValueError):
+                return fallback.to_float()
+
+        return {
+            "unit_tag": entity_id,
+            "unit_type": entity.unit_type_id,
+            "life": entity.health.to_float(),
+            "max_life": catalog_fixed("LifeMax", unit_type.max_health),
+            "shields": entity.shields.to_float(),
+            "energy": entity.energy.to_float(),
+            "armor": catalog_fixed("ArmorArray[0].Value", unit_type.armor),
+        }
+
+    def catalog_get(self, catalog: str, entry: str, field: str, player: int) -> dict:
+        if self.world is None:
+            raise KernelError(2, "catalog.get 前需 scenario.reset")
+        key = (catalog, entry, field, player)
+        any_player_key = (catalog, entry, field, 0)
+        if key in self._catalog_overrides:
+            value = self._catalog_overrides[key]
+        elif player != 0 and any_player_key in self._catalog_overrides:
+            # Galaxy's player 0 maps to c_playerAny; an owner-specific query
+            # must observe that overlay unless a player-specific value wins.
+            value = self._catalog_overrides[any_player_key]
+        else:
+            value = self._catalog_default(catalog, entry, field)
+        return {
+            "catalog": catalog,
+            "entry": entry,
+            "field": field,
+            "player": player,
+            "value": value,
+        }
+
+    def catalog_set(self, catalog: str, entry: str, field: str, player: int, value: str) -> dict:
+        old_value = self.catalog_get(catalog, entry, field, player)["value"]
+        self._catalog_overrides[(catalog, entry, field, player)] = value
+        return {
+            "catalog": catalog,
+            "entry": entry,
+            "field": field,
+            "player": player,
+            "old_value": old_value,
+            "value": value,
+        }
+
+    def _catalog_default(self, catalog: str, entry: str, field: str) -> str:
+        if catalog == "unit":
+            unit_type = self.world.catalog.get(entry)
+            defaults = {
+                "LifeMax": unit_type.max_health.to_float(),
+                "ShieldsMax": unit_type.max_shields.to_float(),
+                "EnergyMax": unit_type.max_energy.to_float(),
+                "Speed": unit_type.speed.to_float(),
+                "Radius": unit_type.radius.to_float(),
+                "LifeArmor": unit_type.armor.to_float(),
+                "ArmorArray[0].Value": unit_type.armor.to_float(),
+                "CostResource[0]": unit_type.minerals,
+                "CostResource[1]": unit_type.vespene,
+                "Food": unit_type.supply,
+                "BuildTime": unit_type.build_time,
+            }
+            if field in defaults:
+                return str(defaults[field])
+        return ""
+
+    def visual_set(self, entity_id: int, property_name: str, value: Any) -> dict:
+        if self.world is None:
+            raise KernelError(2, "visual 修改前需 scenario.reset")
+        entity = self.world.get_entity(entity_id)
+        if entity is None or not entity.is_alive:
+            raise KernelError(2, "unit_not_found_or_stale")
+        self._visual_overrides.setdefault(entity_id, {})[property_name] = value
+        return {"unit_tag": entity_id, property_name: value, "applied": True}
+
     def query_behavior(self, entity_id: int, behavior_id: str) -> dict:
         if self.world is None:
             raise KernelError(2, "unit.query_behavior 前需 scenario.reset")
@@ -455,11 +599,11 @@ class SimulatorSession:
         if e is None:
             raise KernelError(2, f"单位 {entity_id} 不存在")
         if health is not None:
-            e.health = fixed_from(health)
+            e.health = _fixed_from_input(health)
         if shields is not None:
-            e.shields = fixed_from(shields)
+            e.shields = _fixed_from_input(shields)
         if energy is not None:
-            e.energy = fixed_from(energy)
+            e.energy = _fixed_from_input(energy)
         return {
             "entity_id": entity_id,
             "health": e.health.raw,
@@ -519,8 +663,8 @@ class SimulatorSession:
             issuer_player_id=issuer_player_id,
             entity_ids=tuple(entity_ids),
             target_entity_id=effective_target_entity_id,
-            target_x=fixed_from(target_x),
-            target_y=fixed_from(target_y),
+            target_x=_fixed_from_input(target_x),
+            target_y=_fixed_from_input(target_y),
             unit_type_id=unit_type_id,
             ability_id=ability_id,
             issued_loop=self.world.clock.now.loop,

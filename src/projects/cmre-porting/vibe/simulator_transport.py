@@ -225,6 +225,56 @@ class SimulatorTransport:
                 "function_id": function_id,
                 **s.query_behavior(args["unit_tag"], args["behavior"]),
             }
+        if function_id == "vibe.unit.add_ability":
+            return {
+                "function_id": function_id,
+                **s.unit_add_ability(args["unit_tag"], args["ability"]),
+            }
+        if function_id == "vibe.unit.query_ability":
+            return {
+                "function_id": function_id,
+                **s.query_ability(args["unit_tag"], args["ability"]),
+            }
+        if function_id == "vibe.unit.set_vital":
+            vital = args["vital"]
+            values = s.unit_set_vital(
+                args["unit_tag"],
+                health=args["value"] if vital == "life" else None,
+                shields=args["value"] if vital == "shield" else None,
+                energy=args["value"] if vital == "energy" else None,
+            )
+            return {
+                "function_id": function_id,
+                "unit_tag": args["unit_tag"],
+                "vital": vital,
+                "value": values[{"life": "health", "shield": "shields", "energy": "energy"}[vital]] / 1024.0,
+            }
+        if function_id == "vibe.unit.query_attrs":
+            return {"function_id": function_id, **s.unit_query_attrs(args["unit_tag"])}
+        if function_id == "vibe.catalog.get":
+            return {"function_id": function_id, **s.catalog_get(
+                args["catalog"], args["entry"], args["field"], args["player"]
+            )}
+        if function_id == "vibe.catalog.set":
+            return {"function_id": function_id, **s.catalog_set(
+                args["catalog"], args["entry"], args["field"], args["player"], args["value"]
+            )}
+        if function_id == "vibe.visual.model_swap":
+            return {"function_id": function_id, **s.visual_set(
+                args["unit_tag"], "model", {"model": args["model"], "variation": args["variation"]}
+            )}
+        if function_id == "vibe.visual.set_scale":
+            return {"function_id": function_id, **s.visual_set(
+                args["unit_tag"], "scale", args["scale"]
+            )}
+        if function_id == "vibe.visual.set_tint":
+            return {"function_id": function_id, **s.visual_set(
+                args["unit_tag"], "color", args["color"]
+            )}
+        if function_id == "vibe.visual.set_opacity":
+            return {"function_id": function_id, **s.visual_set(
+                args["unit_tag"], "opacity", args["opacity"]
+            )}
         if function_id == "vibe.query.units":
             player = args["player"] or None
             result = s.query_units(player)
