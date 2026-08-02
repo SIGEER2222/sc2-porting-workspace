@@ -503,6 +503,7 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
                     entity.get("source_object_id"),
                     entity.get("source_unit_type_id"),
                     entity.get("resource_amount"),
+                    entity.get("resource_remaining", 0),
                 )
                 for entity in first_entities
             ]
@@ -515,6 +516,7 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
                     spawn.get("source_object_id"),
                     spawn.get("source_unit_type_id"),
                     spawn.get("resource_amount"),
+                    spawn.get("resource_amount") or 0,
                 )
                 for spawn in scenario["spawns"]
             ]

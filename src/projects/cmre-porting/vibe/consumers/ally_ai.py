@@ -759,7 +759,14 @@ def run_ally_scenario(
             sorted(s.world.entities.values(), key=lambda item: item.entity_id),
             scenario_dict.get("spawns", []),
         ):
-            replay_source_spawn_by_entity_id[int(entity.entity_id)] = dict(spawn)
+            source_spawn = dict(spawn)
+            replay_source_spawn_by_entity_id[int(entity.entity_id)] = source_spawn
+            resource_amount = source_spawn.get("resource_amount")
+            if resource_amount is not None and hasattr(entity, "resource_remaining"):
+                # ScenarioDefinition's legacy loader drops this optional field;
+                # restore the map-native resource capacity before simulation.
+                entity.resource_amount = int(resource_amount)
+                entity.resource_remaining = int(resource_amount)
 
     decisions: list[AllyDecisionTrace] = []
     deadlock_loops = 0
@@ -813,6 +820,7 @@ def run_ally_scenario(
                 "hp": entity.health.raw,
                 "alive": bool(entity.is_alive),
                 "state": entity.state.value if hasattr(entity.state, "value") else str(entity.state),
+                "resource_remaining": getattr(entity, "resource_remaining", 0),
             }
             if source_spawn:
                 entity_record.update({

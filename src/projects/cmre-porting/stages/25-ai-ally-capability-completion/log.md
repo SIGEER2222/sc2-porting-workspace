@@ -215,9 +215,9 @@ protected 5153 Debug VM window cannot satisfy this gate.
   Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/replay.jsonl`.
 - `static`: the self-contained browser player includes the map source path,
   source hash, 1319/1308 native counts, exact map bounds, and P2 native spawn
-  count 0. The embedded JavaScript parsed with Node `vm.Script`. Playwright and
-  Puppeteer are not installed in this environment, so no browser screenshot
-  claim is made.
+  count 0. The embedded JavaScript parsed with Node `vm.Script`. Chrome
+  headless loaded the file and produced a non-empty 367352-byte screenshot;
+  Playwright and Puppeteer are not installed in this environment.
   Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/full-map-player.html`.
 - `historical-invalid`: the previous
   `cooperative-ai-ally-replay-20260802` remains a six-unit fixture replay. It
