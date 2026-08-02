@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "stage_id": "07-real-adapters",
   "status": "BLOCKED",
-  "updated_at": "2026-08-02T13:22:25+08:00",
+  "updated_at": "2026-08-02T13:50:20+08:00",
   "outputs": [
     "cmre_neuro_adapter/transports/__init__.py",
     "cmre_neuro_adapter/transports/common.py",
@@ -17,6 +17,8 @@
     "artifacts/stage07-basic-command-replay-20260802/replay.jsonl",
     "artifacts/stage07-basic-command-replay-20260802/simulator-events.jsonl",
     "artifacts/stage07-basic-command-replay-20260802/summary.json",
+    "artifacts/stage07-basic-command-replay-20260802/player.html",
+    "artifacts/stage07-basic-command-replay-20260802/player-smoke.png",
     "stages/07-real-adapters/log.md",
     "stages/07-real-adapters/result.json",
     "stages/07-real-adapters/issues.json"
@@ -54,7 +56,7 @@
     },
     "project_tests": {
       "status": "PASS",
-      "tests": 68,
+      "tests": 70,
       "subtests": 22,
       "command": "python -m unittest discover -s tests -v",
       "evidence_type": "simulator"
@@ -93,6 +95,20 @@
       "status": "PASS",
       "command": "python tools/galaxy-vibe/script_error_check.py --since 1785646068 --out src/projects/cmre-neuro-adapter/artifacts/stage07-real-runtime-current-check-script-error-verdict.json",
       "summary": "No new errors were observed in the scan, but it is not a same-window successful Stage 07 launch and does not satisfy G4.",
+      "evidence_type": "runtime"
+    },
+    "replay_player_generation": {
+      "status": "PASS",
+      "command": "python -m cmre_neuro_adapter.replay_player artifacts/stage07-basic-command-replay-20260802/replay.jsonl --output artifacts/stage07-basic-command-replay-20260802/player.html",
+      "summary": "Generated a self-contained HTML player with a canvas minimap, 21 timeline frames, action/event markers, seeking, playback controls, and 0.5x-16x speed selection.",
+      "artifact": "artifacts/stage07-basic-command-replay-20260802/player.html",
+      "evidence_type": "static"
+    },
+    "replay_player_browser_smoke": {
+      "status": "PASS",
+      "command": "Chrome headless opened player.html with DOM, canvas-pixel, and CDP interaction checks",
+      "summary": "The real embedded replay rendered 900000 non-empty canvas pixels; speed 16x activated; seek moved to loop 100; play entered active state and manual pause cleared it; end jumped to loop 195.",
+      "artifact": "artifacts/stage07-basic-command-replay-20260802/player-smoke.png",
       "evidence_type": "runtime"
     }
   },

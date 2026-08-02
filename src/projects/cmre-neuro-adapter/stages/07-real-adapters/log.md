@@ -15,6 +15,8 @@ and mission-specific production policy above it.
 An inspectable foundation replay is available under
 `artifacts/stage07-basic-command-replay-20260802/`. It records the Neuro action lifecycle,
 public context snapshots, state changes, command results, and the canonical simulator event trace.
+The same artifact directory now contains `player.html`, a self-contained minimap-style browser
+replay with seeking, playback, speed controls, and action/event markers.
 
 ## Failure-First Diagnostic
 
@@ -24,7 +26,7 @@ public context snapshots, state changes, command results, and the canonical simu
   transport implementation and regression tests.
 - `simulator`: after implementation, the focused transport suite passed `6/6` and the project
   suite passed `62/62` tests with `22` subtests under Python 3.13.
-- `simulator`: after the foundation slice, the full adapter suite passed `68/68` tests. The new
+- `simulator`: after the foundation slice, the full adapter suite passed `70/70` tests. The new
   command tests drove `SimulatorSession.unit_order` and observed a Marine move, a Barracks build,
   and a Marine production result.
 - `simulator`: the adapter-aware replay executed `3/3` actions successfully through
@@ -103,16 +105,28 @@ public context snapshots, state changes, command results, and the canonical simu
 - `artifacts/stage07-basic-command-replay-20260802/simulator-events.jsonl`: canonical simulator
   event and command-result trace.
 - `artifacts/stage07-basic-command-replay-20260802/summary.json`: replay summary and trace hash.
+- `artifacts/stage07-basic-command-replay-20260802/player.html`: self-contained visual replay
+  player with a Canvas minimap, draggable timeline, playback controls, and `0.5x` through `16x`
+  speed buttons.
+- `artifacts/stage07-basic-command-replay-20260802/player-smoke.png`: Chrome headless screenshot
+  proving the rendered player is non-empty.
+
+## Visual Replay Verification
+
+- `static`: `python -m cmre_neuro_adapter.replay_player artifacts/stage07-basic-command-replay-20260802/replay.jsonl --output artifacts/stage07-basic-command-replay-20260802/player.html` -> generated a 45 KB self-contained HTML file from the 26-record JSONL replay.
+- `runtime`: Chrome headless DOM check -> title, `SIMULATOR PASS`, Canvas, seek range `0..20`, and `16x` control rendered.
+- `runtime`: Chrome CDP interaction check -> Canvas had `900000` non-empty pixels; `16x` activated; seek selected loop `100`; play/pause changed button state; end selected loop `195`.
+- `runtime`: the browser screenshot is local replay-player evidence only; it is not a live SC2 runtime or G4 pass.
 
 ## Verification Refresh
 
 - `simulator`: `python -m pytest tests/test_transport_adapters.py --maxfail=20 -q` -> `6 passed`.
 - `simulator`: `python -m unittest tests.test_basic_actions -v` -> `6/6` tests passed.
-- `simulator`: `python -m unittest discover -s tests -q` -> `68/68` tests passed.
+- `simulator`: `python -m unittest discover -s tests -q` -> `70/70` tests passed.
 - `static`: `python -m compileall -q cmre_neuro_adapter tests` -> pass.
 - `static`: Python 3.11 grammar fallback -> `55` files passed with `ast.parse(..., feature_version=(3,11))`.
 - `static`: Stage 07 JSON parse and `git diff --check -- src/projects/cmre-neuro-adapter` -> pass.
-- `simulator`: replay artifact assertions -> `PASS`; `replay.jsonl` contains `9` records and
+- `simulator`: replay artifact assertions -> `PASS`; `replay.jsonl` contains `26` records and
   `summary.json` reports `3/3` actions and the expected move/build/produce effects.
 
 ## Problems and Limitations
