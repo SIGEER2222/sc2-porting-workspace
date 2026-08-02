@@ -55,5 +55,8 @@ dependency remains unavailable.
 
 ## Next step
 
-No Stage 25 is created. Stage 24 is the terminal final-acceptance stage for the
-active project.
+The user requested a follow-up capability stage after final acceptance. The
+next-stage plan is now recorded at
+`src/projects/cmre-porting/stages/25-ai-ally-capability-completion/plan.md`.
+Stage 24 remains verified and `project.json.currentStage` stays unchanged until
+Stage 25 implementation begins.
