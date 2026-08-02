@@ -8,6 +8,20 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
+SIMULATOR_REAL_MAP_PROJECTION: dict[str, Any] = {
+    "kind": "display-only",
+    "source_bounds": {
+        "x": {"min": -2.0, "max": 11.0},
+        "y": {"min": -2.0, "max": 7.0},
+    },
+    "target_bounds": {
+        "x": {"min": 82.0, "max": 95.0},
+        "y": {"min": 91.0, "max": 100.0},
+    },
+    "description": "Simulator fixture coordinates projected around the P1 start area for display only.",
+}
+
+
 def load_records(path: Path) -> list[dict[str, Any]]:
     """Load newline-delimited replay records without dropping source fields."""
 
@@ -36,16 +50,51 @@ def render_player_html(records: Iterable[dict[str, Any]], output_path: Path) -> 
     output.write_text(_PLAYER_TEMPLATE.replace("__REPLAY_DATA__", payload), encoding="utf-8")
 
 
+def _with_map_record(
+    records: Iterable[dict[str, Any]],
+    map_record_path: Path,
+    project_simulator: bool,
+) -> list[dict[str, Any]]:
+    """Add a static map record while keeping the replay's observed frames unchanged."""
+
+    data = list(records)
+    map_record = next(
+        (record for record in load_records(map_record_path) if record.get("record_type") == "map"),
+        None,
+    )
+    if map_record is None:
+        raise ValueError(f"map record not found in {map_record_path}")
+    map_record = dict(map_record)
+    if project_simulator:
+        map_record["dynamic_coordinate_projection"] = SIMULATOR_REAL_MAP_PROJECTION
+        map_record["display_note"] = "真实地图静态层 + simulator 动态层（坐标为显示投影）"
+    data = [record for record in data if record.get("record_type") != "map"]
+    insert_at = 1 if data and data[0].get("record_type") == "header" else 0
+    data.insert(insert_at, map_record)
+    return data
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("replay", type=Path, help="adapter-aware replay JSONL")
     parser.add_argument("--output", type=Path, required=True, help="HTML output path")
+    parser.add_argument("--map-record", type=Path, help="JSONL containing a real-map record to embed")
+    parser.add_argument(
+        "--project-simulator-on-map",
+        action="store_true",
+        help="project simulator coordinates around the real map P1 start area for display only",
+    )
     return parser
 
 
 def main() -> int:
     args = _build_parser().parse_args()
-    render_player_html(load_records(args.replay), args.output)
+    records = load_records(args.replay)
+    if args.project_simulator_on_map and args.map_record is None:
+        raise SystemExit("--project-simulator-on-map requires --map-record")
+    if args.map_record is not None:
+        records = _with_map_record(records, args.map_record, args.project_simulator_on_map)
+    render_player_html(records, args.output)
     print(args.output)
     return 0
 
@@ -107,6 +156,7 @@ canvas { display:block; width:100%; height:auto; }
 .unit-line.neutral .count { color:var(--orange); }
 .chart { width:100%; height:92px; margin-top:6px; background:var(--panel2); border:1px solid #252e38; }
 .entity-tools { display:flex; gap:5px; margin-bottom:6px; }
+.entity-tools label { display:flex; align-items:center; gap:4px; flex:0 0 auto; color:var(--muted); white-space:nowrap; }
 .entity-tools input { width:100%; min-height:29px; padding:0 7px; color:var(--text); background:#0d1217; border:1px solid var(--line); border-radius:3px; }
 .entity-table-wrap { max-height:278px; overflow:auto; border:1px solid #2c3540; background:var(--panel2); }
 .entity-table { width:100%; border-collapse:collapse; font:10px/1.35 Consolas,monospace; }
@@ -140,10 +190,10 @@ details { color:var(--muted); font-size:11px; }.raw { max-height:220px; overflow
       <div class="footer">空格播放/暂停 · ←/→ 逐帧 · 点击实体查看完整字段 · 时间轴拖动切换原始观测帧</div>
     </div>
     <aside class="side">
-      <section class="panel wide"><h2>当前状态</h2><div class="stats"><div class="stat"><span>地图</span><strong id="mapName"></strong></div><div class="stat"><span>Loop</span><strong id="loop"></strong></div><div class="stat"><span>游戏时间</span><strong id="gameTime"></strong></div><div class="stat"><span>状态版本</span><strong id="stateVersion"></strong></div><div class="stat"><span>Context 版本</span><strong id="contextVersion"></strong></div><div class="stat"><span>阶段</span><strong id="phase"></strong></div><div class="stat"><span>夜晚 / 波次</span><strong id="nightWave"></strong></div><div class="stat"><span>友军 / 敌军 / 中立</span><strong id="entityTotals"></strong></div></div></section>
+      <section class="panel wide"><h2>当前状态</h2><div class="stats"><div class="stat"><span>地图</span><strong id="mapName"></strong></div><div class="stat"><span>Loop</span><strong id="loop"></strong></div><div class="stat"><span>游戏时间</span><strong id="gameTime"></strong></div><div class="stat"><span>状态版本</span><strong id="stateVersion"></strong></div><div class="stat"><span>Context 版本</span><strong id="contextVersion"></strong></div><div class="stat"><span>阶段</span><strong id="phase"></strong></div><div class="stat"><span>夜晚 / 波次</span><strong id="nightWave"></strong></div><div class="stat"><span>友军 / 敌军 / 中立</span><strong id="entityTotals"></strong></div><div class="stat"><span>地图 Objects</span><strong id="mapObjectCount"></strong></div></div></section>
       <section class="panel"><h2>经济与补给</h2><div class="stats"><div class="stat"><span>矿物</span><strong id="minerals"></strong></div><div class="stat"><span>瓦斯</span><strong id="vespene"></strong></div><div class="stat"><span>补给</span><strong id="supply"></strong></div></div><canvas id="economy" class="chart" width="410" height="92"></canvas></section>
       <section class="panel wide"><h2>兵种与建筑构成</h2><div class="columns"><div><div class="footer">友军</div><div id="friendlyTypes" class="unit-list"></div></div><div><div class="footer">敌军 / 其他阵营</div><div id="enemyTypes" class="unit-list"></div></div></div><div id="legend" class="legend" style="margin-top:8px"></div></section>
-      <section class="panel wide"><h2>当前帧全部实体</h2><div class="entity-tools"><input id="entitySearch" placeholder="按 ID、单位类型、Owner、状态筛选"></div><div class="entity-table-wrap"><table class="entity-table"><thead><tr><th>ID</th><th>Owner</th><th>类型</th><th>状态</th><th>HP</th><th>位置</th></tr></thead><tbody id="entities"></tbody></table></div></section>
+      <section class="panel wide"><h2>当前帧全部实体</h2><div class="entity-tools"><input id="entitySearch" placeholder="按 ID、单位类型、Owner、状态筛选"><label><input id="showStaticObjects" type="checkbox" checked>地图 Objects</label></div><div class="entity-table-wrap"><table class="entity-table"><thead><tr><th>ID</th><th>Owner</th><th>类型</th><th>状态</th><th>HP</th><th>位置</th></tr></thead><tbody id="entities"></tbody></table></div></section>
       <section class="panel"><h2>动作</h2><div id="actions" class="action-list"></div></section>
       <section class="panel"><h2>事件</h2><div id="events" class="event-list"></div></section>
       <section class="panel wide"><details><summary>当前原始 context</summary><pre id="rawContext" class="raw"></pre></details></section>
@@ -158,6 +208,7 @@ const ACTIONS = RECORDS.filter(r => r.record_type === "action");
 const SUMMARY = RECORDS.find(r => r.record_type === "summary") || {};
 const MAP_META = RECORDS.find(r => r.record_type === "map") || {};
 const IS_STATIC_PREVIEW = SUMMARY.status === "STATIC_PREVIEW" || (SUMMARY.evidence_type === "static" && FRAMES.length < 2);
+const MAP_PROJECTION = MAP_META.dynamic_coordinate_projection || null;
 const COLORS = {"0":"#a5aeb7","1":"#55a9ff","2":"#ff6b6b","3":"#65d69a","4":"#f4b860","5":"#bd83ff","6":"#62d3cb"};
 const BUILDINGS = new Set(["CommandCenter","Nexus","Hatchery","Barracks","Factory","Starport","SupplyDepot","Bunker","EngineeringBay","MissileTurret","SensorTower","Refinery","Pylon","PhotonCannon","SpineCrawler","SporeCrawler","Gateway","Forge","SpawningPool","HydraliskDen","RoachWarren","GhostAcademy","RoboticsFacility"]);
 const RESOURCES = new Set(["MineralField","VespeneGeyser"]);
@@ -173,8 +224,10 @@ if (MAP_META.minimap_data_url) { mapImage.src = MAP_META.minimap_data_url; mapIm
 let index = 0, playing = false, speed = 1, lastTime = 0, fractional = 0, selectedId = null, search = "";
 function esc(value) { return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
 function number(value, fallback=0) { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
-function normalize(raw, ownerOverride=null) { const legacy = raw.entity_id === undefined; return { id: legacy ? raw.id : raw.entity_id, owner: ownerOverride ?? (legacy ? raw.p : raw.owner), type: legacy ? raw.t : raw.unit_type_id, x:number(raw.x), y:number(raw.y), hp:number(legacy ? raw.hp : raw.health), shields:number(raw.shields), energy:number(raw.energy), state:raw.state || (raw.alive === false ? "dead" : "visible"), alive:raw.alive !== false, raw }; }
+function displayCoordinate(value, axis) { const axisProjection=MAP_PROJECTION?.source_bounds?.[axis], target=MAP_PROJECTION?.target_bounds?.[axis]; if(!axisProjection||!target)return number(value); const ratio=(number(value)-axisProjection.min)/(axisProjection.max-axisProjection.min); return target.min+ratio*(target.max-target.min); }
+function normalize(raw, ownerOverride=null, project=true) { const legacy = raw.entity_id === undefined; return { id: legacy ? raw.id : raw.entity_id, owner: ownerOverride ?? (legacy ? raw.p : raw.owner), type: legacy ? raw.t : raw.unit_type_id, x:project?displayCoordinate(raw.x,"x"):number(raw.x), y:project?displayCoordinate(raw.y,"y"):number(raw.y), hp:number(legacy ? raw.hp : raw.health), shields:number(raw.shields), energy:number(raw.energy), state:raw.state || (raw.alive === false ? "dead" : "visible"), alive:raw.alive !== false, raw }; }
 function entitiesOf(frame) { const context = frame.context || {}; const result = []; if (frame.entities_by_player) { for (const [owner, list] of Object.entries(frame.entities_by_player)) for (const raw of list || []) result.push(normalize(raw, Number(owner))); return result; } for (const raw of context.neutral_units || context.neutral_resources || context.map_resources || []) result.push(normalize(raw, 0)); for (const raw of context.own_units || []) result.push(normalize(raw, raw.owner ?? context.player_id ?? 1)); for (const raw of context.visible_enemies || []) result.push(normalize(raw, raw.owner ?? 2)); return result; }
+function staticEntities() { return staticObjects.map(object => normalize({entity_id:object.id, unit_type_id:object.unit_type_id, owner:object.owner, x:object.x, y:object.y, health:100, shields:0, energy:0, state:"map-static", alive:true}, Number(object.owner), false)); }
 const allEntities = FRAMES.flatMap(entitiesOf), xs = allEntities.map(e => e.x), ys = allEntities.map(e => e.y);
 const bounds = { minX:Math.min(...xs,0), maxX:Math.max(...xs,10), minY:Math.min(...ys,0), maxY:Math.max(...ys,10) }; const padX=Math.max(5,(bounds.maxX-bounds.minX)*.05), padY=Math.max(5,(bounds.maxY-bounds.minY)*.05); bounds.minX-=padX; bounds.maxX+=padX; bounds.minY-=padY; bounds.maxY+=padY;
 function current() { return FRAMES[index] || FRAMES[0]; }
@@ -204,19 +257,20 @@ function drawGrid() {
   ctx.strokeStyle="#dbe5ed88";ctx.lineWidth=1;ctx.strokeRect(1,1,canvas.width-2,canvas.height-2);
 }
 function drawStaticObject(object) {
-  const [x,y]=pos(object.x,object.y); const r=radius(object.type)*0.72;
-  ctx.save(); ctx.globalAlpha=0.28; ctx.fillStyle="#d8dee5"; ctx.strokeStyle="#101820"; ctx.lineWidth=1;
+  const [x,y]=pos(object.x,object.y); const r=radius(object.type)*0.78;
+  ctx.save(); ctx.globalAlpha=object.owner===0?0.62:0.72; ctx.fillStyle=color(object.owner); ctx.strokeStyle="#101820"; ctx.lineWidth=1;
   if (BUILDINGS.has(object.type)) { ctx.fillRect(x-r,y-r,r*2,r*2); ctx.strokeRect(x-r,y-r,r*2,r*2); }
-  else { ctx.beginPath();ctx.arc(x,y,Math.max(1.5,r*.55),0,Math.PI*2);ctx.fill(); }
+  else { ctx.beginPath();ctx.arc(x,y,Math.max(1.8,r*.68),0,Math.PI*2);ctx.fill(); }
   ctx.restore();
 }
 function drawEntity(entity) { if(!entity.alive) return; const [x,y]=pos(entity.x,entity.y), r=radius(entity.type), c=color(entity.owner); ctx.fillStyle=c;ctx.strokeStyle=selectedId===entity.id?"#fff":"#0a1117";ctx.lineWidth=selectedId===entity.id?3:1.5; if(RESOURCES.has(entity.type)){ctx.fillRect(x-r,y-r,r*2,r*2);ctx.strokeRect(x-r,y-r,r*2,r*2);} else if(BUILDINGS.has(entity.type)){ctx.fillRect(x-r,y-r,r*2,r*2);ctx.strokeRect(x-r,y-r,r*2,r*2);} else {ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.stroke();} const hp=Math.max(0,Math.min(1,hpValue(entity.hp)/maxHp(entity.type))); if(!RESOURCES.has(entity.type)){const w=Math.max(18,r*2.8);ctx.fillStyle="#351b1b";ctx.fillRect(x-w/2,y+r+3,w,3);ctx.fillStyle=hp>.6?"#56d18b":hp>.3?"#dfbd55":"#e36c6c";ctx.fillRect(x-w/2,y+r+3,w*hp,3);} if(selectedId===entity.id){ctx.fillStyle="#fff";ctx.font="bold 10px Consolas";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(entity.type.slice(0,3),x,y);ctx.textAlign="left";ctx.textBaseline="alphabetic";} }
-function draw() { const f=current(), es=entitiesOf(f); drawGrid(); if(document.getElementById("staticLayer").checked) for(const object of staticObjects) drawStaticObject(object); for(const e of es.filter(e=>e.owner===0))drawEntity(e); for(const e of es.filter(e=>e.owner!==0 && !isFriendly(e.owner)))drawEntity(e); for(const e of es.filter(e=>isFriendly(e.owner)))drawEntity(e); for(const ev of eventsOf(f)){const e=es.find(x=>x.id===ev.entity_id);if(e){const [x,y]=pos(e.x,e.y);ctx.strokeStyle="#f4b860";ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,radius(e.type)+7,0,Math.PI*2);ctx.stroke();}} document.getElementById("mapHud").textContent=`${mapNameOf(f)} · Loop ${f.loop} · ${formatTime(f.loop)} · Night ${f.context?.mission?.night ?? f.current_night ?? 0} · ${f.label || "frame"}`; updateSidebar(f,es); document.getElementById("seek").value=index; document.getElementById("timeCurrent").textContent=`Loop ${f.loop} · ${formatTime(f.loop)}`; }
+function drawFrameEntity(entity) { if(MAP_META.minimap_data_url && document.getElementById("staticLayer").checked && RESOURCES.has(entity.type))return; drawEntity(entity); }
+function draw() { const f=current(), es=entitiesOf(f); drawGrid(); if(document.getElementById("staticLayer").checked) for(const object of staticObjects) drawStaticObject(object); for(const e of es.filter(e=>e.owner===0))drawFrameEntity(e); for(const e of es.filter(e=>e.owner!==0 && !isFriendly(e.owner)))drawFrameEntity(e); for(const e of es.filter(e=>isFriendly(e.owner)))drawFrameEntity(e); for(const ev of eventsOf(f)){const e=es.find(x=>String(x.id)===String(ev.entity_id));if(e){const [x,y]=pos(e.x,e.y);ctx.strokeStyle="#f4b860";ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,radius(e.type)+7,0,Math.PI*2);ctx.stroke();}} document.getElementById("mapHud").textContent=`${mapNameOf(f)} · Loop ${f.loop} · ${formatTime(f.loop)} · Night ${f.context?.mission?.night ?? f.current_night ?? 0} · ${MAP_PROJECTION?"显示投影":"原始坐标"} · ${f.label || "frame"}`; updateSidebar(f,es); document.getElementById("seek").value=index; document.getElementById("timeCurrent").textContent=`Loop ${f.loop} · ${formatTime(f.loop)}`; }
 function counts(es, owner) { const out={}; for(const e of es.filter(e=>owner==="enemy"?!isFriendly(e.owner)&&e.owner!==0:owner==="friendly"?isFriendly(e.owner):owner===null?true:e.owner===owner)) out[e.type]=(out[e.type]||0)+1; return out; }
 function listHtml(map, cls) { return Object.entries(map).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([type,count])=>`<div class="unit-line ${cls}"><span>${esc(type)}</span><span class="count">${count}</span></div>`).join("") || `<span class="footer">无记录</span>`; }
-function updateSidebar(f, es) { const c=f.context||{}, m=c.mission||{}, res=resourcesOf(f); const friendly=es.filter(e=>isFriendly(e.owner)), enemy=es.filter(e=>e.owner!==0&&!isFriendly(e.owner)), neutral=es.filter(e=>e.owner===0); document.getElementById("mapName").textContent=mapNameOf(f);document.getElementById("loop").textContent=f.loop;document.getElementById("gameTime").textContent=`${number(f.real_sec ?? f.ts_sec ?? number(f.loop)/22.4).toFixed(1)}s`;document.getElementById("stateVersion").textContent=f.state_version ?? c.state_version ?? f.loop ?? "-";document.getElementById("contextVersion").textContent=c.context_version ?? "legacy";document.getElementById("phase").textContent=m.phase||((f.current_night??0)>0?"night":"active");document.getElementById("nightWave").textContent=`${m.night??f.current_night??0} / ${m.wave??f.waves_fired??0}`;document.getElementById("entityTotals").textContent=`${friendly.length} / ${enemy.length} / ${neutral.length}`;document.getElementById("minerals").textContent=res.minerals??0;document.getElementById("vespene").textContent=res.vespene??0;document.getElementById("supply").textContent=`${res.supply_used??0}/${res.supply_cap??0}`;document.getElementById("friendlyTypes").innerHTML=listHtml(counts(es,"friendly"),"friendly");document.getElementById("enemyTypes").innerHTML=listHtml(counts(es,"enemy"),"enemy"); renderLegend(es);renderEntities(es);renderActions(f.loop);renderEvents(f);document.getElementById("rawContext").textContent=JSON.stringify(c&&Object.keys(c).length?c:f,null,2);drawEconomy(index); }
-function renderLegend(es) { const owners=[...new Set(es.map(e=>e.owner))].sort((a,b)=>a-b); document.getElementById("legend").innerHTML=owners.map(owner=>`<span class="legend-item"><i class="legend-dot" style="background:${color(owner)}"></i>${ownerName(owner)} (${es.filter(e=>e.owner===owner).length})</span>`).join("") || `<span class="footer">当前帧没有实体</span>`; }
-function renderEntities(es) { const rows=es.filter(e=>`${e.id} ${e.owner} ${e.type} ${e.state}`.toLowerCase().includes(search)).sort((a,b)=>a.owner-b.owner||a.id-b.id);document.getElementById("entities").innerHTML=rows.map(e=>`<tr class="${selectedId===e.id?"selected":""}" data-id="${e.id}"><td>${e.id}</td><td class="${isFriendly(e.owner)?"side-blue":e.owner===0?"side-neutral":"side-red"}">${e.owner}</td><td>${esc(e.type)}</td><td>${esc(e.state)}</td><td>${hpValue(e.hp).toFixed(0)} / ${maxHp(e.type)}</td><td>${e.x.toFixed(1)},${e.y.toFixed(1)}</td></tr>`).join("") || `<tr><td colspan="6">无匹配实体</td></tr>`;document.querySelectorAll("#entities tr[data-id]").forEach(row=>row.onclick=()=>{selectedId=Number(row.dataset.id);draw();}); }
+function updateSidebar(f, es) { const c=f.context||{}, m=c.mission||{}, res=resourcesOf(f); const friendly=es.filter(e=>isFriendly(e.owner)), enemy=es.filter(e=>e.owner!==0&&!isFriendly(e.owner)), neutral=es.filter(e=>e.owner===0); document.getElementById("mapName").textContent=mapNameOf(f);document.getElementById("loop").textContent=f.loop;document.getElementById("gameTime").textContent=`${number(f.real_sec ?? f.ts_sec ?? number(f.loop)/22.4).toFixed(1)}s`;document.getElementById("stateVersion").textContent=f.state_version ?? c.state_version ?? f.loop ?? "-";document.getElementById("contextVersion").textContent=c.context_version ?? "legacy";document.getElementById("phase").textContent=m.phase||((f.current_night??0)>0?"night":"active");document.getElementById("nightWave").textContent=`${m.night??f.current_night??0} / ${m.wave??f.waves_fired??0}`;document.getElementById("entityTotals").textContent=`${friendly.length} / ${enemy.length} / ${neutral.length}`;document.getElementById("mapObjectCount").textContent=staticObjects.length||"-";document.getElementById("minerals").textContent=res.minerals??0;document.getElementById("vespene").textContent=res.vespene??0;document.getElementById("supply").textContent=`${res.supply_used??0}/${res.supply_cap??0}`;document.getElementById("friendlyTypes").innerHTML=listHtml(counts(es,"friendly"),"friendly");document.getElementById("enemyTypes").innerHTML=listHtml(counts(es,"enemy"),"enemy"); renderLegend(es);renderEntities(es);renderActions(f.loop);renderEvents(f);document.getElementById("rawContext").textContent=JSON.stringify(c&&Object.keys(c).length?c:f,null,2);drawEconomy(index); }
+function renderLegend(es) { const owners=[...new Set(es.map(e=>e.owner))].sort((a,b)=>a-b); const ownerLegend=owners.map(owner=>`<span class="legend-item"><i class="legend-dot" style="background:${color(owner)}"></i>${ownerName(owner)} (${es.filter(e=>e.owner===owner).length})</span>`).join(""); const mapLegend=staticObjects.length?`<span class="legend-item"><i class="legend-dot" style="background:#d8dee5"></i>真实地图 Objects (${staticObjects.length})</span>`:""; document.getElementById("legend").innerHTML=ownerLegend+mapLegend || `<span class="footer">当前帧没有实体</span>`; }
+function renderEntities(es) { const visible=document.getElementById("showStaticObjects").checked?[...staticEntities(),...es]:es; const rows=visible.filter(e=>`${e.id} ${e.owner} ${e.type} ${e.state}`.toLowerCase().includes(search)).sort((a,b)=>String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));document.getElementById("entities").innerHTML=rows.map(e=>`<tr class="${selectedId===e.id?"selected":""}" data-id="${e.id}"><td>${e.id}</td><td class="${isFriendly(e.owner)?"side-blue":e.owner===0?"side-neutral":"side-red"}">${e.owner}</td><td>${esc(e.type)}</td><td>${esc(e.state)}</td><td>${hpValue(e.hp).toFixed(0)} / ${maxHp(e.type)}</td><td>${e.x.toFixed(1)},${e.y.toFixed(1)}</td></tr>`).join("") || `<tr><td colspan="6">无匹配实体</td></tr>`;document.querySelectorAll("#entities tr[data-id]").forEach(row=>row.onclick=()=>{selectedId=row.dataset.id.startsWith("map-")?row.dataset.id:Number(row.dataset.id);draw();}); }
 function renderActions(loop) { document.getElementById("actions").innerHTML=ACTIONS.map(a=>`<div class="action ${number(a.loop)<=number(loop)?"current":""}" data-loop="${a.loop}"><b>${esc(a.name)}</b><div class="meta">${esc(a.action_id)} · loop ${a.loop} · ${a.dispatched?.success?"OK":"FAIL"}</div></div>`).join("")||`<span class="footer">无动作</span>`;document.querySelectorAll(".action").forEach(el=>el.onclick=()=>jumpToLoop(Number(el.dataset.loop))); }
 function renderEvents(f) { const items=[...eventsOf(f),...(f.command_results||[]).map(e=>({...e,kind:`command:${e.command_kind||e.code}`}))]; document.getElementById("events").innerHTML=items.map(e=>`<div class="event"><b>${esc(e.kind)}</b><div class="meta">loop ${e.loop??f.loop} · entity ${e.entity_id??0}</div></div>`).join("")||`<span class="footer">当前帧无事件</span>`; }
 function drawEconomy(cur) { const chart=document.getElementById("economy"), c=chart.getContext("2d"), w=chart.width,h=chart.height; c.fillStyle="#101419";c.fillRect(0,0,w,h);const vals=FRAMES.map(f=>Number(resourcesOf(f).minerals||0)), max=Math.max(50,...vals);c.strokeStyle="#55a9ff";c.lineWidth=2;c.beginPath();vals.forEach((v,i)=>{const x=i/(Math.max(1,vals.length-1))*w,y=h-v/max*h;i?c.lineTo(x,y):c.moveTo(x,y);});c.stroke();c.strokeStyle="#fff";c.lineWidth=1;const x=cur/Math.max(1,FRAMES.length-1)*w;c.beginPath();c.moveTo(x,0);c.lineTo(x,h);c.stroke();c.fillStyle="#8c98a5";c.font="10px Consolas";c.fillText("Minerals",5,12);c.fillText(String(max),w-40,12); }
@@ -226,9 +280,9 @@ function toggle() { if(IS_STATIC_PREVIEW || FRAMES.length < 2)return; playing=!p
 function tick(time) { if(!playing)return;const delta=Math.min(100,time-lastTime);lastTime=time;fractional+=delta*speed/250;if(fractional>=FRAMES.length-1){setIndex(FRAMES.length-1);stop();return;}index=Math.floor(fractional);draw();requestAnimationFrame(tick); }
 function jumpToLoop(loop) { const target=FRAMES.reduce((best,item,i)=>Math.abs(item.loop-loop)<Math.abs(FRAMES[best].loop-loop)?i:best,0);stop();setIndex(target); }
 function setupMarkers() { const strip=document.getElementById("markers"),den=Math.max(1,FRAMES.length-1);ACTIONS.forEach(a=>{const m=document.createElement("span");m.className="marker action";m.title=`${a.name} @ loop ${a.loop}`;m.style.left=`${FRAMES.findIndex(f=>f.loop>=a.loop)/den*100}%`;m.onclick=()=>jumpToLoop(a.loop);strip.appendChild(m);});FRAMES.forEach((f,i)=>eventsOf(f).forEach(ev=>{const m=document.createElement("span");m.className="marker";m.title=`${ev.kind} @ loop ${ev.loop}`;m.style.left=`${i/den*100}%`;m.onclick=()=>setIndex(i);strip.appendChild(m);})); }
-document.getElementById("play").onclick=toggle;document.getElementById("back").onclick=()=>{stop();setIndex(index-1);};document.getElementById("forward").onclick=()=>{stop();setIndex(index+1);};document.getElementById("start").onclick=()=>{stop();setIndex(0);};document.getElementById("end").onclick=()=>{stop();setIndex(FRAMES.length-1);};document.getElementById("seek").oninput=e=>{stop();setIndex(e.target.value);};document.querySelectorAll(".speed").forEach(button=>button.onclick=()=>{speed=Number(button.dataset.speed);document.querySelectorAll(".speed").forEach(item=>item.classList.remove("active"));button.classList.add("active");});document.getElementById("staticLayer").onchange=draw;document.getElementById("entitySearch").oninput=e=>{search=e.target.value.toLowerCase();renderEntities(entitiesOf(current()));};document.addEventListener("keydown",e=>{if(e.code==="Space"){e.preventDefault();toggle();}else if(e.code==="ArrowLeft"){stop();setIndex(index-1);}else if(e.code==="ArrowRight"){stop();setIndex(index+1);}else if(e.code==="Home"){stop();setIndex(0);}else if(e.code==="End"){stop();setIndex(FRAMES.length-1);}});
+document.getElementById("play").onclick=toggle;document.getElementById("back").onclick=()=>{stop();setIndex(index-1);};document.getElementById("forward").onclick=()=>{stop();setIndex(index+1);};document.getElementById("start").onclick=()=>{stop();setIndex(0);};document.getElementById("end").onclick=()=>{stop();setIndex(FRAMES.length-1);};document.getElementById("seek").oninput=e=>{stop();setIndex(e.target.value);};document.querySelectorAll(".speed").forEach(button=>button.onclick=()=>{speed=Number(button.dataset.speed);document.querySelectorAll(".speed").forEach(item=>item.classList.remove("active"));button.classList.add("active");});document.getElementById("staticLayer").onchange=draw;document.getElementById("showStaticObjects").onchange=()=>renderEntities(entitiesOf(current()));document.getElementById("entitySearch").oninput=e=>{search=e.target.value.toLowerCase();renderEntities(entitiesOf(current()));};document.addEventListener("keydown",e=>{if(e.code==="Space"){e.preventDefault();toggle();}else if(e.code==="ArrowLeft"){stop();setIndex(index-1);}else if(e.code==="ArrowRight"){stop();setIndex(index+1);}else if(e.code==="Home"){stop();setIndex(0);}else if(e.code==="End"){stop();setIndex(FRAMES.length-1);}});
 canvas.addEventListener("mousemove",e=>{const f=current(),es=entitiesOf(f),rect=canvas.getBoundingClientRect(),mx=(e.clientX-rect.left)*canvas.width/rect.width,my=(e.clientY-rect.top)*canvas.height/rect.height;let found=null;for(const unit of [...es].reverse()){const [x,y]=pos(unit.x,unit.y),r=radius(unit.type)+6;if((mx-x)**2+(my-y)**2<=r*r){found=unit;break;}}if(!found){tooltip.style.display="none";return;}tooltip.innerHTML=`${esc(ownerName(found.owner))} · ${esc(found.type)}<br>ID=${found.id} · state=${esc(found.state)}<br>HP=${hpValue(found.hp).toFixed(0)}/${maxHp(found.type)} · shield=${hpValue(found.shields).toFixed(0)} · energy=${hpValue(found.energy).toFixed(0)}<br>(${found.x.toFixed(2)}, ${found.y.toFixed(2)})`;tooltip.style.display="block";tooltip.style.left=`${e.clientX-rect.left+12}px`;tooltip.style.top=`${e.clientY-rect.top+12}px`;});canvas.addEventListener("mouseleave",()=>tooltip.style.display="none");
-document.getElementById("headerMeta").textContent=`${SUMMARY.replay_id||"replay"} · ${SUMMARY.evidence_type||"simulator"}`;document.getElementById("footerMeta").textContent=`${SUMMARY.actions_successful??0}/${SUMMARY.actions_total??0} actions · ${SUMMARY.event_count??0} events · ${allEntities.length} entity snapshots · trace ${String(SUMMARY.trace_sha256||"").slice(0,12)}`;document.getElementById("seek").max=Math.max(0,FRAMES.length-1);document.getElementById("timeStart").textContent=`Loop ${FRAMES[0].loop} · ${formatTime(FRAMES[0].loop)}`;document.getElementById("timeEnd").textContent=`Loop ${FRAMES[FRAMES.length-1].loop} · ${formatTime(FRAMES[FRAMES.length-1].loop)}`;const replayStatus=document.getElementById("replayStatus");replayStatus.textContent=IS_STATIC_PREVIEW?"静态地图预览 · 无动态回放帧":`${FRAMES.length} frames · 可播放`;replayStatus.classList.toggle("static",IS_STATIC_PREVIEW);if(IS_STATIC_PREVIEW){document.querySelectorAll("#play,#back,#forward,#start,#end,#seek,.speed").forEach(control=>control.disabled=true);}setupMarkers();draw();
+document.getElementById("headerMeta").textContent=`${SUMMARY.replay_id||"replay"} · ${SUMMARY.evidence_type||"simulator"}`;document.getElementById("footerMeta").textContent=`${SUMMARY.actions_successful??0}/${SUMMARY.actions_total??0} actions · ${SUMMARY.event_count??0} events · ${allEntities.length} dynamic snapshots · ${staticObjects.length} map objects · trace ${String(SUMMARY.trace_sha256||"").slice(0,12)}`;document.getElementById("seek").max=Math.max(0,FRAMES.length-1);document.getElementById("timeStart").textContent=`Loop ${FRAMES[0].loop} · ${formatTime(FRAMES[0].loop)}`;document.getElementById("timeEnd").textContent=`Loop ${FRAMES[FRAMES.length-1].loop} · ${formatTime(FRAMES[FRAMES.length-1].loop)}`;const replayStatus=document.getElementById("replayStatus");replayStatus.textContent=IS_STATIC_PREVIEW?"静态地图预览 · 无动态回放帧":MAP_PROJECTION?`${FRAMES.length} frames · 可播放 · 真实地图底图 / simulator 显示投影`:`${FRAMES.length} frames · 可播放`;replayStatus.classList.toggle("static",IS_STATIC_PREVIEW);if(IS_STATIC_PREVIEW){document.querySelectorAll("#play,#back,#forward,#start,#end,#seek,.speed").forEach(control=>control.disabled=true);}setupMarkers();draw();
 </script>
 </body>
 </html>

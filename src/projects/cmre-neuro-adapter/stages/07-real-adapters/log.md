@@ -265,3 +265,28 @@ Evidence:
 
 This does not change the live runtime blocker. A genuine real-map dynamic replay still requires
 an independent approved SC2 runtime lease and `CreateGame + JoinGame + RequestStep` evidence.
+
+## High-Density Playable Map Replay 2026-08-02 18:24 +08:00
+
+The playable simulator artifact is now generated with the real map record from
+`real-map-static-preview.jsonl`. It uses the actual `亡者之夜.SC2Map` minimap and all `1319`
+original `Objects` entries as the static visual/table layer, while retaining the `147` simulator
+frames covering loop `0..1056`, economy progression, worker production, structure completion,
+and Marine production.
+
+Because the simulator fixture uses local coordinates rather than real SC2 world coordinates, the
+dynamic layer uses an explicit display-only projection around the P1 start area. The raw
+simulator coordinates remain unchanged in the embedded context; the header labels this state as
+`真实地图底图 / simulator 显示投影`. This is a visual-density improvement, not live-map evidence.
+
+Evidence:
+
+- `simulator`: `python -m unittest tests.test_replay_player -v` -> `8` tests passed.
+- `static`: `python -m compileall -q cmre_neuro_adapter tests` -> pass.
+- `runtime`: Playwright Chromium loaded the generated HTML, found `1319` map Objects and `1341`
+  entity rows, observed `326506` non-empty Canvas pixels, confirmed timeline `0..146`, moved the
+  seek control, and observed playback enter the pause state.
+- `runtime`: Chrome screenshot -> `artifacts/stage07-basic-command-replay-20260802/state-driven-real-map-smoke.png`.
+
+The live real-map replay blocker remains unchanged: no runtime entity/resource/action trace is
+claimed until an independent approved SC2 runtime lease permits `CreateGame + JoinGame + RequestStep`.

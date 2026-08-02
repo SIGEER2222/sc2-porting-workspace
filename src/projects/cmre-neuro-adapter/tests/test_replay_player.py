@@ -7,7 +7,7 @@ from pathlib import Path
 
 from cmre_neuro_adapter.macro_replay import build_macro_replay
 from cmre_neuro_adapter.real_map_replay import build_map_record
-from cmre_neuro_adapter.replay_player import load_records, render_player_html
+from cmre_neuro_adapter.replay_player import _with_map_record, load_records, render_player_html
 
 
 class ReplayPlayerTests(unittest.TestCase):
@@ -137,6 +137,21 @@ class ReplayPlayerTests(unittest.TestCase):
             self.assertIn("staticLayer", html)
             self.assertIn("world_bounds", html)
             self.assertIn("亡者之夜.SC2Map", html)
+
+    def test_with_map_record_adds_display_only_simulator_projection(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            map_records = root / "map.jsonl"
+            map_records.write_text(
+                '{"record_type":"header"}\n'
+                '{"record_type":"map","map_name":"亡者之夜.SC2Map","static_objects":[]}\n',
+                encoding="utf-8",
+            )
+            replay = [{"record_type": "header"}, {"record_type": "summary"}]
+            merged = _with_map_record(replay, map_records, project_simulator=True)
+            self.assertEqual(merged[1]["record_type"], "map")
+            self.assertEqual(merged[1]["dynamic_coordinate_projection"]["kind"], "display-only")
+            self.assertEqual(merged[1]["display_note"], "真实地图静态层 + simulator 动态层（坐标为显示投影）")
 
     def test_build_map_record_preserves_original_objects(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
