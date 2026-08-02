@@ -12,6 +12,10 @@ movement/combat activity as context, but it does not make every SC2 command a ge
 CMRE therefore owns a separate typed basic-command catalog and keeps `ability_*`, `call_merc`,
 and mission-specific production policy above it.
 
+An inspectable foundation replay is available under
+`artifacts/stage07-basic-command-replay-20260802/`. It records the Neuro action lifecycle,
+public context snapshots, state changes, command results, and the canonical simulator event trace.
+
 ## Failure-First Diagnostic
 
 - `simulator`: the initial transport test command failed with
@@ -23,6 +27,10 @@ and mission-specific production policy above it.
 - `simulator`: after the foundation slice, the full adapter suite passed `68/68` tests. The new
   command tests drove `SimulatorSession.unit_order` and observed a Marine move, a Barracks build,
   and a Marine production result.
+- `simulator`: the adapter-aware replay executed `3/3` actions successfully through
+  `NeuroRuntime`; the Marine reached `(5, 3)`, one Barracks completed, and the Marine census became
+  `2`. The canonical event trace contains `6` events with SHA-256
+  `920767ed775b401632f9ba9004f1ae461d4006589c4e0691a95d46c52269c866`.
 - `runtime`: an approved launcher preflight with `-NoLaunch` completed staging successfully,
   but it did not count as live evidence.
 - `runtime`: the live launcher attempt was rejected before staging with
@@ -88,6 +96,14 @@ and mission-specific production policy above it.
   canonical `unit.order` operation.
 - `tests/test_basic_actions.py`: simulator-backed foundation regression suite.
 
+## Replay Artifacts
+
+- `artifacts/stage07-basic-command-replay-20260802/replay.jsonl`: adapter-aware JSONL replay with
+  action IDs, acceptance/dispatch results, public contexts, state checks, and key events.
+- `artifacts/stage07-basic-command-replay-20260802/simulator-events.jsonl`: canonical simulator
+  event and command-result trace.
+- `artifacts/stage07-basic-command-replay-20260802/summary.json`: replay summary and trace hash.
+
 ## Verification Refresh
 
 - `simulator`: `python -m pytest tests/test_transport_adapters.py --maxfail=20 -q` -> `6 passed`.
@@ -96,6 +112,8 @@ and mission-specific production policy above it.
 - `static`: `python -m compileall -q cmre_neuro_adapter tests` -> pass.
 - `static`: Python 3.11 grammar fallback -> `55` files passed with `ast.parse(..., feature_version=(3,11))`.
 - `static`: Stage 07 JSON parse and `git diff --check -- src/projects/cmre-neuro-adapter` -> pass.
+- `simulator`: replay artifact assertions -> `PASS`; `replay.jsonl` contains `9` records and
+  `summary.json` reports `3/3` actions and the expected move/build/produce effects.
 
 ## Problems and Limitations
 
