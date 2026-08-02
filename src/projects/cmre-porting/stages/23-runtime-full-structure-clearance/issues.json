@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "RUNTIME-SC2-LEASE-BUSY",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Fresh Stage 23 runtime window could not acquire the SC2 lease",
+      "detail": "An earlier launcher attempt was blocked by the global runtime lease. The blocker was resolved by preserving the owner, waiting for a task-owned window, and completing pass14 through a fresh approved launcher.",
+      "evidence_type": "blocked",
+      "evidence": "artifacts/projects/cmre-porting/stage23-runtime-full-structure-clearance/runtime-20260802-1235/launcher-stderr.txt",
+      "resolution_evidence": "artifacts/projects/cmre-porting/stage23-runtime-full-structure-clearance/runtime-20260802-1330/launcher-stdout.txt",
+      "nextAction": "None for Stage 23; keep launcher lease ownership checks for future runtime stages."
+    },
+    {
+      "id": "RUNTIME-FULL-STRUCTURE-CLEARANCE-UNVERIFIED",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Real SC2 zero-target clearance was initially unverified",
+      "detail": "Earlier partial attempts did not satisfy the final census/native preservation gate. The pass14 fresh window now proves zero declared objective targets with correlated typed actions, frame progress, native preservation, and same-window ScriptError evidence.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage23-runtime-full-structure-clearance/runtime-result-pass14.json",
+      "nextAction": "None; Stage 23 runtime clearance is PASS."
+    },
+    {
+      "id": "RUNTIME-CONTROLLER-TERMINAL-RETRY",
+      "severity": "low",
+      "status": "resolved",
+      "title": "No-progress and end-state API retries required controller hardening",
+      "detail": "A stalled assigned target could starve idle attackers, and a final API census could race the mission end state. The controller now performs bounded no-progress reallocation and preserves the successful typed census/native snapshot before terminal API closure.",
+      "evidence_type": "static",
+      "evidence": "src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/test_full_structure_clearance.py",
+      "resolution_evidence": "artifacts/projects/cmre-porting/stage23-runtime-full-structure-clearance/runtime-result-pass14.json",
+      "nextAction": "None; retain the bounded retry and terminal snapshot contract in future modifiers."
+    },
+    {
+      "id": "WORKFLOW-STATUS-LEGACY-STAGE13-PATH",
+      "severity": "low",
+      "status": "open",
+      "title": "Default workflow status references missing historical Stage 13 outputs",
+      "detail": "The default offline workflow status still checks missing historical Stage 13 runtime-summary/assert-results paths. Stage 23 is independently verified through explicit runtime artifacts and overrides.",
+      "evidence_type": "static",
+      "evidence": "artifacts/projects/cmre-porting/stage23-runtime-full-structure-clearance/workflow-status-preflight.json",
+      "nextAction": "Repair the default status path in a separately scoped workflow stage; do not change Stage 23 runtime verdict."
+    }
+  ]
+}

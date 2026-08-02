@@ -67,6 +67,8 @@ except ImportError:
 # ---- RPC 协议数据类 ----
 
 PROTOCOL_VERSION = "vibe/1.0"
+BANK_WRITE_RETRIES = 20
+BANK_WRITE_RETRY_DELAY_SEC = 0.1
 
 
 @dataclass
@@ -248,8 +250,17 @@ def write_bank_request(bank_name: str, request_id: str, request: RpcRequest, pla
     pv = ET.SubElement(pk, "Value")
     pv.set("string", request_id)
 
-    tree.write(bank_path, encoding="utf-8", xml_declaration=True)
-    return True
+    for attempt in range(BANK_WRITE_RETRIES):
+        try:
+            tree.write(bank_path, encoding="utf-8", xml_declaration=True)
+            return True
+        except (PermissionError, OSError):
+            if attempt + 1 >= BANK_WRITE_RETRIES:
+                raise
+            # SC2 may hold the Bank while its own BankSave completes. Retry
+            # the same prepared document without rebuilding request state.
+            time.sleep(BANK_WRITE_RETRY_DELAY_SEC)
+    return False
 
 
 # ---- SC2API 连接（aiohttp + 后台 event loop 同步封装）----
@@ -513,12 +524,14 @@ class VibeHost:
         runtime_bank_name: str = "CMRERebornDebug",
         require_initialization: bool = False,
         realtime: bool = True,
+        poll_step_count: int = 1,
     ):
         self.sc2_port = sc2_port
         self.bank_name = bank_name
         self.runtime_bank_name = runtime_bank_name
         self.require_initialization = require_initialization
         self.realtime = realtime
+        self.poll_step_count = max(1, int(poll_step_count))
         self.initialization_complete = not require_initialization
         self.initialization_status: dict[str, Any] = {}
         self.initialization_error = ""
@@ -764,6 +777,13 @@ class VibeHost:
             timeout,
             advance_frames=transport in ("map_command", "bank_poll"),
         )
+        # Locally synthesized transport failures do not come from the Kernel
+        # and therefore may omit protocol identity fields. Preserve the
+        # originating request identity so callers can correlate every result.
+        response.session_id = response.session_id or request.session_id
+        response.request_id = response.request_id or request.request_id
+        response.sequence = response.sequence or request.sequence
+        response.operation = response.operation or request.operation
         resp_record = {
             "request_id": request.request_id,
             "operation": operation,
@@ -837,8 +857,20 @@ class VibeHost:
                 return RpcResponse.from_json(raw)
             if advance_frames and self.client:
                 # RequestStep 在 realtime=true 会被 SC2 拒绝，但 client.step 已
-                # 将该失败收敛为 False；这里不阻断后续 wall-clock 轮询。
-                self.client.step(count=1, timeout=min(5.0, max(0.1, timeout)))
+                # 将该失败收敛为 False。非实时 peer 断开时立即结束轮询，
+                # 否则每个请求都会在 websocket 已关闭后重复写入直到 timeout。
+                if not self.client.step(
+                    count=self.poll_step_count,
+                    timeout=min(5.0, max(0.1, timeout)),
+                ):
+                    return RpcResponse(
+                        kind="error",
+                        session_id=self.session_id,
+                        request_id=request_id,
+                        sequence=self.sequence,
+                        error_code="INTERNAL_ERROR",
+                        payload={"reason": "request_step_failed"},
+                    )
             time.sleep(0.05)  # 50ms 轮询
         # 超时
         return RpcResponse(

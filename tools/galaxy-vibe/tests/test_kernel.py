@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -27,7 +28,13 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "tools" / "galaxy-vibe"))
 sys.path.insert(0, str(REPO_ROOT / "src" / "projects" / "cmre-porting"))
 
-from host.vibe_host import RpcRequest, RpcResponse, VibeHost, PROTOCOL_VERSION  # noqa: E402
+from host.vibe_host import (  # noqa: E402
+    RpcRequest,
+    RpcResponse,
+    VibeHost,
+    PROTOCOL_VERSION,
+    write_bank_request,
+)
 from vibe import protocol  # noqa: E402
 from vibe.function_registry import load_function_registry  # noqa: E402
 from vibe.simulator_transport import SimulatorTransport  # noqa: E402
@@ -147,6 +154,29 @@ class TestRpcResponse(unittest.TestCase):
         """无效 JSON 应返回 INTERNAL_ERROR。"""
         resp = RpcResponse.from_json("not json")
         self.assertEqual(resp.error_code, "INTERNAL_ERROR")
+
+
+# ---- Bank transport tests ----
+
+class TestBankTransport(unittest.TestCase):
+    def test_bank_write_retries_transient_file_lock(self):
+        request = RpcRequest(
+            session_id="bank-test",
+            request_id="request-1",
+            sequence=1,
+            operation="system.ping",
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with patch("host.vibe_host.DEFAULT_BANK_DIR", Path(temp_dir)):
+                with patch.object(
+                    __import__("host.vibe_host", fromlist=["ET"]).ET.ElementTree,
+                    "write",
+                    side_effect=[PermissionError("bank locked"), None],
+                ) as write_mock:
+                    with patch("host.vibe_host.time.sleep") as sleep_mock:
+                        self.assertTrue(write_bank_request("RetryBank", "request-1", request))
+        self.assertEqual(write_mock.call_count, 2)
+        sleep_mock.assert_called_once()
 
 
 # ---- 白名单注册表测试 ----
@@ -328,6 +358,49 @@ class TestVibeHostMocked(unittest.TestCase):
             response = self.host._poll_response("waiting", timeout=0.06, advance_frames=True)
         self.assertEqual(response.error_code, "INTERNAL_ERROR")
         self.assertGreaterEqual(mock_client.step.call_count, 1)
+
+    def test_bank_poll_uses_configured_step_batch(self):
+        """A non-realtime caller may batch safe RequestStep progress."""
+        mock_client = MagicMock()
+        mock_client.step.return_value = True
+        self.host.client = mock_client
+        self.host.poll_step_count = 4
+        with patch("host.vibe_host.read_bank", return_value={}):
+            self.host._poll_response("batched", timeout=0.06, advance_frames=True)
+        self.assertGreaterEqual(mock_client.step.call_count, 1)
+        self.assertEqual(mock_client.step.call_args_list[0].kwargs["count"], 4)
+
+    def test_bank_poll_stops_when_request_step_fails(self):
+        """SC2 peer 断开时 BankPoll 必须立即返回，不能重复写坏 websocket。"""
+        mock_client = MagicMock()
+        mock_client.step.return_value = False
+        self.host.client = mock_client
+        with patch("host.vibe_host.read_bank", return_value={}):
+            response = self.host._poll_response("disconnected", timeout=5.0, advance_frames=True)
+        self.assertEqual(response.error_code, "INTERNAL_ERROR")
+        self.assertEqual(response.payload["reason"], "request_step_failed")
+        self.assertEqual(mock_client.step.call_count, 1)
+
+    def test_request_fills_identity_for_local_transport_error(self):
+        """Host-generated transport errors retain the originating operation."""
+        self.host.client = MagicMock()
+        with patch("host.vibe_host.write_bank_request", return_value=True):
+            with patch.object(
+                self.host,
+                "_poll_response",
+                return_value=RpcResponse(
+                    kind="error",
+                    session_id="",
+                    request_id="",
+                    sequence=0,
+                    error_code="INTERNAL_ERROR",
+                ),
+            ):
+                response = self.host.request("system.ping", {}, transport="bank_poll")
+        self.assertEqual(response.session_id, self.host.session_id)
+        self.assertTrue(response.request_id)
+        self.assertEqual(response.sequence, 1)
+        self.assertEqual(response.operation, "system.ping")
 
     def test_map_initialization_gate_is_stable_before_actions(self):
         """Host must observe complete map initialization twice before actions."""

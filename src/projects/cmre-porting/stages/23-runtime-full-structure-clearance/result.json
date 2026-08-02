@@ -1,0 +1,84 @@
+{
+  "stage_id": "23-runtime-full-structure-clearance",
+  "schemaVersion": 1,
+  "status": "PASS",
+  "current_phase": "Fresh approved runtime window cleared every declared hostile objective while preserving native initialization",
+  "opened_at": "2026-08-02T04:20:00Z",
+  "completed_at": "2026-08-02T05:28:40Z",
+  "verification_results": {
+    "controller_contract": {
+      "status": "PASS",
+      "evidence_type": "static",
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/test_full_structure_clearance.py",
+      "summary": "11 tests passed, covering objective projection, stale/dead tags, allocation, reinforcement, bounded retry, no-progress reallocation, and terminal handling."
+    },
+    "cross_stage_regression": {
+      "status": "PASS",
+      "evidence_type": "static",
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/test_full_structure_clearance.py src/projects/cmre-porting/stages/22-runtime-typed-combat-census/test_typed_combat_census.py tools/galaxy-vibe/tests/test_kernel.py tools/launchers/tests/test_launch_cmre_alenger_static.py",
+      "summary": "71 tests passed with 3 subtests."
+    },
+    "python_and_diff_validation": {
+      "status": "PASS",
+      "evidence_type": "static",
+      "command": "python -m py_compile src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/run_runtime_full_structure_clearance.py src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/test_full_structure_clearance.py; git diff --check",
+      "summary": "Stage 23 Python modules compiled and no whitespace errors were reported."
+    },
+    "static_validation": {
+      "status": "PASS",
+      "evidence_type": "static",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1",
+      "artifact": "artifacts/galaxy-vibe/static-validation-report.json",
+      "summary": "52/52 checks passed with zero warnings."
+    },
+    "manifest_simulator_preflight": {
+      "status": "PASS",
+      "evidence_type": "simulator",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/vibe.ps1 manifest -RunId stage23-manifest-preflight",
+      "artifact": "artifacts/projects/cmre-porting/stage12-vibe-task-manifest/simulator-smoke-result.json",
+      "summary": "Unified manifest generation and simulator smoke passed; simulator evidence remains separate from live clearance."
+    },
+    "runtime_full_structure_clearance": {
+      "status": "PASS",
+      "evidence_type": "runtime",
+      "launcher_command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander TerranRaynor -ListenPort 5125 -ApiMinimal -DebugMode -KeepAlive -MapCopySuffix stage23-runtime-full-1330",
+      "command": "python src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/run_runtime_full_structure_clearance.py --port 5125 --map artifacts/projects/cmre-porting/stage23-runtime-full-structure-clearance/stage23-runtime-full-1250.packed.SC2Map --output artifacts/projects/cmre-porting/stage23-runtime-full-structure-clearance/runtime-result-pass14.json --attacker-count 200 --defender-count 0 --reinforcement-count 32 --max-reinforcements 2 --min-attackers 8 --max-retries 6 --max-no-progress 12 --attackers-per-target 4 --step-size 64 --max-loops 12000 --wall-time-budget-sec 300",
+      "artifact": "artifacts/projects/cmre-porting/stage23-runtime-full-structure-clearance/runtime-result-pass14.json",
+      "summary": "Fresh CreateGame + JoinGame passed; initial typed objective census was 206 and the terminal observation verified zero remaining declared targets. The controller advanced loop 63 to 7727 and recorded 542 correlated typed attack results. Native CommandCenter=1 and SCV=12 were preserved before and after; all replacement/removal flags remained zero."
+    },
+    "script_error_gate": {
+      "status": "PASS",
+      "evidence_type": "runtime",
+      "command": "python tools/galaxy-vibe/script_error_check.py --since 1785648216 --out artifacts/projects/cmre-porting/stage23-runtime-full-structure-clearance/script-error-verdict-pass14.json",
+      "artifact": "artifacts/projects/cmre-porting/stage23-runtime-full-structure-clearance/script-error-verdict-pass14.json",
+      "summary": "The same launcher window reported zero new ScriptError files."
+    },
+    "evidence_bundle": {
+      "status": "PASS",
+      "evidence_type": "runtime",
+      "artifact": "artifacts/projects/cmre-porting/stage23-runtime-full-structure-clearance/evidence-bundle-pass14.json",
+      "summary": "The bundle records 6 runtime, 2 static, and 1 simulator evidence item with non-empty SHA-256 hashes."
+    }
+  },
+  "warnings": [
+    {
+      "id": "WORKFLOW-STATUS-LEGACY-STAGE13-PATH",
+      "severity": "low",
+      "status": "open",
+      "evidence_type": "static",
+      "detail": "The default offline workflow status still checks missing historical Stage 13 runtime-summary/assert-results paths; Stage 23 evidence is valid through its explicit runtime artifacts and overrides.",
+      "nextAction": "Repair the default status path in a separately scoped workflow stage; do not reinterpret this historical warning as a Stage 23 runtime failure."
+    }
+  ],
+  "changed_paths": [
+    "src/projects/cmre-porting/project.json",
+    "src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/run_runtime_full_structure_clearance.py",
+    "src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/test_full_structure_clearance.py",
+    "src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/result.json",
+    "src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/log.md",
+    "src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/issues.json",
+    "src/projects/cmre-porting/stages/24-final-acceptance/plan.md",
+    "artifacts/projects/cmre-porting/stage23-runtime-full-structure-clearance/evidence-bundle-pass14.json"
+  ],
+  "next_stage_plan": "src/projects/cmre-porting/stages/24-final-acceptance/plan.md"
+}
