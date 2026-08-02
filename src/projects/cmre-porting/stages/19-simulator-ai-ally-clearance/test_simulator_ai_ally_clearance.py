@@ -139,6 +139,16 @@ class TestSimulatorAiAllyClearance(unittest.TestCase):
         self.assertGreaterEqual(report.end_loop, CLEAR_PUSH_COMMAND_INTERVAL)
         self.assertGreaterEqual(report.cmd_ok_stats.get("push", 0), 2)
         self.assertEqual(report.cmd_fail_stats, {})
+        self.assertGreater(report.event_summary.get("total", 0), 0)
+        self.assertIn("payload_totals", report.event_summary)
+        allocation = report.target_allocation_summary
+        self.assertEqual(allocation.get("push_units_spawned"), 1)
+        self.assertGreaterEqual(allocation.get("allocations", 0), 2)
+        self.assertGreaterEqual(allocation.get("reallocations", 0), 1)
+        self.assertEqual(
+            allocation.get("reallocation_reasons", {}).get("target_destroyed"),
+            allocation.get("reallocations"),
+        )
 
     def test_dead_push_unit_is_ignored_by_later_dispatch(self):
         data = _synthetic_map(
@@ -193,6 +203,10 @@ class TestSimulatorAiAllyClearance(unittest.TestCase):
         self.assertEqual(report.player1_survivors, 1)
         self.assertEqual(report.total_commands_issued, 3)
         self.assertEqual(report.cmd_fail_stats, {})
+        self.assertEqual(
+            report.target_allocation_summary.get("push_units_spawned"), 2
+        )
+        self.assertEqual(report.target_allocation_summary.get("push_units_dead_filtered"), 1)
 
     def test_wall_clock_exhaustion_is_inconclusive_with_live_structures(self):
         data = _synthetic_map(
