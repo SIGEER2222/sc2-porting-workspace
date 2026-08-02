@@ -82,7 +82,7 @@ P2_PLAYER_ID = 2
 PLAYER_ID = P1_PLAYER_ID
 # SC2 requires every participant in a local multiplayer game to submit the
 # same server/client port topology during JoinGame. The client port pair is
-# the guest slot in the shared Portconfig; it is not a private pair per API
+# the guest slot in the shared Portconfig; it is not private to one API
 # websocket.
 MULTIPLAYER_PORT_BASE = 5200
 
@@ -90,7 +90,7 @@ MULTIPLAYER_PORT_BASE = 5200
 def _multiplayer_port_topology(
     base_port: int,
 ) -> tuple[tuple[int, int], tuple[tuple[int, int], ...]]:
-    """Return one shared host/guest Portconfig for every participant client."""
+    """Return one shared host/guest Portconfig for a 1v1 match."""
     if base_port < 1024 or base_port + 3 > 65535:
         raise ValueError(f"invalid multiplayer port base: {base_port}")
     return (base_port, base_port + 1), ((base_port + 2, base_port + 3),)
@@ -789,6 +789,7 @@ async def run_p1_anchor(
     verbose: bool = True,
     output_path: Optional[str] = None,
     multiplayer_port_base: int = MULTIPLAYER_PORT_BASE,
+    multiplayer_ports: bool = False,
 ) -> dict:
     """Create the two-participant game and hold the real P1 API client.
 
@@ -807,9 +808,6 @@ async def run_p1_anchor(
     }
     try:
         await conn.connect()
-        server_ports, client_ports = _multiplayer_port_topology(
-            multiplayer_port_base
-        )
         ping = await conn.send_request(sc_pb.Request(ping=sc_pb.RequestPing()))
         if verbose:
             print(f"[anchor] Ping: version={ping.ping.game_version}")
@@ -841,18 +839,28 @@ async def run_p1_anchor(
         join = sc_pb.Request(join_game=sc_pb.RequestJoinGame(
             race=1,
             player_name="P1",
-            host_ip="127.0.0.1",
+            host_ip="127.0.0.1" if multiplayer_ports else "",
             options=sc_pb.InterfaceOptions(raw=True),
         ))
-        join.join_game.server_ports.game_port = server_ports[0]
-        join.join_game.server_ports.base_port = server_ports[1]
-        for game_port, base_port in client_ports:
-            client_ports = join.join_game.client_ports.add()
-            client_ports.game_port = game_port
-            client_ports.base_port = base_port
+        # The default stays on SC2's local JoinGame path. A real two-client
+        # run can opt into the complete shared Portconfig explicitly.
+        if multiplayer_ports:
+            server_ports, client_ports = _multiplayer_port_topology(
+                multiplayer_port_base
+            )
+            join.join_game.server_ports.game_port = server_ports[0]
+            join.join_game.server_ports.base_port = server_ports[1]
+            for game_port, base_port in client_ports:
+                port = join.join_game.client_ports.add()
+                port.game_port = game_port
+                port.base_port = base_port
         joined = False
+        join_timeout = 180 if multiplayer_ports else 30
+        join_retries = 1 if multiplayer_ports else 2
         for attempt in range(30):
-            response = await conn.send_request(join, timeout=30, max_retries=2)
+            response = await conn.send_request(
+                join, timeout=join_timeout, max_retries=join_retries
+            )
             if not response.error:
                 joined = True
                 break
@@ -1098,13 +1106,17 @@ async def run_live(
             join_req.join_game.server_ports.game_port = server_ports[0]
             join_req.join_game.server_ports.base_port = server_ports[1]
             for game_port, base_port in client_ports:
-                client_ports = join_req.join_game.client_ports.add()
-                client_ports.game_port = game_port
-                client_ports.base_port = base_port
+                client_port = join_req.join_game.client_ports.add()
+                client_port.game_port = game_port
+                client_port.base_port = base_port
         joined = False
+        join_timeout = 180 if multiplayer_ports else 30
+        join_retries = 1 if multiplayer_ports else 2
         for attempt in range(30):
             try:
-                r = await conn.send_request(join_req, timeout=30, max_retries=2)
+                r = await conn.send_request(
+                    join_req, timeout=join_timeout, max_retries=join_retries
+                )
                 if r.error:
                     if verbose and attempt == 0:
                         print(f"  JoinGame attempt {attempt+1}: error={r.error}")
@@ -1814,6 +1826,11 @@ def main():
         help="JoinGame 时提交共享 server/client 端口拓扑（需要多个 SC2 client）",
     )
     parser.add_argument(
+        "--anchor-multiplayer-ports",
+        action="store_true",
+        help="P1 anchor JoinGame 时提交完整双 participant 端口拓扑",
+    )
+    parser.add_argument(
         "--multiplayer-port-base",
         type=int,
         default=MULTIPLAYER_PORT_BASE,
@@ -1837,6 +1854,7 @@ def main():
             verbose=not args.quiet,
             output_path=args.anchor_output or args.output,
             multiplayer_port_base=args.multiplayer_port_base,
+            multiplayer_ports=args.anchor_multiplayer_ports,
         ))
         if args.quiet:
             print(json.dumps(anchor_report, ensure_ascii=False))

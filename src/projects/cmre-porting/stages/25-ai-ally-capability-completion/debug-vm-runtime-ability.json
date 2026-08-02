@@ -1,0 +1,47 @@
+{
+  "vm": "vibe-debug/1",
+  "mode": "debug",
+  "steps": [
+    {
+      "op": "call",
+      "fn": "vibe.unit.spawn_group",
+      "args": {"unit_type": "Marine", "count": 3, "player": 1, "x": 85.0, "y": 94.0},
+      "save": "squad"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.squad",
+      "path": "created",
+      "equals": 3
+    },
+    {
+      "op": "foreach",
+      "source": "$vars.squad.unit_tags",
+      "item": "unit_tag",
+      "steps": [
+        {
+          "op": "call",
+          "fn": "vibe.unit.add_ability",
+          "args": {"unit_tag": "$vars.unit_tag", "ability": "Stimpack"}
+        },
+        {
+          "op": "assert",
+          "source": "$last",
+          "path": "has_ability",
+          "equals": true
+        },
+        {
+          "op": "call",
+          "fn": "vibe.unit.query_ability",
+          "args": {"unit_tag": "$vars.unit_tag", "ability": "Stimpack"}
+        },
+        {
+          "op": "assert",
+          "source": "$last",
+          "path": "has_ability",
+          "equals": true
+        }
+      ]
+    }
+  ]
+}

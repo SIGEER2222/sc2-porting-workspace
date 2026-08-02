@@ -278,6 +278,15 @@ class DebugVmTests(unittest.TestCase):
         query_calls = [call for call in bridge.calls if call[0] == "vibe.unit.query_ability"]
         self.assertEqual([args["unit_tag"] for _, args in query_calls], [101, 102, 103])
 
+    def test_cross_unit_ability_program_is_hot_loadable(self):
+        program_path = Path(__file__).with_name("debug-vm-runtime-cross-unit-ability.json")
+        program = json.loads(program_path.read_text(encoding="utf-8"))
+        self.assertEqual(program["steps"][3]["fn"], "vibe.unit.query_ability")
+        self.assertEqual(program["steps"][3]["args"]["ability"], "MedivacHeal")
+        self.assertEqual(program["steps"][5]["fn"], "vibe.unit.add_ability")
+        self.assertEqual(program["steps"][5]["args"]["ability"], "MedivacHeal")
+        self.assertEqual(program["steps"][7]["args"]["ability"], "MedivacHeal")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,74 @@
+{
+  "vm": "vibe-debug/1",
+  "mode": "debug",
+  "steps": [
+    {
+      "op": "call",
+      "fn": "vibe.unit.spawn_group",
+      "args": {
+        "unit_type": "Marine",
+        "count": 1,
+        "player": 1,
+        "x": 85.0,
+        "y": 94.0
+      },
+      "save": "marine"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.marine",
+      "path": "created",
+      "equals": 1
+    },
+    {
+      "op": "set",
+      "name": "unit_tag",
+      "value": "$vars.marine.unit_tags.0"
+    },
+    {
+      "op": "call",
+      "fn": "vibe.unit.query_ability",
+      "args": {
+        "unit_tag": "$vars.unit_tag",
+        "ability": "MedivacHeal"
+      },
+      "save": "before"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.before",
+      "path": "has_ability",
+      "equals": false
+    },
+    {
+      "op": "call",
+      "fn": "vibe.unit.add_ability",
+      "args": {
+        "unit_tag": "$vars.unit_tag",
+        "ability": "MedivacHeal"
+      },
+      "save": "added"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.added",
+      "path": "has_ability",
+      "equals": true
+    },
+    {
+      "op": "call",
+      "fn": "vibe.unit.query_ability",
+      "args": {
+        "unit_tag": "$vars.unit_tag",
+        "ability": "MedivacHeal"
+      },
+      "save": "after"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.after",
+      "path": "has_ability",
+      "equals": true
+    }
+  ]
+}
