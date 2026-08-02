@@ -575,3 +575,22 @@ protected 5153 Debug VM window cannot satisfy this gate.
 - `blocked`: this is simulator evidence only. Corrected native P2 SC2
   gather/train/move/attack runtime validation remains blocked by the existing
   protected/concurrent launcher and map roster constraints.
+
+## Verification Loop 2026-08-02 Runtime Repair Blocker Recorded
+
+- `blocked`: the approved launcher attempt on API port `5221` completed map
+  staging but `SC2_x64` crashed before API listen. The same-window GameLog
+  reported `e_fileCorruptRepairable (NGDP:E_REPAIR)` and
+  `EEV_REPAIR_CONTAINER` for `SC2Data`, with `SC2Data/CASCRepair.mrk` present.
+- `blocked`: because the API never became ready, no CreateGame, JoinGame,
+  participant roster, P2 action, native replay, or same-window ScriptError
+  verdict is claimed. P2 remains fail-closed and no strategy action was sent.
+- `static`: the blocker is recorded separately from the prior topology and
+  protected-lease attempts so later recovery can replace only this blocked
+  evidence. Evidence:
+  `src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-repair-blocked.json`.
+- `next`: after the local SC2 installation is repaired outside this repository,
+  rerun the approved primary/secondary client flow, verify `player_id=2`, then
+  require native SupplyDepot/Refinery/Barracks/Marine transitions, Marine-only
+  attack issuers, and a same-window ScriptError verdict before changing stage
+  status.
