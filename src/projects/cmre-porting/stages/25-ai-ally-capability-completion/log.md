@@ -544,3 +544,34 @@ protected 5153 Debug VM window cannot satisfy this gate.
 - `blocked`: native P2 acceptance remains open. The launcher/GameLog evidence
   is retained at
   `src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-native-next-20260802/launch-crash-blocked.json`.
+
+## Verification Loop 2026-08-02 High-Tech Simulator Ally Progress
+
+- `static`: the typed `ActionAdapter` now checks the simulator's
+  `CommandResult` after attack, move, gather, build, train, and research
+  dispatch. A command is not counted as successful merely because
+  `unit_order()` returned without raising.
+- `static`: the cooperative formation target is clamped to the simulator's
+  non-negative playable boundary, and `run_ally_scenario()` clamps its loop
+  budget to the scenario's authoritative `max_loops` so an oversized caller
+  budget cannot spin after the simulator stops advancing.
+- `static`: the Terran build plan now places Factory/EngineeringBay outside
+  the Refinery resource reservation area and uses the valid FactoryTechLab
+  socket. `build_native_task_scenario()` accepts an explicit loop budget.
+- `simulator`: high-resource native P2 runs for seeds `42`, `7`, and `99` all
+  passed at loop `500` with `build=8`, `gather=13`, `train=10`, `research=2`,
+  and `attack=3`. Each run completed `Factory`, `EngineeringBay`, `Starport`,
+  `Armory`, and `FactoryTechLab`, trained `SiegeTank` and `Medivac`, completed
+  `TerranInfantryWeaponsLevel1` and `TerranVehicleWeaponsLevel1`, gathered
+  both resource types, and reported zero command errors, friendly-fire
+  rejections, hidden-state violations, deadlock, or command storm.
+  Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ally-policy-high-tech-20260802.json`.
+- `static`: focused Stage 25 tests pass with `20 passed`; the Stage 25/19/20
+  regression passes with `29 passed, 3 subtests passed`; Stage 22/23 passes
+  with `16 passed, 3 subtests passed`; launcher/kernel passes with `66 passed`;
+  `run-all-validation.ps1` passes `52/52` with zero warnings; changed Python
+  modules compile and `git diff --check` passes.
+- `blocked`: this is simulator evidence only. Corrected native P2 SC2
+  gather/train/move/attack runtime validation remains blocked by the existing
+  protected/concurrent launcher and map roster constraints.
