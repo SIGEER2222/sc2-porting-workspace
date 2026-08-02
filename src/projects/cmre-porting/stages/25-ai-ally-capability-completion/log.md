@@ -594,3 +594,53 @@ protected 5153 Debug VM window cannot satisfy this gate.
   require native SupplyDepot/Refinery/Barracks/Marine transitions, Marine-only
   attack issuers, and a same-window ScriptError verdict before changing stage
   status.
+
+## Verification Loop 2026-08-02 Post-Reinstall Ability VM Runtime
+
+- `runtime`: the approved `launch-cmre-alenger.ps1` launcher started a fresh
+  single-client window on port `5310` with isolated map copy
+  `stage25-vm-ability-5310`; the staged map was repacked with StormLib into
+  `ability-reinstall.packed.SC2Map`.
+- `runtime`: `galaxy_repl.py --map ability-reinstall.packed.SC2Map
+  --vm-program debug-vm-runtime-ability.json` completed CreateGame and
+  JoinGame as `player_id=1`, then executed 15 VM instructions. Three real
+  Marines were created; each received `Stimpack`, and each independent
+  `vibe.unit.query_ability` returned `has_ability=true`. Exit code was `0`.
+- `runtime`: the same launch window ScriptError scan returned
+  `has_new_errors=false`, `count=0`.
+- `blocked`: the previous SC2Data repair-marker blocker no longer prevents
+  this single-client runtime. Corrected two-client native P2 acceptance remains
+  separate and still requires participant-owned `player_id=2` evidence.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-ability-reinstall-20260802/vm-runtime-live.txt`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-ability-reinstall-20260802/script-error-verdict.json`.
+
+- `static`: normalized Ability handler blocks in the kernel, debug-mod, and
+  Dead of Night map mirrors are identical (SHA-256
+  `F41AAF6EDB82EC507FFDB5FA1B1DEA80A0035E8FD61C1FAF9F70F349F7EC8AF3`), and
+  all three headers declare `FunctionUnitAddAbility` and
+  `FunctionUnitQueryAbility`.
+
+## Verification Loop 2026-08-02 Tactical Recovery Simulator
+
+- `simulator`: `build_native_recovery_scenario()` was run through the full
+  `AllyPolicy` and `ActionAdapter` loop for seeds `42`, `7`, and `99` at loop
+  `640`. All three runs passed with the same trace hash
+  `39be69a419873b78f7a36d41b187d893f1a6799288c7ceb3f17a6d8b00eb7d5c`.
+- `simulator`: the recovery overlay issued only eight attack orders from four
+  pre-existing enemy Roaches in two waves. It did not spawn, kill, or mutate
+  P2 units/resources (`p2_injection=false`). P2 suffered two Marine losses,
+  then completed eight real Barracks train transitions after the first loss.
+- `simulator`: P2 issued nine typed `Heal` actions and produced 26 heal events;
+  Medivac never attacked, SCV never attacked, friendly-fire rejections and
+  hidden-state violations were zero, and no command errors, deadlock, or
+  command storm occurred.
+- `simulator`: the strategy action stream contains only gather/build/train/
+  research/move/attack/heal. No `unit.spawn`, `player.set_resource`, or
+  `unit.kill` operation appears in any seed. The complete evidence and replay
+  paths are recorded at
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ally-policy-recovery-20260802.json`.
+- `static`: Stage 25 focused tests pass with `21 passed`; this recovery result
+  remains simulator-only and does not change the open native P2 topology/map
+  roster blocker.

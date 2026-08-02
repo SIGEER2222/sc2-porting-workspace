@@ -7,23 +7,24 @@
       "severity": "medium",
       "status": "blocked",
       "title": "Fresh corrected P2 native runtime is blocked by SC2 installation repair",
-      "detail": "The P2 native-task simulator is PASS across seeds 42, 7, and 99, but fresh native SC2 validation remains blocked before API listen. The runner polls GameInfo until a second client joins, uses explicit P1/P2 server/client port tuples, and fails closed unless the strategy observes player_id=2. The latest approved launcher attempt staged the map, then SC2_x64 reported e_fileCorruptRepairable from SC2Data/CASCRepair.mrk; no native action was sent. The historical native report remains invalid because it operated P1 and issued SCV attacks. The separate Debug VM group probe remains valid runtime evidence but is not native strategy evidence.",
+      "detail": "The P2 native-task simulator is PASS across seeds 42, 7, and 99, but fresh two-client native SC2 validation remains blocked at participant topology/JoinGame ownership. The runner polls GameInfo until a second client joins, uses explicit P1/P2 server/client port tuples, and fails closed unless the strategy observes player_id=2. The post-reinstall single-client Ability VM passed on port 5310, but it is debug injection evidence and does not satisfy native P2 acceptance. The historical native report remains invalid because it operated P1 and issued SCV attacks.",
       "evidence_type": "blocked",
       "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-native-20260802/topology-blocked.json",
       "owner": "stage25",
-      "latestEvidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-repair-blocked.json",
-      "nextAction": "Repair or restore the local SC2Data installation outside this repository, then launch a fresh primary through the approved launcher on one API port and the same launcher with -SecondaryClient on a second API port; run --anchor on P1 and --join-existing --multiplayer-ports on P2, then require P2 ownership, successful Barracks/Refinery/Marine transitions, no SCV attack, P1 command/P2 signal traces, a native replay HTML, and same-window ScriptError evidence."
+      "latestEvidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-native-pass11-20260802/p1-anchor.stderr.txt",
+      "nextAction": "Launch a fresh primary through the approved launcher on one API port and the same launcher with -SecondaryClient on a second API port; run --anchor on P1 and --join-existing --multiplayer-ports on P2, then require P2 ownership, successful Barracks/Refinery/Marine transitions, no SCV attack, P1 command/P2 signal traces, a native replay HTML, and same-window ScriptError evidence."
     },
     {
       "id": "SC2-INSTALLATION-REPAIR-MARKER",
       "severity": "high",
-      "status": "blocked",
-      "title": "SC2 installation fails before API listen",
-      "detail": "The approved launcher staged the map, but SC2_x64 crashed before API port 5230 listened. The same-window GameLog NGDP.txt reports e_fileCorruptRepairable and EEV_REPAIR_CONTAINER for SC2Data, with CASCRepair.mrk present. This blocks all native runtime evidence and is independent of P2 code or topology.",
-      "evidence_type": "blocked",
+      "status": "resolved",
+      "title": "SC2 installation repair marker cleared for single-client runtime",
+      "detail": "Older approved launcher attempts on ports 5230 and 5221 crashed before API listen with e_fileCorruptRepairable and EEV_REPAIR_CONTAINER. After the local reinstall, a fresh approved launcher on port 5310 reached API ready, CreateGame/JoinGame, and completed the Ability VM without a ScriptError. The remaining P2 native blocker is participant topology, not this installation marker.",
+      "evidence_type": "runtime",
       "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-native-next-20260802/launch-crash-blocked.json",
       "owner": "environment",
-      "nextAction": "Repair or restore the local SC2 installation, then rerun the approved launcher and two-client native P2 probe."
+      "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-ability-reinstall-20260802/vm-runtime-live.txt",
+      "nextAction": "Keep the installation issue resolved and continue the two-client native P2 probe; require participant-owned player_id=2 before claiming native actions."
     },
     {
       "id": "MAP-DERIVED-P2-NATIVE-ROSTER-ABSENT",
@@ -59,6 +60,18 @@
       "owner": "stage25",
       "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-rerun-20260802/script-error-verdict.json",
       "nextAction": "Keep the native P2 gather/train/move/attack blocker open until a participant-owned P2 runtime window passes without debug injection."
+    },
+    {
+      "id": "RUNTIME-DEBUG-VM-ABILITY-REINSTALL-20260802",
+      "severity": "low",
+      "status": "resolved",
+      "title": "Post-reinstall Ability VM passed in a fresh SC2 window",
+      "detail": "The approved launcher on port 5310 loaded the freshly repacked map. The VM created three real Marines, added Stimpack to each, and independently queried each unit with has_ability=true. All 15 VM instructions passed and the same-window ScriptError scan found zero new errors.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-ability-reinstall-20260802/vm-runtime-live.txt",
+      "owner": "stage25",
+      "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-ability-reinstall-20260802/script-error-verdict.json",
+      "nextAction": "Use this VM path for dynamic function debugging; keep debug injection evidence separate from native P2 strategy acceptance."
     }
   ]
 }
