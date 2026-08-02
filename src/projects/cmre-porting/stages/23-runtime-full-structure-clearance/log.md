@@ -36,7 +36,10 @@ zero-ScriptError result.
 - `runtime`: controller command used the packed, repo-relative map input and
   produced `artifacts/projects/cmre-porting/stage23-runtime-full-structure-clearance/runtime-result-pass14.json`.
   CreateGame + JoinGame and the initialization gate passed. The initial typed
-  objective census was `206`; final terminal observation/census verified `0`.
+  objective census was `206`; the last successful typed census had `8`, after
+  which RequestStep closed the completed mission and terminal observation
+  verified zero remaining declared tags with player results. The post-close
+  API census error is captured and is not used as the zero-target assertion.
   The frame loop advanced `63 -> 7727`; `542` typed attack responses were
   correlated with unique request IDs, `function.invoke` operations, and
   non-negative state versions.
