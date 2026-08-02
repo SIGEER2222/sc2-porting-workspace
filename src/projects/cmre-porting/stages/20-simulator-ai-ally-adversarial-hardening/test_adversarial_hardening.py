@@ -154,6 +154,40 @@ class AdversarialHardeningTests(unittest.TestCase):
             report.building_reinforcements_spawned,
         )
 
+    def test_three_seed_reports_keep_clearance_and_audit_contract(self):
+        report_dir = (
+            REPO_ROOT
+            / "artifacts"
+            / "projects"
+            / "cmre-porting"
+            / "stage20-simulator-ai-ally-adversarial-hardening"
+        )
+        for seed in (42, 7, 99):
+            with self.subTest(seed=seed):
+                report = json.loads(
+                    (report_dir / f"clear-seed-{seed}.json").read_text(encoding="utf-8")
+                )
+                self.assertEqual(report["verdict"], "victory")
+                self.assertEqual(report["end_reason"], "all_objectives_success")
+                self.assertEqual(report["initial_enemy_structures"], 344)
+                self.assertEqual(report["remaining_enemy_structures"], 0)
+                self.assertGreater(report["event_summary"]["counts"]["death"], 0)
+                self.assertEqual(
+                    report["event_summary"]["payload_totals"]["infected_cleared_day"],
+                    report["infected_cleared_in_day"],
+                )
+                self.assertEqual(
+                    report["event_summary"]["payload_totals"]["building_reinforcements"],
+                    report["building_reinforcements_spawned"],
+                )
+                target_summary = report["target_allocation_summary"]
+                self.assertGreater(target_summary["reallocations"], 0)
+                self.assertEqual(
+                    target_summary["reallocation_reasons"]["target_destroyed"],
+                    target_summary["reallocations"],
+                )
+                self.assertEqual(report["cmd_fail_stats"], {})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,14 +3,24 @@
   "schemaVersion": 1,
   "issues": [
     {
-      "id": "SIM-AI-ALLY-HARDEN-001",
+      "id": "SIM-AI-ALLY-AUDIT-001",
       "severity": "low",
+      "status": "resolved",
+      "title": "Event occurrence counts and unit payload totals could be confused",
+      "detail": "Daytime infected cleanup is emitted as one event containing a count, while infected spawning emits one event per unit.",
+      "evidence_type": "simulator",
+      "resolution": "GameReport now exposes event_summary.counts separately from event_summary.payload_totals, with regression assertions for both semantics.",
+      "evidence": "src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/test_adversarial_hardening.py"
+    },
+    {
+      "id": "SIM-AI-ALLY-RUNTIME-001",
+      "severity": "medium",
       "status": "open",
-      "title": "Event-summary fields need a fresh real-map matrix",
-      "detail": "The event_summary and target_allocation_summary fields pass focused synthetic tests, while the three real-map reports predate these metrics.",
+      "title": "Real SC2 structure-clearance behavior is not covered by the simulator stage",
+      "detail": "The Stage 20 plan intentionally forbids promoting simulator output to runtime evidence.",
       "evidence_type": "inference",
-      "resolution": null,
-      "next_action": "Rerun seeds 42, 7, and 99 with the finalized audit fields and compare target reallocations, filtered dead push units, and event payload totals."
+      "nextAction": "Run Stage 21 through the approved launcher with native initialization, typed Vibe actions, runtime listener evidence, and same-window ScriptError verification.",
+      "evidence": "src/projects/cmre-porting/stages/21-runtime-ai-ally-clearance/plan.md"
     }
   ]
 }

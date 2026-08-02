@@ -1,23 +1,41 @@
 # Stage 20 Log
 
-## Scope opened
+## Scope
 
-Stage 20 starts adversarial hardening on the pure deterministic simulator
-controller after the Stage 19 multi-seed clearance baseline. SC2 remains out
-of scope. Existing maps, mods, external repositories, and parallel untracked
-work remain untouched.
+Stage 20 hardened the deterministic simulator clearance audit surface after
+Stage 19 multi-seed success. The objective predicate and mission-owned startup
+semantics were preserved. SC2 was intentionally not launched in this stage.
 
-## Verified so far
+## Implementation evidence
 
-- `simulator`: `python -m pytest -q src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/test_adversarial_hardening.py` -> 3 passed in 0.33s.
-- `simulator`: The focused tests verify stale-target reallocation counts, dead push-unit filtering, and separate event occurrence counts from event payload totals.
-- `static`: `python -m py_compile src/projects/cmre-porting/vibe/run_dead_of_night.py src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/test_adversarial_hardening.py` -> pass.
-- `static`: `git diff --check` -> pass.
-- `simulator`: Stage 19 seed 42/7/99 reports remain the real-map clearance baseline; they were generated before the audit-only fields were finalized.
+- `simulator`: `src/projects/cmre-porting/vibe/run_dead_of_night.py` now emits
+  `event_summary` with event occurrence counts and payload totals, plus
+  `target_allocation_summary` with push-unit filtering, dispatch cycles,
+  allocations, stale-target reallocations, unique targets, and peak active
+  assignments.
+- `simulator`: Controlled push-unit loss is counted only for the configured
+  push army; native starting units are not relabeled as push units.
+- `simulator`: Real reports for seeds 42, 7, and 99 all reached
+  `all_objectives_success` with `0/344` live enemy structures. The runs
+  recorded 36 infected spawns, 25-27 daytime infected removals, 297-317
+  building reinforcements, and nonzero target reallocations.
 
-## Open work
+## Verification
 
-Rerun the three real-map seeds after the audit fields settle, inspect
-`event_summary` and `target_allocation_summary`, then either close the stage or
-record a reproducible regression. Do not promote the focused synthetic result
-to a fresh real-map claim.
+- `simulator`: `python -m pytest -q src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/test_adversarial_hardening.py src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/test_simulator_ai_ally_clearance.py` -> `9 passed, 3 subtests passed`.
+- `static`: Stage 18/task-loop, registry, launcher, live-adapter regression -> `60 passed`.
+- `static`: `python -m py_compile src/projects/cmre-porting/vibe/run_dead_of_night.py src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/test_adversarial_hardening.py src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/test_simulator_ai_ally_clearance.py` -> pass.
+- `static`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` -> `52/52` checks passed, zero warnings.
+
+## Evidence paths
+
+- `artifacts/projects/cmre-porting/stage20-simulator-ai-ally-adversarial-hardening/clear-seed-42.json`
+- `artifacts/projects/cmre-porting/stage20-simulator-ai-ally-adversarial-hardening/clear-seed-7.json`
+- `artifacts/projects/cmre-porting/stage20-simulator-ai-ally-adversarial-hardening/clear-seed-99.json`
+- `src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/test_adversarial_hardening.py`
+
+## Handoff
+
+Stage 20 is simulator-only. The next stage must validate the same native-start
+and typed Vibe action boundary through the approved SC2 launcher before making
+any runtime claim about structure clearance.
