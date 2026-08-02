@@ -26,7 +26,7 @@ replay with seeking, playback, speed controls, and action/event markers.
   transport implementation and regression tests.
 - `simulator`: after implementation, the focused transport suite passed `6/6` and the project
   suite passed `62/62` tests with `22` subtests under Python 3.13.
-- `simulator`: after the foundation slice, the full adapter suite passed `70/70` tests. The new
+- `simulator`: after the foundation slice, the full adapter suite passed `71/71` tests. The new
   command tests drove `SimulatorSession.unit_order` and observed a Marine move, a Barracks build,
   and a Marine production result.
 - `simulator`: the adapter-aware replay executed `3/3` actions successfully through
@@ -111,6 +111,31 @@ replay with seeking, playback, speed controls, and action/event markers.
 - `artifacts/stage07-basic-command-replay-20260802/player-smoke.png`: Chrome headless screenshot
   proving the rendered player is non-empty.
 
+## Full Original-Map Replay
+
+The first compact foundation replay was not sufficient as a map inspection artifact. The
+existing complete legacy replay was therefore used as the source input without editing the
+read-only `cmre-porting` project:
+
+- source: `../cmre-porting/artifacts/dead_of_night_replay_20260802_124446.jsonl`
+- player: `artifacts/stage07-basic-command-replay-20260802/full-map-player.html`
+- screenshot: `artifacts/stage07-basic-command-replay-20260802/full-map-smoke.png`
+- interaction screenshot: `artifacts/stage07-basic-command-replay-20260802/full-map-interaction.png`
+
+`static`: `python -m cmre_neuro_adapter.replay_player ../cmre-porting/artifacts/dead_of_night_replay_20260802_124446.jsonl --output artifacts/stage07-basic-command-replay-20260802/full-map-player.html` regenerated the self-contained player from the complete legacy JSONL.
+
+`static`: parsed source-vs-embedded JSON comparison passed for all `20/20` frame records. The
+embedded player preserves the original frame records exactly, including `entities_by_player`.
+The first frame contains `530` entities (`P1=159`, enemy owners `345`, neutral `26`, plus the
+other observed owners), with `31` unit/building/resource types. Across the replay there are
+`7832` entity snapshots and `37` distinct types; the loop range is `0..1882`.
+
+`runtime`: Playwright Chromium opened the actual self-contained HTML. The canvas contained
+`900000` non-empty pixels, the current frame table contained `530` entity rows, 16x activated,
+seeking selected loop `1000`, 1x playback advanced from the start and paused successfully,
+filtering `Battlecruiser` returned `128` rows, and clicking an entity produced one selected row.
+This is local browser replay evidence, not a live SC2 runtime claim.
+
 ## Visual Replay Verification
 
 - `static`: `python -m cmre_neuro_adapter.replay_player artifacts/stage07-basic-command-replay-20260802/replay.jsonl --output artifacts/stage07-basic-command-replay-20260802/player.html` -> generated a 45 KB self-contained HTML file from the 26-record JSONL replay.
@@ -122,7 +147,7 @@ replay with seeking, playback, speed controls, and action/event markers.
 
 - `simulator`: `python -m pytest tests/test_transport_adapters.py --maxfail=20 -q` -> `6 passed`.
 - `simulator`: `python -m unittest tests.test_basic_actions -v` -> `6/6` tests passed.
-- `simulator`: `python -m unittest discover -s tests -q` -> `70/70` tests passed.
+- `simulator`: `python -m unittest discover -s tests -q` -> `71/71` tests passed.
 - `static`: `python -m compileall -q cmre_neuro_adapter tests` -> pass.
 - `static`: Python 3.11 grammar fallback -> `55` files passed with `ast.parse(..., feature_version=(3,11))`.
 - `static`: Stage 07 JSON parse and `git diff --check -- src/projects/cmre-neuro-adapter` -> pass.

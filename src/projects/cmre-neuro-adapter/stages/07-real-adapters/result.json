@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "stage_id": "07-real-adapters",
   "status": "BLOCKED",
-  "updated_at": "2026-08-02T13:50:20+08:00",
+  "updated_at": "2026-08-02T14:23:58+08:00",
   "outputs": [
     "cmre_neuro_adapter/transports/__init__.py",
     "cmre_neuro_adapter/transports/common.py",
@@ -19,6 +19,9 @@
     "artifacts/stage07-basic-command-replay-20260802/summary.json",
     "artifacts/stage07-basic-command-replay-20260802/player.html",
     "artifacts/stage07-basic-command-replay-20260802/player-smoke.png",
+    "artifacts/stage07-basic-command-replay-20260802/full-map-player.html",
+    "artifacts/stage07-basic-command-replay-20260802/full-map-smoke.png",
+    "artifacts/stage07-basic-command-replay-20260802/full-map-interaction.png",
     "stages/07-real-adapters/log.md",
     "stages/07-real-adapters/result.json",
     "stages/07-real-adapters/issues.json"
@@ -56,7 +59,7 @@
     },
     "project_tests": {
       "status": "PASS",
-      "tests": 70,
+      "tests": 71,
       "subtests": 22,
       "command": "python -m unittest discover -s tests -v",
       "evidence_type": "simulator"
@@ -109,6 +112,21 @@
       "command": "Chrome headless opened player.html with DOM, canvas-pixel, and CDP interaction checks",
       "summary": "The real embedded replay rendered 900000 non-empty canvas pixels; speed 16x activated; seek moved to loop 100; play entered active state and manual pause cleared it; end jumped to loop 195.",
       "artifact": "artifacts/stage07-basic-command-replay-20260802/player-smoke.png",
+      "evidence_type": "runtime"
+    },
+    "full_map_replay_fidelity": {
+      "status": "PASS",
+      "command": "python -m cmre_neuro_adapter.replay_player ../cmre-porting/artifacts/dead_of_night_replay_20260802_124446.jsonl --output artifacts/stage07-basic-command-replay-20260802/full-map-player.html; python inline source-vs-embedded JSON comparison",
+      "summary": "The self-contained full-map player embeds all 20 original legacy frame records exactly at the parsed JSON level: loop 0-1882, 530 first-frame entities, 7832 entity snapshots, 31 first-frame types, and 37 types across the replay.",
+      "source": "../cmre-porting/artifacts/dead_of_night_replay_20260802_124446.jsonl",
+      "artifact": "artifacts/stage07-basic-command-replay-20260802/full-map-player.html",
+      "evidence_type": "static"
+    },
+    "full_map_replay_browser_interaction": {
+      "status": "PASS",
+      "command": "Playwright Chromium headless DOM, canvas-pixel, seek, speed, playback, filter, and selection checks",
+      "summary": "The original-map replay rendered 900000 non-empty canvas pixels and 530 current-frame entity rows; 16x activated, seek selected loop 1000, 1x playback advanced and paused, Battlecruiser filtering returned 128 rows, and entity selection highlighted one row.",
+      "artifact": "artifacts/stage07-basic-command-replay-20260802/full-map-interaction.png",
       "evidence_type": "runtime"
     }
   },
