@@ -3,9 +3,16 @@
   "stage": "25-ai-ally-capability-completion",
   "status": "IN_PROGRESS",
   "evidence_type": "mixed",
-  "summary": "AST catalog, bounded Debug VM, simulator, strict Dead of Night map-derived replay, static regressions, and the runtime group spawn/behavior probe pass. The old fixture replay is historical-invalid as map evidence. The map contains P1/P2 placement markers but zero native P1/P2 units, so the map-derived replay proves source fidelity and P1-to-P2 text interaction only; P2 native action validation remains unexercised and the fresh runtime lane is blocked by a protected KeepAlive lease.",
+  "summary": "AST catalog, bounded Debug VM, simulator, strict Dead of Night map-derived replay, static regressions, runtime group spawn/behavior probe, and the browser runtime-console contract pass. The old fixture replay is historical-invalid as map evidence. The map contains P1/P2 placement markers but zero native P1/P2 units, so the map-derived replay proves source fidelity and P1-to-P2 text interaction only; P2 native action validation remains unexercised and the fresh runtime lane is blocked by a protected KeepAlive lease. The browser UI has not yet been promoted to live function.invoke evidence because its SC2 API connection attempts were blocked.",
   "changed_paths": [
     "src/projects/cmre-porting/project.json",
+    "DESIGN.md",
+    "tools/cmre-webui/server.py",
+    "tools/cmre-webui/webui/index.html",
+    "tools/cmre-webui/webui/app.js",
+    "tools/cmre-webui/webui/styles.css",
+    "tools/cmre-webui/test_runtime_contract.py",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/webui-runtime-contract-20260802.json",
     "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/plan.md",
     "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/log.md",
     "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/result.json",
@@ -97,9 +104,13 @@
     {"evidence_type": "simulator", "command": "map-derived replay first-frame source consistency assertion", "status": "PASS", "detail": "41 frames, loop 0 -> 40; first frame 1308/1308 entities match scenario spawns by type, owner, source Object ID, source coordinates, and resource amount.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/replay.jsonl"},
     {"evidence_type": "static", "command": "node vm.Script over embedded replay player script", "status": "PASS", "detail": "Embedded script parsed; map source/hash, native object/entity counts, and P2 native spawn marker are present in full-map-player.html.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/full-map-player.html"}
     ,{"evidence_type": "static", "command": "Chrome headless file replay smoke screenshot", "status": "PASS", "detail": "Chrome loaded full-map-player.html and produced a non-empty 367352-byte screenshot; the map canvas and sidebar rendered.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/full-map-player.html"}
+    ,{"evidence_type": "static", "command": "py -3.13 -m pytest -q tools/cmre-webui/test_runtime_contract.py", "status": "PASS", "detail": "Real WebUI process served catalog/session/status/page handlers; disconnected function.invoke and run-vm returned truthful HTTP 502 responses.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/webui-runtime-contract-20260802.json"}
+    ,{"evidence_type": "static", "command": "py -3.13 -m py_compile tools/cmre-webui/server.py tools/cmre-webui/test_runtime_contract.py + node --check tools/cmre-webui/webui/app.js + git diff --check", "status": "PASS", "detail": "server/test Python compile, frontend parse, and whitespace checks pass."}
+    ,{"evidence_type": "blocked", "command": "WebUI connect attempts on SC2 API ports 5163 and 5164", "status": "BLOCKED", "detail": "5163 refused and 5164 disconnected after handshake; no browser-originated function.invoke or game-state claim.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/webui-runtime-contract-20260802.json"}
   ],
   "issues": [
-    "Corrected P2 native runtime remains blocked by protected launcher lease; do not use the historical P1 report or protected Debug VM window as native-task evidence."
+    "Corrected P2 native runtime remains blocked by protected launcher lease; do not use the historical P1 report or protected Debug VM window as native-task evidence.",
+    "Browser WebUI to live SC2 function.invoke remains unverified because API ports 5163/5164 were unavailable or disconnected after handshake; the separate Debug VM CLI runtime PASS is not browser evidence."
   ],
   "next_stage_plan": null
 }

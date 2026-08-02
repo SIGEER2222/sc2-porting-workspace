@@ -175,6 +175,8 @@ even if the mission objectives are cleared.
 - `tools/launchers/launch-cmre-alenger.ps1` and its existing overlay/test files
   only if the runtime probe requires a launcher staging fix
 - `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/**`
+- `tools/cmre-webui/**` and repository-root `DESIGN.md` for the browser runtime
+  debug console, reusing the existing launcher WebUI and Vibe RPC session.
 
 No file in `reference/`, registered source maps, canonical commander packages,
 or external repositories may be modified.

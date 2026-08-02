@@ -232,3 +232,27 @@ protected 5153 Debug VM window cannot satisfy this gate.
   forces, and the fresh native P2 runtime remains blocked by the protected
   KeepAlive lease. Neither the map-derived replay nor the earlier fixture may
   be promoted to native P2 movement/combat runtime evidence.
+
+## Verification Loop 2026-08-02 Runtime WebUI Console
+
+- `static`: the browser runtime console is implemented in the existing CMRE
+  WebUI. It exposes the explicit function catalog, typed JSON arguments,
+  session connect/resume/disconnect, bounded Debug VM execution, step control,
+  call trace, response payload, and error-code inspection. Changed paths:
+  `tools/cmre-webui/server.py`, `tools/cmre-webui/webui/index.html`,
+  `tools/cmre-webui/webui/app.js`, `tools/cmre-webui/webui/styles.css`, and
+  `DESIGN.md`.
+- `static`: `py -3.13 -m pytest -q
+  tools/cmre-webui/test_runtime_contract.py` passes with `1 passed`. The test
+  starts the real server process and verifies catalog/session/page handlers,
+  plus truthful `502` responses for disconnected function and VM requests.
+  Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/webui-runtime-contract-20260802.json`.
+- `static`: `py -3.13 -m py_compile tools/cmre-webui/server.py
+  tools/cmre-webui/test_runtime_contract.py`, `node --check
+  tools/cmre-webui/webui/app.js`, and `git diff --check` pass. Kernel/launcher
+  regression passes with `63 passed`; Debug VM focused tests pass with
+  `9 passed`.
+- `blocked`: browser-originated live invoke was not promoted to runtime
+  evidence. Port `5163` refused the connection and port `5164` disconnected
+  after the SC2 API handshake, so no UI request reached `function.invoke`.
+  The approved launcher Debug VM group probe remains a separate runtime PASS.

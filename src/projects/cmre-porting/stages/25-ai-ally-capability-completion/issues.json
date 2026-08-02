@@ -23,6 +23,17 @@
       "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/map-scenario-source.json",
       "owner": "stage25",
       "nextAction": "Use a separately documented runtime/commander initialization source to supply the real P1/P2 forces before claiming native P2 action success; do not add fixture units to this map-derived replay."
+    },
+    {
+      "id": "WEBUI-LIVE-INVOKE-UNVERIFIED",
+      "severity": "low",
+      "status": "blocked",
+      "title": "Browser runtime console has no live SC2 invoke evidence yet",
+      "detail": "The WebUI API contract and disconnected failure path pass, but attempts to connect the browser path to SC2 API ports 5163 and 5164 were refused or disconnected after handshake. No browser-originated function.invoke was sent.",
+      "evidence_type": "blocked",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/webui-runtime-contract-20260802.json",
+      "owner": "stage25",
+      "nextAction": "When a fresh approved SC2 API window is available, connect from the WebUI, invoke vibe.test.ping, then run the group VM and capture the browser-originated request/response trace with the same-window ScriptError verdict."
     }
   ]
 }

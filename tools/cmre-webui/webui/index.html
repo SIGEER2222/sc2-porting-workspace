@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CMRE 启动器 - 合作指挥官起义狂潮</title>
-  <link rel="stylesheet" href="styles.css?v=10">
+  <link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
   <header class="topbar">
@@ -97,6 +97,7 @@
         <button type="button" class="tab-btn active" data-tab="commanders">指挥官</button>
         <button type="button" class="tab-btn" data-tab="maps">地图</button>
         <button type="button" class="tab-btn" data-tab="mutators">突变因子 <span class="tab-count" id="tab-mutator-count">0</span></button>
+        <button type="button" class="tab-btn" data-tab="runtime">运行时调试</button>
       </div>
 
       <div class="tab-content" id="tab-commanders">
@@ -148,6 +149,91 @@
         <div class="mutator-list" id="mutator-list"><p class="hint">加载中...</p></div>
       </div>
 
+      <div class="tab-content runtime-content" id="tab-runtime" hidden>
+        <div class="runtime-toolbar">
+          <div class="runtime-heading">
+            <div class="runtime-title">Runtime Debug Console</div>
+            <div class="runtime-subtitle">连接当前 SC2 会话，调用显式注册函数并查看原始返回</div>
+          </div>
+          <div class="runtime-status" id="runtime-status" data-state="disconnected" aria-live="polite">未连接</div>
+        </div>
+
+        <section class="runtime-panel runtime-session-panel" aria-labelledby="runtime-session-title">
+          <div class="runtime-panel-head">
+            <h2 id="runtime-session-title">会话</h2>
+            <div class="runtime-panel-actions">
+              <button type="button" class="btn-tiny" id="runtime-load-sessions">读取已有会话</button>
+              <button type="button" class="btn-primary btn-compact" id="runtime-connect">连接 / 恢复</button>
+              <button type="button" class="btn-secondary btn-compact" id="runtime-disconnect" disabled>断开</button>
+            </div>
+          </div>
+          <div class="runtime-session-grid">
+            <label>API 端口<input type="number" id="runtime-port" class="field-select" min="1024" max="65535" value="5000"></label>
+            <label>已有 session<select id="runtime-session-select" class="field-select"><option value="">新建或手动填写</option></select></label>
+            <label>session_id<input type="text" id="runtime-session-id" class="field-select" placeholder="例如 repl_34e8e64dcfd7"></label>
+            <label>地图路径（新建时可选）<input type="text" id="runtime-map-path" class="field-select" placeholder="留空表示只连接当前游戏"></label>
+          </div>
+          <div class="runtime-session-meta" id="runtime-session-meta">连接后显示端口、session 和运行状态。</div>
+        </section>
+
+        <div class="runtime-workspace">
+          <section class="runtime-panel runtime-catalog-panel" aria-labelledby="runtime-catalog-title">
+            <div class="runtime-panel-head">
+              <h2 id="runtime-catalog-title">函数目录</h2>
+              <span class="runtime-count" id="runtime-catalog-count">0</span>
+            </div>
+            <input type="search" id="runtime-function-search" class="field-select" placeholder="搜索 function_id / capability" autocomplete="off">
+            <div class="runtime-function-list" id="runtime-function-list"><p class="hint">加载中...</p></div>
+          </section>
+
+          <section class="runtime-panel runtime-editor-panel" aria-labelledby="runtime-editor-title">
+            <div class="runtime-panel-head">
+              <h2 id="runtime-editor-title">函数调用</h2>
+              <span class="runtime-selected-function" id="runtime-selected-function">未选择函数</span>
+            </div>
+            <label class="runtime-label">function_id<input type="text" id="runtime-function-id" class="field-select" readonly placeholder="从左侧目录选择"></label>
+            <label class="runtime-label">args JSON<textarea id="runtime-call-args" class="runtime-code" spellcheck="false">{}</textarea></label>
+            <div class="runtime-form-foot">
+              <span class="runtime-hint" id="runtime-args-hint">参数会再次经过 typed registry 校验。</span>
+              <button type="button" class="btn-primary" id="runtime-invoke" disabled>调用函数</button>
+            </div>
+
+            <div class="runtime-divider"></div>
+            <div class="runtime-panel-head runtime-vm-head">
+              <h2>Debug VM</h2>
+              <button type="button" class="btn-primary btn-compact" id="runtime-run-vm" disabled>执行程序</button>
+            </div>
+            <label class="runtime-label">program JSON<textarea id="runtime-vm-program" class="runtime-code runtime-vm-code" spellcheck="false">{
+  "vm": "vibe-debug/1",
+  "mode": "debug",
+  "steps": [
+    {"op": "call", "fn": "vibe.test.ping", "args": {}, "save": "ping"},
+    {"op": "assert", "source": "$vars.ping", "path": "payload.result", "equals": "pong"}
+  ]
+}</textarea></label>
+          </section>
+        </div>
+
+        <div class="runtime-trace-layout">
+          <section class="runtime-panel runtime-trace-panel" aria-labelledby="runtime-trace-title">
+            <div class="runtime-panel-head">
+              <h2 id="runtime-trace-title">调用轨迹</h2>
+              <span class="runtime-count" id="runtime-trace-count">0</span>
+            </div>
+            <div class="runtime-trace-scroll">
+              <table class="runtime-trace-table">
+                <thead><tr><th>#</th><th>操作</th><th>函数</th><th>状态</th><th>返回</th></tr></thead>
+                <tbody id="runtime-trace-body"><tr><td colspan="5" class="runtime-empty">连接后，函数调用和 VM 结果会出现在这里。</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="runtime-panel runtime-detail-panel" aria-labelledby="runtime-detail-title">
+            <div class="runtime-panel-head"><h2 id="runtime-detail-title">选中记录</h2></div>
+            <pre class="runtime-detail" id="runtime-detail" aria-live="polite">暂无记录</pre>
+          </section>
+        </div>
+      </div>
+
       </div>
     </div>
   </main>
@@ -183,6 +269,6 @@
     <div class="footer-summary" id="footer-summary">加载中...</div>
   </footer>
 
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>

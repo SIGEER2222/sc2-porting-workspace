@@ -17,10 +17,24 @@ const API = {
   stop: "/api/stop",
   status: "/api/status",
   logStream: "/api/logs/stream",
+  vibeCatalog: "/api/vibe/catalog",
+  vibeSessions: "/api/vibe/sessions",
+  vibeStatus: "/api/vibe/status",
+  vibeConnect: "/api/vibe/connect",
+  vibeDisconnect: "/api/vibe/disconnect",
+  vibeInvoke: "/api/vibe/invoke",
+  vibeRunVm: "/api/vibe/run-vm",
   asset: (relPath) => `/api/assets/dds?path=${encodeURIComponent(relPath)}`,
 };
 
 const PRESET_KEY = "cmre_presets_v1";
+const runtimeState = {
+  functions: [],
+  selectedFunction: null,
+  selectedTrace: null,
+  trace: [],
+  pollTimer: null,
+};
 
 const state = {
   maps: [],
@@ -436,6 +450,260 @@ function switchTab(tabName) {
   state.activeTab = tabName;
   $$(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tabName));
   $$(".tab-content").forEach(c => c.hidden = c.id !== "tab-" + tabName);
+}
+
+/* === Runtime Debug Console === */
+async function runtimeRequest(url, options = {}) {
+  const response = await fetch(url, options);
+  let data = {};
+  try { data = await response.json(); } catch { data = { error: "服务返回了无效 JSON" }; }
+  if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+  return data;
+}
+
+function runtimeJson(value) {
+  try { return JSON.stringify(value, null, 2); }
+  catch (e) { return String(value); }
+}
+
+function runtimeFunctionMeta(definition) {
+  const args = Object.entries(definition.args || {}).map(([name, spec]) => {
+    const suffix = spec.required ? "" : "?";
+    return `${name}${suffix}:${spec.type || "value"}`;
+  });
+  const mode = definition.debug_only ? "debug-only" : (definition.capability || "callable");
+  return `${mode} · ${args.join(", ") || "无参数"}`;
+}
+
+function renderRuntimeCatalog() {
+  const list = $("runtime-function-list");
+  const query = ($("runtime-function-search")?.value || "").trim().toLowerCase();
+  const matches = runtimeState.functions.filter(item => {
+    const haystack = `${item.function_id} ${item.capability || ""} ${item.handler || ""}`.toLowerCase();
+    return !query || haystack.includes(query);
+  });
+  $("runtime-catalog-count").textContent = `${matches.length}/${runtimeState.functions.length}`;
+  list.innerHTML = "";
+  if (!matches.length) {
+    list.innerHTML = '<p class="hint">没有匹配的显式注册函数。</p>';
+    return;
+  }
+  for (const definition of matches) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "runtime-function-item" + (definition.debug_only ? " debug-only" : "");
+    if (runtimeState.selectedFunction?.function_id === definition.function_id) button.classList.add("selected");
+    const name = document.createElement("span");
+    name.className = "runtime-function-name";
+    name.textContent = definition.function_id;
+    const meta = document.createElement("span");
+    meta.className = "runtime-function-meta";
+    meta.textContent = runtimeFunctionMeta(definition);
+    button.append(name, meta);
+    button.onclick = () => selectRuntimeFunction(definition);
+    list.appendChild(button);
+  }
+}
+
+function selectRuntimeFunction(definition) {
+  runtimeState.selectedFunction = definition;
+  $("runtime-function-id").value = definition.function_id;
+  $("runtime-selected-function").textContent = definition.function_id;
+  const defaults = {};
+  for (const [name, spec] of Object.entries(definition.args || {})) {
+    if (Object.prototype.hasOwnProperty.call(spec, "default")) defaults[name] = spec.default;
+  }
+  $("runtime-call-args").value = runtimeJson(defaults);
+  const args = Object.entries(definition.args || {}).map(([name, spec]) => `${name}${spec.required ? "" : "?"}`).join(", ");
+  $("runtime-args-hint").textContent = `${definition.debug_only ? "debug-only · " : ""}${args || "无参数"}`;
+  renderRuntimeCatalog();
+  pollRuntimeStatus();
+}
+
+function runtimeTraceStatus(record) {
+  if (record.status === "passed" || record.status === "allowed-error") return ["通过", "trace-pass"];
+  if (record.status === "failed") return ["失败", "trace-fail"];
+  const code = record.result?.error_code;
+  if (code && code !== "OK") return [code, "trace-fail"];
+  return [record.op === "assert" ? "断言" : "完成", "trace-neutral"];
+}
+
+function runtimeTraceFunction(record) {
+  return record.function_id || record.fn || (record.op === "step" ? `step(${record.loops || 1})` : record.op || "-");
+}
+
+function runtimeTraceSummary(record) {
+  if (record.result) {
+    const code = record.result.error_code || "OK";
+    const payload = record.result.payload || {};
+    return `${code} ${JSON.stringify(payload)}`;
+  }
+  if (record.actual !== undefined) return `actual=${JSON.stringify(record.actual)} ${record.reason || ""}`;
+  return record.status || "";
+}
+
+function renderRuntimeTrace() {
+  const body = $("runtime-trace-body");
+  $("runtime-trace-count").textContent = String(runtimeState.trace.length);
+  body.innerHTML = "";
+  if (!runtimeState.trace.length) {
+    body.innerHTML = '<tr><td colspan="5" class="runtime-empty">连接后，函数调用和 VM 结果会出现在这里。</td></tr>';
+    $("runtime-detail").textContent = "暂无记录";
+    return;
+  }
+  runtimeState.trace.forEach((record, index) => {
+    const row = document.createElement("tr");
+    row.className = "runtime-trace-row" + (runtimeState.selectedTrace === index ? " selected" : "");
+    const [status, statusClass] = runtimeTraceStatus(record);
+    const cells = [index + 1, record.op || "-", runtimeTraceFunction(record), status, runtimeTraceSummary(record)];
+    cells.forEach((value, cellIndex) => {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      if (cellIndex === 1) cell.className = "runtime-trace-op";
+      if (cellIndex === 2) cell.className = "runtime-trace-function";
+      if (cellIndex === 3) cell.className = statusClass;
+      if (cellIndex === 4) cell.className = "runtime-trace-summary";
+      row.appendChild(cell);
+    });
+    row.onclick = () => {
+      runtimeState.selectedTrace = index;
+      $("runtime-detail").textContent = runtimeJson(record);
+      renderRuntimeTrace();
+    };
+    body.appendChild(row);
+  });
+  if (runtimeState.selectedTrace === null || runtimeState.selectedTrace >= runtimeState.trace.length) {
+    runtimeState.selectedTrace = runtimeState.trace.length - 1;
+  }
+  $("runtime-detail").textContent = runtimeJson(runtimeState.trace[runtimeState.selectedTrace]);
+}
+
+function syncRuntimeStatus(status) {
+  const data = status || {};
+  const connected = data.status === "connected";
+  const busy = Boolean(data.running);
+  const stateName = busy ? "busy" : (data.status || "disconnected");
+  const statusEl = $("runtime-status");
+  statusEl.dataset.state = stateName;
+  statusEl.textContent = busy ? `执行中 · ${data.running}` : ({ connected: "已连接", connecting: "连接中", error: "连接错误", disconnected: "未连接" }[data.status] || "未连接");
+  $("runtime-connect").disabled = data.status === "connecting" || busy;
+  $("runtime-disconnect").disabled = !connected || busy;
+  $("runtime-invoke").disabled = !connected || busy || !runtimeState.selectedFunction;
+  $("runtime-run-vm").disabled = !connected || busy;
+  const session = data.session_id ? `session=${data.session_id}` : "session=未建立";
+  $("runtime-session-meta").textContent = `${data.port ? `port=${data.port} · ` : ""}${session}${data.error ? ` · ${data.error}` : ""}`;
+  if (Array.isArray(data.trace)) {
+    runtimeState.trace = data.trace;
+    renderRuntimeTrace();
+  }
+}
+
+async function pollRuntimeStatus() {
+  try { syncRuntimeStatus(await runtimeRequest(API.vibeStatus)); }
+  catch (e) { $("runtime-session-meta").textContent = `调试服务不可用: ${e.message}`; }
+}
+
+async function loadRuntimeCatalog() {
+  try {
+    const data = await runtimeRequest(API.vibeCatalog);
+    runtimeState.functions = data.functions || [];
+    renderRuntimeCatalog();
+  } catch (e) {
+    $("runtime-function-list").innerHTML = `<p class="hint">函数目录加载失败: ${esc(e.message)}</p>`;
+  }
+}
+
+async function loadRuntimeSessions() {
+  try {
+    const data = await runtimeRequest(API.vibeSessions);
+    const select = $("runtime-session-select");
+    select.innerHTML = '<option value="">新建或手动填写</option>';
+    for (const session of data.sessions || []) {
+      const option = document.createElement("option");
+      option.value = session.session_id;
+      option.textContent = `${session.session_id} · seq ${session.sequence} · ${session.operation || "未知"}`;
+      select.appendChild(option);
+    }
+    showStatus(`发现 ${(data.sessions || []).length} 个可恢复 session`, "success");
+  } catch (e) { showStatus(`读取 session 失败: ${e.message}`, "error"); }
+}
+
+async function connectRuntime() {
+  const button = $("runtime-connect");
+  button.disabled = true;
+  syncRuntimeStatus({ status: "connecting" });
+  try {
+    const data = await runtimeRequest(API.vibeConnect, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        port: parseInt($("runtime-port").value, 10) || 5000,
+        rpcSessionId: $("runtime-session-id").value.trim(),
+        mapPath: $("runtime-map-path").value.trim(),
+        joinWait: 0,
+      }),
+    });
+    syncRuntimeStatus(data);
+    $("runtime-session-id").value = data.session_id || $("runtime-session-id").value;
+    showStatus("Vibe session 已连接", "success");
+  } catch (e) {
+    await pollRuntimeStatus();
+    showStatus(`Vibe session 连接失败: ${e.message}`, "error");
+  }
+}
+
+async function disconnectRuntime() {
+  try {
+    syncRuntimeStatus({ status: "connecting", running: "disconnect" });
+    const data = await runtimeRequest(API.vibeDisconnect, { method: "POST" });
+    syncRuntimeStatus(data);
+    showStatus("Vibe session 已断开", "info");
+  } catch (e) { showStatus(`断开失败: ${e.message}`, "error"); }
+}
+
+async function invokeRuntimeFunction() {
+  if (!runtimeState.selectedFunction) return;
+  let args;
+  try { args = JSON.parse($("runtime-call-args").value || "{}"); }
+  catch (e) { showStatus(`args JSON 无效: ${e.message}`, "error"); return; }
+  try {
+    const data = await runtimeRequest(API.vibeInvoke, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ functionId: runtimeState.selectedFunction.function_id, args }),
+    });
+    syncRuntimeStatus(data.status);
+    showStatus(data.record.status === "passed" ? "函数调用成功" : `函数返回 ${data.record.result?.error_code || "失败"}`, data.record.status === "passed" ? "success" : "warn");
+  } catch (e) { await pollRuntimeStatus(); showStatus(`函数调用失败: ${e.message}`, "error"); }
+}
+
+async function runRuntimeVm() {
+  let program;
+  try { program = JSON.parse($("runtime-vm-program").value || "{}"); }
+  catch (e) { showStatus(`VM JSON 无效: ${e.message}`, "error"); return; }
+  try {
+    const data = await runtimeRequest(API.vibeRunVm, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ program }),
+    });
+    syncRuntimeStatus(data.status);
+    const passed = data.result?.status === "passed";
+    showStatus(passed ? "VM 执行成功" : `VM 执行失败: ${data.result?.error || data.error || "未知错误"}`, passed ? "success" : "error");
+  } catch (e) { await pollRuntimeStatus(); showStatus(`VM 请求失败: ${e.message}`, "error"); }
+}
+
+function initRuntimeConsole() {
+  $("runtime-function-search").oninput = renderRuntimeCatalog;
+  $("runtime-load-sessions").onclick = loadRuntimeSessions;
+  $("runtime-connect").onclick = connectRuntime;
+  $("runtime-disconnect").onclick = disconnectRuntime;
+  $("runtime-invoke").onclick = invokeRuntimeFunction;
+  $("runtime-run-vm").onclick = runRuntimeVm;
+  $("runtime-session-select").onchange = e => { $("runtime-session-id").value = e.target.value; };
+  loadRuntimeCatalog();
+  pollRuntimeStatus();
+  if (!runtimeState.pollTimer) runtimeState.pollTimer = window.setInterval(pollRuntimeStatus, 1000);
 }
 
 /* === 地图渲染 === */
@@ -1089,6 +1357,7 @@ async function init() {
   initTabs();
   initCmdrTabs();
   initPresets();
+  initRuntimeConsole();
 
   try {
     await Promise.all([loadFactors(), loadMaps(), loadCommanders(), loadMutators(), loadVoicePacks(), loadBuffMetadata()]);

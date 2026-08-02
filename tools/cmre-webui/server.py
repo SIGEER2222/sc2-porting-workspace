@@ -8,12 +8,15 @@
     python server.py [--port 8767] [--host 127.0.0.1]
 """
 
+import asyncio
+import atexit
 import csv
 import json
 import os
 import queue
 import subprocess
 import sys
+import time
 import threading
 import webbrowser
 import xml.etree.ElementTree as ET
@@ -34,6 +37,18 @@ CONFIG_DIR = SCRIPT_DIR.parents[1] / "src" / "config"
 ALENGER_MODS_JSON = CONFIG_DIR / "alenger-mods.json"
 REBORN_COMMANDERS_JSON = CONFIG_DIR / "reborn-commanders.json"
 LAUNCH_SCRIPT = Path(__file__).resolve().parents[1] / "launchers" / "launch-cmre-alenger.ps1"
+REPO_ROOT = SCRIPT_DIR.parents[1]
+GALAXY_VIBE_ROOT = REPO_ROOT / "tools" / "galaxy-vibe"
+VIBE_FUNCTION_REGISTRY = GALAXY_VIBE_ROOT / "kernel" / "function-registry.json"
+VIBE_FUNCTION_CATALOG = (
+    REPO_ROOT
+    / "artifacts"
+    / "projects"
+    / "cmre-porting"
+    / "stage25-ai-ally-capability-completion"
+    / "discovery"
+    / "function-catalog.json"
+)
 
 # CMRE 框架运行时根目录（Maps/Mods/Shared/scripts）
 # SCRIPT_DIR.parents[2] = sc2-porting-workspace/tools/cmre-webui → tools → sc2-porting-workspace → SC2VibeTools
@@ -772,6 +787,270 @@ def normalize_mutators(raw_mutators):
 # === 异步启动 / SSE 日志流 全局状态 ===
 _launcher_process = None  # 当前异步启动的 launcher 子进程
 _launcher_lock = threading.Lock()
+
+
+class RuntimeConsole:
+    """Own one long-lived VibeREPL on a worker event loop for the browser console."""
+
+    def __init__(self):
+        self._lock = threading.RLock()
+        self._loop = None
+        self._thread = None
+        self._ready = threading.Event()
+        self._repl = None
+        self._status = "disconnected"
+        self._error = ""
+        self._port = None
+        self._session_id = ""
+        self._trace = []
+        self._running = ""
+
+    def _ensure_loop(self):
+        with self._lock:
+            if self._thread and self._thread.is_alive():
+                return
+            self._ready.clear()
+            self._thread = threading.Thread(
+                target=self._run_loop, name="vibe-console-loop", daemon=True
+            )
+            self._thread.start()
+        if not self._ready.wait(timeout=5):
+            raise RuntimeError("runtime console event loop did not start")
+
+    def _run_loop(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        with self._lock:
+            self._loop = loop
+            self._ready.set()
+        loop.run_forever()
+        loop.close()
+
+    def _submit(self, coroutine, timeout=30):
+        self._ensure_loop()
+        future = asyncio.run_coroutine_threadsafe(coroutine, self._loop)
+        return future.result(timeout=timeout)
+
+    @staticmethod
+    def _imports():
+        if str(GALAXY_VIBE_ROOT) not in sys.path:
+            sys.path.insert(0, str(GALAXY_VIBE_ROOT))
+        from galaxy_repl import VibeREPL, _unit_id_resolver, _unit_name_lookup
+        from vibe.debug_vm import DebugVm, load_function_catalog, load_function_metadata
+
+        return (
+            VibeREPL,
+            _unit_id_resolver,
+            _unit_name_lookup,
+            DebugVm,
+            load_function_catalog,
+            load_function_metadata,
+        )
+
+    @staticmethod
+    def catalog():
+        data = json.loads(VIBE_FUNCTION_REGISTRY.read_text(encoding="utf-8"))
+        entries = []
+        for function_id, definition in data.get("functions", {}).items():
+            entries.append({"function_id": function_id, **definition})
+        entries.sort(key=lambda item: item["function_id"])
+        return {"version": data.get("version", 1), "functions": entries}
+
+    def sessions(self):
+        self._imports()
+        from galaxy_repl import DEFAULT_RPC_BANK, parse_bank
+
+        sessions = {}
+        for raw in parse_bank(DEFAULT_RPC_BANK).get("response", {}).values():
+            if not isinstance(raw, str):
+                continue
+            try:
+                response = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            session_id = response.get("session_id")
+            if not session_id:
+                continue
+            current = sessions.setdefault(
+                session_id,
+                {"session_id": session_id, "sequence": 0, "operation": ""},
+            )
+            current["sequence"] = max(
+                current["sequence"], int(response.get("sequence", 0) or 0)
+            )
+            current["operation"] = response.get("operation", current["operation"])
+        return sorted(sessions.values(), key=lambda item: item["sequence"], reverse=True)[:20]
+
+    async def _connect(self, payload):
+        VibeREPL, resolve, name_lookup, _, _, _ = self._imports()
+        port = int(payload.get("port", 5000))
+        map_path = str(payload.get("map_path", "") or "")
+        join_wait = float(payload.get("join_wait", 0) or 0)
+        rpc_session_id = str(payload.get("rpc_session_id", "") or "")
+        if self._repl is not None:
+            await self._repl.close()
+        repl = VibeREPL(
+            port,
+            resolve(),
+            name_lookup(),
+            map_path=map_path,
+            join_wait=join_wait,
+            rpc_session_id=rpc_session_id,
+        )
+        with self._lock:
+            self._status = "connecting"
+            self._error = ""
+        try:
+            await repl.connect()
+        except Exception as exc:
+            with self._lock:
+                self._status = "error"
+                self._error = str(exc)
+            await repl.close()
+            raise
+        with self._lock:
+            self._repl = repl
+            self._port = port
+            self._session_id = repl.rpc_session_id
+            self._status = "connected"
+            self._error = ""
+            self._trace = []
+        return self.status()
+
+    async def _disconnect(self):
+        if self._repl is not None:
+            await self._repl.close()
+        with self._lock:
+            self._repl = None
+            self._status = "disconnected"
+            self._running = ""
+        return self.status()
+
+    def connect(self, payload):
+        return self._submit(self._connect(payload), timeout=90)
+
+    def disconnect(self):
+        return self._submit(self._disconnect(), timeout=15)
+
+    async def _invoke(self, function_id, args):
+        if self._repl is None:
+            raise RuntimeError("未连接 SC2 Vibe session")
+        with self._lock:
+            previous_running = self._running
+            if not previous_running:
+                self._running = "invoke"
+        started = time.perf_counter()
+        try:
+            result = await self._repl.invoke_function_request(function_id, args)
+            record = {
+                "ts": time.time(),
+                "op": "call",
+                "function_id": function_id,
+                "args": args,
+                "result": result,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 1),
+                "status": "passed" if result.get("error_code") == "OK" else "failed",
+            }
+            self._append_trace(record)
+            return record
+        finally:
+            with self._lock:
+                if not previous_running:
+                    self._running = ""
+
+    def invoke(self, function_id, args):
+        return self._submit(self._invoke(function_id, args), timeout=30)
+
+    async def _step(self, loops):
+        if self._repl is None:
+            raise RuntimeError("未连接 SC2 Vibe session")
+        from galaxy_repl import send_request
+
+        response = await send_request(
+            self._repl.ws,
+            self._step_request(loops),
+            timeout=10.0,
+        )
+        result = (
+            {"kind": "error", "error_code": "STEP_FAILED", "payload": {"errors": list(response.error)}}
+            if response.error
+            else {"kind": "result", "error_code": "OK", "payload": {"requested_loops": loops}}
+        )
+        self._append_trace({"ts": time.time(), "op": "step", "loops": loops, "result": result})
+        return result
+
+    def step(self, loops):
+        return self._submit(self._step(loops), timeout=15)
+
+    async def _run_vm(self, program):
+        if self._repl is None:
+            raise RuntimeError("未连接 SC2 Vibe session")
+        _, _, _, DebugVm, load_function_catalog, load_function_metadata = self._imports()
+        with self._lock:
+            self._running = "vm"
+        manager = self
+        try:
+            catalog = load_function_catalog(VIBE_FUNCTION_CATALOG) if VIBE_FUNCTION_CATALOG.exists() else []
+
+            class ReplBridge:
+                async def call(inner_self, function_id, call_args):
+                    record = await manager._invoke(function_id, call_args)
+                    return record["result"]
+
+                async def step(inner_self, loops):
+                    return await manager._step(loops)
+
+            result = await DebugVm(
+                ReplBridge(),
+                function_metadata=load_function_metadata(),
+                catalog=catalog,
+            ).run(program)
+            for item in result.get("trace", []):
+                if item.get("op") != "call":
+                    self._append_trace({"ts": time.time(), **item})
+            return result
+        finally:
+            with self._lock:
+                self._running = ""
+
+    @staticmethod
+    def _step_request(loops):
+        from s2clientprotocol import sc2api_pb2 as sc_pb
+
+        return sc_pb.Request(step=sc_pb.RequestStep(count=loops))
+
+    def run_vm(self, program):
+        return self._submit(self._run_vm(program), timeout=180)
+
+    def _append_trace(self, record):
+        with self._lock:
+            self._trace.append(record)
+            self._trace = self._trace[-300:]
+
+    def status(self):
+        with self._lock:
+            return {
+                "status": self._status,
+                "error": self._error,
+                "port": self._port,
+                "session_id": self._session_id,
+                "running": self._running,
+                "trace": list(self._trace),
+            }
+
+    def shutdown(self):
+        try:
+            if self._repl is not None:
+                self.disconnect()
+        except Exception:
+            pass
+        with self._lock:
+            if self._loop is not None:
+                self._loop.call_soon_threadsafe(self._loop.stop)
+
+
+_runtime_console = RuntimeConsole()
+atexit.register(_runtime_console.shutdown)
 _log_lines = []  # 环形缓冲，最多 2000 行
 _log_subscribers = []  # SSE 订阅者 queue 列表
 _log_lock = threading.Lock()
@@ -956,6 +1235,21 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/factors":
             self._send_json(build_factors_data())
             return
+        if self.path == "/api/vibe/catalog":
+            try:
+                self._send_json(_runtime_console.catalog())
+            except Exception as exc:
+                self._send_json({"error": str(exc)}, 500)
+            return
+        if self.path == "/api/vibe/sessions":
+            try:
+                self._send_json({"sessions": _runtime_console.sessions()})
+            except Exception as exc:
+                self._send_json({"error": str(exc)}, 500)
+            return
+        if self.path == "/api/vibe/status":
+            self._send_json(_runtime_console.status())
+            return
         if self.path == "/api/buff-metadata":
             self._send_json(load_buff_metadata())
             return
@@ -1058,7 +1352,80 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/stop":
             self._handle_stop()
             return
+        if self.path == "/api/vibe/connect":
+            self._handle_vibe_connect()
+            return
+        if self.path == "/api/vibe/disconnect":
+            self._handle_vibe_disconnect()
+            return
+        if self.path == "/api/vibe/invoke":
+            self._handle_vibe_invoke()
+            return
+        if self.path == "/api/vibe/run-vm":
+            self._handle_vibe_run_vm()
+            return
+        if self.path == "/api/vibe/step":
+            self._handle_vibe_step()
+            return
         self._send_json({"success": False, "error": "未知端点"}, 404)
+
+    def _handle_vibe_connect(self):
+        body = self._read_body()
+        try:
+            result = _runtime_console.connect({
+                "port": body.get("port", 5000),
+                "map_path": body.get("mapPath", ""),
+                "join_wait": body.get("joinWait", 0),
+                "rpc_session_id": body.get("rpcSessionId", ""),
+            })
+            self._send_json({"success": True, **result})
+        except Exception as exc:
+            self._send_json({"success": False, "error": str(exc), **_runtime_console.status()}, 502)
+
+    def _handle_vibe_disconnect(self):
+        try:
+            self._send_json({"success": True, **_runtime_console.disconnect()})
+        except Exception as exc:
+            self._send_json({"success": False, "error": str(exc)}, 500)
+
+    def _handle_vibe_invoke(self):
+        body = self._read_body()
+        function_id = body.get("functionId", "")
+        args = body.get("args", {})
+        if not isinstance(function_id, str) or not function_id:
+            self._send_json({"success": False, "error": "functionId 必须是非空字符串"}, 400)
+            return
+        if not isinstance(args, dict):
+            self._send_json({"success": False, "error": "args 必须是 JSON 对象"}, 400)
+            return
+        try:
+            record = _runtime_console.invoke(function_id, args)
+            self._send_json({"success": True, "record": record, "status": _runtime_console.status()})
+        except Exception as exc:
+            self._send_json({"success": False, "error": str(exc), "status": _runtime_console.status()}, 502)
+
+    def _handle_vibe_run_vm(self):
+        body = self._read_body()
+        program = body.get("program", body)
+        if not isinstance(program, dict):
+            self._send_json({"success": False, "error": "program 必须是 JSON 对象"}, 400)
+            return
+        try:
+            result = _runtime_console.run_vm(program)
+            self._send_json({"success": result.get("status") == "passed", "result": result, "status": _runtime_console.status()})
+        except Exception as exc:
+            self._send_json({"success": False, "error": str(exc), "status": _runtime_console.status()}, 502)
+
+    def _handle_vibe_step(self):
+        body = self._read_body()
+        try:
+            loops = int(body.get("loops", 1))
+            if loops < 1 or loops > 10000:
+                raise ValueError("loops 必须在 1..10000")
+            result = _runtime_console.step(loops)
+            self._send_json({"success": result.get("error_code") == "OK", "result": result, "status": _runtime_console.status()})
+        except Exception as exc:
+            self._send_json({"success": False, "error": str(exc), "status": _runtime_console.status()}, 400)
 
     def _build_launch_args(self, body):
         """从请求 body 解析参数、校验并构建 launcher 命令行参数。
