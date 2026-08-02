@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "07-real-adapters",
+  "issues": [
+    {
+      "id": "TEST-001",
+      "severity": "medium",
+      "status": "resolved",
+      "evidence_type": "simulator",
+      "detail": "The initial Stage 07 transport test import failed because tests/test_transport_adapters.py and the transport package did not exist.",
+      "resolution": "Implemented the three dependency-free transport adapters and added six focused regression tests; the focused and full project suites now pass."
+    },
+    {
+      "id": "ENV-001",
+      "severity": "medium",
+      "status": "open",
+      "evidence_type": "static",
+      "detail": "Python 3.11 is unavailable on this workstation.",
+      "resolution": "Use Python 3.11 grammar parsing plus Python 3.13 execution until a real 3.11 runtime is available."
+    },
+    {
+      "id": "RUNTIME-001",
+      "severity": "high",
+      "status": "blocked",
+      "evidence_type": "runtime",
+      "detail": "The approved Stage 07 live launcher could not acquire the SC2 runtime lease because owner_pid=36840, owner_port=5121, and owner_session=cmre_alenger-20260802-124748-6ee40c06 already held it.",
+      "evidence": "artifacts/projects/cmre-neuro-adapter/artifacts/stage07-real-runtime-20260802-125047/launcher-stderr.txt",
+      "resolution": "Wait for the existing owner session to release its lease, then rerun the approved launcher and collect CreateGame, JoinGame, runtime listener/heartbeat, and same-window ScriptError evidence. Do not terminate or take over the unknown session."
+    }
+  ],
+  "residual_risks": [
+    {
+      "id": "RUNTIME-002",
+      "status": "deferred",
+      "evidence_type": "runtime",
+      "detail": "No live Neuro WebSocket, Bank-in-game action/context, or real-SC2 transport effect is claimed until RUNTIME-001 is cleared and G4 passes."
+    }
+  ]
+}

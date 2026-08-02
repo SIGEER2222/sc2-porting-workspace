@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "07-real-adapters",
+  "status": "BLOCKED",
+  "updated_at": "2026-08-02T12:51:30+08:00",
+  "outputs": [
+    "cmre_neuro_adapter/transports/__init__.py",
+    "cmre_neuro_adapter/transports/common.py",
+    "cmre_neuro_adapter/transports/sc2api_neuro.py",
+    "cmre_neuro_adapter/transports/bank_neuro.py",
+    "cmre_neuro_adapter/transports/input_neuro.py",
+    "tests/test_transport_adapters.py",
+    "stages/07-real-adapters/log.md",
+    "stages/07-real-adapters/result.json",
+    "stages/07-real-adapters/issues.json"
+  ],
+  "gate_results": {
+    "G1-contract": {"status": "PASS", "evidence_type": "simulator"},
+    "G2-reconnect": {"status": "PASS", "evidence_type": "simulator"},
+    "G3-failure": {"status": "PASS", "evidence_type": "simulator"},
+    "G4-live-probe": {"status": "BLOCKED", "evidence_type": "runtime"},
+    "G5-packaging": {"status": "PASS", "evidence_type": "static"}
+  },
+  "verification": {
+    "transport_tests": {
+      "status": "PASS",
+      "tests": 6,
+      "command": "python -m pytest tests/test_transport_adapters.py --maxfail=20 -q",
+      "evidence_type": "simulator"
+    },
+    "project_tests": {
+      "status": "PASS",
+      "tests": 62,
+      "subtests": 22,
+      "command": "python -m pytest -q",
+      "evidence_type": "simulator"
+    },
+    "python_3_13_compileall": {
+      "status": "PASS",
+      "command": "python -m compileall -q cmre_neuro_adapter tests",
+      "evidence_type": "static"
+    },
+    "python_3_11_grammar": {
+      "status": "PASS",
+      "files": 53,
+      "command": "python -c \"import ast, pathlib; ... ast.parse(path.read_text(encoding='utf-8'), feature_version=(3,11)) ...\"",
+      "reason": "No Python 3.11 runtime is installed; this is syntax compatibility rather than a runtime execution claim.",
+      "evidence_type": "static"
+    },
+    "diff_check": {
+      "status": "PASS",
+      "command": "git diff --check -- src/projects/cmre-neuro-adapter",
+      "evidence_type": "static"
+    },
+    "approved_launcher_preflight": {
+      "status": "PASS",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander TerranRaynor -ListenPort 5091 -ApiMinimal -DebugMode -NoLaunch -MapCopySuffix stage07-preflight",
+      "summary": "Staging completed and the launcher lock was released; no live runtime claim.",
+      "evidence_type": "runtime"
+    },
+    "approved_launcher_live_probe": {
+      "status": "BLOCKED",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander TerranRaynor -ListenPort 5091 -DebugMode -KeepAlive -MapCopySuffix stage07-runtime",
+      "summary": "SC2_RUNTIME_BUSY for owner_pid=36840, owner_port=5121, owner_session=cmre_alenger-20260802-124748-6ee40c06 before API listening.",
+      "artifact": "artifacts/projects/cmre-neuro-adapter/artifacts/stage07-real-runtime-20260802-125047/launcher-stderr.txt",
+      "evidence_type": "runtime"
+    },
+    "script_error_current_scan": {
+      "status": "PASS",
+      "command": "python tools/galaxy-vibe/script_error_check.py --since 1785646068 --out src/projects/cmre-neuro-adapter/artifacts/stage07-real-runtime-current-check-script-error-verdict.json",
+      "summary": "No new errors were observed in the scan, but it is not a same-window successful Stage 07 launch and does not satisfy G4.",
+      "evidence_type": "runtime"
+    }
+  },
+  "runtime_claims": [],
+  "open_blockers": ["RUNTIME-001"],
+  "next_stage": null,
+  "next_stage_plan": null
+}
