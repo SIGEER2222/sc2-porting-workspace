@@ -76,3 +76,14 @@ def test_live_ally_command_is_a_p1_team_chat_message():
     assert action.HasField("action_chat")
     assert action.action_chat.channel == runner.sc_pb.ActionChat.Team
     assert action.action_chat.message == "!ally defend stage25-test"
+
+
+def test_live_roster_requires_p1_and_p2_participants():
+    assert runner._has_p1_p2_participant_roster({
+        "1": {"type": 1},
+        "2": {"type": 1},
+    })
+    assert not runner._has_p1_p2_participant_roster({
+        "1": {"type": 1},
+        "2": {"type": 2},
+    })

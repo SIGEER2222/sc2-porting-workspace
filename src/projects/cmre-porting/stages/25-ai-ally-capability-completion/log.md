@@ -16,6 +16,14 @@ cooperative AI ally behavior has begun.
   dispatches, zero friendly-fire rejections, zero hidden-state violations, and
   no deadlock/oscillation/command storm. The three trace hashes are identical.
   Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/simulator-multiseed.json`.
+- `simulator`: seed `42` cooperative replay exported `41` timeline frames,
+  `5` P1 command records, `80` P2 action records, `76` successful dispatches,
+  owner `2` for every P2 action, and zero friendly-fire rejections. This is a
+  browser-viewable simulator artifact, not a native `.SC2Replay`.
+  Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cooperative-ai-ally-replay-20260802/replay.jsonl`.
+- `static`: the self-contained replay player was generated from those records;
+  its embedded JavaScript parsed successfully. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cooperative-ai-ally-replay-20260802/full-map-player.html`.
 - `runtime`: a pre-existing protected window was observed read-only at
   `127.0.0.1:5151`: GameInfo reported P1 participant/P2 computer and raw
   observation showed four owner=2 units with alliance=2. This is context only,
@@ -28,11 +36,11 @@ cooperative AI ally behavior has begun.
   attempt was rejected by a new protected lease, PID `40408`/port `5152`.
   Evidence:
   `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802-pass1/runtime-verdict.json`.
-- `runtime`: fresh approved launcher epoch `2026-08-02T14:50:24+08:00` on
-  port `5152` passed `CreateGame + JoinGame`, and the same-window native task
-  reached loop `5504` with victory. Native action success counts were
-  `gather=17`, `train=6`, `move=442`, `attack=35`; strategy audit was PASS
-  with empty debug/injection operation lists. Evidence:
+- `historical-invalid`: the earlier approved launcher epoch on port `5152`
+  reached loop `5504`, but its report joined as `observed_player_id=1` with P2
+  configured as a computer. Its trace contains `attack=35` from SCVs and no
+  P2-owned Barracks/Refinery/Marine proof, so it is explicitly excluded from
+  Stage 25 native-strategy acceptance. Evidence:
   `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/runtime-native-strategy-pass7.json`.
 - `runtime`: the current staged map was repacked with the existing StormLib
   tool and passed a fresh `CreateGame + JoinGame`; same-websocket
@@ -77,6 +85,11 @@ cooperative AI ally behavior has begun.
   second REPL process executed the same VM on port 5153 without CreateGame or
   JoinGame. It returned `pong`, found 4 catalog entries, and exited 0. Evidence:
   `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-20260802/vm-resume.json`.
+- `blocked`: a fresh approved launcher request on port `5161` was rejected
+  before `CreateGame` by the protected global lease for PID `39308`/port
+  `5153`; no P2 action was sent and no ScriptError verdict was claimed.
+  Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-validation-blocked.json`.
 
 ## Changes
 
@@ -88,6 +101,8 @@ cooperative AI ally behavior has begun.
 - The live runner now sends P1 `ActionChat(!ally ...)` commands and records P2
   raw alliance, owner, position deltas, Bank acknowledgements, and chat events;
   it no longer sends P1-owned raw actions as the AI ally.
+- The live runner now rejects any `GameInfo` roster where P1 or P2 is not a
+  participant, before native decisions or action dispatch.
 - The Galaxy kernel and its debug/map mirrors register the P1-only `!ally`
   trigger. It issues orders only to P2 units and writes status/result signals.
 - Removed the stray `+` before the cooperative ally section in the project map
@@ -95,13 +110,15 @@ cooperative AI ally behavior has begun.
 
 ## Validation
 
-- `python -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py` -> `6 passed`.
+- `python -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py tools/launchers/tests/test_live_runner_unit_adapter.py` -> `13 passed`.
 - Stage 25 + Stage 19 + Stage 20 regression -> `15 passed, 3 subtests passed`.
 - Stage 22 + Stage 23 typed combat regression -> `16 passed, 3 subtests passed`.
 - `python -m pytest -q tools/launchers/tests/test_live_runner_unit_adapter.py tools/galaxy-vibe/tests/test_kernel.py tools/launchers/tests/test_launch_cmre_alenger_static.py` -> `58 passed`.
 - `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` -> `52/52 passed, 0 warnings`.
 - `python -m py_compile` over Stage 25 runtime/policy modules and focused tests -> pass.
 - `git diff --check` -> pass.
+- `python -m vibe.replay_player artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cooperative-ai-ally-replay-20260802/replay.jsonl --output artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cooperative-ai-ally-replay-20260802/full-map-player.html` -> `41` frames, loop `0 -> 40`.
+- `node` embedded-script parse check over `full-map-player.html` -> pass.
 - `node src/projects/cmre-porting/stages/25-ai-ally-capability-completion/discover_function_catalog.mjs ...` -> 35,404 declarations, 0 parser errors, 14 callable-adapter source declarations.
 - `py -3.13 -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_debug_vm.py` -> `7 passed`.
 - `inline Python DebugVm bridge over SimulatorTransport` -> VM smoke PASS; 8 instructions, 5 transport requests, no session restart.
@@ -113,11 +130,15 @@ cooperative AI ally behavior has begun.
   existing `verify_mpq.py` cannot inspect this StormLib archive because its
   reader does not support encryption, so SC2 `CreateGame + JoinGame` is the
   runtime packaging evidence.
+- `approved launch-cmre-alenger.ps1 -ListenPort 5161 -DebugMode` -> blocked
+  with `SC2_RUNTIME_BUSY` by the protected PID `39308`/port `5153`; exit code
+  `1`, no game created.
 
 ## Stop Condition
 
 Simulator, static, native-task, and typed debug-function gates are complete.
-Stage 25 remains `IN_PROGRESS` with issue `RUNTIME-P2-ALLIANCE-UNVERIFIED`
-until a fresh approved-launcher window proves P1 ActionChat -> Galaxy P2 order
--> RequestStep state change and a same-window ScriptError check. Do not promote
-the P2 command lane from `BLOCKED` based on P2 visibility or position deltas.
+Stage 25 remains `IN_PROGRESS` with issue `RUNTIME-P2-NATIVE-VALIDATION-BLOCKED`
+until a fresh approved-launcher window proves P1/P2 participant roster, P2-owned
+native build/train/combat actions, no SCV attack, resulting state deltas, and a
+same-window ScriptError check. The historical P1 runtime report and the
+protected 5153 Debug VM window cannot satisfy this gate.

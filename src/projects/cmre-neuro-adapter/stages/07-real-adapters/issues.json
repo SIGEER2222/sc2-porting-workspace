@@ -41,7 +41,7 @@
       "status": "resolved",
       "evidence_type": "simulator",
       "detail": "The foundation proof had test assertions but no inspectable action-and-event replay artifact.",
-      "resolution": "Generated the adapter-aware simulator replay plus a self-contained minimap-style player with economy and production events. The player preserves the complete legacy map observations and adds a deterministic, resource-funded P1 progression layer; browser checks cover canvas rendering, timeline seeking, playback, speed controls, filtering, selection, and raw context inspection.",
+      "resolution": "Generated the adapter-aware simulator replay plus a self-contained minimap-style player with economy and production events. The foundation player remains the command-surface proof; the state-driven macro player is now the economy/production proof. Browser checks cover canvas rendering, timeline seeking, playback, speed controls, filtering, selection, and raw context inspection.",
       "artifact": "artifacts/stage07-basic-command-replay-20260802/full-map-player.html"
     },
     {
@@ -50,8 +50,17 @@
       "status": "resolved",
       "evidence_type": "simulator",
       "detail": "The first full-map player used a terminal-style legacy observation with 159 P1 entities and 128 Battlecruisers at loop 0, so it did not represent economy or production progression.",
-      "resolution": "Retired that opening source, used the older 27-unit Dead of Night replay as the map baseline, and generated a deterministic economy/production layer with explicit resource costs, income, actions, and completion events.",
-      "artifact": "artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl"
+      "resolution": "Retired that opening source and the fixed-schedule merger. The current economy proof uses a clean simulator fixture with Catalog-backed costs, observed income, explicit action lifecycle, and completion events.",
+      "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl"
+    },
+    {
+      "id": "MACRO-001",
+      "severity": "high",
+      "status": "resolved",
+      "evidence_type": "simulator",
+      "detail": "The previous progression replay added entities from a fixed schedule and could not prove resource collection, production buildings, or completion lifecycle.",
+      "resolution": "Replaced it with a clean state-driven fixture using the public simulator transport and M7 Catalog. The replay starts with only 1 CommandCenter and 8 SCVs, assigns workers to mineral/gas nodes, saves for structures, and records simulator-observed SCV, SupplyDepot, Barracks, Refinery, and Marine completions. The local simulator requires Refinery placement in a free slot while gas collection uses the declared geyser node; this limitation is explicit in the planner comment and replay metadata.",
+      "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl"
     }
   ],
   "residual_risks": [

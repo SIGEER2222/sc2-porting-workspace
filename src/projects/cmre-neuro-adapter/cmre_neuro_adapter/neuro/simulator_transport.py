@@ -323,7 +323,9 @@ class SimulatorSessionBackend:
 
     def execute(self, operation: str, args: Mapping[str, Any]) -> Mapping[str, Any]:
         if operation == "unit.order":
-            return self.session.unit_order(
+            world = getattr(self.session, "world", None)
+            before_results = len(getattr(world, "command_results", ()))
+            raw = self.session.unit_order(
                 list(args["entity_ids"]),
                 str(args["kind"]),
                 int(args["issuer_player_id"]),
@@ -333,6 +335,24 @@ class SimulatorSessionBackend:
                 str(args.get("unit_type_id", "")),
                 str(args.get("ability_id", "")),
             )
+            command_results = list(getattr(world, "command_results", ()))[before_results:]
+            result_payload = [
+                item.to_dict() if hasattr(item, "to_dict") else dict(item)
+                for item in command_results
+            ]
+            rejected = [item for item in command_results if not bool(getattr(item, "ok", True))]
+            if rejected:
+                reasons = "; ".join(
+                    str(getattr(item, "reason", "command rejected")) or "command rejected"
+                    for item in rejected
+                )
+                return {
+                    **dict(raw),
+                    "success": False,
+                    "message": reasons,
+                    "command_results": result_payload,
+                }
+            return {**dict(raw), "success": True, "command_results": result_payload}
         if operation == "unit.spawn":
             return self.session.unit_spawn(
                 str(args["unit_type_id"]),

@@ -544,6 +544,14 @@ def _owner_state(obs: LiveObservation, owner_player_id: int) -> list[dict]:
     return [unit for unit in units if int(unit.get("owner", 0)) == owner_player_id]
 
 
+def _has_p1_p2_participant_roster(player_roster: dict) -> bool:
+    """Require both the human P1 slot and Vibe's P2 slot to be participants."""
+    return all(
+        int(player_roster.get(str(player_id), {}).get("type", 0)) == 1
+        for player_id in (P1_PLAYER_ID, P2_PLAYER_ID)
+    )
+
+
 def _read_runtime_bank_section(bank_name: str = "GalaxyVibe") -> dict:
     """Read the ally Bank section for runtime command acknowledgements."""
     bank_path = Path.home() / "Documents" / "StarCraft II" / "Banks" / f"{bank_name}.SC2Bank"
@@ -852,6 +860,11 @@ async def run_live(
             }
             for info in r.game_info.player_info
         }
+        if not _has_p1_p2_participant_roster(player_roster):
+            raise RuntimeError(
+                "P2 strategy requires a participant roster for both P1 and P2; "
+                f"observed={player_roster}"
+            )
         if verbose:
             print(f"[5] Map: {map_name} | local_map_path={local_map_path}")
 
@@ -1228,6 +1241,7 @@ async def run_live(
             "frames_advanced": current_loop > 0,
             "player_units_observed": p1_survivors > 0,
             "strategy_player_id_is_p2": strategy_player_id == P2_PLAYER_ID,
+            "p1_p2_participant_roster": _has_p1_p2_participant_roster(player_roster),
             "strategy_player_units_observed": len(p2_state) > 0,
             "action_results_correlated": action_result_count_mismatches == 0,
             "action_success_observed": cmd_ok_stats.get("dispatched", 0) > 0,

@@ -173,7 +173,15 @@ _UNIT_FIELDS = (
     "energy",
     "state",
 )
-_RESOURCE_FIELDS = ("minerals", "vespene", "supply_used", "supply_cap")
+_RESOURCE_FIELDS = (
+    "minerals",
+    "vespene",
+    "supply_used",
+    "supply_cap",
+    "reserved_minerals",
+    "reserved_vespene",
+    "reserved_supply",
+)
 
 
 def project_observation(

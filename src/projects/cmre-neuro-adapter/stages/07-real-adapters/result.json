@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "stage_id": "07-real-adapters",
   "status": "BLOCKED",
-  "updated_at": "2026-08-02T14:42:00+08:00",
+  "updated_at": "2026-08-02T16:20:00+08:00",
   "outputs": [
     "cmre_neuro_adapter/transports/__init__.py",
     "cmre_neuro_adapter/transports/common.py",
@@ -12,10 +12,12 @@
     "tests/test_transport_adapters.py",
     "cmre_neuro_adapter/neuro/basic_actions.py",
     "cmre_neuro_adapter/progression_replay.py",
+    "cmre_neuro_adapter/macro_replay.py",
     "cmre_neuro_adapter/neuro/schemas.py",
     "cmre_neuro_adapter/neuro/simulator_transport.py",
     "tests/test_basic_actions.py",
     "tests/test_replay_player.py",
+    "stages/07-real-adapters/macro-economy-implementation-plan.md",
     "artifacts/stage07-basic-command-replay-20260802/replay.jsonl",
     "artifacts/stage07-basic-command-replay-20260802/simulator-events.jsonl",
     "artifacts/stage07-basic-command-replay-20260802/summary.json",
@@ -25,6 +27,9 @@
     "artifacts/stage07-basic-command-replay-20260802/full-map-player.html",
     "artifacts/stage07-basic-command-replay-20260802/full-map-smoke.png",
     "artifacts/stage07-basic-command-replay-20260802/full-map-interaction.png",
+    "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl",
+    "artifacts/stage07-basic-command-replay-20260802/state-driven-player.html",
+    "artifacts/stage07-basic-command-replay-20260802/state-driven-player-smoke.png",
     "stages/07-real-adapters/log.md",
     "stages/07-real-adapters/result.json",
     "stages/07-real-adapters/issues.json"
@@ -62,9 +67,16 @@
     },
     "project_tests": {
       "status": "PASS",
-      "tests": 71,
+      "tests": 72,
       "subtests": 22,
       "command": "python -m unittest discover -s tests -v",
+      "evidence_type": "simulator"
+    },
+    "macro_economy_closure": {
+      "status": "PASS",
+      "command": "python -m unittest tests.test_replay_player -v; python -m cmre_neuro_adapter.progression_replay <legacy-source> --output artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl --max-loops 2400",
+      "summary": "The clean fixture starts with 1 CommandCenter and 8 SCVs, then simulator-observes 3 additional SCVs, SupplyDepot, Barracks, Refinery, and 2 Marines. Mineral income precedes spending, vespene reaches 24, and 18 actions complete with no failures or synthetic entities.",
+      "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl",
       "evidence_type": "simulator"
     },
     "python_3_13_compileall": {
@@ -118,26 +130,33 @@
       "evidence_type": "runtime"
     },
     "progression_replay_fidelity": {
-      "status": "PASS",
+      "status": "RETIRED",
       "command": "python -m cmre_neuro_adapter.progression_replay ../cmre-porting/artifacts/dead_of_night_replay_20260730_224154.jsonl --output artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl; python inline source-vs-derived map entity comparison",
-      "summary": "The progression replay preserves the legacy source's neutral resources, enemy wave entities, and baseline P1 entities frame-by-frame, then adds a deterministic resource-funded P1 economy layer. It has 36 frames over loop 0-3500, starts at P1=27/enemy=1/neutral=26, and has 16 successful economy/production actions plus 256 displayed frame events.",
+      "summary": "Superseded: the fixed-schedule legacy-frame merger is no longer an execution path and must not be used as economy evidence.",
       "source": "../cmre-porting/artifacts/dead_of_night_replay_20260730_224154.jsonl",
       "artifact": "artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl",
       "evidence_type": "simulator"
     },
     "progression_replay_browser_interaction": {
-      "status": "PASS",
+      "status": "RETIRED",
       "command": "Playwright Chromium headless DOM, canvas-pixel, seek, speed, playback, filter, and selection checks",
-      "summary": "The economy progression replay rendered 900000 non-empty canvas pixels and 54 current-frame entity rows at loop 0; 16x activated, seek selected loop 1000, playback toggled, Marine filtering returned 8 rows, and entity selection highlighted one row. The initial resource panel showed 250 minerals, 0 vespene, and 28/31 supply.",
+      "summary": "Superseded by the state-driven fixture player and its fresh browser smoke evidence.",
       "artifact": "artifacts/stage07-basic-command-replay-20260802/full-map-interaction.png",
       "evidence_type": "runtime"
     },
     "progression_replay_generation": {
-      "status": "PASS",
+      "status": "RETIRED",
       "command": "python -m cmre_neuro_adapter.replay_player artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl --output artifacts/stage07-basic-command-replay-20260802/full-map-player.html",
-      "summary": "Generated a self-contained economy-and-battle replay player with 36 timeline frames, resource curve, action cards, production events, full entity table, raw context, and minimap controls.",
+      "summary": "Superseded by state-driven-player.html generated from the simulator-backed macro replay.",
       "artifact": "artifacts/stage07-basic-command-replay-20260802/full-map-player.html",
       "evidence_type": "static"
+    },
+    "macro_replay_browser_smoke": {
+      "status": "PASS",
+      "command": "Playwright Chromium opened state-driven-player.html with DOM, canvas-pixel, seek, speed, and playback checks",
+      "summary": "The actual embedded replay rendered 900000 non-empty canvas pixels at 1200x750; 16x activated; seek moved to loop 520; playback entered the active state; lifecycle event text was present; and a screenshot was captured.",
+      "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-player-smoke.png",
+      "evidence_type": "runtime"
     },
     "legacy_full_map_replay_reference": {
       "status": "RETIRED",

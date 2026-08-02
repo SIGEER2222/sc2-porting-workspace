@@ -3,15 +3,15 @@
   "stage": "25-ai-ally-capability-completion",
   "issues": [
     {
-      "id": "RUNTIME-P2-ALLIANCE-UNVERIFIED",
+      "id": "RUNTIME-P2-NATIVE-VALIDATION-BLOCKED",
       "severity": "medium",
       "status": "blocked",
-      "title": "P1 ActionChat to P2 Galaxy acknowledgement is unverified",
-      "detail": "Fresh approved-launcher native-task windows now pass CreateGame, JoinGame, native gather/train/move/attack, P2 owner/alliance observation, and same-window ScriptError checks. However, the P1 !ally messages are only visible in SC2 observations; the expected Galaxy ally Bank last_command/last_result acknowledgement remains absent, so the P2 order and resulting state delta cannot be claimed.",
+      "title": "Fresh corrected P2 native runtime is blocked by protected lease",
+      "detail": "The corrected runner now requires P1/P2 participant slots and joins P2, but the fresh approved launcher request on port 5161 was rejected before CreateGame by the protected KeepAlive runtime on port 5153. The earlier native report is historical-invalid because it operated P1 and issued SCV attacks.",
       "evidence_type": "blocked",
-      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/runtime-native-strategy-pass7.json",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-validation-blocked.json",
       "owner": "stage25",
-      "nextAction": "Instrument or repair the runtime chat-trigger/Bank acknowledgement path, then rerun the approved launcher and require last_result plus a P2 order/state delta before promoting this issue."
+      "nextAction": "After the protected runtime owner releases PID 39308/port 5153, rerun the approved launcher on a new port and require P2 participant ownership, successful Barracks/Refinery/Marine transitions, no SCV attack, and same-window ScriptError evidence."
     }
   ]
 }

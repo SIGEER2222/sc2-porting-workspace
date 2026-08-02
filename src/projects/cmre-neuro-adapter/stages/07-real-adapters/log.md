@@ -26,7 +26,7 @@ replay with seeking, playback, speed controls, and action/event markers.
   transport implementation and regression tests.
 - `simulator`: after implementation, the focused transport suite passed `6/6` and the project
   suite passed `62/62` tests with `22` subtests under Python 3.13.
-- `simulator`: after the foundation slice, the full adapter suite passed `71/71` tests. The new
+- `simulator`: after the foundation slice, the full adapter suite passed `72/72` tests. The new
   command tests drove `SimulatorSession.unit_order` and observed a Marine move, a Barracks build,
   and a Marine production result.
 - `simulator`: the adapter-aware replay executed `3/3` actions successfully through
@@ -118,8 +118,9 @@ observation already contained `159` P1 entities including `128` Battlecruisers a
 `50` mineral bank. That is a terminal-style test snapshot, not a credible opening, so it was
 retired from the player.
 
-The corrected player uses the older complete map observation as its baseline and adds a bounded,
-deterministic economy layer without editing the read-only `cmre-porting` project:
+That former derived player is retained only as a retired historical artifact. It used a legacy
+map baseline and is not the current economy proof. The current proof is the clean fixture below;
+it does not copy source entities or resources into the opening:
 
 - source: `../cmre-porting/artifacts/dead_of_night_replay_20260730_224154.jsonl`
 - derived replay: `artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl`
@@ -127,20 +128,42 @@ deterministic economy layer without editing the read-only `cmre-porting` project
 - screenshot: `artifacts/stage07-basic-command-replay-20260802/full-map-smoke.png`
 - interaction screenshot: `artifacts/stage07-basic-command-replay-20260802/full-map-interaction.png`
 
-`simulator`: the derived replay has `36` frames over loop `0..3500`. It starts with `27` P1
-entities, `1` enemy sensor tower, and `26` neutral resource entities. The source neutral and
-enemy entity lists, plus baseline P1 entities, are preserved frame-by-frame. The progression
-layer starts at `250` minerals and `0` vespene, charges explicit costs, and records `16`
-successful actions plus `256` displayed frame events, including SCV/Marine/Marauder training,
-Supply Depot/Barracks/Refinery/Turret construction, Combat Shield research scheduling, enemy
-waves, and deaths. The final displayed bank is `5` minerals, `74` vespene, and `16/31` supply
-after combat losses.
+The retired artifact's old claims are superseded by `MACRO-001` below.
 
 `runtime`: Playwright Chromium opened the actual self-contained HTML. The initial frame rendered
 `900000` non-empty canvas pixels, `54` visible entity rows, `250` minerals, `0` vespene, `28/31`
 supply, and `16` action cards. 16x speed, seeking to loop `1000`, playback toggling, Marine
 filtering, and entity selection all passed. This is local browser replay evidence, not a live SC2
 runtime claim.
+
+## State-driven Macro Closure
+
+The implementation plan is recorded at `stages/07-real-adapters/macro-economy-implementation-plan.md`.
+`cmre_neuro_adapter/macro_replay.py` now runs `MacroFixture.standard_opening()` through
+`SimulatorSessionBackend` and `SimulatorTransport`. The planner consumes public observations and
+M7 Catalog rules; it has no fixed action times and never calls `unit.spawn` or
+`player.set_resource` after reset.
+
+`simulator`: the fresh replay
+`artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl` starts
+with `1 CommandCenter`, `8 SCV`, `6 MineralField`, and `2 VespeneGeyser`. It records `18/18`
+completed actions: three additional SCVs, one SupplyDepot, one Barracks, one Refinery, two
+Marines, opening mineral assignments, new-worker reassignment, and three gas-worker assignments.
+The final census is `11 SCV`, `1 SupplyDepot`, `1 Barracks`, `1 Refinery`, `2 Marine`; the final
+bank is `10` minerals and `24` vespene. The summary explicitly reports
+`no_synthetic_entities=true` and the accepted/started/completed/failed lifecycle.
+
+`runtime`: Playwright Chromium opened
+`artifacts/stage07-basic-command-replay-20260802/state-driven-player.html`. Canvas pixel check
+reported `900000` non-empty pixels at `1200x750`; seek moved to loop `520`, `16x` activated,
+playback entered the active state, lifecycle event text was present, and the screenshot is
+`artifacts/stage07-basic-command-replay-20260802/state-driven-player-smoke.png`. This is browser
+replay evidence, not live SC2 runtime evidence.
+
+The local simulator's placement validator reserves neutral resource footprints for all structure
+builds, so the fixture places the Refinery in a free slot and keeps the declared geyser as the
+public gas source. This is recorded as a simulator limitation rather than hidden by synthetic
+entities.
 
 ## Visual Replay Verification
 
@@ -153,12 +176,13 @@ runtime claim.
 
 - `simulator`: `python -m pytest tests/test_transport_adapters.py --maxfail=20 -q` -> `6 passed`.
 - `simulator`: `python -m unittest tests.test_basic_actions -v` -> `6/6` tests passed.
-- `simulator`: `python -m unittest discover -s tests -q` -> `71/71` tests passed.
+- `simulator`: `python -m unittest discover -s tests -q` -> `72/72` tests passed.
 - `static`: `python -m compileall -q cmre_neuro_adapter tests` -> pass.
 - `static`: Python 3.11 grammar fallback -> `55` files passed with `ast.parse(..., feature_version=(3,11))`.
 - `static`: Stage 07 JSON parse and `git diff --check -- src/projects/cmre-neuro-adapter` -> pass.
-- `simulator`: replay artifact assertions -> `PASS`; `replay.jsonl` contains `26` records and
-  `summary.json` reports `3/3` actions and the expected move/build/produce effects.
+- `simulator`: macro replay assertions -> `PASS`; the state-driven JSONL summary reports
+  `18/18` completed actions, all required entity completions, positive mineral/gas collection,
+  and no synthetic entities.
 
 ## Problems and Limitations
 

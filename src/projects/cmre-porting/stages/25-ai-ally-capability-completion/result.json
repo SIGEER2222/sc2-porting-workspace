@@ -3,7 +3,7 @@
   "stage": "25-ai-ally-capability-completion",
   "status": "IN_PROGRESS",
   "evidence_type": "mixed",
-  "summary": "Complete AST function catalog and bounded Debug VM pass static, simulator, and fresh runtime hot-call validation without game restart. P1 human / P2 AI ally simulator, native task strategy, and typed runtime debug function paths pass. Fresh native runtime observes the P2 roster and executes native actions without injection, but the P1 ActionChat to P2 Galaxy acknowledgement lane remains blocked.",
+  "summary": "AST catalog, bounded Debug VM, simulator, and static regressions pass. The only native-task runtime report is historical-invalid because it operated P1 and issued SCV attacks; the corrected P2 runner has not obtained a fresh game because the approved launcher is blocked by a protected KeepAlive lease.",
   "changed_paths": [
     "src/projects/cmre-porting/project.json",
     "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/plan.md",
@@ -17,6 +17,7 @@
     "src/projects/cmre-porting/vibe/contracts.py",
     "src/projects/cmre-porting/vibe/debug_vm.py",
     "src/projects/cmre-porting/vibe/consumers/ally_ai.py",
+    "src/projects/cmre-porting/vibe/replay_player.py",
     "src/projects/cmre-porting/vibe/run_dead_of_night_live.py",
     "tools/galaxy-vibe/kernel/LibVibeKernel.galaxy",
     "tools/galaxy-vibe/kernel/LibVibeKernel_h.galaxy",
@@ -29,6 +30,8 @@
     "tools/galaxy-vibe/tests/test_kernel.py",
     "tools/launchers/tests/test_live_runner_unit_adapter.py",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/simulator-multiseed.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cooperative-ai-ally-replay-20260802/replay.jsonl",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cooperative-ai-ally-replay-20260802/full-map-player.html",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/debug-vm-simulator-smoke.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802/runtime-verdict.json",
@@ -45,13 +48,16 @@
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-20260802/launcher.stderr.txt",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-20260802/script-error-verdict.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-20260802/vm-resume.json",
-    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-20260802/session-isolation-rejection.json"
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-20260802/session-isolation-rejection.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-validation-blocked.json"
   ],
   "validation": [
     {"evidence_type": "simulator", "command": "inline Python run_ally_scenario for seeds 42, 7, 99", "status": "PASS", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/simulator-multiseed.json"},
+    {"evidence_type": "simulator", "command": "seed 42 run_ally_scenario with replay_log_path", "status": "PASS", "detail": "41 frames; 5 P1 commands; 80 P2 actions; all P2 owner=2; 76 successful dispatches; friendly_fire_rejections=0", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cooperative-ai-ally-replay-20260802/replay.jsonl"},
+    {"evidence_type": "static", "command": "python -m vibe.replay_player plus embedded JavaScript parse", "status": "PASS", "detail": "self-contained full-map-player.html generated; loop 0 -> 40", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cooperative-ai-ally-replay-20260802/full-map-player.html"},
     {"evidence_type": "static", "command": "python -m pytest -q Stage 25 + Stage 19 + Stage 20", "status": "PASS", "detail": "15 passed, 3 subtests passed"},
     {"evidence_type": "static", "command": "python -m pytest -q Stage 22 + Stage 23", "status": "PASS", "detail": "16 passed, 3 subtests passed"},
-    {"evidence_type": "runtime", "command": "approved launcher port 5152 + native runner on stage25_pass7_current.packed.SC2Map", "status": "PASS", "detail": "CreateGame/JoinGame; loop 5504 victory; gather 17, train 6, move 442, attack 35; strategy audit PASS; zero debug injection; P2 alliance [2] and 5 visible units", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/runtime-native-strategy-pass7.json"},
+    {"evidence_type": "historical-invalid", "command": "approved launcher port 5152 + native runner on stage25_pass7_current.packed.SC2Map", "status": "INVALID_HISTORICAL", "detail": "Report observed_player_id=1 and configured P2 as computer; trace contains SCV attack actions and no P2-native Barracks/Refinery/Marine acceptance evidence", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/runtime-native-strategy-pass7.json"},
     {"evidence_type": "runtime", "command": "same-window galaxy_repl debug-function-probe on stage25_pass7_current.packed.SC2Map", "status": "PASS", "detail": "vibe.test.ping pong; vibe.query.units SCV count=12", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/debug-function-probe-pass7.txt"},
     {"evidence_type": "static", "command": "typed registry rejection in the same debug probe", "status": "PASS", "detail": "unknown function rejected before transport as FUNCTION_NOT_FOUND; not promoted to Galaxy runtime rejection", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/debug-function-probe-pass7.txt"},
     {"evidence_type": "runtime", "command": "same launcher epoch ScriptError scan", "status": "PASS", "detail": "zero new non-empty ScriptError files", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/script-error-verdict.json"},
@@ -59,15 +65,16 @@
     {"evidence_type": "runtime", "command": "same launcher epoch script_error_check.py", "status": "PASS", "detail": "zero new non-empty ScriptError files", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-20260802/script-error-verdict.json"},
     {"evidence_type": "runtime", "command": "negative contract: second independent REPL with random session on port 5153", "status": "PASS", "detail": "expected Galaxy Kernel session-lock rejection; no game restart; recovery path then passed with --rpc-session-id", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-20260802/session-isolation-rejection.json"},
     {"evidence_type": "runtime", "command": "second REPL resumed with --rpc-session-id on port 5153", "status": "PASS", "detail": "same VM passed with ping pong and catalog count=4; no CreateGame/JoinGame; no restart", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-debug-vm-20260802/vm-resume.json"},
-    {"evidence_type": "blocked", "command": "P1 ActionChat -> P2 Galaxy acknowledgement", "status": "BLOCKED", "detail": "chat messages visible, ally Bank last_result absent, p2_command_ack_observed=false", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-native-task-pass6/runtime-native-strategy-pass7.json"},
+    {"evidence_type": "blocked", "command": "approved launcher port 5161 for corrected P2 native runtime", "status": "BLOCKED", "detail": "SC2_RUNTIME_BUSY from protected KeepAlive PID 39308/port 5153 before CreateGame; no P2 actions or ScriptError verdict", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-validation-blocked.json"},
     {"evidence_type": "static", "command": "node discover_function_catalog.mjs over registered CMRE and owned package roots", "status": "PASS", "detail": "35,404 declarations; 0 parser errors; 35,390 inventory-only; 14 source declarations matched to 7 callable registry IDs", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json"},
     {"evidence_type": "simulator", "command": "inline Python DebugVm bridge over SimulatorTransport", "status": "PASS", "detail": "8 instructions; ping pong; query count=1; step loop=1; catalog search count=4; no restart", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/debug-vm-simulator-smoke.json"},
     {"evidence_type": "static", "command": "py -3.13 -m pytest -q Stage 25 test_debug_vm.py", "status": "PASS", "detail": "8 passed"},
     {"evidence_type": "static", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1", "status": "PASS", "detail": "52/52 checks passed, 0 warnings"},
-    {"evidence_type": "static", "command": "git diff --check and py_compile", "status": "PASS", "detail": "no whitespace errors; Stage 25 runtime/policy modules compile"}
+    {"evidence_type": "static", "command": "git diff --check and py_compile", "status": "PASS", "detail": "no whitespace errors; Stage 25 runtime/policy modules compile"},
+    {"evidence_type": "static", "command": "python -m pytest -q Stage 25 focused tests and live runner adapter", "status": "PASS", "detail": "13 passed"}
   ],
   "issues": [
-    "P1 ActionChat is observed, but P2 Galaxy acknowledgement/order evidence remains blocked; do not promote from P2 roster visibility or position deltas."
+    "Corrected P2 native runtime remains blocked by protected launcher lease; do not use the historical P1 report or protected Debug VM window as native-task evidence."
   ],
   "next_stage_plan": null
 }

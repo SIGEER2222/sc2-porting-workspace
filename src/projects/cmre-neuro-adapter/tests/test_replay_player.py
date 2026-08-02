@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from cmre_neuro_adapter.progression_replay import build_progression_replay
+from cmre_neuro_adapter.macro_replay import build_macro_replay
 from cmre_neuro_adapter.replay_player import load_records, render_player_html
 
 
@@ -95,31 +95,38 @@ class ReplayPlayerTests(unittest.TestCase):
             self.assertIn('"MineralField"', html)
             self.assertIn('"Marine"', html)
 
-    def test_progression_replay_adds_funded_production_without_rewriting_map_entities(self) -> None:
-        source = [
-            {
-                "loop": 0,
-                "entities_by_player": {
-                    "0": [{"id": 1, "t": "MineralField", "p": 0, "x": 4, "y": 5, "hp": 1500, "alive": True}],
-                    "1": [{"id": 2, "t": "CommandCenter", "p": 1, "x": 8, "y": 8, "hp": 1500, "alive": True}],
-                },
-            },
-            {
-                "loop": 200,
-                "entities_by_player": {
-                    "0": [{"id": 1, "t": "MineralField", "p": 0, "x": 4, "y": 5, "hp": 1500, "alive": True}],
-                    "1": [{"id": 2, "t": "CommandCenter", "p": 1, "x": 8, "y": 8, "hp": 1500, "alive": True}],
-                },
-            },
-        ]
-        replay = build_progression_replay(source)
+    def test_macro_replay_is_state_driven_and_starts_without_army(self) -> None:
+        replay = build_macro_replay(max_loops=1_400)
         frames = [record for record in replay if record.get("record_type") == "frame"]
         actions = [record for record in replay if record.get("record_type") == "action"]
-        self.assertEqual(frames[0]["entities_by_player"]["0"], source[0]["entities_by_player"]["0"])
-        self.assertEqual(frames[1]["entities_by_player"]["0"], source[1]["entities_by_player"]["0"])
-        self.assertEqual(frames[0]["p1_resources"]["minerals"], 250)
-        self.assertEqual(frames[1]["p1_units_by_type"]["SCV"], 1)
-        self.assertTrue(any(action["name"] == "训练 SCV" for action in actions))
+        summary = replay[-1]
+        self.assertEqual(summary["status"], "PASS")
+        initial_types = {entity["t"] for entity in frames[0]["entities_by_player"]["1"]}
+        self.assertEqual(initial_types, {"CommandCenter", "SCV"})
+        self.assertEqual(frames[0]["p1_resources"]["minerals"], 50)
+        self.assertTrue(any(frame["economy"]["estimated_minerals_collected"] > 0 for frame in frames))
+        self.assertGreater(summary["final_resources"]["vespene"], 0)
+        self.assertGreaterEqual(summary["final_units_by_type"]["SCV"], 10)
+        self.assertGreaterEqual(summary["final_units_by_type"]["Marine"], 2)
+        for unit_type in ("SupplyDepot", "Barracks", "Refinery", "Marine"):
+            self.assertTrue(
+                any(
+                    action.get("arguments", {}).get("unit_type_id") == unit_type
+                    and action.get("completed")
+                    and action.get("started")
+                    for action in actions
+                ),
+                unit_type,
+            )
+        for action in actions:
+            lifecycle = [
+                name
+                for name in ("accepted", "started", "completed", "failed")
+                if action.get(name) is not None
+            ]
+            self.assertIn("accepted", lifecycle)
+            if action["failed"] is None:
+                self.assertEqual(lifecycle[:3], ["accepted", "started", "completed"])
 
 
 if __name__ == "__main__":
