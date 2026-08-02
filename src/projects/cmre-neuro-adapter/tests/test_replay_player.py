@@ -70,6 +70,7 @@ class ReplayPlayerTests(unittest.TestCase):
             self.assertIn("data-speed=\"16\"", html)
             self.assertIn("id=\"entities\"", html)
             self.assertIn("id=\"rawContext\"", html)
+            self.assertIn("id=\"endReason\"", html)
             self.assertIn('"unit_type_id":"Zergling"', html)
             self.assertIn('"health":1024000', html)
             self.assertIn('"record_type":"header"', html)
@@ -176,7 +177,7 @@ class ReplayPlayerTests(unittest.TestCase):
             self.assertEqual(record["static_objects"][1]["unit_type_id"], "Barracks")
 
     def test_macro_replay_is_state_driven_and_starts_without_army(self) -> None:
-        replay = build_macro_replay(max_loops=1_400)
+        replay = build_macro_replay(max_loops=10_400)
         frames = [record for record in replay if record.get("record_type") == "frame"]
         actions = [record for record in replay if record.get("record_type") == "action"]
         summary = replay[-1]
@@ -188,6 +189,14 @@ class ReplayPlayerTests(unittest.TestCase):
         self.assertGreater(summary["final_resources"]["vespene"], 0)
         self.assertGreaterEqual(summary["final_units_by_type"]["SCV"], 10)
         self.assertGreaterEqual(summary["final_units_by_type"]["Marine"], 2)
+        self.assertTrue(summary["macro_acceptance"])
+        self.assertTrue(summary["victory"])
+        self.assertEqual(summary["actions_failed"], 0)
+        self.assertEqual(summary["end_reason"], "all_objectives_success")
+        self.assertGreaterEqual(summary["nights_survived"], 1)
+        self.assertGreaterEqual(summary["first_night_target_loop"], 10_000)
+        self.assertTrue(any(frame["context"]["mission"]["night"] == 1 for frame in frames))
+        self.assertTrue(any(event["kind"] == "map_script_wave_spawned" for frame in frames for event in frame["events"]))
         for unit_type in ("SupplyDepot", "Barracks", "Refinery", "Marine"):
             self.assertTrue(
                 any(

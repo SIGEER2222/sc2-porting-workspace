@@ -28,6 +28,7 @@ NEUTRAL_ID = 2
 SCV_COUNT = 8
 MINERAL_IDS = tuple(range(2 + SCV_COUNT, 2 + SCV_COUNT + 6))
 GEYSER_IDS = (2 + SCV_COUNT + 6, 2 + SCV_COUNT + 7)
+DEFAULT_REPLAY_MAX_LOOPS = 10_400
 
 
 @dataclass(frozen=True)
@@ -39,7 +40,7 @@ class MacroFixture:
     geyser_ids: tuple[int, ...] = GEYSER_IDS
 
     @classmethod
-    def standard_opening(cls, *, max_loops: int = 2_400) -> "MacroFixture":
+    def standard_opening(cls, *, max_loops: int = DEFAULT_REPLAY_MAX_LOOPS) -> "MacroFixture":
         spawns: list[dict[str, Any]] = [
             {"unit_type_id": "CommandCenter", "owner_player_id": PLAYER_ID, "x": 0.0, "y": 0.0},
         ]
@@ -79,6 +80,7 @@ class MacroFixture:
                 "players": [
                     {"id": PLAYER_ID, "name": "Terran", "race": "terran", "allies": [], "is_ai": True},
                     {"id": NEUTRAL_ID, "name": "Neutral", "race": "neutral", "allies": [], "is_ai": True},
+                    {"id": 5, "name": "Infested Night Attack", "race": "terran", "allies": [], "is_ai": True},
                 ],
                 "spawns": spawns,
                 "commands": [],
@@ -143,6 +145,46 @@ class _ActiveAction:
     completion_loop: int | None = None
 
 
+class _MissionAwareSimulatorSessionBackend(SimulatorSessionBackend):
+    """Keep mission-engine state inside the public observation boundary."""
+
+    def __init__(self, session: Any, *, action_operations: Mapping[str, str], mission: Any, wave_timing: Mapping[str, Any]) -> None:
+        super().__init__(session, action_operations=action_operations)
+        self.mission = mission
+        self.wave_timing = wave_timing
+
+    def observe(self, player_id: int) -> Mapping[str, Any]:
+        observation = dict(super().observe(player_id))
+        loop = int(observation.get("loop", 0))
+        mission = dict(observation.get("mission", {}))
+        current_night = _night_at_loop(self.wave_timing, loop)
+        survived_nights = _nights_survived(self.wave_timing, loop)
+        night = max(current_night, survived_nights)
+        terminated = bool(self.mission.terminated)
+        end_reason = self.mission.end_reason if terminated else ""
+        mission.update(
+            {
+                "phase": "victory" if terminated else ("night" if night else "active"),
+                "night": night,
+                "wave": len(self.mission._waves_fired),
+                "terminated": terminated,
+                "end_reason": end_reason,
+                "win_condition": "survive_loops",
+                "objectives": [
+                    {
+                        "id": objective.name,
+                        "name": objective.name,
+                        "status": objective.status,
+                        "target": objective.params.get("target_loops"),
+                    }
+                    for objective in self.mission.objectives
+                ],
+            }
+        )
+        observation["mission"] = mission
+        return observation
+
+
 class StateDrivenMacroPlanner:
     """Choose the next command from public state, never from a time schedule."""
 
@@ -185,7 +227,7 @@ class StateDrivenMacroPlanner:
                 label="Return newly completed SCVs to the mineral line",
             )
 
-        if available_supply <= 2 and counts["SupplyDepot"] < 2 and _active_count(active_list, "SupplyDepot") == 0:
+        if available_supply <= 2 and counts["SupplyDepot"] < 1 and _active_count(active_list, "SupplyDepot") == 0:
             worker = _build_worker(units)
             if worker is not None and self._affordable(available_minerals, available_vespene, "SupplyDepot", "build"):
                 return MacroDecision(
@@ -275,9 +317,33 @@ class MacroReplayRunner:
         self.step_loops = step_loops
         self.max_loops = max_loops or int(fixture.scenario["max_loops"])
         self.source_replay = source_replay
-        self.backend = SimulatorSessionBackend(
+        _ensure_vibe_path()
+        from vibe.mission_engine import MissionEngine, Objective, Wave
+
+        wave_timing, first_night_target_loop, wave_specs = _first_night_specs()
+        self.wave_timing = wave_timing
+        self.first_night_target_loop = first_night_target_loop
+        self.mission = MissionEngine(session)
+        self.mission.add_objective(
+            Objective(
+                name="survive_first_night",
+                kind="survive_loops",
+                params={"target_loops": first_night_target_loop},
+            )
+        )
+        for spec in wave_specs:
+            self.mission.add_wave(
+                Wave(
+                    name=spec["name"],
+                    at_loop=spec["at_loop"],
+                    spawns=spec["spawns"],
+                )
+            )
+        self.backend = _MissionAwareSimulatorSessionBackend(
             session,
             action_operations=basic_action_operations(),
+            mission=self.mission,
+            wave_timing=wave_timing,
         )
         self.transport = SimulatorTransport(
             self.backend,
@@ -297,6 +363,11 @@ class MacroReplayRunner:
         self._last_minerals: int | None = None
         self._last_vespene: int | None = None
         self._total_spent = {"minerals": 0, "vespene": 0}
+        self._last_night = 0
+        self._last_wave_count = 0
+        self._reported_wave_names: set[str] = set()
+        self._mission_terminal_reported = False
+        self._macro_acceptance_loop: int | None = None
 
     def run(self) -> list[dict[str, Any]]:
         header = {
@@ -313,12 +384,19 @@ class MacroReplayRunner:
                 "no player.set_resource",
                 "costs and build times read from the M7 Catalog",
                 "completion is observed after simulator stepping",
+                "first-night timing and survive objective are read from the map extractor",
             ],
+            "mission_contract": {
+                "objective": "survive_first_night",
+                "first_night_start_loop": int(self.wave_timing["nights"][0]["start_loop"]),
+                "first_night_target_loop": self.first_night_target_loop,
+                "wave_source": "cmre-porting/vibe/map_replay.py",
+            },
         }
         self._capture(self.transport.observe())
         self._dispatch_gather_orders()
 
-        while self.transport.state_version < self.max_loops:
+        while not self.mission.terminated and self.transport.state_version < self.max_loops:
             context = self.transport.observe()
             self._complete_actions(context)
             decision = self.planner.choose(context, self._active)
@@ -326,8 +404,8 @@ class MacroReplayRunner:
                 self._dispatch(decision, context)
                 self._capture(self.transport.observe())
             if self._acceptance_reached(context):
-                break
-            self.backend.execute("scenario.step", {"loops": self.step_loops})
+                self._macro_acceptance_loop = self._macro_acceptance_loop or context.source_loop
+            self.mission.step(self.step_loops)
             self._capture(self.transport.observe())
 
         final_context = self.transport.observe()
@@ -471,6 +549,7 @@ class MacroReplayRunner:
             self._active.remove(active)
 
     def _capture(self, context: PublicMissionContext) -> None:
+        self._sync_mission_events(context)
         resources = dict(context.resources)
         minerals = int(resources.get("minerals", 0))
         vespene = int(resources.get("vespene", 0))
@@ -490,6 +569,22 @@ class MacroReplayRunner:
             for unit in context.own_units
         ]
         entities = {"0": self._neutral_entities(), "1": own}
+        dynamic_enemies = [
+            {
+                "id": unit.entity_id,
+                "t": unit.unit_type_id,
+                "p": unit.owner,
+                "x": unit.x,
+                "y": unit.y,
+                "hp": unit.health,
+                "alive": True,
+                "state": unit.state,
+            }
+            for unit in context.visible_enemies
+            if unit.owner not in {0, NEUTRAL_ID}
+        ]
+        if dynamic_enemies:
+            entities["5"] = dynamic_enemies
         events = self._events
         self._events = []
         gathered = minerals + self._total_spent["minerals"] - int(self.fixture.scenario.get("initial_minerals", 0))
@@ -517,6 +612,51 @@ class MacroReplayRunner:
         self._seen_ids.update(unit.entity_id for unit in context.own_units)
         self._last_minerals = minerals
         self._last_vespene = vespene
+
+    def _sync_mission_events(self, context: PublicMissionContext) -> None:
+        """Convert mission-engine transitions into inspectable replay events."""
+
+        night = int(context.night)
+        if night > self._last_night:
+            self._events.append(
+                {
+                    "loop": context.source_loop,
+                    "kind": "night_started",
+                    "night": night,
+                    "source": "map_wave_timing",
+                }
+            )
+            self._last_night = night
+
+        fired = list(self.mission._waves_fired)
+        for wave in self.mission.waves:
+            if wave.name not in fired or wave.name in self._reported_wave_names:
+                continue
+            self._events.append(
+                {
+                    "loop": wave.at_loop,
+                    "kind": "map_script_wave_spawned",
+                    "source": "MapScript.galaxy",
+                    "wave_name": wave.name,
+                    "source_direction": "south_west",
+                    "owner_player_id": 5,
+                    "entity_count": len(wave.spawns),
+                    "simulator_unit_type": "Marine",
+                }
+            )
+            self._reported_wave_names.add(wave.name)
+        self._last_wave_count = len(fired)
+
+        if context.terminated and not self._mission_terminal_reported:
+            self._events.append(
+                {
+                    "loop": context.source_loop,
+                    "kind": "mission_victory",
+                    "end_reason": context.end_reason,
+                    "nights_survived": _nights_survived(self.wave_timing, context.source_loop),
+                }
+            )
+            self._mission_terminal_reported = True
 
     def _neutral_entities(self) -> list[dict[str, Any]]:
         result = []
@@ -558,7 +698,9 @@ class MacroReplayRunner:
         accepted = len(self._actions)
         completed = sum(action.get("completed") is not None for action in self._actions)
         failed = sum(action.get("failed") is not None for action in self._actions)
-        status = "PASS" if self._acceptance_reached(context) else "FAIL"
+        macro_acceptance = self._macro_acceptance_loop is not None and self._acceptance_reached(context)
+        victory = bool(context.terminated and context.end_reason in {"all_objectives_success", "survive_loops", "max_loops_reached"})
+        status = "PASS" if macro_acceptance and victory else "FAIL"
         return {
             "record_type": "summary",
             "status": status,
@@ -572,12 +714,84 @@ class MacroReplayRunner:
             "timeline_frames": len(self._frames),
             "loop_start": self._frames[0]["loop"] if self._frames else 0,
             "loop_end": context.source_loop,
+            "macro_acceptance": macro_acceptance,
+            "macro_acceptance_loop": self._macro_acceptance_loop,
+            "first_night_target_loop": self.first_night_target_loop,
+            "nights_survived": _nights_survived(self.wave_timing, context.source_loop),
+            "victory": victory,
+            "terminated": context.terminated,
+            "end_reason": context.end_reason,
+            "mission_objectives": [
+                {
+                    "name": objective.name,
+                    "kind": objective.kind,
+                    "status": objective.status,
+                    "target_loop": objective.params.get("target_loops"),
+                }
+                for objective in self.mission.objectives
+            ],
             "starting_assets": self.fixture.starting_assets,
             "final_units_by_type": dict(counts),
             "final_resources": resources,
             "lifecycle_contract": ["accepted", "started", "completed", "failed"],
             "no_synthetic_entities": True,
         }
+
+
+def _first_night_specs() -> tuple[dict[str, Any], int, list[dict[str, Any]]]:
+    """Read the real map's first-night contract and adapt it to the fixture space."""
+
+    _ensure_vibe_path()
+    from vibe.map_replay import DeadOfNightMapScriptOverlay, load_dead_of_night_map_cooperative_scenario
+
+    data, _ = load_dead_of_night_map_cooperative_scenario()
+    timing = copy.deepcopy(data.scenario["_map_wave_timing"])
+    first_night = timing["nights"][0]
+    overlay = DeadOfNightMapScriptOverlay(
+        timing,
+        data.scenario["_map_regions"],
+        difficulty="normal",
+        seed=int(data.scenario.get("seed", 42)),
+    )
+    specs: list[dict[str, Any]] = []
+    for wave in overlay._waves:
+        spawns = []
+        for index, source_spawn in enumerate(wave["spawns"]):
+            # The source wave timing and composition stay map-derived.  The
+            # local fixture uses a compact attack lane so the display-only
+            # projection keeps the first-night threat beside the P1 base.
+            spawns.append(
+                {
+                    "unit_type_id": "Marine",
+                    "owner_player_id": 5,
+                    "x": 7.0 + (index % 4) * 0.9,
+                    "y": -2.0 + (index // 4) * 0.8,
+                    "source_unit_type_id": source_spawn["source_unit_type_id"],
+                }
+            )
+        specs.append(
+            {
+                "name": wave["wave_name"],
+                "at_loop": int(wave["launch_loop"]),
+                "spawns": spawns,
+            }
+        )
+    return timing, int(first_night["end_loop"]), specs
+
+
+def _night_at_loop(wave_timing: Mapping[str, Any], loop: int) -> int:
+    return next(
+        (
+            int(night["night_number"])
+            for night in wave_timing.get("nights", [])
+            if int(night["start_loop"]) <= loop < int(night["end_loop"])
+        ),
+        0,
+    )
+
+
+def _nights_survived(wave_timing: Mapping[str, Any], loop: int) -> int:
+    return sum(int(loop) >= int(night["end_loop"]) for night in wave_timing.get("nights", []))
 
 
 def _ensure_vibe_path() -> None:
@@ -590,7 +804,7 @@ def _ensure_vibe_path() -> None:
 def build_macro_replay(
     *,
     source_replay: str = "clean-macro-fixture",
-    max_loops: int = 2_400,
+    max_loops: int = DEFAULT_REPLAY_MAX_LOOPS,
 ) -> list[dict[str, Any]]:
     """Create a replay by running the clean fixture through the simulator."""
 
@@ -609,7 +823,7 @@ def build_macro_replay(
     ).run()
 
 
-def write_macro_replay(output_path: Path, *, source_replay: str = "clean-macro-fixture", max_loops: int = 2_400) -> None:
+def write_macro_replay(output_path: Path, *, source_replay: str = "clean-macro-fixture", max_loops: int = DEFAULT_REPLAY_MAX_LOOPS) -> None:
     records = build_macro_replay(source_replay=source_replay, max_loops=max_loops)
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -649,7 +863,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--source-replay", default="clean-macro-fixture")
-    parser.add_argument("--max-loops", type=int, default=2_400)
+    parser.add_argument("--max-loops", type=int, default=DEFAULT_REPLAY_MAX_LOOPS)
     args = parser.parse_args()
     write_macro_replay(args.output, source_replay=args.source_replay, max_loops=args.max_loops)
     print(args.output)

@@ -290,3 +290,34 @@ Evidence:
 
 The live real-map replay blocker remains unchanged: no runtime entity/resource/action trace is
 claimed until an independent approved SC2 runtime lease permits `CreateGame + JoinGame + RequestStep`.
+
+## First-Night Victory Replay Correction 2026-08-02 19:15 +08:00
+
+The state-driven macro replay now continues after the economy acceptance point instead of
+stopping at loop `1056`. It reads the real `亡者之夜.SC2Map` wave timing through the existing map
+extractor: first night starts at loop `4704`, the first-night objective ends at loop `10080`, and
+the map-derived normal branch records the two South-West civilian wave definitions. The local
+simulator fixture adapts their display positions into the P1 projection lane; raw simulator
+coordinates and the real static map layer remain separate and explicitly labelled as
+display-only.
+
+The replay is now mission-engine driven. `MissionEngine` owns the `survive_first_night` objective,
+the public observation boundary exposes night/wave/terminated/end_reason, and the final frame is
+`Loop 10081`, `phase=victory`, `end_reason=all_objectives_success`, `nights_survived=1`. The
+planner also stops retrying a second Depot at the occupied first Depot location; the fresh run
+records `29/29` completed actions and `0` failed actions.
+
+Evidence:
+
+- `simulator`: `python -m unittest tests.test_replay_player -v` -> `8` tests passed; the macro
+  assertion also requires zero action failures, first-night presence, and victory.
+- `simulator`: `python -m cmre_neuro_adapter.progression_replay artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl --output artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl --max-loops 10400` -> `PASS`, `1287` frames, `Loop 10081`, `29/29` actions, `62` events.
+- `static`: `python -m py_compile cmre_neuro_adapter/macro_replay.py cmre_neuro_adapter/progression_replay.py cmre_neuro_adapter/replay_player.py tests/test_replay_player.py` -> pass.
+- `runtime` (local replay player): Playwright Chromium verified a non-empty Canvas, `1319`
+  map Objects, 4x playback progression, seek to `Loop 5744` with `Night 1 / 2` and 8 enemy
+  Marines, and end seek to `Loop 10081` with `victory / all_objectives_success`. Evidence:
+  `artifacts/stage07-basic-command-replay-20260802/browser-verification.json`,
+  `state-driven-player-browser.png`, and `state-driven-player-victory.png`.
+
+This remains simulator/browser evidence only. No live SC2 runtime effect or real-map dynamic
+entity trace is promoted; the independent launcher lease blocker for G4 remains open.

@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .macro_replay import build_macro_replay
+from .macro_replay import DEFAULT_REPLAY_MAX_LOOPS, build_macro_replay
 
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -33,7 +33,7 @@ def build_progression_replay(
     records: list[dict[str, Any]] | None = None,
     *,
     source_replay: str = "clean-macro-fixture",
-    max_loops: int = 2_400,
+    max_loops: int = DEFAULT_REPLAY_MAX_LOOPS,
 ) -> list[dict[str, Any]]:
     """Run a clean simulator fixture; never synthesize entities into ``records``.
 
@@ -44,7 +44,7 @@ def build_progression_replay(
     return build_macro_replay(source_replay=source_replay, max_loops=max_loops)
 
 
-def write_progression_replay(source_path: Path, output_path: Path, *, max_loops: int = 2_400) -> None:
+def write_progression_replay(source_path: Path, output_path: Path, *, max_loops: int = DEFAULT_REPLAY_MAX_LOOPS) -> None:
     # Parse the source so malformed compatibility inputs still fail loudly, but
     # deliberately do not copy its entities, resources, or action schedule.
     load_jsonl(source_path)
@@ -64,7 +64,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path, nargs="?", help="legacy replay identity; never used as world state")
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--max-loops", type=int, default=2_400)
+    parser.add_argument("--max-loops", type=int, default=DEFAULT_REPLAY_MAX_LOOPS)
     args = parser.parse_args()
     if args.source is None:
         raise SystemExit("source replay is required for compatibility; use the clean fixture CLI for a source-free run")

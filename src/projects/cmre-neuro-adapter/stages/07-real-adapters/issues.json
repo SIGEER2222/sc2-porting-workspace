@@ -88,6 +88,24 @@
       "detail": "The previous progression replay added entities from a fixed schedule and could not prove resource collection, production buildings, or completion lifecycle.",
       "resolution": "Replaced it with a clean state-driven fixture using the public simulator transport and M7 Catalog. The replay starts with only 1 CommandCenter and 8 SCVs, assigns workers to mineral/gas nodes, saves for structures, and records simulator-observed SCV, SupplyDepot, Barracks, Refinery, and Marine completions. The local simulator requires Refinery placement in a free slot while gas collection uses the declared geyser node; this limitation is explicit in the planner comment and replay metadata.",
       "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl"
+    },
+    {
+      "id": "MACRO-002",
+      "severity": "high",
+      "status": "resolved",
+      "evidence_type": "simulator",
+      "detail": "After the first Depot completed, the supply policy retried a second Depot at the same fixed coordinate and produced repeated occupied-placement failures.",
+      "resolution": "The planner now requests a Depot only while none exists or is active. The regenerated first-night replay has 29/29 completed actions and 0 failed actions.",
+      "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl"
+    },
+    {
+      "id": "REPLAY-005",
+      "severity": "high",
+      "status": "resolved",
+      "evidence_type": "simulator",
+      "detail": "The prior replay stopped after the macro acceptance point at loop 1056, leaving night=0, terminated=false, and no mission victory.",
+      "resolution": "The runner now continues through MissionEngine with map-derived first-night timing, wave events, public mission state, and a survive_first_night objective. The final state reaches loop 10081 with night=1, nights_survived=1, terminated=true, and end_reason=all_objectives_success.",
+      "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl"
     }
   ],
   "residual_risks": [
