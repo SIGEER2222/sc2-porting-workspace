@@ -225,6 +225,7 @@ class TestWhitelist(unittest.TestCase):
             "vibe.unit.kill": ("unit_tag",),
             "vibe.unit.attack": ("attacker_tag", "target_tag"),
             "vibe.query.structures": ("owner_player", "unit_type"),
+            "vibe.unit.add_ability": ("unit_tag", "ability"),
         }
         for function_id, arg_names in expected.items():
             self.assertIn(function_id, registry)
@@ -834,7 +835,7 @@ class TestGalaxyStaticCheck(unittest.TestCase):
                             "FunctionQueryUnits", "FunctionUnitKill",
                             "FunctionUnitAttack", "FunctionQueryStructures",
                             "FunctionUnitSpawnGroup", "FunctionUnitAddBehavior",
-                            "FunctionUnitQueryBehavior"]:
+                            "FunctionUnitQueryBehavior", "FunctionUnitAddAbility"]:
                 self.assertIn(f"libVibeKernel_gf_{handler}", content, str(path))
             self.assertIn("libVibeKernel_gt_AllyCommand_Func", content, str(path))
             self.assertIn("TriggerAddEventChatMessage", content, str(path))
@@ -876,6 +877,7 @@ class TestGalaxyStaticCheck(unittest.TestCase):
         self.assertIn("libVibeKernel_gf_FunctionUnitSpawnGroup", content)
         self.assertIn("libVibeKernel_gf_FunctionUnitAddBehavior", content)
         self.assertIn("libVibeKernel_gf_FunctionUnitQueryBehavior", content)
+        self.assertIn("libVibeKernel_gf_FunctionUnitAddAbility", content)
         self.assertIn("libVibeKernel_gt_AllyCommand_Func", content)
 
 

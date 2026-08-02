@@ -25,7 +25,7 @@ PLAYER_BASE_Y = 94.0
 class DefendAction:
     """玩家决策动作。"""
     entity_id: int
-    kind: str  # "attack" | "hold" | "move" | "gather" | "train" | "build"
+    kind: str  # "attack" | "hold" | "move" | "gather" | "train" | "build" | "research"
     target_entity_id: int = 0
     target_x: float = 0.0
     target_y: float = 0.0
@@ -77,6 +77,7 @@ class DefendBasePolicy:
     BUILDING_TYPES = {
         "CommandCenter", "OrbitalCommand", "PlanetaryFortress", "SupplyDepot",
         "Refinery", "Barracks", "Factory", "Starport", "EngineeringBay",
+        "Armory", "GhostAcademy", "FusionCore",
         "MissileTurret", "Bunker", "SensorTower", "BarracksTechLab",
         "BarracksReactor", "FactoryTechLab", "FactoryReactor", "StarportTechLab",
         "StarportReactor",
@@ -98,16 +99,24 @@ class DefendBasePolicy:
 
     # 战术配兵 dict（借鉴 ares-sc2 SpawnController）
     # priority 数字小=优先级高；proportion=目标比例
-    # 顺序：SiegeTank > Medivac > Marine > Marauder
+    # 顺序：SiegeTank > Hellion/air support > infantry.  The policy only
+    # attempts units whose producer and tech requirements are actually ready.
     ARMY_COMP = {
         "SiegeTank": {"proportion": 0.20, "priority": 0, "producer": "Factory",
                       "min_m": 150, "min_v": 125, "supply": 3},
-        "Medivac":  {"proportion": 0.15, "priority": 1, "producer": "Starport",
+        "Hellion":  {"proportion": 0.15, "priority": 1, "producer": "Factory",
+                      "min_m": 100, "min_v": 0, "supply": 2},
+        "Medivac":  {"proportion": 0.10, "priority": 2, "producer": "Starport",
                       "min_m": 100, "min_v": 100, "supply": 2},
-        "Marine":   {"proportion": 0.50, "priority": 2, "producer": "Barracks",
+        "Viking":   {"proportion": 0.10, "priority": 3, "producer": "Starport",
+                      "min_m": 150, "min_v": 75, "supply": 2},
+        "Marine":   {"proportion": 0.35, "priority": 4, "producer": "Barracks",
                       "min_m": 50,  "min_v": 0,   "supply": 1},
-        "Marauder": {"proportion": 0.15, "priority": 3, "producer": "Barracks",
+        "Marauder": {"proportion": 0.10, "priority": 5, "producer": "Barracks",
                       "min_m": 100, "min_v": 25,  "supply": 2},
+    }
+    UNIT_REQUIREMENTS = {
+        "SiegeTank": ("FactoryTechLab",),
     }
 
     # The native opening must establish production before the army policy can
@@ -119,10 +128,42 @@ class DefendBasePolicy:
         {"unit_type_id": "SupplyDepot", "min_m": 100, "min_v": 0, "offset": (-5.0, 0.0)},
         {"unit_type_id": "Barracks", "min_m": 150, "min_v": 0, "offset": (5.0, 0.0)},
         {"unit_type_id": "Refinery", "min_m": 75, "min_v": 0, "offset": (0.0, 5.0)},
+        {"unit_type_id": "Factory", "min_m": 150, "min_v": 100,
+         "offset": (-5.0, 11.0), "requires": ("Barracks",)},
+        {"unit_type_id": "EngineeringBay", "min_m": 125, "min_v": 0,
+         "offset": (-10.0, 11.0), "requires": ("Factory",)},
+        {"unit_type_id": "Starport", "min_m": 150, "min_v": 100,
+         "offset": (5.0, 6.0), "requires": ("Factory",)},
+        {"unit_type_id": "Armory", "min_m": 150, "min_v": 50,
+         "offset": (0.0, 11.0), "requires": ("Factory",)},
+        # The add-on is built by the exact Factory entity and placed in the
+        # simulator's right-hand socket, which unlocks SiegeTank production.
+        {"unit_type_id": "FactoryTechLab", "min_m": 50, "min_v": 25,
+         "offset": (0.0, 0.0), "builder_type": "Factory",
+         "requires": ("Factory",)},
     )
     BUILD_REQUIREMENTS = {
         "Barracks": ("SupplyDepot",),
+        "Factory": ("Barracks",),
+        "EngineeringBay": ("Factory",),
+        "Starport": ("Factory",),
+        "Armory": ("Factory",),
+        "FactoryTechLab": ("Factory",),
     }
+    RESEARCH_PLAN = (
+        {
+            "upgrade_id": "TerranInfantryWeaponsLevel1",
+            "facility": "EngineeringBay",
+            "min_m": 100,
+            "min_v": 100,
+        },
+        {
+            "upgrade_id": "TerranVehicleWeaponsLevel1",
+            "facility": "Armory",
+            "min_m": 100,
+            "min_v": 100,
+        },
+    )
 
     # SCV 训练参数
     SCV_COST_M = 50
@@ -162,6 +203,7 @@ class DefendBasePolicy:
         # 已发过训练命令的建筑 id 集合（本轮已发，等下一轮）
         self._producers_in_queue: set[int] = set()
         self._build_issued: set[str] = set()
+        self._research_issued: set[str] = set()
         # 资源预留池（借鉴 sharpy-sc2 Knowledge.reserve）
         # 每个经济决策周期开头 reset()，先为高优先级战斗单位 reserve，
         # 再让 SCV 训练通过 can_afford 检查（已扣预留）
@@ -270,7 +312,14 @@ class DefendBasePolicy:
         if econ_due and resources is not None and not base_threats:
             self._last_econ_loop = loop
             self._producers_in_queue.clear()  # 新一轮，清空队列记录
-            econ_actions = self._decide_economy(obs, resources, econ_units, producers, enemies)
+            econ_actions = self._decide_economy(
+                obs,
+                resources,
+                econ_units,
+                producers,
+                enemies,
+                getattr(obs, "tech", {}),
+            )
             actions.extend(econ_actions)
 
         self._last_actions = actions
@@ -278,7 +327,7 @@ class DefendBasePolicy:
 
     def _decide_economy(self, obs, resources: dict,
                         econ_units: list[dict], producers: list[dict],
-                        enemies: list[dict]) -> list[DefendAction]:
+                        enemies: list[dict], tech: Optional[dict] = None) -> list[DefendAction]:
         """经济决策：SCV 建造/采集 + 战斗单位配兵 + SCV 训练。
 
         决策顺序（借鉴 sharpy reserve 池 + ares 比例配兵）：
@@ -311,6 +360,8 @@ class DefendBasePolicy:
             - resources.get("reserved_supply", 0)
         )
 
+        tech = tech or {}
+
         # 1. Build the native production opening before training or gathering.
         builder_ids: set[int] = set()
         for build in self.BUILD_PLAN:
@@ -320,7 +371,9 @@ class DefendBasePolicy:
                 continue
             if building_type in self._build_issued:
                 continue
-            requirements = self.BUILD_REQUIREMENTS.get(building_type, ())
+            requirements = build.get(
+                "requires", self.BUILD_REQUIREMENTS.get(building_type, ())
+            )
             if any(
                 not any(
                     unit.get("unit_type_id") == requirement
@@ -333,9 +386,12 @@ class DefendBasePolicy:
             if not self._econ.can_afford(
                     build["min_m"], build["min_v"], minerals, vespene):
                 continue
+            builder_type = build.get("builder_type", "SCV")
+            candidate_pool = econ_units if builder_type == "SCV" else producers
             candidates = [
-                worker for worker in econ_units
-                if worker["entity_id"] not in builder_ids
+                worker for worker in candidate_pool
+                if worker.get("unit_type_id") == builder_type
+                and worker["entity_id"] not in builder_ids
             ]
             # A native SCV can be pulled off minerals to build.  Prefer an
             # idle worker, then a mineral worker, and keep gas workers on the
@@ -348,7 +404,8 @@ class DefendBasePolicy:
                 builder = next(
                     (
                         worker for worker in candidates
-                        if worker["entity_id"] not in self._gas_workers
+                        if builder_type != "SCV"
+                        or worker["entity_id"] not in self._gas_workers
                     ),
                     candidates[0] if candidates else None,
                 )
@@ -377,6 +434,16 @@ class DefendBasePolicy:
                     target_entity_id = int(geyser["entity_id"])
                 else:
                     target_entity_id = 0
+            elif builder_type != "SCV":
+                # Add-ons must occupy the parent building's deterministic
+                # right-hand socket; arbitrary map coordinates are rejected by
+                # the simulator's construction validator.
+                # The simulator's even-width footprint expands to the positive
+                # side, so a 2-cell add-on center is two world units right of a
+                # 3-cell parent center.
+                target_x = float(builder["x"]) + 2.0
+                target_y = float(builder["y"])
+                target_entity_id = 0
             else:
                 target_entity_id = 0
             actions.append(DefendAction(
@@ -396,7 +463,49 @@ class DefendBasePolicy:
             minerals -= build["min_m"]
             vespene -= build["min_v"]
 
-        # 2. Assign up to three idle SCVs per completed refinery before minerals.
+        # 2. Research the first infantry/vehicle upgrades as soon as their
+        # facilities are complete.  Completed and in-flight upgrades are both
+        # public observation state, so a restart or duplicate order is avoided.
+        completed_upgrades = set(tech.get("completed_upgrades", ()))
+        researching_upgrades = {
+            str(item.get("upgrade_id"))
+            for item in tech.get("researching", ())
+            if item.get("upgrade_id")
+        }
+        self._research_issued.intersection_update(
+            completed_upgrades | researching_upgrades
+        )
+        for research in self.RESEARCH_PLAN:
+            upgrade_id = research["upgrade_id"]
+            if upgrade_id in completed_upgrades or upgrade_id in researching_upgrades:
+                continue
+            facility = next(
+                (
+                    unit for unit in obs.own_units
+                    if unit.get("unit_type_id") == research["facility"]
+                    and float(unit.get("build_progress", 1.0)) >= 1.0
+                    and not unit.get("orders")
+                ),
+                None,
+            )
+            if facility is None or upgrade_id in self._research_issued:
+                continue
+            if not self._econ.can_afford(
+                research["min_m"], research["min_v"], minerals, vespene
+            ):
+                continue
+            actions.append(DefendAction(
+                facility["entity_id"],
+                "research",
+                unit_type_id=upgrade_id,
+                reason=f"research_{upgrade_id}",
+            ))
+            self._research_issued.add(upgrade_id)
+            self._econ.reserve(research["min_m"], research["min_v"])
+            minerals -= research["min_m"]
+            vespene -= research["min_v"]
+
+        # 3. Assign up to three idle SCVs per completed refinery before minerals.
         # The gather target is the owned Refinery, matching native SC2 worker
         # semantics; a geyser is only a build target for the initial construction.
         refineries = [
@@ -446,7 +555,7 @@ class DefendBasePolicy:
                 self._gathering_scvs.add(worker_id)
                 need -= 1
 
-        # 3. Empty SCVs gather minerals. A builder or gas worker is never
+        # 4. Empty SCVs gather minerals. A builder or gas worker is never
         # double-booked.
         for u in econ_units:
             uid = u["entity_id"]
@@ -460,7 +569,7 @@ class DefendBasePolicy:
                 ))
                 self._gathering_scvs.add(uid)
 
-        # 4. 战斗单位配兵（按 ARMY_COMP 的 priority 升序：0=最高优先）
+        # 5. 战斗单位配兵（按 ARMY_COMP 的 priority 升序：0=最高优先）
         # 统计现有战斗单位总数和各兵种数量（含训练中）
         own_types: dict[str, int] = {}
         for u in obs.own_units:
@@ -468,12 +577,24 @@ class DefendBasePolicy:
             own_types[t] = own_types.get(t, 0) + 1
         combat_total = sum(own_types.get(t, 0) for t in self.ARMY_COMP)
         scv_count = own_types.get("SCV", 0)
+        tech_opening_complete = all(
+            any(
+                unit.get("unit_type_id") == build["unit_type_id"]
+                and float(unit.get("build_progress", 1.0)) >= 1.0
+                for unit in obs.own_units
+            )
+            for build in self.BUILD_PLAN
+        )
 
         # 按 priority 升序遍历（SiegeTank=0, Medivac=1, Marine=2, Marauder=3）
         # MIN_ARMY_BEFORE_PROP：军队规模小于此值时无视比例，按优先级扩张
         MIN_ARMY_BEFORE_PROP = 24
         for unit_type, info in sorted(self.ARMY_COMP.items(),
                                        key=lambda x: x[1]["priority"]):
+            if not tech_opening_complete and combat_total >= 3:
+                # Save the bank for the next reachable tech building instead
+                # of spending every mineral on a one-dimensional Marine flood.
+                break
             # 比例检查：当前比例 >= 目标比例 且 军队已足够大时才跳过
             # 军队小时无视比例持续扩产（借鉴 ares over_produce_on_low_tech）
             current_prop = own_types.get(unit_type, 0) / max(combat_total, 1)
@@ -482,6 +603,15 @@ class DefendBasePolicy:
                 continue
             # 找空闲生产建筑
             producer_type = info["producer"]
+            if any(
+                not any(
+                    unit.get("unit_type_id") == requirement
+                    and float(unit.get("build_progress", 1.0)) >= 1.0
+                    for unit in obs.own_units
+                )
+                for requirement in self.UNIT_REQUIREMENTS.get(unit_type, ())
+            ):
+                continue
             idle_producer = None
             for p in producers:
                 if p.get("unit_type_id") != producer_type:
@@ -518,7 +648,7 @@ class DefendBasePolicy:
             own_types[unit_type] = own_types.get(unit_type, 0) + 1
             combat_total += 1
 
-        # 5. SCV 训练（受 reserve 池约束）
+        # 6. SCV 训练（受 reserve 池约束）
         # SCV 数量 < SCV_FLOOR 时强制训练（不检查 reserve，紧急恢复经济）
         # SCV 数量 >= SCV_CEIL 时停止
         # 中间区间：通过 can_afford 检查（已扣战斗单位 reserve）
@@ -528,9 +658,13 @@ class DefendBasePolicy:
                 and float(unit.get("build_progress", 1.0)) >= 1.0
                 for unit in obs.own_units
             )
-            for build in self.BUILD_PLAN
+            for build in self.BUILD_PLAN[:3]
         )
-        if scv_count < self.SCV_CEIL and not opening_incomplete:
+        if (
+            scv_count < self.SCV_CEIL
+            and not opening_incomplete
+            and (tech_opening_complete or combat_total < 3)
+        ):
             cc_idle = None
             for p in producers:
                 if p.get("unit_type_id") != "CommandCenter":

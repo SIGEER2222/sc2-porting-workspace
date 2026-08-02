@@ -1,3 +1,5 @@
+import io
+import json
 import sys
 from pathlib import Path
 
@@ -7,6 +9,7 @@ sys.path.insert(0, str(ROOT / "src" / "projects" / "cmre-porting"))
 
 from vibe import run_dead_of_night_live as runner
 from vibe.defend_policy import DefendAction
+from vibe.replay_player import load_replay, render_player_html
 from s2clientprotocol import raw_pb2
 
 
@@ -167,3 +170,76 @@ def test_live_trace_indexes_owned_refinery_as_gas_target():
     assert targets[12]["unit_type_id"] == "Refinery"
     assert targets[12]["owner"] == 2
     assert targets[99]["unit_type_id"] == "MineralField"
+
+
+def test_live_replay_frame_exports_current_entities_for_html_playback(tmp_path):
+    observation = runner.LiveObservation(
+        loop=100,
+        player_id=2,
+        own_units=[{
+            "entity_id": 201,
+            "owner": 2,
+            "unit_type_id": "Marine",
+            "x": 76.0,
+            "y": 103.0,
+            "health": 46080,
+        }],
+        visible_allies=[{
+            "entity_id": 101,
+            "owner": 1,
+            "unit_type_id": "CommandCenter",
+            "x": 85.0,
+            "y": 94.0,
+            "health": 1433600,
+        }],
+        visible_enemies=[{
+            "entity_id": 501,
+            "owner": 5,
+            "unit_type_id": "InfestedCivilian",
+            "x": 120.0,
+            "y": 120.0,
+            "health": 25600,
+        }],
+        resources={"minerals": 50, "vespene": 0, "supply_used": 1, "supply_cap": 15},
+        mission={"win_condition": "live_sc2"},
+        mineral_fields=[{
+            "entity_id": 901,
+            "owner": 0,
+            "unit_type_id": "MineralField",
+            "x": 70.0,
+            "y": 110.0,
+            "health": 1536000,
+        }],
+    )
+    stream = io.StringIO()
+    runner._write_replay_frame(stream, observation.loop, observation, 3, [])
+    frame = json.loads(stream.getvalue())
+
+    assert frame["record_type"] == "frame"
+    assert frame["p1_alive"] == 1
+    assert frame["p2_alive"] == 1
+    assert frame["enemy_alive"] == 1
+    assert {"0", "1", "2", "5"} <= set(frame["entities_by_player"])
+    assert frame["entities_by_player"]["2"][0]["x"] == 76.0
+    assert frame["entities_by_player"]["2"][0]["alive"] is True
+
+    replay = tmp_path / "live-replay.jsonl"
+    replay.write_text(
+        json.dumps({
+            "record_type": "header",
+            "map_metadata": runner.LIVE_MAP_METADATA,
+            "owner_roles": {
+                "1": {"relation": "leader", "name": "P1 玩家"},
+                "2": {"relation": "ally", "name": "P2 AI 盟友"},
+                "5": {"relation": "enemy", "name": "P5 敌军"},
+            },
+        }, ensure_ascii=False)
+        + "\n"
+        + stream.getvalue(),
+        encoding="utf-8",
+    )
+    html = tmp_path / "full-map-player.html"
+    render_player_html(load_replay(replay), replay, html)
+    html_text = html.read_text(encoding="utf-8")
+    assert "P2 AI 盟友" in html_text
+    assert "entities_by_player" in html_text

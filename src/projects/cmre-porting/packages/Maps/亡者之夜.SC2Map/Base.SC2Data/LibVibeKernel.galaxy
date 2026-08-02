@@ -662,6 +662,44 @@ string libVibeKernel_gf_FunctionUnitAddBehavior(string argsJson) {
     return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.unit.add_behavior\",\"unit_tag\":" + IntToString(unitTag) + ",\"behavior\":\"" + behavior + "\",\"stacks\":" + IntToString(stacks) + ",\"count\":" + IntToString(count) + "}");
 }
 
+string libVibeKernel_gf_FunctionUnitAddAbility(string argsJson) {
+    int unitTag;
+    string ability;
+    int ownerPlayer;
+    int index;
+    int total;
+    unitgroup candidates;
+    unit current;
+    unit target;
+    string hasAbility;
+    unitTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_unit_tag");
+    ability = libVibeKernel_gf_ArgsGet(argsJson, "arg_ability");
+    target = null;
+    if (unitTag < 1 || ability == "" || !CatalogEntryIsValid(c_gameCatalogAbil, ability)) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
+    }
+    for (ownerPlayer = 1; ownerPlayer <= 15; ownerPlayer += 1) {
+        if (target != null) { break; }
+        candidates = UnitGroup(null, ownerPlayer, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+        total = UnitGroupCount(candidates, c_unitCountAll);
+        for (index = 1; index <= total; index += 1) {
+            current = UnitGroupUnit(candidates, index);
+            if (current != null && UnitIsAlive(current) && UnitGetTag(current) == unitTag) {
+                target = current;
+                break;
+            }
+        }
+    }
+    if (target == null) {
+        return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "UNIT_NOT_FOUND", "{}");
+    }
+    UnitAbilityAdd(target, ability);
+    hasAbility = "false";
+    if (UnitAbilityExists(target, ability)) { hasAbility = "true"; }
+    libVibeKernel_gv_stateVersion += 1;
+    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.unit.add_ability\",\"unit_tag\":" + IntToString(unitTag) + ",\"ability\":\"" + ability + "\",\"has_ability\":" + hasAbility + "}");
+}
+
 string libVibeKernel_gf_FunctionUnitQueryBehavior(string argsJson) {
     int unitTag;
     string behavior;
@@ -896,12 +934,13 @@ string libVibeKernel_gf_HandleFunctionInvoke(string argsJson) {
     if (functionId == "vibe.unit.spawn" && argNames == "count,player,unit_type,x,y") { return libVibeKernel_gf_FunctionUnitSpawn(argsJson); }
     if (functionId == "vibe.unit.spawn_group" && argNames == "count,player,unit_type,x,y") { return libVibeKernel_gf_FunctionUnitSpawnGroup(argsJson); }
     if (functionId == "vibe.unit.add_behavior" && argNames == "behavior,stacks,unit_tag") { return libVibeKernel_gf_FunctionUnitAddBehavior(argsJson); }
+    if (functionId == "vibe.unit.add_ability" && argNames == "ability,unit_tag") { return libVibeKernel_gf_FunctionUnitAddAbility(argsJson); }
     if (functionId == "vibe.unit.query_behavior" && argNames == "behavior,unit_tag") { return libVibeKernel_gf_FunctionUnitQueryBehavior(argsJson); }
     if (functionId == "vibe.query.units" && argNames == "player,unit_type") { return libVibeKernel_gf_FunctionQueryUnits(argsJson); }
     if (functionId == "vibe.unit.kill" && argNames == "unit_tag") { return libVibeKernel_gf_FunctionUnitKill(argsJson); }
     if (functionId == "vibe.unit.attack" && argNames == "attacker_tag,target_tag") { return libVibeKernel_gf_FunctionUnitAttack(argsJson); }
     if (functionId == "vibe.query.structures" && argNames == "owner_player,unit_type") { return libVibeKernel_gf_FunctionQueryStructures(argsJson); }
-    if (functionId == "vibe.player.set_resource" || functionId == "vibe.unit.spawn" || functionId == "vibe.unit.spawn_group" || functionId == "vibe.unit.add_behavior" || functionId == "vibe.unit.query_behavior" || functionId == "vibe.query.units" || functionId == "vibe.unit.kill" || functionId == "vibe.unit.attack" || functionId == "vibe.query.structures") {
+    if (functionId == "vibe.player.set_resource" || functionId == "vibe.unit.spawn" || functionId == "vibe.unit.spawn_group" || functionId == "vibe.unit.add_behavior" || functionId == "vibe.unit.add_ability" || functionId == "vibe.unit.query_behavior" || functionId == "vibe.query.units" || functionId == "vibe.unit.kill" || functionId == "vibe.unit.attack" || functionId == "vibe.query.structures") {
         return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
     }
     return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "FUNCTION_NOT_FOUND", "{}");

@@ -55,6 +55,18 @@ class UnitBridge(FakeBridge):
                     "count": args["stacks"],
                 },
             }
+        if function_id == "vibe.unit.add_ability":
+            return {
+                "kind": "result",
+                "error_code": "OK",
+                "state_version": self.loop,
+                "payload": {
+                    "function_id": function_id,
+                    "unit_tag": args["unit_tag"],
+                    "ability": args["ability"],
+                    "has_ability": True,
+                },
+            }
         return await super().call(function_id, args)
 
 
@@ -206,6 +218,42 @@ class DebugVmTests(unittest.TestCase):
         self.assertEqual(result["status"], "passed")
         behavior_calls = [call for call in bridge.calls if call[0] == "vibe.unit.add_behavior"]
         self.assertEqual([args["unit_tag"] for _, args in behavior_calls], [101, 102, 103])
+
+    def test_foreach_adds_ability_to_every_returned_unit_tag(self):
+        bridge = UnitBridge()
+        result = asyncio.run(DebugVm(
+            bridge,
+            function_metadata=load_function_metadata(),
+        ).run({
+            "vm": "vibe-debug/1",
+            "steps": [
+                {
+                    "op": "call",
+                    "fn": "vibe.unit.spawn_group",
+                    "args": {"unit_type": "Marine", "count": 3, "player": 1},
+                    "save": "squad",
+                },
+                {
+                    "op": "foreach",
+                    "source": "$vars.squad.unit_tags",
+                    "item": "unit_tag",
+                    "steps": [
+                        {
+                            "op": "call",
+                            "fn": "vibe.unit.add_ability",
+                            "args": {
+                                "unit_tag": "$vars.unit_tag",
+                                "ability": "Stimpack",
+                            },
+                        },
+                        {"op": "assert", "source": "$last", "path": "has_ability", "equals": True},
+                    ],
+                },
+            ],
+        }))
+        self.assertEqual(result["status"], "passed")
+        ability_calls = [call for call in bridge.calls if call[0] == "vibe.unit.add_ability"]
+        self.assertEqual([args["unit_tag"] for _, args in ability_calls], [101, 102, 103])
 
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ ENEMY_PLAYER_ID = 3
 P2_BASE = (85.0, 94.0)
 
 
-def build_native_task_scenario(seed: int = 42) -> dict:
+def build_native_task_scenario(seed: int = 42, max_loops: int = 320) -> dict:
     """Build a deterministic P1/P2/Enemy scenario with a real P2 economy."""
 
     base_x, base_y = P2_BASE
@@ -79,7 +79,7 @@ def build_native_task_scenario(seed: int = 42) -> dict:
         ],
         "spawns": spawns,
         "commands": [],
-    "max_loops": 320,
+        "max_loops": max(1, int(max_loops)),
         "seed": int(seed),
         "strict": True,
         "win_condition": "custom",
@@ -184,6 +184,7 @@ def _dispatch_action(
         "gather": "smart",
         "train": "train",
         "build": "build",
+        "research": "research",
     }.get(action.kind)
     if command_kind is None:
         record["result"] = "ignored"
@@ -214,7 +215,7 @@ def _dispatch_action(
 def run_native_task(seed: int = 42, max_loops: int = 320) -> NativeTaskReport:
     """Run the P2 native economy and tactical loop through SimulatorSession."""
 
-    scenario = build_native_task_scenario(seed)
+    scenario = build_native_task_scenario(seed, max_loops=max_loops)
     session = SimulatorSession()
     session.scenario_load(scenario_dict=scenario, catalog="m7")
     session.scenario_reset()

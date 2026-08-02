@@ -238,7 +238,7 @@ class AllyAction:
     """盟友 AI 决策动作。"""
 
     entity_id: int
-    kind: str  # "follow" | "attack" | "move" | "hold" | "gather" | "build" | "train"
+    kind: str  # "follow" | "attack" | "move" | "hold" | "gather" | "build" | "train" | "research"
     target_entity_id: int = 0
     target_x: float = 0.0
     target_y: float = 0.0
@@ -327,6 +327,7 @@ class AllyRunResult:
     event_kinds: list[str] = field(default_factory=list)
     final_units_by_type: dict[str, int] = field(default_factory=dict)
     final_resources: dict = field(default_factory=dict)
+    final_tech: dict = field(default_factory=dict)
 
 
 class AllyPolicy:
@@ -345,6 +346,9 @@ class AllyPolicy:
         support_range: float = 6.0,
         command_interval: int = 8,
         leader_player_id: int = 1,
+        scout_points: Optional[Iterable[tuple[float, float]]] = None,
+        scout_interval: int = 32,
+        attack_threshold: int = 2,
     ):
         self.player_id = int(player_id)
         self.leader_player_id = int(leader_player_id)
@@ -352,11 +356,19 @@ class AllyPolicy:
         self.base_x, self.base_y, self.base_r = base_region
         self.support_range = support_range
         self.command_interval = command_interval
+        self.scout_points = tuple(
+            (float(point[0]), float(point[1])) for point in (scout_points or ())
+        )
+        self.scout_interval = max(1, int(scout_interval))
+        self.attack_threshold = max(1, int(attack_threshold))
         self._last_decide_loop = -10_000
         self._last_actions: list[AllyAction] = []
         self._action_history: list[list[str]] = []
         self._mode_history: list[str] = []
         self._mode = AllyMode.FOLLOW
+        self._scout_entity_id: Optional[int] = None
+        self._scout_point_index = 0
+        self._last_scout_loop = -10_000
         self._commands = PlayerCommandAdapter((self.leader_player_id,))
         self._notices: list[PlayerNotice] = []
         # Reuse the project-owned economy planner for P2.  AllyPolicy keeps
@@ -476,6 +488,11 @@ class AllyPolicy:
             and unit.get("unit_type_id") not in DefendBasePolicy.BUILDING_TYPES
             and unit.get("unit_type_id") not in DefendBasePolicy.NON_COMBAT_TYPES
         ]
+        scout_action = self._decide_scout(combat_units, enemies, loop)
+        scout_entity_id = (
+            None if enemies or self._scout_entity_id is None
+            else self._scout_entity_id
+        )
         base_threats = [
             enemy for enemy in enemies
             if self._dist(enemy["x"], enemy["y"], self.base_x, self.base_y) <= self.base_r
@@ -504,7 +521,7 @@ class AllyPolicy:
         actions: list[AllyAction] = [
             self._from_defend_action(action)
             for action in economy_actions
-            if action.kind in {"gather", "build", "train"}
+            if action.kind in {"gather", "build", "train", "research"}
         ]
 
         # Safety always overrides a player attack/follow request.
@@ -548,7 +565,13 @@ class AllyPolicy:
         )
         for index, unit in enumerate(sorted(combat_units, key=lambda item: item["entity_id"])):
             uid = unit["entity_id"]
-            if mode in {AllyMode.DEFEND_BASE, AllyMode.ASSIST_ATTACK} and focus_target is not None:
+            if uid == scout_entity_id and scout_action is not None and not enemies:
+                actions.append(scout_action)
+                continue
+            if (
+                mode in {AllyMode.DEFEND_BASE, AllyMode.ASSIST_ATTACK}
+                and focus_target is not None
+            ):
                 if self._has_attack_order(unit, focus_target["entity_id"]):
                     continue
                 actions.append(AllyAction(
@@ -584,6 +607,51 @@ class AllyPolicy:
             self._action_history.pop(0)
         self._last_actions = actions
         return actions
+
+    def _decide_scout(
+        self,
+        combat_units: list[dict],
+        enemies: list[dict],
+        loop: int,
+    ) -> Optional[AllyAction]:
+        """Send one non-worker through declared points while unengaged."""
+        if not self.scout_points or enemies or not combat_units:
+            return None
+        live_ids = {int(unit["entity_id"]) for unit in combat_units}
+        if self._scout_entity_id not in live_ids:
+            preferred = next(
+                (
+                    unit for unit in combat_units
+                    if unit.get("unit_type_id") in {"Reaper", "Viking"}
+                ),
+                None,
+            )
+            selected = preferred or min(
+                combat_units, key=lambda item: int(item["entity_id"])
+            )
+            self._scout_entity_id = int(selected["entity_id"])
+        scout = next(
+            unit for unit in combat_units
+            if int(unit["entity_id"]) == int(self._scout_entity_id)
+        )
+        point = self.scout_points[self._scout_point_index % len(self.scout_points)]
+        if self._dist(scout["x"], scout["y"], point[0], point[1]) <= 1.5:
+            self._scout_point_index = (
+                self._scout_point_index + 1
+            ) % len(self.scout_points)
+            point = self.scout_points[self._scout_point_index]
+        if loop - self._last_scout_loop < self.scout_interval:
+            return None
+        if scout.get("state") == "moving":
+            return None
+        self._last_scout_loop = loop
+        return AllyAction(
+            int(scout["entity_id"]),
+            "move",
+            target_x=point[0],
+            target_y=point[1],
+            reason=f"scout_point_{self._scout_point_index}",
+        )
 
     @staticmethod
     def _from_defend_action(action: DefendAction) -> AllyAction:
@@ -622,7 +690,9 @@ class AllyPolicy:
         slot = int(index) // 2 + 1
         lateral = (-1.0 if index % 2 == 0 else 1.0) * float(slot)
         depth = 1.5 if mode == AllyMode.REGROUP else 1.0
-        return x + lateral, y - depth * slot
+        # The simulator's playable coordinate space starts at zero.  A leader
+        # at the lower-left edge must still receive valid formation targets.
+        return max(0.0, x + lateral), max(0.0, y - depth * slot)
 
     @staticmethod
     def _has_attack_order(unit: dict, target_entity_id: int) -> bool:
@@ -775,9 +845,14 @@ class ActionAdapter:
                                       "friendly_fire_blocked",
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
             try:
+                before_results = len(world.command_results)
                 self.session.unit_order([qc.entity_id], "attack_unit",
-                                        issuer_player_id=self.controlled_player_id or issuer,
-                                        target_entity_id=qc.target_entity_id)
+                                         issuer_player_id=self.controlled_player_id or issuer,
+                                         target_entity_id=qc.target_entity_id)
+                error = self._command_error(world, before_results, qc.entity_id)
+                if error is not None:
+                    return DispatchResult(qc.entity_id, qc.kind, False, error,
+                                          qc.issue_loop, qc.dispatch_loop, qc.reason)
                 return DispatchResult(qc.entity_id, qc.kind, True, None,
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
             except Exception as e:  # noqa: BLE001 — 错误模型必须吞下所有异常
@@ -787,9 +862,14 @@ class ActionAdapter:
         # 4) move / follow = move 到点
         if qc.kind in ("move", "follow"):
             try:
+                before_results = len(world.command_results)
                 self.session.unit_order([qc.entity_id], "move",
                                         issuer_player_id=self.controlled_player_id or issuer,
                                         target_x=qc.target_x, target_y=qc.target_y)
+                error = self._command_error(world, before_results, qc.entity_id)
+                if error is not None:
+                    return DispatchResult(qc.entity_id, qc.kind, False, error,
+                                          qc.issue_loop, qc.dispatch_loop, qc.reason)
                 return DispatchResult(qc.entity_id, qc.kind, True, None,
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
             except Exception as e:  # noqa: BLE001
@@ -822,23 +902,29 @@ class ActionAdapter:
                 return DispatchResult(qc.entity_id, qc.kind, False, "invalid_target",
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
             try:
+                before_results = len(world.command_results)
                 self.session.unit_order(
                     [qc.entity_id],
                     "smart",
                     issuer_player_id=self.controlled_player_id or issuer,
                     target_entity_id=target_entity_id,
                 )
+                error = self._command_error(world, before_results, qc.entity_id)
+                if error is not None:
+                    return DispatchResult(qc.entity_id, qc.kind, False, error,
+                                          qc.issue_loop, qc.dispatch_loop, qc.reason)
                 return DispatchResult(qc.entity_id, qc.kind, True, None,
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
             except Exception as e:  # noqa: BLE001
                 return DispatchResult(qc.entity_id, qc.kind, False,
                                       f"dispatch_error:{type(e).__name__}",
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
-        if qc.kind in {"build", "train"}:
+        if qc.kind in {"build", "train", "research"}:
             if not qc.unit_type_id:
                 return DispatchResult(qc.entity_id, qc.kind, False, "missing_unit_type",
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
             try:
+                before_results = len(world.command_results)
                 self.session.unit_order(
                     [qc.entity_id],
                     qc.kind,
@@ -848,6 +934,10 @@ class ActionAdapter:
                     target_y=qc.target_y,
                     unit_type_id=qc.unit_type_id,
                 )
+                error = self._command_error(world, before_results, qc.entity_id)
+                if error is not None:
+                    return DispatchResult(qc.entity_id, qc.kind, False, error,
+                                          qc.issue_loop, qc.dispatch_loop, qc.reason)
                 return DispatchResult(qc.entity_id, qc.kind, True, None,
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
             except Exception as e:  # noqa: BLE001
@@ -857,6 +947,19 @@ class ActionAdapter:
         # 6) 未知 kind
         return DispatchResult(qc.entity_id, qc.kind, False, "unknown_kind",
                               qc.issue_loop, qc.dispatch_loop, qc.reason)
+
+    @staticmethod
+    def _command_error(world, before_results: int, entity_id: int) -> Optional[str]:
+        """Promote a simulator command result into the adapter error model."""
+        results = world.command_results[before_results:]
+        result = next(
+            (item for item in results if int(item.entity_id) == int(entity_id)),
+            None,
+        )
+        if result is None or result.ok:
+            return None
+        code = getattr(result.code, "value", str(result.code))
+        return f"sim_error:{code}"
 
     @property
     def pending_count(self) -> int:
@@ -919,6 +1022,13 @@ def run_ally_scenario(
     s = SimulatorSession()
     s.scenario_load(scenario_dict=scenario_dict, catalog="m7")
     s.scenario_reset()
+    # SimulatorSession honors the scenario's declared cap.  Clamp the runner
+    # to that authoritative limit so an over-sized caller budget cannot spin
+    # forever after scenario_step() stops advancing the clock.
+    run_limit = min(
+        max(1, int(max_loops)),
+        max(1, int(s.scenario.definition.max_loops)),
+    )
     if simulator_overlay is not None:
         start = getattr(simulator_overlay, "start", None)
         if start is not None:
@@ -1048,6 +1158,7 @@ def run_ally_scenario(
             "visible_enemies": obs.visible_enemies,
             "alliance_summary": obs.alliance_summary,
             "resources": obs.resources,
+            "tech": obs.tech,
             "resources_by_player": resources_by_player,
             "mission": obs.mission,
             "ally_mode": policy.mode.value,
@@ -1118,7 +1229,7 @@ def run_ally_scenario(
     replay_frame_records: list[dict] = []
     _capture_replay_frame(0)
 
-    while not s.terminated and s.world.clock.now.loop < max_loops:
+    while not s.terminated and s.world.clock.now.loop < run_limit:
         loop = s.world.clock.now.loop
 
         if simulator_overlay is not None:
@@ -1396,6 +1507,23 @@ def run_ally_scenario(
             final_units_by_type[entity.unit_type_id] = (
                 final_units_by_type.get(entity.unit_type_id, 0) + 1
             )
+    final_tech = {
+        "completed_upgrades": sorted(
+            str(upgrade_id)
+            for upgrade_id in s.world.completed_upgrades.get(int(ally_player_id), [])
+        ),
+        "researching": [
+            {
+                "entity_id": entity.entity_id,
+                "unit_type_id": entity.unit_type_id,
+                "upgrade_id": entity.research_upgrade_id,
+                "progress": int(entity.research_progress),
+                "total": int(entity.research_total),
+            }
+            for entity in s.world.entities_of(int(ally_player_id))
+            if entity.is_alive and entity.research_upgrade_id
+        ],
+    }
     return AllyRunResult(
         end_loop=s.world.clock.now.loop,
         end_reason=getattr(s, "end_reason", "") or "max_loops_reached",
@@ -1421,6 +1549,7 @@ def run_ally_scenario(
         event_kinds=event_kinds,
         final_units_by_type=final_units_by_type,
         final_resources=s.query_player(int(ally_player_id))["resources"],
+        final_tech=final_tech,
     )
 
 

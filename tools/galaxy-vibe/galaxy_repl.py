@@ -283,12 +283,14 @@ class VibeREPL:
         map_path: str = "",
         join_wait: float = 15.0,
         rpc_session_id: str = "",
+        realtime: bool = False,
     ):
         self.port = port
         self.resolve = resolve
         self.name_lookup = name_lookup
         self.map_path = map_path
         self.join_wait = join_wait
+        self.realtime = realtime
         self.map_center = common_pb.Point2D(x=50.0, y=50.0)
         self._have_map = False
         self._resume_requested = bool(rpc_session_id)
@@ -340,7 +342,7 @@ class VibeREPL:
             req = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
                 local_map=sc_pb.LocalMap(map_path=normalized_map),
                 player_setup=setup,
-                realtime=False,
+                realtime=self.realtime,
             ))
             try:
                 resp = await send_request(self.ws, req, timeout=60.0)
@@ -1272,6 +1274,7 @@ async def amain(args):
         map_path=args.map,
         join_wait=args.join_wait,
         rpc_session_id=args.rpc_session_id,
+        realtime=args.realtime,
     )
     try:
         await repl.connect()
@@ -1306,6 +1309,7 @@ def main():
     ap.add_argument("--port", type=int, default=5000)
     ap.add_argument("--map", default="", help="CreateGame + JoinGame this map before running commands")
     ap.add_argument("--join-wait", type=float, default=15.0, help="Seconds to wait after JoinGame for map scripts")
+    ap.add_argument("--realtime", action="store_true", help="Create a realtime game so the visible SC2 window is not step-paused")
     ap.add_argument("--rpc-session-id", default="", help="恢复当前游戏内已有的 Vibe Kernel session_id")
     ap.add_argument("--cmd", help="执行单条命令后退出")
     ap.add_argument("--vm-program", help="加载并执行 JSON Debug VM 程序后退出")

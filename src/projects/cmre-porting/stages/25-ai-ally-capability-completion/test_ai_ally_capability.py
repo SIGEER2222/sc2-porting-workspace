@@ -130,6 +130,47 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
                 for action in decision.actions
             ))
 
+    def test_ally_policy_reaches_high_tech_units_and_research_across_seeds(self):
+        expected_upgrades = {
+            "TerranInfantryWeaponsLevel1",
+            "TerranVehicleWeaponsLevel1",
+        }
+        for seed in (42, 7, 99):
+            scenario = build_native_task_scenario(seed=seed, max_loops=500)
+            scenario["initial_minerals"] = 3000
+            scenario["initial_vespene"] = 1000
+            result = run_ally_scenario(
+                scenario,
+                AllyPolicy(
+                    player_id=2,
+                    leader_entity_id=1,
+                    leader_player_id=1,
+                    base_region=(85.0, 94.0, 8.0),
+                    command_interval=1,
+                ),
+                ally_player_id=2,
+                max_loops=500,
+                latency_loops=0,
+                require_cooperative_roster=True,
+            )
+
+            self.assertEqual(result.error_breakdown, {}, seed)
+            self.assertEqual(result.hidden_state_access_violations, 0, seed)
+            self.assertEqual(result.friendly_fire_rejections, 0, seed)
+            self.assertFalse(result.deadlock_detected, seed)
+            self.assertFalse(result.command_storm_detected, seed)
+            self.assertGreaterEqual(result.action_kind_counts.get("build", 0), 8, seed)
+            self.assertGreaterEqual(result.action_kind_counts.get("train", 0), 10, seed)
+            self.assertGreaterEqual(result.action_kind_counts.get("research", 0), 2, seed)
+            self.assertGreaterEqual(result.action_kind_counts.get("attack", 0), 1, seed)
+            self.assertIn("FactoryTechLab", result.final_units_by_type, seed)
+            self.assertGreaterEqual(result.final_units_by_type.get("SiegeTank", 0), 1, seed)
+            self.assertGreaterEqual(result.final_units_by_type.get("Medivac", 0), 1, seed)
+            self.assertTrue(expected_upgrades.issubset(
+                set(result.final_tech["completed_upgrades"])
+            ), (seed, result.final_tech))
+            self.assertIn("vespene_deposited", result.event_kinds, seed)
+
     def test_ally_policy_native_opening_is_deterministic_across_seeds(self):
         results = []
         for seed in (42, 7, 99):

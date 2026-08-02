@@ -189,6 +189,9 @@ class Observation:
     # them on Observation prevents policies from reaching into WorldState.
     mineral_fields: list[dict] = field(default_factory=list)
     vespene_geysers: list[dict] = field(default_factory=list)
+    # Technology is public player state: completed upgrades plus research
+    # currently visible on owned research facilities.
+    tech: dict = field(default_factory=dict)
 
     @classmethod
     def from_world(cls, world, player_id: int) -> "Observation":
@@ -216,6 +219,24 @@ class Observation:
             and vision_system.is_visible(world, player_id, e)
         ]
         res = world.get_resources(player_id).snapshot()
+        researching = [
+            {
+                "entity_id": entity.entity_id,
+                "unit_type_id": entity.unit_type_id,
+                "upgrade_id": entity.research_upgrade_id,
+                "progress": int(entity.research_progress),
+                "total": int(entity.research_total),
+            }
+            for entity in world.entities_of(player_id)
+            if entity.is_alive and entity.research_upgrade_id
+        ]
+        tech = {
+            "completed_upgrades": sorted(
+                str(upgrade_id)
+                for upgrade_id in world.completed_upgrades.get(player_id, [])
+            ),
+            "researching": researching,
+        }
         alliance_summary = []
         observer = world.players.get(player_id)
         observed_player_ids = [player_id] + sorted(observer.allies)
@@ -257,6 +278,7 @@ class Observation:
                 resource for resource in visible_resources
                 if resource["unit_type_id"] == "VespeneGeyser"
             ],
+            tech=tech,
         )
 
 
@@ -324,6 +346,13 @@ def _entity_brief(e, world=None) -> dict:
                 "ability_id": "Train",
                 "unit_type_id": item.product_unit_id,
                 "remaining_loops": int(item.remaining_loops),
+            })
+        elif e.research_upgrade_id:
+            orders.append({
+                "ability_id": "Research",
+                "upgrade_id": e.research_upgrade_id,
+                "progress": int(e.research_progress),
+                "total": int(e.research_total),
             })
         d["orders"] = orders
     return d

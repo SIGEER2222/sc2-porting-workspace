@@ -81,9 +81,36 @@ P1_PLAYER_ID = 1
 P2_PLAYER_ID = 2
 PLAYER_ID = P1_PLAYER_ID
 # SC2 requires every participant in a local multiplayer game to submit the
-# same server/client port topology during JoinGame.
-MULTIPLAYER_SERVER_PORTS = (5200, 5201)
-MULTIPLAYER_CLIENT_PORTS = ((5202, 5203),)
+# same server/client port topology during JoinGame. The client port pair is
+# the guest slot in the shared Portconfig; it is not a private pair per API
+# websocket.
+MULTIPLAYER_PORT_BASE = 5200
+
+
+def _multiplayer_port_topology(
+    base_port: int,
+) -> tuple[tuple[int, int], tuple[tuple[int, int], ...]]:
+    """Return one shared host/guest Portconfig for every participant client."""
+    if base_port < 1024 or base_port + 3 > 65535:
+        raise ValueError(f"invalid multiplayer port base: {base_port}")
+    return (base_port, base_port + 1), ((base_port + 2, base_port + 3),)
+LIVE_MAP_METADATA = {
+    "source_kind": "runtime_observation_with_map_source_metadata",
+    "map_name": "亡者之夜",
+    "map_path": "src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map",
+    "map_hash": "3b46e6afdfe4664e1ccc2f49c973331f66746425fa36832a00f5680c056ed322",
+    "map_bounds": {
+        "width": 144.0,
+        "height": 151.0,
+        "min_x": 27.5,
+        "min_y": 15.5,
+        "max_x": 171.5,
+        "max_y": 166.5,
+    },
+    "native_object_count": 1319,
+    "native_spawn_count": 1308,
+    "native_p2_spawn_count": 0,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -687,41 +714,66 @@ class LiveGameReport:
     ally_mode_history: list[str] = field(default_factory=list)
 
 
+def _replay_entity(unit: dict, owner: int) -> dict:
+    """Convert a live observation unit to the browser replay entity shape."""
+    entity_id = int(unit.get("entity_id", 0))
+    return {
+        "id": entity_id,
+        "p": int(owner),
+        "t": str(unit.get("unit_type_id", "Unknown")),
+        "x": float(unit.get("x", 0.0)),
+        "y": float(unit.get("y", 0.0)),
+        "hp": int(unit.get("health", 0)),
+        "alive": int(unit.get("health", 0)) > 0,
+    }
+
+
 def _write_replay_frame(fp, loop: int, obs: LiveObservation,
                         total_cmds: int, key_events: list[dict]) -> None:
     """写一帧回放日志到 JSONL 文件。"""
+    p1_state = _owner_state(obs, P1_PLAYER_ID)
+    p2_state = _owner_state(obs, P2_PLAYER_ID)
     p1_units_by_type: dict[str, int] = {}
     enemy_units_by_type: dict[str, int] = {}
-    for u in obs.own_units:
+    for u in p1_state:
         t = u["unit_type_id"]
         p1_units_by_type[t] = p1_units_by_type.get(t, 0) + 1
     for e in obs.visible_enemies:
         t = e["unit_type_id"]
         enemy_units_by_type[t] = enemy_units_by_type.get(t, 0) + 1
     p2_units_by_type: dict[str, int] = {}
-    for e in obs.visible_allies:
-        if int(e.get("owner", 0)) != P2_PLAYER_ID:
-            continue
+    for e in p2_state:
         t = e["unit_type_id"]
         p2_units_by_type[t] = p2_units_by_type.get(t, 0) + 1
 
+    entities_by_player: dict[str, list[dict]] = {}
+    for unit in obs.mineral_fields + obs.vespene_geysers:
+        entities_by_player.setdefault("0", []).append(_replay_entity(unit, 0))
+    for unit in obs.visible_allies:
+        owner = int(unit.get("owner", 0))
+        entities_by_player.setdefault(str(owner), []).append(_replay_entity(unit, owner))
+    for unit in obs.own_units:
+        entities_by_player.setdefault(str(P2_PLAYER_ID), []).append(
+            _replay_entity(unit, P2_PLAYER_ID)
+        )
+    for unit in obs.visible_enemies:
+        owner = int(unit.get("owner", 0))
+        entities_by_player.setdefault(str(owner), []).append(_replay_entity(unit, owner))
+
     frame = {
+        "record_type": "frame",
         "loop": loop,
         "ts_sec": round(loop / 22.4, 1),
-        "p1_alive": len(_owner_state(obs, P1_PLAYER_ID)),
+        "p1_alive": len(p1_state),
         "enemy_alive": len(obs.visible_enemies),
-        "p1_units_by_type": {
-            unit_type: count
-            for unit_type, count in Counter(
-                unit.get("unit_type_id", "")
-                for unit in _owner_state(obs, P1_PLAYER_ID)
-            ).items()
-        },
+        "p1_units_by_type": p1_units_by_type,
         "enemy_units_by_type": enemy_units_by_type,
-        "p2_alive": len(_p2_state(obs)),
+        "p2_alive": len(p2_state),
         "p2_units_by_type": p2_units_by_type,
+        "entities_by_player": entities_by_player,
         "strategy_player_id": obs.player_id,
         "strategy_player_resources": obs.resources,
+        "p2_resources": obs.resources,
         "total_cmds": total_cmds,
         "key_events": key_events,
     }
@@ -736,6 +788,7 @@ async def run_p1_anchor(
     commands: Optional[list[str]] = None,
     verbose: bool = True,
     output_path: Optional[str] = None,
+    multiplayer_port_base: int = MULTIPLAYER_PORT_BASE,
 ) -> dict:
     """Create the two-participant game and hold the real P1 API client.
 
@@ -752,8 +805,11 @@ async def run_p1_anchor(
         "player_roster": {},
         "commands": [],
     }
-    await conn.connect()
     try:
+        await conn.connect()
+        server_ports, client_ports = _multiplayer_port_topology(
+            multiplayer_port_base
+        )
         ping = await conn.send_request(sc_pb.Request(ping=sc_pb.RequestPing()))
         if verbose:
             print(f"[anchor] Ping: version={ping.ping.game_version}")
@@ -785,8 +841,15 @@ async def run_p1_anchor(
         join = sc_pb.Request(join_game=sc_pb.RequestJoinGame(
             race=1,
             player_name="P1",
+            host_ip="127.0.0.1",
             options=sc_pb.InterfaceOptions(raw=True),
         ))
+        join.join_game.server_ports.game_port = server_ports[0]
+        join.join_game.server_ports.base_port = server_ports[1]
+        for game_port, base_port in client_ports:
+            client_ports = join.join_game.client_ports.add()
+            client_ports.game_port = game_port
+            client_ports.base_port = base_port
         joined = False
         for attempt in range(30):
             response = await conn.send_request(join, timeout=30, max_retries=2)
@@ -806,23 +869,33 @@ async def run_p1_anchor(
         if verbose:
             print(f"[anchor] JoinGame OK! player_id={report['player_id']}")
 
-        info = await conn.send_request(
-            sc_pb.Request(game_info=sc_pb.RequestGameInfo()), timeout=15
-        )
-        report["player_roster"] = {
-            str(item.player_id): {
-                "player_id": int(item.player_id),
-                "type": int(item.type),
-                "race_requested": int(item.race_requested),
-                "race_actual": int(item.race_actual),
-                "player_name": item.player_name,
-            }
-            for item in info.game_info.player_info
-        }
-        if not _has_p1_p2_participant_roster(report["player_roster"]):
-            raise RuntimeError(
-                f"P1 anchor did not observe P1/P2 participant roster: {report['player_roster']}"
+        # The first client is P1, but SC2 does not publish the second
+        # participant in GameInfo until the P2 client has completed JoinGame.
+        # Poll the authoritative roster while the separate P2 client joins;
+        # reading it only once creates a false topology failure.
+        roster_deadline = time.monotonic() + min(max(wait_sec, 30.0), 60.0)
+        while True:
+            info = await conn.send_request(
+                sc_pb.Request(game_info=sc_pb.RequestGameInfo()), timeout=15
             )
+            report["player_roster"] = {
+                str(item.player_id): {
+                    "player_id": int(item.player_id),
+                    "type": int(item.type),
+                    "race_requested": int(item.race_requested),
+                    "race_actual": int(item.race_actual),
+                    "player_name": item.player_name,
+                }
+                for item in info.game_info.player_info
+            }
+            if _has_p1_p2_participant_roster(report["player_roster"]):
+                break
+            if time.monotonic() >= roster_deadline:
+                raise RuntimeError(
+                    "P1 anchor did not observe P1/P2 participant roster before timeout: "
+                    f"{report['player_roster']}"
+                )
+            await asyncio.sleep(0.5)
 
         scheduled = commands or [
             "!ally status stage25_p1_anchor_status",
@@ -879,6 +952,7 @@ async def run_live(
     ally_commands: Optional[list[str]] = None,
     join_existing: bool = False,
     multiplayer_ports: bool = False,
+    multiplayer_port_base: int = MULTIPLAYER_PORT_BASE,
 ) -> LiveGameReport:
     """运行真机 AI 盟友自主对局。
 
@@ -893,10 +967,14 @@ async def run_live(
         force_map_path: 使用原生地图路径，保留 CMRE 的外部依赖链
         join_existing: 跳过建局，仅加入另一个 API client 已创建的当前对局
         multiplayer_ports: 为多 SC2 client JoinGame 提交共享端口拓扑
+        multiplayer_port_base: shared Portconfig base port for multiplayer_ports
     """
     start_time = time.time()
     conn = Sc2Connection(port)
     await conn.connect()
+    server_ports, client_ports = _multiplayer_port_topology(
+        multiplayer_port_base
+    )
     cmd_ok_stats: Counter = Counter()
     cmd_fail_stats: Counter = Counter()
     cmd_ok_by_kind: Counter = Counter()
@@ -916,6 +994,24 @@ async def run_live(
     replay_path = Path(replay_log_path)
     replay_path.parent.mkdir(parents=True, exist_ok=True)
     replay_fp = open(replay_path, "w", encoding="utf-8")
+    replay_fp.write(json.dumps({
+        "record_type": "header",
+        "schema_version": "live-runtime-v1",
+        "map_metadata": LIVE_MAP_METADATA,
+        "owner_roles": {
+            "1": {"relation": "leader", "name": "P1 玩家"},
+            "2": {"relation": "ally", "name": "P2 AI 盟友"},
+            "3": {"relation": "enemy", "name": "P3 敌军"},
+            "4": {"relation": "enemy", "name": "P4 敌军"},
+            "5": {"relation": "enemy", "name": "P5 敌军"},
+            "6": {"relation": "enemy", "name": "P6 敌军"},
+            "7": {"relation": "enemy", "name": "P7 敌军"},
+        },
+        "strategy_player_id": P2_PLAYER_ID,
+        "native_strategy": True,
+        "debug_injection": False,
+    }, ensure_ascii=False) + "\n")
+    replay_fp.flush()
     if verbose:
         print(f"  回放日志: {replay_path}")
 
@@ -995,12 +1091,13 @@ async def run_live(
         join_req = sc_pb.Request(join_game=sc_pb.RequestJoinGame(
             race=1,  # Terran
             player_name="P2",
+            host_ip="127.0.0.1",
             options=sc_pb.InterfaceOptions(raw=True),
         ))
         if multiplayer_ports:
-            join_req.join_game.server_ports.game_port = MULTIPLAYER_SERVER_PORTS[0]
-            join_req.join_game.server_ports.base_port = MULTIPLAYER_SERVER_PORTS[1]
-            for game_port, base_port in MULTIPLAYER_CLIENT_PORTS:
+            join_req.join_game.server_ports.game_port = server_ports[0]
+            join_req.join_game.server_ports.base_port = server_ports[1]
+            for game_port, base_port in client_ports:
                 client_ports = join_req.join_game.client_ports.add()
                 client_ports.game_port = game_port
                 client_ports.base_port = base_port
@@ -1644,6 +1741,15 @@ async def run_live(
         ally_mode_history=(ally_policy.mode_history if ally_policy is not None else []),
     )
 
+    # Keep the report as a final JSONL record so the same file is both a
+    # browser replay source and an auditable native-runtime evidence stream.
+    with replay_path.open("a", encoding="utf-8") as summary_fp:
+        summary_fp.write(json.dumps({
+            "record_type": "summary",
+            "status": report.verdict.upper(),
+            "runtime_report": report.__dict__,
+        }, ensure_ascii=False) + "\n")
+
     if verbose:
         print(f"\n=== 真机对局结束 ===")
         print(f"地图: {report.map_name}")
@@ -1707,6 +1813,18 @@ def main():
         action="store_true",
         help="JoinGame 时提交共享 server/client 端口拓扑（需要多个 SC2 client）",
     )
+    parser.add_argument(
+        "--multiplayer-port-base",
+        type=int,
+        default=MULTIPLAYER_PORT_BASE,
+        help="共享 multiplayer Portconfig 的 server game_port 起点",
+    )
+    parser.add_argument(
+        "--replay-log",
+        type=str,
+        default=None,
+        help="真机 JSONL 回放路径（可交给 vibe.replay_player 生成 HTML）",
+    )
     parser.add_argument("--quiet", action="store_true", help="静默模式")
     parser.add_argument("--output", type=str, default=None, help="报告输出 JSON 路径")
     args = parser.parse_args()
@@ -1718,6 +1836,7 @@ def main():
             wait_sec=args.anchor_wait_sec,
             verbose=not args.quiet,
             output_path=args.anchor_output or args.output,
+            multiplayer_port_base=args.multiplayer_port_base,
         ))
         if args.quiet:
             print(json.dumps(anchor_report, ensure_ascii=False))
@@ -1733,6 +1852,8 @@ def main():
         force_map_path=not args.embed_map_data,
         join_existing=args.join_existing,
         multiplayer_ports=args.multiplayer_ports,
+        multiplayer_port_base=args.multiplayer_port_base,
+        replay_log_path=args.replay_log,
     ))
 
     if args.output:
