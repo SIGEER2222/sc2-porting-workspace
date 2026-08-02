@@ -256,3 +256,87 @@ protected 5153 Debug VM window cannot satisfy this gate.
   evidence. Port `5163` refused the connection and port `5164` disconnected
   after the SC2 API handshake, so no UI request reached `function.invoke`.
   The approved launcher Debug VM group probe remains a separate runtime PASS.
+
+## Verification Loop 2026-08-02 Runtime WebUI VM Revalidation
+
+- `runtime`: after explicitly releasing the stale PID 16080 window, the
+  approved launcher started a fresh SC2 API window on port `5192` with PID
+  `38420`. The launcher staged the current map overlay and passed its API
+  ready/ScriptError gate.
+- `blocked`: the first CLI attempt passed the launcher staging directory to
+  `CreateGame`; SC2 truthfully rejected it because `CreateGame` requires a
+  packed `.SC2Map` file. No VM instruction was sent in that attempt.
+- `runtime`: the staged map was packed with the existing StormLib tool, then
+  `galaxy_repl.py` completed `CreateGame + JoinGame` and ran the 11-instruction
+  VM. It created three real Marines, applied `Conjoined` to each, and the
+  final query returned `has_behavior=true`. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/runtime-vm-cli.json`.
+- `runtime`: the WebUI at `http://127.0.0.1:8768` resumed session
+  `repl_32f2ed98ec89` on port `5192`. Its real HTTP `function.invoke` returned
+  `vibe.test.ping` with `error_code=OK` and `pong`; its real `run-vm` returned
+  `status=passed`, 11 instructions, three unit tags, and final
+  `has_behavior=true`. The backend trace contained 11 records. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/webui-api-runtime.json`.
+- `runtime`: same-window ScriptError check using launcher epoch
+  `1785662534` returned zero new errors. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/script-error-verdict.json`.
+
+## Verification Loop 2026-08-02 Dynamic Map Replay
+
+- `simulator`: the strict replay now carries an explicit
+  `map_script_simulator_overlay`. It preserves the 1308 ObjectUnit-derived
+  entities in the first frame and transcribes the registered map script's
+  first-night `gf_AINormalInfestedAttacksNight1InfestedCivilians` branch,
+  `Special Infested Spawn - SW` region, P5 owner, and 140-loop attack-wave
+  delay. The overlay mutates no native ObjectUnit entity. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/map-scenario-source.json`.
+- `simulator`: the regenerated browser replay contains 65 sampled frames,
+  loop `0 -> 6384`, enters Night 1, records map-script wave events at loops
+  `4845` and `5741`, and adds 8 dynamic P5 entities. The first wave has zero
+  units on the selected normal difficulty because that is the source script's
+  normal branch; the second wave creates 8 `InfestedCivilian` source units,
+  represented by the simulator's `Marine` catalog mapping. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/run-summary.json`.
+- `simulator`: first-frame source consistency still passes for all 1308
+  entities. A cross-frame census found coordinate changes for all 8 dynamic
+  entities; no P1/P2 entity appeared in the first frame, and all 5 P1 command
+  records remain present. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/replay.jsonl`.
+- `simulator`: `scenario_step_movement_only` keeps this map-only path within
+  the real simulator movement system while avoiding a full combat/economy/
+  vision scan over 1308 idle native entities. Generic P1/P2 scenarios still
+  use the full `scenario_step` path. The 100-loop overlay probe completed in
+  1.7 seconds; the full 6400-loop replay completed in 100 seconds.
+- `static`: Stage 25 focused tests pass (`13 passed`), all changed Python
+  modules compile, and Chrome headless loaded the generated HTML and produced
+  a non-empty `448207`-byte screenshot at
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/playback-smoke.png`.
+- `blocked`: an automated Chrome DevTools click probe was not promoted to
+  evidence because the local command policy blocked the CDP shell command.
+  Browser playback behavior is therefore supported by the replay state
+  census and the existing player loop implementation, not by a claimed CDP
+  click result.
+
+## Verification Loop 2026-08-02 Playback Position Fix
+
+- `static`: the generated player was drawing `source_x/source_y`, which are
+  immutable map-source coordinates, instead of the current replay `x/y`; this
+  made moving simulator entities appear static while the timeline advanced.
+- `static`: `src/projects/cmre-porting/vibe/replay_player.py` now draws
+  `worldToCanvas(e.x, e.y)` and keeps source coordinates only as audit data.
+  The focused replay test asserts that the generated HTML contains the current
+  coordinate expression and no longer contains the source-coordinate fallback.
+- `simulator`: the strict map replay was regenerated after the fix with 65
+  frames and loop `0 -> 6384`; its source fidelity and 8/8 dynamic position
+  changes remain intact. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/full-map-player.html`.
+- `static`: an inline Node `vm` probe executed the generated HTML's real
+  `togglePlay()`/`tick()` path, advanced the timeline `0 -> 30 -> 60`, and
+  confirmed a dynamic P5 entity was drawn at current coordinates different
+  from its source coordinates. This is HTML-script evidence, not native SC2
+  runtime evidence. Evidence: the same `full-map-player.html`.
+- `static`: Chrome headless loaded the regenerated HTML after the fix and
+  produced a non-empty `362714`-byte screenshot. Evidence:
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/playback-smoke-after-fix.png`.
+- `static`: focused replay tests passed (`2 passed`), and
+  `py_compile` passed for the player and Stage 25 test module.

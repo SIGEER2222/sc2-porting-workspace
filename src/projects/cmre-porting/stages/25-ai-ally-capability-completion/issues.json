@@ -27,13 +27,14 @@
     {
       "id": "WEBUI-LIVE-INVOKE-UNVERIFIED",
       "severity": "low",
-      "status": "blocked",
+      "status": "resolved",
       "title": "Browser runtime console has no live SC2 invoke evidence yet",
-      "detail": "The WebUI API contract and disconnected failure path pass, but attempts to connect the browser path to SC2 API ports 5163 and 5164 were refused or disconnected after handshake. No browser-originated function.invoke was sent.",
-      "evidence_type": "blocked",
+      "detail": "Resolved by a fresh approved launcher window on port 5192. The WebUI resumed session repl_32f2ed98ec89, completed a real vibe.test.ping function.invoke, then completed the group Debug VM with 11 instructions and final has_behavior=true.",
+      "evidence_type": "runtime",
       "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/webui-runtime-contract-20260802.json",
       "owner": "stage25",
-      "nextAction": "When a fresh approved SC2 API window is available, connect from the WebUI, invoke vibe.test.ping, then run the group VM and capture the browser-originated request/response trace with the same-window ScriptError verdict."
+      "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/webui-api-runtime.json",
+      "nextAction": "Keep future browser traces separate from native strategy evidence and rerun the same-window ScriptError gate after runtime changes."
     }
   ]
 }

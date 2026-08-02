@@ -3,7 +3,7 @@
   "stage": "25-ai-ally-capability-completion",
   "status": "IN_PROGRESS",
   "evidence_type": "mixed",
-  "summary": "AST catalog, bounded Debug VM, simulator, strict Dead of Night map-derived replay, static regressions, runtime group spawn/behavior probe, and the browser runtime-console contract pass. The old fixture replay is historical-invalid as map evidence. The map contains P1/P2 placement markers but zero native P1/P2 units, so the map-derived replay proves source fidelity and P1-to-P2 text interaction only; P2 native action validation remains unexercised and the fresh runtime lane is blocked by a protected KeepAlive lease. The browser UI has not yet been promoted to live function.invoke evidence because its SC2 API connection attempts were blocked.",
+  "summary": "AST catalog, bounded Debug VM, simulator, strict dynamic Dead of Night map-derived replay, static regressions, fresh runtime group VM, and browser-originated function.invoke/run-vm all pass. The old fixture replay is historical-invalid as map evidence. The map contains P1/P2 placement markers but zero native P1/P2 units, so the regenerated replay preserves the native source frame and adds only an explicitly tagged MapScript.galaxy P5 wave overlay; P2 native action validation remains unexercised and the separate native-strategy lane remains blocked.",
   "changed_paths": [
     "src/projects/cmre-porting/project.json",
     "DESIGN.md",
@@ -13,6 +13,10 @@
     "tools/cmre-webui/webui/styles.css",
     "tools/cmre-webui/test_runtime_contract.py",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/webui-runtime-contract-20260802.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/runtime-vm-cli.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/webui-vm.packed.SC2Map",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/webui-api-runtime.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/script-error-verdict.json",
     "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/plan.md",
     "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/log.md",
     "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/result.json",
@@ -27,6 +31,7 @@
     "src/projects/cmre-porting/vibe/consumers/ally_ai.py",
     "src/projects/cmre-porting/vibe/map_extractor.py",
     "src/projects/cmre-porting/vibe/map_replay.py",
+    "src/projects/cmre-porting/vibe/simulator_session.py",
     "src/projects/cmre-porting/vibe/replay_player.py",
     "src/projects/cmre-porting/vibe/defend_policy.py",
     "src/projects/cmre-porting/vibe/run_dead_of_night_live.py",
@@ -47,6 +52,8 @@
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/replay.jsonl",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/full-map-player.html",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/run-summary.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/playback-smoke.png",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/playback-smoke-after-fix.png",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/debug-vm-simulator-smoke.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-20260802/runtime-verdict.json",
@@ -107,10 +114,19 @@
     ,{"evidence_type": "static", "command": "py -3.13 -m pytest -q tools/cmre-webui/test_runtime_contract.py", "status": "PASS", "detail": "Real WebUI process served catalog/session/status/page handlers; disconnected function.invoke and run-vm returned truthful HTTP 502 responses.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/webui-runtime-contract-20260802.json"}
     ,{"evidence_type": "static", "command": "py -3.13 -m py_compile tools/cmre-webui/server.py tools/cmre-webui/test_runtime_contract.py + node --check tools/cmre-webui/webui/app.js + git diff --check", "status": "PASS", "detail": "server/test Python compile, frontend parse, and whitespace checks pass."}
     ,{"evidence_type": "blocked", "command": "WebUI connect attempts on SC2 API ports 5163 and 5164", "status": "BLOCKED", "detail": "5163 refused and 5164 disconnected after handshake; no browser-originated function.invoke or game-state claim.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/webui-runtime-contract-20260802.json"}
+    ,{"evidence_type": "simulator", "command": "python -m vibe.map_replay --output-dir artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802 --max-loops 6400 --replay-log-interval 112 --difficulty normal", "status": "PASS", "detail": "65 frames, loop 0 -> 6384; first frame 1308 entities match the map source; Night 1 reached; 2 map-script wave events recorded; 8 dynamic P5 entities added; all 8 dynamic entities changed coordinates across frames; native P1/P2 spawn counts remain 0/0.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/run-summary.json"}
+    ,{"evidence_type": "simulator", "command": "inline first-frame source-consistency and cross-frame position census", "status": "PASS", "detail": "source_match=true; first_frame_entity_count=1308; current_nights=[0,1]; dynamic_ids=8; dynamic_ids_with_position_change=8; p1_p2_in_first_frame=false; p1_commands=5.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/replay.jsonl"}
+    ,{"evidence_type": "static", "command": "Chrome headless file replay smoke screenshot", "status": "PASS", "detail": "full-map-player.html loaded and produced a non-empty 448207-byte screenshot; no CDP click claim is made because the local command policy blocked the automated DevTools probe.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/playback-smoke.png"}
+    ,{"evidence_type": "static", "command": "python -m pytest -q Stage 25 replay HTML focused tests + py_compile replay_player.py", "status": "PASS", "detail": "2 replay tests passed; generated HTML asserts current e.x/e.y rendering and the changed modules compile.", "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py"}
+    ,{"evidence_type": "static", "command": "inline Node vm probe over generated full-map-player.html: togglePlay/tick", "status": "PASS", "detail": "The real embedded playback path advanced timeline 0 -> 30 -> 60 and drew a dynamic P5 entity at current x/y rather than source_x/source_y; this is HTML-script evidence, not native SC2 runtime evidence.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/full-map-player.html"}
+    ,{"evidence_type": "static", "command": "Chrome headless file replay smoke screenshot after playback position fix", "status": "PASS", "detail": "Chrome loaded the regenerated full-map-player.html and wrote a non-empty 362714-byte screenshot.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/playback-smoke-after-fix.png"}
+    ,{"evidence_type": "runtime", "command": "approved launcher port 5192 + StormLib packed map + galaxy_repl.py group VM", "status": "PASS", "detail": "Fresh CreateGame/JoinGame; 11 VM instructions passed; three real Marines were created, each received Conjoined count=1, and final query returned has_behavior=true.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/runtime-vm-cli.json"}
+    ,{"evidence_type": "runtime", "command": "WebUI 8768 session resume + /api/vibe/invoke + /api/vibe/run-vm on port 5192", "status": "PASS", "detail": "Browser-originated backend path resumed session repl_32f2ed98ec89; ping returned pong/error_code=OK; VM passed with 11 instructions and backend trace count=11.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/webui-api-runtime.json"}
+    ,{"evidence_type": "runtime", "command": "py -3.13 tools/galaxy-vibe/script_error_check.py --since 1785662534", "status": "PASS", "detail": "Zero new non-empty ScriptError files in the fresh 5192 launcher window.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-vm-20260802/script-error-verdict.json"}
   ],
   "issues": [
     "Corrected P2 native runtime remains blocked by protected launcher lease; do not use the historical P1 report or protected Debug VM window as native-task evidence.",
-    "Browser WebUI to live SC2 function.invoke remains unverified because API ports 5163/5164 were unavailable or disconnected after handshake; the separate Debug VM CLI runtime PASS is not browser evidence."
+    "P2 native strategy validation remains blocked by the protected launcher lease/map roster gap; the fresh Debug VM and browser runtime passes do not satisfy native gather/train/move/attack acceptance."
   ],
   "next_stage_plan": null
 }
