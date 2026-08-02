@@ -21,7 +21,7 @@ dependency remains unavailable.
 ## Verification
 
 - `static`: the failure-first check `python -m pytest --lf -q` exited during
-  collection with 87 errors before assertions ran. The errors are from
+  collection with 88 errors and 42 deselected tests before assertions ran. The errors are from
   archived, external, and copied evidence tests discovered without their
   package import roots; the canonical bounded regression below remained clean.
 - `static`: bounded Stage 22/23, Host, and launcher regression passed with
