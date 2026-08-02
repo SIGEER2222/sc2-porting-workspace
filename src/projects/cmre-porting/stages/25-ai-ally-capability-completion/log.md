@@ -644,3 +644,32 @@ Evidence:
 - `static`: Stage 25 focused tests pass with `21 passed`; this recovery result
   remains simulator-only and does not change the open native P2 topology/map
   roster blocker.
+
+## Verification Loop 2026-08-02 Ladder-Style Full-Game Simulator
+
+- `simulator`: `PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.ladder_ai
+  --batch --max-loops 5000 --out
+  artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-20260802.json`
+  completed the same full-game loop for seeds `42`, `7`, and `99` with overall
+  status `PASS`.
+- `simulator`: every seed reached loop `3296` with end reason
+  `enemy_elimination`, winner P1, and `final_enemy_units_by_type={}`. The
+  policy recorded mineral and vespene deposits, expansion to two Command
+  Centers, two Barracks, two Factories, FactoryTechLab, Armory, Starport,
+  EngineeringBay, both Terran weapon upgrades, and Marine/Hellion/Medivac
+  production.
+- `simulator`: the same runs recorded scout-route movement, a ladder pressure
+  wave, low-health retreat, focus-fire cleanup, `457` attack actions, zero
+  dispatch errors, zero hidden-state violations, no deadlock, and no command
+  storm. The artifact explicitly declares `evidence_type=simulator` and
+  `runtime_claim=none; simulator evidence only`.
+- `simulator`: the initial scenario resource budget is intentionally documented
+  as `2600 minerals / 800 vespene` so the deterministic simulator's 60-loop
+  gather cadence can cover a complete technology tree within the bounded test
+  budget. This validates the AI control loop, not ladder balance or native SC2
+  economy timing.
+- `blocked`: this full-game result does not close the separate native SC2 P2
+  participant-topology gate. No simulator result is promoted to runtime
+  evidence.
+
+Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-20260802.json`.
