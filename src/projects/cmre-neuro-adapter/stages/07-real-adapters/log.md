@@ -111,30 +111,36 @@ replay with seeking, playback, speed controls, and action/event markers.
 - `artifacts/stage07-basic-command-replay-20260802/player-smoke.png`: Chrome headless screenshot
   proving the rendered player is non-empty.
 
-## Full Original-Map Replay
+## Economy Progression Replay
 
-The first compact foundation replay was not sufficient as a map inspection artifact. The
-existing complete legacy replay was therefore used as the source input without editing the
-read-only `cmre-porting` project:
+The previous full-map artifact used `dead_of_night_replay_20260802_124446.jsonl`, whose loop-0
+observation already contained `159` P1 entities including `128` Battlecruisers and a constant
+`50` mineral bank. That is a terminal-style test snapshot, not a credible opening, so it was
+retired from the player.
 
-- source: `../cmre-porting/artifacts/dead_of_night_replay_20260802_124446.jsonl`
+The corrected player uses the older complete map observation as its baseline and adds a bounded,
+deterministic economy layer without editing the read-only `cmre-porting` project:
+
+- source: `../cmre-porting/artifacts/dead_of_night_replay_20260730_224154.jsonl`
+- derived replay: `artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl`
 - player: `artifacts/stage07-basic-command-replay-20260802/full-map-player.html`
 - screenshot: `artifacts/stage07-basic-command-replay-20260802/full-map-smoke.png`
 - interaction screenshot: `artifacts/stage07-basic-command-replay-20260802/full-map-interaction.png`
 
-`static`: `python -m cmre_neuro_adapter.replay_player ../cmre-porting/artifacts/dead_of_night_replay_20260802_124446.jsonl --output artifacts/stage07-basic-command-replay-20260802/full-map-player.html` regenerated the self-contained player from the complete legacy JSONL.
+`simulator`: the derived replay has `36` frames over loop `0..3500`. It starts with `27` P1
+entities, `1` enemy sensor tower, and `26` neutral resource entities. The source neutral and
+enemy entity lists, plus baseline P1 entities, are preserved frame-by-frame. The progression
+layer starts at `250` minerals and `0` vespene, charges explicit costs, and records `16`
+successful actions plus `256` displayed frame events, including SCV/Marine/Marauder training,
+Supply Depot/Barracks/Refinery/Turret construction, Combat Shield research scheduling, enemy
+waves, and deaths. The final displayed bank is `5` minerals, `74` vespene, and `16/31` supply
+after combat losses.
 
-`static`: parsed source-vs-embedded JSON comparison passed for all `20/20` frame records. The
-embedded player preserves the original frame records exactly, including `entities_by_player`.
-The first frame contains `530` entities (`P1=159`, enemy owners `345`, neutral `26`, plus the
-other observed owners), with `31` unit/building/resource types. Across the replay there are
-`7832` entity snapshots and `37` distinct types; the loop range is `0..1882`.
-
-`runtime`: Playwright Chromium opened the actual self-contained HTML. The canvas contained
-`900000` non-empty pixels, the current frame table contained `530` entity rows, 16x activated,
-seeking selected loop `1000`, 1x playback advanced from the start and paused successfully,
-filtering `Battlecruiser` returned `128` rows, and clicking an entity produced one selected row.
-This is local browser replay evidence, not a live SC2 runtime claim.
+`runtime`: Playwright Chromium opened the actual self-contained HTML. The initial frame rendered
+`900000` non-empty canvas pixels, `54` visible entity rows, `250` minerals, `0` vespene, `28/31`
+supply, and `16` action cards. 16x speed, seeking to loop `1000`, playback toggling, Marine
+filtering, and entity selection all passed. This is local browser replay evidence, not a live SC2
+runtime claim.
 
 ## Visual Replay Verification
 

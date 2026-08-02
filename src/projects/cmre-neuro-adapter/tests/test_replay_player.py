@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from cmre_neuro_adapter.progression_replay import build_progression_replay
 from cmre_neuro_adapter.replay_player import load_records, render_player_html
 
 
@@ -93,6 +94,32 @@ class ReplayPlayerTests(unittest.TestCase):
             self.assertIn('"entities_by_player"', html)
             self.assertIn('"MineralField"', html)
             self.assertIn('"Marine"', html)
+
+    def test_progression_replay_adds_funded_production_without_rewriting_map_entities(self) -> None:
+        source = [
+            {
+                "loop": 0,
+                "entities_by_player": {
+                    "0": [{"id": 1, "t": "MineralField", "p": 0, "x": 4, "y": 5, "hp": 1500, "alive": True}],
+                    "1": [{"id": 2, "t": "CommandCenter", "p": 1, "x": 8, "y": 8, "hp": 1500, "alive": True}],
+                },
+            },
+            {
+                "loop": 200,
+                "entities_by_player": {
+                    "0": [{"id": 1, "t": "MineralField", "p": 0, "x": 4, "y": 5, "hp": 1500, "alive": True}],
+                    "1": [{"id": 2, "t": "CommandCenter", "p": 1, "x": 8, "y": 8, "hp": 1500, "alive": True}],
+                },
+            },
+        ]
+        replay = build_progression_replay(source)
+        frames = [record for record in replay if record.get("record_type") == "frame"]
+        actions = [record for record in replay if record.get("record_type") == "action"]
+        self.assertEqual(frames[0]["entities_by_player"]["0"], source[0]["entities_by_player"]["0"])
+        self.assertEqual(frames[1]["entities_by_player"]["0"], source[1]["entities_by_player"]["0"])
+        self.assertEqual(frames[0]["p1_resources"]["minerals"], 250)
+        self.assertEqual(frames[1]["p1_units_by_type"]["SCV"], 1)
+        self.assertTrue(any(action["name"] == "训练 SCV" for action in actions))
 
 
 if __name__ == "__main__":

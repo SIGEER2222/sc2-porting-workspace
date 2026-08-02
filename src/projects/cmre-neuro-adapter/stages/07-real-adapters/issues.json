@@ -41,8 +41,17 @@
       "status": "resolved",
       "evidence_type": "simulator",
       "detail": "The foundation proof had test assertions but no inspectable action-and-event replay artifact.",
-      "resolution": "Generated the adapter-aware simulator replay plus a self-contained minimap-style player. The player also embeds the complete legacy Dead of Night observation replay without dropping entity, building, resource, owner, position, health, or alive fields; browser checks cover canvas rendering, timeline seeking, playback, speed controls, filtering, selection, and raw context inspection.",
+      "resolution": "Generated the adapter-aware simulator replay plus a self-contained minimap-style player with economy and production events. The player preserves the complete legacy map observations and adds a deterministic, resource-funded P1 progression layer; browser checks cover canvas rendering, timeline seeking, playback, speed controls, filtering, selection, and raw context inspection.",
       "artifact": "artifacts/stage07-basic-command-replay-20260802/full-map-player.html"
+    },
+    {
+      "id": "REPLAY-002",
+      "severity": "high",
+      "status": "resolved",
+      "evidence_type": "simulator",
+      "detail": "The first full-map player used a terminal-style legacy observation with 159 P1 entities and 128 Battlecruisers at loop 0, so it did not represent economy or production progression.",
+      "resolution": "Retired that opening source, used the older 27-unit Dead of Night replay as the map baseline, and generated a deterministic economy/production layer with explicit resource costs, income, actions, and completion events.",
+      "artifact": "artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl"
     }
   ],
   "residual_risks": [
