@@ -1060,6 +1060,82 @@ bool libVibeKernel_gt_ChatCommand_Func(bool testConds, bool runActions) {
 // ---- MapCommand 入口 ----
 // SC2API RequestMapCommand(trigger_cmd="vibe") 触发。
 // Host 先把完整请求写入 Bank(request/<pending_id>)，这里只负责可靠唤醒并分发。
++// ---- P1 -> P2 cooperative ally command channel ----
+// Only player 1 may issue this channel; every order is issued to player 2.
+// Commands: !ally follow|regroup|defend|attack|retreat|status|help
+bool libVibeKernel_gt_AllyCommand_Func(bool testConds, bool runActions) {
+    string chat;
+    string command;
+    unitgroup p2Units;
+    unitgroup enemyUnits;
+    unit target;
+    int unitCount;
+    int enemyCount;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    if (EventPlayer() != 1) { return true; }
+    chat = EventChatMessage(false);
+    if (StringFind(chat, "!ally ", false) != 1) { return true; }
+    command = StringWord(chat, 2);
+    if (command == "") {
+        libVibeKernel_gf_EchoChat("[Ally P2] Commands: follow, attack, defend, regroup, retreat, status, help.");
+        return true;
+    }
+    if (chat == libVibeKernel_gf_ReadBankKey("ally", "last_command")) { return true; }
+    libVibeKernel_gf_WriteBankKey("ally", "last_command", chat);
+    libVibeKernel_gf_WriteBankInt("ally", "command_count",
+        libVibeKernel_gf_ReadBankInt("ally", "command_count") + 1);
+    libVibeKernel_gf_WriteBankKey("ally", "last_mode", command);
+    if (!PlayerGroupHasPlayer(PlayerGroupAlliance(c_playerGroupAlly, 1), 2)) {
+        libVibeKernel_gf_EchoChat("[Ally P2] Rejected: P2 is not allied to P1.");
+        libVibeKernel_gf_WriteBankKey("ally", "last_result", "rejected_not_allied");
+        return true;
+    }
+    p2Units = UnitGroup(null, 2, RegionEntireMap(),
+        UnitFilter(0, 0, (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    unitCount = UnitGroupCount(p2Units, c_unitCountAlive);
+    if (command == "status") {
+        libVibeKernel_gf_EchoChat("[Ally P2] Status: " + IntToString(unitCount) + " living units; mode=ready.");
+        libVibeKernel_gf_WriteBankKey("ally", "last_result", "status");
+        return true;
+    }
+    if (command == "help") {
+        libVibeKernel_gf_EchoChat("[Ally P2] Commands: follow, attack, defend, regroup, retreat, status, help.");
+        libVibeKernel_gf_WriteBankKey("ally", "last_result", "help");
+        return true;
+    }
+    if ((command == "follow") || (command == "regroup") || (command == "defend") || (command == "retreat")) {
+        UnitGroupIssueOrder(p2Units,
+            OrderTargetingPoint(AbilityCommand("move", 0), PlayerStartLocation(1)),
+            c_orderQueueReplace);
+        libVibeKernel_gf_EchoChat("[Ally P2] Acknowledged: " + command + ". Moving to P1 defense point.");
+        libVibeKernel_gf_WriteBankKey("ally", "last_result", "acknowledged");
+        return true;
+    }
+    if (command == "attack") {
+        enemyUnits = UnitGroupAlliance(2, c_unitAllianceEnemy, RegionEntireMap(),
+            UnitFilter(0, 0, (1 << c_targetFilterMissile),
+                (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+        enemyCount = UnitGroupCount(enemyUnits, c_unitCountAlive);
+        if (enemyCount <= 0) {
+            libVibeKernel_gf_EchoChat("[Ally P2] Attack acknowledged, but no hostile target is visible.");
+            libVibeKernel_gf_WriteBankKey("ally", "last_result", "attack_no_target");
+            return true;
+        }
+        target = UnitGroupClosestToPoint(enemyUnits, PlayerStartLocation(1));
+        UnitGroupIssueOrder(p2Units,
+            OrderTargetingUnit(AbilityCommand("attack", 0), target),
+            c_orderQueueReplace);
+        libVibeKernel_gf_EchoChat("[Ally P2] Acknowledged: attack. P2 units engaging hostile target.");
+        libVibeKernel_gf_WriteBankKey("ally", "last_result", "attack_issued");
+        return true;
+    }
+    libVibeKernel_gf_EchoChat("[Ally P2] Unknown command. Try: follow, attack, defend, regroup, retreat, status.");
+    libVibeKernel_gf_WriteBankKey("ally", "last_result", "rejected_unknown");
+    return true;
+}
+
 bool libVibeKernel_gt_MapCommand_Func(bool testConds, bool runActions) {
     string pendingId;
     string requestJson;
@@ -1100,6 +1176,8 @@ void libVibeKernel_gf_RegisterEntryPoints() {
     // Chat 入口（手动调试用）
     libVibeKernel_gt_ChatCommand = TriggerCreate("libVibeKernel_gt_ChatCommand_Func");
     TriggerAddEventChatMessage(libVibeKernel_gt_ChatCommand, c_playerAny, "!vibe", false);
+    libVibeKernel_gt_AllyCommand = TriggerCreate("libVibeKernel_gt_AllyCommand_Func");
+    TriggerAddEventChatMessage(libVibeKernel_gt_AllyCommand, c_playerAny, "!ally", false);
     libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_chat_done", 1);
 
     // Bank 轮询入口（API 自动化用，每 0.5 秒检查一次）

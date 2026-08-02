@@ -63,14 +63,18 @@ except Exception:
 # 因此真机 runner 可直接 import 而不会触发模拟器依赖链。
 try:
     from .defend_policy import DefendAction, DefendBasePolicy
+    from .strategy_audit import audit_native_strategy
 except ImportError:
     # Support the documented direct-script invocation as well as package imports.
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from defend_policy import DefendAction, DefendBasePolicy  # type: ignore
+    from strategy_audit import audit_native_strategy  # type: ignore
 
 # 默认地图（已验证可加载，3MB 打包版）
 DEFAULT_MAP = r"E:\SC2\SC2new\StarCraft II\Maps\亡者之夜_p0_default_packed.SC2Map"
-PLAYER_ID = 1
+P1_PLAYER_ID = 1
+P2_PLAYER_ID = 2
+PLAYER_ID = P1_PLAYER_ID
 
 
 # ---------------------------------------------------------------------------
@@ -203,6 +207,8 @@ class LiveObservation:
     visible_enemies: list[dict]
     resources: dict
     mission: dict
+    visible_allies: list[dict] = field(default_factory=list)
+    alliance_summary: list[dict] = field(default_factory=list)
     mineral_fields: list[dict] = field(default_factory=list)  # 中立矿物单位（owner=0）
 
 
@@ -234,6 +240,14 @@ def _unit_brief_from_sc2(u, player_id: int) -> Optional[dict]:
         "energy": int(u.energy * 1024) if u.energy else 0,
         "state": "",
         "max_health": int(u.health_max * 1024) if u.health_max else 0,
+        "orders": [
+            {
+                "ability_id": int(order.ability_id),
+                "progress": float(order.progress),
+            }
+            for order in getattr(u, "orders", ())
+        ],
+        "is_idle": not bool(getattr(u, "orders", ())),
     }
 
 
@@ -271,6 +285,9 @@ _LIVE_UNIT_TYPE_ALIASES_BY_ID = {
     # 3diguolaogong is the worker and 3diguoqianshaojidi is the town hall.
     4382: "SCV",
     4390: "CommandCenter",
+    # Mission caster present in the native P1 opening; it has no weapon and
+    # must remain visible as a non-combat unit rather than a fake attacker.
+    4028: "CoopCasterRaynor",
 }
 
 
@@ -288,6 +305,7 @@ def build_observation(resp: sc_pb.Response, player_id: int) -> LiveObservation:
 
     own_units: list[dict] = []
     visible_enemies: list[dict] = []
+    visible_allies: list[dict] = []
     mineral_fields: list[dict] = []
     if raw is not None:
         for u in raw.units:
@@ -296,6 +314,8 @@ def build_observation(resp: sc_pb.Response, player_id: int) -> LiveObservation:
                 continue
             if u.owner == player_id:
                 own_units.append(brief)
+            elif u.alliance == 2:
+                visible_allies.append(brief)
             # alliance: 1=Self, 2=Ally, 3=Neutral, 4=Enemy. Neutral map
             # objects must never become policy threats.
             elif u.alliance == 4:
@@ -312,6 +332,27 @@ def build_observation(resp: sc_pb.Response, player_id: int) -> LiveObservation:
         "supply_cap": int(pc.food_cap) if pc else 0,
     }
 
+    alliance_summary: list[dict] = []
+    grouped: dict[int, list[dict]] = {}
+    for unit in own_units + visible_allies:
+        grouped.setdefault(int(unit.get("owner", 0)), []).append(unit)
+    for owner, units in sorted(grouped.items()):
+        leader = min(units, key=lambda unit: unit["entity_id"], default=None)
+        position = None if leader is None else {
+            "x": leader["x"],
+            "y": leader["y"],
+        }
+        alliance_summary.append({
+            "player_id": owner,
+            "is_self": owner == player_id,
+            "is_ai": owner == 2,
+            "unit_count": len(units),
+            "alive": bool(units),
+            "leader_position": position,
+            "base_position": position,
+            "raw_alliance": 1 if owner == player_id else 2,
+        })
+
     return LiveObservation(
         loop=game_loop,
         player_id=player_id,
@@ -319,6 +360,8 @@ def build_observation(resp: sc_pb.Response, player_id: int) -> LiveObservation:
         visible_enemies=visible_enemies,
         resources=resources,
         mission={"win_condition": "live_sc2"},
+        visible_allies=visible_allies,
+        alliance_summary=alliance_summary,
         mineral_fields=mineral_fields,
     )
 
@@ -465,6 +508,64 @@ def build_action(
     return action
 
 
+def build_ally_chat_action(message: str) -> sc_pb.Action:
+    """Build the P1 chat action consumed by the Galaxy P2 ally trigger."""
+    normalized = str(message).strip()
+    if not normalized.startswith("!ally "):
+        raise ValueError("ally chat messages must start with '!ally '")
+    return sc_pb.Action(
+        action_chat=sc_pb.ActionChat(
+            channel=sc_pb.ActionChat.Team,
+            message=normalized,
+        )
+    )
+
+
+def _p2_state(obs: LiveObservation) -> list[dict]:
+    """Return P2 state used for runtime before/after evidence."""
+    return [
+        {
+            "entity_id": unit["entity_id"],
+            "owner": unit.get("owner", 0),
+            "alliance": unit.get("alliance", 0),
+            "unit_type_id": unit.get("unit_type_id", ""),
+            "x": round(float(unit.get("x", 0.0)), 3),
+            "y": round(float(unit.get("y", 0.0)), 3),
+        }
+        for unit in obs.visible_allies
+        if int(unit.get("owner", 0)) == P2_PLAYER_ID
+    ]
+
+
+def _read_runtime_bank_section(bank_name: str = "GalaxyVibe") -> dict:
+    """Read the ally Bank section for runtime command acknowledgements."""
+    bank_path = Path.home() / "Documents" / "StarCraft II" / "Banks" / f"{bank_name}.SC2Bank"
+    if not bank_path.exists():
+        return {}
+    try:
+        import xml.etree.ElementTree as ET
+        root = ET.parse(bank_path).getroot()
+    except (OSError, ET.ParseError):
+        return {}
+    section = next((item for item in root.findall("Section") if item.get("name") == "ally"), None)
+    if section is None:
+        return {}
+    result: dict = {}
+    for key in section.findall("Key"):
+        value = key.find("Value")
+        if value is None:
+            continue
+        name = key.get("name", "")
+        if "int" in value.attrib:
+            try:
+                result[name] = int(value.attrib["int"])
+            except ValueError:
+                result[name] = value.attrib["int"]
+        elif "string" in value.attrib:
+            result[name] = value.attrib["string"]
+    return result
+
+
 def _find_nearest_mineral_field_live(mineral_fields: list[dict],
                                      x: float, y: float) -> Optional[int]:
     """从 obs.mineral_fields 找离 (x, y) 最近的 MineralField entity_id（tag）。
@@ -507,9 +608,16 @@ class LiveGameReport:
     cmd_fail_by_kind: dict = field(default_factory=dict)
     action_result_trace: list[dict] = field(default_factory=list)
     runtime_assertions: dict = field(default_factory=dict)
+    strategy_audit: dict = field(default_factory=dict)
     behavior_verdict: str = "inconclusive"
     local_map_path: str = ""
     replay_log_path: str = ""
+    observed_player_id: int = P1_PLAYER_ID
+    p2_unit_count: int = 0
+    p2_alliance_values: list[int] = field(default_factory=list)
+    player_roster: dict = field(default_factory=dict)
+    ally_command_trace: list[dict] = field(default_factory=list)
+    chat_received: list[dict] = field(default_factory=list)
 
 
 def _write_replay_frame(fp, loop: int, obs: LiveObservation,
@@ -523,6 +631,12 @@ def _write_replay_frame(fp, loop: int, obs: LiveObservation,
     for e in obs.visible_enemies:
         t = e["unit_type_id"]
         enemy_units_by_type[t] = enemy_units_by_type.get(t, 0) + 1
+    p2_units_by_type: dict[str, int] = {}
+    for e in obs.visible_allies:
+        if int(e.get("owner", 0)) != P2_PLAYER_ID:
+            continue
+        t = e["unit_type_id"]
+        p2_units_by_type[t] = p2_units_by_type.get(t, 0) + 1
 
     frame = {
         "loop": loop,
@@ -531,6 +645,8 @@ def _write_replay_frame(fp, loop: int, obs: LiveObservation,
         "enemy_alive": len(obs.visible_enemies),
         "p1_units_by_type": p1_units_by_type,
         "enemy_units_by_type": enemy_units_by_type,
+        "p2_alive": len(_p2_state(obs)),
+        "p2_units_by_type": p2_units_by_type,
         "p1_resources": obs.resources,
         "total_cmds": total_cmds,
         "key_events": key_events,
@@ -548,6 +664,7 @@ async def run_live(
     verbose: bool = True,
     replay_log_path: Optional[str] = None,
     force_map_path: bool = True,
+    ally_commands: Optional[list[str]] = None,
 ) -> LiveGameReport:
     """运行真机 AI 盟友自主对局。
 
@@ -587,9 +704,13 @@ async def run_live(
         print(f"  回放日志: {replay_path}")
 
     final_obs: Optional[LiveObservation] = None
+    initial_obs: Optional[LiveObservation] = None
     map_name = os.path.basename(map_path)
     local_map_path = ""
-    player_id = PLAYER_ID
+    player_id = P1_PLAYER_ID
+    player_roster: dict = {}
+    ally_command_trace: list[dict] = []
+    chat_received: list[dict] = []
     try:
         # 1. Ping
         r = await conn.send_request(sc_pb.Request(ping=sc_pb.RequestPing()))
@@ -700,13 +821,38 @@ async def run_live(
         r = await conn.send_request(sc_pb.Request(game_info=sc_pb.RequestGameInfo()), timeout=15)
         map_name = r.game_info.map_name or os.path.basename(map_path)
         local_map_path = r.game_info.local_map_path
+        player_roster = {
+            str(info.player_id): {
+                "player_id": int(info.player_id),
+                "type": int(info.type),
+                "race_requested": int(info.race_requested),
+                "race_actual": int(info.race_actual),
+                "difficulty": int(info.difficulty),
+                "player_name": info.player_name,
+            }
+            for info in r.game_info.player_info
+        }
         if verbose:
             print(f"[5] Map: {map_name} | local_map_path={local_map_path}")
 
-        # 6. 玩家 AI 策略
+        # 6. Native P1 task policy. This channel owns only P1 units and raw
+        # typed actions; the P1 -> P2 ally chat channel below is audited
+        # separately and can never make native strategy pass.
         policy = DefendBasePolicy(player_id=player_id, command_interval=decision_interval)
 
-        # 7. 主循环
+        # 7. P1 -> P2 ally command channel. P2 is operated by Galaxy, not by
+        # a raw action issued as if P1 owned its units.
+        run_token = str(int(start_time))
+        commands = ally_commands or [
+            f"!ally status stage25_{run_token}_status",
+            f"!ally defend stage25_{run_token}_defend",
+            f"!ally attack stage25_{run_token}_attack",
+        ]
+        command_cursor = 0
+        command_due_loops = [0, max(1, max_loops // 4), max(2, max_loops // 2)]
+        pending_command: Optional[dict] = None
+
+        # 8. 主循环
         if verbose:
             print(f"[6] 运行对局 (max_loops={max_loops}, step_size={step_size})...")
         last_decide_loop = -10_000
@@ -714,8 +860,10 @@ async def run_live(
         report_interval = max(50, max_loops // 20)
         last_report_loop = 0
         current_loop = 0
+        last_native_decide_loop = -10_000
         consecutive_failures = 0
         max_consecutive_failures = 5
+        train_backoff_until: dict[int, int] = {}
 
         while current_loop < max_loops:
             try:
@@ -741,6 +889,12 @@ async def run_live(
                 continue
 
             obs = build_observation(r, player_id)
+            if (
+                initial_obs is None
+                and obs.own_units
+                and obs.resources.get("supply_cap", 0) > 0
+            ):
+                initial_obs = obs
             current_loop = obs.loop
 
             # 检查游戏是否结束
@@ -750,13 +904,20 @@ async def run_live(
                     print(f"  游戏结束: {results}")
                 break
 
-            # 决策
-            if current_loop - last_decide_loop >= decision_interval:
-                last_decide_loop = current_loop
+            for received in r.observation.chat:
+                chat_received.append({
+                    "loop": current_loop,
+                    "player_id": int(received.player_id),
+                    "message": received.message,
+                })
+
+            # Native strategy action adapter. Every entry in
+            # action_result_trace comes from this block and is eligible for
+            # the no-injection strategy audit.
+            if current_loop - last_native_decide_loop >= decision_interval:
+                last_native_decide_loop = current_loop
                 actions = policy.decide(obs, current_loop, resources=obs.resources)
                 total_commands_issued += len([a for a in actions if a.kind != "hold"])
-
-                # 收集 action 并批量发送
                 sc2_actions: list[sc_pb.Action] = []
                 action_contexts: list[dict] = []
                 own_by_tag = {u["entity_id"]: u for u in obs.own_units}
@@ -764,110 +925,191 @@ async def run_live(
                     u["entity_id"]: u
                     for u in obs.visible_enemies + obs.mineral_fields
                 }
-                for a in actions:
-                    if a.kind == "hold":
+                for action_decision in actions:
+                    if action_decision.kind == "hold":
                         continue
-                    # gather 命令 target_entity_id=0 时，替换为最近 MineralField
-                    # （defend_policy 用 0 表示"由 runner 解析最近矿物"）
-                    if a.kind == "gather" and a.target_entity_id == 0:
-                        nearest_mf = _find_nearest_mineral_field_live(
+                    source_unit = own_by_tag.get(action_decision.entity_id, {})
+                    if action_decision.kind == "train":
+                        producer_tag = int(action_decision.entity_id)
+                        if source_unit.get("orders") or current_loop < train_backoff_until.get(
+                            producer_tag, 0
+                        ):
+                            cmd_fail_stats["train:producer_busy"] += 1
+                            cmd_fail_by_kind["train:ProducerBusy"] += 1
+                            if len(action_result_trace) < 500:
+                                action_result_trace.append({
+                                    "loop": current_loop,
+                                    "kind": "train",
+                                    "entity_id": producer_tag,
+                                    "unit_type_id": source_unit.get("unit_type_id", ""),
+                                    "unit_type_int": source_unit.get("unit_type_int", 0),
+                                    "ability_id": 0,
+                                    "target_entity_id": 0,
+                                    "target_unit_type_id": "",
+                                    "target_owner": 0,
+                                    "target_alliance": 0,
+                                    "target_x": 0.0,
+                                    "target_y": 0.0,
+                                    "reason": action_decision.reason,
+                                    "result": "ProducerBusy",
+                                })
+                            continue
+
+                    action_for_transport = action_decision
+                    if (action_for_transport.kind == "gather"
+                            and action_for_transport.target_entity_id == 0):
+                        worker = own_by_tag.get(action_for_transport.entity_id, {})
+                        nearest_mineral = _find_nearest_mineral_field_live(
                             obs.mineral_fields,
-                            next((u["x"] for u in obs.own_units
-                                  if u["entity_id"] == a.entity_id), 0.0),
-                            next((u["y"] for u in obs.own_units
-                                  if u["entity_id"] == a.entity_id), 0.0),
+                            worker.get("x", 0.0),
+                            worker.get("y", 0.0),
                         )
-                        if nearest_mf is None:
+                        if nearest_mineral is None:
                             cmd_fail_stats["gather:no_mineral"] += 1
                             continue
-                        # 用新的 DefendAction 替换（immutable，所以重新构造）
-                        a = DefendAction(
-                            entity_id=a.entity_id, kind=a.kind,
-                            target_entity_id=nearest_mf,
-                            unit_type_id=a.unit_type_id, reason=a.reason,
+                        action_for_transport = DefendAction(
+                            entity_id=action_for_transport.entity_id,
+                            kind=action_for_transport.kind,
+                            target_entity_id=nearest_mineral,
+                            unit_type_id=action_for_transport.unit_type_id,
+                            reason=action_for_transport.reason,
                         )
-                    action = build_action(
-                        a,
+
+                    sc2_action = build_action(
+                        action_for_transport,
                         player_id,
-                        source_unit_type_int=own_by_tag.get(a.entity_id, {}).get(
-                            "unit_type_int", 0
-                        ),
+                        source_unit_type_int=source_unit.get("unit_type_int", 0),
                     )
-                    if action is not None:
-                        sc2_actions.append(action)
-                        raw_command = action.action_raw.unit_command
-                        target_tag = (
-                            raw_command.target_unit_tag
-                            if raw_command.HasField("target_unit_tag") else 0
-                        )
-                        action_contexts.append({
-                            "loop": current_loop,
-                            "kind": a.kind,
-                            "entity_id": a.entity_id,
-                            "unit_type_id": own_by_tag.get(a.entity_id, {}).get(
-                                "unit_type_id", ""
-                            ),
-                            "unit_type_int": own_by_tag.get(a.entity_id, {}).get(
-                                "unit_type_int", 0
-                            ),
-                            "ability_id": raw_command.ability_id,
-                            "target_entity_id": target_tag,
-                            "target_unit_type_id": target_by_tag.get(
-                                target_tag, {}
-                            ).get("unit_type_id", ""),
-                            "target_owner": target_by_tag.get(
-                                target_tag, {}
-                            ).get("owner", 0),
-                            "target_alliance": target_by_tag.get(
-                                target_tag, {}
-                            ).get("alliance", 0),
-                            "target_x": a.target_x,
-                            "target_y": a.target_y,
-                            "reason": a.reason,
-                        })
-                        total_commands_dispatched += 1
-                    else:
-                        cmd_fail_stats[f"{a.kind}:no_action"] += 1
+                    if sc2_action is None:
+                        cmd_fail_stats[f"{action_for_transport.kind}:no_action"] += 1
+                        continue
+                    sc2_actions.append(sc2_action)
+                    raw_command = sc2_action.action_raw.unit_command
+                    target_tag = (
+                        raw_command.target_unit_tag
+                        if raw_command.HasField("target_unit_tag") else 0
+                    )
+                    action_contexts.append({
+                        "loop": current_loop,
+                        "kind": action_for_transport.kind,
+                        "entity_id": action_for_transport.entity_id,
+                        "unit_type_id": source_unit.get("unit_type_id", ""),
+                        "unit_type_int": source_unit.get("unit_type_int", 0),
+                        "ability_id": raw_command.ability_id,
+                        "target_entity_id": target_tag,
+                        "target_unit_type_id": target_by_tag.get(target_tag, {}).get(
+                            "unit_type_id", ""
+                        ),
+                        "target_owner": target_by_tag.get(target_tag, {}).get("owner", 0),
+                        "target_alliance": target_by_tag.get(target_tag, {}).get("alliance", 0),
+                        "target_x": action_for_transport.target_x,
+                        "target_y": action_for_transport.target_y,
+                        "reason": action_for_transport.reason,
+                    })
+                    total_commands_dispatched += 1
 
                 if sc2_actions:
                     try:
-                        action_req = sc_pb.Request(action=sc_pb.RequestAction(
-                            actions=sc2_actions))
-                        ar = await conn.send_request(action_req, timeout=10)
-                        # 统计结果（注意：ActionResult.Success=1，不是 0）
-                        results = list(ar.action.result)
+                        action_response = await conn.send_request(
+                            sc_pb.Request(action=sc_pb.RequestAction(actions=sc2_actions)),
+                            timeout=10,
+                        )
+                        results = list(action_response.action.result)
                         if len(results) != len(action_contexts):
                             action_result_count_mismatches += 1
                         for index, result in enumerate(results):
                             context = (
                                 action_contexts[index]
-                                if index < len(action_contexts) else {
-                                    "loop": current_loop,
-                                    "kind": "unmatched",
-                                }
+                                if index < len(action_contexts)
+                                else {"loop": current_loop, "kind": "unmatched"}
                             )
                             if result == error_pb2.ActionResult.Success:
                                 cmd_ok_stats["dispatched"] += 1
                                 cmd_ok_by_kind[context["kind"]] += 1
                                 result_name = "Success"
                             else:
-                                # 用 enum name 便于诊断（如 NotEnoughMinerals 而不是 9）
                                 try:
-                                    name = error_pb2.ActionResult.Name(result)
+                                    result_name = error_pb2.ActionResult.Name(result)
                                 except ValueError:
-                                    name = f"unknown({result})"
-                                cmd_fail_stats[f"sc2:{name}"] += 1
-                                cmd_fail_by_kind[f"{context['kind']}:{name}"] += 1
-                                result_name = name
+                                    result_name = f"unknown({result})"
+                                cmd_fail_stats[f"sc2:{result_name}"] += 1
+                                cmd_fail_by_kind[
+                                    f"{context['kind']}:{result_name}"
+                                ] += 1
+                                if (context["kind"] == "train"
+                                        and result_name == "QueueIsFull"):
+                                    train_backoff_until[int(context["entity_id"])] = (
+                                        current_loop + max(96, decision_interval * 4)
+                                    )
                             if len(action_result_trace) < 500:
                                 action_result_trace.append({
                                     **context,
                                     "result": result_name,
                                 })
-                    except (ConnectionError, TimeoutError) as e:
-                        if verbose:
-                            print(f"  Action send failed: {e}")
+                    except (ConnectionError, TimeoutError) as exc:
                         cmd_fail_stats["action_send_exception"] += 1
+                        if verbose:
+                            print(f"  Action send failed: {exc}")
+
+            # P1 sends an explicit chat signal; the Galaxy handler owns P2's
+            # unit group and writes the acknowledgement to the ally Bank.
+            if current_loop - last_decide_loop >= decision_interval:
+                last_decide_loop = current_loop
+                if command_cursor < len(commands) and current_loop >= command_due_loops[command_cursor]:
+                    command = str(commands[command_cursor]).strip()
+                    before_state = _p2_state(obs)
+                    bank_before = _read_runtime_bank_section()
+                    try:
+                        chat_request = sc_pb.Request(action=sc_pb.RequestAction(
+                            actions=[build_ally_chat_action(command)]
+                        ))
+                        chat_response = await conn.send_request(chat_request, timeout=10)
+                        sent_ok = not bool(chat_response.error)
+                        if sent_ok:
+                            total_commands_issued += 1
+                            total_commands_dispatched += 1
+                            cmd_ok_stats["ally_chat"] += 1
+                            cmd_ok_by_kind["ally_chat"] += 1
+                        else:
+                            cmd_fail_stats["ally_chat"] += 1
+                            cmd_fail_by_kind["ally_chat"] += 1
+                        pending_command = {
+                            "loop": current_loop,
+                            "message": command,
+                            "source_player_id": P1_PLAYER_ID,
+                            "target_player_id": P2_PLAYER_ID,
+                            "transport": "sc2api_action_chat",
+                            "request_ok": sent_ok,
+                            "response_errors": list(chat_response.error),
+                            "p2_before": before_state,
+                            "bank_before": bank_before,
+                        }
+                    except (ConnectionError, TimeoutError) as e:
+                        cmd_fail_stats["ally_chat_exception"] += 1
+                        pending_command = {
+                            "loop": current_loop,
+                            "message": command,
+                            "source_player_id": P1_PLAYER_ID,
+                            "target_player_id": P2_PLAYER_ID,
+                            "transport": "sc2api_action_chat",
+                            "request_ok": False,
+                            "error": str(e),
+                            "p2_before": before_state,
+                            "bank_before": bank_before,
+                        }
+                    command_cursor += 1
+
+            if pending_command is not None:
+                bank_after = _read_runtime_bank_section()
+                if bank_after.get("last_command") == pending_command["message"]:
+                    pending_command["p2_after"] = _p2_state(obs)
+                    pending_command["bank_after"] = bank_after
+                    pending_command["completed"] = True
+                    pending_command["p2_position_changed"] = (
+                        pending_command["p2_before"] != pending_command["p2_after"]
+                    )
+                    ally_command_trace.append(pending_command)
+                    pending_command = None
 
             # 回放日志记录
             if current_loop - last_replay_loop >= 50:
@@ -905,6 +1147,16 @@ async def run_live(
     # 计算结果
     elapsed = time.time() - start_time
     p1_survivors = len(final_obs.own_units) if final_obs is not None else 0
+    p2_state = _p2_state(final_obs) if final_obs is not None else []
+    if pending_command is not None:
+        pending_command["p2_after"] = p2_state
+        pending_command["bank_after"] = _read_runtime_bank_section()
+        pending_command["completed"] = False
+        pending_command["p2_position_changed"] = (
+            pending_command["p2_before"] != pending_command["p2_after"]
+        )
+        ally_command_trace.append(pending_command)
+        pending_command = None
     enemy_survivors: dict = {}
     if final_obs is not None:
         for e in final_obs.visible_enemies:
@@ -923,20 +1175,10 @@ async def run_live(
         verdict = "inconclusive"
         summary = f"对局在 loop {current_loop} 结束"
 
-    valid_action_success = any(
-        item.get("result") == "Success"
-        and (
-            item.get("kind") == "move"
-            or (
-                item.get("kind") == "attack"
-                and item.get("target_alliance") == 4
-            )
-            or (
-                item.get("kind") == "gather"
-                and item.get("target_alliance") == 3
-            )
-        )
-        for item in action_result_trace
+    strategy_audit = audit_native_strategy(
+        action_result_trace,
+        initial_observation=(initial_obs.__dict__ if initial_obs is not None else None),
+        final_observation=(final_obs.__dict__ if final_obs is not None else None),
     )
 
     report = LiveGameReport(
@@ -960,13 +1202,35 @@ async def run_live(
             "player_units_observed": p1_survivors > 0,
             "action_results_correlated": action_result_count_mismatches == 0,
             "action_success_observed": cmd_ok_stats.get("dispatched", 0) > 0,
-            "non_neutral_action_success": valid_action_success,
+            "native_strategy_action_success": strategy_audit["status"] == "PASS",
+            "p2_roster_observed": bool(p2_state),
+            "p2_command_ack_observed": any(
+                item.get("completed")
+                and item.get("bank_after", {}).get("last_result")
+                in {"status", "acknowledged", "attack_issued", "attack_no_target"}
+                for item in ally_command_trace
+            ),
+            "native_strategy_no_debug_injection": strategy_audit["checks"][
+                "no_debug_injection"
+            ],
+            "native_strategy_state_delta": strategy_audit["checks"][
+                "state_observed_before_after"
+            ],
         },
+        strategy_audit=strategy_audit,
         behavior_verdict=(
-            "pass" if valid_action_success else "fail"
+            "pass"
+            if strategy_audit["status"] == "PASS"
+            else "fail"
         ),
         local_map_path=local_map_path,
         replay_log_path=str(replay_path),
+        observed_player_id=player_id,
+        p2_unit_count=len(p2_state),
+        p2_alliance_values=sorted({int(item.get("alliance", 0)) for item in p2_state}),
+        player_roster=player_roster,
+        ally_command_trace=ally_command_trace,
+        chat_received=chat_received,
     )
 
     if verbose:
@@ -976,6 +1240,8 @@ async def run_live(
         print(f"Loop: {report.end_loop}/{max_loops} ({report.end_loop/max_loops:.0%})")
         print(f"耗时: {report.duration_sec}s")
         print(f"Player 1 幸存: {report.player1_survivors}")
+        print(f"P2 盟友可见单位: {report.p2_unit_count} alliance={report.p2_alliance_values}")
+        print(f"P1->P2 盟友命令: {len(report.ally_command_trace)}")
         print(f"敌方幸存: {report.enemy_survivors}")
         print(f"命令下发: {report.total_commands_issued}")
         print(f"命令执行: {report.total_commands_dispatched}")

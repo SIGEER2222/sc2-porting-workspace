@@ -53,3 +53,11 @@ def test_live_action_adapter_uses_empire_gather_and_train_abilities():
     assert gather.action_raw.unit_command.target_unit_tag == 99
     assert train_scv is not None
     assert train_scv.action_raw.unit_command.ability_id == 17443
+
+
+def test_live_ally_command_is_a_p1_team_chat_message():
+    action = runner.build_ally_chat_action("!ally defend stage25-test")
+
+    assert action.HasField("action_chat")
+    assert action.action_chat.channel == runner.sc_pb.ActionChat.Team
+    assert action.action_chat.message == "!ally defend stage25-test"

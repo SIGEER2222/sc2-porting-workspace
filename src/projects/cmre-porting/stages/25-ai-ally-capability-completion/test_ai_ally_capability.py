@@ -1,0 +1,214 @@
+"""Stage 25 simulator contract for a P1 human / P2 AI ally."""
+
+from __future__ import annotations
+
+import sys
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+
+REPO_ROOT = Path(__file__).resolve().parents[5]
+sys.path.insert(0, str(REPO_ROOT / "src" / "projects" / "cmre-porting"))
+
+from vibe.consumers.ally_ai import (  # noqa: E402
+    ActionAdapter,
+    AllyAction,
+    AllyMode,
+    AllyPolicy,
+    PlayerCommandAdapter,
+    PlayerSignalKind,
+    validate_cooperative_roster,
+    run_ally_scenario,
+)
+from vibe.defend_policy import DefendBasePolicy  # noqa: E402
+from vibe.contracts import Observation  # noqa: E402
+from vibe.simulator_session import SimulatorSession  # noqa: E402
+
+
+def _cooperative_scenario(seed: int = 42) -> dict:
+    return {
+        "schema_version": "m7",
+        "name": "stage25-p1-human-p2-ai-ally",
+        "players": [
+            {"id": 1, "name": "Player", "race": "terran", "allies": [2], "is_ai": False},
+            {"id": 2, "name": "AI Ally", "race": "terran", "allies": [1], "is_ai": True},
+            {"id": 3, "name": "Enemy A", "race": "zerg", "allies": [], "is_ai": True},
+            {"id": 4, "name": "Enemy B", "race": "zerg", "allies": [], "is_ai": True},
+            {"id": 5, "name": "Enemy C", "race": "zerg", "allies": [], "is_ai": True},
+        ],
+        "spawns": [
+            {"unit_type_id": "Marine", "owner_player_id": 1, "x": 0.0, "y": 0.0},
+            {"unit_type_id": "Marine", "owner_player_id": 2, "x": 1.0, "y": 0.0},
+            {"unit_type_id": "Marine", "owner_player_id": 2, "x": 1.0, "y": 1.0},
+            {"unit_type_id": "Zergling", "owner_player_id": 3, "x": 5.0, "y": 0.0},
+            {"unit_type_id": "Zergling", "owner_player_id": 4, "x": 50.0, "y": 50.0},
+            {"unit_type_id": "Zergling", "owner_player_id": 5, "x": 60.0, "y": 60.0},
+        ],
+        "commands": [],
+        "max_loops": 100,
+        "seed": seed,
+        "strict": True,
+        "win_condition": "custom",
+    }
+
+
+class Stage25AiAllyCapabilityTests(unittest.TestCase):
+    def test_native_policy_does_not_attack_with_mission_caster(self):
+        policy = DefendBasePolicy(
+            player_id=1,
+            base_region=(0.0, 0.0, 6.0),
+            support_range=10.0,
+            command_interval=1,
+            econ_interval=9999,
+        )
+        observation = Observation(
+            loop=1,
+            player_id=1,
+            own_units=[
+                {
+                    "entity_id": 101,
+                    "unit_type_id": "CoopCasterRaynor",
+                    "owner": 1,
+                    "x": 0.0,
+                    "y": 0.0,
+                    "health": 100 * 1024,
+                    "max_health": 100 * 1024,
+                },
+                {
+                    "entity_id": 102,
+                    "unit_type_id": "SCV",
+                    "owner": 1,
+                    "x": 2.0,
+                    "y": 0.0,
+                    "health": 45 * 1024,
+                    "max_health": 45 * 1024,
+                },
+            ],
+            visible_enemies=[
+                {
+                    "entity_id": 201,
+                    "unit_type_id": "Zergling",
+                    "owner": 3,
+                    "x": 1.0,
+                    "y": 0.0,
+                    "health": 35 * 1024,
+                    "max_health": 35 * 1024,
+                },
+            ],
+            resources={"minerals": 0, "vespene": 0, "supply_used": 2, "supply_cap": 15},
+            mission={},
+        )
+
+        actions = policy.decide(observation, loop=1, resources=observation.resources)
+
+        attacks = [action for action in actions if action.kind == "attack"]
+        self.assertEqual([action.entity_id for action in attacks], [102])
+
+    def test_roster_requires_reciprocal_p1_p2_and_ai_identity(self):
+        roster = validate_cooperative_roster(_cooperative_scenario())
+        self.assertTrue(roster.valid, roster.issues)
+        self.assertEqual(roster.ally_player_id, 2)
+        self.assertEqual(roster.enemy_player_ids, (3, 4, 5))
+
+        invalid = _cooperative_scenario()
+        invalid["players"][0]["allies"] = []
+        invalid_roster = validate_cooperative_roster(invalid)
+        self.assertFalse(invalid_roster.valid)
+        self.assertIn("leader_missing_ally_edge", invalid_roster.issues)
+
+    def test_p2_observes_p1_as_ally_but_owns_only_p2_units(self):
+        session = SimulatorSession()
+        session.scenario_load(scenario_dict=_cooperative_scenario(), catalog="m7")
+        session.scenario_reset()
+        observation = Observation.from_world(session.world, 2)
+
+        self.assertEqual({unit["owner"] for unit in observation.own_units}, {2})
+        self.assertEqual({unit["owner"] for unit in observation.visible_allies}, {1})
+        summary = {item["player_id"]: item for item in observation.alliance_summary}
+        self.assertTrue(summary[1]["alive"])
+        self.assertTrue(summary[2]["is_ai"])
+        self.assertEqual(summary[2]["unit_count"], 2)
+        self.assertFalse(any(item["player_id"] in {3, 4, 5} for item in summary.values()))
+
+    def test_player_commands_are_authorized_deduplicated_and_acknowledged(self):
+        adapter = PlayerCommandAdapter((1,))
+        command = adapter.receive("!ally defend", source_player_id=1, loop=10, command_id="a")
+        duplicate = adapter.receive("!ally defend", source_player_id=1, loop=10, command_id="a")
+        rejected = adapter.receive("!ally attack", source_player_id=3, loop=10, command_id="b")
+        self.assertEqual(command.kind, PlayerSignalKind.DEFEND)
+        self.assertTrue(command.accepted)
+        self.assertTrue(duplicate.duplicate)
+        self.assertFalse(rejected.accepted)
+
+        policy = AllyPolicy(player_id=2, leader_entity_id=1, leader_player_id=1)
+        notice = policy.receive_player_command("!ally defend", loop=10, command_id="p1-defend")
+        self.assertTrue(notice.accepted)
+        self.assertEqual(policy.mode, AllyMode.DEFEND_BASE)
+        status = policy.receive_player_command("!ally status", loop=11, command_id="p1-status")
+        self.assertIn("mode=defend_base", status.message)
+        self.assertTrue(any("Acknowledged: defend." in item.message for item in policy.drain_notices()))
+
+    def test_p2_action_issuer_and_friendly_fire_gate(self):
+        session = SimulatorSession()
+        session.scenario_load(scenario_dict=_cooperative_scenario(), catalog="m7")
+        session.scenario_reset()
+        adapter = ActionAdapter(session, latency_loops=0, controlled_player_id=2)
+        p2_unit = next(unit.entity_id for unit in session.world.entities.values() if unit.owner_player_id == 2)
+        p1_unit = next(unit.entity_id for unit in session.world.entities.values() if unit.owner_player_id == 1)
+
+        with patch.object(session, "unit_order", wraps=session.unit_order) as order:
+            adapter.issue([AllyAction(p2_unit, "move", target_x=3.0, target_y=3.0)], loop=0)
+            moved = adapter.dispatch_due(0)
+            order.assert_called_once()
+            self.assertEqual(order.call_args.kwargs["issuer_player_id"], 2)
+        self.assertTrue(moved[0].dispatched)
+
+        adapter.issue([AllyAction(p2_unit, "attack", target_entity_id=p1_unit)], loop=1)
+        blocked = adapter.dispatch_due(1)
+        self.assertEqual(blocked[0].error, "friendly_fire_blocked")
+        self.assertEqual(adapter.friendly_fire_rejections, 1)
+
+    def test_p2_receives_commands_and_transitions_across_cooperative_modes(self):
+        scenario = _cooperative_scenario()
+        # Keep the threat in the map but outside initial vision so explicit
+        # player commands can be observed without combat priority masking them.
+        scenario["spawns"][3]["x"] = 20.0
+        policy = AllyPolicy(
+            player_id=2,
+            leader_entity_id=1,
+            leader_player_id=1,
+            base_region=(0.0, 0.0, 2.0),
+            support_range=8.0,
+            command_interval=1,
+        )
+        result = run_ally_scenario(
+            scenario,
+            policy,
+            ally_player_id=2,
+            max_loops=40,
+            latency_loops=0,
+            require_cooperative_roster=True,
+            player_commands=[
+                {"loop": 0, "text": "!ally follow", "command_id": "follow"},
+                {"loop": 8, "text": "!ally attack", "command_id": "attack"},
+                {"loop": 16, "text": "!ally defend", "command_id": "defend"},
+                {"loop": 24, "text": "!ally retreat", "command_id": "retreat"},
+            ],
+        )
+        self.assertTrue(result.roster_ready, result.roster_issues)
+        self.assertEqual(result.hidden_state_access_violations, 0)
+        self.assertEqual(result.friendly_fire_rejections, 0)
+        self.assertGreater(result.total_dispatched, 0)
+        modes = {entry.split(":", 1)[0] for entry in result.mode_history}
+        self.assertTrue({"follow", "assist_attack", "defend_base", "retreat"}.issubset(modes))
+        self.assertTrue(any("Acknowledged: attack." in notice.message for notice in result.notices))
+        self.assertTrue(all(
+            action.entity_id in {2, 3}
+            for decision in result.decisions
+            for action in decision.actions
+        ))
+
+
+if __name__ == "__main__":
+    unittest.main()

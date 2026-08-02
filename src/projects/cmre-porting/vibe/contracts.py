@@ -183,6 +183,8 @@ class Observation:
     visible_enemies: list[dict]
     resources: dict
     mission: dict  # 任务/目标摘要（P4D 填充；P1 仅占位）
+    visible_allies: list[dict] = field(default_factory=list)
+    alliance_summary: list[dict] = field(default_factory=list)
 
     @classmethod
     def from_world(cls, world, player_id: int) -> "Observation":
@@ -193,7 +195,39 @@ class Observation:
             _entity_brief(e, world)
             for e in vision_system.visible_enemies(world, player_id)
         ]
+        allies = [
+            _entity_brief(e, world)
+            for e in world.entities.values()
+            if e.is_alive
+            and e.owner_player_id != player_id
+            and world.players.is_ally(player_id, e.owner_player_id)
+            and vision_system.is_visible(world, player_id, e)
+        ]
         res = world.get_resources(player_id).snapshot()
+        alliance_summary = []
+        observer = world.players.get(player_id)
+        observed_player_ids = [player_id] + sorted(observer.allies)
+        for observed_player_id in observed_player_ids:
+            if observed_player_id not in world.players.players:
+                continue
+            units = own if observed_player_id == player_id else [
+                unit for unit in allies if unit["owner"] == observed_player_id
+            ]
+            leader = min(units, key=lambda unit: unit["entity_id"], default=None)
+            position = None if leader is None else {
+                "x": leader["x"],
+                "y": leader["y"],
+            }
+            player = world.players.get(observed_player_id)
+            alliance_summary.append({
+                "player_id": observed_player_id,
+                "is_self": observed_player_id == player_id,
+                "is_ai": player.is_ai,
+                "unit_count": len(units),
+                "alive": bool(units),
+                "leader_position": position,
+                "base_position": position,
+            })
         return cls(
             loop=world.clock.now.loop,
             player_id=player_id,
@@ -201,6 +235,8 @@ class Observation:
             visible_enemies=vis,
             resources=res,
             mission={"win_condition": getattr(world, "_win_condition", "annihilation")},
+            visible_allies=allies,
+            alliance_summary=alliance_summary,
         )
 
 

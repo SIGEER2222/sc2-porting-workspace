@@ -791,6 +791,8 @@ class TestGalaxyStaticCheck(unittest.TestCase):
                         "HandleFunctionInvoke", "FunctionVibeTestPing",
                         "FunctionUnitAttack", "FunctionQueryStructures"]:
             self.assertIn(f"libVibeKernel_gf_{handler}", content)
+        self.assertIn("libVibeKernel_gt_AllyCommand_Func", content)
+        self.assertIn("libVibeKernel_gt_AllyCommand", content)
         # Dispatch 应注册新 operation
         for op in ["upgrade.set_level", "tech_tree.check",
                    "query.unit_tags", "query.unit_attrs", "function.invoke"]:
@@ -812,6 +814,9 @@ class TestGalaxyStaticCheck(unittest.TestCase):
                             "FunctionQueryUnits", "FunctionUnitKill",
                             "FunctionUnitAttack", "FunctionQueryStructures"]:
                 self.assertIn(f"libVibeKernel_gf_{handler}", content, str(path))
+            self.assertIn("libVibeKernel_gt_AllyCommand_Func", content, str(path))
+            self.assertIn("TriggerAddEventChatMessage", content, str(path))
+            self.assertIn('"!ally"', content, str(path))
             self.assertNotIn("valStart + end - 1", content, str(path))
 
     def test_kernel_arg_parser_excludes_delimiter(self):
@@ -846,6 +851,7 @@ class TestGalaxyStaticCheck(unittest.TestCase):
             self.assertIn(f"libVibeKernel_gf_Handle{op}", content)
         self.assertIn("libVibeKernel_gf_FunctionUnitAttack", content)
         self.assertIn("libVibeKernel_gf_FunctionQueryStructures", content)
+        self.assertIn("libVibeKernel_gt_AllyCommand_Func", content)
 
 
 if __name__ == "__main__":

@@ -26,7 +26,8 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass, field
-from typing import Optional
+from enum import Enum
+from typing import Iterable, Optional
 
 from ..contracts import Observation
 from ..sim_path import ensure_simulator_on_path
@@ -34,6 +35,200 @@ from ..sim_path import ensure_simulator_on_path
 ensure_simulator_on_path()
 
 from ..simulator_session import SimulatorSession
+
+
+class AllyMode(str, Enum):
+    """High-level cooperative modes controlled by the P1 player signal."""
+
+    FOLLOW = "follow"
+    REGROUP = "regroup"
+    DEFEND_BASE = "defend_base"
+    ASSIST_ATTACK = "assist_attack"
+    RETREAT = "retreat"
+    HOLD = "hold"
+
+
+class PlayerSignalKind(str, Enum):
+    FOLLOW = "follow"
+    ATTACK = "attack"
+    DEFEND = "defend"
+    REGROUP = "regroup"
+    RETREAT = "retreat"
+    HOLD = "hold"
+    STATUS = "status"
+    HELP = "help"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True)
+class PlayerCommand:
+    """A normalized command received from a player chat/signal channel."""
+
+    kind: PlayerSignalKind
+    source_player_id: int
+    text: str
+    command_id: str
+    loop: int
+    accepted: bool
+    duplicate: bool = False
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class PlayerNotice:
+    """A deterministic text/signal response addressed back to P1."""
+
+    recipient_player_id: int
+    message: str
+    kind: str
+    loop: int
+    mode: str
+    accepted: bool = True
+
+
+class PlayerCommandAdapter:
+    """Parse and deduplicate the small player-to-ally command protocol."""
+
+    _ALIASES = {
+        "follow": PlayerSignalKind.FOLLOW,
+        "attack": PlayerSignalKind.ATTACK,
+        "engage": PlayerSignalKind.ATTACK,
+        "defend": PlayerSignalKind.DEFEND,
+        "defend_base": PlayerSignalKind.DEFEND,
+        "regroup": PlayerSignalKind.REGROUP,
+        "rally": PlayerSignalKind.REGROUP,
+        "retreat": PlayerSignalKind.RETREAT,
+        "fall_back": PlayerSignalKind.RETREAT,
+        "hold": PlayerSignalKind.HOLD,
+        "status": PlayerSignalKind.STATUS,
+        "help": PlayerSignalKind.HELP,
+    }
+
+    def __init__(self, allowed_player_ids: Iterable[int] = (1,)) -> None:
+        self.allowed_player_ids = frozenset(int(pid) for pid in allowed_player_ids)
+        self._seen_command_ids: set[str] = set()
+
+    def receive(
+        self,
+        text: str,
+        source_player_id: int,
+        loop: int = 0,
+        command_id: Optional[str] = None,
+    ) -> PlayerCommand:
+        normalized = " ".join(str(text).strip().lower().split())
+        command_id = command_id or f"{int(source_player_id)}:{int(loop)}:{normalized}"
+        if command_id in self._seen_command_ids:
+            return PlayerCommand(
+                kind=PlayerSignalKind.UNKNOWN,
+                source_player_id=int(source_player_id),
+                text=str(text),
+                command_id=command_id,
+                loop=int(loop),
+                accepted=False,
+                duplicate=True,
+                reason="duplicate_command",
+            )
+        self._seen_command_ids.add(command_id)
+
+        if int(source_player_id) not in self.allowed_player_ids:
+            return PlayerCommand(
+                kind=PlayerSignalKind.UNKNOWN,
+                source_player_id=int(source_player_id),
+                text=str(text),
+                command_id=command_id,
+                loop=int(loop),
+                accepted=False,
+                reason="unauthorized_source",
+            )
+
+        payload = normalized
+        if payload.startswith("!ally"):
+            payload = payload[5:].strip()
+        elif payload.startswith("ally "):
+            payload = payload[5:].strip()
+        token = payload.split(" ", 1)[0] if payload else ""
+        kind = self._ALIASES.get(token, PlayerSignalKind.UNKNOWN)
+        accepted = kind != PlayerSignalKind.UNKNOWN
+        return PlayerCommand(
+            kind=kind,
+            source_player_id=int(source_player_id),
+            text=str(text),
+            command_id=command_id,
+            loop=int(loop),
+            accepted=accepted,
+            reason="" if accepted else "unknown_command",
+        )
+
+
+@dataclass(frozen=True)
+class RosterValidation:
+    """Result of validating the explicit P1/P2/enemy simulator roster."""
+
+    valid: bool
+    leader_player_id: int
+    ally_player_id: int
+    enemy_player_ids: tuple[int, ...]
+    issues: tuple[str, ...] = ()
+
+
+def validate_cooperative_roster(
+    scenario_dict: dict,
+    leader_player_id: int = 1,
+    ally_player_id: int = 2,
+    enemy_player_ids: Optional[Iterable[int]] = None,
+) -> RosterValidation:
+    """Validate reciprocal P1/P2 membership before a cooperative run starts."""
+
+    players = {int(player["id"]): player for player in scenario_dict.get("players", [])}
+    issues: list[str] = []
+    leader = players.get(int(leader_player_id))
+    ally = players.get(int(ally_player_id))
+    if leader is None:
+        issues.append(f"missing_leader_player:{leader_player_id}")
+    if ally is None:
+        issues.append(f"missing_ally_player:{ally_player_id}")
+
+    if leader is not None and bool(leader.get("is_ai", True)):
+        issues.append("leader_must_be_human")
+    if ally is not None and not bool(ally.get("is_ai", False)):
+        issues.append("ally_must_be_ai")
+
+    leader_allies = set(leader.get("allies", [])) if leader is not None else set()
+    ally_allies = set(ally.get("allies", [])) if ally is not None else set()
+    if ally is not None and int(ally_player_id) not in leader_allies:
+        issues.append("leader_missing_ally_edge")
+    if leader is not None and int(leader_player_id) not in ally_allies:
+        issues.append("ally_missing_leader_edge")
+
+    for player_id, player in players.items():
+        for other_id in player.get("allies", []):
+            if int(other_id) not in players:
+                issues.append(f"unknown_ally_id:{player_id}->{other_id}")
+
+    inferred_enemies = sorted(
+        pid for pid in players if pid not in {int(leader_player_id), int(ally_player_id)}
+    )
+    enemies = tuple(sorted(int(pid) for pid in (
+        inferred_enemies if enemy_player_ids is None else enemy_player_ids
+    )))
+    for enemy_id in enemies:
+        enemy = players.get(enemy_id)
+        if enemy is None:
+            issues.append(f"missing_enemy_player:{enemy_id}")
+            continue
+        if enemy_id in leader_allies or enemy_id in ally_allies:
+            issues.append(f"enemy_marked_ally:{enemy_id}")
+        enemy_allies = set(enemy.get("allies", []))
+        if int(leader_player_id) in enemy_allies or int(ally_player_id) in enemy_allies:
+            issues.append(f"enemy_marked_ally_reverse:{enemy_id}")
+
+    return RosterValidation(
+        valid=not issues,
+        leader_player_id=int(leader_player_id),
+        ally_player_id=int(ally_player_id),
+        enemy_player_ids=enemies,
+        issues=tuple(dict.fromkeys(issues)),
+    )
 
 
 @dataclass
@@ -97,6 +292,7 @@ class AllyDecisionTrace:
     dispatch_errors_this_loop: int = 0
     pending_in_queue: int = 0
     safety_flags: dict = field(default_factory=dict)
+    mode: str = AllyMode.FOLLOW.value
 
 
 @dataclass
@@ -116,78 +312,227 @@ class AllyRunResult:
     error_breakdown: dict = field(default_factory=dict)
     latency_loops: int = 0
     trace_hash: str = ""
+    roster_ready: bool = False
+    roster_issues: tuple[str, ...] = ()
+    mode_history: list[str] = field(default_factory=list)
+    notices: list[PlayerNotice] = field(default_factory=list)
+    friendly_fire_rejections: int = 0
 
 
 class AllyPolicy:
-    """盟友 AI 策略：跟随/支援/防御。
+    """P2 policy that responds to P1 while retaining autonomous safety priority.
 
-    priority 排序（高→低）：
-    1. 目标威胁（敌方进入 base_region）-> attack
-    2. 近距威胁（敌方进入 support_range）-> attack
-    3. 人力移动（ally_leader 移动）-> follow
-    4. 默认 hold
+    The policy never treats the P1 leader as an owned unit. It only emits
+    commands for ``obs.own_units`` (P2) and uses ``obs.visible_allies`` for
+    leader position and cooperative context.
     """
 
-    def __init__(self, player_id: int, leader_entity_id: int,
-                 base_region: tuple[float, float, float] = (0.0, 0.0, 8.0),
-                 support_range: float = 6.0,
-                 command_interval: int = 8):
-        self.player_id = player_id
-        self.leader_entity_id = leader_entity_id
+    def __init__(
+        self,
+        player_id: int,
+        leader_entity_id: int,
+        base_region: tuple[float, float, float] = (0.0, 0.0, 8.0),
+        support_range: float = 6.0,
+        command_interval: int = 8,
+        leader_player_id: int = 1,
+    ):
+        self.player_id = int(player_id)
+        self.leader_player_id = int(leader_player_id)
+        self.leader_entity_id = int(leader_entity_id)
         self.base_x, self.base_y, self.base_r = base_region
         self.support_range = support_range
-        self.command_interval = command_interval  # 每 N loop 决策一次
+        self.command_interval = command_interval
         self._last_decide_loop = -10_000
         self._last_actions: list[AllyAction] = []
-        self._action_history: list[list[str]] = []  # 用于振荡检测
+        self._action_history: list[list[str]] = []
+        self._mode_history: list[str] = []
+        self._mode = AllyMode.FOLLOW
+        self._commands = PlayerCommandAdapter((self.leader_player_id,))
+        self._notices: list[PlayerNotice] = []
+
+    @property
+    def mode(self) -> AllyMode:
+        return self._mode
+
+    @property
+    def mode_history(self) -> list[str]:
+        return list(self._mode_history)
+
+    @property
+    def command_adapter(self) -> PlayerCommandAdapter:
+        return self._commands
+
+    def receive_player_command(
+        self,
+        text: str,
+        source_player_id: Optional[int] = None,
+        loop: int = 0,
+        command_id: Optional[str] = None,
+    ) -> PlayerNotice:
+        """Accept one P1 command and produce a text/signal response."""
+
+        source = self.leader_player_id if source_player_id is None else int(source_player_id)
+        command = self._commands.receive(text, source, loop, command_id)
+        if command.duplicate:
+            notice = PlayerNotice(source, "Ignored duplicate command.", "duplicate", loop,
+                                  self._mode.value, accepted=False)
+        elif not command.accepted:
+            message = "Command rejected: player is not an authorized ally source."
+            if command.reason == "unknown_command":
+                message = "Unknown ally command. Try: follow, attack, defend, regroup, retreat, status."
+            notice = PlayerNotice(source, message, "rejected", loop, self._mode.value,
+                                  accepted=False)
+        elif command.kind == PlayerSignalKind.STATUS:
+            notice = PlayerNotice(
+                source,
+                f"Status: mode={self._mode.value}; controller=P2; leader=P1.",
+                "status",
+                loop,
+                self._mode.value,
+            )
+        elif command.kind == PlayerSignalKind.HELP:
+            notice = PlayerNotice(
+                source,
+                "Ally commands: follow, attack, defend, regroup, retreat, status.",
+                "help",
+                loop,
+                self._mode.value,
+            )
+        else:
+            mode_map = {
+                PlayerSignalKind.FOLLOW: AllyMode.FOLLOW,
+                PlayerSignalKind.ATTACK: AllyMode.ASSIST_ATTACK,
+                PlayerSignalKind.DEFEND: AllyMode.DEFEND_BASE,
+                PlayerSignalKind.REGROUP: AllyMode.REGROUP,
+                PlayerSignalKind.RETREAT: AllyMode.RETREAT,
+                PlayerSignalKind.HOLD: AllyMode.HOLD,
+            }
+            self._mode = mode_map[command.kind]
+            notice = PlayerNotice(
+                source,
+                f"Acknowledged: {command.kind.value}. P2 mode={self._mode.value}.",
+                "acknowledged",
+                loop,
+                self._mode.value,
+            )
+        self._notices.append(notice)
+        return notice
+
+    def drain_notices(self) -> list[PlayerNotice]:
+        notices = list(self._notices)
+        self._notices.clear()
+        return notices
 
     def decide(self, obs: Observation, loop: int) -> list[AllyAction]:
-        """根据 Observation 决策。只读 obs，不访问 world。"""
+        """Decide using only the P2 view plus visible P1 ally units."""
         if loop - self._last_decide_loop < self.command_interval:
-            return self._last_actions  # 复用上次决策（节流）
+            return self._last_actions
         self._last_decide_loop = loop
 
-        own_by_id = {u["entity_id"]: u for u in obs.own_units}
-        leader = own_by_id.get(self.leader_entity_id)
-        if leader is None:
+        own_by_id = {
+            unit["entity_id"]: unit
+            for unit in obs.own_units
+            if unit.get("owner") == self.player_id
+        }
+        leader = next(
+            (unit for unit in obs.visible_allies
+             if unit.get("entity_id") == self.leader_entity_id
+             and unit.get("owner") == self.leader_player_id),
+            None,
+        )
+        # Legacy P1-only selftests are retained, but the cooperative P2 path
+        # must always resolve the leader from visible_allies.
+        if leader is None and self.player_id == self.leader_player_id:
+            leader = own_by_id.get(self.leader_entity_id)
+
+        enemies = list(obs.visible_enemies)
+        base_threats = [
+            enemy for enemy in enemies
+            if self._dist(enemy["x"], enemy["y"], self.base_x, self.base_y) <= self.base_r
+        ]
+        leader_threats = [] if leader is None else [
+            enemy for enemy in enemies
+            if self._dist(enemy["x"], enemy["y"], leader["x"], leader["y"]) <= self.support_range
+        ]
+
+        if not own_by_id:
+            self._record_mode(AllyMode.RETREAT, "p2_roster_empty")
             self._last_actions = []
             return []
 
+        # Safety always overrides a player attack/follow request.
+        critically_wounded = any(
+            unit.get("max_health", 0) > 0
+            and unit.get("health", 0) <= unit["max_health"] * 0.15
+            for unit in own_by_id.values()
+        )
+        if critically_wounded:
+            mode = AllyMode.RETREAT
+            mode_reason = "self_preservation"
+        elif base_threats:
+            mode = AllyMode.DEFEND_BASE
+            mode_reason = "base_threat_priority"
+        elif leader_threats and self._mode in {
+            AllyMode.FOLLOW, AllyMode.REGROUP, AllyMode.ASSIST_ATTACK,
+        }:
+            mode = AllyMode.ASSIST_ATTACK
+            mode_reason = "leader_support_threat"
+        else:
+            mode = self._mode
+            mode_reason = "player_command" if self._mode != AllyMode.FOLLOW else "follow_leader"
+        self._record_mode(mode, mode_reason)
+
         actions: list[AllyAction] = []
-        enemies = obs.visible_enemies
+        for uid, unit in sorted(own_by_id.items()):
+            target = self._nearest(unit, base_threats or leader_threats or enemies)
+            if mode in {AllyMode.DEFEND_BASE, AllyMode.ASSIST_ATTACK} and target is not None:
+                actions.append(AllyAction(
+                    uid,
+                    "attack",
+                    target_entity_id=target["entity_id"],
+                    reason=mode_reason,
+                ))
+                continue
 
-        # 找 base 区域的敌方（目标威胁）
-        base_threats = [e for e in enemies
-                        if self._dist(e["x"], e["y"], self.base_x, self.base_y) <= self.base_r]
-        # 找近距威胁（leader 周围 support_range 内）
-        near_threats = [e for e in enemies
-                        if self._dist(e["x"], e["y"], leader["x"], leader["y"]) <= self.support_range]
-
-        # 决策每个 own 单位
-        for uid, u in own_by_id.items():
-            if uid == self.leader_entity_id:
-                continue  # leader 自己不被指挥
-            if base_threats:
-                tgt = self._nearest(u, base_threats)
-                actions.append(AllyAction(uid, "attack", target_entity_id=tgt["entity_id"],
-                                          reason="base_threat_priority"))
-            elif near_threats:
-                tgt = self._nearest(u, near_threats)
-                actions.append(AllyAction(uid, "attack", target_entity_id=tgt["entity_id"],
-                                          reason="support_threat"))
+            destination = self._destination(mode, leader)
+            if mode == AllyMode.HOLD:
+                actions.append(AllyAction(uid, "hold", reason="player_hold"))
+            elif destination is not None:
+                kind = "follow" if mode == AllyMode.FOLLOW else "move"
+                actions.append(AllyAction(
+                    uid,
+                    kind,
+                    target_x=destination[0],
+                    target_y=destination[1],
+                    reason=mode_reason,
+                ))
             else:
-                # 跟随 leader
-                actions.append(AllyAction(uid, "follow",
-                                          target_x=leader["x"], target_y=leader["y"],
-                                          reason="follow_leader"))
+                actions.append(AllyAction(uid, "hold", reason="leader_not_visible"))
 
-        # 振荡检测：连续 5 次决策中动作种类反复跳变
         self._action_history.append([a.reason for a in actions])
         if len(self._action_history) > 10:
             self._action_history.pop(0)
-
         self._last_actions = actions
         return actions
+
+    def _record_mode(self, mode: AllyMode, reason: str) -> None:
+        self._mode = mode
+        entry = f"{mode.value}:{reason}"
+        if not self._mode_history or self._mode_history[-1] != entry:
+            self._mode_history.append(entry)
+
+    def _destination(
+        self, mode: AllyMode, leader: Optional[dict]
+    ) -> Optional[tuple[float, float]]:
+        if mode == AllyMode.DEFEND_BASE or mode == AllyMode.RETREAT:
+            return self.base_x, self.base_y
+        if leader is None:
+            return None
+        if mode == AllyMode.REGROUP:
+            return leader["x"], leader["y"]
+        if mode == AllyMode.FOLLOW:
+            return leader["x"], leader["y"]
+        return None
 
     def oscillation_score(self) -> int:
         """连续决策动作种类变化次数（高=振荡）。"""
@@ -204,7 +549,9 @@ class AllyPolicy:
         return math.hypot(x1 - x2, y1 - y2)
 
     @staticmethod
-    def _nearest(unit: dict, candidates: list[dict]) -> dict:
+    def _nearest(unit: dict, candidates: list[dict]) -> Optional[dict]:
+        if not candidates:
+            return None
         return min(candidates, key=lambda c: AllyPolicy._dist(
             unit["x"], unit["y"], c["x"], c["y"]))
 
@@ -219,11 +566,20 @@ class ActionAdapter:
     per-unit-command-guard：每 loop 每单位最多一条命令（用 _issued_this_loop 集合）。
     """
 
-    def __init__(self, session: SimulatorSession, latency_loops: int = 1):
+    def __init__(
+        self,
+        session: SimulatorSession,
+        latency_loops: int = 1,
+        controlled_player_id: Optional[int] = None,
+    ):
         self.session = session
         self.latency_loops = max(0, int(latency_loops))
+        self.controlled_player_id = (
+            None if controlled_player_id is None else int(controlled_player_id)
+        )
         self._issued_this_loop: dict[int, set[int]] = {}  # loop -> {entity_id}（per-loop per-unit 去重）
         self.rejected_over_limit = 0
+        self.friendly_fire_rejections = 0
         self._queue: list[QueuedCommand] = []
         self._dispatch_history: list[DispatchResult] = []
         self._error_counts: dict[str, int] = {}
@@ -270,17 +626,20 @@ class ActionAdapter:
 
     def _dispatch_one(self, qc: QueuedCommand) -> DispatchResult:
         world = self.session.world
-        # 1) hold 不需要分发（策略显式无操作）
-        if qc.kind == "hold":
-            return DispatchResult(qc.entity_id, qc.kind, False, None,
-                                  qc.issue_loop, qc.dispatch_loop, qc.reason)
-        # 2) 单位存活校验
+        # 1) 单位存活和 P2 ownership 校验
         unit = world.get_entity(qc.entity_id)
         if unit is None or not unit.is_alive:
             return DispatchResult(qc.entity_id, qc.kind, False, "unit_dead",
                                   qc.issue_loop, qc.dispatch_loop, qc.reason)
-        issuer = unit.owner_player_id
-        # 3) attack 目标校验
+        issuer = self.controlled_player_id or unit.owner_player_id
+        if unit.owner_player_id != issuer:
+            return DispatchResult(qc.entity_id, qc.kind, False, "not_owned",
+                                  qc.issue_loop, qc.dispatch_loop, qc.reason)
+        # 2) hold does not dispatch but is still ownership-valid
+        if qc.kind == "hold":
+            return DispatchResult(qc.entity_id, qc.kind, False, None,
+                                  qc.issue_loop, qc.dispatch_loop, qc.reason)
+        # 3) attack target validation, including an explicit friendly-fire gate
         if qc.kind == "attack":
             if qc.target_entity_id == 0:
                 return DispatchResult(qc.entity_id, qc.kind, False, "invalid_target",
@@ -292,9 +651,14 @@ class ActionAdapter:
             if not tgt.is_alive:
                 return DispatchResult(qc.entity_id, qc.kind, False, "target_dead",
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
+            if not world.players.is_enemy(issuer, tgt.owner_player_id):
+                self.friendly_fire_rejections += 1
+                return DispatchResult(qc.entity_id, qc.kind, False,
+                                      "friendly_fire_blocked",
+                                      qc.issue_loop, qc.dispatch_loop, qc.reason)
             try:
                 self.session.unit_order([qc.entity_id], "attack_unit",
-                                        issuer_player_id=issuer,
+                                        issuer_player_id=self.controlled_player_id or issuer,
                                         target_entity_id=qc.target_entity_id)
                 return DispatchResult(qc.entity_id, qc.kind, True, None,
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
@@ -306,7 +670,7 @@ class ActionAdapter:
         if qc.kind in ("move", "follow"):
             try:
                 self.session.unit_order([qc.entity_id], "move",
-                                        issuer_player_id=issuer,
+                                        issuer_player_id=self.controlled_player_id or issuer,
                                         target_x=qc.target_x, target_y=qc.target_y)
                 return DispatchResult(qc.entity_id, qc.kind, True, None,
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
@@ -344,15 +708,41 @@ def run_ally_scenario(
     deadlock_threshold: int = 50,
     storm_threshold: int = 50,
     latency_loops: int = 1,
+    leader_player_id: int = 1,
+    require_cooperative_roster: bool = False,
+    player_commands: Optional[Iterable[dict | str]] = None,
 ) -> AllyRunResult:
     """跑一个盟友 AI 场景。
 
     latency_loops: 命令从入队到分发的延迟 loop 数（M3 延迟模型）。0 = 立即分发。
     """
+    if int(ally_player_id) != policy.player_id:
+        raise ValueError(
+            f"policy player {policy.player_id} must match ally_player_id {ally_player_id}"
+        )
+    roster = validate_cooperative_roster(
+        scenario_dict,
+        leader_player_id=leader_player_id,
+        ally_player_id=ally_player_id,
+    )
+    if require_cooperative_roster and not roster.valid:
+        raise ValueError("invalid cooperative roster: " + ", ".join(roster.issues))
+
+    scheduled_commands: dict[int, list[dict | str]] = {}
+    for command in player_commands or ():
+        if isinstance(command, str):
+            scheduled_commands.setdefault(0, []).append(command)
+        else:
+            scheduled_commands.setdefault(int(command.get("loop", 0)), []).append(command)
+
     s = SimulatorSession()
     s.scenario_load(scenario_dict=scenario_dict, catalog="m7")
     s.scenario_reset()
-    adapter = ActionAdapter(s, latency_loops=latency_loops)
+    adapter = ActionAdapter(
+        s,
+        latency_loops=latency_loops,
+        controlled_player_id=policy.player_id,
+    )
 
     decisions: list[AllyDecisionTrace] = []
     deadlock_loops = 0
@@ -379,18 +769,35 @@ def run_ally_scenario(
         from ..contracts import Observation
         obs = Observation.from_world(s.world, ally_player_id)
 
-        # 3) 验证策略不访问隐藏状态：策略只接收 obs；若返回动作引用了 obs 中不存在的 entity_id，记为违规
+        # 3) 从 P1 命令通道接收本 loop 的指令，再让 P2 策略决策。
+        for scheduled in scheduled_commands.get(loop, []):
+            if isinstance(scheduled, str):
+                policy.receive_player_command(scheduled, leader_player_id, loop)
+            else:
+                policy.receive_player_command(
+                    scheduled.get("text", scheduled.get("message", "")),
+                    int(scheduled.get("source_player_id", leader_player_id)),
+                    loop,
+                    scheduled.get("command_id"),
+                )
+
+        # 4) 验证策略不访问隐藏状态：动作实体必须是 P2 自有或可见目标。
         actions = policy.decide(obs, loop)
-        visible_ids = {u["entity_id"] for u in obs.own_units} | {e["entity_id"] for e in obs.visible_enemies}
+        own_ids = {u["entity_id"] for u in obs.own_units}
+        visible_ids = own_ids | {
+            entity["entity_id"] for entity in obs.visible_enemies + obs.visible_allies
+        }
         for a in actions:
+            if a.entity_id not in own_ids:
+                hidden_violations += 1
             if a.target_entity_id and a.target_entity_id not in visible_ids:
                 hidden_violations += 1
 
-        # 4) 入队新命令
+        # 5) 入队新命令
         receipts = adapter.issue(actions, loop)
         queued_this_loop = len(receipts)
 
-        # 5) 死锁检测：连续 N loop 既无分发又无 pending（AI 完全停滞）
+        # 6) 死锁检测：连续 N loop 既无分发又无 pending（AI 完全停滞）
         #    只 pending 未到期的命令不算死锁（在等延迟）
         if dispatched_ok == 0 and adapter.pending_count == 0 and queued_this_loop == 0:
             deadlock_loops += 1
@@ -409,13 +816,14 @@ def run_ally_scenario(
             pending_in_queue=adapter.pending_count,
             safety_flags={"deadlock_loops": deadlock_loops,
                           "dispatched_ok": dispatched_ok},
+            mode=policy.mode.value,
         ))
 
-        # 6) 推进一 loop（长跑时禁快照：scenario_step 每次建 SnapshotHandle 会序列化 growing
+        # 7) 推进一 loop（长跑时禁快照：scenario_step 每次建 SnapshotHandle 会序列化 growing
         #    events/command_results，导致 O(N²)；长跑 13200 loop 时单 loop 从 0.07ms 飙到 30ms）
         s.scenario_step(1, snapshot=False)
 
-        # 7) 每 safety_window loop 截断一次决策历史（避免内存爆）
+        # 8) 每 safety_window loop 截断一次决策历史（避免内存爆）
         if len(decisions) > safety_window * 2:
             decisions = decisions[-safety_window:]
 
@@ -438,6 +846,11 @@ def run_ally_scenario(
         error_breakdown=adapter.error_counts,
         latency_loops=adapter.latency_loops,
         trace_hash=trace_hash(s.world),
+        roster_ready=roster.valid,
+        roster_issues=roster.issues,
+        mode_history=policy.mode_history,
+        notices=policy.drain_notices(),
+        friendly_fire_rejections=adapter.friendly_fire_rejections,
     )
 
 
