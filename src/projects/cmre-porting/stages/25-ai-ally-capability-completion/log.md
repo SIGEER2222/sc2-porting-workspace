@@ -1127,3 +1127,12 @@ Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/imports/地图调试和斗蛐蛐工具（完整功能版）/地图调试和斗蛐蛐工具（完整功能版).SC2Map`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/imports/地图调试和斗蛐蛐工具（完整功能版）/地图调试和斗蛐蛐工具（完整功能版)说明文档.md`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/imports/地图调试和斗蛐蛐工具（完整功能版）/images/`.
+
+## Verification Loop 2026-08-03 Tool README Summary
+
+- `static`: added `README.md` beside the imported map and converted manual. It summarizes the tool as an SC2 in-map debugging panel and unit-versus-unit experiment sandbox.
+- `static`: the summary covers unit creation, skills/behaviors/items/weapons, tech/resources/player control, statistics/effect lookup, model attachment and animation tuning, and formation-based battles.
+- `static`: README links resolve to the local map, original `.doc`, converted Markdown, and screenshot directory. It explicitly preserves the read-only import boundary and makes no new runtime compatibility claim.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/imports/地图调试和斗蛐蛐工具（完整功能版）/README.md`.
