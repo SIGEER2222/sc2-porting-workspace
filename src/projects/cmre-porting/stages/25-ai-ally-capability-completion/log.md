@@ -1136,3 +1136,19 @@ Evidence:
 
 Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/imports/地图调试和斗蛐蛐工具（完整功能版）/README.md`.
+
+## Verification Loop 2026-08-03 Ladder Capability Completion
+
+- `simulator`: `PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.ladder_ai --batch --max-loops 5000 --out artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-20260803-final.json` passed for seeds `42`, `7`, and `99`. Every run reached `enemy_elimination` at loop `3595`, left no enemy units alive, and reported an empty `error_breakdown`.
+- `simulator`: all three ladder reports proved mineral and gas economy, expansion to two CommandCenters, scaled production, FactoryTechLab/Armory/Starport/EngineeringBay, two completed Terran weapon upgrades, Marine/Hellion/Medivac mixed production, scouting, pressure response, attack-move, focus-fire cleanup, and zero deadlock/command-storm/hidden-state/dispatch-error findings. The three runs were deterministic at the action and terminal-state level.
+- `simulator`: the current policy changes exercised active gas-worker reassignment, extra SupplyDepot maintenance, safe producer rally placement, unreachable-point waypoint fallback, compact group attack-move, and direct visible-target focus attack. This is simulator strategy evidence only and makes no claim about native SC2 balance or timing.
+- `static`: `python -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py` passed `26` tests. The combined Stage 19/20/22/23/25 + Debug VM + ladder regression passed `67` tests with `6` subtests.
+- `static`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` passed `52/52` checks with zero warnings; `py_compile` and `git diff --check` passed for the changed policy/test modules.
+- `static`: the ignored discovery artifact was rebuilt after the reference toolkit's missing compiled output was repaired locally with a frozen dependency install and `sc2-galaxy-lang` build. The available owned project and Vibe kernel roots produced `23,019` declarations, `0` parser errors, `80` callable-adapter entries, and `22,939` inventory-only entries. The historical `35,404` full-source scan remains separate because this checkout has no `local.sources.json` binding and no additional CMRE source root was found.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-20260803-final.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-replay/seed-42/replay.jsonl`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-replay/seed-42/state-driven-player.html`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json`,
+`artifacts/galaxy-vibe/static-validation-report.json`.

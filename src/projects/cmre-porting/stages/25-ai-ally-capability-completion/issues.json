@@ -3,6 +3,29 @@
   "stage": "25-ai-ally-capability-completion",
   "issues": [
     {
+      "id": "SIMULATOR-LADDER-CAPABILITY-20260803",
+      "severity": "low",
+      "status": "resolved",
+      "title": "Ladder AI now completes a bounded full-game simulator loop",
+      "detail": "The policy now maintains gas and supply, adds production and high-tech structures, researches upgrades, trains a mixed army, scouts, responds to a pressure wave, uses compact attack-move and visible-target focus-fire, and completes enemy elimination for seeds 42, 7, and 99 without dispatch errors.",
+      "evidence_type": "simulator",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-20260803-final.json",
+      "owner": "stage25",
+      "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-replay/seed-42/state-driven-player.html",
+      "nextAction": "Keep simulator capability and native SC2 economy/timing claims separate; use the approved Computer-ally runtime path for native balance validation."
+    },
+    {
+      "id": "STATIC-CATALOG-SOURCE-BINDING-20260803",
+      "severity": "low",
+      "status": "open",
+      "title": "Full CMRE catalog source binding is not present in this checkout",
+      "detail": "The historical full-source catalog scan recorded 35,404 declarations, but this checkout has no src/config/local.sources.json and no additional CMRE source root was found. The current reproducible catalog covers owned project packages plus the Vibe kernel and records 23,019 declarations with zero parser errors.",
+      "evidence_type": "blocked",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json",
+      "owner": "environment",
+      "nextAction": "Restore the approved local CMRE source binding and rerun discover_function_catalog.mjs over the registered source plus owned packages before making a new full-source catalog claim."
+    },
+    {
       "id": "RUNTIME-P2-NATIVE-VALIDATION-BLOCKED",
       "severity": "medium",
       "status": "resolved",
