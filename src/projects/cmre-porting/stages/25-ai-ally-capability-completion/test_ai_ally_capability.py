@@ -71,7 +71,11 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
         # Keep the matrix output under the repository so generated evidence
         # remains repo-relative, then remove it when the regression finishes.
         with tempfile.TemporaryDirectory(dir=REPO_ROOT / "artifacts") as directory:
-            report = run_matrix(max_loops=80, output_dir=Path(directory))
+            report = run_matrix(
+                max_loops=80,
+                output_dir=Path(directory),
+                full_game=False,
+            )
 
             self.assertEqual(report["status"], "PASS")
             self.assertEqual(report["map_count"], 15)

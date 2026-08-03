@@ -238,7 +238,7 @@ class AllyAction:
     """盟友 AI 决策动作。"""
 
     entity_id: int
-    kind: str  # "follow" | "attack" | "heal" | "move" | "hold" | "gather" | "build" | "train" | "research"
+    kind: str  # "follow" | "attack" | "attack_move" | "heal" | "move" | "hold" | "gather" | "build" | "train" | "research"
     target_entity_id: int = 0
     target_x: float = 0.0
     target_y: float = 0.0
@@ -272,6 +272,7 @@ class DispatchResult:
     - "unit_dead"：分发时单位已死或不存在
     - "invalid_target"：attack 目标 ID 为 0 或目标实体不存在
     - "target_dead"：目标在 transit 期间死亡（分发时已 dead）
+    - superseded=True：策略已观测到的焦点目标在延迟期间被其他攻击清除；命令安全地丢弃
     - "unknown_kind"：策略返回未识别的 kind
     - "dispatch_error:<ExceptionName>"：session.unit_order 抛异常（非 KernelError）
     """
@@ -283,6 +284,7 @@ class DispatchResult:
     issue_loop: int
     dispatch_loop: int
     reason: str = ""
+    superseded: bool = False
 
 
 @dataclass
@@ -893,6 +895,7 @@ class ActionAdapter:
         self._queue: list[QueuedCommand] = []
         self._dispatch_history: list[DispatchResult] = []
         self._error_counts: dict[str, int] = {}
+        self._known_target_ids: set[int] = set()
 
     def issue(self, actions: list[AllyAction], loop: int) -> list[dict]:
         """入队命令（不立即分发）。返回每条命令的排队回执。"""
@@ -912,6 +915,8 @@ class ActionAdapter:
                 dispatch_loop=loop + self.latency_loops,
             )
             self._queue.append(qc)
+            if a.target_entity_id:
+                self._known_target_ids.add(int(a.target_entity_id))
             issued_set.add(a.entity_id)
             receipts.append({"entity_id": a.entity_id, "kind": a.kind,
                              "queued": True, "issue_loop": loop,
@@ -958,9 +963,34 @@ class ActionAdapter:
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
             tgt = world.get_entity(qc.target_entity_id)
             if tgt is None:
+                if (
+                    qc.target_entity_id in self._known_target_ids
+                    and qc.reason.startswith("ladder_")
+                ):
+                    return DispatchResult(
+                        qc.entity_id,
+                        qc.kind,
+                        False,
+                        None,
+                        qc.issue_loop,
+                        qc.dispatch_loop,
+                        qc.reason,
+                        superseded=True,
+                    )
                 return DispatchResult(qc.entity_id, qc.kind, False, "invalid_target",
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
             if not tgt.is_alive:
+                if qc.reason.startswith("ladder_"):
+                    return DispatchResult(
+                        qc.entity_id,
+                        qc.kind,
+                        False,
+                        None,
+                        qc.issue_loop,
+                        qc.dispatch_loop,
+                        qc.reason,
+                        superseded=True,
+                    )
                 return DispatchResult(qc.entity_id, qc.kind, False, "target_dead",
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
             if not world.players.is_enemy(issuer, tgt.owner_player_id):
@@ -1027,11 +1057,15 @@ class ActionAdapter:
                 return DispatchResult(qc.entity_id, qc.kind, False,
                                       f"dispatch_error:{type(e).__name__}",
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
-        # 4) move / follow = move 到点
-        if qc.kind in ("move", "follow"):
+        # 4) move / follow / attack_move = point movement. Attack-move keeps
+        # the simulator's native pathing and auto-acquisition semantics for
+        # map-derived main-force pushes.
+        if qc.kind in ("move", "follow", "attack_move"):
             try:
                 before_results = len(world.command_results)
-                self.session.unit_order([qc.entity_id], "move",
+                self.session.unit_order(
+                    [qc.entity_id],
+                    "attack_move" if qc.kind == "attack_move" else "move",
                                         issuer_player_id=self.controlled_player_id or issuer,
                                         target_x=qc.target_x, target_y=qc.target_y)
                 error = self._command_error(world, before_results, qc.entity_id)
@@ -1423,9 +1457,13 @@ def run_ally_scenario(
             action = replay_action_by_key.get(key)
             if action is not None:
                 action["dispatched"] = {
-                    "success": bool(result.dispatched or result.error is None),
+                    "success": bool(
+                        not result.superseded
+                        and (result.dispatched or result.error is None)
+                    ),
                     "dispatched": bool(result.dispatched),
                     "error": result.error,
+                    "superseded": bool(result.superseded),
                     "loop": int(loop),
                     "dispatch_loop": int(result.dispatch_loop),
                     "issuer_player_id": int(policy.player_id),
@@ -1435,9 +1473,13 @@ def run_ally_scenario(
                 "kind": "p2_dispatch",
                 "entity_id": int(result.entity_id),
                 "command_kind": result.kind,
-                "success": bool(result.dispatched or result.error is None),
+                "success": bool(
+                    not result.superseded
+                    and (result.dispatched or result.error is None)
+                ),
                 "dispatched": bool(result.dispatched),
                 "error": result.error,
+                "superseded": bool(result.superseded),
                 "issue_loop": int(result.issue_loop),
                 "dispatch_loop": int(result.dispatch_loop),
                 "issuer_player_id": int(policy.player_id),

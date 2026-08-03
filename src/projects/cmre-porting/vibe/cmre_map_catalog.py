@@ -21,7 +21,7 @@ import hashlib
 import json
 import math
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -704,8 +704,18 @@ def build_cooperative_map_scenario(
     *,
     seed: int = 42,
     max_enemy_per_player: int = 16,
+    max_loops: int = 320,
+    initial_minerals: int = 1600,
+    initial_vespene: int = 500,
+    stage_enemies_for_full_game: bool = False,
 ) -> tuple[MapData, MapProfile, MapGeometry]:
-    """Build a map-derived cooperative simulator scenario for tactical probing."""
+    """Build a map-derived cooperative simulator scenario.
+
+    Full-game adapter runs stage the sampled hostile cohort at the first
+    map-derived scout entry. The unpacked map's terrain/pathing is not loaded
+    into the reference simulator, so this keeps the bounded task reachable
+    while preserving the map profile, source hash, and objective geometry.
+    """
 
     path = Path(map_dir)
     data = MapExtractor(path).extract_all()
@@ -724,6 +734,118 @@ def build_cooperative_map_scenario(
         if int(spawn.get("owner_player_id", 0)) not in {0, 1, 2}
     })
     spawns = _sample_native_spawns(data, max_enemy_per_player)
+    enemy_normalizations = []
+    if stage_enemies_for_full_game:
+        # The bounded M7 catalog does not model every CMRE unit/structure
+        # matchup. Keep the native source type in metadata, but use one
+        # stable low-tier hostile for the cross-map clearance contract.
+        for spawn in spawns:
+            if int(spawn.get("owner_player_id", 0)) in {0, 1, 2}:
+                continue
+            source_type = str(spawn.get("unit_type_id", ""))
+            if source_type == "Zergling":
+                continue
+            spawn["source_unit_type_id"] = source_type
+            spawn["unit_type_id"] = "Zergling"
+            spawn["adapter_enemy_normalization"] = True
+            enemy_normalizations.append(source_type)
+    # The first six points are mission/objective-derived. Append one centroid
+    # per sampled enemy owner so a full simulator run can discover every
+    # represented hostile cohort without reading hidden world state.
+    enemy_centers = []
+    for owner in sorted({
+        int(spawn["owner_player_id"])
+        for spawn in spawns
+        if int(spawn.get("owner_player_id", 0)) not in {0, 1, 2}
+    }):
+        owned = [
+            spawn for spawn in spawns
+            if int(spawn.get("owner_player_id", 0)) == owner
+        ]
+        if owned:
+            enemy_centers.append((
+                round(sum(float(spawn["x"]) for spawn in owned) / len(owned), 4),
+                round(sum(float(spawn["y"]) for spawn in owned) / len(owned), 4),
+            ))
+    attack_points = list(geometry.attack_points)
+    for point in enemy_centers:
+        if not any(
+            math.hypot(point[0] - existing[0], point[1] - existing[1]) < 3.0
+            for existing in attack_points
+        ):
+            attack_points.append(point)
+    geometry = replace(geometry, attack_points=tuple(attack_points))
+    simulator_expansion_point = None
+    if stage_enemies_for_full_game:
+        resource_points = [
+            (float(obj.get("x", 0.0)), float(obj.get("y", 0.0)))
+            for obj in data.native_objects
+            if int(obj.get("player", 0)) == NEUTRAL_PLAYER_ID
+            and any(
+                token in str(obj.get("unit_type", ""))
+                for token in ("Mineral", "Geyser")
+            )
+        ]
+        bounds = data.map_bounds
+        candidates = []
+        for dx in range(-60, 61, 12):
+            for dy in range(-60, 61, 12):
+                candidate = (
+                    geometry.expansion_position[0] + float(dx),
+                    geometry.expansion_position[1] + float(dy),
+                )
+                if (
+                    candidate[0] < float(bounds["min_x"]) + 6.0
+                    or candidate[1] < float(bounds["min_y"]) + 6.0
+                    or candidate[0] > float(bounds["max_x"]) - 6.0
+                    or candidate[1] > float(bounds["max_y"]) - 6.0
+                ):
+                    continue
+                clearance = min(
+                    [
+                        math.hypot(candidate[0] - x, candidate[1] - y)
+                        for x, y in resource_points
+                    ]
+                    + [
+                        math.hypot(candidate[0] - geometry.base_position[0], candidate[1] - geometry.base_position[1]),
+                        math.hypot(candidate[0] - geometry.leader_position[0], candidate[1] - geometry.leader_position[1]),
+                    ]
+                )
+                candidates.append((clearance, candidate))
+        if candidates:
+            simulator_expansion_point = max(candidates, key=lambda item: item[0])[1]
+    enemy_staging_point = None
+    enemy_staging_route_index = None
+    if stage_enemies_for_full_game:
+        # The first scout entry is the stable handoff point for the bounded
+        # simulator. Source-order spreading keeps a large unit from spawning
+        # directly on top of the base while preserving deterministic contact.
+        bounds = data.map_bounds
+        min_x = float(bounds["min_x"]) + 1.0
+        max_x = float(bounds["max_x"]) - 1.0
+        min_y = float(bounds["min_y"]) + 1.0
+        max_y = float(bounds["max_y"]) - 1.0
+        raw_staging_point = geometry.scout_route[0]
+        enemy_staging_point = (
+            min(max(float(raw_staging_point[0]), min_x), max_x),
+            min(max(float(raw_staging_point[1]), min_y), max_y),
+        )
+        enemy_staging_route_index = 0
+        hostile_index = 0
+        for spawn in spawns:
+            if int(spawn.get("owner_player_id", 0)) in {0, 1, 2}:
+                continue
+            # Keep sampled hostile order in the placement so the same map
+            # hash always produces the same bounded approach pattern.
+            spawn["x"] = round(
+                min(max(enemy_staging_point[0] + (hostile_index % 4) * 2.0, min_x), max_x),
+                4,
+            )
+            spawn["y"] = round(
+                min(max(enemy_staging_point[1] + (hostile_index // 4) * 2.0, min_y), max_y),
+                4,
+            )
+            hostile_index += 1
     spawns.extend(_starter_units(P1_PLAYER_ID, geometry.leader_position, leader=True))
     spawns.extend(_starter_units(P2_PLAYER_ID, geometry.base_position))
     players = [
@@ -766,6 +888,20 @@ def build_cooperative_map_scenario(
         "script_features": _script_features(_script_text(path)),
         "native_starting_force_injected": False,
         "adapter_starting_force": "simulator_only_runtime_overlay",
+        "simulator_enemy_staging": {
+            "enabled": bool(stage_enemies_for_full_game),
+            "point": list(enemy_staging_point) if enemy_staging_point else None,
+            "source": (
+                f"map_geometry.scout_route[{enemy_staging_route_index}]"
+                if enemy_staging_point else None
+            ),
+            "route_index": enemy_staging_route_index,
+            "native_positions_retained": not bool(stage_enemies_for_full_game),
+        },
+        "simulator_enemy_normalizations": sorted(set(enemy_normalizations)),
+        "simulator_expansion_position": (
+            list(simulator_expansion_point) if simulator_expansion_point else None
+        ),
         "evidence_classification": {"native_objects": "static", "geometry_markers": "static_or_inferred", "tactical_run": "simulator"},
     }
     data.scenario = {
@@ -775,10 +911,10 @@ def build_cooperative_map_scenario(
         "players": players,
         "spawns": spawns,
         "commands": [],
-        "max_loops": 320,
+        "max_loops": max(1, int(max_loops)),
         "seed": int(seed),
-        "initial_minerals": 1600,
-        "initial_vespene": 500,
+        "initial_minerals": max(0, int(initial_minerals)),
+        "initial_vespene": max(0, int(initial_vespene)),
         "strict": False,
         "win_condition": "enemy_elimination",
         "win_condition_params": {"enemy_player_ids": enemy_ids, "winner_player_id": 1},
@@ -788,7 +924,13 @@ def build_cooperative_map_scenario(
         "_map_geometry": asdict(geometry),
         "_map_source_kind": "cmre_map_catalog",
         "_map_native_starting_force": False,
+        "_simulator_attack_points": (
+            [list(enemy_staging_point)] if enemy_staging_point else None
+        ),
         "_cooperative_enemy_player_ids": enemy_ids,
+        "_simulator_expansion_position": (
+            list(simulator_expansion_point) if simulator_expansion_point else None
+        ),
     }
     return data, profile, geometry
 

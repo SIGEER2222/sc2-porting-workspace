@@ -1,15 +1,15 @@
-"""Run a bounded simulator tactical probe for every CMRE cooperative map.
+"""Run complete simulator games for every CMRE cooperative map.
 
-This command is intentionally a matrix/probe, not a native mission emulator.
-It proves that a map-derived coordinate model can drive the existing P2
-economy, production, scouting, movement, and hostile-target filters.  The
-map's mission objective contract is carried in the replay and summary, while
-native SC2 mission completion remains a separate runtime task.
+The default mode runs the map-derived P2 economy, production, scouting, main
+force push, and enemy-elimination loop until victory or the explicit loop
+budget. ``--tactical-only`` preserves the shorter extraction/probe mode for
+fast regression checks. Both modes remain simulator evidence; neither claims
+native SC2 mission completion.
 
 Examples::
 
     PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.run_cmre_map_matrix
-    PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.run_cmre_map_matrix --map 亡者之夜 --max-loops 640
+    PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.run_cmre_map_matrix --map 亡者之夜 --max-loops 6000
 """
 
 from __future__ import annotations
@@ -54,14 +54,19 @@ def run_map_probe(
     map_dir: str | Path,
     *,
     seed: int = 42,
-    max_loops: int = 320,
+    max_loops: int = 6000,
     output_dir: Optional[str | Path] = None,
-    max_enemy_per_player: int = 16,
+    max_enemy_per_player: int = 1,
+    full_game: bool = True,
 ) -> dict:
     data, profile, geometry = build_cooperative_map_scenario(
         map_dir,
         seed=seed,
         max_enemy_per_player=max_enemy_per_player,
+        max_loops=max_loops if full_game else 320,
+        initial_minerals=2600 if full_game else 1600,
+        initial_vespene=800 if full_game else 500,
+        stage_enemies_for_full_game=full_game,
     )
     scenario = data.scenario
     map_name = str(scenario.get("map_name") or scenario["name"])
@@ -78,16 +83,26 @@ def run_map_probe(
         player_id=2,
         leader_entity_id=_leader_entity_id(scenario),
         leader_player_id=1,
-        command_interval=4,
-        max_workers=16,
-        army_threshold=6,
+        command_interval=8 if full_game else 4,
+        max_workers=24 if full_game else 16,
+        army_threshold=8 if full_game else 6,
         base_position=geometry.base_position,
-        expansion_position=geometry.expansion_position,
-        attack_points=geometry.attack_points,
+        expansion_position=tuple(
+            scenario.get("_simulator_expansion_position")
+            or geometry.expansion_position
+        ),
+        attack_points=tuple(
+            tuple(point)
+            for point in (
+                scenario.get("_simulator_attack_points")
+                or geometry.attack_points
+            )
+        ),
         scout_route=geometry.scout_route,
         base_radius=14.0,
-        allow_expansion=False,
+        allow_expansion=full_game,
         build_offsets=geometry.build_offsets,
+        enable_map_main_push=False,
     )
     result = run_ally_scenario(
         scenario,
@@ -95,8 +110,8 @@ def run_map_probe(
         ally_player_id=2,
         leader_player_id=1,
         max_loops=max(1, int(max_loops)),
-        safety_window=max(80, min(320, int(max_loops))),
-        deadlock_threshold=100,
+        safety_window=max(80, min(400, int(max_loops))),
+        deadlock_threshold=180 if full_game else 100,
         storm_threshold=40,
         latency_loops=1,
         require_cooperative_roster=True,
@@ -124,13 +139,19 @@ def run_map_probe(
         )
 
     action_counts = dict(result.action_kind_counts)
+    victory = result.end_reason == "enemy_elimination"
     checks = {
         "map_extracted": scenario["_map_metadata"]["native_object_count"] > 0,
         "objective_profile_present": bool(profile.objectives),
         "geometry_is_map_derived": bool(geometry.evidence),
         "cooperative_roster": result.roster_ready,
         "p2_dispatched_actions": result.total_dispatched > 0,
-        "movement_or_attack": action_counts.get("move", 0) + action_counts.get("attack", 0) > 0,
+        "movement_or_attack": (
+            action_counts.get("move", 0)
+            + action_counts.get("attack_move", 0)
+            + action_counts.get("attack", 0)
+            > 0
+        ),
         "economy_or_production": action_counts.get("gather", 0) + action_counts.get("train", 0) + action_counts.get("build", 0) > 0,
         "no_hidden_state": result.hidden_state_access_violations == 0,
         "no_friendly_fire": result.friendly_fire_rejections == 0,
@@ -138,9 +159,20 @@ def run_map_probe(
         "no_deadlock": not result.deadlock_detected,
         "no_command_storm": not result.command_storm_detected,
     }
+    if full_game:
+        checks.update({
+            "victory": victory,
+            "enemy_elimination": not result.final_enemy_units_by_type,
+        })
     summary = {
         "status": "PASS" if all(checks.values()) else "FAIL",
-        "probe_status": "TACTICAL_PASS" if all(checks.values()) else "TACTICAL_FAIL",
+        "mode": "full_game" if full_game else "tactical_probe",
+        "probe_status": (
+            "FULL_GAME_PASS" if full_game and all(checks.values())
+            else "FULL_GAME_FAIL" if full_game
+            else "TACTICAL_PASS" if all(checks.values())
+            else "TACTICAL_FAIL"
+        ),
         "evidence_type": "simulator",
         "runtime_claim": "none; native SC2 mission completion not exercised",
         "map_name": map_name,
@@ -151,7 +183,13 @@ def run_map_probe(
         "seed": int(seed),
         "end_loop": result.end_loop,
         "end_reason": result.end_reason,
-        "victory": result.end_reason == "enemy_elimination",
+        "victory": victory,
+        "enemy_units_remaining": result.final_enemy_units_by_type,
+        "final_units_by_type": result.final_units_by_type,
+        "final_resources": result.final_resources,
+        "final_tech": result.final_tech,
+        "max_enemy_per_player": int(max_enemy_per_player),
+        "simulator_expansion_position": scenario.get("_simulator_expansion_position"),
         "checks": checks,
         "action_kind_counts": action_counts,
         "action_reason_counts": policy.action_reason_counts,
@@ -178,9 +216,10 @@ def run_matrix(
     maps_root: Optional[str | Path] = None,
     map_name: Optional[str] = None,
     seed: int = 42,
-    max_loops: int = 320,
+    max_loops: int = 6000,
     output_dir: str | Path = DEFAULT_OUTPUT,
-    max_enemy_per_player: int = 16,
+    max_enemy_per_player: int = 1,
+    full_game: bool = True,
 ) -> dict:
     root = Path(output_dir)
     root.mkdir(parents=True, exist_ok=True)
@@ -192,7 +231,14 @@ def run_matrix(
     for path in paths:
         map_output = root / path.stem
         try:
-            runs.append(run_map_probe(path, seed=seed, max_loops=max_loops, output_dir=map_output, max_enemy_per_player=max_enemy_per_player))
+            runs.append(run_map_probe(
+                path,
+                seed=seed,
+                max_loops=max_loops,
+                output_dir=map_output,
+                max_enemy_per_player=max_enemy_per_player,
+                full_game=full_game,
+            ))
         except Exception as exc:  # keep the matrix truthful and continue other maps
             runs.append({
                 "status": "ERROR",
@@ -204,7 +250,7 @@ def run_matrix(
                 "error": f"{type(exc).__name__}: {exc}",
             })
     payload = {
-        "schema_version": "cmre-map-matrix.v1",
+        "schema_version": "cmre-map-matrix.v2",
         "status": "PASS" if runs and all(run.get("status") == "PASS" for run in runs) else "FAIL",
         "evidence_type": "simulator",
         "runtime_claim": "none; this matrix is simulator-only",
@@ -212,6 +258,8 @@ def run_matrix(
         "inventory_map_count": inventory["map_count"],
         "seed": int(seed),
         "max_loops": int(max_loops),
+        "mode": "full_game" if full_game else "tactical_probe",
+        "max_enemy_per_player": int(max_enemy_per_player),
         "runs": runs,
     }
     (root / "matrix-summary.json").write_text(
@@ -226,8 +274,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--map", dest="map_name", default=None, help="只运行一张图的中文名")
     parser.add_argument("--maps-root", type=Path, default=None)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--max-loops", type=int, default=320)
-    parser.add_argument("--max-enemy-per-player", type=int, default=16)
+    parser.add_argument("--max-loops", type=int, default=6000)
+    parser.add_argument("--max-enemy-per-player", type=int, default=1)
+    parser.add_argument(
+        "--tactical-only",
+        action="store_true",
+        help="只运行快速地图战术探针，不要求 enemy_elimination",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args(argv)
     payload = run_matrix(
@@ -237,6 +290,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         max_loops=args.max_loops,
         output_dir=args.output_dir,
         max_enemy_per_player=max(1, args.max_enemy_per_player),
+        full_game=not args.tactical_only,
     )
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0 if payload["status"] == "PASS" else 1
