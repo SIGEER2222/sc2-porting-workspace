@@ -32,11 +32,11 @@
       "severity": "medium",
       "status": "open",
       "title": "Dead of Night Objects has no native P1/P2 units",
-      "detail": "The source map contains one ACHeroSpawnPlacement for P1 at (85,94) and one for P2 at (76,103), but no native P1/P2 ObjectUnit force. The strict map-derived replay therefore injects zero units and cannot claim a P2 movement/combat dispatch. P1 commands and P2 text acknowledgements are recorded, while native P2 action validation remains a separate gap.",
+      "detail": "The source map contains one ACHeroSpawnPlacement for P1 at (85,94) and one for P2 at (76,103), but no native P1/P2 ObjectUnit force. The strict map-derived replay therefore injects zero units and intentionally makes no P2 movement/combat claim. Native P2 initialization, P1 commands, P2-owned state changes, acknowledgements, and signals are proven separately by the staged single-client Computer-ally runtime path.",
       "evidence_type": "simulator",
       "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-replay-20260802/map-scenario-source.json",
       "owner": "stage25",
-      "nextAction": "Use a separately documented runtime/commander initialization source to supply the real P1/P2 forces before claiming native P2 action success; do not add fixture units to this map-derived replay."
+      "nextAction": "Keep the strict map-derived replay free of fixture units; use the staged runtime replay for P2 action evidence and retain this limitation when presenting source-map-only projection results."
     },
     {
       "id": "WEBUI-LIVE-INVOKE-UNVERIFIED",
@@ -210,12 +210,12 @@
       "severity": "medium",
       "status": "open",
       "title": "HTML replay is map-accurate projection, not native SC2 rendering",
-      "detail": "The single-file player now embeds each source Minimap.tga, projects all extracted ObjectUnits into its non-black content rectangle, and renders dynamic P1/P2/enemy coordinates over that terrain. It still cannot reproduce SC2 3D unit models, animation, lighting, fog of war, exact building footprints, attack effects, or native camera/UI behavior.",
+      "detail": "The single-file player now embeds each source Minimap.tga, projects all extracted ObjectUnits into its non-black content rectangle, renders dynamic P1/P2/enemy coordinates, and uses project-owned Catalog CFootprint geometry where exact rows are available. Missing base-game/CASC icons remain explicitly unavailable rather than fabricated. It still cannot reproduce SC2 3D unit models, animation, lighting, fog of war, attack effects, or native camera/UI behavior.",
       "evidence_type": "browser",
-      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/browser-projection-smoke.png",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/browser-projection-smoke-20260803-v2.json",
       "owner": "stage25",
-      "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-20260803-v2/亡者之夜/state-driven-player.html",
-      "nextAction": "Keep native .SC2Replay as the only one-to-one renderer. For HTML, next add source Catalog model/icon assets and replay-derived combat/death markers without presenting inferred footprint anchors as exact geometry."
+      "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-20260803-v3/full-map-player.html",
+      "nextAction": "Keep native .SC2Replay as the only one-to-one renderer. Future HTML work is limited to resolvable source model/icon assets and replay-derived combat/death markers; do not present unavailable CASC assets or inferred geometry as exact."
     }
   ]
 }

@@ -32,6 +32,7 @@ from vibe.native_task import (  # noqa: E402
     run_native_task,
 )
 from vibe.replay_player import (  # noqa: E402
+    _load_catalog_visuals,
     _load_minimap_asset,
     _projection_report,
     load_replay,
@@ -827,6 +828,71 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
             self.assertIn("原生 P2 单位: 0", html)
             self.assertIn("worldToCanvas(e.x, e.y)", html)
             self.assertNotIn("e.source_x ?? e.x", html)
+
+    def test_catalog_visuals_use_source_footprints_and_truthful_icon_fallbacks(self):
+        map_path = REPO_ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "亡者之夜.SC2Map"
+        data, _, _ = build_cooperative_map_scenario(map_path, max_enemy_per_player=1)
+        metadata = data.scenario["_map_metadata"]
+        visuals = _load_catalog_visuals(
+            metadata,
+            Path("artifacts") / "catalog-visual-probe.jsonl",
+            metadata["static_objects"],
+            [],
+        )
+
+        report = visuals["report"]
+        self.assertTrue(report["checks"]["repo_relative_sources"])
+        self.assertTrue(report["checks"]["missing_icons_have_no_fake_data"])
+        self.assertGreater(report["exact_footprint_count"], 0)
+        self.assertEqual(visuals["entries"]["CommandCenter"]["footprint"]["status"], "exact")
+        self.assertEqual(visuals["entries"]["CommandCenter"]["footprint"]["width"], 5)
+        self.assertEqual(visuals["entries"]["CommandCenter"]["footprint"]["height"], 5)
+        marine_icon = visuals["entries"]["Marine"].get("icon")
+        self.assertIsNotNone(marine_icon)
+        self.assertEqual(marine_icon["status"], "referenced_unavailable")
+        self.assertNotIn("data_url", marine_icon)
+
+        custom_icon = _load_catalog_visuals(
+            metadata,
+            Path("artifacts") / "catalog-icon-probe.jsonl",
+            [{"t": "3baixinghao", "x": 1.0, "y": 1.0, "p": 4}],
+            [],
+        )
+        self.assertEqual(custom_icon["report"]["embedded_icon_count"], 1)
+        self.assertTrue(custom_icon["entries"]["3baixinghao"]["icon"]["data_url"].startswith("data:image/png;base64,"))
+
+    def test_catalog_visuals_are_embedded_in_dynamic_player_with_fallback_path(self):
+        map_path = REPO_ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "亡者之夜.SC2Map"
+        data, _, _ = build_cooperative_map_scenario(map_path, max_enemy_per_player=1)
+        metadata = data.scenario["_map_metadata"]
+        records = [
+            {
+                "record_type": "header",
+                "map_metadata": metadata,
+                "owner_roles": {"1": {"relation": "leader"}, "2": {"relation": "ally"}},
+            },
+            {
+                "record_type": "frame",
+                "loop": 0,
+                "entities_by_player": {"1": [], "2": [{"id": 1, "p": 2, "t": "Marine", "x": 76.0, "y": 103.0, "hp": 46080, "alive": True}]},
+                "p1_alive": 0,
+                "p2_alive": 1,
+                "enemy_alive": 0,
+            },
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            replay_path = Path(directory) / "catalog-replay.jsonl"
+            html_path = Path(directory) / "full-map-player.html"
+            render_player_html(records, replay_path, html_path)
+            html = html_path.read_text(encoding="utf-8")
+
+        self.assertIn("const CATALOG_VISUALS = ", html)
+        self.assertIn("drawExactFootprint", html)
+        self.assertIn("const ICON_IMAGES = {}", html)
+        self.assertIn("referenced_unavailable", html)
+        self.assertIn("visualFor(e.t).footprint?.status", html)
+        self.assertIn("requestAnimationFrame(tick);", html)
+        self.assertNotIn("else {\n    lastTs = ts;\n  }\n  requestAnimationFrame(tick);", html)
 
     def test_cmre_map_replay_embeds_source_minimap_and_content_projection(self):
         map_path = REPO_ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "克哈裂痕.SC2Map"

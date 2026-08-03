@@ -22,9 +22,11 @@ import argparse
 import base64
 import binascii
 import html
+import io
 import json
 import struct
 import zlib
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Optional
 
@@ -177,6 +179,259 @@ def _resolve_repo_path(value: str | Path, jsonl_path: Path) -> Path | None:
         Path.cwd() / candidate,
     )
     return next((path for path in candidates if path.is_file()), None)
+
+
+def _resolve_repo_dir(value: str | Path, jsonl_path: Path) -> Path | None:
+    candidate = Path(value)
+    repo_root = Path(__file__).resolve().parents[4]
+    candidates = []
+    if candidate.is_absolute():
+        candidates.append(candidate)
+    candidates.extend((repo_root / candidate, jsonl_path.resolve().parent / candidate, Path.cwd() / candidate))
+    return next((path for path in candidates if path.is_dir()), None)
+
+
+def _repo_relative_path(path: Path) -> str:
+    repo_root = Path(__file__).resolve().parents[4]
+    try:
+        return path.resolve().relative_to(repo_root).as_posix()
+    except ValueError:
+        return path.name
+
+
+def _catalog_source_files(map_dir: Path | None) -> list[Path]:
+    """Return project-owned Catalog files in map-first overlay order.
+
+    The map's own overrides are considered before the reusable CMRE/runtime
+    packages.  This is an audit view, not a replacement for SC2's full
+    dependency resolver: inherited base-game values remain explicitly absent.
+    """
+
+    files: list[Path] = []
+    catalog_prefixes = ("UnitData", "FootprintData", "ActorData", "ButtonData", "ModelData")
+    if map_dir is not None:
+        game_data = map_dir / "Base.SC2Data" / "GameData"
+        files.extend(
+            sorted(
+                path
+                for path in game_data.glob("*.xml")
+                if path.name.startswith(catalog_prefixes)
+            )
+        )
+    repo_root = Path(__file__).resolve().parents[4]
+    packages = repo_root / "src" / "projects" / "cmre-porting" / "packages"
+    if packages.is_dir():
+        files.extend(
+            sorted(
+                path
+                for path in packages.rglob("*.xml")
+                if path.is_file()
+                and "Base.SC2Data" in path.parts
+                and "GameData" in path.parts
+                and "Mods" in path.parts
+                and path.name.startswith(catalog_prefixes)
+            )
+        )
+    seen: set[Path] = set()
+    return [path for path in files if not (path in seen or seen.add(path))]
+
+
+def _xml_value(node: ET.Element | None, name: str) -> str | None:
+    child = node.find(name) if node is not None else None
+    if child is None:
+        return None
+    return child.get("value")
+
+
+def _parse_footprint_defs(files: list[Path]) -> dict[str, dict]:
+    definitions: dict[str, dict] = {}
+    for path in files:
+        if "FootprintData" not in path.name:
+            continue
+        try:
+            root = ET.parse(path).getroot()
+        except (ET.ParseError, OSError):
+            continue
+        for footprint in root.findall("CFootprint"):
+            footprint_id = footprint.get("id")
+            if not footprint_id or footprint_id in definitions:
+                continue
+            layers = footprint.findall("Layers")
+            place_layer = next(
+                (layer for layer in layers if layer.get("index") == "Place"),
+                layers[0] if layers else None,
+            )
+            rows = [row.get("value", "") for row in (place_layer.findall("Rows") if place_layer is not None else [])]
+            rows = [row for row in rows if row]
+            width = max((len(row) for row in rows), default=0)
+            height = len(rows)
+            shape = footprint.find("Shape")
+            definitions[footprint_id] = {
+                "id": footprint_id,
+                "status": "exact" if width and height else "catalog_only",
+                "width": width or None,
+                "height": height or None,
+                "rows": rows,
+                "radius": _xml_value(shape, "Radius"),
+                "source_path": _repo_relative_path(path),
+            }
+    return definitions
+
+
+def _catalog_asset_path(asset_ref: str | None, catalog_file: Path) -> Path | None:
+    if not asset_ref:
+        return None
+    normalized = asset_ref.replace("\\", "/").lstrip("/")
+    if not normalized or normalized.startswith("../") or ":" in normalized:
+        return None
+    mod_root = next((parent for parent in catalog_file.parents if parent.name.lower().endswith(".sc2mod")), None)
+    candidates = []
+    if mod_root is not None:
+        candidates.append(mod_root / normalized)
+    candidates.extend((catalog_file.parent / normalized, catalog_file.parent.parent / normalized))
+    return next((candidate for candidate in candidates if candidate.is_file()), None)
+
+
+def _image_data_url(path: Path) -> str | None:
+    """Encode a real Catalog-referenced image without adding generated files."""
+
+    try:
+        if path.suffix.lower() == ".png":
+            payload = path.read_bytes()
+            if payload[:8] != b"\x89PNG\r\n\x1a\n":
+                return None
+        elif path.suffix.lower() == ".tga":
+            payload, _, _ = _tga_to_png(path)
+        elif path.suffix.lower() == ".dds":
+            from PIL import Image
+
+            with Image.open(path) as image:
+                output = io.BytesIO()
+                image.convert("RGBA").save(output, format="PNG")
+                payload = output.getvalue()
+        else:
+            return None
+    except (OSError, ValueError, ImportError):
+        return None
+    if not payload or len(payload) > 2 * 1024 * 1024:
+        return None
+    return "data:image/png;base64," + base64.b64encode(payload).decode("ascii")
+
+
+def _load_catalog_visuals(
+    map_metadata: dict,
+    jsonl_path: Path,
+    static_objects: list[dict],
+    frames: list[dict] | None = None,
+) -> dict:
+    """Build an auditable visual lookup from project Catalog XML.
+
+    Exact geometry is limited to explicit CUnit footprint/radius fields and
+    resolvable CFootprint rows.  Standard base-game values inherited from
+    CASC are intentionally not guessed here.
+    """
+
+    map_dir = _resolve_repo_dir(str(map_metadata.get("map_path", "")), jsonl_path)
+    files = _catalog_source_files(map_dir)
+    footprint_defs = _parse_footprint_defs(files)
+    requested = {str(obj.get("t", "")) for obj in static_objects if obj.get("t")}
+    for frame in frames or []:
+        for entities in (frame.get("entities_by_player") or {}).values():
+            requested.update(str(entity.get("t", "")) for entity in entities if entity.get("t"))
+
+    entries: dict[str, dict] = {}
+    icon_candidates: dict[str, list[dict]] = {}
+    source_files: list[str] = []
+    for path in files:
+        try:
+            root = ET.parse(path).getroot()
+        except (ET.ParseError, OSError):
+            continue
+        relative = _repo_relative_path(path)
+        source_files.append(relative)
+        for unit in root.findall("CUnit") + root.findall("CUnitHero"):
+            unit_id = unit.get("id")
+            if not unit_id:
+                continue
+            entry = entries.setdefault(unit_id, {"unit_type": unit_id, "declarations": []})
+            declaration = {"source_path": relative}
+            for field in ("Footprint", "PlacementFootprint", "Radius", "MinimapRadius"):
+                value = _xml_value(unit, field)
+                if value is not None:
+                    declaration[field] = value
+                    entry.setdefault(field, value)
+            entry["declarations"].append(declaration)
+        for actor in root.findall("CActorUnit"):
+            unit_type = actor.get("unitName") or actor.get("id")
+            if not unit_type:
+                continue
+            icon = _xml_value(actor, "UnitIcon") or _xml_value(actor.find("GroupIcon"), "Image")
+            if icon:
+                icon_candidates.setdefault(unit_type, []).append({
+                    "asset": icon,
+                    "source_path": relative,
+                    "asset_path": _catalog_asset_path(icon, path),
+                })
+        for button in root.findall("CButton"):
+            button_id = button.get("id")
+            icon = _xml_value(button, "Icon")
+            if button_id and icon:
+                icon_candidates.setdefault(button_id, []).append({
+                    "asset": icon,
+                    "source_path": relative,
+                    "asset_path": _catalog_asset_path(icon, path),
+                })
+
+    for unit_type in sorted(requested):
+        entry = entries.setdefault(unit_type, {"unit_type": unit_type, "declarations": []})
+        footprint_id = entry.get("Footprint")
+        footprint = footprint_defs.get(footprint_id) if footprint_id else None
+        if footprint is not None:
+            entry["footprint"] = dict(footprint)
+        for field in ("Radius", "MinimapRadius"):
+            if field in entry:
+                try:
+                    entry[field.lower()] = float(entry[field])
+                except (TypeError, ValueError):
+                    pass
+        candidates = icon_candidates.get(unit_type, [])
+        chosen = next((candidate for candidate in candidates if candidate["asset_path"] is not None), None)
+        if chosen is None and candidates:
+            chosen = candidates[0]
+        if chosen:
+            entry["icon"] = {
+                "asset": chosen["asset"],
+                "source_path": chosen["source_path"],
+                "asset_path": _repo_relative_path(chosen["asset_path"]) if chosen["asset_path"] else None,
+                "status": "embedded" if chosen["asset_path"] and _image_data_url(chosen["asset_path"]) else "referenced_unavailable",
+            }
+            if chosen["asset_path"]:
+                data_url = _image_data_url(chosen["asset_path"])
+                if data_url:
+                    entry["icon"]["data_url"] = data_url
+        entry.pop("declarations", None)
+
+    entries = {unit_type: entries[unit_type] for unit_type in sorted(requested)}
+
+    report = {
+        "status": "PASS" if requested and all(unit_type in entries for unit_type in requested) else "PARTIAL",
+        "basis": "project-owned CUnit/CActorUnit/CButton/CFootprint XML; inherited CASC values omitted",
+        "requested_unit_type_count": len(requested),
+        "catalog_entry_count": sum(1 for unit_type in requested if unit_type in entries),
+        "exact_footprint_count": sum(1 for unit_type in requested if entries.get(unit_type, {}).get("footprint", {}).get("status") == "exact"),
+        "embedded_icon_count": sum(1 for unit_type in requested if entries.get(unit_type, {}).get("icon", {}).get("status") == "embedded"),
+        "referenced_unavailable_icon_count": sum(1 for unit_type in requested if entries.get(unit_type, {}).get("icon", {}).get("status") == "referenced_unavailable"),
+        "missing_catalog_types": sorted(unit_type for unit_type in requested if unit_type not in entries),
+        "source_files": sorted(set(source_files)),
+        "checks": {
+            "repo_relative_sources": all(not Path(path).is_absolute() for path in source_files),
+            "missing_icons_have_no_fake_data": all(
+                not entry.get("icon") or entry["icon"].get("status") == "embedded" or "data_url" not in entry["icon"]
+                for entry in entries.values()
+            ),
+        },
+    }
+    return {"entries": entries, "report": report}
 
 
 def _load_minimap_asset(
@@ -379,6 +634,12 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
     static_objects = map_metadata.get("static_objects") or []
     minimap_data_url, minimap_size, minimap_rect = _load_minimap_asset(
         map_metadata, jsonl_path
+    )
+    catalog_visuals = _load_catalog_visuals(
+        map_metadata,
+        jsonl_path,
+        static_objects,
+        frames,
     )
 
     # 计算地图边界（从所有帧的实体位置）
@@ -585,7 +846,8 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
       原生 P2 单位: {_esc(p2_native_spawn_count)}<br>
       地图边界: [{min_x:.1f},{min_y:.1f}] - [{max_x:.1f},{max_y:.1f}]<br>
       地图底图: {_esc(minimap_source_text) if minimap_data_url else "未嵌入"}<br>
-      坐标校准: {_esc(projection_report["status"])} ({projection_report["projected_object_count"]}/{projection_report["static_object_count"]})
+      坐标校准: {_esc(projection_report["status"])} ({projection_report["projected_object_count"]}/{projection_report["static_object_count"]})<br>
+      Catalog 视觉: {_esc(catalog_visuals["report"]["status"])}，精确 footprint {catalog_visuals["report"]["exact_footprint_count"]}，内嵌图标 {catalog_visuals["report"]["embedded_icon_count"]}
     </div>
   </div>
 </div>
@@ -601,6 +863,7 @@ const MAX_HP = {maxhp_json};
 const STATIC_OBJECTS = {json.dumps(static_objects, ensure_ascii=False, separators=(',', ':'))};
 const OBJECTIVES = {json.dumps(objective_profile.get('objectives', []), ensure_ascii=False, separators=(',', ':'))};
 const GEOMETRY = {json.dumps(geometry, ensure_ascii=False, separators=(',', ':'))};
+const CATALOG_VISUALS = {json.dumps(catalog_visuals, ensure_ascii=False, separators=(',', ':'))};
 const MAP_BOUNDS = {{minX: {min_x}, maxX: {max_x}, minY: {min_y}, maxY: {max_y}}};
 const MINIMAP_DATA_URL = {json.dumps(minimap_data_url)};
 const MINIMAP_SIZE = {json.dumps(minimap_size, separators=(',', ':'))};
@@ -638,6 +901,15 @@ let playing = false;
 let speed = 1;
 let lastTs = 0;
 const W = canvas.width, H = canvas.height;
+const ICON_IMAGES = {{}};
+for (const [unitType, visual] of Object.entries(CATALOG_VISUALS.entries || {{}})) {{
+  const dataUrl = visual.icon?.data_url;
+  if (!dataUrl) continue;
+  const image = new Image();
+  image.onload = () => drawFrame(curFrame);
+  image.src = dataUrl;
+  ICON_IMAGES[unitType] = image;
+}}
 
 function worldToCanvas(x, y) {{
   if (MINIMAP_DATA_URL && MINIMAP_SIZE.width && MINIMAP_SIZE.height && MINIMAP_RECT.w) {{
@@ -655,6 +927,27 @@ function worldToCanvas(x, y) {{
 
 function radiusFor(type) {{
   return RADIUS[type] || 3.5;
+}}
+
+function visualFor(type) {{
+  return CATALOG_VISUALS.entries[String(type)] || {{}};
+}}
+
+function drawExactFootprint(type, x, y, color, alpha) {{
+  const footprint = visualFor(type).footprint;
+  if (!footprint || footprint.status !== 'exact' || !footprint.width || !footprint.height) return false;
+  const [left, top] = worldToCanvas(Number(x) - Number(footprint.width) / 2, Number(y) + Number(footprint.height) / 2);
+  const [right, bottom] = worldToCanvas(Number(x) + Number(footprint.width) / 2, Number(y) - Number(footprint.height) / 2);
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(left, top, right - left, bottom - top);
+  return true;
+}}
+
+function iconFor(type) {{
+  const image = ICON_IMAGES[String(type)];
+  return image && image.complete && image.naturalWidth ? image : null;
 }}
 
 function isStaticBuilding(type) {{
@@ -744,11 +1037,8 @@ function drawFrame(idx) {{
       ctx.strokeStyle = color;
       ctx.lineWidth = 0.7;
       ctx.strokeRect(sx - 3.5, sy - 3.5, 7, 7);
-    }} else if (isStaticBuilding(type)) {{
-      const footprint = Math.max(3.5, Math.min(11, radiusFor(type) * 0.75));
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(sx - footprint, sy - footprint, footprint * 2, footprint * 2);
+    }} else if (!drawExactFootprint(type, Number(object.x), Number(object.y), color, 0.3)) {{
+      ctx.beginPath(); ctx.arc(sx, sy, 2.2, 0, 2*Math.PI); ctx.fill();
     }} else {{
       ctx.beginPath(); ctx.arc(sx, sy, 2.2, 0, 2*Math.PI); ctx.fill();
     }}
@@ -789,12 +1079,24 @@ function drawFrame(idx) {{
         ctx.fillRect(cx-r, cy-r, r*2, r*2);
         continue;
       }}
-      // 圆点
-      ctx.fillStyle = color;
-      ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2*Math.PI); ctx.fill();
+      // Catalog 有真实图标时嵌入图标；缺失时保留阵营色点位。
+      drawExactFootprint(e.t, e.x, e.y, color, 0.75);
+      const icon = iconFor(e.t);
+      if (icon) {{
+        ctx.globalAlpha = 0.95;
+        ctx.drawImage(icon, cx-r, cy-r, r*2, r*2);
+        ctx.globalAlpha = 1.0;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.arc(cx, cy, r+0.5, 0, 2*Math.PI); ctx.stroke();
+      }} else {{
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2*Math.PI); ctx.fill();
+      }}
+      ctx.globalAlpha = 1.0;
       // 建筑加边框
       const isBuilding = ['CommandCenter','Barracks','Factory','Starport','SupplyDepot','Bunker','EngineeringBay','MissileTurret','SensorTower','Refinery','Pylon','PhotonCannon','SpineCrawler','SporeCrawler'].includes(e.t);
-      if (isBuilding) {{
+      if (isBuilding && visualFor(e.t).footprint?.status !== 'exact') {{
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 0.8;
         ctx.beginPath(); ctx.arc(cx, cy, r+1, 0, 2*Math.PI); ctx.stroke();
@@ -991,8 +1293,6 @@ function tick(ts) {{
     }}
     document.getElementById('timeline').value = curFrame;
     drawFrame(curFrame);
-    lastTs = ts;
-  }} else {{
     lastTs = ts;
   }}
   requestAnimationFrame(tick);

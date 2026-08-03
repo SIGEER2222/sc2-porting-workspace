@@ -1065,3 +1065,53 @@ Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/full-map-player.html`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/browser-projection-smoke.png`,
 `src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py`.
+
+## Verification Loop 2026-08-03 Catalog Visuals and Fresh Browser Replay Checks
+
+- `simulator`: fresh strict map-derived 克哈裂痕 output is PASS with source map
+  hash/geometry resolved from `src/projects/cmre-porting/packages/Maps/克哈裂痕.SC2Map`;
+  the replay contains 1621 map ObjectUnits and its HTML is
+  `map-derived-keha-20260803-v2/克哈裂痕/state-driven-player.html`.
+- `simulator`: fresh strict map-derived 亡者之夜 output is PASS with
+  `enemy_elimination`, zero simulator errors, and 1319 source ObjectUnits;
+  the HTML is `map-derived-dead-of-night-20260803-v3/full-map-player.html`.
+- `browser`: Chrome headless loaded both fresh HTML files from `file:///` with
+  `mapImageReady=true`, non-empty Canvas pixels, zero page/console/request
+  errors, and automatic `togglePlay()` advanced both timelines `0 -> 6`;
+  `stepFrame(1)` then advanced them `6 -> 7`. The projection report is PASS
+  for 1621/1621 克哈裂痕 objects and 1319/1319 亡者之夜 objects. The
+  embedded Catalog report is PASS with exact source footprints and truthful
+  unavailable-icon fallbacks.
+- `static`: Stage 25 focused tests passed `26`; the Stage 19/20/25 combined
+  regression passed `35` tests with `3` subtests; the changed modules compile,
+  `git diff --check` is clean, and `run-all-validation.ps1` passed `52/52`
+  with zero warnings.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-keha-20260803-v2/克哈裂痕/replay.jsonl`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-keha-20260803-v2/克哈裂痕/state-driven-player.html`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-20260803-v3/replay.jsonl`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-20260803-v3/full-map-player.html`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/browser-projection-smoke-20260803-v2.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/browser-projection-keha-20260803-v2.png`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/browser-projection-dead-of-night-20260803-v3.png`,
+`artifacts/galaxy-vibe/static-validation-report.json`.
+
+## Verification Loop 2026-08-03 Playback Accumulation Fix
+
+- `static`: fixed the HTML player's animation clock so sub-33ms
+  `requestAnimationFrame` callbacks accumulate elapsed time instead of
+  resetting `lastTs` on every callback. This was the cause of the previously
+  non-moving automatic playback; manual `stepFrame` was unaffected.
+- `browser`: regenerated both map HTML files and verified the real browser
+  path: 克哈裂痕 `togglePlay()` moved frame `0 -> 6`, then `stepFrame(1)` moved
+  `6 -> 7`; 亡者之夜 produced the same transitions. No page, console, or
+  request errors occurred.
+- `static`: the new playback regression assertion and the full Stage 25 plus
+  Stage 19/20 regression passed; `py_compile`, `git diff --check`, and the
+  `52/52` static validation gate also passed.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/browser-projection-smoke-20260803-v2.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-keha-20260803-v2/克哈裂痕/state-driven-player.html`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-20260803-v3/full-map-player.html`.
