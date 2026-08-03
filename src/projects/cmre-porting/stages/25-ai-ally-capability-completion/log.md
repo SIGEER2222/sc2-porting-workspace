@@ -1185,3 +1185,23 @@ Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-keha-20260803-full-v5/克哈裂痕/replay.jsonl`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-keha-20260803-full-v5/克哈裂痕/state-driven-player.html`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/browser-keha-full-v5.png`.
+
+## Verification Loop 2026-08-03 Post-Rebase Full-Game Regression
+
+- `simulator`: the current merged code passed the strict map-derived 克哈裂痕
+  victory regression. The 64-enemy run reached `enemy_elimination` with
+  `victory=true`, zero remaining enemies, and zero simulator errors; the
+  phase assertion accepts repeated defense/cleanup waves while requiring the
+  ordered `defend -> cleanup -> pressure` progression.
+- `simulator`: the full Ladder suite passed `4` tests. Generic LadderAI
+  reached enemy elimination across the victory and deterministic multi-seed
+  tests, and the default JSONL plus single-file HTML replay export passed.
+- `static`: the follow-up change limits public-observation
+  structure-footprint suppression to map-adapter instances, preserving the
+  generic Ladder path. The changed modules and stage documents were then
+  checked with `py_compile`, JSON parsing, and `git diff --check`.
+
+Evidence:
+`src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py`,
+`src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ladder_ai.py`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-keha-20260803-full-v5/克哈裂痕/run-summary.json`.

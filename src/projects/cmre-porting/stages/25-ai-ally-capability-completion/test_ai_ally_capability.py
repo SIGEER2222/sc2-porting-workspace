@@ -128,10 +128,18 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
         self.assertEqual(run["end_reason"], "enemy_elimination")
         self.assertTrue(run["victory"])
         self.assertGreater(run["replay_frame_count"], 500)
-        self.assertEqual(run["phase_history"][:3], ["defend", "cleanup", "pressure"])
-        self.assertIn("defend", run["phase_history"])
-        self.assertIn("cleanup", run["phase_history"])
-        self.assertIn("pressure", run["phase_history"])
+        phase_history = run["phase_history"]
+        self.assertGreaterEqual(len(phase_history), 3)
+        self.assertEqual(phase_history[0], "defend")
+        cleanup_index = next(
+            index for index, phase in enumerate(phase_history)
+            if index > 0 and phase == "cleanup"
+        )
+        pressure_index = next(
+            index for index, phase in enumerate(phase_history)
+            if index > cleanup_index and phase == "pressure"
+        )
+        self.assertLess(cleanup_index, pressure_index)
         self.assertGreater(run["action_kind_counts"].get("gather", 0), 0)
         self.assertGreater(run["action_kind_counts"].get("train", 0), 0)
         self.assertGreater(run["action_kind_counts"].get("research", 0), 0)

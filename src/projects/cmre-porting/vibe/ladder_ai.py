@@ -737,6 +737,8 @@ class LadderAI(AllyPolicy):
         state or a teleport-like correction.
         """
 
+        if not self._map_adapter_mode:
+            return False
         return any(
             self._dist(float(unit.get("x", 0.0)), float(unit.get("y", 0.0)), x, y) <= 2.5
             for x, y in self._last_observation_structure_points
