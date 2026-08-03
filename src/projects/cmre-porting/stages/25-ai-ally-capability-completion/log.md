@@ -1115,3 +1115,15 @@ Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/browser-projection-smoke-20260803-v2.json`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-keha-20260803-v2/克哈裂痕/state-driven-player.html`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-20260803-v3/full-map-player.html`.
+
+## Verification Loop 2026-08-03 Imported Map Debug Tool Documentation
+
+- `static`: copied the user-provided `地图调试和斗蛐蛐工具（完整功能版).SC2Map` and legacy `.doc` into the stage artifact import directory; the copied map SHA-256 matches the download source.
+- `static`: opened the legacy `.doc` read-only through Word COM, extracted 294 paragraphs, and exported 41 embedded screenshots. The AI-readable Markdown keeps the extracted text in document order and links all 41 valid JPG/PNG files.
+- `static`: strict Markdown checks found 41/41 image links present, zero control characters, and all 41 exported images decodable. A representative exported screenshot was visually inspected.
+- `static`: the imported map remains an artifact/read-only input and was not promoted into the canonical `packages` tree; no runtime behavior claim is made for this import.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/imports/地图调试和斗蛐蛐工具（完整功能版）/地图调试和斗蛐蛐工具（完整功能版).SC2Map`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/imports/地图调试和斗蛐蛐工具（完整功能版）/地图调试和斗蛐蛐工具（完整功能版)说明文档.md`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/imports/地图调试和斗蛐蛐工具（完整功能版）/images/`.

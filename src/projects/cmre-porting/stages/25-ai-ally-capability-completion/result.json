@@ -156,7 +156,8 @@
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/native-live-replay.jsonl",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/native-live-replay.SC2Replay",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/full-map-player.html",
-    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/script-error-verdict.json"
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/script-error-verdict.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/imports/地图调试和斗蛐蛐工具（完整功能版）/"
   ],
   "validation": [
     {"evidence_type": "simulator", "command": "inline Python run_ally_scenario for seeds 42, 7, 99", "status": "PASS", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/simulator-multiseed.json"},
@@ -279,6 +280,7 @@
     {"evidence_type": "browser", "command": "Chrome headless file replay smoke + Canvas pixel census + Catalog/projection report + togglePlay + stepFrame(1)", "status": "PASS", "detail": "Both regenerated map HTML files loaded with mapImageReady=true, non-empty Canvas pixels, zero page/console/request errors, and automatic playback advanced 0->6 before stepFrame advanced 6->7. Projection passed 1621/1621 克哈裂痕 objects and 1319/1319 亡者之夜 objects; Catalog visuals passed with exact footprints and truthful unavailable-icon fallbacks.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/browser-projection-smoke-20260803-v2.json"},
     {"evidence_type": "static", "command": "py -3.13 -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py", "status": "PASS", "detail": "26 Stage 25 tests passed.", "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py"},
     {"evidence_type": "static", "command": "py -3.13 -m pytest -q Stage 25 + Stage 19 + Stage 20", "status": "PASS", "detail": "35 tests passed with 3 subtests; py_compile and git diff --check also passed.", "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py"},
+    {"evidence_type": "static", "command": "Word COM read-only extraction + strict Markdown/image validation + SHA-256 source comparison", "status": "PASS", "detail": "The imported legacy .doc yielded 294 paragraphs and 41 embedded screenshots; the generated Markdown has 41/41 existing image links, zero control characters, all 41 images decode successfully, and the copied SC2Map hash matches the download source.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/imports/地图调试和斗蛐蛐工具（完整功能版）/地图调试和斗蛐蛐工具（完整功能版)说明文档.md"},
     {"evidence_type": "static", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1", "status": "PASS", "detail": "52/52 Galaxy/Vibe static checks passed with zero warnings.", "evidence": "artifacts/galaxy-vibe/static-validation-report.json"}
   ],
   "issues": [
@@ -286,7 +288,8 @@
     "The strict map-derived replay intentionally contains no injected P1/P2 force; native P2 units and actions are proven separately by the v13 staged map with mission-owned startup glue.",
     "The ladder full-game result is simulator-only and uses a documented bounded initial resource fixture (2600 minerals / 800 vespene); it validates strategy capability and victory closure, not native SC2 balance or timing.",
     "Debug VM visual handlers returned applied=true, but the ApiMinimal screenshot was all black; model/scale/tint/opacity on-screen presentation remains unverified.",
-    "The approved DirectMap+API path still crashes before listen, while DirectMap without a lobby exposes P2 as PlayerType 0; these alternate launch paths remain blocked but do not block the approved ApiMinimal Computer-ally path."
+    "The approved DirectMap+API path still crashes before listen, while DirectMap without a lobby exposes P2 as PlayerType 0; these alternate launch paths remain blocked but do not block the approved ApiMinimal Computer-ally path.",
+    "The user-provided map and legacy manual are archived under the stage import artifact; the Markdown preserves extracted text and 41 screenshot references, while the map remains a read-only input rather than a canonical package."
   ],
   "next_stage_plan": null
 }
