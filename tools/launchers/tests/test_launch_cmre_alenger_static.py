@@ -73,6 +73,7 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
     wait_body = _function_body(source, "Wait-CmreRuntimeListener")
     script_error_body = _function_body(source, "Get-CmreNewScriptErrorFiles")
     map_glue = (ASSETS / "map-glue.dead-of-night.galaxy").read_text(encoding="utf-8-sig")
+    generic_map_glue = (ASSETS / "map-glue.generic.galaxy").read_text(encoding="utf-8-sig")
 
     assert "Reset-CmreRuntimeListenerBank" in source
     assert "Wait-CmreRuntimeListener" in source
@@ -98,6 +99,8 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
     # after Windows PowerShell code-page conversion.
     assert '$isDeadOfNight = $mapScript.Contains("gv_day_Duration_First")' in observer_overlay_body
     assert '$fragmentName = if ($isDeadOfNight) { "map-glue.dead-of-night.galaxy" } else { "map-glue.generic.galaxy" }' in observer_overlay_body
+    assert 'tools\\galaxy-vibe\\kernel' in observer_overlay_body
+    assert 'using registered shared kernel for $MapName' in observer_overlay_body
     assert "MeleeInitUnitsForPlayer(2, lv_p2Race, lv_p2Start);" in map_glue
     assert "MeleeInitResourcesForPlayer(2, lv_p2Race);" in map_glue
     assert "AIMeleeStart(2);" in map_glue
@@ -107,6 +110,19 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
     assert "TriggerExecute(gt_CmreOnDemandComputerAllyReady, false, true);" in map_glue
     assert "p2_starting_units_initialized" in map_glue
     assert "P1 remains owned by CMRE commander" in map_glue
+    # Generic CMRE maps must expose the same P1 -> P2 Computer contract. The
+    # Dead of Night fragment has mission-specific polling, but native ally
+    # startup and chat forwarding cannot be a map-name special case.
+    for required in [
+        "MeleeInitUnitsForPlayer(2, lv_p2Race, lv_p2Start);",
+        "MeleeInitResourcesForPlayer(2, lv_p2Race);",
+        "AIMeleeStart(2);",
+        "gt_CmreOnDemandAllyChat_Init",
+        "fallback_last_result",
+        "TriggerAddEventTimeElapsed(gt_CmreOnDemandComputerAllyReady, 0.0, c_timeGame);",
+        "TriggerExecute(gt_CmreOnDemandComputerAllyReady, false, true);",
+    ]:
+        assert required in generic_map_glue
     assert "libVibeKernel_gf_RegisterEntryPoints();" in observer_overlay_body
     assert 'libMapModBridge_gf_WriteDebugBank("map_init_entered", 1);' in observer_overlay_body
     assert "Install-CmreTriggerCustomScriptOverlay" in observer_overlay_body

@@ -116,6 +116,69 @@ LIVE_MAP_METADATA = {
 }
 
 
+def _resolve_runtime_map_metadata(map_path: str, runtime_map_name: str) -> dict:
+    """Resolve runtime replay metadata from the matching unpacked CMRE map."""
+
+    metadata = dict(LIVE_MAP_METADATA)
+    metadata["runtime_observation_source"] = "sc2api"
+    metadata["runtime_game_info_map_name"] = runtime_map_name
+    metadata["runtime_input_map_path"] = str(map_path)
+    try:
+        from .cmre_map_catalog import build_cooperative_map_scenario, list_cmre_maps
+
+        label = runtime_map_name
+        if label.startswith("[CM] "):
+            label = label[5:]
+        source_map = next(
+            (
+                candidate
+                for candidate in list_cmre_maps()
+                if candidate.stem == label
+                or candidate.name == label
+                or candidate.stem.startswith(label)
+            ),
+            None,
+        )
+        if source_map is None:
+            raise FileNotFoundError(f"CMRE source map not found for runtime map {runtime_map_name!r}")
+        data, _, _ = build_cooperative_map_scenario(source_map, max_enemy_per_player=1)
+        metadata = dict(data.scenario["_map_metadata"])
+        metadata["runtime_observation_source"] = "sc2api"
+        metadata["runtime_game_info_map_name"] = runtime_map_name
+        metadata["runtime_input_map_path"] = str(map_path)
+        metadata["runtime_source_map_resolved"] = True
+    except Exception as exc:
+        metadata["runtime_source_map_resolved"] = False
+        metadata["runtime_metadata_resolution_error"] = f"{type(exc).__name__}: {exc}"
+    return metadata
+
+
+def _write_live_replay_header(replay_fp, metadata: dict, computer_ally: bool) -> None:
+    replay_fp.write(json.dumps({
+        "record_type": "header",
+        "schema_version": "live-runtime-v1",
+        "map_metadata": metadata,
+        "owner_roles": {
+            "1": {"relation": "leader", "name": "P1 玩家"},
+            "2": {"relation": "ally", "name": "P2 AI 盟友"},
+            "3": {"relation": "enemy", "name": "P3 敌军"},
+            "4": {"relation": "enemy", "name": "P4 敌军"},
+            "5": {"relation": "enemy", "name": "P5 敌军"},
+            "6": {"relation": "enemy", "name": "P6 敌军"},
+            "7": {"relation": "enemy", "name": "P7 敌军"},
+        },
+        "strategy_player_id": P1_PLAYER_ID if computer_ally else P2_PLAYER_ID,
+        "runtime_topology": (
+            "single_client_p1_participant_p2_computer"
+            if computer_ally else "dual_participant_legacy_probe"
+        ),
+        "native_strategy": not computer_ally,
+        "native_computer_ally": computer_ally,
+        "debug_injection": False,
+    }, ensure_ascii=False) + "\n")
+    replay_fp.flush()
+
+
 # ---------------------------------------------------------------------------
 # SC2 API 通信层
 # ---------------------------------------------------------------------------
@@ -1131,39 +1194,6 @@ async def run_live(
     replay_path = Path(replay_log_path)
     replay_path.parent.mkdir(parents=True, exist_ok=True)
     replay_fp = open(replay_path, "w", encoding="utf-8")
-    live_map_metadata = dict(LIVE_MAP_METADATA)
-    try:
-        from .map_replay import load_dead_of_night_map_cooperative_scenario
-        _, source_metadata = load_dead_of_night_map_cooperative_scenario()
-        live_map_metadata.update(source_metadata)
-        live_map_metadata["runtime_observation_source"] = "sc2api"
-    except Exception:
-        # The dynamic SC2 observation stream remains valid when only the packed
-        # map is available and the source package cannot be parsed.
-        live_map_metadata["runtime_observation_source"] = "sc2api"
-    replay_fp.write(json.dumps({
-        "record_type": "header",
-        "schema_version": "live-runtime-v1",
-        "map_metadata": live_map_metadata,
-        "owner_roles": {
-            "1": {"relation": "leader", "name": "P1 玩家"},
-            "2": {"relation": "ally", "name": "P2 AI 盟友"},
-            "3": {"relation": "enemy", "name": "P3 敌军"},
-            "4": {"relation": "enemy", "name": "P4 敌军"},
-            "5": {"relation": "enemy", "name": "P5 敌军"},
-            "6": {"relation": "enemy", "name": "P6 敌军"},
-            "7": {"relation": "enemy", "name": "P7 敌军"},
-        },
-        "strategy_player_id": P1_PLAYER_ID if computer_ally else P2_PLAYER_ID,
-        "runtime_topology": (
-            "single_client_p1_participant_p2_computer"
-            if computer_ally else "dual_participant_legacy_probe"
-        ),
-        "native_strategy": not computer_ally,
-        "native_computer_ally": computer_ally,
-        "debug_injection": False,
-    }, ensure_ascii=False) + "\n")
-    replay_fp.flush()
     if verbose:
         print(f"  回放日志: {replay_path}")
 
@@ -1172,6 +1202,7 @@ async def run_live(
     native_replay_path = ""
     native_replay_error = ""
     map_name = os.path.basename(map_path)
+    live_map_metadata: dict = dict(LIVE_MAP_METADATA)
     local_map_path = ""
     strategy_player_id = P1_PLAYER_ID if computer_ally else P2_PLAYER_ID
     player_id = strategy_player_id
@@ -1352,6 +1383,8 @@ async def run_live(
                 else "legacy P2 strategy requires two Participant slots; "
             )
             raise RuntimeError(roster_message + f"observed={player_roster}")
+        live_map_metadata = _resolve_runtime_map_metadata(map_path, map_name)
+        _write_live_replay_header(replay_fp, live_map_metadata, computer_ally)
         if verbose:
             print(f"[5] Map: {map_name} | local_map_path={local_map_path}")
 

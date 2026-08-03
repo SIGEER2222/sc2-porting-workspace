@@ -144,6 +144,21 @@ def test_live_roster_requires_p1_and_p2_participants():
     })
 
 
+def test_live_replay_metadata_resolves_the_runtime_map_catalog_entry():
+    metadata = runner._resolve_runtime_map_metadata(
+        "artifacts/runtime/keha-rift.packed.SC2Map",
+        "[CM] 克哈裂痕",
+    )
+
+    assert metadata["map_name"] == "克哈裂痕"
+    assert metadata["runtime_game_info_map_name"] == "[CM] 克哈裂痕"
+    assert metadata["runtime_source_map_resolved"] is True
+    assert metadata["source_kind"] == "cmre_map_catalog"
+    assert metadata["map_hash"]
+    assert metadata["native_object_count"] > 0
+    assert metadata["geometry"]["leader_position"] == (46.0, 41.0)
+
+
 def test_live_observation_keeps_p1_as_p2_visible_ally():
     response = runner.sc_pb.Response()
     observation = response.observation.observation

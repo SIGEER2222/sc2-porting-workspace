@@ -191,6 +191,19 @@
       "owner": "environment",
       "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-direct-map-input-20260803-r9/launcher.stdout.txt",
       "nextAction": "Use a working API/lobby topology that supplies P1 Participant plus P2 Computer; do not treat PlayerType 0 DirectMap initialization or listener readiness as native ally acceptance."
+    },
+    {
+      "id": "GENERIC-MAP-COMPUTER-ALLY-REUSE-20260803",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Generic CMRE maps lacked the native P2 Computer glue and map-correct replay metadata",
+      "detail": "The non-Dead-of-Night launcher path selected generic glue but did not define the P2 Computer initialization or P1 !ally entry points, and the live runner used fixed Dead of Night metadata in replay headers. Generic glue now owns the same P2 native initialization and P1-only command contract, missing map-local Vibe kernels use the registered shared kernel, and the runner resolves metadata from the runtime map name through cmre_map_catalog.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/runtime-report-map-catalog.json",
+      "owner": "stage25",
+      "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/full-map-player.html",
+      "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/script-error-verdict-map-catalog.json",
+      "nextAction": "Keep generic-map runtime evidence separate from Dead of Night mission-specific strategy claims; validate additional maps through the same approved Computer-ally topology."
     }
   ]
 }

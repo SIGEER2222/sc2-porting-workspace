@@ -1007,3 +1007,24 @@ Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/native-live-replay.SC2Replay`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/full-map-player.html`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/script-error-verdict.json`.
+
+## Verification Loop 2026-08-03 Generic Map Computer-Ally Reuse
+
+- `simulator`: `vibe.run_cmre_map_matrix --map 克哈裂痕 --seed 42 --max-loops 6000 --max-enemy-per-player 1` passed. The map-derived scenario resolved source hash `9b0e34294ed501820901b17cee8018b9118f60770fd841406233e1077a4a38de`, map-derived leader/base/expansion/objective geometry, and reached `enemy_elimination` with zero simulator errors.
+- `static`: generic map glue now contains the same P1/P2 Computer contract as the Dead of Night fragment: P2 start-point lookup, `MeleeInitUnitsForPlayer(2, ...)`, `MeleeInitResourcesForPlayer(2, ...)`, `AIMeleeStart(2)`, reciprocal alliance setup, and P1-only `!ally` status/follow/defend/attack/regroup/retreat handling. Maps without a local kernel mirror fall back to the registered `tools/galaxy-vibe/kernel` files.
+- `static`: candidate staging through `tools/launchers/launch-cmre-alenger.ps1 -MapName 克哈裂痕.SC2Map -Commander Empire -ApiMinimal -DebugMode -NoLaunch` passed; StormLib packed the staged 86-file map into the candidate artifact.
+- `runtime`: the approved ApiMinimal single-client window on port `5760` completed CreateGame/JoinGame with P1 `Participant` and P2 `Computer` on `[CM] 克哈裂痕`. Native P2 initialization exposed 14 owned units, P2 was visible to P1 with alliance value `2`, and P1 `!ally status`, `!ally defend`, and `!ally attack` all completed with P2 Bank acknowledgements, P2 position deltas, and the P2-to-P1 signal marker.
+- `runtime`: the corrected candidate replay header resolves `克哈裂痕` through `cmre_map_catalog`, records native object count `1621`, native spawn count `1461`, source-map resolution `true`, and topology `single_client_p1_participant_p2_computer`; it no longer reuses Dead of Night metadata. The run emitted a non-empty native `.SC2Replay`, a 1200-loop JSONL timeline, and a dynamic Canvas `full-map-player.html` titled `克哈裂痕`.
+- `runtime`: `script_error_check.py --since 1785729563` returned `has_new_errors=false`, `count=0`, and no new non-empty ScriptError files in the same launcher window. The runtime report recorded `p1_p2_computer_roster`, `p2_visible_as_p1_ally`, `p2_signal_observed`, `native_strategy_state_delta`, and `native_strategy_no_debug_injection` as true, with zero command failures.
+- `static`: focused launcher/live-runner regression passed `21` tests; runner `py_compile` and `git diff --check` passed. The existing `run-all-validation.ps1` result remains `52/52` with zero warnings.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-kh-rift-20260803/matrix-summary.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/stage25-p2-computer-keha-v1.packed.SC2Map`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/runtime-report-map-catalog.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/native-live-replay-map-catalog.SC2Replay`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/native-live-replay-map-catalog.jsonl`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/full-map-player.html`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/script-error-verdict-map-catalog.json`.
+
+- `static` final post-change regression: Stage 19/20/22/23/25 plus kernel and launcher/live-runner suites passed `133` tests with `6` subtests; `run-all-validation.ps1` passed `52/52` with zero warnings. The candidate SC2 process and port `5760` were then closed and no runtime lease remained.

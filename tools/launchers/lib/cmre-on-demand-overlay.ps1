@@ -412,8 +412,9 @@ function Install-CmreObserverOverlay {
         )
     }
     Copy-CmreOverlayFiles -Files $files -DestinationRoot $baseData
-    # The Vibe kernel is project-owned map code. The CMRE source map may carry
-    # an older mirror, so copy the active project mirror after the CMRE overlay.
+    # The Vibe kernel is project-owned runtime code. Dead of Night keeps a
+    # compatibility mirror for its historical map package, while generic CMRE
+    # maps use the registered project kernel when they do not carry a mirror.
     $vibeKernelRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\packages\Maps\$MapName\Base.SC2Data"
     if ($VibeKernelOverride -ne "") {
         $vibeKernelRoot = $VibeKernelOverride
@@ -425,13 +426,19 @@ function Install-CmreObserverOverlay {
         }
         Write-Host "Vibe kernel diagnostic override: $vibeKernelRoot"
     }
+    if ($VibeKernelOverride -eq "" -and
+        (-not (Test-Path -LiteralPath (Join-Path $vibeKernelRoot "LibVibeKernel.galaxy")) -or
+         -not (Test-Path -LiteralPath (Join-Path $vibeKernelRoot "LibVibeKernel_h.galaxy")))) {
+        $vibeKernelRoot = Join-Path $WorkspaceRoot "tools\galaxy-vibe\kernel"
+        Write-Host "Project Vibe kernel overlay: using registered shared kernel for $MapName"
+    }
     if (Test-Path -LiteralPath $vibeKernelRoot) {
         $vibeKernelFiles = @(
             @{ Source = Join-Path $vibeKernelRoot "LibVibeKernel_h.galaxy"; Name = "LibVibeKernel_h.galaxy" },
             @{ Source = Join-Path $vibeKernelRoot "LibVibeKernel.galaxy"; Name = "LibVibeKernel.galaxy" }
         )
         Copy-CmreOverlayFiles -Files $vibeKernelFiles -DestinationRoot $baseData
-        Write-Host "Project Vibe kernel overlay: copied active 亡者之夜 mirror"
+        Write-Host "Project Vibe kernel overlay: copied $vibeKernelRoot"
     }
     Install-CmreTriggerCustomScriptOverlay -MapPath $MapPath
 
