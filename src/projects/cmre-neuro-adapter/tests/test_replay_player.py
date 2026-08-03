@@ -5,9 +5,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from cmre_neuro_adapter.full_game_replay import _clean_scenario, _source_entity_metadata
 from cmre_neuro_adapter.macro_replay import build_macro_replay
 from cmre_neuro_adapter.real_map_replay import build_map_record
 from cmre_neuro_adapter.replay_player import _with_map_record, load_records, render_player_html
+from vibe.map_replay import build_dead_of_night_map_cooperative_scenario
+from vibe.simulator_session import SimulatorSession
 
 
 class ReplayPlayerTests(unittest.TestCase):
@@ -195,6 +198,29 @@ class ReplayPlayerTests(unittest.TestCase):
         markers = {item["owner"]: item for item in record["placement_markers"]}
         self.assertEqual((markers[1]["x"], markers[1]["y"]), (85.0, 94.0))
         self.assertEqual((markers[2]["x"], markers[2]["y"]), (76.0, 103.0))
+
+    def test_simulator_structure_targets_bind_after_footprint_center_normalization(self) -> None:
+        source = Path(__file__).parents[1] / "artifacts" / "real-map-source-20260802"
+        if not (source / "Objects").is_file():
+            self.skipTest("real map extraction artifact is unavailable")
+        data = build_dead_of_night_map_cooperative_scenario(source)
+        scenario, targets, _ = _clean_scenario(data, max_loops=1_000, initial_minerals=250)
+        session = SimulatorSession()
+        session.scenario_load(scenario_dict=scenario, catalog="m7")
+        session.scenario_reset()
+        metadata = _source_entity_metadata(scenario, session)
+        target_ids = [
+            entity.entity_id
+            for entity in session.world.entities.values()
+            if entity.entity_id in {int(item["source_object_id"]) for item in targets}
+            or (
+                entity.owner_player_id in (3, 4, 5, 7)
+                and session.world.catalog.get(entity.unit_type_id).is_structure
+            )
+        ]
+        self.assertEqual(len(targets), 30)
+        self.assertEqual(len(target_ids), 30)
+        self.assertEqual(sum(entity_id in metadata for entity_id in target_ids), 30)
 
     def test_player_contains_source_destroyed_state_projection(self) -> None:
         records = [

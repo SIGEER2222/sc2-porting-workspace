@@ -397,3 +397,30 @@ Evidence:
 This correction proves map extraction and replay projection alignment, not live SC2 runtime
 effects. G4 remains blocked by the existing SC2 runtime lease, and full real-time-scale simulator
 performance remains a deferred risk before the next victory artifact is promoted.
+
+## Map-Derived Six-Night Full Replay 2026-08-03 08:40 +08:00
+
+The six-night target is derived from the extracted `wave_timing.nights` schedule, not selected
+as an arbitrary replay length. The current `亡者之夜.SC2Map` source exposes six normal map-script
+attack triggers (`Night1` through `Night6`) with these boundaries:
+
+`Night 1: 4704..10080`, `Night 2: 15456..20832`, `Night 3: 26208..31584`,
+`Night 4: 36960..42336`, `Night 5: 47712..53088`, `Night 6: 58464..63840`.
+
+The adapter now derives the objective name and win condition from that schedule, so a source map
+with a different night count cannot silently inherit a hard-coded six-night label. The replay
+also separates wave density from enemy damage, advances daytime structure pushes on a cooldown,
+stops the expeditionary force after each building kill, and selects live source buildings for
+night reinforcements. This keeps building-driven pressure visible while preserving a clean,
+state-driven opening.
+
+Evidence:
+
+- `simulator`: `python -m cmre_neuro_adapter.full_game_replay --wave-strength-scale 0.5 --enemy-damage-scale 0.125 --max-loops 65000 --replay-interval 448 --output artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl --html-output artifacts/full-game-replay-20260803/map-aligned-full-game.html` -> completed in `256` seconds, `PASS`, loop `63840`, `all_objectives_success`, `6/6` nights, `39/39` waves, `29` building reinforcements, and `30` active structures destroyed.
+- `simulator`: final summary -> `2923/2923` actions successful, `12550` minerals collected, `6208` vespene collected, `4` SCVs, `85` Marines, `3` Barracks, `1` Refinery, and `4` SupplyDepots completed; failed actions `0`.
+- `simulator`: source binding probe -> all `30/30` finite structure targets bind to unique `map-<ObjectUnit@Id>` identities after footprint-center tolerance matching; final event scan -> `30/30` `infested_structure_destroyed` events include `source_object_id`.
+- `runtime` (local browser replay): Python 3.13 Playwright + Edge opened the self-contained HTML; initial Canvas non-zero pixels `810000`, `1319` map Objects, `144` frames, seek to loop `32256` (`Night 3`), `16x` active, play/pause toggled, and end seek reached loop `63840`, `victory`, `all_objectives_success`, `Night 6 / 39`. Screenshot: `artifacts/full-game-replay-20260803/map-aligned-full-game-browser.png`.
+- `simulator`: `python -m unittest discover -s tests -v` -> `80` tests passed; `python -m compileall -q cmre_neuro_adapter tests` -> pass; Python 3.11 grammar parse -> `62` files; `git diff --check -- src/projects/cmre-neuro-adapter` -> pass.
+
+This is a simulator and local-browser replay claim only. G4 remains blocked because the approved
+SC2 runtime lease is still owned by an unrelated session; no live SC2 effect is promoted here.

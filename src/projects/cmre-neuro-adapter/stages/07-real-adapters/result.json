@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "stage_id": "07-real-adapters",
   "status": "BLOCKED",
-  "updated_at": "2026-08-03T07:32:00+08:00",
+  "updated_at": "2026-08-03T08:40:00+08:00",
   "outputs": [
     "cmre_neuro_adapter/transports/__init__.py",
     "cmre_neuro_adapter/transports/common.py",
@@ -49,6 +49,9 @@
     "artifacts/full-game-replay-20260803/map-aligned-timescaled.jsonl",
     "artifacts/full-game-replay-20260803/map-aligned-timescaled.html",
     "artifacts/full-game-replay-20260803/timescaled.png",
+    "artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl",
+    "artifacts/full-game-replay-20260803/map-aligned-full-game.html",
+    "artifacts/full-game-replay-20260803/map-aligned-full-game-browser.png",
     "stages/07-real-adapters/log.md",
     "stages/07-real-adapters/result.json",
     "stages/07-real-adapters/issues.json"
@@ -86,7 +89,7 @@
     },
     "project_tests": {
       "status": "PASS",
-      "tests": 72,
+      "tests": 80,
       "subtests": 22,
       "command": "python -m unittest discover -s tests -v",
       "evidence_type": "simulator"
@@ -238,7 +241,7 @@
       "status": "PASS",
       "tests": 79,
       "command": "python -m unittest discover -s tests -v",
-      "summary": "The full adapter test suite passed with the source-object alignment and static-preview regression coverage; compileall and diff-check also passed.",
+      "summary": "The full adapter test suite passed with source-object alignment, dynamic schedule, and static-preview regression coverage; compileall, Python 3.11 grammar parsing, and diff-check also passed.",
       "evidence_type": "simulator"
     },
     "map_source_alignment": {
@@ -270,10 +273,28 @@
       "evidence_type": "runtime"
     },
     "current_full_game_replay_performance": {
-      "status": "BLOCKED",
-      "command": "python -m cmre_neuro_adapter.full_game_replay --wave-strength-scale 0.25 --max-loops 65000 --replay-interval 448 --output artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl --html-output artifacts/full-game-replay-20260803/map-aligned-full-game.html",
-      "summary": "The current real-time-scale full replay did not finish within the 300 second validation window and produced no final JSONL. This is recorded as a simulator performance gap; no full-game victory claim is made for the current working tree.",
-      "evidence_type": "blocked"
+      "status": "PASS",
+      "command": "python -m cmre_neuro_adapter.full_game_replay --wave-strength-scale 0.5 --enemy-damage-scale 0.125 --max-loops 65000 --replay-interval 448 --output artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl --html-output artifacts/full-game-replay-20260803/map-aligned-full-game.html",
+      "summary": "The map-aligned real-time-scale simulator replay completed in 256 seconds at loop 63840 with all six map-derived nights, 39/39 waves, 29 building reinforcements, 30/30 source-linked structure destructions, resource collection, 4 SCV completions, 85 Marine completions, 3 Barracks, 1 Refinery, 4 SupplyDepots, 2923/2923 successful actions, and all_objectives_success.",
+      "artifact": "artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl",
+      "evidence_type": "simulator"
+    },
+    "current_full_game_replay_browser": {
+      "status": "PASS",
+      "command": "Python 3.13 Playwright + Edge headless opened map-aligned-full-game.html and exercised Canvas, seek, 16x, play/pause, and end controls",
+      "summary": "The browser rendered 810000 non-empty Canvas pixels, 1319 map Objects, and 144 frames; seeking selected loop 32256 at Night 3, 16x became active, play/pause toggled, and end selected loop 63840 with victory, all_objectives_success, and Night 6 / 39.",
+      "artifacts": [
+        "artifacts/full-game-replay-20260803/map-aligned-full-game.html",
+        "artifacts/full-game-replay-20260803/map-aligned-full-game-browser.png"
+      ],
+      "evidence_type": "runtime"
+    },
+    "current_source_identity": {
+      "status": "PASS",
+      "command": "source-object metadata binding probe plus final replay event scan",
+      "summary": "All 30 finite simulator structure targets bind to unique map-<ObjectUnit@Id> identities after footprint-center tolerance matching; the final replay records 30/30 infested_structure_destroyed events with source_object_id.",
+      "artifact": "artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl",
+      "evidence_type": "simulator"
     },
     "real_map_launcher_staging": {
       "status": "PASS",

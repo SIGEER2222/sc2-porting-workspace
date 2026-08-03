@@ -1,4 +1,4 @@
-"""Generate a complete six-night Dead of Night simulator replay.
+"""Generate a complete map-scheduled Dead of Night simulator replay.
 
 The map source remains read-only.  Its extracted Objects are embedded as the
 static map layer, while the owned adapter runs a clean Terran opening through
@@ -68,6 +68,7 @@ DEFAULT_DYNAMIC_ENEMY_DAMAGE_SCALE = 0.25
 DEFAULT_STRUCTURE_HEALTH_SCALE = 0.20
 NIGHT_DEFENDER_COOLDOWN_LOOPS = round(30.0 * LOOPS_PER_SECOND)
 NIGHT_DEFENDER_LIFE_THRESHOLD = 150.0
+DAYTIME_STRUCTURE_PUSH_COOLDOWN_LOOPS = round(40.0 * LOOPS_PER_SECOND)
 
 
 # These are the normal-difficulty calls in the native MapScript triggers.  The
@@ -323,9 +324,25 @@ def _source_entity_metadata(scenario: dict[str, Any], session: Any) -> dict[int,
             round(entity.y.to_float(), 3),
         )
         candidates = pending.get(key, [])
-        if not candidates:
-            continue
-        spawn = candidates.pop(0)
+        if candidates:
+            spawn = candidates.pop(0)
+        else:
+            nearby: list[tuple[float, list[dict[str, Any]], dict[str, Any]]] = []
+            for pending_items in pending.values():
+                for candidate in pending_items:
+                    if (
+                        int(candidate["owner_player_id"]) == int(entity.owner_player_id)
+                        and str(candidate["unit_type_id"]) == str(entity.unit_type_id)
+                    ):
+                        dx = float(candidate["x"]) - entity.x.to_float()
+                        dy = float(candidate["y"]) - entity.y.to_float()
+                        distance_sq = dx * dx + dy * dy
+                        if distance_sq <= 0.75 * 0.75:
+                            nearby.append((distance_sq, pending_items, candidate))
+            if not nearby:
+                continue
+            _, pending_items, spawn = min(nearby, key=lambda item: (item[0], int(item[2].get("source_object_id", 0))))
+            pending_items.remove(spawn)
         source_object_id = int(spawn["source_object_id"])
         metadata[int(entity.entity_id)] = {
             "source": "Objects",
@@ -398,6 +415,17 @@ def _current_night(wave_timing: dict[str, Any], loop: int, *, time_scale: float)
         if start <= loop < end:
             return int(night["night_number"])
     return 0
+
+
+def _night_schedule_info(wave_timing: dict[str, Any]) -> tuple[int, str, str]:
+    """Return labels derived from the extracted map schedule."""
+
+    total_nights = len(wave_timing.get("nights", []))
+    if total_nights < 1:
+        raise ValueError("map wave timing must contain at least one night")
+    objective_name = f"survive_all_{total_nights}_nights"
+    win_condition = f"survive_all_{total_nights}_nights_and_clear_infestation"
+    return total_nights, objective_name, win_condition
 
 
 def _dispatch_policy_action(session: Any, action: Any, obs: Any) -> dict[str, Any]:
@@ -520,6 +548,7 @@ def _build_context(
         loop >= int(int(item["end_loop"]) * time_scale)
         for item in wave_timing["nights"]
     )
+    _, _, win_condition = _night_schedule_info(wave_timing)
     visible_enemies = [
         _unit_record(entity, meta)
         for entity in session.world.entities.values()
@@ -547,7 +576,7 @@ def _build_context(
             "wave": len(mission._waves_fired),
             "terminated": mission.terminated,
             "end_reason": mission.end_reason if mission.terminated else "",
-            "win_condition": "survive_all_six_nights_and_clear_infestation",
+            "win_condition": win_condition,
             "objectives": objective_data,
             "enemy_structures_remaining": structure_count,
         },
@@ -699,11 +728,12 @@ def build_full_game_replay(
     max_loops: int | None = None,
     time_scale: float = 1.0,
     wave_strength_scale: float = 0.25,
+    enemy_damage_scale: float = DEFAULT_DYNAMIC_ENEMY_DAMAGE_SCALE,
     replay_interval: int = 112,
     initial_minerals: int = 250,
     seed: int = 42,
 ) -> dict[str, Any]:
-    """Run the full six-night simulator game and write JSONL/HTML artifacts."""
+    """Run the map-scheduled simulator game and write JSONL/HTML artifacts."""
 
     map_path = Path(map_path).resolve()
     map_source = Path(map_source).resolve()
@@ -711,6 +741,8 @@ def build_full_game_replay(
     if html_path is not None:
         html_path = Path(html_path).resolve()
     data = build_dead_of_night_map_cooperative_scenario(map_source)
+    total_nights, survive_objective_name, win_condition = _night_schedule_info(data.wave_timing)
+    replay_interval = max(1, int(replay_interval))
     final_night_end = int(data.wave_timing["nights"][-1]["end_loop"] * time_scale)
     run_limit = max_loops or final_night_end + int(12 * LOOPS_PER_SECOND)
     scenario, enemy_structures, source_structure_count = _clean_scenario(
@@ -724,7 +756,7 @@ def build_full_game_replay(
         strength_scale=wave_strength_scale,
         seed=seed,
     )
-    dynamic_enemy_damage_scale = max(0.05, min(1.0, float(wave_strength_scale)))
+    dynamic_enemy_damage_scale = max(0.05, min(1.0, float(enemy_damage_scale)))
     session = SimulatorSession()
     session.scenario_load(scenario_dict=scenario, catalog="m7")
     session.set_wave_timing(
@@ -756,7 +788,7 @@ def build_full_game_replay(
     mission = MissionEngine(session)
     mission.add_objective(
         Objective(
-            name="survive_all_six_nights",
+            name=survive_objective_name,
             kind="survive_loops",
             params={"target_loops": final_night_end},
         )
@@ -849,6 +881,7 @@ def build_full_game_replay(
     initial_structure_count = len(source_building_ids)
     extra_barracks_targets = [(90.0, 99.0), (90.0, 89.0)]
     extra_barracks_issued = 0
+    last_structure_push_loop = -DAYTIME_STRUCTURE_PUSH_COOLDOWN_LOOPS
     extra_depot_targets = [
         (80.0, 100.0),
         (80.0, 88.0),
@@ -897,6 +930,31 @@ def build_full_game_replay(
         records.append(_frame(session, context, list(events), meta, time_scale=time_scale))
         events.clear()
         last_record_loop = loop
+
+    # The simulator still executes every underlying loop.  The adapter only
+    # needs to regain control at policy, map-event, objective, or replay-frame
+    # boundaries; calling scenario_step once per loop added avoidable Python
+    # overhead and repeatedly rebuilt the simulator command table.
+    scheduled_boundaries = {
+        int(spec["launch_loop"])
+        for spec in wave_specs
+    }
+    scheduled_boundaries.update(
+        int(int(item[key]) * time_scale)
+        for item in data.wave_timing["nights"]
+        for key in ("start_loop", "end_loop")
+    )
+    scheduled_boundaries.add(final_night_end)
+
+    def next_simulation_boundary(loop: int) -> int:
+        candidates = [
+            loop + policy.command_interval,
+            ((loop // policy.command_interval) + 1) * policy.command_interval,
+            last_record_loop + replay_interval,
+            *(item for item in scheduled_boundaries if item > loop),
+            run_limit,
+        ]
+        return min(max(loop + 1, int(item)) for item in candidates)
 
     def public_resources(observation: Any) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """Expose extracted neutral nodes to the policy as map-visible facts."""
@@ -995,10 +1053,18 @@ def build_full_game_replay(
                         "entity_count": max(1, int(round(count * wave_strength_scale))),
                     })
                 # Buildings create a bounded live reinforcement group at night.
-                for source_id in source_building_ids[: min(24, max(4, 4 + night * 2))]:
+                # Select live source buildings rather than a fixed ID prefix;
+                # the prefix may already have been cleared during daylight.
+                building_reinforcements = 0
+                reinforcement_limit = min(24, max(4, 4 + night * 2))
+                live_source_building_ids = [
+                    source_id
+                    for source_id in source_building_ids
+                    if (source := session.world.get_entity(source_id)) is not None
+                    and source.is_alive
+                ]
+                for source_id in live_source_building_ids[:reinforcement_limit]:
                     source = session.world.get_entity(source_id)
-                    if source is None or not source.is_alive:
-                        continue
                     result = session.unit_spawn("Zergling", 5, source.x.to_float(), source.y.to_float())
                     entity_id = int(result["entity_id"])
                     spawned = session.world.get_entity(entity_id)
@@ -1017,11 +1083,13 @@ def build_full_game_replay(
                         "source_structure_type": source.unit_type_id,
                     }
                     session.unit_order([entity_id], "attack_move", 5, target_x=BASE_X, target_y=BASE_Y)
+                    building_reinforcements += 1
                 events.append({
                     "loop": loop,
                     "kind": "building_reinforcements_spawned",
                     "night": night,
-                    "entity_count": len(infected_ids),
+                    "entity_count": building_reinforcements,
+                    "source_structure_count": len(live_source_building_ids),
                 })
             else:
                 cleared = 0
@@ -1071,7 +1139,12 @@ def build_full_game_replay(
         # During daylight the player keeps a real attack order on the nearest
         # live map structure.  This makes the original destroy-infestation
         # objective observable instead of ending at a timer-only victory.
-        if night == 0 and completed_nights >= 1 and loop % 112 == 0:
+        if (
+            night == 0
+            and completed_nights >= 1
+            and loop % 112 == 0
+            and loop - last_structure_push_loop >= DAYTIME_STRUCTURE_PUSH_COOLDOWN_LOOPS
+        ):
             structures = [
                 entity
                 for entity in session.world.entities.values()
@@ -1084,9 +1157,22 @@ def build_full_game_replay(
             ]
             if structures and combat_units:
                 # Keep a home guard while the expeditionary subset clears
-                # source-derived structures.  Sending the full army into the
-                # original defensive emplacements loses the night defense.
-                for index, unit in enumerate(combat_units[:4]):
+                # source-derived structures.  The daily budget deliberately
+                # leaves later-night buildings alive so their map-script
+                # reinforcement events remain visible in the replay.
+                structures.sort(
+                    key=lambda item: (
+                        (item.x.raw - BASE_X) ** 2 + (item.y.raw - BASE_Y) ** 2,
+                        item.entity_id,
+                    )
+                )
+                clear_budget = min(
+                    initial_structure_count,
+                    max(5, completed_nights * 5),
+                )
+                structures = structures[:clear_budget]
+                pushed_structure = False
+                for index, unit in enumerate(combat_units[:2]):
                     target = min(
                         structures,
                         key=lambda item: ((item.x.raw - unit.x.raw) ** 2 + (item.y.raw - unit.y.raw) ** 2, item.entity_id),
@@ -1097,7 +1183,10 @@ def build_full_game_replay(
                         Observation.from_world(session.world, PLAYER_ID),
                     )
                     if result["success"] and index < 8:
+                        pushed_structure = True
                         events.append({"loop": loop, "kind": "daytime_structure_push", "entity_id": unit.entity_id, "target_entity_id": target.entity_id})
+                if pushed_structure:
+                    last_structure_push_loop = loop
 
         if loop % policy.command_interval == 0:
             obs = policy_observation()
@@ -1187,7 +1276,8 @@ def build_full_game_replay(
                 append_action_record(action, dispatched, obs, loop)
 
             # The shared policy deliberately de-duplicates building types.
-            # A replay needs enough production throughput for six nights, so
+            # A replay needs enough production throughput for the extracted
+            # night schedule, so
             # add two additional Barracks only after the first one exists and
             # only when the simulator reports spendable minerals.  Positions
             # stay in the source map's P1 base perimeter.
@@ -1324,8 +1414,9 @@ def build_full_game_replay(
                         ):
                             extra_depots_issued += 1
 
-        session.scenario_step(1, snapshot=False)
-        mission._fire_triggers(loop)
+        step_end_loop = next_simulation_boundary(loop)
+        session.scenario_step(step_end_loop - loop, snapshot=False)
+        mission._fire_triggers(step_end_loop)
         new_emitted = session.world.events.emitted[processed_events:]
         processed_events = len(session.world.events.emitted)
         replay_event_kinds = {
@@ -1355,13 +1446,15 @@ def build_full_game_replay(
                 "payload": dict(emitted.payload),
             })
         current_ids = set(session.world.entities)
+        destroyed_structure_this_step = False
         for removed_id in previous_alive_ids - current_ids:
             old_meta = meta.get(removed_id, {})
             owner = old_meta.get("owner", 0)
             if removed_id in source_building_id_set:
+                destroyed_structure_this_step = True
                 destroyed_structures += 1
                 destroy_event = {
-                    "loop": loop,
+                    "loop": step_end_loop,
                     "kind": "infested_structure_destroyed",
                     "entity_id": removed_id,
                     "remaining": _enemy_structure_count(session),
@@ -1371,11 +1464,21 @@ def build_full_game_replay(
                         destroy_event[field] = old_meta[field]
                 events.append(destroy_event)
             elif removed_id in active_enemy_ids:
-                events.append({"loop": loop, "kind": "enemy_unit_destroyed", "entity_id": removed_id, "owner": owner})
+                events.append({"loop": step_end_loop, "kind": "enemy_unit_destroyed", "entity_id": removed_id, "owner": owner})
             active_enemy_ids.discard(removed_id)
+        if destroyed_structure_this_step and night == 0:
+            for entity in session.world.entities.values():
+                unit_type = catalog.get(entity.unit_type_id)
+                if (
+                    entity.is_alive
+                    and entity.owner_player_id == PLAYER_ID
+                    and not unit_type.is_structure
+                    and not unit_type.is_worker
+                ):
+                    session.unit_order([entity.entity_id], "hold_position", PLAYER_ID)
         previous_alive_ids = current_ids
         known_ids.update(current_ids)
-        mission._check_objectives(loop)
+        mission._check_objectives(step_end_loop)
         if not any(entity.is_alive and entity.owner_player_id == PLAYER_ID and entity.unit_type_id == "CommandCenter" for entity in session.world.entities.values()):
             mission.terminated = True
             mission.end_reason = "player_base_destroyed"
@@ -1408,7 +1511,10 @@ def build_full_game_replay(
         "map_source": str(map_source.relative_to(REPO_ROOT)).replace("\\", "/"),
         "source_logic": {
             "map_script": "MapScript.galaxy",
-            "normal_attack_triggers": ["Night1", "Night2", "Night3", "Night4", "Night5", "Night6"],
+            "normal_attack_triggers": [
+                f"Night{item['night_number']}"
+                for item in data.wave_timing["nights"]
+            ],
             "day_night_transitions": True,
             "infection_cleanup": True,
             "building_reinforcements": True,
@@ -1428,6 +1534,8 @@ def build_full_game_replay(
             "policy_profile": "replay-native-opening",
             "policy_profile_steps": ["SupplyDepot", "Barracks", "Refinery", "Marine x continuous", "SCV to 16"],
             "extra_barracks_max": len(extra_barracks_targets),
+            "scheduled_nights": total_nights,
+            "win_condition": win_condition,
         },
     }
     summary = {
@@ -1469,7 +1577,10 @@ def build_full_game_replay(
         "checks": {
             "clean_opening": True,
             "real_map_coordinates": True,
-            "six_night_schedule": len(mission._waves_fired) == len(wave_specs) and len(data.wave_timing["nights"]) == 6,
+            "night_schedule": (
+                len(mission._waves_fired) == len(wave_specs)
+                and len(data.wave_timing["nights"]) == total_nights
+            ),
             "resources_progressed": mineral_collected > 0 or vespene_collected > 0,
             "scv_production_observed": production_counts.get("SCV", 0) > 0,
             "marine_production_observed": production_counts.get("Marine", 0) > 0,
@@ -1497,6 +1608,7 @@ def main() -> int:
     parser.add_argument("--max-loops", type=int, default=None)
     parser.add_argument("--time-scale", type=float, default=1.0)
     parser.add_argument("--wave-strength-scale", type=float, default=0.25)
+    parser.add_argument("--enemy-damage-scale", type=float, default=DEFAULT_DYNAMIC_ENEMY_DAMAGE_SCALE)
     parser.add_argument("--replay-interval", type=int, default=112)
     parser.add_argument("--initial-minerals", type=int, default=250)
     args = parser.parse_args()
@@ -1508,6 +1620,7 @@ def main() -> int:
         max_loops=args.max_loops,
         time_scale=args.time_scale,
         wave_strength_scale=args.wave_strength_scale,
+        enemy_damage_scale=args.enemy_damage_scale,
         replay_interval=args.replay_interval,
         initial_minerals=args.initial_minerals,
     )

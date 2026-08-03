@@ -139,8 +139,8 @@
       "status": "resolved",
       "evidence_type": "static",
       "detail": "The real-map replay generators replaced ObjectUnit@Id with an enumeration index, so dynamic simulator entities and source-map structures could not be joined back to the original map.",
-      "resolution": "The shared map_alignment parser preserves source_object_id and source_map_id as map-<ObjectUnit@Id>; simulator frames and structure-destroyed events now carry the same source identity.",
-      "artifact": "artifacts/real-map-replay-20260803/real-map-static-aligned.jsonl"
+      "resolution": "The shared map_alignment parser preserves source_object_id and source_map_id as map-<ObjectUnit@Id>; footprint-center tolerance binding now covers all 30 finite simulator structure targets, and every structure-destroyed event in the final replay carries the same source identity.",
+      "artifact": "artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl"
     },
     {
       "id": "REPLAY-009",
@@ -163,11 +163,11 @@
     {
       "id": "SIM-008",
       "severity": "high",
-      "status": "deferred",
-      "evidence_type": "blocked",
-      "detail": "The current real-time-scale full simulator replay did not complete within a 300 second validation window, so the latest map-alignment changes do not yet have a fresh six-night victory artifact.",
-      "resolution": "Short simulator and time-scaled end-to-end alignment evidence is captured; optimize or profile the full combat loop before promoting a new full-game victory artifact.",
-      "artifact": "artifacts/full-game-replay-20260803/map-aligned-timescaled.jsonl"
+      "status": "resolved",
+      "evidence_type": "simulator",
+      "detail": "The map-aligned full replay initially exceeded the validation window because the adapter rebuilt command/event bookkeeping on every loop; the higher-density run also exposed fixed-prefix building reinforcement selection.",
+      "resolution": "The adapter regains control at policy/map-event/replay boundaries while the simulator still executes every underlying loop, separates wave density from enemy damage, throttles daytime structure pushes, selects live source buildings for reinforcements, and completes a fresh six-night victory at loop 63840.",
+      "artifact": "artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl"
     }
   ],
   "residual_risks": [
