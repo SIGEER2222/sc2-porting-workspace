@@ -19,6 +19,8 @@ void gf_CmreOnDemandWriteAllyDebugString(string key, string value) {
 
 void gf_CmreOnDemandAllyEcho(string message) {
     UIDisplayMessage(PlayerGroupAll(), c_messageAreaChat, StringToText(message));
+    gf_CmreOnDemandWriteAllyDebugString("fallback_last_signal", message);
+    gf_CmreOnDemandWriteAllyDebugInt("fallback_signal_count", 1);
 }
 
 bool gf_CmreOnDemandAllyChatCommand(string chat) {
@@ -128,6 +130,7 @@ bool gt_CmreOnDemandComputerAllyReady_Func(bool testConds, bool runActions) {
     gf_CmreOnDemandWriteAllyDebugInt("p2_starting_units_initialized", 0);
     gf_CmreOnDemandWriteAllyDebugInt("p2_starting_resources_initialized", 0);
     gf_CmreOnDemandWriteAllyDebugInt("p2_native_ai_path", 0);
+    gf_CmreOnDemandWriteAllyDebugString("not_ready_reason", "checking");
     gf_CmreOnDemandWriteAllyDebugInt("p2_player_type", PlayerType(2));
     if (PlayerType(2) != c_playerTypeComputer) {
         gf_CmreOnDemandWriteAllyDebugString("not_ready_reason", "p2_not_computer");
@@ -177,6 +180,7 @@ bool gt_CmreOnDemandComputerAllyReady_Func(bool testConds, bool runActions) {
     gf_CmreOnDemandWriteAllyDebugInt("p2_player_type", 2);
     gf_CmreOnDemandWriteAllyDebugInt("p2_native_ai_path", 1);
     gf_CmreOnDemandWriteAllyDebugInt("p2_unit_count", UnitGroupCount(UnitGroup(null, 2, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0), c_unitCountAlive));
+    gf_CmreOnDemandWriteAllyDebugString("not_ready_reason", "none");
     libVibeKernel_gf_WriteBankInt("ally", "computer_ally_ready", 1);
     libVibeKernel_gf_WriteBankInt("ally", "p2_player_type", 2);
     libVibeKernel_gf_WriteBankInt("ally", "p2_native_ai_path", 1);

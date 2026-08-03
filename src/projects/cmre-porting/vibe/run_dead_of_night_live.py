@@ -676,8 +676,11 @@ def _runtime_bank_path(bank_name: str = "GalaxyVibe") -> Path:
     return Path.home() / "Documents" / "StarCraft II" / "Banks" / f"{bank_name}.SC2Bank"
 
 
-def _read_runtime_bank_section(bank_name: str = "GalaxyVibe") -> dict:
-    """Read the ally Bank section for runtime command acknowledgements."""
+def _read_runtime_bank_section(
+    bank_name: str = "GalaxyVibe",
+    section_name: str = "ally",
+) -> dict:
+    """Read one runtime Bank section without mixing command and debug state."""
     bank_path = _runtime_bank_path(bank_name)
     if not bank_path.exists():
         return {}
@@ -685,7 +688,10 @@ def _read_runtime_bank_section(bank_name: str = "GalaxyVibe") -> dict:
         root = ET.parse(bank_path).getroot()
     except (OSError, ET.ParseError):
         return {}
-    section = next((item for item in root.findall("Section") if item.get("name") == "ally"), None)
+    section = next(
+        (item for item in root.findall("Section") if item.get("name") == section_name),
+        None,
+    )
     if section is None:
         return {}
     result: dict = {}
@@ -832,6 +838,8 @@ class LiveGameReport:
     ally_mode_history: list[str] = field(default_factory=list)
     ally_bank_initial: dict = field(default_factory=dict)
     ally_bank_final: dict = field(default_factory=dict)
+    native_ally_debug_initial: dict = field(default_factory=dict)
+    native_ally_debug_final: dict = field(default_factory=dict)
 
 
 def _replay_entity(unit: dict, owner: int) -> dict:
@@ -1357,6 +1365,9 @@ async def run_live(
         p2_signal_trace: list[dict] = []
         default_p2_base = (76.0, 103.0, 15.0)
         ally_bank_initial = _read_runtime_bank_section()
+        native_ally_debug_initial = _read_runtime_bank_section(
+            "CMRERebornDebug", "debug"
+        )
 
         # 7. P1 chat is a real participant-to-participant command channel.
         # P2 parses it through the same AllyPolicy contract used by the
@@ -1836,8 +1847,26 @@ async def run_live(
     )
     p2_state = _p2_state(final_obs) if final_obs is not None else []
     ally_bank_final = _read_runtime_bank_section()
+    native_ally_debug_final = _read_runtime_bank_section(
+        "CMRERebornDebug", "debug"
+    )
+    signal_count_before = int(ally_bank_initial.get("signal_count", 0) or 0)
+    signal_count_after = int(ally_bank_final.get("signal_count", 0) or 0)
+    if (
+        computer_ally
+        and signal_count_after > signal_count_before
+        and ally_bank_final.get("last_signal")
+    ):
+        p2_signal_trace.append({
+            "loop": current_loop,
+            "player_id": P2_PLAYER_ID,
+            "message": ally_bank_final["last_signal"],
+            "source": "galaxy_ui_message_bank_marker",
+            "recipient_player_id": P1_PLAYER_ID,
+            "request_ok": True,
+        })
     native_p2_melee_init_observed = all(
-        ally_bank_final.get(key) == 1
+        native_ally_debug_final.get(f"ally_{key}") == 1
         for key in (
             "computer_ally_ready",
             "p2_starting_units_initialized",
@@ -1965,11 +1994,11 @@ async def run_live(
             ),
             "p2_command_ack_observed": p2_command_ack_observed,
             "p2_native_melee_init_observed": native_p2_melee_init_observed,
-            "p2_starting_units_initialized": ally_bank_final.get(
-                "p2_starting_units_initialized"
+            "p2_starting_units_initialized": native_ally_debug_final.get(
+                "ally_p2_starting_units_initialized"
             ) == 1,
-            "p2_starting_resources_initialized": ally_bank_final.get(
-                "p2_starting_resources_initialized"
+            "p2_starting_resources_initialized": native_ally_debug_final.get(
+                "ally_p2_starting_resources_initialized"
             ) == 1,
             "native_strategy_no_debug_injection": strategy_audit["checks"][
                 "no_debug_injection"
@@ -2007,6 +2036,8 @@ async def run_live(
         ally_mode_history=(ally_policy.mode_history if ally_policy is not None else []),
         ally_bank_initial=ally_bank_initial,
         ally_bank_final=ally_bank_final,
+        native_ally_debug_initial=native_ally_debug_initial,
+        native_ally_debug_final=native_ally_debug_final,
     )
 
     # Keep the report as a final JSONL record so the same file is both a

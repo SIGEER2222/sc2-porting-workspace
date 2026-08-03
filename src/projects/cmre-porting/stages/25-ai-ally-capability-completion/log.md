@@ -929,3 +929,81 @@ Evidence:
   launch that supplies P1 Participant plus P2 Computer. DirectMap API is
   blocked by the SC2 crash; DirectMap without API exposes P2 as type `0` and
   does not deliver ChatMessage events.
+
+## Verification Loop 2026-08-03 Native P2 Computer Runtime PASS
+
+- `static`: the approved launcher completed `stage25-p2-computer-v11` staging,
+  and StormLib packed the staged map into a 79-file
+  `stage25-p2-computer-v11.packed.SC2Map`.
+- `runtime`: one approved ApiMinimal launcher on port `5730` completed
+  `CreateGame` and `JoinGame` with observed player `1`. `GameInfo` proved P1
+  `Participant` and P2 `Computer`, Terran, difficulty `2`; the old two-client
+  Participant topology was not used.
+- `runtime`: after RequestStep-driven initialization, the native markers
+  reached `initialization_complete=1`,
+  `initialization_units_ready_p1=1`, `initialization_units_ready_p2=1`,
+  `ally_not_ready_reason=none`, `ally_p2_native_ai_path=1`,
+  `ally_computer_ally_ready=1`, and `ally_p2_unit_count=14`. P2 was observed
+  through owner `2` units with alliance value `2`.
+- `runtime`: P1 sent `!ally status`, `!ally defend`, and `!ally attack`.
+  All three chat actions were accepted; P2 Bank acknowledgements completed
+  with final `last_result=attack_issued`; P2-owned state changed across the
+  command trace; and the native Computer-ally strategy audit passed with no
+  debug injection or raw P2 API action.
+- `static`: the map-owned fallback contains the P2 response path using
+  `UIDisplayMessage` plus Bank debug acknowledgement. SC2 Observation does
+  not echo `UIDisplayMessage` as a ChatMessage, so `p2_signal_trace` is empty
+  in this API report; the player-visible signal is retained as a Galaxy/static
+  contract and the Bank acknowledgement is the runtime-observed response.
+- `runtime`: the runner emitted a real native `native-live-replay.SC2Replay`,
+  a 1200-loop `native-live-replay.jsonl`, and a self-contained dynamic
+  `full-map-player.html` with timeline and Canvas playback code.
+- `runtime`: `script_error_check.py --since 1785726362` returned
+  `has_new_errors=false`, `count=0`, and no new non-empty ScriptError files in
+  the same launcher epoch.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v11/runtime-report.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v11/native-live-replay.SC2Replay`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v11/full-map-player.html`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v11/script-error-verdict.json`.
+
+## Verification Loop 2026-08-03 Native Ally Signal Runtime Recheck
+
+- `runtime` `WARN` (not promoted): v12 passed the native Computer-ally core
+  path, but `p2_signal_observed=false` because the runner's Bank bridge invokes
+  `LibVibeKernel.galaxy`, while the first signal marker was added only to the
+  map chat fallback. No core behavior claim was changed by this intermediate
+  result.
+- `static`: `libVibeKernel_gf_EchoAlly` was added to both the registered kernel
+  and the active Dead of Night map mirror. It preserves the existing
+  `UIDisplayMessage` output and records `ally.last_signal` plus an incrementing
+  `ally.signal_count`; the runner accepts only a per-run count increase.
+  Targeted runner/launcher regression passed `20` tests.
+- `runtime`: v13 on approved API port `5750` completed the single-client
+  Computer-ally path. Roster values were P1 `type=1`, P2 `type=2`, Terran,
+  difficulty `2`; initialization reached `initialization_complete=1`,
+  `initialization_units_ready_p1/p2=1`, `ally_not_ready_reason=none`, and
+  `ally_p2_unit_count=14`.
+- `runtime`: P1 issued `!ally status`, `!ally defend`, and `!ally attack`.
+  All three were accepted; the final Bank contained
+  `command_count=3`, `signal_count=3`, `last_result=attack_issued`, and
+  `last_signal="[Ally P2] Acknowledged: attack. P2 units engaging hostile target."`.
+  The report set `p2_signal_observed=true`, `p2_command_ack_observed=true`,
+  `p2_visible_as_p1_ally=true`, and native strategy audit `PASS` with no debug
+  injection.
+- `runtime`: v13 emitted a non-empty native `.SC2Replay`, a 1200-loop JSONL
+  replay, and a dynamic `full-map-player.html` containing timeline,
+  requestAnimationFrame, Canvas, and playback controls.
+- `runtime`: `script_error_check.py --since 1785727614` returned
+  `has_new_errors=false`, `count=0`, and no new non-empty ScriptError files in
+  the same launcher epoch.
+- `static`: the final focused regression collection passed `107` tests;
+  `run-all-validation.ps1` passed `52/52` checks with zero warnings; and
+  `py_compile` plus `git diff --check` passed after the signal change.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/runtime-report.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/native-live-replay.SC2Replay`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/full-map-player.html`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/script-error-verdict.json`.

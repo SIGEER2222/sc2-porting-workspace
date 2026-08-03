@@ -5,14 +5,15 @@
     {
       "id": "RUNTIME-P2-NATIVE-VALIDATION-BLOCKED",
       "severity": "medium",
-      "status": "blocked",
-      "title": "Fresh corrected P2 native runtime is blocked by participant topology",
-      "detail": "The P2 native-task simulator is PASS across seeds 42, 7, and 99, but fresh two-client native SC2 validation remains blocked at participant topology/JoinGame ownership. The runner polls GameInfo until a second client joins, uses explicit P1/P2 server/client port tuples, and fails closed unless the strategy observes player_id=2. The post-reinstall single-client Ability VM passed on port 5310, but it is debug injection evidence and does not satisfy native P2 acceptance. The historical native report remains invalid because it operated P1 and issued SCV attacks.",
-      "evidence_type": "blocked",
-      "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-native-20260802/topology-blocked.json",
+      "status": "resolved",
+      "title": "Native P2 runtime topology cleared by single-client Computer path",
+      "detail": "The old two-Participant JoinGame topology remained blocked, but it is not the selected runtime topology. Fresh v13 ApiMinimal validation proves P1 as Participant and P2 as Computer in the map roster, native P2 initialization, P1 chat commands forwarded to P2-owned orders, Bank acknowledgements, three P2-to-P1 UIDisplayMessage signal records, P2 state deltas, native replay output, and zero same-window ScriptErrors.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/runtime-report.json",
       "owner": "stage25",
-      "latestEvidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/runtime-p2-native-pass11-20260802/p1-anchor.stderr.txt",
-      "nextAction": "Launch a fresh primary through the approved launcher on one API port and the same launcher with -SecondaryClient on a second API port; run --anchor on P1 and --join-existing --multiplayer-ports on P2, then require P2 ownership, successful Barracks/Refinery/Marine transitions, no SCV attack, P1 command/P2 signal traces, a native replay HTML, and same-window ScriptError evidence."
+      "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/script-error-verdict.json",
+      "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v13/full-map-player.html",
+      "nextAction": "Keep the two-Participant probe as historical blocked evidence; use the single-client Computer-ally topology for future native map validation."
     },
     {
       "id": "SC2-INSTALLATION-REPAIR-MARKER",
@@ -87,14 +88,15 @@
     {
       "id": "RUNTIME-P2-TOPOLOGY-HANDSHAKE-PASS12",
       "severity": "medium",
-      "status": "blocked",
+      "status": "resolved",
       "title": "Dual-client P2 JoinGame handshake still does not return a participant",
       "detail": "Two fresh SC2 processes launched through the approved launcher passed independent Ping. P1 completed CreateGame, and both clients submitted the reference-shaped 1v1 Portconfig with server ports 5500/5501 and guest client ports 5502/5503. P1 JoinGame and P2 JoinGame then remained in the SC2 peer handshake until timeout; no P2 player_id=2 and no P1/P2 participant roster appeared in GameInfo. This run provides no native P2 action evidence.",
       "evidence_type": "blocked",
       "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-pass12-20260802/topology-handshake-blocked.json",
       "owner": "stage25",
+      "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v11/runtime-report.json",
       "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-topology-pass12-20260802/p2-runner-5451-ports.stdout.txt",
-      "nextAction": "Compare the approved launcher API startup with a reference python-sc2 multi-process launch that owns the same Portconfig, then rerun only after the peer handshake path is changed or independently proven."
+      "nextAction": "Retain this failed dual-Participant handshake as historical evidence; use the single-client Computer-ally topology for acceptance."
     },
     {
       "id": "RUNTIME-P2-TOPOLOGY-HANDSHAKE-FOLLOWUP-20260802",
@@ -156,14 +158,15 @@
     {
       "id": "RUNTIME-P2-SINGLE-CLIENT-V8-LEASE-BLOCKED",
       "severity": "medium",
-      "status": "blocked",
-      "title": "Corrected v8 native P2 runtime is waiting on an existing KeepAlive lease",
-      "detail": "The corrected v8 map was staged and packed with the native P2 Computer glue, but the approved single-client API runner could not start because an existing direct-map launcher owns the protected main runtime lease. The owner is launcher PID 32640 with SC2 PID 16276, state keepalive, and no API port. The direct-map window reached runtime_listener_ready and had no new non-empty ScriptError files, but it produced no P2 Bank/replay evidence.",
-      "evidence_type": "blocked",
-      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-direct-map-input-20260803/launcher.stdout.txt",
+      "status": "resolved",
+      "title": "Corrected v8 native P2 runtime was waiting on an existing KeepAlive lease",
+      "detail": "The v8 attempt was blocked by an existing KeepAlive lease. The lease was released for the v11 rerun, and the approved single-client API path completed the native P2 Computer probe with Bank, replay, and ScriptError evidence.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v11/runtime-report.json",
       "owner": "environment",
-      "latestEvidence": "artifacts/runtime/sc2-runtime-lease.json",
-      "nextAction": "After the existing KeepAlive owner releases the lease, launch the approved single-client API runner against the v8 packed map and require P1/P2 units, computer_ally_ready, P2 native AI state changes, chat/Bank acknowledgement, native SC2Replay, full-map-player.html, and same-window ScriptError evidence."
+      "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v11/script-error-verdict.json",
+      "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v11/full-map-player.html",
+      "nextAction": "Use the lease-aware approved launcher flow for subsequent runs."
     },
     {
       "id": "RUNTIME-P2-DIRECT-MAP-API-CRASH-20260803",

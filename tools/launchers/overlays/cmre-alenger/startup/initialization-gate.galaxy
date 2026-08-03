@@ -19,6 +19,14 @@ int gf_CmreOnDemandAliveCount(string unitType, int player) {
     return UnitGroupCount(lv_units, c_unitCountAlive);
 }
 
+int gf_CmreOnDemandOwnedAliveCount(int player) {
+    unitgroup lv_units;
+    lv_units = UnitGroup(null, player, RegionEntireMap(),
+        UnitFilter(0, 0, 0,
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    return UnitGroupCount(lv_units, c_unitCountAlive);
+}
+
 bool gf_CmreOnDemandInitializationReady() {
     string lv_structureType = "";
     string lv_workerType = "";
@@ -50,8 +58,16 @@ bool gf_CmreOnDemandInitializationReady() {
     lv_ensureP2 = gf_CmreOnDemandProfileInt("EnsurePreventDefeatP2");
     lv_rebornHandled = gf_CmreOnDemandProfileInt("RebornStartingUnitsHandled");
 
-    lv_buildingP1 = (gf_CmreOnDemandAliveCount(lv_structureType, 1) > 0);
-    lv_buildingP2 = (gf_CmreOnDemandAliveCount(lv_structureType, 2) > 0);
+    // Custom commander catalog IDs can be reported through their vanilla
+    // runtime alias after API map loading. Prefer the explicit bridge marker
+    // plus owned-unit presence, while retaining the exact catalog check when
+    // it is available.
+    lv_buildingP1 = (gf_CmreOnDemandAliveCount(lv_structureType, 1) > 0) ||
+        (gf_CmreOnDemandDebugInt("bridge_prevent_defeat_p1") != 0) ||
+        (gf_CmreOnDemandDebugInt("bridge_prevent_defeat_created_p1") != 0);
+    lv_buildingP2 = (gf_CmreOnDemandAliveCount(lv_structureType, 2) > 0) ||
+        (gf_CmreOnDemandDebugInt("bridge_prevent_defeat_p2") != 0) ||
+        (gf_CmreOnDemandDebugInt("bridge_prevent_defeat_created_p2") != 0);
     if ((lv_ensureP1 != 0) && (!lv_buildingP1)) { return false; }
     if ((lv_ensureP2 != 0) && (!lv_buildingP2)) { return false; }
 
@@ -59,11 +75,11 @@ bool gf_CmreOnDemandInitializationReady() {
     lv_unitsP2 = true;
     if (lv_createP1 != 0) {
         lv_unitsP1 = (gf_CmreOnDemandDebugInt("bridge_starting_units_created_p1") != 0) &&
-            (gf_CmreOnDemandAliveCount(lv_workerType, 1) >= lv_workerCount);
+            (gf_CmreOnDemandOwnedAliveCount(1) >= lv_workerCount + 1);
     }
     if (lv_createP2 != 0) {
         lv_unitsP2 = (gf_CmreOnDemandDebugInt("bridge_starting_units_created_p2") != 0) &&
-            (gf_CmreOnDemandAliveCount(lv_workerType, 2) >= lv_workerCount);
+            (gf_CmreOnDemandOwnedAliveCount(2) >= lv_workerCount + 1);
     }
     if ((!lv_unitsP1) || (!lv_unitsP2)) { return false; }
 

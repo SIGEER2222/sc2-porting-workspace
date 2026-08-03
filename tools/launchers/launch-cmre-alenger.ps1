@@ -955,16 +955,15 @@ function Write-CmreLaunchProfile {
         3 { "CustomMutators" }
         default { "Standard" }
     }
-    # 亡者之夜的起始建筑由 CMRE 完整启动链创建。任何 map-side fallback
-    # 都可能在 PreventDefeat 检查前移除/替换该建筑，导致开局直接失败。
-    # Profile flags remain explicit zeroes so older generated map glue cannot
-    # accidentally re-enable the replacement path.
-    $preserveNativeMapStartingUnits = $commanderSelectionDisabled
-    $createStartingUnitsP1 = if (-not $preserveNativeMapStartingUnits -and $mapStartingUnitsPlayers -contains 1) { "1" } else { "0" }
-    $createStartingUnitsP2 = if (-not $preserveNativeMapStartingUnits -and $mapStartingUnitsPlayers -contains 2) { "1" } else { "0" }
-    $ensurePreventDefeatP1 = if (-not $preserveNativeMapStartingUnits -and $mapPreventDefeatPlayers -contains 1) { "1" } else { "0" }
-    $ensurePreventDefeatP2 = if (-not $preserveNativeMapStartingUnits -and $mapPreventDefeatPlayers -contains 2) { "1" } else { "0" }
-    if ($preserveNativeMapStartingUnits) { $vanillaRemovals = @() }
+    # The map requirement is authoritative for API-mode starting state. A map
+    # may disable the commander-selection UI while still needing an explicit
+    # P1 base/workers after CreateGame; those are separate concerns. P2 is
+    # intentionally not synthesized here when the map does not declare it:
+    # the Dead of Night Computer ally glue owns P2's native melee opening.
+    $createStartingUnitsP1 = if ($mapStartingUnitsPlayers -contains 1) { "1" } else { "0" }
+    $createStartingUnitsP2 = if ($mapStartingUnitsPlayers -contains 2) { "1" } else { "0" }
+    $ensurePreventDefeatP1 = if ($mapPreventDefeatPlayers -contains 1) { "1" } else { "0" }
+    $ensurePreventDefeatP2 = if ($mapPreventDefeatPlayers -contains 2) { "1" } else { "0" }
     $rebornStartingUnitsHandled = if ($EnableReborn -and $RebornCommander -ne "") { "1" } else { "0" }
     $values = [ordered]@{
         Valid = @("int", "1"); Version = @("int", "1");
