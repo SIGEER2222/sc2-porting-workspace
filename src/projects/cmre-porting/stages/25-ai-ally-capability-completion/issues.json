@@ -152,6 +152,42 @@
       "owner": "stage25",
       "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-map-matrix-20260803-final",
       "nextAction": "Keep this result labeled simulator-only; native SC2 P2 topology remains a separate blocked runtime gate."
+    },
+    {
+      "id": "RUNTIME-P2-SINGLE-CLIENT-V8-LEASE-BLOCKED",
+      "severity": "medium",
+      "status": "blocked",
+      "title": "Corrected v8 native P2 runtime is waiting on an existing KeepAlive lease",
+      "detail": "The corrected v8 map was staged and packed with the native P2 Computer glue, but the approved single-client API runner could not start because an existing direct-map launcher owns the protected main runtime lease. The owner is launcher PID 32640 with SC2 PID 16276, state keepalive, and no API port. The direct-map window reached runtime_listener_ready and had no new non-empty ScriptError files, but it produced no P2 Bank/replay evidence.",
+      "evidence_type": "blocked",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-direct-map-input-20260803/launcher.stdout.txt",
+      "owner": "environment",
+      "latestEvidence": "artifacts/runtime/sc2-runtime-lease.json",
+      "nextAction": "After the existing KeepAlive owner releases the lease, launch the approved single-client API runner against the v8 packed map and require P1/P2 units, computer_ally_ready, P2 native AI state changes, chat/Bank acknowledgement, native SC2Replay, full-map-player.html, and same-window ScriptError evidence."
+    },
+    {
+      "id": "RUNTIME-P2-DIRECT-MAP-API-CRASH-20260803",
+      "severity": "high",
+      "status": "blocked",
+      "title": "DirectMap API bootstrap crashes before the native P2 probe can attach",
+      "detail": "The approved DirectMap+API launcher staged the corrected map and launched SC2Switcher, but SC2_x64 exited before API listen with ACCESS_VIOLATION (0xC0000005). No CreateGame, JoinGame, P2 roster, native replay, or strategy action was sent.",
+      "evidence_type": "blocked",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-direct-map-input-20260803-r6/runtime-verdict.json",
+      "owner": "environment",
+      "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-direct-map-input-20260803-r6/sc2-crash.txt",
+      "nextAction": "Repair or replace the approved SC2Switcher direct-map API bootstrap, then rerun with the same staged map and require API listen before any native P2 claim."
+    },
+    {
+      "id": "RUNTIME-P2-DIRECT-MAP-NO-LOBBY-20260803",
+      "severity": "high",
+      "status": "blocked",
+      "title": "DirectMap without API has no P2 Computer roster or chat event",
+      "detail": "A fresh approved DirectMap window reached runtime_listener_ready, initialization_complete, P1/P2 readiness markers, and zero same-window ScriptErrors. The map reported PlayerType(2)=0 with ally_not_ready_reason=p2_not_computer, and an ASCII clipboard !ally status input produced no ChatMessage event or fallback command key.",
+      "evidence_type": "blocked",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-direct-map-input-20260803-r9/runtime-verdict.json",
+      "owner": "environment",
+      "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-direct-map-input-20260803-r9/launcher.stdout.txt",
+      "nextAction": "Use a working API/lobby topology that supplies P1 Participant plus P2 Computer; do not treat PlayerType 0 DirectMap initialization or listener readiness as native ally acceptance."
     }
   ]
 }

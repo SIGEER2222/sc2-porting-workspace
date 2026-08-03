@@ -108,6 +108,31 @@ def test_live_ally_command_is_a_p1_team_chat_message():
     assert action.action_chat.message == "!ally defend stage25-test"
 
 
+def test_live_api_ally_command_is_mirrored_to_p1_bank_bridge(tmp_path):
+    bank = tmp_path / "GalaxyVibe.SC2Bank"
+    bank.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<Bank version="1"><Section name="ally" /></Bank>',
+        encoding="utf-8",
+    )
+
+    ok, error = runner._queue_runtime_ally_command(
+        "!ally attack stage25-bank-bridge",
+        bank_path=bank,
+    )
+
+    assert ok is True
+    assert error == ""
+    root = runner.ET.parse(bank).getroot()
+    section = next(item for item in root.findall("Section") if item.get("name") == "ally")
+    values = {
+        key.get("name"): key.find("Value").attrib
+        for key in section.findall("Key")
+    }
+    assert values["pending_command"] == {"string": "!ally attack stage25-bank-bridge"}
+    assert values["pending_player_id"] == {"int": "1"}
+
+
 def test_live_roster_requires_p1_and_p2_participants():
     assert runner._has_p1_p2_participant_roster({
         "1": {"type": 1},

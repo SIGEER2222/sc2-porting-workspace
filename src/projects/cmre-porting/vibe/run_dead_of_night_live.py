@@ -33,6 +33,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
+import xml.etree.ElementTree as ET
 
 # 添加 vendored s2clientprotocol 到 sys.path
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -80,6 +81,8 @@ DEFAULT_MAP = r"E:\SC2\SC2new\StarCraft II\Maps\亡者之夜_p0_default_packed.S
 P1_PLAYER_ID = 1
 P2_PLAYER_ID = 2
 PLAYER_ID = P1_PLAYER_ID
+PLAYER_TYPE_PARTICIPANT = 1
+PLAYER_TYPE_COMPUTER = 2
 # SC2 requires every participant in a local multiplayer game to submit the
 # same server/client port topology during JoinGame. The client port pair is
 # the guest slot in the shared Portconfig; it is not private to one API
@@ -288,6 +291,55 @@ def _unit_brief_from_sc2(u, player_id: int) -> Optional[dict]:
         ],
         "is_idle": not bool(getattr(u, "orders", ())),
     }
+
+
+async def _advance_non_realtime_startup(
+    conn: Sc2Connection,
+    *,
+    verbose: bool = True,
+    max_attempts: int = 120,
+) -> None:
+    """Drive the first playable frames before reading GameInfo.
+
+    ``realtime=False`` does not advance the SC2 simulation while the client
+    sleeps. Map InitMap/startup triggers therefore need RequestStep calls here;
+    wall-clock waiting alone can leave the staged map at its static placement
+    markers with no mission-owned units or AI startup executed.
+    """
+    last_error = ""
+    for attempt in range(max_attempts):
+        try:
+            step_response = await conn.send_request(
+                sc_pb.Request(step=sc_pb.RequestStep(count=1)),
+                timeout=15,
+            )
+            if step_response.error:
+                last_error = ", ".join(str(error) for error in step_response.error)
+            else:
+                observation_response = await conn.send_request(
+                    sc_pb.Request(observation=sc_pb.RequestObservation()),
+                    timeout=15,
+                )
+                if not observation_response.error:
+                    game_loop = observation_response.observation.observation.game_loop
+                    if game_loop > 0:
+                        if verbose:
+                            print(
+                                f"  Startup frames advanced with RequestStep: loop={game_loop}"
+                            )
+                        return
+                    last_error = "observation game_loop remained 0"
+                else:
+                    last_error = ", ".join(
+                        str(error) for error in observation_response.error
+                    )
+        except (ConnectionError, TimeoutError, asyncio.TimeoutError) as exc:
+            last_error = str(exc)
+        await asyncio.sleep(0.25)
+    raise RuntimeError(
+        "non-realtime SC2 startup did not advance a playable frame after "
+        f"{max_attempts} RequestStep attempts: {last_error}"
+    )
 
 
 # The live API exposes catalog names in the enum spelling (for example
@@ -602,20 +654,34 @@ def _owner_state(obs: LiveObservation, owner_player_id: int) -> list[dict]:
 
 
 def _has_p1_p2_participant_roster(player_roster: dict) -> bool:
-    """Require both the human P1 slot and Vibe's P2 slot to be participants."""
+    """Require both P1 and P2 to be native Participant slots."""
     return all(
-        int(player_roster.get(str(player_id), {}).get("type", 0)) == 1
+        int(player_roster.get(str(player_id), {}).get("type", 0))
+        == PLAYER_TYPE_PARTICIPANT
         for player_id in (P1_PLAYER_ID, P2_PLAYER_ID)
     )
 
 
+def _has_p1_p2_computer_roster(player_roster: dict) -> bool:
+    """Require the single-client native topology: P1 human, P2 computer."""
+    return (
+        int(player_roster.get(str(P1_PLAYER_ID), {}).get("type", 0))
+        == PLAYER_TYPE_PARTICIPANT
+        and int(player_roster.get(str(P2_PLAYER_ID), {}).get("type", 0))
+        == PLAYER_TYPE_COMPUTER
+    )
+
+
+def _runtime_bank_path(bank_name: str = "GalaxyVibe") -> Path:
+    return Path.home() / "Documents" / "StarCraft II" / "Banks" / f"{bank_name}.SC2Bank"
+
+
 def _read_runtime_bank_section(bank_name: str = "GalaxyVibe") -> dict:
     """Read the ally Bank section for runtime command acknowledgements."""
-    bank_path = Path.home() / "Documents" / "StarCraft II" / "Banks" / f"{bank_name}.SC2Bank"
+    bank_path = _runtime_bank_path(bank_name)
     if not bank_path.exists():
         return {}
     try:
-        import xml.etree.ElementTree as ET
         root = ET.parse(bank_path).getroot()
     except (OSError, ET.ParseError):
         return {}
@@ -636,6 +702,55 @@ def _read_runtime_bank_section(bank_name: str = "GalaxyVibe") -> dict:
         elif "string" in value.attrib:
             result[name] = value.attrib["string"]
     return result
+
+
+def _queue_runtime_ally_command(
+    command: str,
+    bank_name: str = "GalaxyVibe",
+    bank_path: Optional[Path] = None,
+) -> tuple[bool, str]:
+    """Mirror a real P1 chat command for API-mode Galaxy polling.
+
+    SC2 API can expose the chat message to the client while not delivering the
+    corresponding Galaxy ChatMessage event. The map PollLoop consumes this
+    short-lived, explicitly P1-tagged bridge record and runs the same command
+    handler as the manual chat path.
+    """
+    normalized = str(command).strip()
+    if not normalized.startswith("!ally "):
+        return False, "ally command must start with '!ally '"
+    target = bank_path or _runtime_bank_path(bank_name)
+    if not target.exists():
+        return False, f"bank not found: {target}"
+    try:
+        tree = ET.parse(target)
+        root = tree.getroot()
+        section = next(
+            (item for item in root.findall("Section") if item.get("name") == "ally"),
+            None,
+        )
+        if section is None:
+            section = ET.SubElement(root, "Section", {"name": "ally"})
+
+        def set_value(key_name: str, value_kind: str, value: str) -> None:
+            key = next(
+                (item for item in section.findall("Key") if item.get("name") == key_name),
+                None,
+            )
+            if key is None:
+                key = ET.SubElement(section, "Key", {"name": key_name})
+            value_node = key.find("Value")
+            if value_node is None:
+                value_node = ET.SubElement(key, "Value")
+            value_node.attrib.clear()
+            value_node.set(value_kind, value)
+
+        set_value("pending_command", "string", normalized)
+        set_value("pending_player_id", "int", str(P1_PLAYER_ID))
+        tree.write(target, encoding="utf-8", xml_declaration=True)
+    except (OSError, ET.ParseError, ValueError) as exc:
+        return False, str(exc)
+    return True, ""
 
 
 def _find_nearest_mineral_field_live(mineral_fields: list[dict],
@@ -702,6 +817,7 @@ class LiveGameReport:
     behavior_verdict: str = "inconclusive"
     local_map_path: str = ""
     replay_log_path: str = ""
+    replay_html_path: str = ""
     native_replay_path: str = ""
     native_replay_error: str = ""
     observed_player_id: int = P1_PLAYER_ID
@@ -714,6 +830,8 @@ class LiveGameReport:
     p1_command_trace: list[dict] = field(default_factory=list)
     p2_signal_trace: list[dict] = field(default_factory=list)
     ally_mode_history: list[str] = field(default_factory=list)
+    ally_bank_initial: dict = field(default_factory=dict)
+    ally_bank_final: dict = field(default_factory=dict)
 
 
 def _replay_entity(unit: dict, owner: int) -> dict:
@@ -755,8 +873,9 @@ def _write_replay_frame(fp, loop: int, obs: LiveObservation,
         owner = int(unit.get("owner", 0))
         entities_by_player.setdefault(str(owner), []).append(_replay_entity(unit, owner))
     for unit in obs.own_units:
-        entities_by_player.setdefault(str(P2_PLAYER_ID), []).append(
-            _replay_entity(unit, P2_PLAYER_ID)
+        owner = int(unit.get("owner", obs.player_id))
+        entities_by_player.setdefault(str(owner), []).append(
+            _replay_entity(unit, owner)
         )
     for unit in obs.visible_enemies:
         owner = int(unit.get("owner", 0))
@@ -775,7 +894,8 @@ def _write_replay_frame(fp, loop: int, obs: LiveObservation,
         "entities_by_player": entities_by_player,
         "strategy_player_id": obs.player_id,
         "strategy_player_resources": obs.resources,
-        "p2_resources": obs.resources,
+        "p1_resources": obs.resources if obs.player_id == P1_PLAYER_ID else None,
+        "p2_resources": obs.resources if obs.player_id == P2_PLAYER_ID else None,
         "total_cmds": total_cmds,
         "key_events": key_events,
     }
@@ -962,6 +1082,7 @@ async def run_live(
     join_existing: bool = False,
     multiplayer_ports: bool = False,
     multiplayer_port_base: int = MULTIPLAYER_PORT_BASE,
+    computer_ally: bool = True,
 ) -> LiveGameReport:
     """运行真机 AI 盟友自主对局。
 
@@ -975,15 +1096,14 @@ async def run_live(
         replay_log_path: JSONL 回放日志路径
         force_map_path: 使用原生地图路径，保留 CMRE 的外部依赖链
         join_existing: 跳过建局，仅加入另一个 API client 已创建的当前对局
-        multiplayer_ports: 为多 SC2 client JoinGame 提交共享端口拓扑
+        multiplayer_ports: 为旧双 Participant 探针提交共享端口拓扑
         multiplayer_port_base: shared Portconfig base port for multiplayer_ports
+        computer_ally: use one P1 client plus native Computer P2 (the default)
     """
     start_time = time.time()
     conn = Sc2Connection(port)
     await conn.connect()
-    server_ports, client_ports = _multiplayer_port_topology(
-        multiplayer_port_base
-    )
+    server_ports, client_ports = _multiplayer_port_topology(multiplayer_port_base)
     cmd_ok_stats: Counter = Counter()
     cmd_fail_stats: Counter = Counter()
     cmd_ok_by_kind: Counter = Counter()
@@ -1003,10 +1123,20 @@ async def run_live(
     replay_path = Path(replay_log_path)
     replay_path.parent.mkdir(parents=True, exist_ok=True)
     replay_fp = open(replay_path, "w", encoding="utf-8")
+    live_map_metadata = dict(LIVE_MAP_METADATA)
+    try:
+        from .map_replay import load_dead_of_night_map_cooperative_scenario
+        _, source_metadata = load_dead_of_night_map_cooperative_scenario()
+        live_map_metadata.update(source_metadata)
+        live_map_metadata["runtime_observation_source"] = "sc2api"
+    except Exception:
+        # The dynamic SC2 observation stream remains valid when only the packed
+        # map is available and the source package cannot be parsed.
+        live_map_metadata["runtime_observation_source"] = "sc2api"
     replay_fp.write(json.dumps({
         "record_type": "header",
         "schema_version": "live-runtime-v1",
-        "map_metadata": LIVE_MAP_METADATA,
+        "map_metadata": live_map_metadata,
         "owner_roles": {
             "1": {"relation": "leader", "name": "P1 玩家"},
             "2": {"relation": "ally", "name": "P2 AI 盟友"},
@@ -1016,8 +1146,13 @@ async def run_live(
             "6": {"relation": "enemy", "name": "P6 敌军"},
             "7": {"relation": "enemy", "name": "P7 敌军"},
         },
-        "strategy_player_id": P2_PLAYER_ID,
-        "native_strategy": True,
+        "strategy_player_id": P1_PLAYER_ID if computer_ally else P2_PLAYER_ID,
+        "runtime_topology": (
+            "single_client_p1_participant_p2_computer"
+            if computer_ally else "dual_participant_legacy_probe"
+        ),
+        "native_strategy": not computer_ally,
+        "native_computer_ally": computer_ally,
         "debug_injection": False,
     }, ensure_ascii=False) + "\n")
     replay_fp.flush()
@@ -1030,7 +1165,7 @@ async def run_live(
     native_replay_error = ""
     map_name = os.path.basename(map_path)
     local_map_path = ""
-    strategy_player_id = P2_PLAYER_ID
+    strategy_player_id = P1_PLAYER_ID if computer_ally else P2_PLAYER_ID
     player_id = strategy_player_id
     player_roster: dict = {}
     ally_command_trace: list[dict] = []
@@ -1079,12 +1214,27 @@ async def run_live(
                 # maps. POSIX separators can make the API resolve a different map
                 # while still returning a successful CreateGame response.
                 local_map = sc_pb.LocalMap(map_path=str(map_file.resolve()))
+            player_setup = [sc_pb.PlayerSetup(
+                type=PLAYER_TYPE_PARTICIPANT,
+                race=1,
+                player_name="P1",
+            )]
+            if computer_ally:
+                player_setup.append(sc_pb.PlayerSetup(
+                    type=PLAYER_TYPE_COMPUTER,
+                    race=1,
+                    difficulty=2,
+                    player_name="P2 AI",
+                ))
+            else:
+                player_setup.append(sc_pb.PlayerSetup(
+                    type=PLAYER_TYPE_PARTICIPANT,
+                    race=1,
+                    player_name="P2",
+                ))
             req = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
                 local_map=local_map,
-                player_setup=[
-                    sc_pb.PlayerSetup(type=1),  # Human player slot
-                    sc_pb.PlayerSetup(type=1),  # Vibe strategy slot
-                ],
+                player_setup=player_setup,
                 realtime=False,
             ))
             r = await conn.send_request(req, timeout=60, max_retries=5)
@@ -1101,7 +1251,7 @@ async def run_live(
             print("[4] JoinGame...")
         join_req = sc_pb.Request(join_game=sc_pb.RequestJoinGame(
             race=1,  # Terran
-            player_name="P2",
+            player_name="P1" if computer_ally else "P2",
             options=sc_pb.InterfaceOptions(raw=True),
         ))
         if multiplayer_ports:
@@ -1155,15 +1305,17 @@ async def run_live(
                 player_id = observed_common.player_id
         if player_id != strategy_player_id:
             raise RuntimeError(
-                f"Vibe strategy must join P2, but SC2 assigned player_id={player_id}"
+                f"runtime client expected player_id={strategy_player_id}, "
+                f"but SC2 assigned player_id={player_id}"
             )
         if verbose:
             print(f"  JoinGame OK! player_id={player_id}")
 
-        # 等 15s 让 galaxy 脚本初始化（参考 RealProfile：15s 等待）
+        # Non-realtime SC2 is frame-driven. Advance the startup graph instead
+        # of sleeping and assuming that Galaxy has already executed.
         if verbose:
-            print("  等 15s 让 galaxy 脚本初始化...")
-        await asyncio.sleep(15)
+            print("  驱动首帧，让 Galaxy 地图初始化...")
+        await _advance_non_realtime_startup(conn, verbose=verbose)
 
         # 5. GameInfo（获取地图名）
         r = await conn.send_request(sc_pb.Request(game_info=sc_pb.RequestGameInfo()), timeout=15)
@@ -1180,11 +1332,18 @@ async def run_live(
             }
             for info in r.game_info.player_info
         }
-        if not _has_p1_p2_participant_roster(player_roster):
-            raise RuntimeError(
-                "P2 strategy requires a participant roster for both P1 and P2; "
-                f"observed={player_roster}"
+        roster_ready = (
+            _has_p1_p2_computer_roster(player_roster)
+            if computer_ally
+            else _has_p1_p2_participant_roster(player_roster)
+        )
+        if not roster_ready:
+            roster_message = (
+                "single-client runtime requires P1 Participant + P2 Computer; "
+                if computer_ally
+                else "legacy P2 strategy requires two Participant slots; "
             )
+            raise RuntimeError(roster_message + f"observed={player_roster}")
         if verbose:
             print(f"[5] Map: {map_name} | local_map_path={local_map_path}")
 
@@ -1197,6 +1356,7 @@ async def run_live(
         p1_command_trace: list[dict] = []
         p2_signal_trace: list[dict] = []
         default_p2_base = (76.0, 103.0, 15.0)
+        ally_bank_initial = _read_runtime_bank_section()
 
         # 7. P1 chat is a real participant-to-participant command channel.
         # P2 parses it through the same AllyPolicy contract used by the
@@ -1211,6 +1371,8 @@ async def run_live(
         command_cursor = 0
         command_due_loops = [0, max(1, max_loops // 4), max(2, max_loops // 2)]
         pending_command: Optional[dict] = None
+        initial_p2_state: Optional[list[dict]] = None
+        latest_p2_state: list[dict] = []
 
         # 8. 主循环
         if verbose:
@@ -1249,6 +1411,11 @@ async def run_live(
                 continue
 
             obs = build_observation(r, player_id)
+            current_p2_state = _p2_state(obs)
+            if initial_p2_state is None and current_p2_state:
+                initial_p2_state = current_p2_state
+            if current_p2_state:
+                latest_p2_state = current_p2_state
             if (
                 initial_obs is None
                 and obs.own_units
@@ -1275,54 +1442,45 @@ async def run_live(
                     int(received.player_id) == P1_PLAYER_ID
                     and str(received.message).strip().startswith("!ally")
                 ):
-                    if ally_policy is None:
-                        ally_policy = AllyPolicy(
-                            player_id=P2_PLAYER_ID,
-                            leader_entity_id=0,
-                            base_region=default_p2_base,
-                            leader_player_id=P1_PLAYER_ID,
-                            command_interval=decision_interval,
+                    if computer_ally:
+                        p1_command_trace.append({
+                            **chat_entry,
+                            "accepted": True,
+                            "command_kind": "native_computer_ally",
+                            "mode": "forwarded_to_p2",
+                            "response": "forwarded_to_native_p2",
+                        })
+                    else:
+                        if ally_policy is None:
+                            ally_policy = AllyPolicy(
+                                player_id=P2_PLAYER_ID,
+                                leader_entity_id=0,
+                                base_region=default_p2_base,
+                                leader_player_id=P1_PLAYER_ID,
+                                command_interval=decision_interval,
+                            )
+                        notice = ally_policy.receive_player_command(
+                            str(received.message),
+                            source_player_id=P1_PLAYER_ID,
+                            loop=current_loop,
+                            command_id=f"p1:{current_loop}:{received.message}",
                         )
-                    notice = ally_policy.receive_player_command(
-                        str(received.message),
-                        source_player_id=P1_PLAYER_ID,
-                        loop=current_loop,
-                        command_id=f"p1:{current_loop}:{received.message}",
-                    )
-                    command_record = {
+                        p1_command_trace.append({
+                            **chat_entry,
+                            "accepted": bool(notice.accepted),
+                            "command_kind": notice.kind,
+                            "mode": notice.mode,
+                            "response": notice.message,
+                        })
+                elif computer_ally and "[Ally P2]" in str(received.message):
+                    p2_signal_trace.append({
                         **chat_entry,
-                        "accepted": bool(notice.accepted),
-                        "command_kind": notice.kind,
-                        "mode": notice.mode,
-                        "response": notice.message,
-                    }
-                    p1_command_trace.append(command_record)
-                    try:
-                        response = await conn.send_request(
-                            sc_pb.Request(action=sc_pb.RequestAction(
-                                actions=[build_team_chat_action(
-                                    f"[P2 AI] {notice.message}"
-                                )]
-                            )),
-                            timeout=10,
-                        )
-                        p2_signal_trace.append({
-                            "loop": current_loop,
-                            "message": f"[P2 AI] {notice.message}",
-                            "recipient_player_id": P1_PLAYER_ID,
-                            "request_ok": not bool(response.error),
-                            "response_errors": list(response.error),
-                        })
-                    except (ConnectionError, TimeoutError) as exc:
-                        p2_signal_trace.append({
-                            "loop": current_loop,
-                            "message": f"[P2 AI] {notice.message}",
-                            "recipient_player_id": P1_PLAYER_ID,
-                            "request_ok": False,
-                            "error": str(exc),
-                        })
+                        "source": "galaxy_ui_message",
+                        "recipient_player_id": P1_PLAYER_ID,
+                        "request_ok": True,
+                    })
 
-            if policy is None:
+            if not computer_ally and policy is None:
                 native_base = next(
                     (
                         unit for unit in obs.own_units
@@ -1345,7 +1503,7 @@ async def run_live(
                     base_region=base_region,
                     command_interval=decision_interval,
                 )
-            if ally_policy is None:
+            if not computer_ally and ally_policy is None:
                 leader_unit = next(
                     (
                         unit for unit in obs.visible_allies
@@ -1365,7 +1523,7 @@ async def run_live(
                 ally_policy.base_x = policy.base_x
                 ally_policy.base_y = policy.base_y
                 ally_policy.base_r = policy.base_r
-            elif ally_policy.leader_entity_id == 0:
+            elif not computer_ally and ally_policy.leader_entity_id == 0:
                 leader_unit = next(
                     (
                         unit for unit in obs.visible_allies
@@ -1379,7 +1537,8 @@ async def run_live(
             # Native strategy action adapter. Every entry in
             # action_result_trace comes from this block and is eligible for
             # the no-injection strategy audit.
-            if current_loop - last_native_decide_loop >= decision_interval:
+            if (not computer_ally
+                    and current_loop - last_native_decide_loop >= decision_interval):
                 last_native_decide_loop = current_loop
                 policy_resources = dict(obs.resources)
                 policy_resources["vespene_geysers"] = obs.vespene_geysers
@@ -1562,7 +1721,10 @@ async def run_live(
                         ))
                         chat_response = await conn.send_request(chat_request, timeout=10)
                         sent_ok = not bool(chat_response.error)
+                        bank_bridge_ok = False
+                        bank_bridge_error = ""
                         if sent_ok:
+                            bank_bridge_ok, bank_bridge_error = _queue_runtime_ally_command(command)
                             total_commands_issued += 1
                             total_commands_dispatched += 1
                             cmd_ok_stats["ally_chat"] += 1
@@ -1578,6 +1740,8 @@ async def run_live(
                             "transport": "sc2api_action_chat",
                             "request_ok": sent_ok,
                             "response_errors": list(chat_response.error),
+                            "bank_bridge_ok": bank_bridge_ok,
+                            "bank_bridge_error": bank_bridge_error,
                             "p2_before": before_state,
                             "bank_before": bank_before,
                         }
@@ -1590,6 +1754,7 @@ async def run_live(
                             "target_player_id": P2_PLAYER_ID,
                             "transport": "sc2api_action_chat",
                             "request_ok": False,
+                            "bank_bridge_ok": False,
                             "error": str(e),
                             "p2_before": before_state,
                             "bank_before": bank_before,
@@ -1670,6 +1835,16 @@ async def run_live(
         len(_owner_state(final_obs, P1_PLAYER_ID)) if final_obs is not None else 0
     )
     p2_state = _p2_state(final_obs) if final_obs is not None else []
+    ally_bank_final = _read_runtime_bank_section()
+    native_p2_melee_init_observed = all(
+        ally_bank_final.get(key) == 1
+        for key in (
+            "computer_ally_ready",
+            "p2_starting_units_initialized",
+            "p2_starting_resources_initialized",
+            "p2_native_ai_path",
+        )
+    )
     p1_visible_alliance_values = sorted({
         int(item.get("alliance", 0))
         for item in (final_obs.visible_allies if final_obs is not None else [])
@@ -1691,6 +1866,18 @@ async def run_live(
             if owner != 0:
                 enemy_survivors[owner] = enemy_survivors.get(owner, 0) + 1
 
+    p2_state_delta_observed = bool(
+        initial_p2_state
+        and latest_p2_state
+        and initial_p2_state != latest_p2_state
+    )
+    p2_command_ack_observed = any(
+        item.get("completed")
+        and item.get("bank_after", {}).get("last_result")
+        in {"status", "acknowledged", "attack_issued", "attack_no_target"}
+        for item in ally_command_trace
+    ) or bool(p2_signal_trace)
+
     # 判定胜负
     if p1_survivors > 0 and current_loop >= max_loops:
         verdict = "victory"
@@ -1702,15 +1889,44 @@ async def run_live(
         verdict = "inconclusive"
         summary = f"对局在 loop {current_loop} 结束"
 
-    strategy_audit = audit_native_strategy(
-        action_result_trace,
-        initial_observation=(initial_obs.__dict__ if initial_obs is not None else None),
-        final_observation=(final_obs.__dict__ if final_obs is not None else None),
-        expected_player_id=strategy_player_id,
-        required_buildings=("Barracks", "Refinery"),
-        required_units=("Marine",),
-    )
+    if computer_ally:
+        strategy_audit = {
+            "status": (
+                "PASS"
+                if roster_ready
+                and bool(p2_state)
+                and p2_state_delta_observed
+                and p2_command_ack_observed
+                and native_p2_melee_init_observed
+                else "FAIL"
+            ),
+            "mode": "native_computer_ally",
+            "checks": {
+                "no_debug_injection": not any(
+                    entry.get("kind") in {"unit.spawn", "player.set_resource", "unit.kill"}
+                    for entry in action_result_trace
+                ),
+                "state_observed_before_after": p2_state_delta_observed,
+                "p2_computer_roster": _has_p1_p2_computer_roster(player_roster),
+                "p2_command_acknowledged": p2_command_ack_observed,
+                "p2_owned_units_observed": bool(p2_state),
+                "p2_native_melee_init_observed": native_p2_melee_init_observed,
+                "raw_p2_actions_issued": False,
+            },
+            "action_count": 0,
+            "action_result_trace": [],
+        }
+    else:
+        strategy_audit = audit_native_strategy(
+            action_result_trace,
+            initial_observation=(initial_obs.__dict__ if initial_obs is not None else None),
+            final_observation=(final_obs.__dict__ if final_obs is not None else None),
+            expected_player_id=strategy_player_id,
+            required_buildings=("Barracks", "Refinery"),
+            required_units=("Marine",),
+        )
 
+    replay_html_path = replay_path.with_name("full-map-player.html")
     report = LiveGameReport(
         map_name=map_name,
         end_loop=current_loop,
@@ -1730,20 +1946,31 @@ async def run_live(
         runtime_assertions={
             "frames_advanced": current_loop > 0,
             "player_units_observed": p1_survivors > 0,
-            "strategy_player_id_is_p2": strategy_player_id == P2_PLAYER_ID,
-            "p1_p2_participant_roster": _has_p1_p2_participant_roster(player_roster),
-            "strategy_player_units_observed": len(p2_state) > 0,
+            "strategy_player_id_is_p1": computer_ally and strategy_player_id == P1_PLAYER_ID,
+            "p1_p2_computer_roster": computer_ally and _has_p1_p2_computer_roster(player_roster),
+            "strategy_player_id_is_p2": (not computer_ally) and strategy_player_id == P2_PLAYER_ID,
+            "p1_p2_participant_roster": (not computer_ally) and _has_p1_p2_participant_roster(player_roster),
+            "p2_owned_units_observed": len(p2_state) > 0,
             "action_results_correlated": action_result_count_mismatches == 0,
-            "action_success_observed": cmd_ok_stats.get("dispatched", 0) > 0,
+            "action_success_observed": (
+                p2_state_delta_observed if computer_ally
+                else cmd_ok_stats.get("dispatched", 0) > 0
+            ),
             "native_strategy_action_success": strategy_audit["status"] == "PASS",
             "p2_roster_observed": bool(p2_state),
-            "p1_visible_as_p2_ally": 2 in p1_visible_alliance_values,
-            "p2_command_ack_observed": any(
-                item.get("completed")
-                and item.get("bank_after", {}).get("last_result")
-                in {"status", "acknowledged", "attack_issued", "attack_no_target"}
-                for item in ally_command_trace
+            "p2_visible_as_p1_ally": any(
+                int(item.get("owner", 0)) == P2_PLAYER_ID
+                and int(item.get("alliance", 0)) == 2
+                for item in (final_obs.visible_allies if final_obs is not None else [])
             ),
+            "p2_command_ack_observed": p2_command_ack_observed,
+            "p2_native_melee_init_observed": native_p2_melee_init_observed,
+            "p2_starting_units_initialized": ally_bank_final.get(
+                "p2_starting_units_initialized"
+            ) == 1,
+            "p2_starting_resources_initialized": ally_bank_final.get(
+                "p2_starting_resources_initialized"
+            ) == 1,
             "native_strategy_no_debug_injection": strategy_audit["checks"][
                 "no_debug_injection"
             ],
@@ -1751,11 +1978,10 @@ async def run_live(
                 "state_observed_before_after"
             ],
             "p1_command_received": bool(p1_command_trace),
-            "p2_signal_sent": any(
-                item.get("request_ok") for item in p2_signal_trace
-            ),
+            "p2_signal_observed": bool(p2_signal_trace),
             "ally_mode_observed": bool(
-                ally_policy is not None and ally_policy.mode_history
+                (computer_ally and p2_command_ack_observed)
+                or (ally_policy is not None and ally_policy.mode_history)
             ),
         },
         strategy_audit=strategy_audit,
@@ -1766,6 +1992,7 @@ async def run_live(
         ),
         local_map_path=local_map_path,
         replay_log_path=str(replay_path),
+        replay_html_path=str(replay_html_path),
         native_replay_path=native_replay_path,
         native_replay_error=native_replay_error,
         observed_player_id=strategy_player_id,
@@ -1778,6 +2005,8 @@ async def run_live(
         p1_command_trace=p1_command_trace,
         p2_signal_trace=p2_signal_trace,
         ally_mode_history=(ally_policy.mode_history if ally_policy is not None else []),
+        ally_bank_initial=ally_bank_initial,
+        ally_bank_final=ally_bank_final,
     )
 
     # Keep the report as a final JSONL record so the same file is both a
@@ -1788,6 +2017,14 @@ async def run_live(
             "status": report.verdict.upper(),
             "runtime_report": report.__dict__,
         }, ensure_ascii=False) + "\n")
+
+    try:
+        from .replay_player import load_replay, render_player_html
+        render_player_html(load_replay(replay_path), replay_path, replay_html_path)
+    except Exception as exc:
+        report.replay_html_path = ""
+        if verbose:
+            print(f"  Browser replay unavailable: {exc}")
 
     if verbose:
         print(f"\n=== 真机对局结束 ===")
@@ -1809,6 +2046,7 @@ async def run_live(
         print(f"行为断言: {report.runtime_assertions}")
         print(f"总结: {report.summary}")
         print(f"回放: {report.replay_log_path}")
+        print(f"可动回放: {report.replay_html_path}")
 
     return report
 
@@ -1820,7 +2058,13 @@ def main():
     parser.add_argument(
         "--anchor",
         action="store_true",
-        help="作为 P1 anchor 创建双 participant 对局并发送真实 P1 盟友指令",
+        help="旧双 Participant 探针：作为 P1 anchor 创建对局并发送盟友指令",
+    )
+    parser.add_argument(
+        "--participant-p2",
+        dest="computer_ally",
+        action="store_false",
+        help="显式启用旧双 Participant P2 策略路径；默认使用单客户端 Computer P2",
     )
     parser.add_argument(
         "--anchor-wait-sec",
@@ -1899,6 +2143,7 @@ def main():
         multiplayer_ports=args.multiplayer_ports,
         multiplayer_port_base=args.multiplayer_port_base,
         replay_log_path=args.replay_log,
+        computer_ally=args.computer_ally,
     ))
 
     if args.output:

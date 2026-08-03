@@ -19,6 +19,21 @@ allied state, and prevent friendly-fire commands. Stage 24 remains the
 historical baseline, but its injected-attacker structure clearance is not
 accepted as evidence of native task strategy.
 
+### Runtime topology decision (2026-08-03)
+
+The native runtime acceptance path uses one SC2 client and the map's built-in
+Computer player:
+
+- P1 is the only `Participant` and the API client joins as P1.
+- P2 is a `Computer` Terran slot with configured difficulty; the map's native
+  `AIMeleeStart(2)` path owns P2 economy, production, movement, and combat.
+- P1 commands reach P2 through the existing `!ally` chat trigger. The Galaxy
+  bridge validates the reciprocal alliance, issues only P2-owned orders, writes
+  an acknowledgement to the ally Bank, and emits a player-visible signal.
+- The old two-Participant probe remains historical blocked evidence. It is not
+  a prerequisite for this topology and must not be retried as the acceptance
+  path.
+
 ### Priority override
 
 `function.invoke` is a first-class runtime debugging contract. Debug-only
@@ -154,10 +169,12 @@ even if the mission objectives are cleared.
    roster-ready evidence, no friendly-fire commands, nonzero ally assist/follow
    transitions, truthful error accounting, and deterministic report hashes or
    an explicitly documented allowed variance.
-13. Run the bounded runtime probe through the approved launcher after the
-   simulator contract passes. Capture CreateGame/JoinGame, raw alliance
-   observations, P1/P2 owner counts, typed action correlation, frame advance,
-   resulting state delta, and same-window ScriptError evidence.
+13. Run the bounded single-client Computer-ally runtime probe through the
+   approved launcher after the simulator contract passes. Capture
+   CreateGame/JoinGame, a P1 Participant plus P2 Computer roster, raw alliance
+   observations, P2 owner counts, P1 chat commands, Galaxy acknowledgements,
+   frame advance, an observable P2 state delta, a native `.SC2Replay`, a
+   browser `full-map-player.html`, and same-window ScriptError evidence.
 14. Record `result.json`, `log.md`, and `issues.json`; promote `currentStage`
    from Stage 24 only when implementation begins and keep simulator, static,
    runtime, blocked, and inference evidence separate.
@@ -221,11 +238,12 @@ simulator evidence and must remain separate from native SC2 runtime evidence.
    no deadlock, oscillation, or command-storm safety failure.
 10. Existing Stage 19/20 simulator tests, Stage 22/23 typed combat tests, and
    launcher/kernel static validation remain green.
-11. A fresh approved-launcher runtime window observes the native P1/P2 team
-   relationship, advances frames, receives at least one successful typed P2
-   action result, records a resulting observable state delta, and reports zero
-   new ScriptErrors in that same window. A blocked runtime remains BLOCKED,
-   never PASS.
+11. A fresh approved-launcher runtime window observes P1 as a Participant and
+   P2 as a Computer, confirms their native team relationship, advances frames,
+   receives at least one P1 command, observes a P2-owned state delta or native
+   AI transition, records a P2 acknowledgement, and reports zero new
+   ScriptErrors in that same window. No raw P2 Participant client is required.
+   A blocked runtime remains BLOCKED, never PASS.
 12. Stage artifacts contain repo-relative evidence paths, valid JSON schemas,
    explicit evidence classifications, and no claim that simulator success is
    runtime success.

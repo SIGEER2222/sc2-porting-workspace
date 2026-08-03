@@ -93,6 +93,20 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
     assert "gt_CmreOnDemandRuntimeListener_Func" in map_glue
     assert "libMapModBridge_gf_StartHeartbeat();" in map_glue
     assert "runtime_listener_ready" in map_glue
+    # The launcher must select the Dead of Night fragment from an ASCII
+    # MapScript signature, because the Chinese map filename is not reliable
+    # after Windows PowerShell code-page conversion.
+    assert '$isDeadOfNight = $mapScript.Contains("gv_day_Duration_First")' in observer_overlay_body
+    assert '$fragmentName = if ($isDeadOfNight) { "map-glue.dead-of-night.galaxy" } else { "map-glue.generic.galaxy" }' in observer_overlay_body
+    assert "MeleeInitUnitsForPlayer(2, lv_p2Race, lv_p2Start);" in map_glue
+    assert "MeleeInitResourcesForPlayer(2, lv_p2Race);" in map_glue
+    assert "AIMeleeStart(2);" in map_glue
+    assert "gt_CmreOnDemandAllyChat_Init" in map_glue
+    assert "fallback_last_result" in map_glue
+    assert "TriggerAddEventTimeElapsed(gt_CmreOnDemandComputerAllyReady, 0.0, c_timeGame);" in map_glue
+    assert "TriggerExecute(gt_CmreOnDemandComputerAllyReady, false, true);" in map_glue
+    assert "p2_starting_units_initialized" in map_glue
+    assert "P1 remains owned by CMRE commander" in map_glue
     assert "libVibeKernel_gf_RegisterEntryPoints();" in observer_overlay_body
     assert 'libMapModBridge_gf_WriteDebugBank("map_init_entered", 1);' in observer_overlay_body
     assert "Install-CmreTriggerCustomScriptOverlay" in observer_overlay_body
@@ -107,8 +121,18 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
     assert "startup_dev_finish" in overlay
     assert "Triggers" in overlay
     assert "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_V1" in overlay
+    assert "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_V2" in overlay
+    assert "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_V3" in overlay
     assert "triggers_customscript_entered" in overlay
     assert 'BankValueSetFromInt(BankLastCreated(), "debug", "triggers_customscript_entered", 1);' in overlay
+    assert "api_customscript_init_started" in overlay
+    assert "api_customscript_init_complete" in overlay
+    assert "libVibeKernel_gv_initialized" in overlay
+    assert "InitMap" in overlay
+    assert "single path" in overlay
+    assert "InitMap();" not in overlay
+    assert 'UnitCreate(1, "Marine"' not in overlay
+    assert "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_INITMAP_GUARD" in overlay
     assert 'libVibeKernel_gf_RegisterEntryPoints();' in overlay
     assert "registration belongs after the generated InitTriggers graph" in overlay
     assert 'stage16_before_vibe' in overlay
@@ -130,6 +154,20 @@ def test_player_mode_launches_direct_map_from_gamelog_signal():
     assert 'guard empty hero structure unit type' in core_overlay
     assert '-loadmap `"$liveMap`"' not in source
     assert '$args = @("`"$liveMap`"")' not in source
+
+
+def test_direct_map_api_mode_attaches_after_map_initialization():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "[switch]$DirectMapApi" in source
+    assert '"-DirectMapApi 必须配合 -ListenPort <port> 使用"' in source
+    assert "DirectMapApi cannot be combined with -DebugMode or -ApiMinimal" in source
+    assert "SC2 direct-map + API mode" in source
+    assert "Wait-CmreGameLogMapLoadSignal -Since $launchStartedAt" in source
+    assert "Wait-CmreRuntimeListener -TimeoutSeconds 120" in source
+    assert "Host must attach with --join-existing" in source
+    assert "--join-existing" in source
+    assert '"-listen", "127.0.0.1", "-port", "$ListenPort", "-debug"' in source
 
 
 def test_overlay_assets_hold_galaxy_fragments_outside_launcher():
@@ -169,6 +207,8 @@ def test_overlay_assets_hold_galaxy_fragments_outside_launcher():
     assert "CMRE_ON_DEMAND_MAP_GLUE" in map_glue
     assert "gf_CmreOnDemandProfileString" in map_glue
     assert "libMapModBridge_gf_CreateStartingUnits" in map_glue
+    assert "MeleeInitUnitsForPlayer" in map_glue
+    assert "MeleeInitResourcesForPlayer" in map_glue
     assert "gt_CmreOnDemandRuntimeListener_Init" in map_glue
     initialization_gate = (ASSETS / "startup" / "initialization-gate.galaxy").read_text(encoding="utf-8-sig")
     assert "initialization_complete" in initialization_gate

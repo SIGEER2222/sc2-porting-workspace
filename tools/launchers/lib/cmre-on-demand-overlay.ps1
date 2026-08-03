@@ -120,18 +120,37 @@ function Copy-CmreOverlayFiles {
 
 function Initialize-CmreRuntimeListenerBank {
     $banksRoot = Join-Path $env:USERPROFILE "Documents\StarCraft II\Banks"
-    $bankXml = '<?xml version="1.0" encoding="utf-8"?>' + [Environment]::NewLine + '<Bank version="1">' + [Environment]::NewLine + '</Bank>'
+    $bankXml = '<?xml version="1.0" encoding="utf-8"?>' + [Environment]::NewLine + '<Bank version="1"><Section name="debug"/><Section name="ally"/></Bank>'
+    $vibeBankXml = '<?xml version="1.0" encoding="utf-8"?>' + [Environment]::NewLine + '<Bank version="1"><Section name="index"/><Section name="request"/><Section name="response"/><Section name="ally"/><Section name="diag"/></Bank>'
     $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($bankXml)
+    $vibeBytes = [System.Text.UTF8Encoding]::new($false).GetBytes($vibeBankXml)
     [System.IO.Directory]::CreateDirectory($banksRoot) | Out-Null
-    $vibeBankFile = Join-Path $banksRoot "GalaxyVibe.SC2Bank"
-    if (-not (Test-Path -LiteralPath $vibeBankFile)) {
-        [System.IO.File]::WriteAllBytes($vibeBankFile, $bytes)
-    }
     foreach ($dir in @($banksRoot, (Join-Path $banksRoot "1"), (Join-Path $banksRoot "2"), (Join-Path $banksRoot "14"))) {
         [System.IO.Directory]::CreateDirectory($dir) | Out-Null
         $bankFile = Join-Path $dir "CMRERebornDebug.SC2Bank"
         if (-not (Test-Path -LiteralPath $bankFile)) {
             [System.IO.File]::WriteAllBytes($bankFile, $bytes)
+        }
+        $vibeBankFile = Join-Path $dir "GalaxyVibe.SC2Bank"
+        if (-not (Test-Path -LiteralPath $vibeBankFile)) {
+            [System.IO.File]::WriteAllBytes($vibeBankFile, $vibeBytes)
+            continue
+        }
+        # BankValueSetFrom* can update existing sections, but an empty bank
+        # produced by an earlier probe is not consistently writable on the
+        # direct-map path. Seed the typed Vibe sections before SC2 loads it.
+        try {
+            [xml]$vibeDocument = [System.IO.File]::ReadAllText($vibeBankFile, [System.Text.Encoding]::UTF8)
+            foreach ($sectionName in @("index", "request", "response", "ally", "diag")) {
+                if (@($vibeDocument.Bank.Section | Where-Object { $_.name -eq $sectionName }).Count -eq 0) {
+                    $section = $vibeDocument.CreateElement("Section")
+                    $section.SetAttribute("name", $sectionName)
+                    $vibeDocument.Bank.AppendChild($section) | Out-Null
+                }
+            }
+            $vibeDocument.Save($vibeBankFile)
+        } catch {
+            throw "Could not initialize GalaxyVibe bank sections: $($_.Exception.Message)"
         }
     }
 }
@@ -200,20 +219,8 @@ function Install-CmreTriggerCustomScriptOverlay {
     $path = Join-Path $MapPath "Triggers"
     $content = Read-CmreUtf8 -Path $path
     $marker = "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_V1"
-    if ($content.Contains($marker)) {
-        # Upgrade maps staged by an earlier launcher revision in place. Vibe
-        # registration belongs after the generated InitTriggers graph; keeping
-        # it out of this custom InitFunc avoids creating triggers too early.
-        $registerCall = '    libVibeKernel_gf_RegisterEntryPoints();'
-        if ($content.Contains($registerCall)) {
-            $content = [regex]::Replace($content, '(?m)^[ \t]*libVibeKernel_gf_RegisterEntryPoints\(\);\r?\n', '')
-            Write-CmreUtf8NoBom -Path $path -Content $content
-            Write-Host "CMRE trigger custom-script overlay removed early Vibe registration: $path"
-        } else {
-            Write-Host "CMRE trigger custom-script overlay already has no early Vibe registration"
-        }
-        return
-    }
+    $previousVersionMarker = "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_V2"
+    $versionMarker = "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_V3"
 
     # Keep this first probe independent from the copied runtime libraries. A
     # root-level map CustomScript is emitted into the generated
@@ -221,14 +228,41 @@ function Install-CmreTriggerCustomScriptOverlay {
     # editor stores the entry point in InitFunc; free-standing statements in
     # ScriptCode are only declarations and are not invoked by the bootstrap.
     $script = @'
-// CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_V1
+// CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_V3
+// API CreateGame invokes this CustomScript entry but may skip MapScript.InitMap.
+// Keep the map bootstrap in one owner so the normal map path and API path share
+// the same InitLibs/InitGlobals/InitTriggers and CMRE adapter initialization.
+// Vibe registration belongs after the generated InitTriggers graph; InitMap
+// is the single path that preserves that ordering for API CustomScript too.
 void cmre_on_demand_trigger_customscript_init() {
     BankLoad("CMRERebornDebug", 1);
-    BankValueSetFromInt(BankLastCreated(), "debug", "triggers_customscript_entered", 1);
-    BankSave(BankLastCreated());
-    UnitCreate(1, "Marine", c_unitCreateIgnorePlacement, 1, Point(50.0, 50.0), 270.0);
+    if (BankLastCreated() != null) {
+        BankValueSetFromInt(BankLastCreated(), "debug", "api_customscript_init_started", 1);
+        BankValueSetFromInt(BankLastCreated(), "debug", "triggers_customscript_entered", 1);
+        BankValueSetFromInt(BankLastCreated(), "debug", "api_customscript_minimal_probe", 1);
+        BankValueSetFromInt(BankLastCreated(), "debug", "api_customscript_init_complete", 1);
+        BankSave(BankLastCreated());
+    }
 }
 '@.Trim()
+
+    if ($content.Contains($versionMarker)) {
+        Write-Host "CMRE trigger custom-script overlay already has V3 bootstrap"
+        return
+    }
+
+    # Upgrade a map staged by the previous V1 launcher revision without
+    # leaving a duplicate CustomScript item with the same editor ID.
+    if ($content.Contains($marker) -or $content.Contains($previousVersionMarker)) {
+        $escapedScript = [System.Security.SecurityElement]::Escape($script)
+        $pattern = '(?s)(<Element Type="CustomScript" Id="C0D15A15">\s*<ScriptCode>).*?(</ScriptCode>\s*<InitFunc>cmre_on_demand_trigger_customscript_init</InitFunc>\s*</Element>)'
+        $replacement = '$1' + [Environment]::NewLine + $escapedScript + [Environment]::NewLine + '        $2'
+        $updated = [regex]::Replace($content, $pattern, $replacement, 1)
+        if ($updated -eq $content) { throw "CMRE V1 custom-script element not found for upgrade: $path" }
+        Write-CmreUtf8NoBom -Path $path -Content $updated
+        Write-Host "CMRE trigger custom-script overlay upgraded to V3: $path"
+        return
+    }
 
     # Validate the existing document before making the bounded text insertion.
     # XML serialization would rewrite a multi-megabyte editor document and add
@@ -430,7 +464,12 @@ function Install-CmreObserverOverlay {
     $initLibLines = @('    libEFA54406_InitLib();', '    libNeuroCommandBridge_InitLib();', '    libPortingObserver_InitLib();', '    libMapModBridge_InitLib();')
     if ($IsAlengerCommander -and $AdapterLibPrefix -ne "") { $initLibLines += ('    lib' + $AdapterLibPrefix + '_InitLib();') }
     $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    libCOUI_InitLib();' -Lines $initLibLines
-    $fragmentName = if ($MapName -eq "亡者之夜.SC2Map") { "map-glue.dead-of-night.galaxy" } else { "map-glue.generic.galaxy" }
+    # Windows PowerShell can decode this UTF-8-no-BOM script with the active
+    # code page, so a Chinese MapName comparison is not stable. Dead of Night
+    # has an ASCII-only MapScript signature that survives staging and avoids
+    # silently selecting the generic glue.
+    $isDeadOfNight = $mapScript.Contains("gv_day_Duration_First")
+    $fragmentName = if ($isDeadOfNight) { "map-glue.dead-of-night.galaxy" } else { "map-glue.generic.galaxy" }
     $fragment = Read-CmreUtf8 -Path (Join-Path (Get-CmreOverlayRoot) $fragmentName)
     $initializationGate = Read-CmreUtf8 -Path (Join-Path (Get-CmreOverlayRoot) "startup\initialization-gate.galaxy")
     $fragment = $fragment.TrimEnd() + [Environment]::NewLine + [Environment]::NewLine + $initializationGate.Trim()
@@ -440,8 +479,12 @@ function Install-CmreObserverOverlay {
     # objects created before InitLibs/InitTriggers are not reliable in SC2.
     $mapScript = [regex]::Replace($mapScript, '(?m)^[ \t]*libVibeKernel_gf_RegisterEntryPoints\(\);\r?\n', '')
     $initMapFunctionAnchor = "void InitMap () " + [char]123
+    $mapScript = Add-CmreBlockAfter -Content $mapScript -Anchor $initMapFunctionAnchor -Marker "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_INITMAP_GUARD" -Block @'
+    // CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_INITMAP_GUARD
+    if (libVibeKernel_gv_initialized) { return; }
+'@
     $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $initMapFunctionAnchor -Lines @('    libMapModBridge_gf_WriteDebugBank("stage16_before_vibe", 1);', '    libVibeKernel_gf_WriteBankInt("index", "stage16_before_vibe", 160801);')
-    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    InitTriggers();' -Lines @('    libVibeKernel_gf_WriteBankInt("index", "stage16_after_vibe", 160801);', '    libVibeKernel_gf_RegisterEntryPoints();', '    libMapModBridge_gf_WriteDebugBank("stage16_after_vibe", 1);', '    libDeadOfNightObserver_InitLib();', '    gt_CmreOnDemandRuntimeListener_Init();', '    gt_CmreOnDemandDeadOfNightPoll_Init();', '    gt_CmreOnDemandCommanderStartingUnits_Init();', '    gt_CmreOnDemandInitializationGate_Init();')
+    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    InitTriggers();' -Lines @('    libVibeKernel_gf_WriteBankInt("index", "stage16_after_vibe", 160801);', '    libVibeKernel_gf_RegisterEntryPoints();', '    libMapModBridge_gf_WriteDebugBank("stage16_after_vibe", 1);', '    libDeadOfNightObserver_InitLib();', '    gt_CmreOnDemandRuntimeListener_Init();', '    gt_CmreOnDemandDeadOfNightPoll_Init();', '    gt_CmreOnDemandCommanderStartingUnits_Init();', '    gt_CmreOnDemandAllyChat_Init();', '    gt_CmreOnDemandComputerAllyReady_Init();', '    gt_CmreOnDemandInitializationGate_Init();')
     $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $initMapFunctionAnchor -Lines @(
         '    libVibeKernel_gf_RegisterEntryPoints();',
         '    libMapModBridge_gf_WriteDebugBank("map_init_entered", 1);'

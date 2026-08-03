@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "runId": "runtime-direct-map-input-20260803-r9",
+  "evidence_type": "blocked",
+  "status": "BLOCKED",
+  "command": "approved launcher -MapName 亡者之夜.SC2Map -Commander TerranRaynor -SkipCountdown -KeepAlive; ASCII clipboard !ally status",
+  "launcherEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-direct-map-input-20260803-r9/launcher.stdout.txt",
+  "observations": {
+    "runtime_listener_ready": true,
+    "initialization_complete": true,
+    "initialization_building_ready_p1": 1,
+    "initialization_building_ready_p2": 1,
+    "initialization_units_ready_p1": 1,
+    "initialization_units_ready_p2": 1,
+    "same_window_new_script_errors": 0,
+    "p2_player_type": 0,
+    "p2_computer_ally_ready": 0,
+    "not_ready_reason": "p2_not_computer",
+    "command_attempt": "!ally status",
+    "command_transport": "ASCII clipboard paste into the SC2 window",
+    "chat_event_acknowledged": false,
+    "ally_bank_command_keys": false,
+    "native_replay": false,
+    "api": false
+  },
+  "bankEvidence": "CMRERebornDebug debug keys ally_p2_player_type=0, ally_computer_ally_ready=0, ally_not_ready_reason=p2_not_computer; no fallback command key was emitted.",
+  "blocker": "DirectMap has no lobby-provided P2 Computer roster, and the ChatMessage event does not fire in this non-API topology. The required P1 Participant + P2 Computer API path remains blocked separately by the r6 SC2 crash.",
+  "scriptErrorEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-direct-map-input-20260803-r9/launcher.stdout.txt",
+  "claimBoundary": "This is runtime blocked evidence only; listener and initialization success are not native P2 strategy acceptance."
+}

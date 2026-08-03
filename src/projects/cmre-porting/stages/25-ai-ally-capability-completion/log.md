@@ -871,3 +871,61 @@ Evidence:
 
 The matrix is explicitly `simulator` evidence. Native SC2 P2 participant
 topology and native mission completion remain separate blocked runtime issues.
+
+## Verification Loop 2026-08-03 Native P2 Computer Glue Follow-up
+
+- `static`: `tools/launchers/lib/cmre-on-demand-overlay.ps1` now selects the
+  Dead of Night fragment from the ASCII `gv_day_Duration_First` MapScript
+  signature instead of comparing the Chinese filename after PowerShell code
+  page conversion. The launcher regression test asserts this selector and the
+  native P2 glue contract.
+- `static`: focused Stage 25, ladder, launcher, and live-runner tests passed:
+  `46 passed`. `run-all-validation.ps1` passed `52/52` with zero warnings.
+- `simulator`: the follow-up ladder batch for seeds `42`, `7`, and `99`
+  reached `enemy_elimination` with victory, full economy/tech/tactical checks,
+  zero dispatch errors, and simulator-only replay output.
+- `static`: approved secondary staging generated
+  `stage25-p2-computer-v8`; its `MapScript.galaxy` contains
+  `gt_CmreOnDemandComputerAllyReady`, `MeleeInitUnitsForPlayer(2, ...)`,
+  `MeleeInitResourcesForPlayer(2, ...)`, and `AIMeleeStart(2)`. StormLib
+  packed the 79-file map into the v8 stage artifact.
+- `runtime`: an approved direct-map launcher loaded the current map and
+  reported `runtime_listener_ready`; the same launcher epoch reported no new
+  non-empty `*ScriptError*.txt` files. This window had no API and produced no
+  P2 Bank/replay evidence, so it is not native strategy acceptance.
+- `blocked`: the direct-map launcher remains `-KeepAlive` with runtime PID
+  `16276`, launcher PID `32640`, and the protected main lease. A new single
+  client API runner cannot start until that owner releases the lease. No
+  process was terminated and no existing runtime was overwritten.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-20260803-v8/stage25-p2-computer-v8.packed.SC2Map`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-direct-map-input-20260803/launcher.stdout.txt`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-20260803-followup.json`,
+`artifacts/galaxy-vibe/static-validation-report.json`.
+
+## Verification Loop 2026-08-03 Native Ally Command Recovery
+
+- `static`: the Dead of Night map-owned adapter now contains an explicit
+  `!ally` fallback. It accepts only P1 chat, reads only P2-owned units and
+  enemy-alliance targets, and records command/result/order evidence under
+  `CMRERebornDebug.debug` with `ally_` keys. The typed `GalaxyVibe` kernel
+  path remains unchanged.
+- `static`: PowerShell parser validation passed; launcher static tests passed
+  with `11 passed`; kernel regression passed with `49 passed`.
+- `runtime` `BLOCKED`: approved DirectMap+API r6 reproduced the SC2Switcher
+  bootstrap crash with `ACCESS_VIOLATION (0xC0000005)` before API listen.
+  No CreateGame, JoinGame, P2 roster, replay, or strategy claim is made.
+  Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-direct-map-input-20260803-r6/runtime-verdict.json`.
+- `runtime` `BLOCKED`: approved DirectMap r9 reached runtime listener,
+  initialization complete, P1/P2 readiness markers, and same-window zero new
+  ScriptErrors. The map reported `ally_p2_player_type=0` and
+  `ally_not_ready_reason=p2_not_computer`; the non-API map had no lobby P2
+  Computer roster. An ASCII clipboard `!ally status` input produced no Chat
+  event or fallback command key. This is runtime blocked evidence, not native
+  P2 acceptance.
+  Evidence: `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-direct-map-input-20260803-r9/runtime-verdict.json`.
+- `blocked`: the required native topology still needs a working approved API
+  launch that supplies P1 Participant plus P2 Computer. DirectMap API is
+  blocked by the SC2 crash; DirectMap without API exposes P2 as type `0` and
+  does not deliver ChatMessage events.

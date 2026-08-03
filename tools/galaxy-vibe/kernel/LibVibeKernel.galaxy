@@ -889,7 +889,7 @@ string libVibeKernel_gf_FunctionVisualModelSwap(string argsJson) {
     if (target == null || unitTag < 1 || model == "" || variation < 0 || variation > 255) {
         return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
     }
-    ActorScopeSend(ActorScopeFromUnit(target), "ModelSwap " + model + " " + IntToString(variation));
+    libNtve_gf_SendActorMessageToUnit(target, libNtve_gf_ModelSwap(model, variation));
     libVibeKernel_gv_stateVersion += 1;
     return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.visual.model_swap\",\"unit_tag\":" + IntToString(unitTag) + ",\"model\":\"" + model + "\",\"variation\":" + IntToString(variation) + ",\"applied\":true}");
 }
@@ -1482,8 +1482,7 @@ bool libVibeKernel_gt_ChatCommand_Func(bool testConds, bool runActions) {
 // This channel is intentionally separate from the typed debug registry. Only
 // player 1 may issue it; every order is issued to units owned by player 2.
 // Commands: !ally follow|regroup|defend|attack|retreat|status|help
-bool libVibeKernel_gt_AllyCommand_Func(bool testConds, bool runActions) {
-    string chat;
+bool libVibeKernel_gf_ProcessAllyCommand(string chat) {
     string command;
     unitgroup p2Units;
     unitgroup enemyUnits;
@@ -1491,11 +1490,6 @@ bool libVibeKernel_gt_AllyCommand_Func(bool testConds, bool runActions) {
     int unitCount;
     int enemyCount;
 
-    if (testConds) { return true; }
-    if (!runActions) { return true; }
-    if (EventPlayer() != 1) { return true; }
-
-    chat = EventChatMessage(false);
     if (StringFind(chat, "!ally ", false) != 1) { return true; }
     command = StringWord(chat, 2);
     if (command == "") {
@@ -1504,7 +1498,9 @@ bool libVibeKernel_gt_AllyCommand_Func(bool testConds, bool runActions) {
     }
 
     // Reject a stale or repeated visible chat message without reissuing orders.
+    if (chat == libVibeKernel_gv_lastAllyCommand) { return true; }
     if (chat == libVibeKernel_gf_ReadBankKey("ally", "last_command")) { return true; }
+    libVibeKernel_gv_lastAllyCommand = chat;
     libVibeKernel_gf_WriteBankKey("ally", "last_command", chat);
     libVibeKernel_gf_WriteBankInt("ally", "command_count",
         libVibeKernel_gf_ReadBankInt("ally", "command_count") + 1);
@@ -1563,6 +1559,15 @@ bool libVibeKernel_gt_AllyCommand_Func(bool testConds, bool runActions) {
     return true;
 }
 
+bool libVibeKernel_gt_AllyCommand_Func(bool testConds, bool runActions) {
+    string chat;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    if (EventPlayer() != 1) { return true; }
+    chat = EventChatMessage(false);
+    return libVibeKernel_gf_ProcessAllyCommand(chat);
+}
+
 // ---- UnitWake 入口（API 模式主传输路径）----
 // SC2 API 模式下 TimePeriodic/ChatMessage 触发器不触发，但 UnitCreated 触发器正常工作。
 // Host 写入 pending_request_id 后，通过 SC2API RequestDebug(create_unit) 创建一个单位唤醒 Kernel。
@@ -1595,6 +1600,8 @@ bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
     string requestJson;
     string response;
     string opName;
+    string pendingAllyCommand;
+    int pendingAllyPlayer;
     if (testConds) { return true; }
     if (!runActions) { return true; }
 
@@ -1611,6 +1618,17 @@ bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
         libVibeKernel_gf_ReloadBank();
         // 诊断计数
         libVibeKernel_gv_bankPollCount += 1;
+
+        // ChatMessage is not delivered reliably while a game is driven by
+        // SC2API. The P1 API adapter mirrors its real team-chat message into
+        // this pending key; only an explicitly P1-tagged command is accepted.
+        pendingAllyPlayer = libVibeKernel_gf_ReadBankInt("ally", "pending_player_id");
+        pendingAllyCommand = libVibeKernel_gf_ReadBankKey("ally", "pending_command");
+        if (pendingAllyPlayer == 1 && pendingAllyCommand != "") {
+            libVibeKernel_gf_ProcessAllyCommand(pendingAllyCommand);
+            libVibeKernel_gf_WriteBankKey("ally", "pending_command", "");
+            libVibeKernel_gf_WriteBankInt("ally", "pending_player_id", 0);
+        }
 
         // 读取 pending_request_id
         pendingId = libVibeKernel_gf_ReadBankKey("index", "pending_request_id");

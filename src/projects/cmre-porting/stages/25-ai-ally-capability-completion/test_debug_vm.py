@@ -352,7 +352,7 @@ class DebugVmTests(unittest.TestCase):
         self.assertEqual(
             transport.session._visual_overrides[1],
             {
-                "model": {"model": "Marine", "variation": 2},
+                "model": {"model": "Marauder", "variation": 0},
                 "scale": 1.5,
                 "color": "{1,0.1,0.1,1}",
                 "opacity": 0.5,

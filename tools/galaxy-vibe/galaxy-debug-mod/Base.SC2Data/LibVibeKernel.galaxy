@@ -886,7 +886,7 @@ string libVibeKernel_gf_FunctionVisualModelSwap(string argsJson) {
     if (target == null || unitTag < 1 || model == "" || variation < 0 || variation > 255) {
         return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS", "{}");
     }
-    ActorScopeSend(ActorScopeFromUnit(target), "ModelSwap " + model + " " + IntToString(variation));
+    libNtve_gf_SendActorMessageToUnit(target, libNtve_gf_ModelSwap(model, variation));
     libVibeKernel_gv_stateVersion += 1;
     return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\"function_id\":\"vibe.visual.model_swap\",\"unit_tag\":" + IntToString(unitTag) + ",\"model\":\"" + model + "\",\"variation\":" + IntToString(variation) + ",\"applied\":true}");
 }
@@ -1469,25 +1469,22 @@ bool libVibeKernel_gt_ChatCommand_Func(bool testConds, bool runActions) {
 +// ---- P1 -> P2 cooperative ally command channel ----
 // Only player 1 may issue this channel; every order is issued to player 2.
 // Commands: !ally follow|regroup|defend|attack|retreat|status|help
-bool libVibeKernel_gt_AllyCommand_Func(bool testConds, bool runActions) {
-    string chat;
+bool libVibeKernel_gf_ProcessAllyCommand(string chat) {
     string command;
     unitgroup p2Units;
     unitgroup enemyUnits;
     unit target;
     int unitCount;
     int enemyCount;
-    if (testConds) { return true; }
-    if (!runActions) { return true; }
-    if (EventPlayer() != 1) { return true; }
-    chat = EventChatMessage(false);
     if (StringFind(chat, "!ally ", false) != 1) { return true; }
     command = StringWord(chat, 2);
     if (command == "") {
         libVibeKernel_gf_EchoChat("[Ally P2] Commands: follow, attack, defend, regroup, retreat, status, help.");
         return true;
     }
+    if (chat == libVibeKernel_gv_lastAllyCommand) { return true; }
     if (chat == libVibeKernel_gf_ReadBankKey("ally", "last_command")) { return true; }
+    libVibeKernel_gv_lastAllyCommand = chat;
     libVibeKernel_gf_WriteBankKey("ally", "last_command", chat);
     libVibeKernel_gf_WriteBankInt("ally", "command_count",
         libVibeKernel_gf_ReadBankInt("ally", "command_count") + 1);
@@ -1540,6 +1537,15 @@ bool libVibeKernel_gt_AllyCommand_Func(bool testConds, bool runActions) {
     libVibeKernel_gf_EchoChat("[Ally P2] Unknown command. Try: follow, attack, defend, regroup, retreat, status.");
     libVibeKernel_gf_WriteBankKey("ally", "last_result", "rejected_unknown");
     return true;
+}
+
+bool libVibeKernel_gt_AllyCommand_Func(bool testConds, bool runActions) {
+    string chat;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    if (EventPlayer() != 1) { return true; }
+    chat = EventChatMessage(false);
+    return libVibeKernel_gf_ProcessAllyCommand(chat);
 }
 
 bool libVibeKernel_gt_MapCommand_Func(bool testConds, bool runActions) {

@@ -1,0 +1,63 @@
+{
+  "vm": "vibe-debug/1",
+  "mode": "debug",
+  "steps": [
+    {
+      "op": "call",
+      "fn": "vibe.unit.spawn_group",
+      "args": {
+        "unit_type": "Marine",
+        "count": 1,
+        "player": 1,
+        "x": 84.0,
+        "y": 94.0
+      },
+      "save": "target"
+    },
+    {
+      "op": "call",
+      "fn": "vibe.unit.spawn_group",
+      "args": {
+        "unit_type": "Marauder",
+        "count": 1,
+        "player": 1,
+        "x": 86.0,
+        "y": 94.0
+      },
+      "save": "control"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.target",
+      "path": "created",
+      "equals": 1
+    },
+    {
+      "op": "assert",
+      "source": "$vars.control",
+      "path": "created",
+      "equals": 1
+    },
+    {
+      "op": "call",
+      "fn": "vibe.visual.model_swap",
+      "args": {
+        "unit_tag": "$vars.target.unit_tags.0",
+        "model": "Marauder",
+        "variation": 0
+      },
+      "save": "swap"
+    },
+    {
+      "op": "assert",
+      "source": "$vars.swap",
+      "path": "applied",
+      "equals": true
+    },
+    {
+      "op": "step",
+      "loops": 4,
+      "save": "settled"
+    }
+  ]
+}

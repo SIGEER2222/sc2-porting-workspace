@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "")
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$DirectMapApi, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "")
 # -MapCopySuffix: 可选的地图副本后缀，用于避免多会话同时操作同一 live 地图导致 DocumentInfo 冲突。
 # 例如 -MapCopySuffix "reborn" 会使用 Maps\亡者之夜.SC2Map.reborn\ 作为 live 地图。
 # 不指定时使用原始路径（向后兼容）。
@@ -10,6 +10,12 @@ if ($DebugMode) {
     if ($ListenPort -le 0) { throw "-DebugMode 必须配合 -ListenPort <port> 使用" }
     $ApiMinimal = $true
     Write-Host "DebugMode: 自动启用 ApiMinimal，SC2 窗口将最小化，launcher 退出时自动关闭 SC2"
+}
+if ($DirectMapApi) {
+    if ($ListenPort -le 0) { throw "-DirectMapApi 必须配合 -ListenPort <port> 使用" }
+    if ($DebugMode -or $ApiMinimal) { throw "-DirectMapApi cannot be combined with -DebugMode or -ApiMinimal" }
+    if ($SecondaryClient) { throw "-DirectMapApi does not support -SecondaryClient" }
+    Write-Host "DirectMapApi: direct map bootstrap plus SC2 API attach mode enabled"
 }
 if ($SecondaryClient) {
     if (-not $DebugMode -or $ListenPort -le 0) {
@@ -1722,7 +1728,7 @@ try {
         # 2026-07-25 修复：API 模式（-ListenPort > 0）加 -SkipPause，跳过
         # DevStartupBegin 开头的 GameSetMissionTimePaused/AITimePause/UnitPauseAll，
         # 这三个调用会把游戏暂停，但不会影响 API 状态（状态由 CreateGame/JoinGame 控制）。
-        if ($ListenPort -gt 0) {
+        if ($ListenPort -gt 0 -and -not $DirectMapApi) {
             # API 模式：P1 和 P2 都设置指挥官（CMRE 正常逻辑）。
             # CMRE galaxy 触发器强制 P1=Participant（API 加入位置），P2=Computer（AI 队友）。
             # API 以 P1 身份加入，操作 P1 的指挥官单位（type_4390/4386 CC / type_4382 SCV）。
@@ -1801,6 +1807,58 @@ try {
     }
     $switcher = Join-Path $Sc2Root "Support64\SC2Switcher_x64.exe"
     if ($ListenPort -gt 0) {
+        if ($DirectMapApi) {
+            # DirectMapApi is the runtime bridge for maps whose InitMap graph
+            # is only executed by the Switcher direct-map path. The API is
+            # attached to that already-loaded game so a client can observe it
+            # with --join-existing; CreateGame is intentionally not used.
+            $argList = @("`"$liveMap`"", "-listen", "127.0.0.1", "-port", "$ListenPort", "-debug")
+            Write-Host "SC2 direct-map + API mode: launching SC2Switcher_x64.exe $($argList -join ' ')"
+            $launchStartedAt = Get-Date
+            Start-Process -FilePath $switcher -ArgumentList $argList -WorkingDirectory (Split-Path -Parent $switcher)
+            Wait-CmreGameLogMapLoadSignal -Since $launchStartedAt -TimeoutSeconds 180 | Out-Null
+            Assert-CmreNoNewScriptErrors -Since $launchStartedAt
+            Write-Host "SC2 direct-map + API mode: polling TCP 127.0.0.1:$ListenPort until listening (max 120s)..."
+            $deadline = (Get-Date).AddSeconds(120)
+            $listening = $false
+            while ((Get-Date) -lt $deadline) {
+                $sc2Processes = @(Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue)
+                if ($sc2Processes.Count -eq 0) {
+                    Start-Sleep -Seconds 2
+                    continue
+                }
+                try {
+                    $tcp = New-Object System.Net.Sockets.TcpClient
+                    $iar = $tcp.BeginConnect("127.0.0.1", $ListenPort, $null, $null)
+                    $ok = $iar.AsyncWaitHandle.WaitOne(800)
+                    if ($ok -and $tcp.Connected) {
+                        $tcp.EndConnect($iar)
+                        $tcp.Close()
+                        $listening = $true
+                        break
+                    }
+                    $tcp.Close()
+                } catch { }
+                Start-Sleep -Seconds 2
+            }
+            if (-not $listening) {
+                $stillRunning = Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue
+                if ($null -eq $stillRunning) {
+                    throw "SC2 direct-map + API mode: SC2_x64.exe exited before API port $ListenPort opened"
+                }
+                throw "SC2 direct-map + API mode: API port $ListenPort did not open within 120s"
+            }
+            Write-Host "SC2 direct-map + API mode: API listening on 127.0.0.1:$ListenPort"
+            Wait-CmreRuntimeListener -TimeoutSeconds 120
+            Assert-CmreNoNewScriptErrors -Since $launchStartedAt
+            $runtimeReady = $true
+            $runtimeProcess = @(Get-Sc2GameProcesses | Select-Object -First 1)
+            if ($runtimeProcess.Count -gt 0) {
+                $runtimePid = [int]$runtimeProcess[0].Id
+                Write-Sc2RuntimeLease -State "ready" -OwnerSession $sc2RuntimeLeaseSession -RuntimePid $runtimePid -Port $ListenPort
+            }
+            Write-Host "SC2 direct-map + API mode: map is ready; Host must attach with --join-existing"
+        } else {
         # API 模式：用 SC2Switcher -listen <host> -port <port> 启动 SC2。
         # 关键（Base97425 实机验证 2026-07-25）：
         #   - SC2 静默忽略 -listenPort，必须用 -listen/-port 格式
@@ -1963,6 +2021,7 @@ try {
         # initialization cannot run until the Host loads the map, so the Host's
         # wait_for_initialization gate owns the post-join readiness check.
         Write-Host "SC2 API mode: launcher gate complete; Host must CreateGame + JoinGame and wait for full map initialization before actions"
+        }
     } else {
         # 普通/WebUI 模式：沿用已验证的 CMRE baseline，地图路径作为 Switcher 位置参数。
         # 是否真正加载地图由本次 GameLogs 新增 *Alert*.txt / *ScriptError*.txt 判定。
