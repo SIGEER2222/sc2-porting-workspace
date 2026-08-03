@@ -840,3 +840,34 @@ Evidence:
 
 Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-vm-capability-5640-20260802/screenshots/visual-capability-final-20260802-230749-5640.png`.
+
+## Verification Loop 2026-08-03 CMRE Full-Game Simulator Matrix
+
+- `simulator`: the final command
+  `PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.run_cmre_map_matrix
+  --seed 42 --max-loops 2000 --max-enemy-per-player 1
+  --output-dir artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-map-matrix-20260803-final`
+  returned `status=PASS` with `map_count=15` and `inventory_map_count=15`.
+- `simulator`: all 15 maps reached `enemy_elimination` with `victory=true` and
+  empty `enemy_units_remaining`. Every run reported zero dispatch errors,
+  deadlock, command storm, friendly-fire rejection, and hidden-state violation.
+- `simulator`: every map directory contains `replay.jsonl`,
+  `state-driven-player.html`, and `run-summary.json`; the final artifact census
+  found `15` directories and `0` invalid runs.
+- `static`: the final targeted suites passed with `22` AI ally tests and `4`
+  ladder tests. The bounded tactical matrix test now explicitly passes
+  `full_game=false`; the CLI default remains full-game mode.
+- `static`: `往日神庙` no longer reports stale focus-target errors after the
+  single-focus attack change. `黑暗杀星` no longer stages sampled enemies
+  outside map bounds; delayed focus commands that target an already-cleared
+  observed enemy are recorded as `superseded`, not as simulator errors.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-map-matrix-20260803-final/matrix-summary.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-map-matrix-20260803-final/黑暗杀星/run-summary.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-map-matrix-20260803-final/往日神庙/run-summary.json`,
+`src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py`,
+`src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ladder_ai.py`.
+
+The matrix is explicitly `simulator` evidence. Native SC2 P2 participant
+topology and native mission completion remain separate blocked runtime issues.
