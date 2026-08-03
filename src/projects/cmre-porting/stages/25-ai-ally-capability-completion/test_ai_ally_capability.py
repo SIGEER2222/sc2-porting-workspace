@@ -109,6 +109,36 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
                 self.assertTrue(all(run["checks"].values()), run)
                 self.assertTrue(Path(run["replay_html_path"]).is_file())
 
+    def test_keha_full_game_reaches_victory_after_map_derived_main_push(self):
+        map_path = REPO_ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "克哈裂痕.SC2Map"
+        with tempfile.TemporaryDirectory(dir=REPO_ROOT / "artifacts") as directory:
+            report = run_matrix(
+                map_name="克哈裂痕",
+                seed=42,
+                max_loops=6000,
+                output_dir=Path(directory),
+                max_enemy_per_player=64,
+                full_game=True,
+            )
+
+        self.assertEqual(report["status"], "PASS", report)
+        self.assertEqual(report["map_count"], 1)
+        run = report["runs"][0]
+        self.assertEqual(run["map_path"], "src/projects/cmre-porting/packages/Maps/克哈裂痕.SC2Map")
+        self.assertEqual(run["end_reason"], "enemy_elimination")
+        self.assertTrue(run["victory"])
+        self.assertGreater(run["replay_frame_count"], 500)
+        self.assertEqual(run["phase_history"][:3], ["defend", "cleanup", "pressure"])
+        self.assertIn("defend", run["phase_history"])
+        self.assertIn("cleanup", run["phase_history"])
+        self.assertIn("pressure", run["phase_history"])
+        self.assertGreater(run["action_kind_counts"].get("gather", 0), 0)
+        self.assertGreater(run["action_kind_counts"].get("train", 0), 0)
+        self.assertGreater(run["action_kind_counts"].get("research", 0), 0)
+        self.assertGreater(run["action_kind_counts"].get("move", 0), 0)
+        self.assertGreater(run["action_kind_counts"].get("attack", 0), 0)
+        self.assertEqual(run["enemy_units_remaining"], {})
+
     def test_native_task_multiseed_completes_real_p2_economy_and_tactics(self):
         for seed in (42, 7, 99):
             report = run_native_task(seed=seed)

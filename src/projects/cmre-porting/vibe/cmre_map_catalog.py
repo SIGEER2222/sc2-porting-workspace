@@ -926,7 +926,12 @@ def build_cooperative_map_scenario(
         "_map_source_kind": "cmre_map_catalog",
         "_map_native_starting_force": False,
         "_simulator_attack_points": (
-            [list(enemy_staging_point)] if enemy_staging_point else None
+            [
+                *([list(enemy_staging_point)] if enemy_staging_point else []),
+                *[list(point) for point in geometry.attack_points],
+            ]
+            if stage_enemies_for_full_game
+            else None
         ),
         "_cooperative_enemy_player_ids": enemy_ids,
         "_simulator_expansion_position": (

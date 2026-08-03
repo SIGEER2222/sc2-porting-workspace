@@ -264,6 +264,7 @@ class LadderAI(AllyPolicy):
         self._phase_history: list[str] = []
         self._action_reason_counts: dict[str, int] = {}
         self._last_observation_own_units: list[dict] = []
+        self._last_observation_structure_points: tuple[tuple[float, float], ...] = ()
         self._map_adapter_mode = bool(build_offsets)
         self._map_primary_build_types = set(build_offsets or {})
 
@@ -289,6 +290,11 @@ class LadderAI(AllyPolicy):
             if int(unit.get("owner", self.player_id)) == self.player_id
         ]
         self._last_observation_own_units = own_units
+        self._last_observation_structure_points = tuple(
+            (float(unit.get("x", 0.0)), float(unit.get("y", 0.0)))
+            for unit in [*obs.own_units, *obs.visible_allies]
+            if unit.get("unit_type_id") in DefendBasePolicy.BUILDING_TYPES
+        )
         combat_units = [unit for unit in own_units if self._is_combat(unit)]
         enemies = list(obs.visible_enemies)
         base_threats = [
@@ -610,6 +616,8 @@ class LadderAI(AllyPolicy):
                     entity_id = int(unit["entity_id"])
                     if entity_id == scout_id:
                         continue
+                    if self._movement_start_blocked(unit):
+                        continue
                     # Keep the force in a compact lateral spread. Vertical
                     # offsets can land on the production ring and make the
                     # simulator's deterministic ground path unreachable.
@@ -668,7 +676,7 @@ class LadderAI(AllyPolicy):
             entity_id = int(unit["entity_id"])
             if self._hp_ratio(unit) < 0.25 and not base_threats:
                 retreat = (self.base_position[0] - 5.0, self.base_position[1] - 5.0)
-                if not self._has_move_order(unit, *retreat):
+                if not self._movement_start_blocked(unit) and not self._has_move_order(unit, *retreat):
                     actions.append(AllyAction(
                         entity_id, "move", target_x=retreat[0], target_y=retreat[1],
                         reason="ladder_low_health_retreat",
@@ -698,7 +706,11 @@ class LadderAI(AllyPolicy):
                             reason="ladder_cleanup_focus",
                         ))
                 continue
-            if point is not None and not self._has_move_order(unit, *point):
+            if (
+                point is not None
+                and not self._movement_start_blocked(unit)
+                and not self._has_move_order(unit, *point)
+            ):
                 actions.append(AllyAction(
                     entity_id, "move", target_x=point[0], target_y=point[1],
                     reason="ladder_attack_move",
@@ -713,6 +725,22 @@ class LadderAI(AllyPolicy):
         target = self.attack_points[self._push_index]
         if math.hypot(center_x - target[0], center_y - target[1]) <= 5.0:
             self._push_index += 1
+
+    def _movement_start_blocked(self, unit: dict) -> bool:
+        """Avoid point orders from a public-observation structure footprint.
+
+        Production can place a newly trained unit on an addon cell, and the
+        cooperative leader can leave a unit beside its base structure. The
+        simulator correctly rejects paths that start inside those occupied
+        cells. Skipping that unit keeps the rest of the P2 force moving and
+        avoids retrying an order that cannot become valid without hidden map
+        state or a teleport-like correction.
+        """
+
+        return any(
+            self._dist(float(unit.get("x", 0.0)), float(unit.get("y", 0.0)), x, y) <= 2.5
+            for x, y in self._last_observation_structure_points
+        )
 
     @staticmethod
     def _is_combat(unit: dict) -> bool:

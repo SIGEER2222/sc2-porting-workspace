@@ -102,7 +102,7 @@ def run_map_probe(
         base_radius=14.0,
         allow_expansion=full_game,
         build_offsets=geometry.build_offsets,
-        enable_map_main_push=False,
+        enable_map_main_push=full_game,
     )
     result = run_ally_scenario(
         scenario,

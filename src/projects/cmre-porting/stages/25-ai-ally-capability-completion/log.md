@@ -1152,3 +1152,36 @@ Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-replay/seed-42/state-driven-player.html`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json`,
 `artifacts/galaxy-vibe/static-validation-report.json`.
+## Verification Loop 2026-08-03 克哈裂痕 Full-Game Victory Follow-up
+
+- `static`: `LadderAI` now records structure coordinates from the public P2/P1
+  observation and suppresses point movement for a P2 unit whose current cell
+  is occupied by an observed structure footprint. This handles a newly trained
+  unit on a factory-addon cell and a combat unit left beside the leader base;
+  no hidden simulator state or teleport correction is used.
+- `simulator`: the v5 strict map-derived run used
+  `--max-enemy-per-player 64` and the source map
+  `src/projects/cmre-porting/packages/Maps/克哈裂痕.SC2Map` with hash
+  `9b0e34294ed501820901b17cee8018b9118f60770fd841406233e1077a4a38de`.
+  It reached `enemy_elimination` at loop `2985`, reported
+  `victory=true`, `enemy_units_remaining={}`, `error_breakdown={}`,
+  no deadlock/command storm/friendly-fire/hidden-state violations, and
+  phase history containing `defend`, `cleanup`, and `pressure`.
+- `simulator`: the run emitted `1116` replay frames and recorded gather,
+  train, research, move, attack, and attack-move actions. The map catalog
+  retained `1621` native ObjectUnits and source-derived attack/scout geometry.
+- `browser`: Microsoft Edge headless opened the v5 `file:///` replay and
+  produced a non-empty `489470`-byte screenshot. The rendered player contains
+  the 克哈裂痕 minimap projection, Canvas timeline, `requestAnimationFrame`
+  playback code, and the `VICTORY` terminal status. This is browser projection
+  evidence, not native SC2 3D rendering equivalence.
+- `static`: the focused full-game assertion passed `1` test; the complete
+  Stage 25 AI ally plus Ladder collection passed `31` tests. Changed modules
+  passed `py_compile`, `git diff --check`, and the global validation gate
+  passed `52/52` with zero warnings.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-keha-20260803-full-v5/run-summary.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-keha-20260803-full-v5/克哈裂痕/replay.jsonl`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-keha-20260803-full-v5/克哈裂痕/state-driven-player.html`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/browser-keha-full-v5.png`.
