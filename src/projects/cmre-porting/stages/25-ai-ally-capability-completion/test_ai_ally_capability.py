@@ -31,7 +31,13 @@ from vibe.native_task import (  # noqa: E402
     build_native_task_scenario,
     run_native_task,
 )
-from vibe.replay_player import load_replay, render_player_html  # noqa: E402
+from vibe.replay_player import (  # noqa: E402
+    _load_minimap_asset,
+    _projection_report,
+    load_replay,
+    render_player_html,
+)
+from vibe.cmre_map_catalog import build_cooperative_map_scenario  # noqa: E402
 from vibe.map_replay import (  # noqa: E402
     DeadOfNightMapScriptOverlay,
     load_dead_of_night_map_cooperative_scenario,
@@ -821,6 +827,73 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
             self.assertIn("原生 P2 单位: 0", html)
             self.assertIn("worldToCanvas(e.x, e.y)", html)
             self.assertNotIn("e.source_x ?? e.x", html)
+
+    def test_cmre_map_replay_embeds_source_minimap_and_content_projection(self):
+        map_path = REPO_ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "克哈裂痕.SC2Map"
+        data, _, _ = build_cooperative_map_scenario(map_path, max_enemy_per_player=1)
+        metadata = data.scenario["_map_metadata"]
+        self.assertEqual(
+            metadata["minimap_path"],
+            "src/projects/cmre-porting/packages/Maps/克哈裂痕.SC2Map/Minimap.tga",
+        )
+
+        records = [
+            {
+                "record_type": "header",
+                "map_metadata": metadata,
+                "owner_roles": {
+                    "1": {"relation": "leader", "name": "P1 玩家"},
+                    "2": {"relation": "ally", "name": "P2 AI 盟友"},
+                },
+            },
+            {
+                "record_type": "frame",
+                "loop": 0,
+                "entities_by_player": {"1": [], "2": []},
+                "p1_alive": 0,
+                "p2_alive": 0,
+                "enemy_alive": 0,
+            },
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            replay_path = Path(directory) / "keha.jsonl"
+            html_path = Path(directory) / "full-map-player.html"
+            render_player_html(records, replay_path, html_path)
+            html = html_path.read_text(encoding="utf-8")
+
+        self.assertIn("data:image/png;base64,", html)
+        self.assertIn('const MINIMAP_SIZE = {"width":512,"height":512};', html)
+        self.assertIn('const MINIMAP_RECT = {"x":60,"y":83,"w":392,"h":346};', html)
+        self.assertIn('const PROJECTION_REPORT = ', html)
+        self.assertIn("坐标校准: PASS (1621/1621)", html)
+        self.assertIn("ctx.drawImage(mapImage, 0, 0, W, H);", html)
+        self.assertIn("initialSettledFrame", html)
+
+    def test_cmre_map_coordinate_calibration_covers_resource_structure_and_start_samples(self):
+        map_path = REPO_ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "克哈裂痕.SC2Map"
+        data, _, _ = build_cooperative_map_scenario(map_path, max_enemy_per_player=1)
+        metadata = data.scenario["_map_metadata"]
+        with tempfile.TemporaryDirectory() as directory:
+            replay_path = Path(directory) / "keha.jsonl"
+            replay_path.write_text("{}\n", encoding="utf-8")
+            minimap_url, minimap_size, minimap_rect = _load_minimap_asset(metadata, replay_path)
+        report = _projection_report(
+            metadata,
+            metadata["static_objects"],
+            minimap_url,
+            minimap_size,
+            minimap_rect,
+            metadata["map_bounds"],
+        )
+        self.assertEqual(report["status"], "PASS")
+        self.assertEqual(report["projected_object_count"], metadata["native_object_count"])
+        self.assertEqual(report["out_of_content_rect_count"], 0)
+        sample_types = {sample["type"] for sample in report["samples"]}
+        self.assertTrue(any("Mineral" in unit_type or "Geyser" in unit_type for unit_type in sample_types))
+        self.assertTrue(any(
+            any(token in unit_type for token in ("Barracks", "Pylon", "Facility", "Turret", "Cannon"))
+            for unit_type in sample_types
+        ))
 
     def test_map_script_overlay_uses_timing_and_real_movement_step(self):
         data, _ = load_dead_of_night_map_cooperative_scenario()

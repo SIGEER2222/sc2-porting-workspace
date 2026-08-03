@@ -1028,3 +1028,40 @@ Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/script-error-verdict-map-catalog.json`.
 
 - `static` final post-change regression: Stage 19/20/22/23/25 plus kernel and launcher/live-runner suites passed `133` tests with `6` subtests; `run-all-validation.ps1` passed `52/52` with zero warnings. The candidate SC2 process and port `5760` were then closed and no runtime lease remained.
+
+## Verification Loop 2026-08-03 Source Minimap Projection Follow-up
+
+- `static`: `replay_player.py` now emits a projection report for every map-backed
+  HTML replay. It records the source map, Minimap dimensions, non-black content
+  rectangle, world bounds, projected ObjectUnit count, out-of-rectangle count,
+  and representative resource/structure/start samples. The report is embedded
+  in `PROJECTION_REPORT` and shown as a PASS/WARN status in the player.
+- `static`: the static source layer now renders resources as marked squares and
+  structure-like ObjectUnits as footprint anchor boxes, while mobile/static
+  units remain owner-colored points. Existing dynamic entities still use their
+  current `x/y`; `source_x/source_y` are not used for playback positions.
+- `simulator`: a fresh map-derived 亡者之夜 run reached `enemy_elimination`
+  with zero simulator errors and emitted a JSONL timeline plus a self-contained
+  `state-driven-player.html`. Its source projection covers `1319/1319`
+  ObjectUnits, uses a `256x256` Minimap with content rectangle `[48,48,160,160]`,
+  and resolves the map hash from the source package.
+- `simulator`: the existing strict 克哈裂痕 native replay HTML was regenerated
+  with the new renderer. It keeps the native runtime JSONL and `.SC2Replay`
+  unchanged while adding projection calibration and static anchor rendering.
+- `runtime`/`browser`: Chrome headless loaded both map HTML files with the
+  embedded minimaps ready, Canvas non-empty, zero page errors, and playback
+  advancement. 克哈裂痕 advanced loop `105 -> 157`; 亡者之夜 advanced
+  loop `0 -> 1`. These are browser/static replay checks, not native SC2 render
+  equivalence.
+- `static`: focused map projection tests passed `2`; the complete Stage
+  19/20/22/23/25 + Debug VM + Ladder + kernel + launcher/live-runner suite
+  passed `135` tests with `6` subtests; `run-all-validation.ps1` passed
+  `52/52` with zero warnings.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-20260803-v2/亡者之夜/replay.jsonl`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-20260803-v2/亡者之夜/state-driven-player.html`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-20260803-v2/亡者之夜/browser-projection-smoke.png`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/full-map-player.html`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/browser-projection-smoke.png`,
+`src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py`.

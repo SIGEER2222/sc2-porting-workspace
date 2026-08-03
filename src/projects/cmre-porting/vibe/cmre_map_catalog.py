@@ -861,6 +861,7 @@ def build_cooperative_map_scenario(
         "source_kind": "cmre_map_catalog",
         "map_name": data.scenario["name"],
         "map_path": _repo_relative(path),
+        "minimap_path": _repo_relative(path / "Minimap.tga") if (path / "Minimap.tga").is_file() else None,
         "map_hash": _map_hash(path),
         "map_bounds": dict(data.map_bounds),
         "native_object_count": len(data.native_objects),

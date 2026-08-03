@@ -204,6 +204,18 @@
       "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/full-map-player.html",
       "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/script-error-verdict-map-catalog.json",
       "nextAction": "Keep generic-map runtime evidence separate from Dead of Night mission-specific strategy claims; validate additional maps through the same approved Computer-ally topology."
+    },
+    {
+      "id": "HTML-PROJECTION-NOT-NATIVE-3D-20260803",
+      "severity": "medium",
+      "status": "open",
+      "title": "HTML replay is map-accurate projection, not native SC2 rendering",
+      "detail": "The single-file player now embeds each source Minimap.tga, projects all extracted ObjectUnits into its non-black content rectangle, and renders dynamic P1/P2/enemy coordinates over that terrain. It still cannot reproduce SC2 3D unit models, animation, lighting, fog of war, exact building footprints, attack effects, or native camera/UI behavior.",
+      "evidence_type": "browser",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-computer-keha-20260803-v1/browser-projection-smoke.png",
+      "owner": "stage25",
+      "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-dead-of-night-20260803-v2/亡者之夜/state-driven-player.html",
+      "nextAction": "Keep native .SC2Replay as the only one-to-one renderer. For HTML, next add source Catalog model/icon assets and replay-derived combat/death markers without presenting inferred footprint anchors as exact geometry."
     }
   ]
 }

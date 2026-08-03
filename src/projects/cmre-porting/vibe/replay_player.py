@@ -19,8 +19,12 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import html
 import json
+import struct
+import zlib
 from pathlib import Path
 from typing import Optional
 
@@ -82,6 +86,264 @@ def _esc(s) -> str:
     return html.escape(str(s))
 
 
+def _png_chunk(kind: bytes, payload: bytes) -> bytes:
+    return (
+        struct.pack(">I", len(payload))
+        + kind
+        + payload
+        + struct.pack(">I", binascii.crc32(kind + payload) & 0xFFFFFFFF)
+    )
+
+
+def _tga_to_png(path: Path) -> tuple[bytes, dict[str, int], dict[str, int]]:
+    """Decode the unpacked map's ordinary true-color TGA into PNG bytes.
+
+    SC2 stores ``Minimap.tga`` as an uncompressed BGR image. Keeping this
+    decoder in the renderer avoids a new image dependency and lets the final
+    HTML remain self-contained.
+    """
+
+    raw = path.read_bytes()
+    if len(raw) < 18:
+        raise ValueError(f"TGA header is truncated: {path}")
+    id_length, image_type = raw[0], raw[2]
+    width, height = struct.unpack_from("<HH", raw, 12)
+    bits_per_pixel, descriptor = raw[16], raw[17]
+    if image_type != 2 or bits_per_pixel not in (24, 32):
+        raise ValueError(
+            f"unsupported TGA format for {path}: type={image_type}, bpp={bits_per_pixel}"
+        )
+    if width <= 0 or height <= 0:
+        raise ValueError(f"invalid TGA dimensions for {path}: {width}x{height}")
+
+    source_channels = bits_per_pixel // 8
+    data_offset = 18 + id_length
+    expected = width * height * source_channels
+    pixels = raw[data_offset : data_offset + expected]
+    if len(pixels) != expected:
+        raise ValueError(f"TGA pixel data is truncated: {path}")
+
+    top_origin = bool(descriptor & 0x20)
+    right_origin = bool(descriptor & 0x10)
+    output_channels = 4 if source_channels == 4 else 3
+    rows = bytearray()
+    min_x, min_y = width, height
+    max_x, max_y = -1, -1
+    for y in range(height):
+        source_y = y if top_origin else height - 1 - y
+        row = bytearray()
+        for x in range(width):
+            source_x = width - 1 - x if right_origin else x
+            offset = (source_y * width + source_x) * source_channels
+            blue, green, red = pixels[offset : offset + 3]
+            alpha = pixels[offset + 3] if source_channels == 4 else 255
+            row.extend((red, green, blue))
+            if output_channels == 4:
+                row.append(alpha)
+            if alpha and (red or green or blue):
+                min_x = min(min_x, x)
+                min_y = min(min_y, y)
+                max_x = max(max_x, x)
+                max_y = max(max_y, y)
+        rows.append(0)
+        rows.extend(row)
+
+    color_type = 6 if output_channels == 4 else 2
+    png = bytearray(b"\x89PNG\r\n\x1a\n")
+    png.extend(
+        _png_chunk(
+            b"IHDR",
+            struct.pack(">IIBBBBB", width, height, 8, color_type, 0, 0, 0),
+        )
+    )
+    png.extend(_png_chunk(b"IDAT", zlib.compress(bytes(rows), level=6)))
+    png.extend(_png_chunk(b"IEND", b""))
+    content_rect = (
+        {"x": min_x, "y": min_y, "w": max_x - min_x + 1, "h": max_y - min_y + 1}
+        if max_x >= min_x and max_y >= min_y
+        else {"x": 0, "y": 0, "w": width, "h": height}
+    )
+    return bytes(png), {"width": width, "height": height}, content_rect
+
+
+def _resolve_repo_path(value: str | Path, jsonl_path: Path) -> Path | None:
+    candidate = Path(value)
+    if candidate.is_absolute() and candidate.is_file():
+        return candidate
+    repo_root = Path(__file__).resolve().parents[4]
+    candidates = (
+        repo_root / candidate,
+        jsonl_path.resolve().parent / candidate,
+        Path.cwd() / candidate,
+    )
+    return next((path for path in candidates if path.is_file()), None)
+
+
+def _load_minimap_asset(
+    map_metadata: dict, jsonl_path: Path
+) -> tuple[str, dict[str, int], dict[str, int]]:
+    """Return a self-contained minimap data URL and its source projection."""
+
+    minimap_path_value = map_metadata.get("minimap_path")
+    if not minimap_path_value and map_metadata.get("map_path"):
+        minimap_path_value = f"{str(map_metadata['map_path']).rstrip('/\\\\')}/Minimap.tga"
+    if not minimap_path_value:
+        return "", {}, {}
+    minimap_path = _resolve_repo_path(str(minimap_path_value), jsonl_path)
+    if minimap_path is None:
+        return "", {}, {}
+    if minimap_path.suffix.lower() == ".tga":
+        png_bytes, size, content_rect = _tga_to_png(minimap_path)
+    elif minimap_path.suffix.lower() == ".png":
+        png_bytes = minimap_path.read_bytes()
+        if len(png_bytes) < 24 or png_bytes[:8] != b"\x89PNG\r\n\x1a\n":
+            return "", {}, {}
+        size = {
+            "width": struct.unpack(">I", png_bytes[16:20])[0],
+            "height": struct.unpack(">I", png_bytes[20:24])[0],
+        }
+        content_rect = {
+            "x": 0,
+            "y": 0,
+            "w": size["width"],
+            "h": size["height"],
+        }
+    else:
+        return "", {}, {}
+    encoded = base64.b64encode(png_bytes).decode("ascii")
+    return f"data:image/png;base64,{encoded}", size, content_rect
+
+
+def _project_world_to_minimap(
+    x: float,
+    y: float,
+    world_bounds: dict,
+    minimap_size: dict[str, int],
+    minimap_rect: dict[str, int],
+) -> tuple[float, float]:
+    """Project a source ObjectUnit coordinate into Minimap.tga pixels."""
+
+    world_width = float(world_bounds["max_x"]) - float(world_bounds["min_x"])
+    world_height = float(world_bounds["max_y"]) - float(world_bounds["min_y"])
+    if world_width <= 0 or world_height <= 0:
+        raise ValueError("map world bounds must have positive width and height")
+    nx = (float(x) - float(world_bounds["min_x"])) / world_width
+    ny = (float(world_bounds["max_y"]) - float(y)) / world_height
+    return (
+        (float(minimap_rect["x"]) + nx * float(minimap_rect["w"]))
+        / float(minimap_size["width"]),
+        (float(minimap_rect["y"]) + ny * float(minimap_rect["h"]))
+        / float(minimap_size["height"]),
+    )
+
+
+def _projection_report(
+    map_metadata: dict,
+    static_objects: list[dict],
+    minimap_data_url: str,
+    minimap_size: dict[str, int],
+    minimap_rect: dict[str, int],
+    world_bounds: dict,
+) -> dict:
+    """Return an auditable source-coordinate calibration report."""
+
+    report = {
+        "status": "UNAVAILABLE",
+        "basis": "ObjectUnit world bounds -> Minimap.tga non-black content rectangle",
+        "source_map": map_metadata.get("map_path"),
+        "minimap_path": map_metadata.get("minimap_path"),
+        "world_bounds": dict(world_bounds),
+        "minimap_size": dict(minimap_size),
+        "content_rect": dict(minimap_rect),
+        "static_object_count": len(static_objects),
+        "projected_object_count": 0,
+        "out_of_content_rect_count": 0,
+        "samples": [],
+        "checks": {
+            "source_minimap_embedded": bool(minimap_data_url),
+            "world_bounds_valid": False,
+            "all_static_objects_inside_content_rect": False,
+        },
+    }
+    if not minimap_data_url or not minimap_size or not minimap_rect:
+        return report
+    try:
+        world_width = float(world_bounds["max_x"]) - float(world_bounds["min_x"])
+        world_height = float(world_bounds["max_y"]) - float(world_bounds["min_y"])
+    except (KeyError, TypeError, ValueError):
+        return report
+    report["checks"]["world_bounds_valid"] = world_width > 0 and world_height > 0
+    if not report["checks"]["world_bounds_valid"]:
+        return report
+
+    sample_indexes = []
+    resource_index = None
+    start_index = None
+    structure_index = None
+    for index, object_data in enumerate(static_objects):
+        unit_type = str(object_data.get("t", ""))
+        is_resource = "Mineral" in unit_type or "Geyser" in unit_type
+        is_start = unit_type in {"ACHeroSpawnPlacement", "PlayerStartLocation", "StartLocation"}
+        is_structure = any(
+            token in unit_type
+            for token in (
+                "CommandCenter", "Hatchery", "Nexus", "Barracks", "Factory",
+                "Starport", "Pylon", "Gateway", "Cannon", "Bunker", "Turret",
+                "SpawningPool", "Warren", "Spire", "Facility", "Depot",
+            )
+        )
+        if is_resource and resource_index is None:
+            resource_index = index
+        if is_start and start_index is None:
+            start_index = index
+        if is_structure and structure_index is None:
+            structure_index = index
+    sample_indexes.extend(
+        index for index in (0, resource_index, start_index, structure_index)
+        if index is not None and index not in sample_indexes
+    )
+    sample_indexes.extend(
+        index for index in range(len(static_objects))
+        if index not in sample_indexes
+    )
+    sample_indexes = sample_indexes[:8]
+
+    rect_x = float(minimap_rect["x"])
+    rect_y = float(minimap_rect["y"])
+    rect_right = rect_x + float(minimap_rect["w"])
+    rect_bottom = rect_y + float(minimap_rect["h"])
+    for index, object_data in enumerate(static_objects):
+        try:
+            nx, ny = _project_world_to_minimap(
+                float(object_data["x"]),
+                float(object_data["y"]),
+                world_bounds,
+                minimap_size,
+                minimap_rect,
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+        px = nx * float(minimap_size["width"])
+        py = ny * float(minimap_size["height"])
+        report["projected_object_count"] += 1
+        if not (rect_x <= px <= rect_right and rect_y <= py <= rect_bottom):
+            report["out_of_content_rect_count"] += 1
+        if index in sample_indexes:
+            report["samples"].append({
+                "id": object_data.get("id"),
+                "type": object_data.get("t"),
+                "owner": object_data.get("p"),
+                "world": [float(object_data["x"]), float(object_data["y"])],
+                "minimap": [round(px, 3), round(py, 3)],
+            })
+    report["checks"]["all_static_objects_inside_content_rect"] = (
+        report["projected_object_count"] == len(static_objects)
+        and report["out_of_content_rect_count"] == 0
+    )
+    report["status"] = "PASS" if all(report["checks"].values()) else "WARN"
+    return report
+
+
 def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) -> None:
     """生成可动单文件 HTML 播放器。"""
     if not frames:
@@ -115,6 +377,9 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
     objective_profile = map_metadata.get("objective_profile") or {}
     geometry = map_metadata.get("geometry") or {}
     static_objects = map_metadata.get("static_objects") or []
+    minimap_data_url, minimap_size, minimap_rect = _load_minimap_asset(
+        map_metadata, jsonl_path
+    )
 
     # 计算地图边界（从所有帧的实体位置）
     all_x, all_y = [], []
@@ -142,11 +407,24 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
     else:
         min_x, max_x, min_y, max_y = 0, 100, 0, 100
 
+    projection_report = _projection_report(
+        map_metadata,
+        static_objects,
+        minimap_data_url,
+        minimap_size,
+        minimap_rect,
+        {"min_x": min_x, "max_x": max_x, "min_y": min_y, "max_y": max_y},
+    )
+
     map_source_text = map_metadata.get("map_path", "scenario fixture")
     map_hash_text = map_metadata.get("map_hash", "n/a")
     native_object_count = map_metadata.get("native_object_count", "n/a")
     native_spawn_count = map_metadata.get("native_spawn_count", "n/a")
     p2_native_spawn_count = header.get("p2_native_spawn_count", "n/a")
+    minimap_source_text = map_metadata.get("minimap_path")
+    if not minimap_source_text and map_metadata.get("map_path"):
+        minimap_source_text = f"{str(map_metadata['map_path']).rstrip('/\\\\')}/Minimap.tga"
+    minimap_source_text = minimap_source_text or "n/a"
 
     # 单位颜色映射（JSON 给 JS 用）
     colors_json = json.dumps({str(k): v for k, v in PLAYER_COLORS.items()})
@@ -305,7 +583,9 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
       地图哈希: {_esc(map_hash_text)}<br>
       原生对象/实体: {_esc(native_object_count)} / {_esc(native_spawn_count)}<br>
       原生 P2 单位: {_esc(p2_native_spawn_count)}<br>
-      地图边界: [{min_x:.1f},{min_y:.1f}] - [{max_x:.1f},{max_y:.1f}]
+      地图边界: [{min_x:.1f},{min_y:.1f}] - [{max_x:.1f},{max_y:.1f}]<br>
+      地图底图: {_esc(minimap_source_text) if minimap_data_url else "未嵌入"}<br>
+      坐标校准: {_esc(projection_report["status"])} ({projection_report["projected_object_count"]}/{projection_report["static_object_count"]})
     </div>
   </div>
 </div>
@@ -322,6 +602,10 @@ const STATIC_OBJECTS = {json.dumps(static_objects, ensure_ascii=False, separator
 const OBJECTIVES = {json.dumps(objective_profile.get('objectives', []), ensure_ascii=False, separators=(',', ':'))};
 const GEOMETRY = {json.dumps(geometry, ensure_ascii=False, separators=(',', ':'))};
 const MAP_BOUNDS = {{minX: {min_x}, maxX: {max_x}, minY: {min_y}, maxY: {max_y}}};
+const MINIMAP_DATA_URL = {json.dumps(minimap_data_url)};
+const MINIMAP_SIZE = {json.dumps(minimap_size, separators=(',', ':'))};
+const MINIMAP_RECT = {json.dumps(minimap_rect, separators=(',', ':'))};
+const PROJECTION_REPORT = {json.dumps(projection_report, ensure_ascii=False, separators=(',', ':'))};
 const TOTAL_FRAMES = FRAMES.length;
 
 // 夜晚边界（用于"上一夜/下一夜"跳转）
@@ -338,13 +622,32 @@ for (let i = 0; i < FRAMES.length; i++) {{
 const canvas = document.getElementById('map');
 const ctx = canvas.getContext('2d');
 const tooltip = document.getElementById('tooltip');
-let curFrame = 0;
+const mapImage = new Image();
+let mapImageReady = false;
+if (MINIMAP_DATA_URL) {{
+  mapImage.onload = () => {{ mapImageReady = true; drawFrame(curFrame); }};
+  mapImage.src = MINIMAP_DATA_URL;
+}}
+const initialSettledFrame = FRAMES.findIndex(frame => {{
+  const p1 = (frame.entities_by_player?.['1'] || []).some(entity => entity.alive !== false);
+  const p2 = (frame.entities_by_player?.['2'] || []).some(entity => entity.alive !== false);
+  return p1 && p2;
+}});
+let curFrame = initialSettledFrame >= 0 ? initialSettledFrame : 0;
 let playing = false;
 let speed = 1;
 let lastTs = 0;
 const W = canvas.width, H = canvas.height;
 
 function worldToCanvas(x, y) {{
+  if (MINIMAP_DATA_URL && MINIMAP_SIZE.width && MINIMAP_SIZE.height && MINIMAP_RECT.w) {{
+    const nx = (x - MAP_BOUNDS.minX) / (MAP_BOUNDS.maxX - MAP_BOUNDS.minX);
+    const ny = (MAP_BOUNDS.maxY - y) / (MAP_BOUNDS.maxY - MAP_BOUNDS.minY);
+    return [
+      ((MINIMAP_RECT.x + nx * MINIMAP_RECT.w) / MINIMAP_SIZE.width) * W,
+      ((MINIMAP_RECT.y + ny * MINIMAP_RECT.h) / MINIMAP_SIZE.height) * H,
+    ];
+  }}
   const sx = (x - MAP_BOUNDS.minX) / (MAP_BOUNDS.maxX - MAP_BOUNDS.minX);
   const sy = (y - MAP_BOUNDS.minY) / (MAP_BOUNDS.maxY - MAP_BOUNDS.minY);
   return [sx * W, H - sy * H];  // Y 翻转
@@ -352,6 +655,10 @@ function worldToCanvas(x, y) {{
 
 function radiusFor(type) {{
   return RADIUS[type] || 3.5;
+}}
+
+function isStaticBuilding(type) {{
+  return /(?:CommandCenter|Hatchery|Nexus|Barracks|Factory|Starport|Pylon|Gateway|WarpGate|Cannon|Bunker|Turret|SpawningPool|Warren|Spire|Facility|Depot|Forge|Armory|Academy|Lair|Hive|InfestationPit|EvolutionChamber|CreepTumor)/.test(type);
 }}
 
 function maxHpFor(type) {{
@@ -391,20 +698,26 @@ function drawFrame(idx) {{
   ctx.fillStyle = '#0a0a0a';
   ctx.fillRect(0, 0, W, H);
 
+  if (mapImageReady) {{
+    ctx.drawImage(mapImage, 0, 0, W, H);
+  }}
+
   // 夜晚背景色带
   if (f.current_night > 0) {{
     ctx.fillStyle = 'rgba(106, 74, 226, 0.12)';
     ctx.fillRect(0, 0, W, H);
   }}
 
-  // 网格
-  ctx.strokeStyle = '#1a1a1a';
-  ctx.lineWidth = 0.5;
-  for (let gx = 0; gx <= W; gx += 50) {{
-    ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
-  }}
-  for (let gy = 0; gy <= H; gy += 50) {{
-    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+  // Keep the grid only as the no-source-image fallback.
+  if (!mapImageReady) {{
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 0.5;
+    for (let gx = 0; gx <= W; gx += 50) {{
+      ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
+    }}
+    for (let gy = 0; gy <= H; gy += 50) {{
+      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+    }}
   }}
 
   // 地图派生的玩家基地标记
@@ -427,7 +740,15 @@ function drawFrame(idx) {{
     ctx.globalAlpha = isResource ? 0.28 : 0.18;
     ctx.fillStyle = color;
     if (isResource) {{
-      ctx.fillRect(sx - 2, sy - 2, 4, 4);
+      ctx.fillRect(sx - 2.5, sy - 2.5, 5, 5);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.7;
+      ctx.strokeRect(sx - 3.5, sy - 3.5, 7, 7);
+    }} else if (isStaticBuilding(type)) {{
+      const footprint = Math.max(3.5, Math.min(11, radiusFor(type) * 0.75));
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(sx - footprint, sy - footprint, footprint * 2, footprint * 2);
     }} else {{
       ctx.beginPath(); ctx.arc(sx, sy, 2.2, 0, 2*Math.PI); ctx.fill();
     }}
@@ -502,6 +823,14 @@ function drawFrame(idx) {{
         ctx.fillStyle = '#6a4ae2';
         ctx.font = 'bold 11px sans-serif';
         ctx.fillText('▲ ' + ev.wave_name, 10, 20 + (ev.loop % 3) * 14);
+      }} else if (ev.kind === 'death' && ev.x !== undefined && ev.y !== undefined) {{
+        const [dx, dy] = worldToCanvas(Number(ev.x), Number(ev.y));
+        ctx.strokeStyle = '#ff4a4a';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(dx - 5, dy - 5); ctx.lineTo(dx + 5, dy + 5);
+        ctx.moveTo(dx + 5, dy - 5); ctx.lineTo(dx - 5, dy + 5);
+        ctx.stroke();
       }}
     }}
   }}
@@ -780,7 +1109,7 @@ function renderLegend() {{
 
 // 初始化
 renderLegend();
-drawFrame(0);
+drawFrame(curFrame);
 </script>
 </body>
 </html>
