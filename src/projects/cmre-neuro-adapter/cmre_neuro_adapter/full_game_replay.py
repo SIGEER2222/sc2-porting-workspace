@@ -30,6 +30,7 @@ from vibe.simulator_session import SimulatorSession  # type: ignore
 from vibe.sim_path import ensure_simulator_on_path  # type: ignore
 
 from .replay_player import render_player_html
+from .map_script_extractor import FORCE_BUCKETS, SPECIAL_TYPE_CANDIDATES, extract_map_script
 
 ensure_simulator_on_path()
 
@@ -71,60 +72,6 @@ NIGHT_DEFENDER_LIFE_THRESHOLD = 150.0
 DAYTIME_STRUCTURE_PUSH_COOLDOWN_LOOPS = round(40.0 * LOOPS_PER_SECOND)
 
 
-# These are the normal-difficulty calls in the native MapScript triggers.  The
-# second value is the delay inside a night before the map call is made; the
-# simulator adds the native 140-loop attack-wave delay below.
-_NIGHT_CALLS: dict[int, list[tuple[int, str, int, int, int]]] = {
-    1: [(0, "south_west", 0, 0, 0), (40, "south_west", 8, 0, 0)],
-    2: [
-        (0, "south_west", 15, 0, 0),
-        (0, "north_east", 8, 0, 0),
-        (40, "north_east", 19, 0, 0),
-        (60, "south_west", 30, 0, 0),
-    ],
-    3: [
-        (0, "south_east", 11, 5, 0),
-        (0, "north_west", 11, 5, 0),
-        (0, "south_west", 5, 0, 0),
-        (20, "south_east", 15, 3, 0),
-        (20, "north_west", 15, 3, 0),
-        (40, "south_west", 11, 6, 0),
-        (70, "south_west", 8, 3, 0),
-    ],
-    4: [
-        (20, "north_east", 19, 5, 1),
-        (50, "north_west", 23, 5, 2),
-        (70, "south_east", 26, 5, 3),
-        (90, "south_west", 19, 5, 3),
-    ],
-    5: [
-        (10, "south_west", 5, 5, 0),
-        (10, "south_east", 19, 6, 0),
-        (10, "north_west", 19, 4, 0),
-        (40, "south_west", 11, 3, 0),
-        (40, "north_east", 0, 6, 0),
-        (40, "south_east", 11, 0, 0),
-        (40, "north_west", 11, 0, 0),
-        (50, "south_west", 15, 5, 0),
-        (50, "north_east", 0, 6, 0),
-        (50, "south_east", 11, 0, 0),
-        (50, "north_west", 11, 0, 0),
-    ],
-    6: [
-        (0, "south_west", 8, 5, 0),
-        (0, "south_east", 25, 5, 0),
-        (0, "north_west", 25, 5, 0),
-        (30, "south_west", 15, 6, 0),
-        (30, "north_east", 0, 12, 0),
-        (30, "south_east", 15, 0, 0),
-        (30, "north_west", 15, 0, 0),
-        (40, "south_west", 20, 8, 0),
-        (40, "north_east", 0, 12, 0),
-        (60, "south_west", 15, 4, 0),
-        (60, "north_east", 0, 12, 0),
-    ],
-}
-
 _DIRECTION_REGIONS = {
     "north_west": "Special Infested Spawn - NW",
     "north_east": "Special Infested Spawn - NE",
@@ -137,24 +84,6 @@ _SOURCE_TO_SIM = {
     "InfestedAbomination": "Roach",
     "InfestedExploder": "Baneling",
 }
-_SPECIAL_TYPES = {
-    1: [("Hunterling", "Zergling", "south_west", 3)],
-    2: [("Hunterling", "Zergling", "north_east", 4), ("Kaboomer", "Baneling", "south_west", 2)],
-    3: [("Spotter", "Mutalisk", "north_west", 2), ("Choker", "Roach", "south_east", 2)],
-    4: [("Spotter", "Mutalisk", "north_east", 3), ("Choker", "Roach", "north_west", 3), ("Stank", "Ultralisk", "south_east", 1)],
-    5: [("Spotter", "Mutalisk", "north_east", 3), ("Choker", "Roach", "south_west", 3), ("Kaboomer", "Baneling", "south_east", 3)],
-    6: [("Spotter", "Mutalisk", "north_east", 4), ("Choker", "Roach", "north_west", 4), ("Stank", "Ultralisk", "south_east", 1)],
-}
-_NIGHT_DEFENDER_COMPOSITION = {
-    1: (("InfestedCivilian", "Marine", 1),),
-    2: (("InfestedCivilian", "Marine", 1), ("InfestedTerranCampaign", "Marine", 1)),
-    3: (("InfestedCivilian", "Marine", 1), ("InfestedTerranCampaign", "Marine", 1)),
-    4: (("InfestedCivilian", "Marine", 1), ("InfestedTerranCampaign", "Marine", 1), ("InfestedAbomination", "Roach", 1)),
-    5: (("InfestedCivilian", "Marine", 1), ("InfestedTerranCampaign", "Marine", 1), ("InfestedAbomination", "Roach", 1)),
-    6: (("InfestedCivilian", "Marine", 1), ("InfestedTerranCampaign", "Marine", 4), ("InfestedAbomination", "Roach", 1)),
-}
-
-
 def _scaled_count(base_count: int, scale: float) -> int:
     if base_count <= 0 or scale <= 0:
         return 0
@@ -165,53 +94,383 @@ def _region_lookup(regions: Iterable[dict[str, Any]]) -> dict[str, dict[str, Any
     return {str(region.get("name")): region for region in regions}
 
 
+def _force_source_types(resource_bucket: str) -> dict[str, int]:
+    profile = FORCE_BUCKETS.get(resource_bucket)
+    if profile is None:
+        return {"InfestedCivilian": 8, "InfestedTerranCampaign": 4}
+    return dict(profile["source_type_counts"])
+
+
 def _build_map_record(map_path: Path, map_source: Path) -> dict[str, Any]:
     """Use the same source-derived map metadata as the live-map replay."""
 
     return build_real_map_record(map_path, map_source)
 
 
-def _source_wave_specs(data: Any, *, time_scale: float, strength_scale: float, seed: int) -> list[dict[str, Any]]:
+def _source_wave_specs(
+    data: Any,
+    script_model: dict[str, Any],
+    *,
+    time_scale: float,
+    strength_scale: float,
+    seed: int,
+    boss_type: str = "Nydus",
+) -> list[dict[str, Any]]:
     regions = _region_lookup(data.scenario["_map_regions"])
     rng = random.Random(seed)
     waves: list[dict[str, Any]] = []
-    for night in data.wave_timing["nights"]:
-        number = int(night["night_number"])
-        night_start = int(int(night["start_loop"]) * time_scale)
-        for index, (offset_seconds, direction, civilians, marines, aberrations) in enumerate(_NIGHT_CALLS[number], start=1):
-            source_types = {
-                "InfestedCivilian": civilians,
-                "InfestedTerranCampaign": marines,
-                "InfestedAbomination": aberrations,
+    nights = {
+        int(night["night_number"]): night
+        for night in script_model.get("nights", [])
+    }
+    direction_cycle = ["south_west", "south_east", "north_west", "north_east"]
+
+    def build_spawns(
+        *,
+        number: int,
+        direction: str,
+        source_types: dict[str, int],
+        owner: int,
+        simulator_type_by_source: dict[str, str],
+    ) -> list[dict[str, Any]]:
+        region = regions[_DIRECTION_REGIONS[direction]]
+        spawns: list[dict[str, Any]] = []
+        for source_type, base_count in source_types.items():
+            count = _scaled_count(int(base_count), strength_scale)
+            for spawn_index in range(count):
+                angle = rng.random() * 6.283185307
+                radius = min(max(float(region.get("r", 3.0)) * 0.35, 0.7), 2.8)
+                distance = radius * (0.45 + (spawn_index % 3) / 3.0)
+                spawns.append(
+                    {
+                        "unit_type_id": simulator_type_by_source[source_type],
+                        "source_unit_type_id": source_type,
+                        "owner_player_id": owner,
+                        "x": round(float(region["x"]) + distance * math.cos(angle), 3),
+                        "y": round(float(region["y"]) + distance * math.sin(angle), 3),
+                    }
+                )
+        return spawns
+
+    source_structure_points = [
+        spawn
+        for spawn in data.scenario.get("spawns", [])
+        if int(spawn.get("owner_player_id", 0)) in (5, 7)
+        and str(spawn.get("unit_type_id", "")).startswith((
+            "Infestable",
+            "Infested",
+            "CreepTumor",
+        ))
+    ]
+
+    def build_structure_spawns(
+        *,
+        number: int,
+        source_types: dict[str, int],
+        owner: int,
+        simulator_type_by_source: dict[str, str],
+    ) -> list[dict[str, Any]]:
+        """Project white-noise spawns onto the source infestation buildings."""
+
+        if not source_structure_points:
+            return build_spawns(
+                number=number,
+                direction="south_west",
+                source_types=source_types,
+                owner=owner,
+                simulator_type_by_source=simulator_type_by_source,
+            )
+        spawns: list[dict[str, Any]] = []
+        spawn_index = 0
+        for source_type, base_count in source_types.items():
+            count = _scaled_count(int(base_count), strength_scale)
+            for _ in range(count):
+                source = source_structure_points[spawn_index % len(source_structure_points)]
+                spawn_index += 1
+                angle = rng.random() * 6.283185307
+                distance = 0.65 + (spawn_index % 3) * 0.25
+                spawns.append(
+                    {
+                        "unit_type_id": simulator_type_by_source[source_type],
+                        "source_unit_type_id": source_type,
+                        "source_structure_index": (spawn_index - 1) % len(source_structure_points),
+                        "owner_player_id": owner,
+                        "x": round(float(source["x"]) + distance * math.cos(angle), 3),
+                        "y": round(float(source["y"]) + distance * math.sin(angle), 3),
+                    }
+                )
+        return spawns
+
+    selection = script_model.get("special_selection", {})
+    candidates = list(selection.get("candidates", ("Hunterling", "Spotter", "Kaboomer", "Choker")))
+    selected_special_types = set(random.Random(seed + 1).sample(candidates, min(2, len(candidates))))
+    if boss_type not in {"Nydus", "Stank"}:
+        raise ValueError(f"unsupported replay boss branch: {boss_type}")
+
+    normal_index = 0
+    for call in script_model.get("normal_attack_calls", []):
+        number = int(call["night"])
+        night = nights[number]
+        direction = call.get("direction")
+        if not direction:
+            options = list(call.get("direction_options") or direction_cycle)
+            direction = options[normal_index % len(options)]
+        normal_index += 1
+        source_types = {
+            key: int(value)
+            for key, value in call.get("source_type_counts", {}).items()
+            if int(value) > 0
+        }
+        if not source_types:
+            continue
+        trigger_loop = int(int(night["start_loop"]) * time_scale + round(float(call["offset_seconds"]) * LOOPS_PER_SECOND * time_scale))
+        launch_loop = trigger_loop + round(int(call.get("delay_loops", 140)) * time_scale)
+        index = int(call["source_call_index"])
+        waves.append(
+            {
+                "name": f"night{number}_normal_{index:02d}",
+                "night": number,
+                "kind": "normal",
+                "direction": direction,
+                "trigger_loop": trigger_loop,
+                "launch_loop": launch_loop,
+                "source_trigger": call["source_trigger"],
+                "source_call_index": index,
+                "source_types": source_types,
+                "spawns": build_spawns(
+                    number=number,
+                    direction=direction,
+                    source_types=source_types,
+                    owner=5,
+                    simulator_type_by_source=_SOURCE_TO_SIM,
+                ),
             }
-            spawns: list[dict[str, Any]] = []
-            region = regions[_DIRECTION_REGIONS[direction]]
-            for source_type, base_count in source_types.items():
-                count = _scaled_count(base_count, strength_scale)
-                for spawn_index in range(count):
-                    angle = rng.random() * 6.283185307
-                    radius = min(max(float(region.get("r", 3.0)) * 0.35, 0.7), 2.8)
-                    distance = radius * (0.45 + (spawn_index % 3) / 3.0)
-                    spawns.append(
-                        {
-                            "unit_type_id": _SOURCE_TO_SIM[source_type],
-                            "source_unit_type_id": source_type,
-                            "owner_player_id": 5,
-                            "x": round(float(region["x"]) + distance * __import__("math").cos(angle), 3),
-                            "y": round(float(region["y"]) + distance * __import__("math").sin(angle), 3),
-                        }
-                    )
+        )
+
+    for call in script_model.get("special_attack_calls", []):
+        number = int(call["night"])
+        night = nights.get(number)
+        if night is None or int(call.get("count", 0)) <= 0:
+            continue
+        direction_options = list(call.get("direction_options") or direction_cycle)
+        direction = direction_options[(number + int(call["source_call_index"])) % len(direction_options)]
+        trigger_loop = int(int(night["start_loop"]) * time_scale + round(float(call["offset_seconds"]) * LOOPS_PER_SECOND * time_scale))
+        source_type = str(call["source_special_type"])
+        if source_type in SPECIAL_TYPE_CANDIDATES and source_type not in selected_special_types:
+            continue
+        if source_type == "Stank" and boss_type != "Stank":
+            continue
+        if source_type == "NydusWorm" and boss_type != "Nydus":
+            continue
+        if source_type == "NydusWorm":
+            stage_index = 0
+            force_profile = script_model.get("nydus_force_profile", {})
+            for worm_index in range(int(call["count"])):
+                worm_loop = trigger_loop + worm_index * round(2.0 * LOOPS_PER_SECOND * time_scale)
+                first_force_loop = worm_loop + round(
+                    (float(force_profile.get("post_spawn_delay_seconds", 6.0))
+                     + float(force_profile.get("initial_delay_seconds", 20.0)))
+                    * LOOPS_PER_SECOND * time_scale
+                )
+                for stage in force_profile.get("stage_plan", []):
+                    for repeat_index in range(int(stage.get("repeat_count", 0))):
+                        force_loop = first_force_loop + round(
+                            stage_index * float(force_profile.get("repeat_interval_seconds", 60.0))
+                            * LOOPS_PER_SECOND * time_scale
+                        )
+                        stage_index += 1
+                        resource_bucket = str(stage.get("resource_bucket", "2Smaller"))
+                        source_types = _force_source_types(resource_bucket)
+                        force_direction = direction_options[(worm_index + stage_index) % len(direction_options)]
+                        waves.append(
+                            {
+                                "name": f"night{number}_nydus_{int(call['source_call_index']):02d}_{worm_index:02d}_{stage_index:02d}",
+                                "night": number,
+                                "kind": "nydus_force",
+                                "direction": force_direction,
+                                "trigger_loop": worm_loop,
+                                "launch_loop": force_loop,
+                                "source_trigger": call["source_trigger"],
+                                "source_call_index": int(call["source_call_index"]),
+                                "source_special_type": "NydusWorm",
+                                "source_types": source_types,
+                                "source_force_bucket": resource_bucket,
+                                "source_tech_bucket": str(stage.get("tech_bucket", "")),
+                                "source_worm_index": worm_index + 1,
+                                "source_stage": int(stage.get("stage", 0)),
+                                "composition_source": "cooperative_ai_engine_projection",
+                                "spawns": build_spawns(
+                                    number=number,
+                                    direction=force_direction,
+                                    source_types=source_types,
+                                    owner=3,
+                                    simulator_type_by_source=_SOURCE_TO_SIM,
+                                ),
+                            }
+                        )
+            continue
+        source_types = {source_type: int(call["count"])}
+        simulator_type = str(call.get("simulator_unit_type") or "Zergling")
+        waves.append(
+            {
+                "name": f"night{number}_special_{source_type.lower()}_{int(call['source_call_index']):02d}_{len(waves):03d}",
+                "night": number,
+                "kind": "special",
+                "direction": direction,
+                "trigger_loop": trigger_loop,
+                "launch_loop": trigger_loop,
+                "source_trigger": call["source_trigger"],
+                "source_call_index": int(call["source_call_index"]),
+                "source_special_type": source_type,
+                "source_types": source_types,
+                "spawns": build_spawns(
+                    number=number,
+                    direction=direction,
+                    source_types=source_types,
+                    owner=7,
+                    simulator_type_by_source={source_type: simulator_type},
+                ),
+            }
+        )
+    generic_index = 0
+    for call in script_model.get("generic_attack_calls", []):
+        number = int(call["night"])
+        night = nights.get(number)
+        if night is None:
+            continue
+        generic_index += 1
+        remaining_loops = round(float(call.get("night_end_remaining_seconds", 60.0)) * LOOPS_PER_SECOND * time_scale)
+        launch_loop = int(int(night["end_loop"]) * time_scale) - remaining_loops
+        direction = direction_cycle[(generic_index + number) % len(direction_cycle)]
+        resource_bucket = str(call.get("resource_bucket", "2Smaller"))
+        source_types = _force_source_types(resource_bucket)
+        waves.append(
+            {
+                "name": f"night{number}_generic_{call['source_trigger']}_{generic_index:02d}",
+                "night": number,
+                "kind": "generic_force",
+                "direction": direction,
+                "trigger_loop": launch_loop,
+                "launch_loop": launch_loop,
+                "source_trigger": call["source_trigger"],
+                "source_caller": call.get("source_caller", ""),
+                "source_call_index": int(call.get("source_call_index", generic_index)),
+                "source_types": source_types,
+                "source_force_bucket": resource_bucket,
+                "source_tech_bucket": str(call.get("tech_bucket", "")),
+                "composition_source": "cooperative_ai_engine_projection",
+                "spawns": build_spawns(
+                    number=number,
+                    direction=direction,
+                    source_types=source_types,
+                    owner=3,
+                    simulator_type_by_source=_SOURCE_TO_SIM,
+                ),
+            }
+        )
+
+    # This service runs throughout the night and is separate from the named
+    # attack triggers above.  Preserve its cooldown and quotas instead of
+    # collapsing it into one synthetic attack at night start.
+    white_noise = script_model.get("white_noise_spawn_profile", {})
+    white_profiles = {
+        int(profile["night"]): profile
+        for profile in white_noise.get("profiles", [])
+    }
+    previous_quantities: dict[str, int] = {}
+    for night in sorted(nights.values(), key=lambda item: int(item["night_number"])):
+        number = int(night["night_number"])
+        profile = white_profiles.get(number)
+        if profile is None:
+            quantities = dict(previous_quantities)
+            cooldown_seconds = float(white_noise.get("night_6_cooldown_seconds", 20.0))
+        else:
+            quantities = {
+                str(source_type): int(count)
+                for source_type, count in profile.get("source_quantities", {}).items()
+                if int(count) > 0
+            }
+            previous_quantities = dict(quantities)
+            cooldown_seconds = float(profile.get("cooldown_seconds", 30.0))
+        if not quantities:
+            continue
+        launch_loop = int(night["start_loop"] * time_scale)
+        end_loop = int(night["end_loop"] * time_scale)
+        cycle_index = 0
+        while launch_loop < end_loop:
+            cycle_index += 1
             waves.append(
                 {
-                    "name": f"night{number}_{direction}_{index:02d}",
+                    "name": f"night{number}_white_noise_{cycle_index:02d}",
                     "night": number,
-                    "direction": direction,
-                    "trigger_loop": night_start + round(offset_seconds * LOOPS_PER_SECOND),
-                    "launch_loop": night_start + round(offset_seconds * LOOPS_PER_SECOND) + round(140 * time_scale),
-                    "source_types": source_types,
-                    "spawns": spawns,
+                    "kind": "white_noise",
+                    "direction": "structure_local",
+                    "trigger_loop": launch_loop,
+                    "launch_loop": launch_loop,
+                    "source_trigger": white_noise.get("source_trigger", "gt_AIWhiteNoiseSpawning_Func"),
+                    "source_call_index": cycle_index,
+                    "source_types": quantities,
+                    "source_selection_mode": white_noise.get("selection_mode", ""),
+                    "composition_source": "MapScript.galaxy",
+                    "source_cooldown_seconds": cooldown_seconds,
+                    "spawns": build_structure_spawns(
+                        number=number,
+                        source_types=quantities,
+                        owner=5,
+                        simulator_type_by_source=_SOURCE_TO_SIM,
+                    ),
                 }
             )
+            launch_loop += max(1, round(cooldown_seconds * LOOPS_PER_SECOND * time_scale))
+
+    hybrid = script_model.get("hybrid_reinforcement_profile", {})
+    hybrid_profiles = {
+        int(profile["night"]): profile
+        for profile in hybrid.get("profiles", [])
+    }
+    fallback_hybrid = hybrid.get("fallback_profile", {})
+    hybrid_sim_types = {
+        "HybridLight": str(hybrid.get("simulator_unit_types", {}).get("light", "Marauder")),
+        "HybridHeavy": str(hybrid.get("simulator_unit_types", {}).get("heavy", "Ultralisk")),
+    }
+    for night in sorted(nights.values(), key=lambda item: int(item["night_number"])):
+        number = int(night["night_number"])
+        profile = hybrid_profiles.get(number, fallback_hybrid if number >= 5 else {})
+        source_types = {
+            "HybridLight": int(profile.get("light_count", 0)),
+            "HybridHeavy": int(profile.get("heavy_count", 0)),
+        }
+        source_types = {key: value for key, value in source_types.items() if value > 0}
+        if not source_types:
+            continue
+        launch_loop = int(
+            int(night["start_loop"]) * time_scale
+            + round(float(hybrid.get("delay_seconds", 60.0)) * LOOPS_PER_SECOND * time_scale)
+        )
+        waves.append(
+            {
+                "name": f"night{number}_hybrid_reinforcements",
+                "night": number,
+                "kind": "hybrid_reinforcement",
+                "direction": direction_cycle[(number + 1) % len(direction_cycle)],
+                "trigger_loop": launch_loop,
+                "launch_loop": launch_loop,
+                "source_trigger": hybrid.get("source_trigger", "gt_HybridReinforcements_Func"),
+                "source_call_index": number,
+                "source_types": source_types,
+                "source_selection_mode": hybrid.get("selection_mode", ""),
+                "source_defend_region_ids": list(hybrid.get("defend_region_ids", [])),
+                "composition_source": "MapScript.galaxy",
+                "spawns": build_spawns(
+                    number=number,
+                    direction=direction_cycle[(number + 1) % len(direction_cycle)],
+                    source_types=source_types,
+                    owner=3 if number % 2 else 4,
+                    simulator_type_by_source=hybrid_sim_types,
+                ),
+            }
+        )
+    return sorted(waves, key=lambda item: (int(item["launch_loop"]), item["name"]))
     return waves
 
 
@@ -645,7 +904,11 @@ def _add_wave_events(
         ids = list(spawned_ids or [entity_id for entity_id in session.world.entities if entity_id not in known_ids])
         if not ids:
             continue
-        ids = [entity_id for entity_id in ids if session.world.get_entity(entity_id).owner_player_id == 5]
+        ids = [
+            entity_id
+            for entity_id in ids
+            if session.world.get_entity(entity_id).owner_player_id in ENEMY_PLAYERS
+        ]
         spawn_by_entity_id = {
             entity_id: spawn
             for entity_id, spawn in zip(ids, spec.get("spawns", []), strict=False)
@@ -661,7 +924,21 @@ def _add_wave_events(
             meta[entity_id] = {
                 "source": "MapScript.galaxy",
                 "source_wave": spec["name"],
+                "source_trigger": spec.get("source_trigger", ""),
+                "source_call_index": int(spec.get("source_call_index", 0)),
                 "source_direction": spec["direction"],
+                "source_special_type": spec.get("source_special_type", ""),
+                "source_force_bucket": spec.get("source_force_bucket", ""),
+                "source_tech_bucket": spec.get("source_tech_bucket", ""),
+                "source_worm_index": spec.get("source_worm_index"),
+                "source_stage": spec.get("source_stage"),
+                "source_selection_mode": spec.get("source_selection_mode", ""),
+                "source_structure_index": (
+                    source_spawn.get("source_structure_index")
+                    if source_spawn is not None
+                    else None
+                ),
+                "composition_source": spec.get("composition_source", "source_call"),
                 "source_unit_type_id": (
                     source_spawn.get("source_unit_type_id", "")
                     if source_spawn is not None
@@ -675,16 +952,37 @@ def _add_wave_events(
                     )
                 ),
             }
-            session.unit_order([entity_id], "attack_move", 5, target_x=BASE_X, target_y=BASE_Y)
+            owner = int(entity.owner_player_id)
+            session.unit_order([entity_id], "attack_move", owner, target_x=BASE_X, target_y=BASE_Y)
             known_ids.add(entity_id)
         event_buffer.append(
             {
                 "loop": int(session.world.clock.now.loop),
-                "kind": "map_script_wave_spawned",
+                "kind": (
+                    "special_infested_spawned"
+                    if spec.get("kind") == "special"
+                    else "white_noise_infested_spawned"
+                    if spec.get("kind") == "white_noise"
+                    else "hybrid_reinforcements_spawned"
+                    if spec.get("kind") == "hybrid_reinforcement"
+                    else "map_script_force_spawned"
+                    if spec.get("kind") in {"generic_force", "nydus_force"}
+                    else "map_script_wave_spawned"
+                ),
                 "source": "MapScript.galaxy",
                 "wave_name": spec["name"],
                 "night": spec["night"],
+                "wave_kind": spec.get("kind", "normal"),
+                "source_trigger": spec.get("source_trigger", ""),
+                "source_call_index": int(spec.get("source_call_index", 0)),
                 "source_direction": spec["direction"],
+                "source_force_bucket": spec.get("source_force_bucket", ""),
+                "source_tech_bucket": spec.get("source_tech_bucket", ""),
+                "source_worm_index": spec.get("source_worm_index"),
+                "source_stage": spec.get("source_stage"),
+                "source_selection_mode": spec.get("source_selection_mode", ""),
+                "source_defend_region_ids": spec.get("source_defend_region_ids", []),
+                "composition_source": spec.get("composition_source", "source_call"),
                 "source_unit_type_counts": spec["source_types"],
                 "entity_ids": ids,
                 "entity_count": len(ids),
@@ -727,11 +1025,12 @@ def build_full_game_replay(
     html_path: Path | None = DEFAULT_HTML,
     max_loops: int | None = None,
     time_scale: float = 1.0,
-    wave_strength_scale: float = 0.25,
+    wave_strength_scale: float = 1.0,
     enemy_damage_scale: float = DEFAULT_DYNAMIC_ENEMY_DAMAGE_SCALE,
     replay_interval: int = 112,
     initial_minerals: int = 250,
     seed: int = 42,
+    boss_type: str = "Nydus",
 ) -> dict[str, Any]:
     """Run the map-scheduled simulator game and write JSONL/HTML artifacts."""
 
@@ -740,7 +1039,15 @@ def build_full_game_replay(
     output_path = Path(output_path).resolve()
     if html_path is not None:
         html_path = Path(html_path).resolve()
+    script_model = extract_map_script(map_source, difficulty="normal")
     data = build_dead_of_night_map_cooperative_scenario(map_source)
+    # The legacy porting extractor supplies the native Object/Region scenario,
+    # while this adapter owns the source-trigger extraction used by the full
+    # replay. Replace only the timing/attack projection; native map entities
+    # remain untouched.
+    data.wave_timing = script_model
+    data.scenario["_map_wave_timing"] = script_model
+    data.scenario["_map_script_model"] = script_model
     total_nights, survive_objective_name, win_condition = _night_schedule_info(data.wave_timing)
     replay_interval = max(1, int(replay_interval))
     final_night_end = int(data.wave_timing["nights"][-1]["end_loop"] * time_scale)
@@ -752,11 +1059,13 @@ def build_full_game_replay(
     )
     wave_specs = _source_wave_specs(
         data,
+        script_model,
         time_scale=time_scale,
         strength_scale=wave_strength_scale,
         seed=seed,
+        boss_type=boss_type,
     )
-    dynamic_enemy_damage_scale = max(0.05, min(1.0, float(enemy_damage_scale)))
+    dynamic_enemy_damage_scale = max(0.001, min(1.0, float(enemy_damage_scale)))
     session = SimulatorSession()
     session.scenario_load(scenario_dict=scenario, catalog="m7")
     session.set_wave_timing(
@@ -779,7 +1088,7 @@ def build_full_game_replay(
     # Keep source-derived targets observable without turning daylight into a
     # multi-minute siege against every defensive emplacement.  The original
     # 344 Objects remain untouched in the static map layer.
-    structure_health_scale = 0.001
+    structure_health_scale = DEFAULT_STRUCTURE_HEALTH_SCALE
     catalog = session.world.catalog
     for entity in session.world.entities.values():
         if int(entity.owner_player_id) in ENEMY_PLAYERS and catalog.get(entity.unit_type_id).is_structure:
@@ -804,8 +1113,28 @@ def build_full_game_replay(
         mission.add_wave(Wave(name=spec["name"], at_loop=spec["launch_loop"], spawns=spec["spawns"]))
 
     active_enemy_ids: set[int] = set()
+    structure_targeted_enemy_ids: set[int] = set()
 
-    def enemy_attack_target(engine: Any) -> int:
+    def enemy_attack_target(engine: Any, attacker: Any | None = None) -> int:
+        live_structures = [
+            entity
+            for entity in engine.session.world.entities.values()
+            if entity.is_alive
+            and entity.entity_id in source_building_id_set
+            and entity.owner_player_id in ENEMY_PLAYERS
+            and catalog.get(entity.unit_type_id).is_structure
+        ]
+        if live_structures:
+            if attacker is None:
+                return min(entity.entity_id for entity in live_structures)
+            return min(
+                live_structures,
+                key=lambda entity: (
+                    (entity.x.to_float() - attacker.x.to_float()) ** 2
+                    + (entity.y.to_float() - attacker.y.to_float()) ** 2,
+                    entity.entity_id,
+                ),
+            ).entity_id
         defenders = [
             entity
             for entity in engine.session.world.entities.values()
@@ -837,10 +1166,12 @@ def build_full_game_replay(
                     [entity.entity_id],
                     "attack_unit",
                     entity.owner_player_id,
-                    target_entity_id=enemy_attack_target(eng),
+                    target_entity_id=enemy_attack_target(eng, entity),
                 )
                 for entity in eng.session.world.entities.values()
-                if entity.is_alive and entity.entity_id in active_enemy_ids
+                if entity.is_alive
+                and entity.entity_id in active_enemy_ids
+                and entity.entity_id not in structure_targeted_enemy_ids
             ],
             cooldown=44,
         )
@@ -877,8 +1208,17 @@ def build_full_game_replay(
     infected_ids: set[int] = set()
     special_ids: set[int] = set()
     dynamic_enemy_ids: set[int] = set()
+    nydus_active_ids: set[int] = set()
+    nydus_active_cap = int(script_model.get("nydus_force_profile", {}).get("max_spawned_units", 100))
+    nydus_forces_capped = 0
     destroyed_structures = 0
     initial_structure_count = len(source_building_ids)
+    defender_cooldown_loops = round(
+        float(script_model.get("night_defender_cooldown_seconds", 30.0)) * LOOPS_PER_SECOND
+    )
+    defender_life_threshold = float(script_model.get("night_defender_life_threshold", 150.0))
+    next_defender_loop: dict[int, int] = {}
+    damaged_structures_during_night: set[int] = set()
     extra_barracks_targets = [(90.0, 99.0), (90.0, 89.0)]
     extra_barracks_issued = 0
     last_structure_push_loop = -DAYTIME_STRUCTURE_PUSH_COOLDOWN_LOOPS
@@ -889,6 +1229,75 @@ def build_full_game_replay(
         (85.0, 88.0),
     ]
     extra_depots_issued = 0
+
+    def spawn_night_defenders(source_id: int, at_loop: int, current_night: int) -> None:
+        source = session.world.get_entity(source_id)
+        if source is None or not source.is_alive:
+            return
+        if at_loop < next_defender_loop.get(source_id, -1):
+            return
+        if source.health.raw / 1024.0 >= defender_life_threshold:
+            return
+        spawned_ids: list[int] = []
+        composition: list[dict[str, Any]] = []
+        for rule in script_model.get("night_defender_rules", []):
+            maximum = rule.get("night_max_exclusive")
+            if current_night < int(rule["night_min"]):
+                continue
+            if maximum is not None and current_night >= int(maximum):
+                continue
+            count = _scaled_count(int(rule["count_per_structure"]), wave_strength_scale)
+            if count <= 0:
+                continue
+            source_type = str(rule["source_unit_type"])
+            simulator_type = str(rule["simulator_unit_type"])
+            composition.append({"source_unit_type": source_type, "simulator_unit_type": simulator_type, "count": count})
+            for _ in range(count):
+                result = session.unit_spawn(
+                    simulator_type,
+                    5,
+                    source.x.to_float(),
+                    source.y.to_float(),
+                )
+                entity_id = int(result["entity_id"])
+                spawned = session.world.get_entity(entity_id)
+                if spawned is None:
+                    continue
+                max_health = session.world.catalog.get(spawned.unit_type_id).max_health.raw
+                spawned.health = spawned.health.__class__(max(1, int(max_health * DYNAMIC_ENEMY_HEALTH_SCALE)))
+                _apply_dynamic_enemy_damage_scale(spawned, catalog, dynamic_enemy_damage_scale)
+                infected_ids.add(entity_id)
+                dynamic_enemy_ids.add(entity_id)
+                active_enemy_ids.add(entity_id)
+                known_ids.add(entity_id)
+                meta[entity_id] = {
+                    "source": "MapScript.galaxy",
+                    "source_trigger": "gf_AINightDefenderSpawn",
+                    "source_kind": "building_reinforcement",
+                    "source_structure_id": source_id,
+                    "source_structure_type": source.unit_type_id,
+                    "source_unit_type_id": source_type,
+                }
+                session.unit_order([entity_id], "attack_move", 5, target_x=BASE_X, target_y=BASE_Y)
+                spawned_ids.append(entity_id)
+        if not spawned_ids:
+            return
+        next_defender_loop[source_id] = at_loop + max(1, defender_cooldown_loops)
+        events.append(
+            {
+                "loop": at_loop,
+                "kind": "building_reinforcements_spawned",
+                "source": "MapScript.galaxy",
+                "source_trigger": "gf_AINightDefenderSpawn",
+                "night": current_night,
+                "source_structure_id": source_id,
+                "source_structure_type": source.unit_type_id,
+                "entity_ids": spawned_ids,
+                "entity_count": len(spawned_ids),
+                "composition": composition,
+                "cooldown_seconds": round(defender_cooldown_loops / LOOPS_PER_SECOND, 3),
+            }
+        )
 
     def append_action_record(action: Any, dispatched: dict[str, Any], obs: Any, at_loop: int) -> None:
         nonlocal action_id
@@ -1017,79 +1426,18 @@ def build_full_game_replay(
                     "entity_count": regrouped,
                     "target": {"x": BASE_X - 4.0, "y": BASE_Y - 4.0},
                 })
-                for special_name, sim_type, direction, count in _SPECIAL_TYPES.get(night, []):
-                    region = _region_lookup(data.scenario["_map_regions"])[_DIRECTION_REGIONS[direction]]
-                    for index in range(max(1, int(round(count * wave_strength_scale)))):
-                        angle = rng.random() * 6.283185307
-                        radius = min(max(float(region.get("r", 3.0)) * 0.3, 0.6), 2.5)
-                        result = session.unit_spawn(
-                            sim_type,
-                            7,
-                            float(region["x"]) + radius * __import__("math").cos(angle),
-                            float(region["y"]) + radius * __import__("math").sin(angle),
-                        )
-                        entity_id = int(result["entity_id"])
-                        spawned = session.world.get_entity(entity_id)
-                        if spawned is not None:
-                            max_health = session.world.catalog.get(spawned.unit_type_id).max_health.raw
-                            spawned.health = spawned.health.__class__(max(1, int(max_health * DYNAMIC_ENEMY_HEALTH_SCALE)))
-                            _apply_dynamic_enemy_damage_scale(spawned, catalog, dynamic_enemy_damage_scale)
-                        special_ids.add(entity_id)
-                        dynamic_enemy_ids.add(entity_id)
-                        active_enemy_ids.add(entity_id)
-                        known_ids.add(entity_id)
-                        meta[entity_id] = {
-                            "source": "MapScript.galaxy",
-                            "source_special_type": special_name,
-                            "source_direction": direction,
-                        }
-                        session.unit_order([entity_id], "attack_move", 7, target_x=BASE_X, target_y=BASE_Y)
-                    events.append({
-                        "loop": loop,
-                        "kind": "special_infested_spawned",
-                        "night": night,
-                        "source_special_type": special_name,
-                        "source_direction": direction,
-                        "entity_count": max(1, int(round(count * wave_strength_scale))),
-                    })
-                # Buildings create a bounded live reinforcement group at night.
-                # Select live source buildings rather than a fixed ID prefix;
-                # the prefix may already have been cleared during daylight.
-                building_reinforcements = 0
-                reinforcement_limit = min(24, max(4, 4 + night * 2))
-                live_source_building_ids = [
-                    source_id
-                    for source_id in source_building_ids
-                    if (source := session.world.get_entity(source_id)) is not None
-                    and source.is_alive
+                night_plan = [
+                    item for item in wave_specs
+                    if int(item["night"]) == night
                 ]
-                for source_id in live_source_building_ids[:reinforcement_limit]:
-                    source = session.world.get_entity(source_id)
-                    result = session.unit_spawn("Zergling", 5, source.x.to_float(), source.y.to_float())
-                    entity_id = int(result["entity_id"])
-                    spawned = session.world.get_entity(entity_id)
-                    if spawned is not None:
-                        max_health = session.world.catalog.get(spawned.unit_type_id).max_health.raw
-                        spawned.health = spawned.health.__class__(max(1, int(max_health * DYNAMIC_ENEMY_HEALTH_SCALE)))
-                        _apply_dynamic_enemy_damage_scale(spawned, catalog, dynamic_enemy_damage_scale)
-                    infected_ids.add(entity_id)
-                    dynamic_enemy_ids.add(entity_id)
-                    active_enemy_ids.add(entity_id)
-                    known_ids.add(entity_id)
-                    meta[entity_id] = {
-                        "source": "MapScript.galaxy",
-                        "source_kind": "building_reinforcement",
-                        "source_structure_id": source_id,
-                        "source_structure_type": source.unit_type_id,
-                    }
-                    session.unit_order([entity_id], "attack_move", 5, target_x=BASE_X, target_y=BASE_Y)
-                    building_reinforcements += 1
                 events.append({
                     "loop": loop,
-                    "kind": "building_reinforcements_spawned",
+                    "kind": "night_attack_plan_armed",
                     "night": night,
-                    "entity_count": building_reinforcements,
-                    "source_structure_count": len(live_source_building_ids),
+                    "source": "MapScript.galaxy",
+                    "normal_wave_count": sum(item.get("kind") == "normal" for item in night_plan),
+                    "special_wave_count": sum(item.get("kind") == "special" for item in night_plan),
+                    "source_trigger_count": len({item.get("source_trigger") for item in night_plan}),
                 })
             else:
                 cleared = 0
@@ -1112,29 +1460,129 @@ def build_full_game_replay(
 
         before_wave_ids = set(session.world.entities)
         mission._fire_waves(loop)
-        for spec in wave_specs:
-            if spec["name"] in mission._waves_fired and spec["name"] not in reported_waves:
-                new_ids = [
+        new_ids = sorted(
+            entity_id
+            for entity_id in set(session.world.entities) - before_wave_ids
+            if session.world.get_entity(entity_id) is not None
+            and session.world.get_entity(entity_id).owner_player_id in ENEMY_PLAYERS
+        )
+        pending_specs = [
+            spec
+            for spec in wave_specs
+            if spec["name"] in mission._waves_fired
+            and spec["name"] not in reported_waves
+        ]
+        cursor = 0
+        for spec in pending_specs:
+            spec_ids = new_ids[cursor : cursor + len(spec.get("spawns", []))]
+            cursor += len(spec.get("spawns", []))
+            if not spec_ids:
+                continue
+            suppressed_ids: list[int] = []
+            if spec.get("kind") == "nydus_force":
+                live_nydus_ids = [
                     entity_id
-                    for entity_id in set(session.world.entities) - before_wave_ids
-                    if session.world.get_entity(entity_id) is not None and session.world.get_entity(entity_id).owner_player_id == 5
+                    for entity_id in nydus_active_ids
+                    if session.world.get_entity(entity_id) is not None
+                    and session.world.get_entity(entity_id).is_alive
                 ]
-                if new_ids:
-                    for entity_id in new_ids:
-                        dynamic_enemy_ids.add(entity_id)
-                        active_enemy_ids.add(entity_id)
-                    _add_wave_events(
-                        session,
-                        mission,
-                        [spec],
-                        meta,
-                        events,
-                        known_ids,
-                        enemy_health_scale=DYNAMIC_ENEMY_HEALTH_SCALE,
-                        enemy_damage_scale=dynamic_enemy_damage_scale,
+                capacity = max(0, nydus_active_cap - len(live_nydus_ids))
+                if len(spec_ids) > capacity:
+                    suppressed_ids = spec_ids[capacity:]
+                    spec_ids = spec_ids[:capacity]
+                    for entity_id in suppressed_ids:
+                        session.unit_kill(entity_id)
+                    nydus_forces_capped += 1
+            for entity_id in spec_ids:
+                dynamic_enemy_ids.add(entity_id)
+                active_enemy_ids.add(entity_id)
+                if spec.get("kind") == "nydus_force":
+                    nydus_active_ids.add(entity_id)
+            if suppressed_ids:
+                events.append(
+                    {
+                        "loop": loop,
+                        "kind": "map_script_force_capped",
+                        "source": "MapScript.galaxy",
+                        "source_trigger": spec.get("source_trigger", ""),
+                        "wave_name": spec["name"],
+                        "night": spec["night"],
+                        "wave_kind": spec.get("kind"),
+                        "active_unit_cap": nydus_active_cap,
+                        "scheduled_entity_count": len(suppressed_ids) + len(spec_ids),
+                        "suppressed_entity_count": len(suppressed_ids),
+                    }
+                )
+            if not spec_ids:
+                reported_waves.add(spec["name"])
+                continue
+            _add_wave_events(
+                session,
+                mission,
+                [spec],
+                meta,
+                events,
+                known_ids,
+                spawned_ids=spec_ids,
+                enemy_health_scale=DYNAMIC_ENEMY_HEALTH_SCALE,
+                enemy_damage_scale=dynamic_enemy_damage_scale,
+            )
+            if spec.get("kind") == "normal" and int(spec["night"]) >= 2:
+                live_structures = [
+                    entity
+                    for entity in session.world.entities.values()
+                    if entity.is_alive
+                    and entity.entity_id in source_building_id_set
+                    and entity.owner_player_id in (5, 7)
+                    and catalog.get(entity.unit_type_id).is_structure
+                ]
+                if not live_structures:
+                    live_structures = [
+                        entity
+                        for entity in session.world.entities.values()
+                        if entity.is_alive
+                        and entity.entity_id in source_building_id_set
+                        and entity.owner_player_id in ENEMY_PLAYERS
+                        and catalog.get(entity.unit_type_id).is_structure
+                    ]
+                region = _region_lookup(data.scenario["_map_regions"]).get(
+                    _DIRECTION_REGIONS.get(str(spec["direction"]), "")
+                )
+                if live_structures and region is not None:
+                    target = min(
+                        live_structures,
+                        key=lambda item: (
+                            (item.x.to_float() - float(region["x"])) ** 2
+                            + (item.y.to_float() - float(region["y"])) ** 2,
+                            item.entity_id,
+                        ),
                     )
-                    reported_waves.add(spec["name"])
-                break
+                    target_count = max(1, len(spec_ids) // 3)
+                    targeted_ids = spec_ids[:target_count]
+                    for entity_id in targeted_ids:
+                        attacker = session.world.get_entity(entity_id)
+                        if attacker is not None and attacker.is_alive:
+                            structure_targeted_enemy_ids.add(entity_id)
+                            session.unit_order(
+                                [entity_id],
+                                "attack_unit",
+                                int(attacker.owner_player_id),
+                                target_entity_id=int(target.entity_id),
+                            )
+                    events.append(
+                        {
+                            "loop": loop,
+                            "kind": "map_wave_structure_targeted",
+                            "source": "MapScript.galaxy",
+                            "night": int(spec["night"]),
+                            "source_trigger": spec.get("source_trigger", ""),
+                            "source_direction": spec["direction"],
+                            "attacker_entity_ids": targeted_ids,
+                            "target_structure_id": int(target.entity_id),
+                            "target_structure_source_object_id": meta.get(int(target.entity_id), {}).get("source_object_id"),
+                        }
+                    )
+            reported_waves.add(spec["name"])
 
         # During daylight the player keeps a real attack order on the nearest
         # live map structure.  This makes the original destroy-infestation
@@ -1156,10 +1604,10 @@ def build_full_game_replay(
                 if entity.is_alive and entity.owner_player_id == PLAYER_ID and not catalog.get(entity.unit_type_id).is_structure and not catalog.get(entity.unit_type_id).is_worker
             ]
             if structures and combat_units:
-                # Keep a home guard while the expeditionary subset clears
-                # source-derived structures.  The daily budget deliberately
-                # leaves later-night buildings alive so their map-script
-                # reinforcement events remain visible in the replay.
+                # Keep a small home guard while nights are active.  Once the
+                # source schedule is complete, release every surviving combat
+                # unit so the destroy-infestation objective can actually
+                # finish instead of repeatedly poking one remote structure.
                 structures.sort(
                     key=lambda item: (
                         (item.x.raw - BASE_X) ** 2 + (item.y.raw - BASE_Y) ** 2,
@@ -1171,8 +1619,13 @@ def build_full_game_replay(
                     max(5, completed_nights * 5),
                 )
                 structures = structures[:clear_budget]
+                expeditionary_units = (
+                    combat_units
+                    if completed_nights >= total_nights
+                    else combat_units[:2]
+                )
                 pushed_structure = False
-                for index, unit in enumerate(combat_units[:2]):
+                for index, unit in enumerate(expeditionary_units):
                     target = min(
                         structures,
                         key=lambda item: ((item.x.raw - unit.x.raw) ** 2 + (item.y.raw - unit.y.raw) ** 2, item.entity_id),
@@ -1182,7 +1635,7 @@ def build_full_game_replay(
                         type("ClearAction", (), {"kind": "attack", "entity_id": unit.entity_id, "target_entity_id": target.entity_id})(),
                         Observation.from_world(session.world, PLAYER_ID),
                     )
-                    if result["success"] and index < 8:
+                    if result["success"]:
                         pushed_structure = True
                         events.append({"loop": loop, "kind": "daytime_structure_push", "entity_id": unit.entity_id, "target_entity_id": target.entity_id})
                 if pushed_structure:
@@ -1437,6 +1890,8 @@ def build_full_game_replay(
         }
         for emitted in new_emitted:
             kind = str(emitted.kind)
+            if kind == "damage" and int(emitted.entity_id) in source_building_id_set:
+                damaged_structures_during_night.add(int(emitted.entity_id))
             if kind not in replay_event_kinds:
                 continue
             events.append({
@@ -1445,6 +1900,11 @@ def build_full_game_replay(
                 "entity_id": int(emitted.entity_id),
                 "payload": dict(emitted.payload),
             })
+        effective_night = _current_night(data.wave_timing, step_end_loop, time_scale=time_scale)
+        if effective_night > 0:
+            for source_id in sorted(damaged_structures_during_night):
+                spawn_night_defenders(source_id, step_end_loop, effective_night)
+            damaged_structures_during_night.clear()
         current_ids = set(session.world.entities)
         destroyed_structure_this_step = False
         for removed_id in previous_alive_ids - current_ids:
@@ -1478,6 +1938,8 @@ def build_full_game_replay(
                     session.unit_order([entity.entity_id], "hold_position", PLAYER_ID)
         previous_alive_ids = current_ids
         known_ids.update(current_ids)
+        structure_targeted_enemy_ids.intersection_update(current_ids)
+        nydus_active_ids.intersection_update(current_ids)
         mission._check_objectives(step_end_loop)
         if not any(entity.is_alive and entity.owner_player_id == PLAYER_ID and entity.unit_type_id == "CommandCenter" for entity in session.world.entities.values()):
             mission.terminated = True
@@ -1511,13 +1973,19 @@ def build_full_game_replay(
         "map_source": str(map_source.relative_to(REPO_ROOT)).replace("\\", "/"),
         "source_logic": {
             "map_script": "MapScript.galaxy",
-            "normal_attack_triggers": [
-                f"Night{item['night_number']}"
-                for item in data.wave_timing["nights"]
-            ],
+            "map_script_sha256": script_model["source_sha256"],
+            "normal_attack_triggers": sorted({item["source_trigger"] for item in script_model["normal_attack_calls"]}),
+            "normal_attack_call_count": len(script_model["normal_attack_calls"]),
+            "special_attack_call_count": len(script_model["special_attack_calls"]),
+            "night_defender_rule_count": len(script_model["night_defender_rules"]),
+            "white_noise_spawn_profile_count": int(script_model.get("white_noise_profile_count", 0)),
+            "hybrid_reinforcement_profile_count": int(script_model.get("hybrid_profile_count", 0)),
+            "selection_modes": sorted({item["selection_mode"] for item in script_model["special_attack_calls"]}),
             "day_night_transitions": True,
             "infection_cleanup": True,
             "building_reinforcements": True,
+            "white_noise_spawning": True,
+            "hybrid_reinforcements": True,
         },
         "simulation_contract": {
             "clean_opening": True,
@@ -1529,6 +1997,26 @@ def build_full_game_replay(
             "time_scale": time_scale,
             "wave_strength_scale": wave_strength_scale,
             "source_wave_timing": data.wave_timing,
+            "source_attack_plan": {
+                "normal_calls": len(script_model["normal_attack_calls"]),
+                "special_calls": len(script_model["special_attack_calls"]),
+                "generic_force_calls": len(script_model.get("generic_attack_calls", [])),
+                "white_noise_cycles": sum(spec.get("kind") == "white_noise" for spec in wave_specs),
+                "hybrid_reinforcement_waves": sum(spec.get("kind") == "hybrid_reinforcement" for spec in wave_specs),
+                "replay_waves": len(wave_specs),
+                "replay_entity_budget": sum(len(spec["spawns"]) for spec in wave_specs),
+            },
+            "special_branch_selection": {
+                "selected_types": sorted({
+                    str(spec.get("source_special_type"))
+                    for spec in wave_specs
+                    if spec.get("kind") == "special"
+                    and spec.get("source_special_type") in SPECIAL_TYPE_CANDIDATES
+                }),
+                "boss_type": boss_type,
+                "source_selection_mode": script_model.get("special_selection", {}).get("selection_mode"),
+            },
+            "engine_force_projection": True,
             "source_structure_count": source_structure_count,
             "dynamic_structure_targets": len(enemy_structures),
             "policy_profile": "replay-native-opening",
@@ -1559,7 +2047,22 @@ def build_full_game_replay(
         ),
         "waves_fired": len(mission._waves_fired),
         "expected_waves": len(wave_specs),
+        "source_normal_attack_calls": len(script_model["normal_attack_calls"]),
+        "source_special_attack_calls": len(script_model["special_attack_calls"]),
+        "source_generic_attack_calls": len(script_model.get("generic_attack_calls", [])),
+        "source_white_noise_profile_count": int(script_model.get("white_noise_profile_count", 0)),
+        "source_hybrid_profile_count": int(script_model.get("hybrid_profile_count", 0)),
+        "source_attack_entity_budget": sum(len(spec["spawns"]) for spec in wave_specs),
         "special_infested_spawned": sum(1 for item in records for event in item.get("events", []) if event.get("kind") == "special_infested_spawned"),
+        "special_infested_units_spawned": sum(int(event.get("entity_count", 0)) for item in records for event in item.get("events", []) if event.get("kind") == "special_infested_spawned"),
+        "white_noise_infested_spawned": sum(int(event.get("entity_count", 0)) for item in records for event in item.get("events", []) if event.get("kind") == "white_noise_infested_spawned"),
+        "white_noise_infested_events": sum(1 for item in records for event in item.get("events", []) if event.get("kind") == "white_noise_infested_spawned"),
+        "hybrid_reinforcements_spawned": sum(int(event.get("entity_count", 0)) for item in records for event in item.get("events", []) if event.get("kind") == "hybrid_reinforcements_spawned"),
+        "hybrid_reinforcement_events": sum(1 for item in records for event in item.get("events", []) if event.get("kind") == "hybrid_reinforcements_spawned"),
+        "map_script_force_spawned": sum(1 for item in records for event in item.get("events", []) if event.get("kind") == "map_script_force_spawned"),
+        "map_script_force_units_spawned": sum(int(event.get("entity_count", 0)) for item in records for event in item.get("events", []) if event.get("kind") == "map_script_force_spawned"),
+        "nydus_force_spawned": sum(1 for item in records for event in item.get("events", []) if event.get("kind") == "map_script_force_spawned" and event.get("wave_kind") == "nydus_force"),
+        "nydus_forces_capped": nydus_forces_capped,
         "building_reinforcements_spawned": sum(int(event.get("entity_count", 0)) for item in records for event in item.get("events", []) if event.get("kind") == "building_reinforcements_spawned"),
         "structures_initial": initial_structure_count,
         "source_structures_in_static_layer": source_structure_count,
@@ -1607,10 +2110,11 @@ def main() -> int:
     parser.add_argument("--html-output", type=Path, default=DEFAULT_HTML)
     parser.add_argument("--max-loops", type=int, default=None)
     parser.add_argument("--time-scale", type=float, default=1.0)
-    parser.add_argument("--wave-strength-scale", type=float, default=0.25)
+    parser.add_argument("--wave-strength-scale", type=float, default=1.0)
     parser.add_argument("--enemy-damage-scale", type=float, default=DEFAULT_DYNAMIC_ENEMY_DAMAGE_SCALE)
     parser.add_argument("--replay-interval", type=int, default=112)
     parser.add_argument("--initial-minerals", type=int, default=250)
+    parser.add_argument("--boss-type", choices=("Nydus", "Stank"), default="Nydus")
     args = parser.parse_args()
     summary = build_full_game_replay(
         map_path=args.map_path,
@@ -1623,6 +2127,7 @@ def main() -> int:
         enemy_damage_scale=args.enemy_damage_scale,
         replay_interval=args.replay_interval,
         initial_minerals=args.initial_minerals,
+        boss_type=args.boss_type,
     )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0 if summary["status"] == "PASS" else 1

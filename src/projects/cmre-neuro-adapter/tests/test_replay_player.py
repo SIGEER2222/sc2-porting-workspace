@@ -5,7 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from cmre_neuro_adapter.full_game_replay import _clean_scenario, _source_entity_metadata
+from cmre_neuro_adapter.full_game_replay import _clean_scenario, _source_entity_metadata, _source_wave_specs
+from cmre_neuro_adapter.map_script_extractor import extract_map_script
 from cmre_neuro_adapter.macro_replay import build_macro_replay
 from cmre_neuro_adapter.real_map_replay import build_map_record
 from cmre_neuro_adapter.replay_player import _with_map_record, load_records, render_player_html
@@ -221,6 +222,66 @@ class ReplayPlayerTests(unittest.TestCase):
         self.assertEqual(len(targets), 30)
         self.assertEqual(len(target_ids), 30)
         self.assertEqual(sum(entity_id in metadata for entity_id in target_ids), 30)
+
+    def test_map_script_extractor_preserves_normal_special_and_defender_plans(self) -> None:
+        source = Path(__file__).parents[1] / "artifacts" / "real-map-source-20260802"
+        if not (source / "MapScript.galaxy").is_file():
+            self.skipTest("real map script extraction artifact is unavailable")
+        model = extract_map_script(source)
+        self.assertEqual(model["normal_attack_call_count"], 41)
+        self.assertEqual(model["special_attack_call_count"], 114)
+        self.assertEqual(model["generic_attack_call_count"], 5)
+        self.assertEqual([(item["start_loop"], item["end_loop"]) for item in model["nights"]], [
+            (4704, 10080),
+            (15456, 20832),
+            (26208, 31584),
+            (36960, 42336),
+            (47712, 53088),
+            (58464, 63840),
+        ])
+        self.assertEqual(model["night_defender_rules"][0]["count_per_structure"], 2)
+        self.assertEqual(model["night_defender_rules"][1]["night_max_exclusive"], 4)
+        self.assertEqual(model["night_defender_rules"][2]["night_max_exclusive"], 6)
+        self.assertEqual(model["nydus_force_profile"]["stage_plan"], [
+            {"stage": 1, "repeat_count": 4, "resource_bucket": "2Smaller", "tech_bucket": "2EarlyMid"},
+            {"stage": 2, "repeat_count": 3, "resource_bucket": "3Small", "tech_bucket": "3Mid"},
+            {"stage": 3, "repeat_count": 2, "resource_bucket": "4Medium", "tech_bucket": "4LateMid"},
+        ])
+        self.assertEqual(len(model["generic_attack_calls"]), 5)
+        self.assertTrue(any(item["source_special_type"] == "Stank" for item in model["special_attack_calls"]))
+        self.assertEqual(model["white_noise_profile_count"], 5)
+        self.assertEqual(
+            model["white_noise_spawn_profile"]["profiles"][-1]["source_quantities"],
+            {
+                "InfestedAbomination": 5,
+                "InfestedExploder": 0,
+                "InfestedTerranCampaign": 15,
+                "InfestedCivilian": 5,
+            },
+        )
+        self.assertEqual(model["hybrid_profile_count"], 4)
+        self.assertEqual(model["hybrid_reinforcement_profile"]["profiles"][-1]["light_count"], 3)
+        self.assertEqual(model["hybrid_reinforcement_profile"]["defend_region_ids"], [9, 39, 10, 12, 11])
+        night_two = [item for item in model["normal_attack_calls"] if item["night"] == 2]
+        self.assertEqual([item["offset_seconds"] for item in night_two], [0, 0, 40.0, 60.0])
+
+    def test_source_wave_projection_contains_generic_and_nydus_force_attacks(self) -> None:
+        source = Path(__file__).parents[1] / "artifacts" / "real-map-source-20260802"
+        if not (source / "MapScript.galaxy").is_file():
+            self.skipTest("real map script extraction artifact is unavailable")
+        data = build_dead_of_night_map_cooperative_scenario(source)
+        model = extract_map_script(source)
+        waves = _source_wave_specs(data, model, time_scale=1.0, strength_scale=1.0, seed=42, boss_type="Nydus")
+        self.assertGreaterEqual(sum(item["kind"] == "generic_force" for item in waves), 5)
+        self.assertGreaterEqual(sum(item["kind"] == "nydus_force" for item in waves), 9)
+        self.assertGreater(sum(len(item["spawns"]) for item in waves if item["kind"] == "nydus_force"), 100)
+        self.assertTrue(all(item["composition_source"] == "cooperative_ai_engine_projection" for item in waves if item["kind"] == "nydus_force"))
+        white_noise = [item for item in waves if item["kind"] == "white_noise"]
+        hybrid = [item for item in waves if item["kind"] == "hybrid_reinforcement"]
+        self.assertGreaterEqual(len(white_noise), 40)
+        self.assertGreater(sum(len(item["spawns"]) for item in white_noise), 300)
+        self.assertEqual(len(hybrid), 6)
+        self.assertGreaterEqual(sum(len(item["spawns"]) for item in hybrid), 10)
 
     def test_player_contains_source_destroyed_state_projection(self) -> None:
         records = [

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "stage_id": "07-real-adapters",
   "status": "BLOCKED",
-  "updated_at": "2026-08-03T08:40:00+08:00",
+  "updated_at": "2026-08-03T13:20:00+08:00",
   "outputs": [
     "cmre_neuro_adapter/transports/__init__.py",
     "cmre_neuro_adapter/transports/common.py",
@@ -20,6 +20,12 @@
     "cmre_neuro_adapter/map_alignment.py",
     "cmre_neuro_adapter/real_map_replay.py",
     "cmre_neuro_adapter/full_game_replay.py",
+    "cmre_neuro_adapter/map_script_extractor.py",
+    "artifacts/full-game-replay-20260803/map-script-services-full.jsonl",
+    "artifacts/full-game-replay-20260803/map-script-services-full.html",
+    "artifacts/full-game-replay-20260803/map-script-services-full-browser-verification.json",
+    "artifacts/full-game-replay-20260803/map-script-services-full-browser.png",
+    "artifacts/full-game-replay-20260803/map-script-services-full-night-density.png",
     "artifacts/real-map-source-20260802/",
     "artifacts/real-map-replay-20260802/real-map-static-preview.jsonl",
     "artifacts/real-map-replay-20260802/real-map-static-preview.html",
@@ -89,7 +95,7 @@
     },
     "project_tests": {
       "status": "PASS",
-      "tests": 80,
+      "tests": 82,
       "subtests": 22,
       "command": "python -m unittest discover -s tests -v",
       "evidence_type": "simulator"
@@ -295,6 +301,37 @@
       "summary": "All 30 finite simulator structure targets bind to unique map-<ObjectUnit@Id> identities after footprint-center tolerance matching; the final replay records 30/30 infested_structure_destroyed events with source_object_id.",
       "artifact": "artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl",
       "evidence_type": "simulator"
+    },
+    "map_script_service_extraction": {
+      "status": "PASS",
+      "command": "python inline extraction probe against artifacts/real-map-source-20260802/MapScript.galaxy",
+      "summary": "The extractor now preserves the source normal/special/generic attack calls plus the persistent AIWhiteNoiseSpawning service (5 per-night profiles, night 6 inheritance, 30 second night 1-5 cooldown, source structure selection) and HybridReinforcements (4 explicit profiles, night 5+ fallback, 60 second delay, five source defend regions).",
+      "source_counts": {
+        "normal_attack_calls": 41,
+        "special_attack_calls": 114,
+        "generic_attack_calls": 5,
+        "white_noise_profiles": 5,
+        "hybrid_profiles": 4
+      },
+      "evidence_type": "static"
+    },
+    "map_script_service_replay": {
+      "status": "PASS",
+      "command": "python -m cmre_neuro_adapter.full_game_replay --boss-type Stank --time-scale 0.25 --wave-strength-scale 0.75 --enemy-damage-scale 0.001 --max-loops 45000 --replay-interval 448 --output artifacts/full-game-replay-20260803/map-script-services-full.jsonl --html-output artifacts/full-game-replay-20260803/map-script-services-full.html",
+      "summary": "The source-derived replay reaches all six map nights and both objectives: 146/146 planned waves fired, 652 white-noise infested units, 124 special infested units, 89 cooperative-force projection units, 10 Hybrid units, 34 building reinforcements, 5575 minerals, 2704 vespene, 4 SCVs, 35 Marines, 3 Barracks, 30/30 source-linked structures destroyed, and 5295/5295 successful actions.",
+      "artifact": "artifacts/full-game-replay-20260803/map-script-services-full.jsonl",
+      "evidence_type": "simulator"
+    },
+    "map_script_service_browser": {
+      "status": "PASS",
+      "command": "Python 3.13 Playwright + Edge opened map-script-services-full.html; exercised event seeks, 16x, play/pause, and end seek",
+      "summary": "The local player rendered 810000 non-empty Canvas pixels, 65 playable frames, 1319 map Objects, and no page errors. White-noise, Hybrid, building-reinforcement, cooperative-force, and structure-destruction events were each visible after seeking; 16x activated; play and pause toggled; end reached loop 28292, Night 6, victory, all_objectives_success.",
+      "artifacts": [
+        "artifacts/full-game-replay-20260803/map-script-services-full-browser-verification.json",
+        "artifacts/full-game-replay-20260803/map-script-services-full-browser.png",
+        "artifacts/full-game-replay-20260803/map-script-services-full-night-density.png"
+      ],
+      "evidence_type": "runtime"
     },
     "real_map_launcher_staging": {
       "status": "PASS",

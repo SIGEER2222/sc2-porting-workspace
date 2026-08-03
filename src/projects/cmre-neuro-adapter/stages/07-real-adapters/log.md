@@ -424,3 +424,52 @@ Evidence:
 
 This is a simulator and local-browser replay claim only. G4 remains blocked because the approved
 SC2 runtime lease is still owned by an unrelated session; no live SC2 effect is promoted here.
+
+## MapScript Persistent Night Services 2026-08-03 13:20 +08:00
+
+The source review found two night services that the earlier fixed-call extraction did not model:
+`gt_AIWhiteNoiseSpawning`, which continuously selects live infestation structures and creates the
+per-night quotas, and `gt_HybridReinforcements`, which waits 60 seconds after night start and
+creates light/heavy Hybrid units in the five source defend areas. The extractor now emits both
+profiles directly from `MapScript.galaxy`, including normal-difficulty quotas, cooldowns, night 6
+inheritance, source selection mode, and source region IDs. The replay keeps these separate from
+named attack calls so the event stream exposes the real source service boundaries.
+
+Static extraction evidence:
+
+- `python inline extraction probe against artifacts/real-map-source-20260802/MapScript.galaxy`
+  -> `41` normal calls, `114` special calls, `5` generic force calls, `5` white-noise profiles,
+  and `4` Hybrid profiles. Night 5 white-noise quotas are `5` Abominations, `15` Infested
+  Terrans, and `5` Infested Civilians; night 6 inherits those quotas with a 20 second cooldown.
+- Source plan projection -> `146` waves and `1858` entities at `wave_strength_scale=1.0`,
+  including `52` white-noise cycles (`836` projected units) and `6` Hybrid waves (`13` units).
+
+Simulator MVP evidence:
+
+- `python -m cmre_neuro_adapter.full_game_replay --boss-type Stank --time-scale 0.25
+  --wave-strength-scale 0.75 --enemy-damage-scale 0.001 --max-loops 45000
+  --replay-interval 448 --output artifacts/full-game-replay-20260803/map-script-services-full.jsonl
+  --html-output artifacts/full-game-replay-20260803/map-script-services-full.html` -> `PASS`,
+  `end_reason=all_objectives_success`, loop `28292`, `6/6` nights, `146/146` waves, `30/30`
+  source-linked infestation structures destroyed, `652` white-noise units, `124` special units,
+  `89` cooperative-force projection units, `10` Hybrid units, `34` building reinforcements,
+  `5575` minerals, `2704` vespene, `4` SCVs, `35` Marines, `3` Barracks, and `5295/5295`
+  successful actions. The explicit time and strength scales are simulator parameters, not live
+  difficulty claims.
+
+Browser evidence:
+
+- Python 3.13 Playwright + Edge opened the self-contained HTML. Canvas had `810000` non-empty
+  pixels, the player exposed `65` frames and `1319` map Objects, and no page errors occurred.
+  Seeking located white-noise, Hybrid, building reinforcement, cooperative force, and structure
+  destruction events; `16x` activated; play/pause toggled; end seek reached loop `28292`, Night 6,
+  `victory`, and `all_objectives_success`. Artifacts:
+  `artifacts/full-game-replay-20260803/map-script-services-full-browser-verification.json`,
+  `artifacts/full-game-replay-20260803/map-script-services-full-browser.png`, and
+  `artifacts/full-game-replay-20260803/map-script-services-full-night-density.png`.
+- `python -m unittest discover -s tests -v` -> `82` tests, `OK`; `python -m compileall -q
+  cmre_neuro_adapter tests` and `git diff --check -- src/projects/cmre-neuro-adapter` -> pass.
+
+This remains simulator and local-browser evidence only. The approved live SC2 runtime lease is
+still held by an unrelated session, so G4 and real SC2 effects remain blocked and are not
+represented by this replay.

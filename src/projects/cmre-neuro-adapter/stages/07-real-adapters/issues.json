@@ -168,6 +168,15 @@
       "detail": "The map-aligned full replay initially exceeded the validation window because the adapter rebuilt command/event bookkeeping on every loop; the higher-density run also exposed fixed-prefix building reinforcement selection.",
       "resolution": "The adapter regains control at policy/map-event/replay boundaries while the simulator still executes every underlying loop, separates wave density from enemy damage, throttles daytime structure pushes, selects live source buildings for reinforcements, and completes a fresh six-night victory at loop 63840.",
       "artifact": "artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl"
+    },
+    {
+      "id": "REPLAY-011",
+      "severity": "high",
+      "status": "resolved",
+      "evidence_type": "static",
+      "detail": "The replay extracted named normal, special, and cooperative force calls but omitted the persistent AIWhiteNoiseSpawning and delayed HybridReinforcements services that create substantial night pressure.",
+      "resolution": "MapScript extraction now emits white-noise quota/cooldown/inheritance and Hybrid per-night profiles; the replay projects 52 white-noise cycles, 6 Hybrid waves, building-local spawn positions, and visible event kinds. The final Stank branch reaches all six nights and destroys all 30 source-linked objective structures.",
+      "artifact": "artifacts/full-game-replay-20260803/map-script-services-full.jsonl"
     }
   ],
   "residual_risks": [
