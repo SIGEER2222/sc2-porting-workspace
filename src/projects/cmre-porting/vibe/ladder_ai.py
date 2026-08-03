@@ -23,6 +23,7 @@ from typing import Iterable, Optional
 
 from .consumers.ally_ai import (
     AllyAction,
+    AllyMode,
     AllyPolicy,
     AllyRunResult,
     run_ally_scenario,
@@ -196,6 +197,7 @@ class LadderAI(AllyPolicy):
         allow_expansion: bool = True,
         build_offsets: Optional[dict[str, tuple[float, float]]] = None,
         enable_map_main_push: bool = True,
+        mode_model: Optional[object] = None,
     ) -> None:
         self.base_position = (float(base_position[0]), float(base_position[1]))
         self.base_radius = float(base_radius)
@@ -246,6 +248,7 @@ class LadderAI(AllyPolicy):
             command_interval=command_interval,
             scout_points=self.scout_route[:3],
             scout_interval=32,
+            mode_model=mode_model,
         )
         self._economy.SCV_CEIL = int(max_workers)
         if build_offsets:
@@ -583,6 +586,26 @@ class LadderAI(AllyPolicy):
     def _decide_tactical(self, combat_units, enemies, base_threats, phase) -> list[AllyAction]:
         if not combat_units:
             return []
+        if self.mode == AllyMode.HOLD:
+            return []
+        if self.mode == AllyMode.RETREAT and not base_threats:
+            actions: list[AllyAction] = []
+            retreat = (self.base_position[0] - 5.0, self.base_position[1] - 5.0)
+            for unit in sorted(combat_units, key=lambda item: int(item["entity_id"])):
+                # A learned mode is a group-level recommendation. Apply it
+                # to genuinely wounded combat units only; sending a healthy
+                # army home because one visible unit is hurt stalls macro
+                # progress and is not the intended P2 safety contract.
+                if self._hp_ratio(unit) >= 0.50:
+                    continue
+                if self._movement_start_blocked(unit) or self._has_move_order(unit, *retreat):
+                    continue
+                actions.append(AllyAction(
+                    int(unit["entity_id"]), "move",
+                    target_x=retreat[0], target_y=retreat[1],
+                    reason="ml_retreat_mode",
+                ))
+            return actions
         target = self._focus_target(enemies, None)
         actions: list[AllyAction] = []
         if not enemies:
@@ -856,6 +879,7 @@ class LadderGameReport:
     replay_path: str = ""
     replay_html_path: str = ""
     replay_frame_count: int = 0
+    ml_decision_count: int = 0
 
     def to_dict(self) -> dict:
         return {
@@ -877,6 +901,7 @@ class LadderGameReport:
             "replay_path": self.replay_path,
             "replay_html_path": self.replay_html_path,
             "replay_frame_count": self.replay_frame_count,
+            "ml_decision_count": self.ml_decision_count,
             "evidence_type": "simulator",
             "runtime_claim": "none; simulator evidence only",
         }
@@ -886,11 +911,12 @@ def run_ladder_game(
     seed: int = 42,
     max_loops: int = 6000,
     replay_dir: Optional[Path] = None,
+    mode_model: Optional[object] = None,
 ) -> LadderGameReport:
     """Run one complete macro-to-victory game through the simulator."""
 
     scenario = build_ladder_game_scenario(seed=seed, max_loops=max_loops)
-    policy = LadderAI()
+    policy = LadderAI(mode_model=mode_model)
     pressure = LadderPressureOverlay()
     replay_path: Optional[Path] = None
     replay_html_path: Optional[Path] = None
@@ -974,6 +1000,7 @@ def run_ladder_game(
             str(replay_html_path) if replay_html_path is not None else ""
         ),
         replay_frame_count=replay_frame_count,
+        ml_decision_count=policy.ml_decision_count,
     )
 
 
@@ -981,9 +1008,15 @@ def run_ladder_batch(
     seeds: Iterable[int] = (42, 7, 99),
     max_loops: int = 6000,
     replay_dir: Optional[Path] = None,
+    mode_model: Optional[object] = None,
 ) -> dict:
     reports = [
-        run_ladder_game(seed=int(seed), max_loops=max_loops, replay_dir=replay_dir)
+        run_ladder_game(
+            seed=int(seed),
+            max_loops=max_loops,
+            replay_dir=replay_dir,
+            mode_model=mode_model,
+        )
         for seed in seeds
     ]
     return {

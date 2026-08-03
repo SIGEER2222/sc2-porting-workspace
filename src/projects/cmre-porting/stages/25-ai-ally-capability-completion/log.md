@@ -1205,3 +1205,42 @@ Evidence:
 `src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py`,
 `src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ladder_ai.py`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-keha-20260803-full-v5/克哈裂痕/run-summary.json`.
+
+## Verification Loop 2026-08-03 Bounded Imitation-Learning P2 Policy
+
+- `static`: added `vibe/ml_policy.py`, a dependency-free one-hidden-layer MLP
+  with tanh hidden units, softmax cross-entropy, deterministic SGD, versioned
+  feature/label schema, checkpoint serialization, and weight SHA-256 metadata.
+  The model consumes only the public `Observation` fields: P2 units, visible
+  P1 ally units, visible enemies, resources, positions, health, and the P1
+  requested mode. It cannot access `WorldState` or hidden entities.
+- `static`: added `vibe/train_ally_ml.py` as the reproducible training and
+  verification entry point. It splits seeds `42,7` for training from held-out
+  seed `99`, then loads the checkpoint into the actual simulator policy.
+- `static`: `AllyPolicy` and `LadderAI` accept an explicit optional model. The
+  model predicts only the P2 high-level tactical mode; ownership, economy,
+  pathing, target visibility, friendly-fire rejection, and low-health safety
+  remain enforced by the existing typed action boundary. A learned retreat is
+  applied only to wounded combat units, so it cannot send a healthy production
+  army home because a structure/addon is still building.
+- `simulator`: the training report passed with `360` training samples,
+  `180` held-out samples, loss `0.18362775917567617 -> 0.0002547150877861163`,
+  held-out accuracy `0.8277777777777777`, and checkpoint hash
+  `548ce08aaaf326d3d36a81eba4cf57c51961d057918bd5c60cdcb10a9759be25`.
+- `simulator`: the model-enabled full-game matrix passed for seeds `42`, `7`,
+  and `99`. Every run reached `enemy_elimination` at loop `3612`, used `308`
+  model decisions, completed the full economy/production/combat loop, and
+  reported an empty `error_breakdown`.
+- `static`: focused ML tests passed `3`, existing Stage 25 ally tests passed
+  `27`, changed modules compiled, and `git diff --check` passed.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-ally-policy-20260803/training-report.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-ally-policy-20260803/ally-mode-mlp.json`,
+`src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ally_ml.py`.
+
+Open boundary:
+the checkpoint is simulator-validated only. The approved single-client SC2
+runtime still has P1 as the API Participant and P2 as native Computer; v13
+proves native startup and P1/P2 command signaling, not external model control
+of P2 economy or orders. Keep this as an open native bridge issue.

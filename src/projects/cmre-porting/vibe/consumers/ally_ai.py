@@ -362,6 +362,7 @@ class AllyPolicy:
         scout_points: Optional[Iterable[tuple[float, float]]] = None,
         scout_interval: int = 32,
         attack_threshold: int = 2,
+        mode_model: Optional[object] = None,
     ):
         self.player_id = int(player_id)
         self.leader_player_id = int(leader_player_id)
@@ -383,6 +384,9 @@ class AllyPolicy:
         self._scout_entity_id: Optional[int] = None
         self._scout_point_index = 0
         self._last_scout_loop = -10_000
+        self._mode_model = mode_model
+        self._ml_decision_count = 0
+        self._last_ml_prediction: dict = {}
         self._commands = PlayerCommandAdapter((self.leader_player_id,))
         self._notices: list[PlayerNotice] = []
         # Reuse the project-owned economy planner for P2.  AllyPolicy keeps
@@ -407,6 +411,16 @@ class AllyPolicy:
     @property
     def command_adapter(self) -> PlayerCommandAdapter:
         return self._commands
+
+    @property
+    def ml_decision_count(self) -> int:
+        """Number of loops where an explicitly loaded model predicted a mode."""
+
+        return int(self._ml_decision_count)
+
+    @property
+    def last_ml_prediction(self) -> dict:
+        return dict(self._last_ml_prediction)
 
     def receive_player_command(
         self,
@@ -564,6 +578,28 @@ class AllyPolicy:
         }:
             mode = AllyMode.ASSIST_ATTACK
             mode_reason = "leader_support_threat" if leader_threats else "visible_enemy_contact"
+        elif self._mode_model is not None:
+            try:
+                prediction = self._mode_model.predict_mode(
+                    obs,
+                    requested_mode=self._mode.value,
+                    base_region=(self.base_x, self.base_y, self.base_r),
+                    support_range=self.support_range,
+                )
+                mode = AllyMode(str(prediction.label))
+                self._ml_decision_count += 1
+                self._last_ml_prediction = {
+                    "label": mode.value,
+                    "confidence": float(prediction.confidence),
+                    "probabilities": dict(prediction.probabilities),
+                    "loop": int(loop),
+                }
+                mode_reason = f"ml_policy:{mode.value}"
+            except (AttributeError, KeyError, TypeError, ValueError):
+                # A malformed optional checkpoint must not bypass the normal
+                # safety/economy policy. Keep the fallback deterministic.
+                mode = self._mode
+                mode_reason = "ml_policy_fallback"
         else:
             mode = self._mode
             mode_reason = "player_command" if self._mode != AllyMode.FOLLOW else "follow_leader"

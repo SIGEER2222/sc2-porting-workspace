@@ -3,7 +3,23 @@
   "stage": "25-ai-ally-capability-completion",
   "status": "PASS",
   "evidence_type": "mixed",
-  "summary": "AST catalog, bounded Debug VM, cooperative simulator, high-tech P2 native-task simulator, tactical recovery simulator, ladder-style full-game simulator, strict map-derived 克哈裂痕 full-game victory replay, default ladder replay/player, strict dynamic map-derived replay, live replay entity export, generic-map launcher reuse, and static regressions all pass. The latest 克哈裂痕 run uses 64 map-derived hostile units, reaches enemy_elimination with victory=true and zero simulator errors, and emits an 1116-frame self-contained HTML replay. Approved single-client API windows prove P1 Participant plus P2 Computer on Dead of Night and 克哈裂痕, native P2 initialization, P1 chat commands forwarded to P2-owned orders, Bank acknowledgements, P2-to-P1 signals, P2 state deltas, real SC2Replay files, dynamic full-map-player HTML, map-catalog-correct replay metadata, and zero same-window ScriptErrors. The older dual-Participant and DirectMap-only probes remain historical or alternate-path blockers and are not required by the selected Computer-ally topology.",
+  "summary": "AST catalog, bounded Debug VM, cooperative simulator, high-tech P2 native-task simulator, tactical recovery simulator, ladder-style full-game simulator, strict map-derived 克哈裂痕 full-game victory replay, default ladder replay/player, strict dynamic map-derived replay, live replay entity export, generic-map launcher reuse, and static regressions all pass. The latest 克哈裂痕 run uses 64 map-derived hostile units, reaches enemy_elimination with victory=true and zero simulator errors, and emits an 1116-frame self-contained HTML replay. Approved single-client API windows prove P1 Participant plus P2 Computer on Dead of Night and 克哈裂痕, native P2 initialization, P1 chat commands forwarded to P2-owned orders, Bank acknowledgements, P2-to-P1 signals, P2 state deltas, real SC2Replay files, dynamic full-map-player HTML, map-catalog-correct replay metadata, and zero same-window ScriptErrors. The older dual-Participant and DirectMap-only probes remain historical or alternate-path blockers and are not required by the selected Computer-ally topology. The new bounded imitation-learning slice also passes held-out public-observation evaluation and a three-seed simulator victory matrix; it is simulator evidence only until a native P2 model bridge exists.",
+  "ml_training": {
+    "status": "PASS",
+    "schema": "cmre-ally-ml-training-report.v1",
+    "report": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-ally-policy-20260803/training-report.json",
+    "checkpoint": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-ally-policy-20260803/ally-mode-mlp.json",
+    "weights_sha256": "548ce08aaaf326d3d36a81eba4cf57c51961d057918bd5c60cdcb10a9759be25",
+    "train_samples": 360,
+    "holdout_samples": 180,
+    "holdout_accuracy": 0.8277777777777777,
+    "loss_start": 0.18362775917567617,
+    "loss_end": 0.0002547150877861163,
+    "simulator_seeds": [42, 7, 99],
+    "simulator_end_loop": 3612,
+    "simulator_ml_decisions_per_seed": 308,
+    "runtime_claim": "none; native SC2 P2 Computer model control remains open"
+  },
   "changed_paths": [
     "src/projects/cmre-porting/project.json",
     "DESIGN.md",
@@ -43,6 +59,11 @@
     "src/projects/cmre-porting/vibe/defend_policy.py",
     "src/projects/cmre-porting/vibe/native_task.py",
     "src/projects/cmre-porting/vibe/ladder_ai.py",
+    "src/projects/cmre-porting/vibe/ml_policy.py",
+    "src/projects/cmre-porting/vibe/train_ally_ml.py",
+    "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ally_ml.py",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-ally-policy-20260803/training-report.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-ally-policy-20260803/ally-mode-mlp.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ally-policy-high-tech-20260802.json",
     "src/projects/cmre-porting/vibe/run_dead_of_night_live.py",
     "tools/galaxy-vibe/kernel/LibVibeKernel.galaxy",
@@ -297,7 +318,8 @@
     {"evidence_type": "static", "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ladder_ai.py --tb=short", "status": "PASS", "detail": "31 Stage 25 AI ally and Ladder tests passed, including the strict 克哈裂痕 full-game victory assertion.", "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally-capability.py"},
     {"evidence_type": "browser", "command": "Microsoft Edge headless file replay load + screenshot census for the v5 克哈裂痕 HTML", "status": "PASS", "detail": "file:/// loaded the self-contained replay; screenshot size was 489470 bytes and the HTML contained Canvas, map data, timeline, requestAnimationFrame playback, and the VICTORY terminal state. This is browser projection evidence, not native SC2 3D equivalence.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/browser-keha-full-v5.png"},
     {"evidence_type": "simulator", "command": "PYTHONPATH=src/projects/cmre-porting; py -3.13 -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py -k keha_full_game --tb=short", "status": "PASS", "detail": "The current merged policy completed the strict 64-enemy map-derived 克哈裂痕 run with victory and the phase-order assertion now allows repeated defense/cleanup waves before pressure.", "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py"},
-    {"evidence_type": "simulator", "command": "PYTHONPATH=src/projects/cmre-porting; py -3.13 -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ladder_ai.py --tb=short", "status": "PASS", "detail": "All 4 Ladder full-game tests passed after limiting structure-footprint suppression to map-adapter instances; victory, multi-seed determinism, and HTML export are green.", "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ladder_ai.py"}
+    {"evidence_type": "simulator", "command": "PYTHONPATH=src/projects/cmre-porting; py -3.13 -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ladder_ai.py --tb=short", "status": "PASS", "detail": "All 4 Ladder full-game tests passed after limiting structure-footprint suppression to map-adapter instances; victory, multi-seed determinism, and HTML export are green.", "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ladder_ai.py"},
+    {"evidence_type": "simulator", "command": "PYTHONPATH=src/projects/cmre-porting; py -3.13 -m vibe.train_ally_ml --out artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-ally-policy-20260803 --samples-per-seed 180 --epochs 140 --max-loops 6000", "status": "PASS", "detail": "A dependency-free tanh/softmax MLP trained on 360 public-observation expert samples with loss 0.1836 -> 0.0002547, reached 0.8277777778 held-out accuracy on seed 99, and then completed the simulator full-game victory matrix for seeds 42, 7, and 99. Each model-enabled run reached enemy_elimination at loop 3612, used 308 model decisions, and had empty error_breakdown. This is simulator evidence; it does not claim native SC2 P2 Computer model control.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-ally-policy-20260803/training-report.json"}
   ],
   "issues": [
     "The selected single-client P1 Participant plus P2 Computer native topology is cleared by v13. The older two-Participant JoinGame probes remain historical blocked evidence and are not part of this acceptance path.",
