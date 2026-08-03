@@ -265,6 +265,7 @@ class LadderAI(AllyPolicy):
         self._action_reason_counts: dict[str, int] = {}
         self._last_observation_own_units: list[dict] = []
         self._map_adapter_mode = bool(build_offsets)
+        self._map_primary_build_types = set(build_offsets or {})
 
     @property
     def phase(self) -> LadderPhase:
@@ -512,14 +513,31 @@ class LadderAI(AllyPolicy):
             )
         placement_clearance = 12.0 if self._map_adapter_mode else 9.0
 
+        gas_building_types = {"Refinery", "Assimilator", "Extractor"}
         for action in actions:
             if action.kind != "build" or action.unit_type_id == "FactoryTechLab":
+                continue
+            # Gas structures are not free-form point placements. Their target
+            # must stay on the visible geyser selected by DefendBasePolicy;
+            # moving the point to avoid the geyser silently produces a fake
+            # refinery that can never start a gas economy.
+            if action.unit_type_id in gas_building_types:
                 continue
             preferred = (float(action.target_x), float(action.target_y))
             # A build action without a point is invalid for this adapter; let
             # the existing dispatch error model report it truthfully.
             if preferred == (0.0, 0.0):
                 continue
+            is_map_primary = (
+                self._map_adapter_mode
+                and action.unit_type_id in self._map_primary_build_types
+                and action.reason == f"build_{action.unit_type_id}"
+            )
+            if is_map_primary:
+                # Keep the static point available as a fallback if the
+                # public-observation candidate below is rejected at dispatch.
+                action.fallback_target_x = preferred[0]
+                action.fallback_target_y = preferred[1]
             candidates = [
                 preferred,
                 *(
@@ -562,14 +580,11 @@ class LadderAI(AllyPolicy):
         target = self._focus_target(enemies, None)
         actions: list[AllyAction] = []
         if not enemies:
-            if (
-                self._map_adapter_mode
-                and self.enable_map_main_push
-                and len(combat_units) >= self.army_threshold
-            ):
-                # Map-derived scenarios need a real main-force push. The old
-                # ladder controller only moved one scout while no enemy was in
-                # vision, so distant native enemy cohorts were never reached.
+            if self.enable_map_main_push and len(combat_units) >= self.army_threshold:
+                # Once a medium-sized force exists, behave like a simple
+                # python-sc2 ladder bot: periodically attack-move the main
+                # army through known pressure points instead of scouting with
+                # one unit forever while the rest holds at home.
                 self._advance_push_index(combat_units)
                 point = self.attack_points[
                     min(self._push_index, len(self.attack_points) - 1)
@@ -595,12 +610,15 @@ class LadderAI(AllyPolicy):
                     entity_id = int(unit["entity_id"])
                     if entity_id == scout_id:
                         continue
-                    # Keep the force in a small spread so the simulator's
-                    # soft-collision layer cannot pin all units on one cell.
+                    # Keep the force in a compact lateral spread. Vertical
+                    # offsets can land on the production ring and make the
+                    # simulator's deterministic ground path unreachable.
                     slot_x = point[0] + (float(index % 5) - 2.0) * 3.0
-                    slot_y = point[1] + float(index // 5) * 3.0
-                    if unit.get("state") != "moving" and not self._has_move_order(
-                        unit, slot_x, slot_y
+                    slot_y = point[1]
+                    if (
+                        self._dist(unit["x"], unit["y"], slot_x, slot_y) > 3.0
+                        and unit.get("state") != "moving"
+                        and not self._has_move_order(unit, slot_x, slot_y)
                     ):
                         actions.append(AllyAction(
                             entity_id, "attack_move",
@@ -666,13 +684,19 @@ class LadderAI(AllyPolicy):
                     ))
                     focus_attack_issued = True
                 else:
-                    # A single explicit focus order avoids queuing a whole
-                    # volley against a target that may die during the command
-                    # latency window. Other units retain their existing
-                    # orders and are reconsidered on the next tactical tick.
-                    # This also avoids turning a last-visible edge target into
-                    # an unreachable point-move command.
-                    continue
+                    # Once a visible target exists, focus-fire it directly.
+                    # The initial no-contact branch still uses group
+                    # attack-move; direct focus avoids repeatedly pathing
+                    # through an enemy structure footprint during cleanup.
+                    if (
+                        not self._has_attack_order(unit, int(target["entity_id"]))
+                    ):
+                        actions.append(AllyAction(
+                            entity_id,
+                            "attack",
+                            target_entity_id=int(target["entity_id"]),
+                            reason="ladder_cleanup_focus",
+                        ))
                 continue
             if point is not None and not self._has_move_order(unit, *point):
                 actions.append(AllyAction(

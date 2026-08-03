@@ -296,7 +296,10 @@ class Stage25AiAllyCapabilityTests(unittest.TestCase):
             self.assertFalse(result.command_storm_detected, seed)
             self.assertEqual(
                 result.action_kind_counts,
-                {"attack": 2, "build": 3, "gather": 8, "train": 5},
+                # Three gas assignments now pull existing mineral workers,
+                # while eight mineral assignments cover the opening workers
+                # and newly trained SCVs.
+                {"attack": 2, "build": 3, "gather": 11, "train": 5},
                 seed,
             )
             results.append(result)

@@ -107,12 +107,18 @@ def _weapon_dict(w: Optional[WeaponType]) -> Optional[dict]:
         "attacks": w.attacks,
         "range": w.range.raw,
         "period": w.period,
-        "damage_type": w.damage_type.value,
-        "splash_type": w.splash_type.value,
+        "damage_type": _catalog_value(w.damage_type),
+        "splash_type": _catalog_value(w.splash_type),
         "splash_radius": w.splash_radius.raw,
         "projectile_speed": w.projectile_speed.raw,
         "heal_amount": w.heal_amount.raw,
     }
+
+
+def _catalog_value(value: Any) -> str:
+    """Normalize Enum and legacy string Catalog fields for stable hashing."""
+    raw = getattr(value, "value", value)
+    return str(raw).lower()
 
 
 def wrap_catalog(

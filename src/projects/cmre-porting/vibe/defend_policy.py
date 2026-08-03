@@ -177,6 +177,9 @@ class DefendBasePolicy:
     # and regroup to a deterministic perimeter point instead of repeatedly
     # issuing an invalid order to the structure's center cell.
     SAFE_RALLY_OFFSET = (-4.0, -4.0)
+    EXTRA_SUPPLY_DEPOT_OFFSETS = (
+        (20.0, 0.0), (24.0, 0.0), (28.0, 0.0), (32.0, 0.0),
+    )
 
     def __init__(self, player_id: int,
                  base_region: tuple[float, float, float] = (PLAYER_BASE_X, PLAYER_BASE_Y, 15.0),
@@ -203,6 +206,8 @@ class DefendBasePolicy:
         # 已发过训练命令的建筑 id 集合（本轮已发，等下一轮）
         self._producers_in_queue: set[int] = set()
         self._build_issued: set[str] = set()
+        self._supply_depot_pending = 0
+        self._last_supply_depot_count = 0
         self._research_issued: set[str] = set()
         # 资源预留池（借鉴 sharpy-sc2 Knowledge.reserve）
         # 每个经济决策周期开头 reset()，先为高优先级战斗单位 reserve，
@@ -463,6 +468,67 @@ class DefendBasePolicy:
             minerals -= build["min_m"]
             vespene -= build["min_v"]
 
+        # Keep production from stalling at the first supply cap.  The pending
+        # counter covers the interval between issuing a depot and observing
+        # its completed entity in the next public snapshot.
+        supply_depot_count = sum(
+            1 for unit in obs.own_units
+            if unit.get("unit_type_id") == "SupplyDepot"
+        )
+        completed_depots = max(
+            0, supply_depot_count - self._last_supply_depot_count
+        )
+        self._supply_depot_pending = max(
+            0, self._supply_depot_pending - completed_depots
+        )
+        self._last_supply_depot_count = supply_depot_count
+        supply_depot_ready = any(
+            float(unit.get("build_progress", 1.0)) >= 1.0
+            for unit in obs.own_units
+            if unit.get("unit_type_id") == "SupplyDepot"
+        )
+        if (
+            supply_remaining <= 2
+            and supply_depot_ready
+            and self._supply_depot_pending == 0
+            and supply_depot_count + self._supply_depot_pending < 5
+            and self._econ.can_afford(100, 0, minerals, vespene)
+        ):
+            builder_candidates = [
+                worker for worker in econ_units
+                if worker["entity_id"] not in builder_ids
+                and worker["entity_id"] not in self._gas_workers
+            ]
+            builder = next(
+                (
+                    worker for worker in econ_units
+                    if worker["entity_id"] not in builder_ids
+                    and worker["entity_id"] not in self._gas_workers
+                    and not worker.get("orders")
+                ),
+                builder_candidates[0] if builder_candidates else None,
+            )
+            offset = self.EXTRA_SUPPLY_DEPOT_OFFSETS[
+                min(
+                    supply_depot_count + self._supply_depot_pending - 1,
+                    len(self.EXTRA_SUPPLY_DEPOT_OFFSETS) - 1,
+                )
+            ]
+            if builder is not None:
+                actions.append(DefendAction(
+                    builder["entity_id"],
+                    "build",
+                    target_x=self.base_x + offset[0],
+                    target_y=self.base_y + offset[1],
+                    unit_type_id="SupplyDepot",
+                    reason="build_SupplyDepot_extra",
+                ))
+                builder_ids.add(builder["entity_id"])
+                self._gathering_scvs.discard(builder["entity_id"])
+                self._econ.reserve(100, 0)
+                minerals -= 100
+                self._supply_depot_pending += 1
+
         # 2. Research the first infantry/vehicle upgrades as soon as their
         # facilities are complete.  Completed and in-flight upgrades are both
         # public observation state, so a restart or duplicate order is avoided.
@@ -505,7 +571,10 @@ class DefendBasePolicy:
             minerals -= research["min_m"]
             vespene -= research["min_v"]
 
-        # 3. Assign up to three idle SCVs per completed refinery before minerals.
+        # 3. Assign up to three SCVs per completed refinery before minerals.
+        # This intentionally follows the python-sc2 distribute_workers pattern:
+        # a gas deficit pulls an existing mineral worker instead of waiting for
+        # a perfectly idle worker, otherwise the opening can stall on zero gas.
         # The gather target is the owned Refinery, matching native SC2 worker
         # semantics; a geyser is only a build target for the initial construction.
         refineries = [
@@ -537,13 +606,24 @@ class DefendBasePolicy:
                 ),
             )
             need = max(0, self.GAS_WORKERS_PER_REFINERY - assigned)
-            for worker in econ_units:
+            worker_candidates = sorted(
+                econ_units,
+                key=lambda worker: (
+                    int(worker["entity_id"]) in self._gathering_scvs,
+                    self._dist(
+                        float(worker.get("x", self.base_x)),
+                        float(worker.get("y", self.base_y)),
+                        float(refinery.get("x", self.base_x)),
+                        float(refinery.get("y", self.base_y)),
+                    ),
+                    int(worker["entity_id"]),
+                ),
+            )
+            for worker in worker_candidates:
                 if need <= 0:
                     break
                 worker_id = int(worker["entity_id"])
                 if worker_id in builder_ids or worker_id in self._gas_workers:
-                    continue
-                if worker.get("orders"):
                     continue
                 actions.append(DefendAction(
                     worker_id,
@@ -652,18 +732,9 @@ class DefendBasePolicy:
         # SCV 数量 < SCV_FLOOR 时强制训练（不检查 reserve，紧急恢复经济）
         # SCV 数量 >= SCV_CEIL 时停止
         # 中间区间：通过 can_afford 检查（已扣战斗单位 reserve）
-        opening_incomplete = any(
-            not any(
-                unit.get("unit_type_id") == build["unit_type_id"]
-                and float(unit.get("build_progress", 1.0)) >= 1.0
-                for unit in obs.own_units
-            )
-            for build in self.BUILD_PLAN[:3]
-        )
         if (
             scv_count < self.SCV_CEIL
-            and not opening_incomplete
-            and (tech_opening_complete or combat_total < 3)
+            and supply_remaining >= self.SCV_SUPPLY
         ):
             cc_idle = None
             for p in producers:

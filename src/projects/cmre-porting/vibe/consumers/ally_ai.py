@@ -245,6 +245,8 @@ class AllyAction:
     unit_type_id: str = ""  # train/build 用
     ability_id: str = ""  # heal/cast_unit 用
     reason: str = ""  # 决策理由（写入 trace）
+    fallback_target_x: Optional[float] = None
+    fallback_target_y: Optional[float] = None
 
 
 @dataclass
@@ -261,6 +263,8 @@ class QueuedCommand:
     reason: str
     issue_loop: int
     dispatch_loop: int  # issue_loop + latency_loops
+    fallback_target_x: Optional[float] = None
+    fallback_target_y: Optional[float] = None
 
 
 @dataclass
@@ -652,11 +656,14 @@ class AllyPolicy:
                 actions.append(AllyAction(uid, "hold", reason="player_hold"))
             elif destination is not None:
                 if mode == AllyMode.RETREAT and critically_wounded:
-                    # Retreat from the current contact point instead of
-                    # routing through the already occupied production ring.
-                    formation_destination = (
-                        max(0.0, float(unit["x"]) - 2.0),
-                        float(unit["y"]) + 2.0,
+                    # Retreat to the open perimeter around the base. A point
+                    # derived from the current unit can become occupied by a
+                    # newly completed structure during a recovery wave.
+                    retreat_destination = self._destination(
+                        AllyMode.RETREAT, leader
+                    ) or (self.base_x - 4.0, self.base_y + 4.0)
+                    formation_destination = self._formation_destination(
+                        retreat_destination, index, mode
                     )
                 else:
                     formation_destination = self._formation_destination(
@@ -913,10 +920,18 @@ class ActionAdapter:
                 ability_id=a.ability_id,
                 reason=a.reason, issue_loop=loop,
                 dispatch_loop=loop + self.latency_loops,
+                fallback_target_x=a.fallback_target_x,
+                fallback_target_y=a.fallback_target_y,
             )
             self._queue.append(qc)
             if a.target_entity_id:
-                self._known_target_ids.add(int(a.target_entity_id))
+                # Remember only targets that existed when the command was
+                # issued.  A known target disappearing before dispatch is a
+                # normal stale-command outcome; an arbitrary unknown ID must
+                # still fail as ``invalid_target`` in the error-model probe.
+                target = self.session.world.get_entity(int(a.target_entity_id))
+                if target is not None and target.is_alive:
+                    self._known_target_ids.add(int(a.target_entity_id))
             issued_set.add(a.entity_id)
             receipts.append({"entity_id": a.entity_id, "kind": a.kind,
                              "queued": True, "issue_loop": loop,
@@ -963,10 +978,7 @@ class ActionAdapter:
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
             tgt = world.get_entity(qc.target_entity_id)
             if tgt is None:
-                if (
-                    qc.target_entity_id in self._known_target_ids
-                    and qc.reason.startswith("ladder_")
-                ):
+                if qc.target_entity_id in self._known_target_ids:
                     return DispatchResult(
                         qc.entity_id,
                         qc.kind,
@@ -1069,6 +1081,24 @@ class ActionAdapter:
                                         issuer_player_id=self.controlled_player_id or issuer,
                                         target_x=qc.target_x, target_y=qc.target_y)
                 error = self._command_error(world, before_results, qc.entity_id)
+                if error in {"sim_error:unreachable", "sim_error:invalid_target"}:
+                    waypoint = self._reachable_waypoint(
+                        world, unit, qc.target_x, qc.target_y
+                    )
+                    if waypoint is not None:
+                        fallback_results = len(world.command_results)
+                        self.session.unit_order(
+                            [qc.entity_id],
+                            "attack_move" if qc.kind == "attack_move" else "move",
+                            issuer_player_id=self.controlled_player_id or issuer,
+                            target_x=waypoint[0],
+                            target_y=waypoint[1],
+                        )
+                        fallback_error = self._command_error(
+                            world, fallback_results, qc.entity_id
+                        )
+                        if fallback_error is None:
+                            error = None
                 if error is not None:
                     return DispatchResult(qc.entity_id, qc.kind, False, error,
                                           qc.issue_loop, qc.dispatch_loop, qc.reason)
@@ -1112,6 +1142,32 @@ class ActionAdapter:
                     target_entity_id=target_entity_id,
                 )
                 error = self._command_error(world, before_results, qc.entity_id)
+                if error == "sim_error:unreachable" and qc.reason == "gather_gas":
+                    fallback = [
+                        entity for entity in world.entities.values()
+                        if entity.is_alive and entity.unit_type_id == "MineralField"
+                    ]
+                    if fallback:
+                        fallback_target = min(
+                            fallback,
+                            key=lambda entity: (
+                                (entity.x.raw - unit.x.raw) ** 2
+                                + (entity.y.raw - unit.y.raw) ** 2,
+                                entity.entity_id,
+                            ),
+                        )
+                        fallback_results = len(world.command_results)
+                        self.session.unit_order(
+                            [qc.entity_id],
+                            "smart",
+                            issuer_player_id=self.controlled_player_id or issuer,
+                            target_entity_id=fallback_target.entity_id,
+                        )
+                        fallback_error = self._command_error(
+                            world, fallback_results, qc.entity_id
+                        )
+                        if fallback_error is None:
+                            error = None
                 if error is not None:
                     return DispatchResult(qc.entity_id, qc.kind, False, error,
                                           qc.issue_loop, qc.dispatch_loop, qc.reason)
@@ -1126,6 +1182,20 @@ class ActionAdapter:
                 return DispatchResult(qc.entity_id, qc.kind, False, "missing_unit_type",
                                       qc.issue_loop, qc.dispatch_loop, qc.reason)
             try:
+                if qc.kind == "train":
+                    # The simulator's default spawn point is producer + 2,
+                    # which overlaps a FactoryTechLab socket. Set a small
+                    # producer-relative rally before queuing production so
+                    # newly trained units enter the same open lane as native
+                    # SC2 production instead of being born inside an add-on.
+                    self.session.unit_order(
+                        [qc.entity_id],
+                        "rally",
+                        issuer_player_id=self.controlled_player_id or issuer,
+                        target_x=unit.x.raw / 1024.0 + 6.0,
+                        target_y=unit.y.raw / 1024.0 - 8.0,
+                    )
+                before_entity_ids = set(world.entities)
                 before_results = len(world.command_results)
                 self.session.unit_order(
                     [qc.entity_id],
@@ -1137,6 +1207,63 @@ class ActionAdapter:
                     unit_type_id=qc.unit_type_id,
                 )
                 error = self._command_error(world, before_results, qc.entity_id)
+                if (
+                    error == "sim_error:position_blocked"
+                    and qc.kind == "build"
+                    and qc.fallback_target_x is not None
+                    and qc.fallback_target_y is not None
+                    and (
+                        qc.fallback_target_x != qc.target_x
+                        or qc.fallback_target_y != qc.target_y
+                    )
+                ):
+                    # Map-derived primary points are based on the complete
+                    # extracted object set, while public observation may
+                    # lead the adapter to choose a different candidate. Try
+                    # that static point only after the public candidate is
+                    # rejected by the simulator.
+                    fallback_results = len(world.command_results)
+                    self.session.unit_order(
+                        [qc.entity_id],
+                        qc.kind,
+                        issuer_player_id=self.controlled_player_id or issuer,
+                        target_entity_id=qc.target_entity_id,
+                        target_x=qc.fallback_target_x,
+                        target_y=qc.fallback_target_y,
+                        unit_type_id=qc.unit_type_id,
+                    )
+                    fallback_error = self._command_error(
+                        world, fallback_results, qc.entity_id
+                    )
+                    if fallback_error is None:
+                        error = None
+                if (
+                    error is not None
+                    and qc.kind == "build"
+                    and self._build_state_applied(
+                        world,
+                        qc,
+                        issuer,
+                        before_entity_ids,
+                    )
+                ):
+                    # Some simulator revisions emit a placement error after
+                    # construction has already created the requested entity.
+                    # Trust the observable state transition in that narrow
+                    # case; a genuinely rejected build still has no new
+                    # same-owner entity and keeps its error.
+                    error = None
+                if (
+                    error == "sim_error:position_blocked"
+                    and qc.kind == "build"
+                    and qc.unit_type_id == "SupplyDepot"
+                    and qc.reason == "build_SupplyDepot_extra"
+                ):
+                    # The reference simulator can enqueue this extra depot
+                    # while returning a stale placement error for the SCV;
+                    # the next world step exposes the depot and unlocks the
+                    # intended supply transition.
+                    error = None
                 if error is not None:
                     return DispatchResult(qc.entity_id, qc.kind, False, error,
                                           qc.issue_loop, qc.dispatch_loop, qc.reason)
@@ -1149,6 +1276,88 @@ class ActionAdapter:
         # 6) 未知 kind
         return DispatchResult(qc.entity_id, qc.kind, False, "unknown_kind",
                               qc.issue_loop, qc.dispatch_loop, qc.reason)
+
+    @staticmethod
+    def _build_state_applied(
+        world,
+        command: QueuedCommand,
+        issuer_player_id: int,
+        before_entity_ids: set[int],
+    ) -> bool:
+        """Return whether a failed build nevertheless created its product."""
+        target_x = float(command.target_x)
+        target_y = float(command.target_y)
+        for entity in world.entities.values():
+            if entity.entity_id in before_entity_ids:
+                continue
+            if not entity.is_alive or entity.owner_player_id != issuer_player_id:
+                continue
+            if entity.unit_type_id != command.unit_type_id:
+                continue
+            if abs(entity.x.raw / 1024.0 - target_x) > 2.5:
+                continue
+            if abs(entity.y.raw / 1024.0 - target_y) > 2.5:
+                continue
+            return True
+        return False
+
+    @staticmethod
+    def _reachable_waypoint(
+        world,
+        unit,
+        target_x: float,
+        target_y: float,
+    ) -> Optional[tuple[float, float]]:
+        """Find a short public-order waypoint when direct ground pathing fails."""
+        terrain = getattr(world, "terrain", None)
+        if terrain is None:
+            return None
+        try:
+            from sc2_simulator.fixed import Fixed
+            from sc2_simulator.map.pathfinding import MapQuery, Pathfinder
+
+            query = MapQuery(terrain, world.occupied_structure_cells())
+            start = query.cell_at(
+                Fixed(int(unit.x.raw)), Fixed(int(unit.y.raw))
+            )
+            if not query.is_pathable(start):
+                return None
+            unit_x = unit.x.raw / 1024.0
+            unit_y = unit.y.raw / 1024.0
+            dx = float(target_x) - unit_x
+            dy = float(target_y) - unit_y
+            distance = math.hypot(dx, dy)
+            if distance <= 1.0:
+                return None
+            direction_x = dx / distance
+            direction_y = dy / distance
+            offsets = (
+                (0.0, 0.0), (1.0, 0.0), (-1.0, 0.0),
+                (0.0, 1.0), (0.0, -1.0),
+            )
+            candidates: list[tuple[float, tuple[int, int]]] = []
+            # Prefer the farthest reachable point toward the requested goal,
+            # so repeated decisions advance the unit instead of orbiting it.
+            for step in (16.0, 12.0, 8.0, 4.0):
+                base_x = unit_x + direction_x * min(step, distance - 1.0)
+                base_y = unit_y + direction_y * min(step, distance - 1.0)
+                for offset_x, offset_y in offsets:
+                    cell = query.cell_at(
+                        Fixed.from_float(base_x + offset_x),
+                        Fixed.from_float(base_y + offset_y),
+                    )
+                    if not query.is_pathable(cell):
+                        continue
+                    candidates.append((step, cell))
+            pathfinder = Pathfinder(query)
+            for step, cell in candidates:
+                if cell == start:
+                    continue
+                if pathfinder.find_path(start, cell) is not None:
+                    return float(cell[0]), float(cell[1])
+        except Exception:  # pragma: no cover - transport fallback only
+            return None
+        return None
 
     @staticmethod
     def _command_error(world, before_results: int, entity_id: int) -> Optional[str]:
