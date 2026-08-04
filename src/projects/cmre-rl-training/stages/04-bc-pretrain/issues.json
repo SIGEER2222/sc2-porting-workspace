@@ -1,0 +1,24 @@
+{
+  "stage": "04-bc-pretrain",
+  "issues": [
+    {
+      "id": "ISSUE-007",
+      "severity": "medium",
+      "title": "FakeBackend 奖励与动作无关，无法验证 BC 在任务上的实际收益",
+      "description": "Stage 01 的 FakeBackend 奖励仅来自观察转换（progress、supply、base_hp），与具体动作无关。因此 BC-pretrained 与 random init policy 在 FakeBackend 上 mean_reward 相同（17.32），无法直接验证 BC 预训练在任务奖励上的优势。runtime 报告通过动作分布差异间接证明 BC trunk 影响了 policy 行为，但任务收益需在真实场景验证。",
+      "impact": "Stage 04 仅能验证 BC 加载机制正确性和 trunk 特征迁移完整性，不能验证 BC 预训练对任务奖励的提升。",
+      "workaround": "Stage 05（sim2real-eval）在 SimulatorRlBackend 或真 SC2 上验证 BC-pretrained policy 的任务收益",
+      "status": "deferred-to-stage-05"
+    },
+    {
+      "id": "ISSUE-008",
+      "severity": "low",
+      "title": "BC checkpoint 路径硬编码在测试和评估脚本中",
+      "description": "test_bc_pretrain.py 和 evaluate_bc_pretrain.py 中 BC checkpoint 路径硬编码为 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-ally-policy-pytorch-20260804/ally-intent.pt`。若 BC checkpoint 路径变更需同步修改。",
+      "impact": "BC checkpoint 路径变更时需更新测试和脚本中的路径常量。",
+      "workaround": "未来可提取为配置项或环境变量；当前路径稳定，影响可控",
+      "status": "documented"
+    }
+  ],
+  "total": 2
+}

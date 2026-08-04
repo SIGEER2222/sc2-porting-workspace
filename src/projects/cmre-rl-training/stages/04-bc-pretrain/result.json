@@ -1,0 +1,76 @@
+{
+  "stage": "04-bc-pretrain",
+  "status": "pass",
+  "gates": {
+    "G1-bc-load-end-to-end": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_bc_pretrain.BCLoadEndToEndTests -v",
+      "tests": 4,
+      "result": "OK",
+      "detail": "真实 BC checkpoint (ally-intent.pt, 48 epochs, holdout acc 95.28%) 加载到 P2AllyAC; trunk + 4 BC heads 权重迁移; action_head/value_head 保持随机初始化; forward 返回 (logits[19], value[1])"
+    },
+    "G2-rl-head-intact": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_bc_pretrain.BCRolloutStabilityTests.test_bc_pretrained_policy_can_run_ppo_training -v",
+      "tests": 1,
+      "result": "OK",
+      "detail": "BC-loaded P2AllyAC 支持 PPO 训练; total_loss=1.0278, policy_loss=-0.0735, value_loss=2.2532, entropy=2.5320, 全部 finite"
+    },
+    "G3-trunk-feature-transfer": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_bc_pretrain.TrunkFeatureTransferTests -v",
+      "tests": 3,
+      "result": "OK",
+      "detail": "BC-pretrained trunk + 4 BC heads 输出与原 BC 模型完全一致 (max_abs_diff=0.0); trunk 权重与 random init 显著不同 (证明加载生效)"
+    },
+    "G4-rollout-stability": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_bc_pretrain.BCRolloutStabilityTests -v",
+      "tests": 3,
+      "result": "OK",
+      "detail": "100-step rollout 无 NaN/Inf; 15/19 个动作被采样 (entropy=2.481); 动作分布不退化到单一动作; PPO 训练 loss 全部 finite"
+    },
+    "G5-evaluate-helper": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_bc_pretrain.EvaluatePolicyRolloutTests -v",
+      "tests": 4,
+      "result": "OK",
+      "detail": "evaluate_policy_rollout 返回 mean_reward/std_reward/mean_steps/action_distribution; deterministic 模式可复现; action_distribution 总和等于 episodes×steps"
+    },
+    "G6-bc-vs-random-consistency": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_bc_pretrain.BCRandomVsBCBaselineTests -v",
+      "tests": 1,
+      "result": "OK",
+      "detail": "BC-pretrained 与 random init policy 均能完成 PPO 训练无报错; FakeBackend 奖励与动作无关故 mean_reward 相同 (17.32), 但动作分布显著不同 (BC 偏好 gather_resources/attack_units, random 更均匀)"
+    }
+  },
+  "total_tests": 117,
+  "stage_new_tests": 15,
+  "all_passed": true,
+  "runtime_evidence_report": "artifacts/stage-04-bc-pretrain/evaluation-report.json",
+  "bc_checkpoint": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-ally-policy-pytorch-20260804/ally-intent.pt",
+  "bc_metadata": {
+    "epochs": 48,
+    "train_accuracy": 0.9951,
+    "holdout_accuracy": 0.9528,
+    "hidden_dim": 128,
+    "input_dim": 49
+  },
+  "changed_paths": [
+    "src/projects/cmre-rl-training/cmre_rl_training/bc_pretrain.py",
+    "src/projects/cmre-rl-training/tests/test_bc_pretrain.py",
+    "src/projects/cmre-rl-training/tools/evaluate_bc_pretrain.py",
+    "src/projects/cmre-rl-training/stages/04-bc-pretrain/plan.md",
+    "src/projects/cmre-rl-training/stages/04-bc-pretrain/result.json",
+    "src/projects/cmre-rl-training/stages/04-bc-pretrain/log.md",
+    "src/projects/cmre-rl-training/stages/04-bc-pretrain/issues.json",
+    "artifacts/stage-04-bc-pretrain/evaluation-report.json"
+  ]
+}

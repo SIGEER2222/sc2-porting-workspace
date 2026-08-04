@@ -1,0 +1,108 @@
+{
+  "stage": "04-bc-pretrain",
+  "bc_checkpoint": "artifacts\\projects\\cmre-porting\\stage25-ai-ally-capability-completion\\ml-ally-policy-pytorch-20260804\\ally-intent.pt",
+  "metadata": {
+    "schema": "cmre-ally-intent-pytorch.v2",
+    "hidden_dim": 128,
+    "input_dim": 49,
+    "epochs": 48,
+    "train_accuracy_mean": 0.9951388888888889,
+    "holdout_accuracy_mean": 0.9527777777777777,
+    "loss_start": 6.3624338997734915,
+    "loss_end": 0.05956880375742912,
+    "loss_decreased": true
+  },
+  "trunk_heads_parity": {
+    "trunk_max_abs_diff": 0.0,
+    "head_max_abs_diffs": {
+      "economy": 0.0,
+      "production": 0.0,
+      "tactical": 0.0,
+      "command": 0.0
+    },
+    "trunk_parity": true,
+    "heads_parity": true
+  },
+  "rollout_stability_100_steps": {
+    "n_steps": 100,
+    "obs_finite": true,
+    "logprobs_finite": true,
+    "actions_in_range": true,
+    "unique_actions_count": 15,
+    "unique_action_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      10,
+      12,
+      13,
+      14,
+      15,
+      18
+    ],
+    "action_entropy": 2.480753634691827
+  },
+  "ppo_training_compatibility": {
+    "buffer_size": 20,
+    "total_loss": 1.027808427810669,
+    "policy_loss": -0.07349112629890442,
+    "value_loss": 2.2532382011413574,
+    "entropy": 2.5319573879241943,
+    "all_finite": true
+  },
+  "bc_vs_random_comparison": {
+    "random_init": {
+      "mean_reward": 17.32,
+      "std_reward": 0.0,
+      "mean_steps": 20.0,
+      "action_distribution": {
+        "produce_unit": 21,
+        "patrol_units": 15,
+        "attack_units": 14,
+        "attack_move_units": 12,
+        "morph_unit": 15,
+        "hold_units": 10,
+        "stop_units": 11,
+        "gather_resources": 9,
+        "cast_unit_ability": 4,
+        "cancel_order": 4,
+        "repair_units": 13,
+        "build_structure": 20,
+        "rally_producer": 14,
+        "cast_no_target_ability": 11,
+        "cast_point_ability": 15,
+        "move_units": 12
+      }
+    },
+    "bc_pretrained": {
+      "mean_reward": 17.32,
+      "std_reward": 0.0,
+      "mean_steps": 20.0,
+      "action_distribution": {
+        "produce_unit": 12,
+        "gather_resources": 43,
+        "attack_units": 32,
+        "hold_units": 20,
+        "rally_producer": 20,
+        "build_structure": 5,
+        "morph_unit": 2,
+        "cancel_order": 10,
+        "patrol_units": 19,
+        "cast_unit_ability": 4,
+        "cast_point_ability": 9,
+        "stop_units": 2,
+        "repair_units": 13,
+        "attack_move_units": 6,
+        "move_units": 3
+      }
+    },
+    "note": "FakeBackend reward is action-independent; mean_reward parity is expected. Action distribution differences arise from different trunk feature representations feeding the random action_head."
+  },
+  "all_gates_pass": true
+}
