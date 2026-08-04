@@ -1,0 +1,80 @@
+{
+  "stage": "05-sim2real-eval",
+  "status": "pass",
+  "gates": {
+    "G1-real-backend-protocol": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_real_sc2_backend.RealSc2BackendAdapterProtocolTests -v",
+      "tests": 4,
+      "result": "OK",
+      "detail": "RealSc2BackendAdapter 实现 RlBackend 协议（state_version/reset/step）; reset 返回包含 loop/player_id/own_units/visible_enemies/resources/mission 的观察字典; step 返回 (obs, terminated, info) 三元组"
+    },
+    "G2-action-translation": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_real_sc2_backend.RealSc2BackendActionTranslationTests -v",
+      "tests": 12,
+      "result": "OK",
+      "detail": "全部 19 个 RL 动作有对应翻译器; move/stop/hold/attack_move/attack/gather/build/train/cancel 等动作正确翻译为 SC2 命令并记录到 issued_commands; 未知动作抛 ValueError; 无 entity_tags 时默认选取战斗单位"
+    },
+    "G3-simulator-full-scenario": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_sim2real_eval.SimulatorFullScenarioTests -v",
+      "tests": 2,
+      "result": "OK",
+      "detail": "BC-pretrained policy 在 SimulatorRlBackend（MockSimulatorSession, max_steps=15）上完成完整 15-step rollout; random policy 同样完成 10-step rollout; 所有观察 finite 无 NaN/Inf"
+    },
+    "G4-sim2real-report": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python tools/evaluate_sim2real.py",
+      "tests": "runtime_evidence",
+      "result": "all_gates_pass=True",
+      "detail": "生成对比报告包含 4 种策略（random_init/bc_pretrained/random_ppo/bc_ppo）; 全部策略完成 10 episodes × 15 steps 评估; mean_reward/mean_steps/survival_rate 全部 finite; PPO 训练 loss finite（random_ppo=1.7726, bc_ppo=1.5875）"
+    },
+    "G5-evaluate-helper": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_sim2real_eval.EvaluateSim2RealTests -v",
+      "tests": 4,
+      "result": "OK",
+      "detail": "evaluate_sim2real 支持多策略并行评估; 返回 mean_reward/std_reward/mean_steps/survival_rate/action_distribution; deterministic 模式可复现; BC vs random 对比产生 finite 指标"
+    },
+    "G6-report-generation": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_sim2real_eval.Sim2RealReportGenerationTests -v",
+      "tests": 1,
+      "result": "OK",
+      "detail": "generate_sim2real_report 生成 JSON 文件包含 stage/policies/all_gates_pass 字段; 支持 BC checkpoint 可选（缺失时跳过 BC 变体）; PPO 训练步数可配置"
+    }
+  },
+  "total_tests": 142,
+  "stage_new_tests": 25,
+  "all_passed": true,
+  "runtime_evidence_report": "artifacts/stage-05-sim2real-eval/evaluation-report.json",
+  "runtime_findings": {
+    "env_type": "FakeBackend (action-independent reward)",
+    "policies_evaluated": ["random_init", "bc_pretrained", "random_ppo", "bc_ppo"],
+    "mean_reward_all_policies": 16.462,
+    "survival_rate_all_policies": 1.0,
+    "ppo_training_loss": {
+      "random_ppo": 1.7726,
+      "bc_ppo": 1.5875
+    },
+    "action_distribution_insight": "BC-pretrained policy 偏好 gather_resources(40次)/attack_units(20次)/patrol_units(20次); random init 分布更均匀(5-16次); PPO 训练后分布进一步调整"
+  },
+  "changed_paths": [
+    "src/projects/cmre-rl-training/cmre_rl_training/real_sc2_backend.py",
+    "src/projects/cmre-rl-training/cmre_rl_training/sim2real_eval.py",
+    "src/projects/cmre-rl-training/tests/test_real_sc2_backend.py",
+    "src/projects/cmre-rl-training/tests/test_sim2real_eval.py",
+    "src/projects/cmre-rl-training/tools/evaluate_sim2real.py",
+    "src/projects/cmre-rl-training/stages/05-sim2real-eval/result.json",
+    "src/projects/cmre-rl-training/stages/05-sim2real-eval/log.md",
+    "src/projects/cmre-rl-training/stages/05-sim2real-eval/issues.json",
+    "artifacts/stage-05-sim2real-eval/evaluation-report.json"
+  ]
+}

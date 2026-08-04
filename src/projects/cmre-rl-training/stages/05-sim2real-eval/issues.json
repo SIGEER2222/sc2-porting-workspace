@@ -1,0 +1,42 @@
+{
+  "stage": "05-sim2real-eval",
+  "issues": [
+    {
+      "id": "ISSUE-009",
+      "severity": "high",
+      "title": "python-sc2 未安装，RealSc2BackendAdapter 仅用 MockBotAI 验证",
+      "description": "python-sc2 模块未安装（`ModuleNotFoundError: No module named 'python_sc2'`），RealSc2BackendAdapter 的协议和动作翻译测试使用 MockBotAI 替代真实 BotAI。虽然 MockBotAI 模拟了 BotAI 的关键接口（units/state/do_action/do），但真实 python-sc2 的 Units/Unit 对象有更多属性和方法，实际集成时可能需要调整翻译器。",
+      "impact": "RealSc2BackendAdapter 在真实 SC2 环境下的行为未验证；动作翻译器的参数传递（如 Point2/Point3 坐标转换）可能需要适配。",
+      "workaround": "安装 python-sc2 后运行集成测试；或通过 launcher 启动真 SC2 并用 RealSc2BackendAdapter 驱动 BotAI",
+      "status": "deferred-to-runtime"
+    },
+    {
+      "id": "ISSUE-010",
+      "severity": "high",
+      "title": "真 SC2 启动 BankPoll/ChatCommand 不触发问题",
+      "description": "topics.md 记录：BankPoll/ChatCommand 触发器在 SC2 API 模式下不触发（state_version 保持 0）。这影响真 SC2 环境下的 RL 训练循环，因为动作分发依赖触发器机制。",
+      "impact": "无法在真 SC2 上运行完整的 RL 训练循环；sim2real 评估退化为 SimulatorRlBackend + Mock 场景。",
+      "workaround": "调查 SC2API RequestMapCommand 或 RequestDebug 作为替代传输方法（topics.md 建议）；或使用 launcher 的 overlay 机制绕过触发器限制",
+      "status": "deferred-to-runtime"
+    },
+    {
+      "id": "ISSUE-011",
+      "severity": "medium",
+      "title": "FakeBackend 奖励与动作无关，无法验证 BC/PPO 任务收益",
+      "description": "Stage 01 的 FakeBackend 奖励仅来自观察转换（progress、supply、base_hp），与具体动作无关。因此 4 种策略（random_init/bc_pretrained/random_ppo/bc_ppo）的 mean_reward 完全相同（16.462），无法直接验证 BC 预训练或 PPO 训练在任务奖励上的提升。仅通过动作分布差异间接证明策略行为不同。",
+      "impact": "Stage 05 仅能验证 sim2real 评估流程跑通和策略行为差异，不能验证 BC/PPO 对任务奖励的实际贡献。",
+      "workaround": "在 SimulatorRlBackend 完整 Dead-of-Night 场景（含敌人攻击、基地血量、夜波进度）上评估；或接入真 SC2 验证任务奖励",
+      "status": "deferred-to-runtime"
+    },
+    {
+      "id": "ISSUE-012",
+      "severity": "low",
+      "title": "SimulatorRlBackend 完整场景评估使用 MockSimulatorSession",
+      "description": "G3 测试使用 MockSimulatorSession（bypass Observation.from_world）而非真实 SimulatorSession。真实 SimulatorSession 需要加载 SC2 地图和 sc2_simulator 依赖，测试环境中不可用。",
+      "impact": "G3 仅验证 BC-pretrained policy 在 mock 模拟器上的 rollout 流程，不验证真实模拟器的物理/战斗逻辑。",
+      "workaround": "在含 sc2_simulator 依赖的环境中运行真实 SimulatorSession 集成测试",
+      "status": "deferred-to-runtime"
+    }
+  ],
+  "total": 4
+}
