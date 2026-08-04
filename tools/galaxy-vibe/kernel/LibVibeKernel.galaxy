@@ -1492,6 +1492,7 @@ bool libVibeKernel_gt_ChatCommand_Func(bool testConds, bool runActions) {
 bool libVibeKernel_gf_ProcessAllyCommand(string chat) {
     string command;
     unitgroup p2Units;
+    unitgroup p2CombatUnits;
     unitgroup enemyUnits;
     unit target;
     int unitCount;
@@ -1523,6 +1524,11 @@ bool libVibeKernel_gf_ProcessAllyCommand(string chat) {
         UnitFilter(0, 0, (1 << c_targetFilterMissile),
             (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
     unitCount = UnitGroupCount(p2Units, c_unitCountAlive);
+    // Tactical bridge commands must never redirect workers or structures.
+    p2CombatUnits = UnitGroup(null, 2, RegionEntireMap(),
+        UnitFilter(0, 0,
+            (1 << c_targetFilterWorker) | (1 << c_targetFilterStructure) | (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
 
     if (command == "status") {
         libVibeKernel_gf_EchoAlly("[Ally P2] Status: " + IntToString(unitCount) + " living units; mode=ready.");
@@ -1534,8 +1540,13 @@ bool libVibeKernel_gf_ProcessAllyCommand(string chat) {
         libVibeKernel_gf_WriteBankKey("ally", "last_result", "help");
         return true;
     }
+    if (command == "hold") {
+        libVibeKernel_gf_EchoAlly("[Ally P2] Acknowledged: hold. P2 combat units keep their current orders.");
+        libVibeKernel_gf_WriteBankKey("ally", "last_result", "hold");
+        return true;
+    }
     if ((command == "follow") || (command == "regroup") || (command == "defend") || (command == "retreat")) {
-        UnitGroupIssueOrder(p2Units,
+        UnitGroupIssueOrder(p2CombatUnits,
             OrderTargetingPoint(AbilityCommand("move", 0), PlayerStartLocation(1)),
             c_orderQueueReplace);
         libVibeKernel_gf_EchoAlly("[Ally P2] Acknowledged: " + command + ". Moving to P1 defense point.");
@@ -1553,7 +1564,7 @@ bool libVibeKernel_gf_ProcessAllyCommand(string chat) {
             return true;
         }
         target = UnitGroupClosestToPoint(enemyUnits, PlayerStartLocation(1));
-        UnitGroupIssueOrder(p2Units,
+        UnitGroupIssueOrder(p2CombatUnits,
             OrderTargetingUnit(AbilityCommand("attack", 0), target),
             c_orderQueueReplace);
         libVibeKernel_gf_EchoAlly("[Ally P2] Acknowledged: attack. P2 units engaging hostile target.");
@@ -1564,6 +1575,32 @@ bool libVibeKernel_gf_ProcessAllyCommand(string chat) {
     libVibeKernel_gf_EchoAlly("[Ally P2] Unknown command. Try: follow, attack, defend, regroup, retreat, status.");
     libVibeKernel_gf_WriteBankKey("ally", "last_result", "rejected_unknown");
     return true;
+}
+
+// The external imitation model is a P2 controller. It is accepted only from
+// the explicit Bank source tag and records provenance before reusing the same
+// owner/alliance-safe order implementation as the player command path.
+bool libVibeKernel_gf_ProcessModelAllyCommand(string chat) {
+    string modelSchema;
+    string modelHash;
+    string decisionId;
+    if (libVibeKernel_gf_ReadBankKey("ally", "pending_source") != "ml_policy") {
+        libVibeKernel_gf_WriteBankKey("ally", "last_result", "rejected_model_source");
+        return true;
+    }
+    modelSchema = libVibeKernel_gf_ReadBankKey("ally", "pending_model_schema");
+    modelHash = libVibeKernel_gf_ReadBankKey("ally", "pending_model_hash");
+    decisionId = libVibeKernel_gf_ReadBankKey("ally", "pending_decision_id");
+    if (modelSchema == "" || modelHash == "" || decisionId == "") {
+        libVibeKernel_gf_WriteBankKey("ally", "last_result", "rejected_model_provenance");
+        return true;
+    }
+    libVibeKernel_gf_WriteBankKey("ally", "last_source", "ml_policy");
+    libVibeKernel_gf_WriteBankInt("ally", "last_issuer_player_id", 2);
+    libVibeKernel_gf_WriteBankKey("ally", "last_model_schema", modelSchema);
+    libVibeKernel_gf_WriteBankKey("ally", "last_model_hash", modelHash);
+    libVibeKernel_gf_WriteBankKey("ally", "last_model_decision_id", decisionId);
+    return libVibeKernel_gf_ProcessAllyCommand(chat);
 }
 
 bool libVibeKernel_gt_AllyCommand_Func(bool testConds, bool runActions) {
@@ -1608,6 +1645,7 @@ bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
     string response;
     string opName;
     string pendingAllyCommand;
+    string pendingAllySource;
     int pendingAllyPlayer;
     if (testConds) { return true; }
     if (!runActions) { return true; }
@@ -1631,10 +1669,21 @@ bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
         // this pending key; only an explicitly P1-tagged command is accepted.
         pendingAllyPlayer = libVibeKernel_gf_ReadBankInt("ally", "pending_player_id");
         pendingAllyCommand = libVibeKernel_gf_ReadBankKey("ally", "pending_command");
-        if (pendingAllyPlayer == 1 && pendingAllyCommand != "") {
+        pendingAllySource = libVibeKernel_gf_ReadBankKey("ally", "pending_source");
+        if (pendingAllyPlayer == 1 && pendingAllyCommand != ""
+            && (pendingAllySource == "" || pendingAllySource == "p1_chat")) {
+            libVibeKernel_gf_WriteBankKey("ally", "last_source", "p1_chat");
+            libVibeKernel_gf_WriteBankInt("ally", "last_issuer_player_id", 1);
             libVibeKernel_gf_ProcessAllyCommand(pendingAllyCommand);
             libVibeKernel_gf_WriteBankKey("ally", "pending_command", "");
             libVibeKernel_gf_WriteBankInt("ally", "pending_player_id", 0);
+            libVibeKernel_gf_WriteBankKey("ally", "pending_source", "");
+        } else if (pendingAllyPlayer == 2 && pendingAllyCommand != ""
+            && pendingAllySource == "ml_policy") {
+            libVibeKernel_gf_ProcessModelAllyCommand(pendingAllyCommand);
+            libVibeKernel_gf_WriteBankKey("ally", "pending_command", "");
+            libVibeKernel_gf_WriteBankInt("ally", "pending_player_id", 0);
+            libVibeKernel_gf_WriteBankKey("ally", "pending_source", "");
         }
 
         // 读取 pending_request_id

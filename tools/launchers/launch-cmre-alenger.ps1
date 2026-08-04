@@ -1688,6 +1688,12 @@ try {
         Write-Host "StarCoop dependency removed from $starCoopRemovedCount Commanders mod(s)"
     }
     }
+    if (-not $SecondaryClient) {
+        # The Computer ally uses the shared Terran BarracksTrain ability. The
+        # CMRE base mod currently removes Train1, so patch the staged mod after
+        # every sync and before SC2 loads its catalog.
+        Install-CmreNativeComputerCatalogOverlay -Sc2Root $Sc2Root
+    }
     # MapCopySuffix: 使用独立的 live 地图副本，避免多会话同时操作同一地图导致 DocumentInfo 冲突。
     # 例如 -MapCopySuffix "reborn" → Maps\reborn\亡者之夜.SC2Map\
     # 注意：SC2 要求地图目录名以 .SC2Map 结尾，所以后缀作为子目录而非文件名扩展。
@@ -1702,6 +1708,7 @@ try {
     if (Test-Path -LiteralPath $liveMap) { [System.IO.Directory]::Delete($liveMap, $true) }
     [System.IO.Directory]::CreateDirectory($liveMap) | Out-Null
     robocopy $mapSource $liveMap /MIR /NFL /NDL /NJH /NJS /NC /NS /NP | Out-Null
+    Install-CmreNativeComputerMapCatalogOverlay -MapPath $liveMap
     Install-CmreGalaxyHostOverlay -ModsRoot (Join-Path $Sc2Root "Mods") -MapPath $liveMap
     if ($ShowSelectionUI -and -not $commanderSelectionDisabled) {
         # ShowSelectionUI: 不 patch LibCOOC.galaxy，保留 CMRE 原生启动流程。

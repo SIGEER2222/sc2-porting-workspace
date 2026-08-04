@@ -155,6 +155,296 @@ function Initialize-CmreRuntimeListenerBank {
     }
 }
 
+function Install-CmreNativeComputerCatalogOverlay {
+    param(
+        [Parameter(Mandatory = $true)][string]$Sc2Root
+    )
+
+    # CMRE overrides the shared BarracksTrain catalog and currently keeps only
+    # the Tech Lab command. Restore the standard Marine command in the staged
+    # CMRE mod so P2's native Computer can issue a real train order.
+    $abilPath = Join-Path $Sc2Root "Mods\CMRE\CMRE_Core_Base.SC2Mod\Base.SC2Data\GameData\AbilData.xml"
+    if (-not (Test-Path -LiteralPath $abilPath -PathType Leaf)) {
+        throw "Native Computer catalog overlay source not found: $abilPath"
+    }
+
+    $document = [System.Xml.XmlDocument]::new()
+    $document.PreserveWhitespace = $true
+    $document.LoadXml((Read-CmreUtf8 -Path $abilPath))
+    $ability = $document.SelectSingleNode("/Catalog/CAbilTrain[@id='BarracksTrain']")
+    if ($null -eq $ability) {
+        throw "Native Computer catalog overlay anchor not found: BarracksTrain"
+    }
+
+    $train1 = $ability.SelectSingleNode("./InfoArray[@index='Train1']")
+    $changed = $false
+    if ($null -eq $train1) {
+        $train1 = $document.CreateElement("InfoArray")
+        $train1.SetAttribute("index", "Train1")
+        $train1.SetAttribute("Time", "25")
+        $button = $document.CreateElement("Button")
+        $button.SetAttribute("DefaultButtonFace", "Marine")
+        $button.SetAttribute("State", "Available")
+        $removedUnit = $document.CreateElement("Unit")
+        $removedUnit.SetAttribute("index", "0")
+        $removedUnit.SetAttribute("removed", "1")
+        $unit = $document.CreateElement("Unit")
+        $unit.SetAttribute("index", "0")
+        $unit.SetAttribute("value", "Marine")
+        [void]$train1.AppendChild($button)
+        [void]$train1.AppendChild($removedUnit)
+        [void]$train1.AppendChild($unit)
+        $train2 = $ability.SelectSingleNode("./InfoArray[@index='Train2']")
+        if ($null -ne $train2) {
+            [void]$ability.InsertBefore($train1, $train2)
+        } else {
+            [void]$ability.AppendChild($train1)
+        }
+        $changed = $true
+    } else {
+        $unit = $train1.SelectSingleNode("./Unit")
+        if ($null -ne $unit -and $unit.GetAttribute("value") -ne "Marine") {
+            throw "Native Computer catalog overlay found non-Marine BarracksTrain/Train1: $($unit.GetAttribute('value'))"
+        }
+        if ($null -eq $unit) {
+            $unit = $document.CreateElement("Unit")
+            $unit.SetAttribute("index", "0")
+            $unit.SetAttribute("value", "Marine")
+            [void]$train1.AppendChild($unit)
+            $changed = $true
+        }
+        if ($unit.GetAttribute("index") -ne "0") {
+            $unit.SetAttribute("index", "0")
+            $changed = $true
+        }
+        $removedUnit = $train1.SelectSingleNode("./Unit[@removed='1']")
+        if ($null -eq $removedUnit) {
+            $removedUnit = $document.CreateElement("Unit")
+            $removedUnit.SetAttribute("index", "0")
+            $removedUnit.SetAttribute("removed", "1")
+            [void]$train1.InsertBefore($removedUnit, $unit)
+            $changed = $true
+        }
+        if (-not $train1.HasAttribute("Time")) {
+            $train1.SetAttribute("Time", "25")
+            $changed = $true
+        }
+        $button = $train1.SelectSingleNode("./Button")
+        if ($null -eq $button) {
+            $button = $document.CreateElement("Button")
+            [void]$train1.AppendChild($button)
+            $changed = $true
+        }
+        if ($button.GetAttribute("DefaultButtonFace") -ne "Marine") {
+            $button.SetAttribute("DefaultButtonFace", "Marine")
+            $changed = $true
+        }
+        if ($button.GetAttribute("State") -ne "Available") {
+            $button.SetAttribute("State", "Available")
+            $changed = $true
+        }
+        if ($button.GetAttribute("Requirements") -ne "") {
+            $button.SetAttribute("Requirements", "")
+            $changed = $true
+        }
+    }
+
+    if ($changed) {
+        $settings = [System.Xml.XmlWriterSettings]::new()
+        $settings.Encoding = [System.Text.UTF8Encoding]::new($false)
+        $settings.Indent = $false
+        $stream = [System.IO.MemoryStream]::new()
+        $writer = [System.Xml.XmlWriter]::Create($stream, $settings)
+        try {
+            $document.Save($writer)
+        } finally {
+            $writer.Dispose()
+        }
+        [System.IO.File]::WriteAllBytes($abilPath, $stream.ToArray())
+        $stream.Dispose()
+        Write-Host "Native Computer catalog overlay: restored BarracksTrain/Train1 -> Marine"
+    } else {
+        Write-Host "Native Computer catalog overlay: BarracksTrain/Train1 -> Marine already present"
+    }
+
+    $verify = [System.Xml.XmlDocument]::new()
+    $verify.LoadXml((Read-CmreUtf8 -Path $abilPath))
+    $verifiedTrain1 = $verify.SelectSingleNode("/Catalog/CAbilTrain[@id='BarracksTrain']/InfoArray[@index='Train1']")
+    if ($null -eq $verifiedTrain1) {
+        throw "Native Computer catalog overlay verification failed: BarracksTrain/Train1 is missing"
+    }
+    $verifiedUnit = $verifiedTrain1.SelectSingleNode("./Unit[@value='Marine']")
+    if ($null -eq $verifiedUnit -or $verifiedUnit.GetAttribute("value") -ne "Marine") {
+        throw "Native Computer catalog overlay verification failed: BarracksTrain/Train1 is not Marine"
+    }
+}
+
+function Install-CmreNativeComputerMapCatalogOverlay {
+    param(
+        [Parameter(Mandatory = $true)][string]$MapPath
+    )
+
+    # Keep the compatibility fix in the map adapter layer as well as the
+    # staged CMRE mod. Map-local catalog data has the final load precedence and
+    # avoids depending on the mod cache's merge order.
+    $gameData = Join-Path $MapPath "Base.SC2Data\GameData"
+    $abilPath = Join-Path $gameData "AbilData.xml"
+    [System.IO.Directory]::CreateDirectory($gameData) | Out-Null
+
+    $document = [System.Xml.XmlDocument]::new()
+    $catalog = $document.CreateElement("Catalog")
+    [void]$document.AppendChild($catalog)
+    # CMRE's BarracksTrain is a partial override used by the commander
+    # production cards. Do not inherit it here: its parent only retains a
+    # Tech Lab command, and that partial catalog entry makes an otherwise
+    # visible child command fail UnitOrderIsValid at runtime. Keep this
+    # map-local Computer card self-contained and native-costed.
+    $ability = $document.CreateElement("CAbilTrain")
+    $ability.SetAttribute("id", "P2MarineTrain")
+    $categories = $document.CreateElement("EditorCategories")
+    $categories.SetAttribute("value", "Race:Terran,AbilityorEffectType:Structures")
+    [void]$ability.AppendChild($categories)
+    $queueFlag = $document.CreateElement("Flags")
+    $queueFlag.SetAttribute("index", "UnitOrderQueue")
+    $queueFlag.SetAttribute("value", "1")
+    [void]$ability.AppendChild($queueFlag)
+    $range = $document.CreateElement("Range")
+    $range.SetAttribute("value", "5")
+    [void]$ability.AppendChild($range)
+    $info = $document.CreateElement("InfoArray")
+    $info.SetAttribute("index", "Train1")
+    $info.SetAttribute("Time", "25")
+    $button = $document.CreateElement("Button")
+    $button.SetAttribute("DefaultButtonFace", "Marine")
+    $button.SetAttribute("State", "Available")
+    $button.SetAttribute("Requirements", "")
+    $unit = $document.CreateElement("Unit")
+    $unit.SetAttribute("value", "Marine")
+    [void]$info.AppendChild($button)
+    [void]$info.AppendChild($unit)
+    [void]$ability.AppendChild($info)
+    [void]$catalog.AppendChild($ability)
+
+    $settings = [System.Xml.XmlWriterSettings]::new()
+    $settings.Encoding = [System.Text.UTF8Encoding]::new($false)
+    $settings.Indent = $true
+    $stream = [System.IO.MemoryStream]::new()
+    $writer = [System.Xml.XmlWriter]::Create($stream, $settings)
+    try {
+        $document.Save($writer)
+    } finally {
+        $writer.Dispose()
+    }
+    [System.IO.File]::WriteAllBytes($abilPath, $stream.ToArray())
+    $stream.Dispose()
+
+    $unitPath = Join-Path $gameData "UnitData.xml"
+    $unitDocument = [System.Xml.XmlDocument]::new()
+    $unitDocument.PreserveWhitespace = $true
+    if (Test-Path -LiteralPath $unitPath -PathType Leaf) {
+        $unitDocument.LoadXml((Read-CmreUtf8 -Path $unitPath))
+    } else {
+        $unitCatalog = $unitDocument.CreateElement("Catalog")
+        [void]$unitDocument.AppendChild($unitCatalog)
+    }
+    $unitCatalog = $unitDocument.SelectSingleNode("/Catalog")
+    if ($null -eq $unitCatalog) {
+        throw "Native Computer map catalog overlay could not find UnitData Catalog"
+    }
+    $barracksOverride = $unitCatalog.SelectSingleNode("./CUnit[@id='Barracks']")
+    if ($null -eq $barracksOverride) {
+        $barracksOverride = $unitDocument.CreateElement("CUnit")
+        $barracksOverride.SetAttribute("id", "Barracks")
+        [void]$unitCatalog.AppendChild($barracksOverride)
+    }
+    $nativeAbility = $barracksOverride.SelectSingleNode("./AbilArray[@Link='BarracksTrain']")
+    if ($null -eq $nativeAbility) {
+        $nativeAbility = $unitDocument.CreateElement("AbilArray")
+        $nativeAbility.SetAttribute("Link", "BarracksTrain")
+        [void]$barracksOverride.AppendChild($nativeAbility)
+    }
+    $producedMarine = $barracksOverride.SelectSingleNode("./TechTreeProducedUnitArray[@value='Marine']")
+    if ($null -eq $producedMarine) {
+        $producedMarine = $unitDocument.CreateElement("TechTreeProducedUnitArray")
+        $producedMarine.SetAttribute("value", "Marine")
+        [void]$barracksOverride.AppendChild($producedMarine)
+    }
+    $p2Ability = $barracksOverride.SelectSingleNode("./AbilArray[@Link='P2MarineTrain']")
+    if ($null -eq $p2Ability) {
+        $p2Ability = $unitDocument.CreateElement("AbilArray")
+        $p2Ability.SetAttribute("Link", "P2MarineTrain")
+        [void]$barracksOverride.AppendChild($p2Ability)
+    }
+    $cardLayout = $barracksOverride.SelectSingleNode("./CardLayouts[@index='0']")
+    if ($null -eq $cardLayout) {
+        $cardLayout = $unitDocument.CreateElement("CardLayouts")
+        $cardLayout.SetAttribute("index", "0")
+        [void]$barracksOverride.AppendChild($cardLayout)
+    }
+    $nativeMarineButton = $cardLayout.SelectSingleNode("./LayoutButtons[@AbilCmd='BarracksTrain,Train1']")
+    if ($null -eq $nativeMarineButton) {
+        $nativeMarineButton = $unitDocument.CreateElement("LayoutButtons")
+        $nativeMarineButton.SetAttribute("Face", "Marine")
+        $nativeMarineButton.SetAttribute("Type", "AbilCmd")
+        $nativeMarineButton.SetAttribute("AbilCmd", "BarracksTrain,Train1")
+        $nativeMarineButton.SetAttribute("Row", "0")
+        $nativeMarineButton.SetAttribute("Column", "0")
+        [void]$cardLayout.AppendChild($nativeMarineButton)
+    }
+    $marineButton = $cardLayout.SelectSingleNode("./LayoutButtons[@AbilCmd='P2MarineTrain,Train1']")
+    if ($null -eq $marineButton) {
+        $marineButton = $unitDocument.CreateElement("LayoutButtons")
+        $marineButton.SetAttribute("Face", "Marine")
+        $marineButton.SetAttribute("Type", "AbilCmd")
+        $marineButton.SetAttribute("AbilCmd", "P2MarineTrain,Train1")
+        $marineButton.SetAttribute("Row", "0")
+        $marineButton.SetAttribute("Column", "0")
+        [void]$cardLayout.AppendChild($marineButton)
+    }
+    $unitSettings = [System.Xml.XmlWriterSettings]::new()
+    $unitSettings.Encoding = [System.Text.UTF8Encoding]::new($false)
+    $unitSettings.Indent = $true
+    $unitStream = [System.IO.MemoryStream]::new()
+    $unitWriter = [System.Xml.XmlWriter]::Create($unitStream, $unitSettings)
+    try {
+        $unitDocument.Save($unitWriter)
+    } finally {
+        $unitWriter.Dispose()
+    }
+    [System.IO.File]::WriteAllBytes($unitPath, $unitStream.ToArray())
+    $unitStream.Dispose()
+
+    $verify = [System.Xml.XmlDocument]::new()
+    $verify.LoadXml((Read-CmreUtf8 -Path $abilPath))
+    $verified = $verify.SelectSingleNode("/Catalog/CAbilTrain[@id='P2MarineTrain']/InfoArray[@index='Train1']/Unit[@value='Marine']")
+    if ($null -eq $verified -or $verified.GetAttribute("value") -ne "Marine") {
+        throw "Native Computer map catalog overlay verification failed: P2MarineTrain/Train1 is not Marine"
+    }
+    $unitVerify = [System.Xml.XmlDocument]::new()
+    $unitVerify.LoadXml((Read-CmreUtf8 -Path $unitPath))
+    $unitLink = $unitVerify.SelectSingleNode("/Catalog/CUnit[@id='Barracks']/AbilArray[@Link='P2MarineTrain']")
+    if ($null -eq $unitLink) {
+        throw "Native Computer map catalog overlay verification failed: Barracks does not link P2MarineTrain"
+    }
+    $nativeLink = $unitVerify.SelectSingleNode("/Catalog/CUnit[@id='Barracks']/AbilArray[@Link='BarracksTrain']")
+    if ($null -eq $nativeLink) {
+        throw "Native Computer map catalog overlay verification failed: Barracks does not link BarracksTrain"
+    }
+    $producedVerify = $unitVerify.SelectSingleNode("/Catalog/CUnit[@id='Barracks']/TechTreeProducedUnitArray[@value='Marine']")
+    if ($null -eq $producedVerify) {
+        throw "Native Computer map catalog overlay verification failed: Barracks does not produce Marine"
+    }
+    $nativeButtonVerify = $unitVerify.SelectSingleNode("/Catalog/CUnit[@id='Barracks']/CardLayouts[@index='0']/LayoutButtons[@AbilCmd='BarracksTrain,Train1']")
+    if ($null -eq $nativeButtonVerify) {
+        throw "Native Computer map catalog overlay verification failed: Barracks does not expose native Marine card"
+    }
+    $buttonVerify = $unitVerify.SelectSingleNode("/Catalog/CUnit[@id='Barracks']/CardLayouts[@index='0']/LayoutButtons[@AbilCmd='P2MarineTrain,Train1']")
+    if ($null -eq $buttonVerify) {
+        throw "Native Computer map catalog overlay verification failed: Barracks does not expose P2MarineTrain card"
+    }
+    Write-Host "Native Computer map catalog overlay: staged P2MarineTrain/Train1 -> Marine"
+}
+
 function Assert-CmreCommanderSelectionRemoved {
     param([Parameter(Mandatory = $true)][string]$MapPath)
     $baseData = Join-Path $MapPath "Base.SC2Data"

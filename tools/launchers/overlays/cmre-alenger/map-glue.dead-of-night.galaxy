@@ -3,6 +3,7 @@ trigger gt_CmreOnDemandDeadOfNightPoll;
 trigger gt_CmreOnDemandCommanderStartingUnits;
 trigger gt_CmreOnDemandRuntimeListener;
 trigger gt_CmreOnDemandComputerAllyReady;
+trigger gt_CmreOnDemandComputerAllyEconomy;
 trigger gt_CmreOnDemandAllyChat;
 string gv_CmreOnDemandAllyFallbackLastCommand = "";
 
@@ -26,9 +27,11 @@ void gf_CmreOnDemandAllyEcho(string message) {
 bool gf_CmreOnDemandAllyChatCommand(string chat) {
     string command;
     unitgroup p2Units;
+    unitgroup p2CombatUnits;
     unitgroup enemyUnits;
     unit target;
     int p2Count;
+    int p2CombatCount;
     int enemyCount;
 
     if (StringFind(chat, "!ally ", false) != 1) { return true; }
@@ -53,7 +56,15 @@ bool gf_CmreOnDemandAllyChatCommand(string chat) {
         UnitFilter(0, 0, (1 << c_targetFilterMissile),
             (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
     p2Count = UnitGroupCount(p2Units, c_unitCountAlive);
+    // Worker and structure ownership is economic state, never tactical state.
+    // The third UnitFilter mask is the excluded target-filter set.
+    p2CombatUnits = UnitGroup(null, 2, RegionEntireMap(),
+        UnitFilter(0, 0,
+            (1 << c_targetFilterWorker) | (1 << c_targetFilterStructure) | (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    p2CombatCount = UnitGroupCount(p2CombatUnits, c_unitCountAlive);
     gf_CmreOnDemandWriteAllyDebugInt("fallback_p2_unit_count", p2Count);
+    gf_CmreOnDemandWriteAllyDebugInt("fallback_p2_combat_unit_count", p2CombatCount);
 
     if (command == "status") {
         gf_CmreOnDemandAllyEcho("[Ally P2] Status: " + IntToString(p2Count) + " living units; mode=ready.");
@@ -66,7 +77,12 @@ bool gf_CmreOnDemandAllyChatCommand(string chat) {
         return true;
     }
     if ((command == "follow") || (command == "regroup") || (command == "defend") || (command == "retreat")) {
-        UnitGroupIssueOrder(p2Units,
+        if (p2CombatCount <= 0) {
+            gf_CmreOnDemandAllyEcho("[Ally P2] Acknowledged: " + command + ". No combat units available; workers remain mining.");
+            gf_CmreOnDemandWriteAllyDebugString("fallback_last_result", "no_combat_units");
+            return true;
+        }
+        UnitGroupIssueOrder(p2CombatUnits,
             OrderTargetingPoint(AbilityCommand("move", 0), PlayerStartLocation(1)),
             c_orderQueueReplace);
         gf_CmreOnDemandAllyEcho("[Ally P2] Acknowledged: " + command + ". Moving to P1 defense point.");
@@ -75,6 +91,11 @@ bool gf_CmreOnDemandAllyChatCommand(string chat) {
         return true;
     }
     if (command == "attack") {
+        if (p2CombatCount <= 0) {
+            gf_CmreOnDemandAllyEcho("[Ally P2] Acknowledged: attack. No combat units available; workers remain mining.");
+            gf_CmreOnDemandWriteAllyDebugString("fallback_last_result", "no_combat_units");
+            return true;
+        }
         enemyUnits = UnitGroupAlliance(2, c_unitAllianceEnemy, RegionEntireMap(),
             UnitFilter(0, 0, (1 << c_targetFilterMissile),
                 (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
@@ -86,7 +107,7 @@ bool gf_CmreOnDemandAllyChatCommand(string chat) {
             return true;
         }
         target = UnitGroupClosestToPoint(enemyUnits, PlayerStartLocation(1));
-        UnitGroupIssueOrder(p2Units,
+        UnitGroupIssueOrder(p2CombatUnits,
             OrderTargetingUnit(AbilityCommand("attack", 0), target),
             c_orderQueueReplace);
         gf_CmreOnDemandAllyEcho("[Ally P2] Acknowledged: attack. P2 units engaging hostile target.");
@@ -176,6 +197,13 @@ bool gt_CmreOnDemandComputerAllyReady_Func(bool testConds, bool runActions) {
     libNtve_gf_SetAlliance(2, 1,
         libNtve_ge_AllianceSetting_AllyWithSharedVisionAndPushable);
     AIMeleeStart(2);
+    // Keep P2 on the native Terran town/build/train pipeline. Stock requests
+    // cooperate with the map AI instead of racing it with raw SCV orders.
+    AIDefaultEconomy(2, "CommandCenter", "Refinery", "SupplyDepot", "SCV", 20, c_stockAlways);
+    AIDefaultExpansion(2, "CommandCenter", 400, 0, c_expandDefault);
+    AISetStock(2, 1, "Refinery");
+    AISetStock(2, 1, "Barracks");
+    AISetStock(2, 8, "Marine");
     gf_CmreOnDemandWriteAllyDebugInt("computer_ally_ready", 1);
     gf_CmreOnDemandWriteAllyDebugInt("p2_player_type", 2);
     gf_CmreOnDemandWriteAllyDebugInt("p2_native_ai_path", 1);
@@ -190,6 +218,455 @@ bool gt_CmreOnDemandComputerAllyReady_Func(bool testConds, bool runActions) {
     return true;
 }
 
+
+void gf_CmreOnDemandComputerAllyEconomyTick() {
+    unitgroup workerUnits;
+    unitgroup idleWorkers;
+    unitgroup mineralFields;
+    unitgroup townHalls;
+    unitgroup idleTownHalls;
+    unitgroup barracks;
+    unitgroup idleBarracks;
+    unitgroup marines;
+    unit worker;
+    unit resource;
+    unit townHall;
+    point buildPoint;
+    int workerCount;
+    int idleWorkerCount;
+    int mineralCount;
+    int mineralsAvailable;
+    int workerScanCount;
+    int barracksQueuedCount;
+    int barracksCompleteCount;
+    int barracksOrderCount;
+    int barracksOrderCommand;
+    int marineQueuedCount;
+    int marineCompleteCount;
+    string townHallType;
+    string barracksType;
+    string workerTrainAbility;
+    int workerTrainCommand;
+    string combatTrainAbility;
+    string barracksOrderAbility;
+    string barracksAbility;
+    int combatTrainCommand;
+    int barracksAbilityIndex;
+    int combatMineralCost;
+    string combatFallbackAbility;
+    int combatFallbackCommand;
+    string buildAbility;
+    int buildCommand;
+    int probeCommand;
+    order combatOrder;
+    bool combatOrderValid;
+    bool combatOrderIssued;
+    bool barracksScriptControlled;
+    bool empireWorker;
+    bool barracksTrainAllowed;
+
+    if (PlayerType(2) != c_playerTypeComputer) { return; }
+
+    workerUnits = UnitGroup(null, 2, RegionEntireMap(),
+        UnitFilter((1 << c_targetFilterWorker), 0, (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    workerCount = UnitGroupCount(workerUnits, c_unitCountAlive);
+    if (workerCount <= 0) { return; }
+
+    empireWorker = (UnitGetType(UnitGroupUnit(workerUnits, 1)) == "3diguolaogong");
+    if (empireWorker) {
+        // Computer players do not pass through the Empire adapter's user-player
+        // unlock loop. Unlock only the catalog that is actually present.
+        TechTreeUnitAllow(2, "3diguolaogong", true);
+        TechTreeUnitAllow(2, "3diguobingying", true);
+        TechTreeUnitAllow(2, "3diguochongfengdui", true);
+        TechTreeAbilityAllow(2, AbilityCommand("3jianzao1", 0), true);
+        TechTreeAbilityAllow(2, AbilityCommand("3jianzao1", 3), true);
+        TechTreeAbilityAllow(2, AbilityCommand("3xunlian1", 0), true);
+        TechTreeAbilityAllow(2, AbilityCommand("3xunlian2A", 0), true);
+        townHallType = "3diguoqianshaojidi";
+        barracksType = "3diguobingying";
+        workerTrainAbility = "3xunlian1";
+        workerTrainCommand = 0;
+        combatTrainAbility = "3xunlian2A";
+        combatTrainCommand = 0;
+        combatMineralCost = 30;
+        buildAbility = "3jianzao1";
+        buildCommand = 3;
+    } else {
+        // P2 is a native Terran Computer slot on this map: use the real SCV,
+        // Command Center, Barracks, and Marine catalog rather than Empire
+        // abilities. P1 remains the Empire commander.
+        // The map's cooperative startup may leave the Computer player with
+        // campaign restrictions. Re-open only the standard opening tech that
+        // this adapter actually uses; do not unlock the Empire catalog on P2.
+        TechTreeRequirementsEnable(2, false);
+        TechTreeUnitAllow(2, "SCV", true);
+        TechTreeUnitAllow(2, "CommandCenter", true);
+        TechTreeUnitAllow(2, "Barracks", true);
+        TechTreeUnitAllow(2, "Marine", true);
+        TechTreeAbilityAllow(2, AbilityCommand("CommandCenterTrain", 0), true);
+        // Use the native BarracksTrain command restored by the launcher
+        // overlay. The map-local P2MarineTrain compatibility card remains
+        // available for catalog inspection but is not the strategy path.
+        TechTreeAbilityAllow(2, AbilityCommand("BarracksTrain", 0), true);
+        TechTreeAbilityAllow(2, AbilityCommand("P2MarineTrain", 0), true);
+        // This merged CMRE catalog exposes the Marine producer command as 0;
+        // the live command census is authoritative for this map adapter.
+        TechTreeAbilityAllow(2, AbilityCommand("BarracksTrain", 7), true);
+        TechTreeAbilityAllow(2, AbilityCommand("TerranBuild", 1), true);
+        TechTreeAbilityAllow(2, AbilityCommand("TerranBuild", 2), true);
+        TechTreeAbilityAllow(2, AbilityCommand("TerranBuild", 3), true);
+        townHallType = "CommandCenter";
+        barracksType = "Barracks";
+        workerTrainAbility = "CommandCenterTrain";
+        workerTrainCommand = 1;
+        combatTrainAbility = "BarracksTrain";
+        // The launcher restores BarracksTrain,Train1 to the native Marine.
+        combatTrainCommand = 0;
+        combatFallbackAbility = "P2MarineTrain";
+        combatFallbackCommand = 0;
+        combatMineralCost = 50;
+        buildAbility = "TerranBuild";
+        // TerranBuild/1 is Supply Depot, /2 is Refinery, /3 is Barracks.
+        buildCommand = 3;
+    }
+
+    mineralFields = UnitGroup(null, c_playerAny, RegionEntireMap(),
+        UnitFilter((1 << c_targetFilterHarvestableResource), 0, (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    mineralCount = UnitGroupCount(mineralFields, c_unitCountAlive);
+    if (mineralCount <= 0) { return; }
+
+    idleWorkers = UnitGroupFilter(null, 2, UnitGroupIdle(2, false),
+        UnitFilter((1 << c_targetFilterWorker), 0, (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    idleWorkerCount = UnitGroupCount(idleWorkers, c_unitCountAlive);
+    mineralsAvailable = PlayerGetPropertyInt(2, c_playerPropMinerals);
+
+    townHalls = UnitGroup(townHallType, 2, RegionEntireMap(),
+        UnitFilter(0, 0, (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    if (UnitGroupCount(townHalls, c_unitCountAlive) > 0) {
+        townHall = UnitGroupUnit(townHalls, 1);
+    }
+
+    // Establish one real production building from an idle worker. Keep the
+    // construction order out of the gather reclaim pass below.
+    barracks = UnitGroup(barracksType, 2, RegionEntireMap(),
+        UnitFilter(0, 0, (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    marines = UnitGroup("Marine", 2, RegionEntireMap(),
+        UnitFilter(0, 0, (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    barracksOrderCount = 0;
+    barracksOrderCommand = -1;
+    barracksOrderAbility = "";
+    if (UnitGroupCount(barracks, c_unitCountAlive) > 0) {
+        barracksOrderCount = UnitOrderCount(UnitGroupUnit(barracks, 1));
+        if (barracksOrderCount > 0) {
+            barracksOrderAbility = AbilityCommandGetAbility(
+                OrderGetAbilityCommand(UnitOrder(UnitGroupUnit(barracks, 1), 0)));
+            barracksOrderCommand = AbilityCommandGetCommand(
+                OrderGetAbilityCommand(UnitOrder(UnitGroupUnit(barracks, 1), 0)));
+        }
+    }
+    gf_CmreOnDemandWriteAllyDebugInt("p2_economy_scv_count", workerCount);
+    gf_CmreOnDemandWriteAllyDebugInt("p2_economy_minerals", mineralsAvailable);
+    gf_CmreOnDemandWriteAllyDebugInt("p2_economy_barracks_count",
+        UnitGroupCount(barracks, c_unitCountAlive));
+    gf_CmreOnDemandWriteAllyDebugInt("p2_economy_marine_count",
+        UnitGroupCount(marines, c_unitCountAlive));
+    gf_CmreOnDemandWriteAllyDebugInt("p2_economy_barracks_order_count", barracksOrderCount);
+    gf_CmreOnDemandWriteAllyDebugInt("p2_economy_barracks_order_command", barracksOrderCommand);
+    gf_CmreOnDemandWriteAllyDebugString("p2_economy_barracks_order_ability", barracksOrderAbility);
+    if (UnitGroupCount(barracks, c_unitCountAlive) > 0) {
+        if (UnitAbilityExists(UnitGroupUnit(barracks, 1), "BarracksTrain")) {
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_barracks_has_standard_train", 1);
+        } else {
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_barracks_has_standard_train", 0);
+        }
+        if (UnitAbilityExists(UnitGroupUnit(barracks, 1), "BarracksTrainNova")) {
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_barracks_has_nova_train", 1);
+        } else {
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_barracks_has_nova_train", 0);
+        }
+        if (UnitAbilityExists(UnitGroupUnit(barracks, 1), "P2MarineTrain")) {
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_barracks_has_p2marine_train", 1);
+        } else {
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_barracks_has_p2marine_train", 0);
+        }
+        barracksAbilityIndex = 1;
+        while (barracksAbilityIndex <= UnitAbilityCount(UnitGroupUnit(barracks, 1))
+            && barracksAbilityIndex <= 16) {
+            barracksAbility = UnitAbilityGet(
+                UnitGroupUnit(barracks, 1), barracksAbilityIndex);
+            gf_CmreOnDemandWriteAllyDebugString(
+                "p2_economy_barracks_ability_" + IntToString(barracksAbilityIndex),
+                barracksAbility);
+            barracksAbilityIndex += 1;
+        }
+    }
+    if (!empireWorker) {
+        // CMRE's coop-AI think loop periodically clears stock. Read the
+        // native tech counters first, then submit explicit native build/train
+        // requests owned by P2's Computer AI.
+        barracksQueuedCount = TechTreeUnitCount(2, barracksType, c_techCountQueuedOrBetter);
+        barracksCompleteCount = TechTreeUnitCount(2, barracksType, c_techCountCompleteOnly);
+        marineQueuedCount = TechTreeUnitCount(2, "Marine", c_techCountQueuedOrBetter);
+        marineCompleteCount = TechTreeUnitCount(2, "Marine", c_techCountCompleteOnly);
+        // Read-only command census. This distinguishes a catalog/producer
+        // problem from a bad Galaxy command index without issuing extra
+        // orders or mutating P2 state.
+    if ((UnitGroupCount(barracks, c_unitCountAlive) > 0)
+        && (barracksCompleteCount > 0)) {
+            barracksScriptControlled = AIIsScriptControlled(UnitGroupUnit(barracks, 1));
+            gf_CmreOnDemandWriteAllyDebugInt(
+                "p2_economy_barracks_script_controlled_before",
+                BoolToInt(barracksScriptControlled));
+            if (barracksScriptControlled) {
+                // A producer owned by the Computer must remain on the native
+                // AI pipeline. Map wave scripts may mark units as scripted;
+                // clear that flag only on this P2 producer before dispatch.
+                AISetUnitScriptControlled(UnitGroupUnit(barracks, 1), false);
+                gf_CmreOnDemandWriteAllyDebugInt(
+                    "p2_economy_barracks_script_controlled_cleared", 1);
+            }
+            else {
+                gf_CmreOnDemandWriteAllyDebugInt(
+                    "p2_economy_barracks_script_controlled_cleared", 0);
+            }
+            gf_CmreOnDemandWriteAllyDebugString(
+                "p2_economy_catalog_barracks_abil0",
+                CatalogFieldValueGet(c_gameCatalogUnit, "Barracks", "AbilArray[0].Link", 2));
+            gf_CmreOnDemandWriteAllyDebugString(
+                "p2_economy_catalog_barracks_produced0",
+                CatalogFieldValueGet(c_gameCatalogUnit, "Barracks", "TechTreeProducedUnitArray[0].Value", 2));
+            gf_CmreOnDemandWriteAllyDebugString(
+                "p2_economy_catalog_p2marine_unit0",
+                CatalogFieldValueGet(c_gameCatalogAbil, "P2MarineTrain", "InfoArray[0].Unit[0]", 2));
+            probeCommand = 0;
+            while (probeCommand <= 13) {
+                gf_CmreOnDemandWriteAllyDebugInt(
+                    "p2_economy_probe_barracks_train_" + IntToString(probeCommand),
+                    BoolToInt(UnitOrderIsValid(UnitGroupUnit(barracks, 1),
+                        Order(AbilityCommand("BarracksTrain", probeCommand)))));
+                gf_CmreOnDemandWriteAllyDebugInt(
+                    "p2_economy_probe_p2marine_train_" + IntToString(probeCommand),
+                    BoolToInt(UnitOrderIsValid(UnitGroupUnit(barracks, 1),
+                        Order(AbilityCommand("P2MarineTrain", probeCommand)))));
+                probeCommand += 1;
+            }
+            gf_CmreOnDemandWriteAllyDebugInt(
+                "p2_economy_barracks_train_hidden",
+                BoolToInt(UnitCheckAbilCmdState(UnitGroupUnit(barracks, 1),
+                    AbilityCommand("BarracksTrain", 0), c_cmdStateHidden)));
+            gf_CmreOnDemandWriteAllyDebugInt(
+                "p2_economy_barracks_train_disabled",
+                BoolToInt(UnitCheckAbilCmdState(UnitGroupUnit(barracks, 1),
+                    AbilityCommand("BarracksTrain", 0), c_cmdStateDisabled)));
+            gf_CmreOnDemandWriteAllyDebugInt(
+                "p2_economy_barracks_train_no_minerals",
+                BoolToInt(UnitCheckAbilCmdState(UnitGroupUnit(barracks, 1),
+                    AbilityCommand("BarracksTrain", 0), c_cmdStateNoMinerals)));
+            gf_CmreOnDemandWriteAllyDebugInt(
+                "p2_economy_p2marine_train_hidden",
+                BoolToInt(UnitCheckAbilCmdState(UnitGroupUnit(barracks, 1),
+                    AbilityCommand("P2MarineTrain", 0), c_cmdStateHidden)));
+            gf_CmreOnDemandWriteAllyDebugInt(
+                "p2_economy_p2marine_train_disabled",
+                BoolToInt(UnitCheckAbilCmdState(UnitGroupUnit(barracks, 1),
+                    AbilityCommand("P2MarineTrain", 0), c_cmdStateDisabled)));
+            gf_CmreOnDemandWriteAllyDebugInt(
+                "p2_economy_p2marine_train_no_minerals",
+                BoolToInt(UnitCheckAbilCmdState(UnitGroupUnit(barracks, 1),
+                    AbilityCommand("P2MarineTrain", 0), c_cmdStateNoMinerals)));
+        }
+        barracksTrainAllowed = TechTreeAbilityIsAllowed(
+            2, AbilityCommand(combatTrainAbility, combatTrainCommand));
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_barracks_queued_count", barracksQueuedCount);
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_barracks_complete_count", barracksCompleteCount);
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_marine_queued_count", marineQueuedCount);
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_marine_complete_count", marineCompleteCount);
+        if (barracksTrainAllowed) {
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_barracks_train_allowed", 1);
+        }
+        else {
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_barracks_train_allowed", 0);
+        }
+        if ((barracksQueuedCount <= 0) && (AIGetInternalBuildQueueCount(2) <= 0)) {
+            AIBuild(2, c_makePriorityTown, c_townMain, "Barracks", 1, c_makeDefault);
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_native_build_requests", 1);
+        }
+        AISetStock(2, 1, "Refinery");
+        AISetStock(2, 1, "Barracks");
+        // Keep a real native Marine stock target. AITrain below is the normal
+        // Computer production path; the explicit order is only a bounded
+        // fallback when the map's coop think loop leaves the producer idle.
+        AISetStock(2, 8, "Marine");
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_native_train_requests", 1);
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_native_stock_orders", 1);
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_ai_build_queue",
+            AIGetInternalBuildQueueCount(2));
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_ai_train_queue",
+            AIGetInternalTrainQueueCount(2));
+    }
+    if (townHall != null) {
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_command_center_orders",
+            UnitOrderCount(townHall));
+    }
+    if ((UnitGroupCount(barracks, c_unitCountAlive) <= 0)
+        && (mineralsAvailable >= 150) && (workerCount > 0)
+        && (townHall != null)) {
+        worker = UnitGroupUnitFromEnd(workerUnits, workerCount);
+        // Use the engine placement search against the actual map footprint.
+        // A fixed offset can overlap map-owned structures near the P2 base.
+        buildPoint = UnitTypePlacementFromPoint(
+            barracksType, 2, UnitGetPosition(townHall), 12.0);
+        if (buildPoint != null) {
+            UnitIssueOrder(worker,
+                OrderTargetingPoint(AbilityCommand(buildAbility, buildCommand), buildPoint),
+                c_orderQueueReplace);
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_build_orders", 1);
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_build_point_available", 1);
+        } else {
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_build_point_available", 0);
+        }
+    }
+
+    // Train workers from an idle town hall so P2 keeps replacing workers.
+    if ((UnitGroupCount(townHalls, c_unitCountAlive) > 0)
+        && (townHall != null) && (UnitOrderCount(townHall) == 0)
+        // Once the first Barracks is complete, reserve the next 50 minerals
+        // for the native Marine request instead of starving it with SCVs.
+        && (workerCount < 20) && (mineralsAvailable >= 50)
+        && ((barracksCompleteCount <= 0) || (marineCompleteCount > 0))) {
+        UnitIssueOrder(townHall,
+            Order(AbilityCommand(workerTrainAbility, workerTrainCommand)),
+            c_orderQueueReplace);
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_worker_train_orders", 1);
+    }
+
+    // Keep a narrow catalog-order fallback for maps whose coop-AI queue does
+    // not dispatch AITrain. Never train from an unfinished or forbidden
+    // producer, and never add workers/structures to the tactical group.
+    if (!empireWorker && (barracksCompleteCount > 0) && barracksTrainAllowed
+        && (mineralsAvailable >= combatMineralCost)
+        && (marineCompleteCount < 12)
+        && !((barracksOrderAbility == combatTrainAbility)
+            && (barracksOrderCommand == combatTrainCommand))) {
+        // The map's cooperative AI can leave a stale internal train queue
+        // while the real Barracks remains idle. Clear only that P2 queue,
+        // then issue one order against the real P2-owned producer. If the
+        // map-local adapter command is unavailable, retain the native AI
+        // request as a diagnostic fallback.
+        AIClearTrainQueue(2);
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_train_queue_cleared", 1);
+        combatOrder = Order(AbilityCommand(combatTrainAbility, combatTrainCommand));
+        combatOrderValid = UnitOrderIsValid(UnitGroupUnit(barracks, 1), combatOrder);
+        if (!combatOrderValid) {
+            // The map-local card is a real P2-owned producer action. Use it
+            // only when the merged native BarracksTrain card is rejected.
+            combatOrder = Order(AbilityCommand(combatFallbackAbility, combatFallbackCommand));
+            combatOrderValid = UnitOrderIsValid(UnitGroupUnit(barracks, 1), combatOrder);
+            gf_CmreOnDemandWriteAllyDebugInt(
+                "p2_economy_combat_train_fallback_valid", BoolToInt(combatOrderValid));
+        }
+        if (combatOrderValid) {
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_combat_train_order_valid_before", 1);
+        } else {
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_combat_train_order_valid_before", 0);
+        }
+        // UnitOrderIsValid is not reliable for this map's merged catalog: it
+        // rejects the same typed command that the producer accepts. Dispatch
+        // the real P2-owned order, then use the producer's live order state as
+        // the success criterion.
+        combatOrderIssued = UnitIssueOrder(UnitGroupUnit(barracks, 1), combatOrder,
+            c_orderQueueReplace);
+        gf_CmreOnDemandWriteAllyDebugInt(
+            "p2_economy_combat_train_dispatch_return", BoolToInt(combatOrderIssued));
+        barracksOrderCount = UnitOrderCount(UnitGroupUnit(barracks, 1));
+        barracksOrderAbility = "";
+        barracksOrderCommand = -1;
+        if (barracksOrderCount > 0) {
+            barracksOrderAbility = AbilityCommandGetAbility(
+                OrderGetAbilityCommand(UnitOrder(UnitGroupUnit(barracks, 1), 0)));
+            barracksOrderCommand = AbilityCommandGetCommand(
+                OrderGetAbilityCommand(UnitOrder(UnitGroupUnit(barracks, 1), 0)));
+        }
+        if (((barracksOrderAbility == combatTrainAbility)
+                && (barracksOrderCommand == combatTrainCommand))
+            || ((barracksOrderAbility == combatFallbackAbility)
+                && (barracksOrderCommand == combatFallbackCommand))) {
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_combat_train_order_valid", 1);
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_combat_train_orders", 1);
+        } else {
+            AITrain(2, c_makePriorityAttack, c_townMain, "Marine", 1);
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_native_train_requests", 1);
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_combat_train_order_valid", 0);
+            gf_CmreOnDemandWriteAllyDebugInt("p2_economy_combat_train_orders", 0);
+        }
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_ai_train_queue_after_request",
+            AIGetInternalTrainQueueCount(2));
+        // Re-read immediately. A zero order here means the catalog command
+        // was rejected by the producer; a later zero means another AI loop
+        // removed an order that was accepted by the Barracks.
+        barracksOrderCount = UnitOrderCount(UnitGroupUnit(barracks, 1));
+        barracksOrderAbility = "";
+        barracksOrderCommand = -1;
+        if (barracksOrderCount > 0) {
+            barracksOrderAbility = AbilityCommandGetAbility(
+                OrderGetAbilityCommand(UnitOrder(UnitGroupUnit(barracks, 1), 0)));
+            barracksOrderCommand = AbilityCommandGetCommand(
+                OrderGetAbilityCommand(UnitOrder(UnitGroupUnit(barracks, 1), 0)));
+        }
+        marineQueuedCount = TechTreeUnitCount(2, "Marine", c_techCountQueuedOrBetter);
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_combat_train_order_after_count", barracksOrderCount);
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_combat_train_order_after_command", barracksOrderCommand);
+        gf_CmreOnDemandWriteAllyDebugString("p2_economy_combat_train_order_after_ability", barracksOrderAbility);
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_marine_queued_after_order", marineQueuedCount);
+    }
+
+    // Native melee AI may send SCVs to move or attack. Reclaim every worker
+    // except one with a live construction order; workers never join combat.
+    workerScanCount = UnitGroupCount(workerUnits, c_unitCountAlive);
+    while (workerScanCount > 0) {
+        worker = UnitGroupUnitFromEnd(workerUnits, workerScanCount);
+        workerScanCount -= 1;
+        if (worker == null) { continue; }
+        if ((UnitOrderCount(worker) > 0)
+            && (AbilityCommandGetAbility(OrderGetAbilityCommand(UnitOrder(worker, 0))) == buildAbility
+                || AbilityCommandGetAbility(OrderGetAbilityCommand(UnitOrder(worker, 0))) == "3jianzao1"
+                || AbilityCommandGetAbility(OrderGetAbilityCommand(UnitOrder(worker, 0))) == "3jianzao2")) {
+            continue;
+        }
+        resource = UnitGroupClosestToPoint(mineralFields, UnitGetPosition(worker));
+        if (resource == null) { continue; }
+        UnitIssueOrder(worker,
+            OrderTargetingUnit(AbilityCommand("smart", 0), resource),
+            c_orderQueueReplace);
+        gf_CmreOnDemandWriteAllyDebugInt("p2_economy_gather_orders", 1);
+    }
+}
+
+bool gt_CmreOnDemandComputerAllyEconomy_Func(bool testConds, bool runActions) {
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    Wait(8.0, c_timeGame);
+    while (true) {
+        gf_CmreOnDemandComputerAllyEconomyTick();
+        Wait(5.0, c_timeGame);
+    }
+    return true;
+}
+
+void gt_CmreOnDemandComputerAllyEconomy_Init() {
+    gt_CmreOnDemandComputerAllyEconomy = TriggerCreate(
+        "gt_CmreOnDemandComputerAllyEconomy_Func");
+    TriggerExecute(gt_CmreOnDemandComputerAllyEconomy, false, true);
+}
+
+
 void gt_CmreOnDemandComputerAllyReady_Init() {
     gt_CmreOnDemandComputerAllyReady = TriggerCreate(
         "gt_CmreOnDemandComputerAllyReady_Func");
@@ -200,6 +677,7 @@ void gt_CmreOnDemandComputerAllyReady_Init() {
     // event queue. Execute once here so the native Computer slot is still
     // initialized and audited in that approved launcher topology.
     TriggerExecute(gt_CmreOnDemandComputerAllyReady, false, true);
+    gt_CmreOnDemandComputerAllyEconomy_Init();
 }
 
 int gf_CmreOnDemandProfileInt(string key) {

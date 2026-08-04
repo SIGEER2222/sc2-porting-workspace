@@ -580,20 +580,47 @@ class AllyPolicy:
             mode_reason = "leader_support_threat" if leader_threats else "visible_enemy_contact"
         elif self._mode_model is not None:
             try:
-                prediction = self._mode_model.predict_mode(
-                    obs,
-                    requested_mode=self._mode.value,
-                    base_region=(self.base_x, self.base_y, self.base_r),
-                    support_range=self.support_range,
-                )
-                mode = AllyMode(str(prediction.label))
+                if hasattr(self._mode_model, "predict_intent"):
+                    # The selected PyTorch policy exposes the complete typed
+                    # intent. Keep that wire shape in the trace while using
+                    # its tactical head for the existing mode state machine.
+                    intent = self._mode_model.predict_intent(
+                        obs,
+                        requested_mode=self._mode.value,
+                        decision_id=f"p2-ml-{int(loop)}",
+                        issuer_player_id=self.player_id,
+                        base_region=(self.base_x, self.base_y, self.base_r),
+                        support_range=self.support_range,
+                    )
+                    mode = AllyMode(str(intent.tactical))
+                    self._last_ml_prediction = intent.to_dict()
+                    self._last_ml_prediction.update({
+                        "label": mode.value,
+                        "tactical_confidence": float(
+                            intent.probabilities.get("tactical", {}).get(
+                                mode.value, intent.confidence
+                            )
+                        ),
+                        "loop": int(loop),
+                    })
+                else:
+                    # Keep the legacy dependency-free adapter available for
+                    # historical simulator fixtures, but do not use it for
+                    # the native checkpoint path.
+                    prediction = self._mode_model.predict_mode(
+                        obs,
+                        requested_mode=self._mode.value,
+                        base_region=(self.base_x, self.base_y, self.base_r),
+                        support_range=self.support_range,
+                    )
+                    mode = AllyMode(str(prediction.label))
+                    self._last_ml_prediction = {
+                        "label": mode.value,
+                        "confidence": float(prediction.confidence),
+                        "probabilities": dict(prediction.probabilities),
+                        "loop": int(loop),
+                    }
                 self._ml_decision_count += 1
-                self._last_ml_prediction = {
-                    "label": mode.value,
-                    "confidence": float(prediction.confidence),
-                    "probabilities": dict(prediction.probabilities),
-                    "loop": int(loop),
-                }
                 mode_reason = f"ml_policy:{mode.value}"
             except (AttributeError, KeyError, TypeError, ValueError):
                 # A malformed optional checkpoint must not bypass the normal

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import math
 import os
@@ -66,6 +67,7 @@ try:
     from .defend_policy import DefendAction, DefendBasePolicy
     from .consumers.ally_ai import AllyAction, AllyPolicy
     from .strategy_audit import audit_native_strategy
+    from .map_source import MapSource, read_map_source, resolve_map_source
 except ImportError:
     # Support the documented direct-script invocation as well as package imports.
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -75,6 +77,7 @@ except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from vibe.consumers.ally_ai import AllyAction, AllyPolicy  # type: ignore
     from strategy_audit import audit_native_strategy  # type: ignore
+    from vibe.map_source import MapSource, read_map_source, resolve_map_source  # type: ignore
 
 # 默认地图（已验证可加载，3MB 打包版）
 DEFAULT_MAP = r"E:\SC2\SC2new\StarCraft II\Maps\亡者之夜_p0_default_packed.SC2Map"
@@ -153,7 +156,13 @@ def _resolve_runtime_map_metadata(map_path: str, runtime_map_name: str) -> dict:
     return metadata
 
 
-def _write_live_replay_header(replay_fp, metadata: dict, computer_ally: bool) -> None:
+def _write_live_replay_header(
+    replay_fp,
+    metadata: dict,
+    computer_ally: bool,
+    map_source_audit: Optional[dict] = None,
+    mode_model_summary: Optional[dict] = None,
+) -> None:
     replay_fp.write(json.dumps({
         "record_type": "header",
         "schema_version": "live-runtime-v1",
@@ -175,6 +184,14 @@ def _write_live_replay_header(replay_fp, metadata: dict, computer_ally: bool) ->
         "native_strategy": not computer_ally,
         "native_computer_ally": computer_ally,
         "debug_injection": False,
+        "map_source_audit": map_source_audit or {
+            "status": "not_resolved",
+            "evidence_type": "blocked",
+        },
+        "mode_model": mode_model_summary or {
+            "enabled": False,
+            "evidence_type": "inference",
+        },
     }, ensure_ascii=False) + "\n")
     replay_fp.flush()
 
@@ -490,6 +507,9 @@ def build_observation(resp: sc_pb.Response, player_id: int) -> LiveObservation:
         "vespene": pc.vespene if pc else 0,
         "supply_used": int(pc.food_used) if pc else 0,
         "supply_cap": int(pc.food_cap) if pc else 0,
+        # A live observation is versioned by the SC2 game loop. This is the
+        # stale-snapshot guard consumed by the typed P2 intent contract.
+        "state_version": int(game_loop),
     }
 
     alliance_summary: list[dict] = []
@@ -556,6 +576,41 @@ def _ability_id(name: str) -> int:
     return _build_ability_map().get(name, 0)
 
 
+RuntimeAbilityCatalog = dict[tuple[str, int], int]
+
+
+async def fetch_runtime_ability_catalog(
+    conn: Sc2Connection,
+    *,
+    verbose: bool = False,
+) -> RuntimeAbilityCatalog:
+    """Read the active map/mod ability IDs from SC2's runtime Catalog."""
+    response = await conn.send_request(
+        sc_pb.Request(data=sc_pb.RequestData(ability_id=True)),
+        timeout=30,
+    )
+    if response.error:
+        raise RuntimeError(
+            "runtime ability catalog request failed: "
+            + ", ".join(str(error) for error in response.error)
+        )
+    catalog = {
+        (str(ability.link_name), int(ability.link_index)): int(ability.ability_id)
+        for ability in response.data.abilities
+    }
+    if verbose:
+        print(f"  Runtime Catalog: abilities={len(catalog)}")
+    return catalog
+
+
+EMPIRE_BUILD_COMMANDS: dict[str, tuple[str, int]] = {
+    "CommandCenter": ("3jianzao1", 0),
+    "Barracks": ("3jianzao1", 3),
+    "Factory": ("3jianzao1", 10),
+    "Starport": ("3jianzao1", 11),
+}
+
+
 # ---------------------------------------------------------------------------
 # unit_type_id → ability_name 映射表
 # ---------------------------------------------------------------------------
@@ -607,6 +662,7 @@ def build_action(
     a: DefendAction,
     player_id: int,
     source_unit_type_int: int = 0,
+    runtime_ability_catalog: Optional[RuntimeAbilityCatalog] = None,
 ) -> Optional[sc_pb.Action]:
     """把 DefendAction 转成 SC2 Action。返回 None 表示跳过（如 hold）。"""
     if a.kind == "hold":
@@ -644,7 +700,11 @@ def build_action(
         if not ability_name:
             return None  # 未知单位类型，跳过（runner 会记 train:no_action）
         aid = (
-            17443
+            (
+                runtime_ability_catalog.get(("3xunlian1", 0), 0)
+                if runtime_ability_catalog is not None
+                else 17443
+            )
             if source_unit_type_int == 4390 and a.unit_type_id == "SCV"
             else _ability_id(ability_name)
         )
@@ -652,10 +712,18 @@ def build_action(
             return None  # ability_id 解析失败（ability_id.py 缺该条目）
         cmd.ability_id = aid
     elif a.kind == "build":
-        ability_name = BUILD_ABILITY_MAP.get(a.unit_type_id, "")
-        if not ability_name:
-            return None
-        aid = _ability_id(ability_name)
+        custom_command = (
+            EMPIRE_BUILD_COMMANDS.get(a.unit_type_id)
+            if source_unit_type_int == 4382 and runtime_ability_catalog is not None
+            else None
+        )
+        if custom_command is not None:
+            aid = runtime_ability_catalog.get(custom_command, 0)
+        else:
+            ability_name = BUILD_ABILITY_MAP.get(a.unit_type_id, "")
+            if not ability_name:
+                return None
+            aid = _ability_id(ability_name)
         if aid == 0:
             return None
         cmd.ability_id = aid
@@ -670,6 +738,124 @@ def build_action(
 
     action = sc_pb.Action(action_raw=raw_pb.ActionRaw(unit_command=cmd))
     return action
+
+
+class MapDrivenP1Policy:
+    """Drive the real P1 slot from the unpacked map's objective contract.
+
+    The policy delegates economy and production to the existing typed policy,
+    then replaces idle combat orders with movement toward the exact
+    ``ObjectPoint`` selected by ``MapScript.galaxy``.  Once a real shard is
+    visible, it attacks the observed SC2 unit tag.  It never creates, removes,
+    teleports, or mutates a unit/resource state.
+    """
+
+    def __init__(
+        self,
+        source: MapSource,
+        base_region: tuple[float, float, float],
+        command_interval: int,
+    ) -> None:
+        self.source = source
+        self.economy = DefendBasePolicy(
+            player_id=P1_PLAYER_ID,
+            base_region=base_region,
+            command_interval=command_interval,
+        )
+        self.objective_trace: list[dict] = []
+        self._last_objective_key = ""
+
+    @staticmethod
+    def _is_combat(unit: dict) -> bool:
+        unit_type = str(unit.get("unit_type_id", ""))
+        return unit_type not in (
+            DefendBasePolicy.WORKER_TYPES
+            | DefendBasePolicy.BUILDING_TYPES
+            | set(DefendBasePolicy.PRODUCER_TYPES)
+            | DefendBasePolicy.NON_COMBAT_TYPES
+        )
+
+    def _stage_for_loop(self, loop: int) -> Optional[dict]:
+        stages = self.source.script.get("stages", [])
+        elapsed = float(loop) / 22.4
+        for stage in stages:
+            if stage.get("spawn_seconds") is not None and elapsed <= float(stage["spawn_seconds"]):
+                return stage
+        return stages[-1] if stages else None
+
+    def decide(self, obs: LiveObservation, loop: int, resources: dict) -> list[DefendAction]:
+        actions = self.economy.decide(obs, loop, resources=resources)
+        own_by_id = {int(unit["entity_id"]): unit for unit in obs.own_units}
+        combat_ids = {
+            int(unit["entity_id"])
+            for unit in obs.own_units
+            if self._is_combat(unit)
+        }
+        if not combat_ids:
+            return actions
+
+        shard_targets = [
+            enemy for enemy in obs.visible_enemies
+            if int(enemy.get("owner", 0)) == 7
+            or "voidshard" in str(enemy.get("unit_type_id", "")).lower()
+        ]
+        stage = self._stage_for_loop(loop)
+        target = None
+        if shard_targets:
+            target = min(
+                shard_targets,
+                key=lambda item: min(
+                    math.hypot(
+                        float(item.get("x", 0.0)) - float(point["position"]["x"]),
+                        float(item.get("y", 0.0)) - float(point["position"]["y"]),
+                    )
+                    for point in (stage or {}).get("points", [])
+                ) if stage and stage.get("points") else 0.0,
+            )
+
+        objective_key = (
+            f"shard:{int(target['entity_id'])}" if target is not None
+            else f"stage:{int(stage['stage'])}" if stage is not None else ""
+        )
+        if objective_key and objective_key != self._last_objective_key:
+            self._last_objective_key = objective_key
+            self.objective_trace.append({
+                "loop": int(loop),
+                "objective": objective_key,
+                "stage": stage,
+                "observed_target": target,
+                "source": "MapScript.galaxy+Objects/ObjectPoint",
+            })
+
+        replacement: dict[int, DefendAction] = {}
+        if target is not None:
+            for unit_id in sorted(combat_ids):
+                replacement[unit_id] = DefendAction(
+                    entity_id=unit_id,
+                    kind="attack",
+                    target_entity_id=int(target["entity_id"]),
+                    reason="map_objective_visible",
+                )
+        elif stage and stage.get("points"):
+            elapsed = float(loop) / 22.4
+            spawn_seconds = stage.get("spawn_seconds")
+            if spawn_seconds is None or elapsed >= float(spawn_seconds) - 180.0:
+                point = stage["points"][0]["position"]
+                for unit_id in sorted(combat_ids):
+                    replacement[unit_id] = DefendAction(
+                        entity_id=unit_id,
+                        kind="move",
+                        target_x=float(point["x"]),
+                        target_y=float(point["y"]),
+                        reason="map_objective_staging",
+                    )
+
+        if not replacement:
+            return actions
+        return [
+            action for action in actions
+            if int(action.entity_id) not in replacement
+        ] + [replacement[unit_id] for unit_id in sorted(replacement)]
 
 
 def build_ally_chat_action(message: str) -> sc_pb.Action:
@@ -704,6 +890,15 @@ def _p2_state(obs: LiveObservation) -> list[dict]:
             "unit_type_id": unit.get("unit_type_id", ""),
             "x": round(float(unit.get("x", 0.0)), 3),
             "y": round(float(unit.get("y", 0.0)), 3),
+            "build_progress": round(float(unit.get("build_progress", 1.0)), 3),
+            "orders": [
+                {
+                    "ability_id": int(order.get("ability_id", 0)),
+                    "progress": round(float(order.get("progress", 0.0)), 3),
+                    "target_unit_tag": int(order.get("target_unit_tag", 0)),
+                }
+                for order in unit.get("orders", [])
+            ],
         }
         for unit in units
         if int(unit.get("owner", 0)) == P2_PLAYER_ID
@@ -714,6 +909,91 @@ def _owner_state(obs: LiveObservation, owner_player_id: int) -> list[dict]:
     """Return only the requested owner from self/allied visible units."""
     units = obs.own_units + obs.visible_allies
     return [unit for unit in units if int(unit.get("owner", 0)) == owner_player_id]
+
+
+def build_p2_policy_observation(obs: LiveObservation) -> LiveObservation:
+    """Re-orient the public P1 observation into the P2 policy perspective.
+
+    The API client owns P1, so P2 units arrive as ``visible_allies``. This
+    helper only rearranges units already exposed by SC2's observation; it does
+    not read hidden world state or invent P2 resources. The model therefore
+    receives the same public contract it receives in simulator runs, with
+    unavailable P2 economy values represented as zero.
+    """
+
+    visible_units = list(obs.own_units) + list(obs.visible_allies)
+    p2_units = [
+        unit for unit in visible_units
+        if int(unit.get("owner", 0)) == P2_PLAYER_ID
+    ]
+    p1_units = [
+        unit for unit in visible_units
+        if int(unit.get("owner", 0)) == P1_PLAYER_ID
+    ]
+    return LiveObservation(
+        loop=obs.loop,
+        player_id=P2_PLAYER_ID,
+        own_units=p2_units,
+        visible_enemies=list(obs.visible_enemies),
+        resources={
+            "minerals": 0,
+            "vespene": 0,
+            "supply_used": 0,
+            "supply_cap": 0,
+            "state_version": int(obs.loop),
+            "source": "not_visible_from_p1",
+        },
+        mission=dict(obs.mission),
+        visible_allies=p1_units,
+        alliance_summary=list(obs.alliance_summary),
+        mineral_fields=list(obs.mineral_fields),
+        vespene_geysers=list(obs.vespene_geysers),
+    )
+
+
+MODEL_MODE_TO_COMMAND = {
+    "follow": "follow",
+    "regroup": "regroup",
+    "defend_base": "defend",
+    "assist_attack": "attack",
+    "retreat": "retreat",
+    "hold": "hold",
+}
+
+
+def load_p2_intent_model(model_path: str | Path) -> tuple[object, dict]:
+    """Load only the versioned PyTorch P2 intent checkpoint.
+
+    The native bridge must fail closed for the historical JSON MLP or any
+    schema-drifted checkpoint. Returning a summary alongside the model keeps
+    provenance in the runtime report and Bank request trace.
+    """
+
+    path = Path(model_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"P2 intent model checkpoint not found: {path}")
+    try:
+        from .ml.encoder import FEATURE_SCHEMA, feature_schema_hash
+        from .ml.model import MODEL_SCHEMA, load_checkpoint
+    except ImportError:
+        from ml.encoder import FEATURE_SCHEMA, feature_schema_hash  # type: ignore
+        from ml.model import MODEL_SCHEMA, load_checkpoint  # type: ignore
+
+    model = load_checkpoint(path, device="cpu")
+    summary = {
+        "enabled": True,
+        "backend": "pytorch",
+        "evidence_type": "runtime",
+        "path": str(path),
+        "schema": MODEL_SCHEMA,
+        "feature_schema": FEATURE_SCHEMA,
+        "feature_schema_hash": feature_schema_hash(),
+        "checkpoint_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "controller_player_id": P2_PLAYER_ID,
+        "transport": "GalaxyVibe Bank -> Galaxy PollLoop -> P2-owned UnitGroup orders",
+        "p2_resources": "not_visible_from_p1_zeroed",
+    }
+    return model, summary
 
 
 def _has_p1_p2_participant_roster(player_roster: dict) -> bool:
@@ -777,17 +1057,32 @@ def _queue_runtime_ally_command(
     command: str,
     bank_name: str = "GalaxyVibe",
     bank_path: Optional[Path] = None,
+    issuer_player_id: int = P1_PLAYER_ID,
+    source: str = "p1_chat",
+    model_schema: str = "",
+    model_hash: str = "",
+    decision_id: str = "",
 ) -> tuple[bool, str]:
-    """Mirror a real P1 chat command for API-mode Galaxy polling.
+    """Queue a typed ally command for API-mode Galaxy polling.
 
     SC2 API can expose the chat message to the client while not delivering the
     corresponding Galaxy ChatMessage event. The map PollLoop consumes this
-    short-lived, explicitly P1-tagged bridge record and runs the same command
-    handler as the manual chat path.
+    short-lived bridge record. P1 chat and the external P2 model use separate
+    issuer/source fields so the model never impersonates a player command.
     """
     normalized = str(command).strip()
     if not normalized.startswith("!ally "):
         return False, "ally command must start with '!ally '"
+    issuer = int(issuer_player_id)
+    normalized_source = str(source).strip()
+    if issuer not in {P1_PLAYER_ID, P2_PLAYER_ID}:
+        return False, "ally issuer must be player 1 or player 2"
+    if issuer == P1_PLAYER_ID and normalized_source != "p1_chat":
+        return False, "player 1 ally commands require source=p1_chat"
+    if issuer == P2_PLAYER_ID and normalized_source != "ml_policy":
+        return False, "player 2 ally commands require source=ml_policy"
+    if issuer == P2_PLAYER_ID and (not model_schema or not model_hash or not decision_id):
+        return False, "model ally commands require schema, hash, and decision_id"
     target = bank_path or _runtime_bank_path(bank_name)
     if not target.exists():
         return False, f"bank not found: {target}"
@@ -815,11 +1110,36 @@ def _queue_runtime_ally_command(
             value_node.set(value_kind, value)
 
         set_value("pending_command", "string", normalized)
-        set_value("pending_player_id", "int", str(P1_PLAYER_ID))
+        set_value("pending_player_id", "int", str(issuer))
+        set_value("pending_source", "string", normalized_source)
+        set_value("pending_model_schema", "string", model_schema)
+        set_value("pending_model_hash", "string", model_hash)
+        set_value("pending_decision_id", "string", decision_id)
         tree.write(target, encoding="utf-8", xml_declaration=True)
     except (OSError, ET.ParseError, ValueError) as exc:
         return False, str(exc)
     return True, ""
+
+
+def _ack_mode_model_decisions(
+    decision_trace: list[dict], bank_state: dict, current_loop: int
+) -> None:
+    """Close ML requests only after Galaxy records the matching P2 result."""
+    last_command = str(bank_state.get("last_command", ""))
+    last_result = str(bank_state.get("last_result", ""))
+    if not last_command or not last_result:
+        return
+    for entry in decision_trace:
+        if (
+            entry.get("bridge_queued")
+            and not entry.get("acknowledged")
+            and entry.get("message") == last_command
+        ):
+            entry.update({
+                "acknowledged": True,
+                "ack_loop": int(current_loop),
+                "ack_result": last_result,
+            })
 
 
 def _find_nearest_mineral_field_live(mineral_fields: list[dict],
@@ -889,6 +1209,10 @@ class LiveGameReport:
     replay_html_path: str = ""
     native_replay_path: str = ""
     native_replay_error: str = ""
+    native_player_results: dict = field(default_factory=dict)
+    map_source_audit_path: str = ""
+    map_source_summary: dict = field(default_factory=dict)
+    map_objective_trace: list[dict] = field(default_factory=list)
     observed_player_id: int = P1_PLAYER_ID
     p2_unit_count: int = 0
     p2_alliance_values: list[int] = field(default_factory=list)
@@ -903,6 +1227,9 @@ class LiveGameReport:
     ally_bank_final: dict = field(default_factory=dict)
     native_ally_debug_initial: dict = field(default_factory=dict)
     native_ally_debug_final: dict = field(default_factory=dict)
+    runtime_catalog_summary: dict = field(default_factory=dict)
+    mode_model_summary: dict = field(default_factory=dict)
+    mode_model_decision_trace: list[dict] = field(default_factory=list)
 
 
 def _replay_entity(unit: dict, owner: int) -> dict:
@@ -916,6 +1243,8 @@ def _replay_entity(unit: dict, owner: int) -> dict:
         "y": float(unit.get("y", 0.0)),
         "hp": int(unit.get("health", 0)),
         "alive": int(unit.get("health", 0)) > 0,
+        "build_progress": round(float(unit.get("build_progress", 1.0)), 3),
+        "orders": list(unit.get("orders", [])),
     }
 
 
@@ -1154,6 +1483,10 @@ async def run_live(
     multiplayer_ports: bool = False,
     multiplayer_port_base: int = MULTIPLAYER_PORT_BASE,
     computer_ally: bool = True,
+    map_source_dir: Optional[str] = None,
+    map_source_audit_path: Optional[str] = None,
+    render_html: bool = False,
+    mode_model_path: Optional[str] = None,
 ) -> LiveGameReport:
     """运行真机 AI 盟友自主对局。
 
@@ -1170,8 +1503,21 @@ async def run_live(
         multiplayer_ports: 为旧双 Participant 探针提交共享端口拓扑
         multiplayer_port_base: shared Portconfig base port for multiplayer_ports
         computer_ally: use one P1 client plus native Computer P2 (the default)
+        map_source_dir: unpacked source map directory; auto-resolved for CMRE maps
+        map_source_audit_path: optional raw-map audit JSON path
+        render_html: opt-in legacy browser projection; native acceptance leaves it off
+        mode_model_path: optional PyTorch P2 intent checkpoint. The model
+            emits a typed four-head intent; the Galaxy bridge owns P2 order
+            execution after validating the tactical command projection.
     """
     start_time = time.time()
+    mode_model = None
+    mode_model_summary: dict = {
+        "enabled": bool(mode_model_path),
+        "evidence_type": "runtime" if mode_model_path else "inference",
+    }
+    if mode_model_path:
+        mode_model, mode_model_summary = load_p2_intent_model(mode_model_path)
     conn = Sc2Connection(port)
     await conn.connect()
     server_ports, client_ports = _multiplayer_port_topology(multiplayer_port_base)
@@ -1201,8 +1547,17 @@ async def run_live(
     initial_obs: Optional[LiveObservation] = None
     native_replay_path = ""
     native_replay_error = ""
+    native_player_results: dict[int, int] = {}
+    # None means the live Catalog request was unavailable. Keep that distinct
+    # from an intentionally resolved catalog so custom Empire commands do not
+    # silently turn into ability_id=0 no-ops.
+    runtime_ability_catalog: Optional[RuntimeAbilityCatalog] = None
+    runtime_catalog_summary: dict = {}
     map_name = os.path.basename(map_path)
     live_map_metadata: dict = dict(LIVE_MAP_METADATA)
+    map_source: Optional[MapSource] = None
+    map_source_summary: dict = {}
+    map_source_audit_file = ""
     local_map_path = ""
     strategy_player_id = P1_PLAYER_ID if computer_ally else P2_PLAYER_ID
     player_id = strategy_player_id
@@ -1355,6 +1710,34 @@ async def run_live(
         if verbose:
             print("  驱动首帧，让 Galaxy 地图初始化...")
         await _advance_non_realtime_startup(conn, verbose=verbose)
+        try:
+            runtime_ability_catalog = await fetch_runtime_ability_catalog(
+                conn,
+                verbose=verbose,
+            )
+            runtime_catalog_summary = {
+                "status": "resolved",
+                "evidence_type": "runtime",
+                "ability_count": len(runtime_ability_catalog),
+                "empire_commands": {
+                    f"{link}:{index}": runtime_ability_catalog.get((link, index), 0)
+                    for link, index in (
+                        ("3jianzao1", 0),
+                        ("3jianzao1", 3),
+                        ("3jianzao1", 10),
+                        ("3jianzao1", 11),
+                        ("3xunlian1", 0),
+                    )
+                },
+            }
+        except Exception as exc:
+            runtime_catalog_summary = {
+                "status": "blocked",
+                "evidence_type": "blocked",
+                "error": str(exc),
+            }
+            if verbose:
+                print(f"  Runtime Catalog unavailable: {exc}")
 
         # 5. GameInfo（获取地图名）
         r = await conn.send_request(sc_pb.Request(game_info=sc_pb.RequestGameInfo()), timeout=15)
@@ -1383,16 +1766,75 @@ async def run_live(
                 else "legacy P2 strategy requires two Participant slots; "
             )
             raise RuntimeError(roster_message + f"observed={player_roster}")
+        source_dir = resolve_map_source(map_name, map_source_dir)
+        if source_dir is not None:
+            map_source = read_map_source(source_dir)
+            map_source_summary = {
+                "status": "resolved",
+                "evidence_type": "static",
+                "map_dir": map_source.map_dir,
+                "map_name": map_source.map_name,
+                "source_hash": map_source.source_hash,
+                "object_unit_count": len(map_source.object_units),
+                "object_point_count": len(map_source.object_points),
+                "region_count": len(map_source.regions),
+                "component_count": len(map_source.component_hashes),
+                "p1_spawn_markers": [
+                    item for item in map_source.object_units
+                    if item.get("unit_type") == "ACHeroSpawnPlacement"
+                    and int(item.get("player", 0)) == P1_PLAYER_ID
+                ],
+                "p2_spawn_markers": [
+                    item for item in map_source.object_units
+                    if item.get("unit_type") == "ACHeroSpawnPlacement"
+                    and int(item.get("player", 0)) == P2_PLAYER_ID
+                ],
+                "objective_required_count": map_source.script.get("objective_required_count", 0),
+                "stages": map_source.script.get("stages", []),
+                "native_ai": map_source.script.get("native_ai", {}),
+                "alliance_contract": map_source.script.get("alliance_contract", {}),
+                "victory_triggers": map_source.script.get("victory_triggers", []),
+                "terrain": map_source.terrain,
+                "pathing": map_source.pathing,
+            }
+            audit_path = Path(map_source_audit_path) if map_source_audit_path else replay_path.with_name("map-source-audit.json")
+            audit_path.parent.mkdir(parents=True, exist_ok=True)
+            audit_path.write_text(
+                json.dumps(map_source.to_dict(), ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            map_source_audit_file = str(audit_path)
+        else:
+            map_source_summary = {
+                "status": "not_resolved",
+                "evidence_type": "blocked",
+                "runtime_map_name": map_name,
+                "requested_source_dir": map_source_dir,
+            }
         live_map_metadata = _resolve_runtime_map_metadata(map_path, map_name)
-        _write_live_replay_header(replay_fp, live_map_metadata, computer_ally)
+        live_map_metadata["map_source"] = map_source_summary
+        _write_live_replay_header(
+            replay_fp,
+            live_map_metadata,
+            computer_ally,
+            map_source_audit=map_source_summary,
+            mode_model_summary=mode_model_summary,
+        )
         if verbose:
             print(f"[5] Map: {map_name} | local_map_path={local_map_path}")
+            print(
+                "  Map source: "
+                f"{map_source_summary.get('status')} "
+                f"objects={map_source_summary.get('object_unit_count', 0)} "
+                f"points={map_source_summary.get('object_point_count', 0)} "
+                f"stages={len(map_source_summary.get('stages', []))}"
+            )
 
-        # 6. Native P2 task policy. P1 is the human player; this runner owns
-        # only P2 units and every raw action is issued by the P2 participant.
-        # The base marker is the map-owned P2 placement; the first observation
-        # may refine it to the actual native CommandCenter position.
-        policy: Optional[DefendBasePolicy] = None
+        # 6. Native task policy. In the Computer-ally topology P1 is the only
+        # API-controlled participant, while P2 remains a native Computer. The
+        # policy therefore issues only P1 actions and reads map objectives from
+        # the unpacked source contract.
+        policy: Optional[DefendBasePolicy | MapDrivenP1Policy] = None
         ally_policy: Optional[AllyPolicy] = None
         p1_command_trace: list[dict] = []
         p2_signal_trace: list[dict] = []
@@ -1401,6 +1843,9 @@ async def run_live(
         native_ally_debug_initial = _read_runtime_bank_section(
             "CMRERebornDebug", "debug"
         )
+        mode_model_decision_trace: list[dict] = []
+        last_mode_model_decide_loop = -10_000
+        last_mode_model_label = "follow"
 
         # 7. P1 chat is a real participant-to-participant command channel.
         # P2 parses it through the same AllyPolicy contract used by the
@@ -1468,11 +1913,29 @@ async def run_live(
                 initial_obs = obs
             current_loop = obs.loop
 
+            # A model command is acknowledged by the Galaxy side after the
+            # Bank PollLoop consumes its explicitly P2-tagged request. Keep
+            # this separate from the P1 chat command trace.
+            if mode_model_decision_trace:
+                model_bank = _read_runtime_bank_section()
+                for model_entry in mode_model_decision_trace:
+                    if model_entry.get("acknowledged"):
+                        continue
+                    if model_bank.get("last_model_decision_id") != model_entry["decision_id"]:
+                        continue
+                    model_entry["acknowledged"] = True
+                    model_entry["ack_loop"] = current_loop
+                    model_entry["ack_result"] = model_bank.get("last_result", "")
+                    model_entry["p2_after"] = _p2_state(obs)
+
             # 检查游戏是否结束
             if r.observation.player_result:
-                results = {pr.player_id: pr.result for pr in r.observation.player_result}
+                native_player_results = {
+                    int(pr.player_id): int(pr.result)
+                    for pr in r.observation.player_result
+                }
                 if verbose:
-                    print(f"  游戏结束: {results}")
+                    print(f"  游戏结束(player_result): {native_player_results}")
                 break
 
             for received in r.observation.chat:
@@ -1524,7 +1987,7 @@ async def run_live(
                         "request_ok": True,
                     })
 
-            if not computer_ally and policy is None:
+            if policy is None:
                 native_base = next(
                     (
                         unit for unit in obs.own_units
@@ -1542,11 +2005,18 @@ async def run_live(
                     )
                     if native_base is not None else default_p2_base
                 )
-                policy = DefendBasePolicy(
-                    player_id=player_id,
-                    base_region=base_region,
-                    command_interval=decision_interval,
-                )
+                if computer_ally and map_source is not None:
+                    policy = MapDrivenP1Policy(
+                        source=map_source,
+                        base_region=base_region,
+                        command_interval=decision_interval,
+                    )
+                else:
+                    policy = DefendBasePolicy(
+                        player_id=player_id,
+                        base_region=base_region,
+                        command_interval=decision_interval,
+                    )
             if not computer_ally and ally_policy is None:
                 leader_unit = next(
                     (
@@ -1581,14 +2051,20 @@ async def run_live(
             # Native strategy action adapter. Every entry in
             # action_result_trace comes from this block and is eligible for
             # the no-injection strategy audit.
-            if (not computer_ally
-                    and current_loop - last_native_decide_loop >= decision_interval):
+            if (
+                policy is not None
+                and current_loop - last_native_decide_loop >= decision_interval
+            ):
                 last_native_decide_loop = current_loop
                 policy_resources = dict(obs.resources)
                 policy_resources["vespene_geysers"] = obs.vespene_geysers
                 own_by_tag = {u["entity_id"]: u for u in obs.own_units}
                 actions = policy.decide(obs, current_loop, resources=policy_resources)
-                tactical_actions = ally_policy.decide(obs, current_loop)
+                tactical_actions = (
+                    ally_policy.decide(obs, current_loop)
+                    if not computer_ally and ally_policy is not None
+                    else []
+                )
                 tactical_ids = {
                     int(action.entity_id)
                     for action in tactical_actions
@@ -1676,6 +2152,7 @@ async def run_live(
                         action_for_transport,
                         player_id,
                         source_unit_type_int=source_unit.get("unit_type_int", 0),
+                        runtime_ability_catalog=runtime_ability_catalog,
                     )
                     if sc2_action is None:
                         cmd_fail_stats[f"{action_for_transport.kind}:no_action"] += 1
@@ -1755,8 +2232,23 @@ async def run_live(
             # unit group and writes the acknowledgement to the ally Bank.
             if current_loop - last_decide_loop >= decision_interval:
                 last_decide_loop = current_loop
-                if command_cursor < len(commands) and current_loop >= command_due_loops[command_cursor]:
+                _ack_mode_model_decisions(
+                    mode_model_decision_trace,
+                    _read_runtime_bank_section(),
+                    current_loop,
+                )
+                model_inflight = any(
+                    item.get("bridge_queued") and not item.get("acknowledged")
+                    for item in mode_model_decision_trace
+                )
+                p1_command_sent = False
+                if (
+                    not model_inflight
+                    and command_cursor < len(commands)
+                    and current_loop >= command_due_loops[command_cursor]
+                ):
                     command = str(commands[command_cursor]).strip()
+                    p1_command_sent = True
                     before_state = _p2_state(obs)
                     bank_before = _read_runtime_bank_section()
                     try:
@@ -1804,6 +2296,102 @@ async def run_live(
                             "bank_before": bank_before,
                         }
                     command_cursor += 1
+
+                # The external MLP is a P2 controller, not a second P1 chat
+                # client. It emits only a high-level mode; Galaxy validates
+                # the source/issuer and performs the P2-owned order.
+                model_inflight = any(
+                    item.get("bridge_queued") and not item.get("acknowledged")
+                    for item in mode_model_decision_trace
+                )
+                if (
+                    computer_ally
+                    and mode_model is not None
+                    and not p1_command_sent
+                    and not model_inflight
+                    and current_loop - last_mode_model_decide_loop >= decision_interval
+                ):
+                    last_mode_model_decide_loop = current_loop
+                    p2_view = build_p2_policy_observation(obs)
+                    p2_base = next(
+                        (
+                            unit for unit in p2_view.own_units
+                            if unit.get("unit_type_id") in {
+                                "CommandCenter", "OrbitalCommand", "PlanetaryFortress"
+                            }
+                        ),
+                        None,
+                    )
+                    p2_base_region = (
+                        (
+                            float(p2_base.get("x", default_p2_base[0])),
+                            float(p2_base.get("y", default_p2_base[1])),
+                            default_p2_base[2],
+                        )
+                        if p2_base is not None else default_p2_base
+                    )
+                    decision_id = f"p2-ml:{int(current_loop)}:{len(mode_model_decision_trace) + 1}"
+                    intent = mode_model.predict_intent(
+                        p2_view,
+                        requested_mode=last_mode_model_label,
+                        decision_id=decision_id,
+                        issuer_player_id=P2_PLAYER_ID,
+                        base_region=p2_base_region,
+                        support_range=14.0,
+                    )
+                    predicted_mode = str(intent.tactical)
+                    command_projection = str(intent.command)
+                    command_mode = MODEL_MODE_TO_COMMAND.get(
+                        command_projection
+                    ) or MODEL_MODE_TO_COMMAND.get(predicted_mode)
+                    model_entry = {
+                        "loop": current_loop,
+                        "decision_id": decision_id,
+                        "predicted_mode": predicted_mode,
+                        "command_projection": command_projection,
+                        "command_mode": command_mode or "rejected_unknown_mode",
+                        "intent": intent.to_dict(),
+                        "confidence": float(intent.confidence),
+                        "probabilities": dict(intent.probabilities),
+                        "observation_version": int(intent.observation_version),
+                        "issuer_player_id": P2_PLAYER_ID,
+                        "source": "ml_policy",
+                        "model_schema": mode_model_summary.get("schema", ""),
+                        "model_hash": mode_model_summary.get("checkpoint_sha256", ""),
+                        "p2_before": _p2_state(obs),
+                        "acknowledged": False,
+                    }
+                    if command_mode is None:
+                        model_entry.update({
+                            "bridge_queued": False,
+                            "bridge_error": "unknown_model_mode",
+                        })
+                    else:
+                        model_command = f"!ally {command_mode} {decision_id}"
+                        queued, queue_error = _queue_runtime_ally_command(
+                            model_command,
+                            issuer_player_id=P2_PLAYER_ID,
+                            source="ml_policy",
+                            model_schema=str(mode_model_summary.get("schema", "")),
+                            model_hash=str(mode_model_summary.get("checkpoint_sha256", "")),
+                            decision_id=decision_id,
+                        )
+                        model_entry.update({
+                            "message": model_command,
+                            "transport": "bank_to_galaxy_p2_order",
+                            "bridge_queued": queued,
+                            "bridge_error": queue_error,
+                        })
+                        if queued:
+                            total_commands_issued += 1
+                            total_commands_dispatched += 1
+                            cmd_ok_stats["ml_ally_mode"] += 1
+                            cmd_ok_by_kind["ml_ally_mode"] += 1
+                        else:
+                            cmd_fail_stats["ml_ally_mode"] += 1
+                            cmd_fail_by_kind["ml_ally_mode"] += 1
+                    mode_model_decision_trace.append(model_entry)
+                    last_mode_model_label = command_mode or predicted_mode
 
             if pending_command is not None:
                 bank_after = _read_runtime_bank_section()
@@ -1936,48 +2524,64 @@ async def run_live(
     p2_command_ack_observed = any(
         item.get("completed")
         and item.get("bank_after", {}).get("last_result")
-        in {"status", "acknowledged", "attack_issued", "attack_no_target"}
+        in {"status", "acknowledged", "attack_issued", "attack_no_target", "hold"}
         for item in ally_command_trace
     ) or bool(p2_signal_trace)
+    mode_model_bridge_ok = (
+        not bool(mode_model_path)
+        or any(
+            item.get("bridge_queued")
+            and item.get("acknowledged")
+            and item.get("issuer_player_id") == P2_PLAYER_ID
+            and item.get("source") == "ml_policy"
+            and item.get("model_hash") == mode_model_summary.get("checkpoint_sha256")
+            for item in mode_model_decision_trace
+        )
+    )
 
-    # 判定胜负
-    if p1_survivors > 0 and current_loop >= max_loops:
+    # A native run is complete only when SC2 emits a player_result. Reaching
+    # max_loops while units are alive is an observation cutoff, not victory.
+    p1_result = native_player_results.get(P1_PLAYER_ID)
+    if p1_result == 1:
         verdict = "victory"
-        summary = f"玩家存活到 loop {current_loop}，剩余 {p1_survivors} 单位"
-    elif p1_survivors == 0:
+        end_reason = "player_result_victory"
+        summary = f"SC2 player_result=Victory at loop {current_loop}"
+    elif p1_result == 2 or p1_survivors == 0:
         verdict = "defeat"
+        end_reason = "player_result_defeat" if p1_result == 2 else "p1_units_eliminated"
         summary = f"玩家在 loop {current_loop} 全灭"
     else:
         verdict = "inconclusive"
+        end_reason = "max_loops_reached" if current_loop >= max_loops else "game_over_without_player_result"
         summary = f"对局在 loop {current_loop} 结束"
 
     if computer_ally:
+        strategy_audit = audit_native_strategy(
+            action_result_trace,
+            initial_observation=(initial_obs.__dict__ if initial_obs is not None else None),
+            final_observation=(final_obs.__dict__ if final_obs is not None else None),
+            expected_player_id=P1_PLAYER_ID,
+            required_buildings=("Barracks", "Refinery"),
+            required_units=("Marine",),
+        )
         strategy_audit = {
-            "status": (
-                "PASS"
-                if roster_ready
-                and bool(p2_state)
-                and p2_state_delta_observed
-                and p2_command_ack_observed
-                and native_p2_melee_init_observed
-                else "FAIL"
-            ),
-            "mode": "native_computer_ally",
+            **strategy_audit,
+            "mode": "native_p1_map_driven_with_p2_computer_ally",
             "checks": {
-                "no_debug_injection": not any(
-                    entry.get("kind") in {"unit.spawn", "player.set_resource", "unit.kill"}
-                    for entry in action_result_trace
-                ),
+                **strategy_audit.get("checks", {}),
                 "state_observed_before_after": p2_state_delta_observed,
                 "p2_computer_roster": _has_p1_p2_computer_roster(player_roster),
                 "p2_command_acknowledged": p2_command_ack_observed,
                 "p2_owned_units_observed": bool(p2_state),
                 "p2_native_melee_init_observed": native_p2_melee_init_observed,
+                "map_source_resolved": map_source_summary.get("status") == "resolved",
+                "native_player_result_victory": p1_result == 1,
                 "raw_p2_actions_issued": False,
+                "mode_model_bridge": mode_model_bridge_ok,
             },
-            "action_count": 0,
-            "action_result_trace": [],
         }
+        if not mode_model_bridge_ok:
+            strategy_audit["status"] = "FAIL"
     else:
         strategy_audit = audit_native_strategy(
             action_result_trace,
@@ -1988,11 +2592,16 @@ async def run_live(
             required_units=("Marine",),
         )
 
-    replay_html_path = replay_path.with_name("full-map-player.html")
+    map_objective_trace = (
+        list(policy.objective_trace)
+        if isinstance(policy, MapDrivenP1Policy)
+        else []
+    )
+    replay_html_path = replay_path.with_name("full-map-player.html") if render_html else Path("")
     report = LiveGameReport(
         map_name=map_name,
         end_loop=current_loop,
-        end_reason="max_loops_reached" if current_loop >= max_loops else "game_over",
+        end_reason=end_reason,
         player1_survivors=p1_survivors,
         enemy_survivors=enemy_survivors,
         total_commands_issued=total_commands_issued,
@@ -2015,7 +2624,7 @@ async def run_live(
             "p2_owned_units_observed": len(p2_state) > 0,
             "action_results_correlated": action_result_count_mismatches == 0,
             "action_success_observed": (
-                p2_state_delta_observed if computer_ally
+                cmd_ok_stats.get("dispatched", 0) > 0 if computer_ally
                 else cmd_ok_stats.get("dispatched", 0) > 0
             ),
             "native_strategy_action_success": strategy_audit["status"] == "PASS",
@@ -2041,6 +2650,11 @@ async def run_live(
             ],
             "p1_command_received": bool(p1_command_trace),
             "p2_signal_observed": bool(p2_signal_trace),
+            "p2_ml_model_bridge": mode_model_bridge_ok,
+            "p2_ml_decision_observed": bool(mode_model_decision_trace),
+            "p2_ml_decision_acknowledged": any(
+                item.get("acknowledged") for item in mode_model_decision_trace
+            ),
             "ally_mode_observed": bool(
                 (computer_ally and p2_command_ack_observed)
                 or (ally_policy is not None and ally_policy.mode_history)
@@ -2054,9 +2668,13 @@ async def run_live(
         ),
         local_map_path=local_map_path,
         replay_log_path=str(replay_path),
-        replay_html_path=str(replay_html_path),
+        replay_html_path=str(replay_html_path) if render_html else "",
         native_replay_path=native_replay_path,
         native_replay_error=native_replay_error,
+        native_player_results={str(key): value for key, value in native_player_results.items()},
+        map_source_audit_path=map_source_audit_file,
+        map_source_summary=map_source_summary,
+        map_objective_trace=map_objective_trace,
         observed_player_id=strategy_player_id,
         p2_unit_count=len(p2_state),
         p2_alliance_values=sorted({int(item.get("alliance", 0)) for item in p2_state}),
@@ -2071,6 +2689,9 @@ async def run_live(
         ally_bank_final=ally_bank_final,
         native_ally_debug_initial=native_ally_debug_initial,
         native_ally_debug_final=native_ally_debug_final,
+        runtime_catalog_summary=runtime_catalog_summary,
+        mode_model_summary=mode_model_summary,
+        mode_model_decision_trace=mode_model_decision_trace,
     )
 
     # Keep the report as a final JSONL record so the same file is both a
@@ -2082,13 +2703,14 @@ async def run_live(
             "runtime_report": report.__dict__,
         }, ensure_ascii=False) + "\n")
 
-    try:
-        from .replay_player import load_replay, render_player_html
-        render_player_html(load_replay(replay_path), replay_path, replay_html_path)
-    except Exception as exc:
-        report.replay_html_path = ""
-        if verbose:
-            print(f"  Browser replay unavailable: {exc}")
+    if render_html:
+        try:
+            from .replay_player import load_replay, render_player_html
+            render_player_html(load_replay(replay_path), replay_path, replay_html_path)
+        except Exception as exc:
+            report.replay_html_path = ""
+            if verbose:
+                print(f"  Browser replay unavailable: {exc}")
 
     if verbose:
         print(f"\n=== 真机对局结束 ===")
@@ -2110,7 +2732,10 @@ async def run_live(
         print(f"行为断言: {report.runtime_assertions}")
         print(f"总结: {report.summary}")
         print(f"回放: {report.replay_log_path}")
-        print(f"可动回放: {report.replay_html_path}")
+        print(f"原生 SC2 回放: {report.native_replay_path}")
+        print(f"地图源审计: {report.map_source_audit_path}")
+        if report.replay_html_path:
+            print(f"可选浏览器投影: {report.replay_html_path}")
 
     return report
 
@@ -2175,7 +2800,30 @@ def main():
         "--replay-log",
         type=str,
         default=None,
-        help="真机 JSONL 回放路径（可交给 vibe.replay_player 生成 HTML）",
+        help="真机 JSONL 审计日志路径；原生 SC2Replay 与其同目录",
+    )
+    parser.add_argument(
+        "--map-source",
+        type=str,
+        default=None,
+        help="unpacked .SC2Map source directory; otherwise resolve by runtime map name",
+    )
+    parser.add_argument(
+        "--map-source-audit",
+        type=str,
+        default=None,
+        help="raw map source audit JSON path",
+    )
+    parser.add_argument(
+        "--render-html",
+        action="store_true",
+        help="explicitly enable the legacy browser projection; disabled by default",
+    )
+    parser.add_argument(
+        "--mode-model",
+        type=str,
+        default=None,
+        help="P2 imitation-learning checkpoint; model output is sent through the explicit Galaxy P2 bridge",
     )
     parser.add_argument("--quiet", action="store_true", help="静默模式")
     parser.add_argument("--output", type=str, default=None, help="报告输出 JSON 路径")
@@ -2208,6 +2856,10 @@ def main():
         multiplayer_port_base=args.multiplayer_port_base,
         replay_log_path=args.replay_log,
         computer_ally=args.computer_ally,
+        map_source_dir=args.map_source,
+        map_source_audit_path=args.map_source_audit,
+        render_html=args.render_html,
+        mode_model_path=args.mode_model,
     ))
 
     if args.output:

@@ -123,6 +123,48 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
         "TriggerExecute(gt_CmreOnDemandComputerAllyReady, false, true);",
     ]:
         assert required in generic_map_glue
+    # Both map fragments must keep the native Terran Computer economy on its
+    # standard catalog. The Empire-only worker abilities are a P1 concern.
+    for computer_map_glue in [map_glue, generic_map_glue]:
+        for required in [
+            'townHallType = "CommandCenter";',
+            'barracksType = "Barracks";',
+                'workerTrainAbility = "CommandCenterTrain";',
+                    'combatTrainAbility = "BarracksTrain";',
+                    'combatTrainCommand = 0;',
+            'buildAbility = "TerranBuild";',
+            'buildCommand = 3;',
+            'TechTreeRequirementsEnable(2, false);',
+            'TechTreeUnitAllow(2, "SCV", true);',
+            'TechTreeUnitAllow(2, "CommandCenter", true);',
+            'TechTreeUnitAllow(2, "Barracks", true);',
+            'TechTreeUnitAllow(2, "Marine", true);',
+                    'TechTreeAbilityAllow(2, AbilityCommand("CommandCenterTrain", 0), true);',
+                    'TechTreeAbilityAllow(2, AbilityCommand("BarracksTrain", 0), true);',
+                    'TechTreeAbilityAllow(2, AbilityCommand("P2MarineTrain", 0), true);',
+                    'TechTreeAbilityAllow(2, AbilityCommand("BarracksTrain", 7), true);',
+            'TechTreeAbilityAllow(2, AbilityCommand("TerranBuild", 3), true);',
+            'TechTreeAbilityIsAllowed(',
+            'TechTreeUnitCount(2, barracksType, c_techCountCompleteOnly)',
+            'AIBuild(2, c_makePriorityTown, c_townMain, "Barracks", 1, c_makeDefault);',
+            'AIClearTrainQueue(2);',
+            'UnitIssueOrder(UnitGroupUnit(barracks, 1), combatOrder,',
+            'UnitOrderIsValid(UnitGroupUnit(barracks, 1), combatOrder)',
+            'p2_economy_combat_train_order_valid_before',
+            'combatFallbackAbility = "P2MarineTrain";',
+            'p2_economy_combat_train_fallback_valid',
+            'p2_economy_combat_train_order_after_count',
+            'p2_economy_marine_queued_after_order',
+            'p2_economy_probe_barracks_train_',
+            'p2_economy_probe_p2marine_train_',
+                'c_orderQueueReplace);',
+            'UnitTypePlacementFromPoint(',
+            'UnitIssueOrder(worker,\n            OrderTargetingUnit(AbilityCommand("smart", 0), resource),',
+            'if ((UnitOrderCount(worker) > 0)',
+        ]:
+            assert required in computer_map_glue
+        assert 'AISetStock(2, 12, "Marine");' not in computer_map_glue
+        assert 'AISetStock(2, 8, "Marine");' in computer_map_glue
     assert "libVibeKernel_gf_RegisterEntryPoints();" in observer_overlay_body
     assert 'libMapModBridge_gf_WriteDebugBank("map_init_entered", 1);' in observer_overlay_body
     assert "Install-CmreTriggerCustomScriptOverlay" in observer_overlay_body
@@ -255,6 +297,46 @@ def test_headless_startup_is_the_default_non_selection_path():
     assert "Replace('include \"LibVibeKernel_h\"', 'include \"LibVibeKernel\"')" in overlay
     assert "declarations but no implementations" in overlay
     assert "Select-String -Pattern 'CommanderSelectionScreen' -SimpleMatch" in overlay
+
+
+def test_native_computer_catalog_overlay_restores_marine_before_map_load():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+    body = _function_body(overlay, "Install-CmreNativeComputerCatalogOverlay")
+
+    assert "Install-CmreNativeComputerCatalogOverlay -Sc2Root $Sc2Root" in source
+    assert "Install-CmreNativeComputerMapCatalogOverlay -MapPath $liveMap" in source
+    assert "CMRE_Core_Base.SC2Mod\\Base.SC2Data\\GameData\\AbilData.xml" in body
+    assert "/Catalog/CAbilTrain[@id='BarracksTrain']" in body
+    assert "./InfoArray[@index='Train1']" in body
+    assert 'SetAttribute("value", "Marine")' in body
+    assert 'SetAttribute("removed", "1")' in body
+    assert 'SetAttribute("Time", "25")' in body
+    assert 'SetAttribute("State", "Available")' in body
+    assert 'SetAttribute("Requirements", "")' in body
+    assert "Native Computer catalog overlay verification failed" in body
+    map_body = _function_body(overlay, "Install-CmreNativeComputerMapCatalogOverlay")
+    assert "/Catalog/CAbilTrain[@id='P2MarineTrain']" in map_body
+    assert 'SetAttribute("parent", "BarracksTrain")' not in map_body
+    assert 'SetAttribute("value", "Marine")' in map_body
+    assert 'SetAttribute("index", "UnitOrderQueue")' in map_body
+    assert "UnitData.xml" in map_body
+    assert "AbilArray[@Link='BarracksTrain']" in map_body
+    assert "TechTreeProducedUnitArray[@value='Marine']" in map_body
+    assert "LayoutButtons[@AbilCmd='BarracksTrain,Train1']" in map_body
+    assert "AbilArray[@Link='P2MarineTrain']" in map_body
+    assert "LayoutButtons[@AbilCmd='P2MarineTrain,Train1']" in map_body
+    assert 'SetAttribute("AbilCmd", "P2MarineTrain,Train1")' in map_body
+    assert "Barracks does not link P2MarineTrain" in map_body
+    assert "Barracks does not link BarracksTrain" in map_body
+    assert "Barracks does not produce Marine" in map_body
+    assert "Barracks does not expose native Marine card" in map_body
+    assert "Barracks does not expose P2MarineTrain card" in map_body
+    assert 'SetAttribute("State", "Available")' in map_body
+    assert "Install-CmreNativeComputerMapCatalogOverlay" in overlay
+    assert "UnitIssueOrder(UnitGroupUnit(barracks, 1), combatOrder" in (
+        (ASSETS / "map-glue.dead-of-night.galaxy").read_text(encoding="utf-8-sig")
+    )
 
 
 def test_launcher_serializes_sc2_runtime_and_never_kills_an_existing_instance():

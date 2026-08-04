@@ -9,6 +9,7 @@ sys.path.insert(0, str(ROOT / "src" / "projects" / "cmre-porting"))
 
 from vibe import run_dead_of_night_live as runner
 from vibe.defend_policy import DefendAction
+from vibe.ml.model import P2AllyPolicyNet, save_checkpoint
 from vibe.replay_player import load_replay, render_player_html
 from s2clientprotocol import raw_pb2
 
@@ -100,6 +101,64 @@ def test_live_action_adapter_uses_empire_gather_and_train_abilities():
     assert build_refinery.action_raw.unit_command.target_unit_tag == 77
 
 
+def test_live_action_adapter_uses_runtime_empire_catalog_for_custom_commands():
+    runtime_catalog = {
+        ("3jianzao1", 3): 6003,
+        ("3xunlian1", 0): 6004,
+    }
+    build_barracks = runner.build_action(
+        DefendAction(
+            entity_id=11,
+            kind="build",
+            unit_type_id="Barracks",
+            target_x=15.0,
+            target_y=20.0,
+        ),
+        player_id=2,
+        source_unit_type_int=4382,
+        runtime_ability_catalog=runtime_catalog,
+    )
+    train_scv = runner.build_action(
+        DefendAction(entity_id=12, kind="train", unit_type_id="SCV"),
+        player_id=2,
+        source_unit_type_int=4390,
+        runtime_ability_catalog=runtime_catalog,
+    )
+
+    assert build_barracks is not None
+    assert build_barracks.action_raw.unit_command.ability_id == 6003
+    assert train_scv is not None
+    assert train_scv.action_raw.unit_command.ability_id == 6004
+
+
+def test_ally_chat_tactical_group_excludes_workers_and_structures():
+    overlay_root = (
+        ROOT / "tools" / "launchers" / "overlays" / "cmre-alenger"
+    )
+    for name in ("map-glue.generic.galaxy", "map-glue.dead-of-night.galaxy"):
+        source = (overlay_root / name).read_text(encoding="utf-8")
+        assert "p2CombatUnits = UnitGroup(null, 2" in source
+        assert (
+            "(1 << c_targetFilterWorker) | (1 << c_targetFilterStructure)"
+            in source
+        )
+        assert "UnitGroupIssueOrder(p2CombatUnits" in source
+        assert "No combat units available; workers remain mining." in source
+
+
+def test_shared_kernel_accepts_only_explicit_p2_model_transport():
+    kernel = (
+        ROOT / "tools" / "galaxy-vibe" / "kernel" / "LibVibeKernel.galaxy"
+    ).read_text(encoding="utf-8")
+
+    assert "libVibeKernel_gf_ProcessModelAllyCommand" in kernel
+    assert 'pendingAllyPlayer == 2' in kernel
+    assert 'pendingAllySource == "ml_policy"' in kernel
+    assert 'last_issuer_player_id", 2' in kernel
+    assert "p2CombatUnits = UnitGroup(null, 2" in kernel
+    assert "c_targetFilterWorker) | (1 << c_targetFilterStructure)" in kernel
+
+
 def test_live_ally_command_is_a_p1_team_chat_message():
     action = runner.build_ally_chat_action("!ally defend stage25-test")
 
@@ -131,6 +190,102 @@ def test_live_api_ally_command_is_mirrored_to_p1_bank_bridge(tmp_path):
     }
     assert values["pending_command"] == {"string": "!ally attack stage25-bank-bridge"}
     assert values["pending_player_id"] == {"int": "1"}
+    assert values["pending_source"] == {"string": "p1_chat"}
+
+
+def test_live_model_command_is_explicitly_p2_owned_and_provenanced(tmp_path):
+    bank = tmp_path / "GalaxyVibe.SC2Bank"
+    bank.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<Bank version="1"><Section name="ally" /></Bank>',
+        encoding="utf-8",
+    )
+
+    ok, error = runner._queue_runtime_ally_command(
+        "!ally attack ml:22:1",
+        bank_path=bank,
+        issuer_player_id=runner.P2_PLAYER_ID,
+        source="ml_policy",
+        model_schema="cmre-ally-intent-pytorch.v2",
+        model_hash="checkpoint-hash",
+        decision_id="ml:22:1",
+    )
+
+    assert ok is True
+    assert error == ""
+    root = runner.ET.parse(bank).getroot()
+    section = next(item for item in root.findall("Section") if item.get("name") == "ally")
+    values = {
+        key.get("name"): key.find("Value").attrib
+        for key in section.findall("Key")
+    }
+    assert values["pending_player_id"] == {"int": "2"}
+    assert values["pending_source"] == {"string": "ml_policy"}
+    assert values["pending_model_schema"] == {"string": "cmre-ally-intent-pytorch.v2"}
+    assert values["pending_model_hash"] == {"string": "checkpoint-hash"}
+    assert values["pending_decision_id"] == {"string": "ml:22:1"}
+
+
+def test_live_model_bridge_acknowledges_only_matching_galaxy_result():
+    trace = [
+        {
+            "message": "!ally attack ml:22:1",
+            "bridge_queued": True,
+            "acknowledged": False,
+        },
+        {
+            "message": "!ally defend ml:22:2",
+            "bridge_queued": True,
+            "acknowledged": False,
+        },
+    ]
+
+    runner._ack_mode_model_decisions(
+        trace,
+        {"last_command": "!ally attack ml:22:1", "last_result": "attack_issued"},
+        current_loop=64,
+    )
+
+    assert trace[0]["acknowledged"] is True
+    assert trace[0]["ack_loop"] == 64
+    assert trace[0]["ack_result"] == "attack_issued"
+    assert trace[1]["acknowledged"] is False
+
+
+def test_live_runner_loads_only_versioned_pytorch_intent_checkpoint(tmp_path):
+    checkpoint = save_checkpoint(
+        P2AllyPolicyNet(hidden_dim=24, seed=7),
+        tmp_path / "ally-intent.pt",
+    )
+
+    model, summary = runner.load_p2_intent_model(checkpoint)
+
+    assert model.config()["input_dim"] == 49
+    assert summary["backend"] == "pytorch"
+    assert summary["schema"] == "cmre-ally-intent-pytorch.v2"
+    assert summary["feature_schema"] == "cmre-ally-observation.v2"
+    assert summary["controller_player_id"] == runner.P2_PLAYER_ID
+    assert summary["checkpoint_sha256"]
+
+
+def test_p2_policy_observation_reorients_only_public_units():
+    observation = runner.LiveObservation(
+        loop=22,
+        player_id=runner.P1_PLAYER_ID,
+        own_units=[{"entity_id": 11, "owner": 1, "unit_type_id": "Marine", "x": 1.0, "y": 1.0}],
+        visible_allies=[{"entity_id": 22, "owner": 2, "unit_type_id": "Marine", "x": 2.0, "y": 2.0}],
+        visible_enemies=[{"entity_id": 33, "owner": 3, "unit_type_id": "Zergling", "x": 3.0, "y": 3.0}],
+        resources={"minerals": 500, "vespene": 100},
+        mission={"stage": "opening"},
+    )
+
+    p2_view = runner.build_p2_policy_observation(observation)
+
+    assert p2_view.player_id == runner.P2_PLAYER_ID
+    assert [unit["owner"] for unit in p2_view.own_units] == [2]
+    assert [unit["owner"] for unit in p2_view.visible_allies] == [1]
+    assert [unit["owner"] for unit in p2_view.visible_enemies] == [3]
+    assert p2_view.resources["source"] == "not_visible_from_p1"
 
 
 def test_live_roster_requires_p1_and_p2_participants():
@@ -187,6 +342,7 @@ def test_live_observation_keeps_p1_as_p2_visible_ally():
     assert [unit["owner"] for unit in live.visible_allies] == [1]
     assert [unit["owner"] for unit in live.visible_enemies] == [3]
     assert live.visible_allies[0]["alliance"] == 2
+    assert live.resources["state_version"] == 10
 
 
 def test_live_trace_indexes_owned_refinery_as_gas_target():

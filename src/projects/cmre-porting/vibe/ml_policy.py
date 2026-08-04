@@ -425,6 +425,7 @@ def make_public_expert_dataset(
                 "step": int(index),
                 "requested_mode": requested,
                 "label": label,
+                "observation": observation,
                 "features": encode_observation(observation, requested, base_region),
                 "source": "public_observation_expert_rollout",
             })
