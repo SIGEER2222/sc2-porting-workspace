@@ -1,0 +1,24 @@
+{
+  "stage": "03-ppo-loop",
+  "issues": [
+    {
+      "id": "ISSUE-005",
+      "severity": "low",
+      "title": "PPO advantage normalization harmful for short episodes",
+      "description": "在 1-step 或 ≤5 step 的短 episode 上默认开启 advantage 归一化会使一半优势变负、一半变正，即使奖励恒正也会产生矛盾梯度信号，导致 PPO 学到反向偏好。G4 测试通过禁用 normalize_advantages + 关闭 entropy bonus 解决；但生产场景长 episode 上归一化仍是默认推荐配置。",
+      "impact": "仅影响 mini 场景测试。生产训练 episode 长度 ≥100 step 时归一化行为正常。",
+      "workaround": "短 episode 训练时显式传 `PPOTrainer(..., normalize_advantages=False)`",
+      "status": "documented"
+    },
+    {
+      "id": "ISSUE-006",
+      "severity": "medium",
+      "title": "FakeBackend 无动作相关奖励信号，无法验证真实收敛",
+      "description": "Stage 01 的 FakeBackend 奖励仅来自观察转换（progress、supply、base_hp），与具体动作无关。G4 通过引入 `_MiniLearnableBackend` 验证 PPO 机制正确性，但无法在真实 FakeBackend 上演示收敛。SimulatorRlBackend 真实场景的收敛验证推迟到 Stage 05 sim2real-eval。",
+      "impact": "Stage 03 仅能验证 PPO 算法本身正确性，不能验证在 Dead-of-Night 任务上的学习进度。",
+      "workaround": "Stage 04（BC 预训练）+ Stage 05（sim2real 评估）联合验证真实场景收敛",
+      "status": "deferred-to-stage-05"
+    }
+  ],
+  "total": 2
+}

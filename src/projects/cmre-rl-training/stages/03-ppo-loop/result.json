@@ -1,0 +1,69 @@
+{
+  "stage": "03-ppo-loop",
+  "status": "pass",
+  "gates": {
+    "G1-network": {
+      "status": "pass",
+      "evidence": "static + runtime-local",
+      "command": "python -m unittest tests.test_network.P2AllyACContractTests -v",
+      "tests": 8,
+      "result": "OK",
+      "detail": "P2AllyAC.forward(obs, mask) returns (logits[B,19], value[B,1]); mask applies -inf to illegal actions; trunk inherits P2AllyPolicyNet; BC heads preserved via forward_bc"
+    },
+    "G2-bc-load": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_network.P2AllyACBCLoadTests -v",
+      "tests": 2,
+      "result": "OK",
+      "detail": "load_bc_checkpoint_into_ac copies trunk + 4 BC heads from BC checkpoint; action/value heads remain at their current (random/RL-trained) init; mismatched hidden_dim raises ValueError"
+    },
+    "G3-gae": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_ppo.RolloutBufferGAETests -v",
+      "tests": 6,
+      "result": "OK",
+      "detail": "GAE lambda=0,0.95,1.0 verified against manual computation; default normalize=True yields zero mean + unit std"
+    },
+    "G4-ppo-converge": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_ppo.PPOTrainerConvergenceTests -v",
+      "tests": 2,
+      "result": "OK",
+      "detail": "100-step training loop runs with finite losses; 50-rollout × 1-step training on 2-action toy backend increases action_a picks from random baseline to >50% of 20 evaluation episodes"
+    },
+    "G5-checkpoint": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_network.P2AllyACCheckpointTests -v",
+      "tests": 3,
+      "result": "OK",
+      "detail": "save_rl_checkpoint/load_rl_checkpoint roundtrip preserves forward outputs exactly; payload includes schema, policy_config, num_actions, state_dict with trunk+heads+action_head+value_head"
+    },
+    "G6-rollout-integration": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_rollout -v",
+      "tests": 10,
+      "result": "OK",
+      "detail": "collect_rollout(env, policy, n_steps) returns buffer with N entries; auto-reset on terminal; deterministic mode reproducible; end-to-end rollout→PPOTrainer.train returns finite metrics"
+    }
+  },
+  "total_tests": 102,
+  "stage_new_tests": 32,
+  "all_passed": true,
+  "changed_paths": [
+    "src/projects/cmre-rl-training/cmre_rl_training/network.py",
+    "src/projects/cmre-rl-training/cmre_rl_training/ppo.py",
+    "src/projects/cmre-rl-training/cmre_rl_training/rollout.py",
+    "src/projects/cmre-rl-training/tests/test_network.py",
+    "src/projects/cmre-rl-training/tests/test_ppo.py",
+    "src/projects/cmre-rl-training/tests/test_rollout.py",
+    "src/projects/cmre-rl-training/stages/03-ppo-loop/plan.md",
+    "src/projects/cmre-rl-training/stages/03-ppo-loop/result.json",
+    "src/projects/cmre-rl-training/stages/03-ppo-loop/log.md",
+    "src/projects/cmre-rl-training/stages/03-ppo-loop/issues.json"
+  ]
+}
