@@ -1,0 +1,53 @@
+{
+  "stage": "02-simulator-backend",
+  "status": "pass",
+  "gates": {
+    "G1-backend-protocol": {
+      "status": "pass",
+      "evidence": "static",
+      "command": "python -m unittest tests.test_simulator_backend.SimulatorRlBackendProtocolTests -v",
+      "tests": 2,
+      "result": "OK"
+    },
+    "G2-action-alignment": {
+      "status": "pass",
+      "evidence": "static",
+      "command": "python -m unittest tests.test_alignment.ActionAlignmentTests -v",
+      "tests": 2,
+      "result": "OK",
+      "detail": "ACTION_NAMES 19 entries match BASIC_ACTION_ROUTES keys 1:1"
+    },
+    "G3-encoder-integration": {
+      "status": "pass",
+      "evidence": "static + runtime-local",
+      "command": "python -m unittest tests.test_alignment.EncoderIntegrationTests -v",
+      "tests": 4,
+      "result": "OK",
+      "detail": "FEATURE_NAMES count=49, encode_rl_observation produces 49-dim vector, schema_hash stable"
+    },
+    "G4-env-loop-sim": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_simulator_backend.SimulatorRlBackendLoopTests -v",
+      "tests": 5,
+      "result": "OK",
+      "detail": "Mock session with patched Observation.from_world; real session pending ISSUE-004"
+    },
+    "G5-dr-params": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_domain_randomization -v",
+      "tests": 10,
+      "result": "OK"
+    }
+  },
+  "total_tests": 70,
+  "all_passed": true,
+  "changed_paths": [
+    "src/projects/cmre-rl-training/cmre_rl_training/simulator_backend.py",
+    "src/projects/cmre-rl-training/cmre_rl_training/domain_randomization.py",
+    "src/projects/cmre-rl-training/tests/test_alignment.py",
+    "src/projects/cmre-rl-training/tests/test_domain_randomization.py",
+    "src/projects/cmre-rl-training/tests/test_simulator_backend.py"
+  ]
+}

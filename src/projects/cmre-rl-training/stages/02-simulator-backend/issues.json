@@ -1,0 +1,31 @@
+{
+  "stage": "02-simulator-backend",
+  "issues": [
+    {
+      "id": "ISSUE-004",
+      "severity": "medium",
+      "description": "G4 env-loop test uses MockSimulatorSession with patched Observation.from_world instead of a real SimulatorSession. Real-session integration requires a scenario fixture (scenario_dict or scenario_path) compatible with sc2_simulator's ScenarioDefinition. The full_game_replay.py build flow depends on map data + wave specs + MissionEngine which are too heavy for unit tests.",
+      "status": "open",
+      "assignee": "stage-03-or-integration",
+      "mitigation": "SimulatorRlBackend code path is identical for mock and real sessions; real session only differs in Observation.from_world output richness"
+    },
+    {
+      "id": "ISSUE-005",
+      "severity": "info",
+      "description": "torch (CPU) installed via pip for vibe.ml.encoder. GPU torch not needed until Stage 03 PPO training.",
+      "status": "resolved"
+    },
+    {
+      "id": "ISSUE-002",
+      "severity": "info",
+      "description": "observation.py fallback no longer triggered when PYTHONPATH includes vibe. encode_rl_observation now produces 49-dim vector matching FEATURE_NAMES.",
+      "status": "resolved"
+    },
+    {
+      "id": "ISSUE-003",
+      "severity": "info",
+      "description": "ACTION_NAMES verified 1:1 aligned with BASIC_ACTION_ROUTES (19 actions).",
+      "status": "resolved"
+    }
+  ]
+}
