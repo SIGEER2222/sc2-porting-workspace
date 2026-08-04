@@ -276,6 +276,18 @@
       "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-ally-policy-pytorch-20260804/training-report.json",
       "owner": "stage25",
       "nextAction": "Run the approved single-client Computer-ally launcher with --mode-model pointing to the v2 .pt checkpoint, then require a runtime model hash/schema, acknowledged P2 intent, P2 state delta, native replay, and same-window ScriptError evidence before promoting this claim."
+    },
+    {
+      "id": "RUNTIME-MANUAL-P1-REPLAY-P2-ACTION-SUPERVISION-20260804",
+      "severity": "medium",
+      "status": "open",
+      "title": "Manual P1 replay is valid state evidence but does not contain P2 action supervision",
+      "detail": "The real 亡者之夜 game completed with P1/P2 roster type Participant/Computer, all player results=1, 1388 observation frames, 7319 tracker events, and a native SC2Replay. Replay game events expose 125 P1 SCmd events, but P2's native Computer behavior appears through tracker/state transitions only. P2 produced 12 SCV, one CommandCenter, one Barracks, and one start-placement unit, with no combat-unit production and no P2 action events attributable to a controllable policy.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/manual-p1-20260804/manual-training-audit.json",
+      "owner": "stage25",
+      "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/manual-p1-20260804/native-replay-probe/manual-native-replay_SC2Replay/verdict.json",
+      "nextAction": "Use this run for P1-context and P2 state/unit-event supervision. Add a P2 command attribution bridge or a controllable P2 policy session, then capture games with P2 gather/build/train/move/attack labels before retraining the native action model."
     }
   ]
 }

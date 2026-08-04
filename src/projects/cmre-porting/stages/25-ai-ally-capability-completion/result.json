@@ -196,7 +196,9 @@
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-keha-20260803-full-v5/run-summary.json",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-keha-20260803-full-v5/克哈裂痕/replay.jsonl",
     "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/map-derived-keha-20260803-full-v5/克哈裂痕/state-driven-player.html",
-    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/browser-keha-full-v5.png"
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/browser-keha-full-v5.png",
+    "src/projects/cmre-porting/vibe/manual_replay_capture.py",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/manual-p1-20260804/"
   ],
   "validation": [
     {"evidence_type": "simulator", "command": "inline Python run_ally_scenario for seeds 42, 7, 99", "status": "PASS", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/simulator-multiseed.json"},
@@ -342,7 +344,8 @@
     {"evidence_type": "static", "command": "py -3.13 -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion", "status": "TIMEOUT", "detail": "The 49-test Stage 25 collection did not finish within the 120-second validation budget and emitted no test result; split suites above are the usable evidence, not a full-suite PASS.", "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion"},
     {"evidence_type": "blocked", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander Empire -ListenPort 5960 -DebugMode -KeepAlive -MapCopySuffix stage25-p2-ml-v2-20260804", "status": "BLOCKED", "detail": "The approved launcher refused to start a second runtime with SC2_RUNTIME_BUSY because the protected owner PID 19892 already held the global lease on port 5950. No v2 checkpoint was loaded and no P2 action was sent.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-ml-v2-20260804/launcher-blocked.json"},
     {"evidence_type": "static", "command": "PYTHONPATH=src/projects/cmre-porting; py -3.13 -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion", "status": "PASS", "detail": "All 49 Stage 25 tests passed in 158.18 seconds, including map-derived simulator, cooperative P2, ML, Debug VM, ladder, replay, and runtime adapter contracts.", "evidence": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion"},
-    {"evidence_type": "static", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1", "status": "PASS", "detail": "All 52 Galaxy/Vibe static checks passed with zero warnings after the PyTorch bridge and stage evidence updates.", "evidence": "artifacts/galaxy-vibe/static-validation-report.json"}
+    {"evidence_type": "static", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1", "status": "PASS", "detail": "All 52 Galaxy/Vibe static checks passed with zero warnings after the PyTorch bridge and stage evidence updates.", "evidence": "artifacts/galaxy-vibe/static-validation-report.json"},
+    {"evidence_type": "runtime", "command": "approved launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander Empire -ListenPort 5970 -PlayerMode -KeepAlive -MapCopySuffix manual-p1-20260804 + manual_replay_capture.py + replay-probe.py + Edge headless", "status": "PASS", "detail": "Real P1 manual game completed with P1 Participant/P2 Computer roster, 1388 observation frames through loop 16164, all player results=1, native replay saved, replay tracker/game-event decoding passed, P1 action records extracted (125 SCmd/171 point/19 unit updates), P2 tracker state extracted (15 built, 0 lost), source-map-backed 1388-frame HTML rendered, and Edge produced a non-empty smoke screenshot. P2 action imitation remains unverified because native Computer actions are not present as player-issued API events and this game produced no P2 combat units.", "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/manual-p1-20260804/manual-training-audit.json"}
   ],
   "issues": [
     "The selected single-client P1 Participant plus P2 Computer native topology is cleared by v13. The older two-Participant JoinGame probes remain historical blocked evidence and are not part of this acceptance path.",
@@ -350,7 +353,8 @@
     "The ladder full-game result is simulator-only and uses a documented bounded initial resource fixture (2600 minerals / 800 vespene); it validates strategy capability and victory closure, not native SC2 balance or timing.",
     "Debug VM visual handlers returned applied=true, but the ApiMinimal screenshot was all black; model/scale/tint/opacity on-screen presentation remains unverified.",
     "The approved DirectMap+API path still crashes before listen, while DirectMap without a lobby exposes P2 as PlayerType 0; these alternate launch paths remain blocked but do not block the approved ApiMinimal Computer-ally path.",
-    "The user-provided map and legacy manual are archived under the stage import artifact; the Markdown preserves extracted text and 41 screenshot references, the README summarizes the documented tool purpose, and the map remains a read-only input rather than a canonical package."
+    "The user-provided map and legacy manual are archived under the stage import artifact; the Markdown preserves extracted text and 41 screenshot references, the README summarizes the documented tool purpose, and the map remains a read-only input rather than a canonical package.",
+    "The 2026-08-04 manual P1 replay is valid runtime/state evidence and a victory, but P2 remained a native Computer with only 12 SCV, one CommandCenter, one Barracks, and no combat-unit production or player-issued P2 action events. It must not be used as a completed P2 action-imitation dataset."
   ],
   "next_stage_plan": null
 }

@@ -1318,3 +1318,34 @@ Evidence:
 
 Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-ml-v2-20260804/launcher-blocked.json`.
+
+## Verification Loop 2026-08-04 Manual P1 Replay Capture
+
+- `runtime`: the approved launcher started `亡者之夜.SC2Map` on port `5970` from
+  the isolated `manual-p1-20260804` map copy. The capture session completed
+  `CreateGame + JoinGame` with P1 `type=Participant`, `player_id=1`, and P2
+  `type=Computer`, `player_id=2`; the map also exposed P3-P7 Computer slots.
+- `runtime`: the human completed the real game. The capture recorded `1388`
+  raw observation frames through loop `16164`; all reported player results were
+  `1` (victory), and `manual-native-replay.SC2Replay` saved successfully at
+  build `97563`. The capture process sent no P1 actions.
+- `runtime`: `tools/runtime-bridge/replay-probe.py` decoded the native replay
+  with `7319` tracker events, `2959` born events, `2819` death events, and
+  `571284` game events. P1 contributed `125` SCmd events, `171` target-point
+  updates, and `19` target-unit updates.
+- `runtime`: P2 tracker evidence contains `12 SCV`, `1 CommandCenter`, `1
+  Barracks`, and `1 ACHeroSpawnPlacement`, with zero P2 losses. No P2 action
+  event was present in `replay.game.events`; this is state/unit supervision,
+  not P2 action-imitation supervision. In particular, this game contains no
+  P2 combat-unit production.
+- `runtime`: the raw observation was normalized into a source-map-backed
+  `manual-runtime-replay.jsonl` and rendered as a 1388-frame
+  `full-map-player.html`. Edge headless loaded it and produced a non-empty
+  `full-map-player-smoke.png`; the projection report passed all `1319/1319`
+  source objects inside the minimap content rectangle.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/manual-p1-20260804/manual-training-audit.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/manual-p1-20260804/manual-native-replay.SC2Replay`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/manual-p1-20260804/native-replay-probe/manual-native-replay_SC2Replay/verdict.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/manual-p1-20260804/full-map-player.html`.
