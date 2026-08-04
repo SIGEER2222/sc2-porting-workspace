@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "cmre-rl-training",
+  "goal": "Train SC2 AI via PPO on coop PvE (Dead of Night) using python-sc2 as real-SC2 framework and SimulatorSession as fast training backend, reusing existing replay contracts and BC pretraining pipeline.",
+  "sources": [
+    {
+      "sourceId": "cmre-neuro-adapter",
+      "path": "src/projects/cmre-neuro-adapter",
+      "role": "action-context-contracts-and-simulator-transport"
+    },
+    {
+      "sourceId": "cmre-porting-vibe-ml",
+      "path": "src/projects/cmre-porting/vibe/ml",
+      "role": "encoder-model-and-bc-training"
+    },
+    {
+      "sourceId": "python-sc2",
+      "kind": "external-repository",
+      "path": "reference/python-sc2",
+      "role": "real-sc2-framework-and-replay-parser"
+    }
+  ],
+  "target": {
+    "map": "dead-of-night",
+    "commander": "TerranRaynor",
+    "series": "cmre-coop-missions",
+    "aiProfile": "rl-policy"
+  },
+  "currentStage": "01-env-contracts",
+  "writeScope": [
+    "src/projects/cmre-rl-training/**"
+  ],
+  "acceptance": [
+    "CmreRLEnv exposes reset/step/action_mask with typed contracts matching existing ActionCommand and observation encoder",
+    "SimulatorBackend and PythonSc2Backend produce same observation shape; feature_schema_hash is stable",
+    "Action mask correctly filters illegal actions based on observation state",
+    "Reward function derives dense + terminal signals from mission context without hidden state",
+    "Offline unit tests pass with a fake backend (no SC2 executable or simulator dependency)",
+    "Real-SC2 completion is claimed only with launcher and GameLogs runtime evidence"
+  ]
+}

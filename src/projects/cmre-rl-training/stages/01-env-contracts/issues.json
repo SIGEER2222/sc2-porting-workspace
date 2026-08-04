@@ -1,0 +1,26 @@
+{
+  "stage": "01-env-contracts",
+  "issues": [
+    {
+      "id": "ISSUE-001",
+      "severity": "low",
+      "description": "numpy was not pre-installed; installed via pip during Stage 01 validation. Future stages depending on torch should verify availability.",
+      "status": "resolved",
+      "resolution": "pip install numpy executed successfully"
+    },
+    {
+      "id": "ISSUE-002",
+      "severity": "info",
+      "description": "observation.py falls back to 8-dim vector when vibe/ml/encoder is not importable. Stage 02 must set PYTHONPATH to include src/projects/cmre-porting for full encoder integration.",
+      "status": "open",
+      "assignee": "stage-02"
+    },
+    {
+      "id": "ISSUE-003",
+      "severity": "info",
+      "description": "ACTION_NAMES defined locally in action_space.py. Stage 02 should verify 1:1 alignment with BASIC_ACTION_ROUTES from cmre_neuro_adapter.neuro.basic_actions.",
+      "status": "open",
+      "assignee": "stage-02"
+    }
+  ]
+}

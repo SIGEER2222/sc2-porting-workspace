@@ -1,0 +1,58 @@
+{
+  "stage": "01-env-contracts",
+  "status": "pass",
+  "gates": {
+    "G1-action-space": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_action_space -v",
+      "tests": 14,
+      "result": "OK"
+    },
+    "G2-reward": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_reward -v",
+      "tests": 15,
+      "result": "OK"
+    },
+    "G3-observation": {
+      "status": "pass",
+      "evidence": "static",
+      "command": "python -m unittest tests.test_observation -v",
+      "tests": 8,
+      "result": "OK"
+    },
+    "G4-env-loop": {
+      "status": "pass",
+      "evidence": "runtime-local",
+      "command": "python -m unittest tests.test_env -v",
+      "tests": 10,
+      "result": "OK"
+    },
+    "G5-compatibility": {
+      "status": "pass",
+      "evidence": "static",
+      "command": "python -m unittest discover -s tests -v",
+      "tests": 47,
+      "result": "OK"
+    }
+  },
+  "total_tests": 47,
+  "all_passed": true,
+  "changed_paths": [
+    "src/projects/cmre-rl-training/project.json",
+    "src/projects/cmre-rl-training/stages/01-env-contracts/plan.md",
+    "src/projects/cmre-rl-training/cmre_rl_training/__init__.py",
+    "src/projects/cmre-rl-training/cmre_rl_training/action_space.py",
+    "src/projects/cmre-rl-training/cmre_rl_training/reward.py",
+    "src/projects/cmre-rl-training/cmre_rl_training/observation.py",
+    "src/projects/cmre-rl-training/cmre_rl_training/backends.py",
+    "src/projects/cmre-rl-training/cmre_rl_training/env.py",
+    "src/projects/cmre-rl-training/tests/__init__.py",
+    "src/projects/cmre-rl-training/tests/test_action_space.py",
+    "src/projects/cmre-rl-training/tests/test_reward.py",
+    "src/projects/cmre-rl-training/tests/test_observation.py",
+    "src/projects/cmre-rl-training/tests/test_env.py"
+  ]
+}
