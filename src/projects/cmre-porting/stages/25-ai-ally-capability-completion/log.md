@@ -1244,3 +1244,77 @@ the checkpoint is simulator-validated only. The approved single-client SC2
 runtime still has P1 as the API Participant and P2 as native Computer; v13
 proves native startup and P1/P2 command signaling, not external model control
 of P2 economy or orders. Keep this as an open native bridge issue.
+
+## Verification Loop 2026-08-04 ML Stack Comparison and Selection
+
+- `static`: compared the official SC2 protocol and RL surfaces (`s2client-proto`,
+  `PySC2`), full-game research implementations (`AlphaStar`, `DI-star`, `TStarBot2`),
+  scripted bot libraries (`python-sc2`, `ares-sc2`), cooperative environments
+  (`SMAC`, `SMACv2`, `PettingZoo`), and training frameworks (`PyTorch`, TorchRL,
+  Stable-Baselines3 + contrib, RLlib, CleanRL). The comparison records what each
+  project actually owns, its topology fit, Python/platform/version constraints,
+  license signal, and the reason for adoption or rejection.
+- `static`: official upstream source metadata was retrieved on 2026-08-04. Key facts
+  include: Blizzard's protocol exposes `Participant` and `Computer` player types;
+  PySC2 is an RL wrapper over that API; AlphaStar documents Python 3.9/Linux-only
+  testing and PySC2 converter coupling; DI-star documents Python 3.6-3.8, SC2 4.10,
+  replay SL/RL and distributed actors; SMACv2 explicitly scopes itself to cooperative
+  micromanagement rather than a full game; TorchRL documents PyTorch-native
+  multi-agent/imitation/collector support and beta status; SB3 documents custom
+  environments/policies and contrib MaskablePPO.
+- `static`: the host check reports Python `3.13.14`, PyTorch `2.13.0+cu126`, and no
+  installed `gymnasium`, `stable_baselines3`, `torchrl`, `ray`, `sc2`, or `pysc2`.
+- `inference`: no candidate project provides P1-client control of a map-native P2
+  Computer while preserving the requested roster. Bot-based frameworks and PySC2/SMAC
+  can control an agent slot, but adopting them as runtime control would change the
+  topology or the full-game contract.
+- `static`: the selected stack is now frozen as current SC2 API/Galaxy/Bank bridge plus
+  the project deterministic simulator plus native PyTorch imitation learning. The
+  model emits structured P2 intents; Galaxy performs map-specific resolution and
+  owner/alliance/target/rate-limit validation. TorchRL is the preferred later RL
+  extension; SB3 is a comparison baseline; RLlib, CleanRL, AlphaStar, DI-star and
+  LLM action planning are not Stage 25 runtime dependencies.
+- `static`: the research artifact is
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-stack-comparison-20260804.md`.
+  The stage plan contains the same frozen-selection addendum. The open issue
+  `ML-NATIVE-P2-COMPUTER-BRIDGE-20260803` remains unchanged: simulator ML success is
+  not native P2 model-control evidence.
+
+Sources:
+`https://github.com/Blizzard/s2client-proto`,
+`https://github.com/google-deepmind/pysc2`,
+`https://github.com/google-deepmind/alphastar`,
+`https://github.com/opendilab/DI-star`,
+`https://github.com/Tencent/TStarBot2`,
+`https://github.com/oxwhirl/smacv2`,
+`https://github.com/pytorch/rl`,
+`https://github.com/DLR-RM/stable-baselines3`.
+
+## Verification Loop 2026-08-04 PyTorch Intent Bridge Handoff
+
+- `simulator`: the complete PyTorch training report is `PASS`. `cmre-ally-intent-pytorch.v2` uses PyTorch `2.13.0+cu126`, a 49-feature `cmre-ally-observation.v2` encoder, and economy/production/tactical/command heads. The holdout mean accuracy is `0.9527777778`; seeds `42`, `7`, and `99` all reach `enemy_elimination` at loop `3612` with `308` ML decisions and empty `error_breakdown`.
+- `static`: `run_dead_of_night_live.py` now loads only the versioned `.pt` checkpoint through `load_p2_intent_model`; legacy JSON MLP checkpoints are rejected before transport. The runtime trace carries the complete `P2Intent`, `issuer_player_id=2`, `observation_version`, model schema, feature schema/hash, and checkpoint SHA-256. The bridge still sends only the validated tactical command projection to Galaxy and never emits raw ability IDs.
+- `static`: live observation resources now carry `state_version=game_loop`; the P2 public view preserves P1/P2 alliance context while keeping P2 economy values explicitly marked unavailable from the P1 client (`source=not_visible_from_p1`).
+- `static`: `py_compile` passed; `test_ally_ml.py` passed `6`; the live runner adapter suite passed `17`; the P2/ally focused Stage 25 subset passed `11`; Debug VM passed `12`; and the full Ladder suite passed `4` in `73.33s`.
+- `blocked`: an initial full Stage 25 run contained `49` tests but did not finish within the `120s` validation budget and emitted no result. That historical timeout is superseded by the extended final regression below; it was never treated as a PASS.
+- `inference`: no fresh native SC2 run has loaded the v2 checkpoint. Existing v13 native Computer-ally evidence proves the P1/P2 topology and Bank bridge, but not model-driven P2 economy or orders. Native acceptance remains open.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-ally-policy-pytorch-20260804/training-report.json`,
+`src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ally_ml.py`,
+`tools/launchers/tests/test_live_runner_unit_adapter.py`,
+`src/projects/cmre-porting/vibe/run_dead_of_night_live.py`.
+
+## Verification Loop 2026-08-04 Extended Final Regression
+
+- `static`: reran the complete Stage 25 collection with a `300s` command budget. All `49` tests passed in `158.18s`, covering simulator, replay, P2 cooperative policy, ML, Debug VM, ladder, and runtime adapter contracts.
+- `static`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` passed `52/52` checks with zero warnings.
+- `blocked`: the native v2 launcher attempt remains blocked by the protected runtime lease recorded above; the extended static/simulator PASS does not promote that runtime claim.
+
+## Verification Loop 2026-08-04 Native v2 Runtime Attempt
+
+- `blocked`: the approved launcher command for port `5960` returned `SC2_RUNTIME_BUSY` before SC2 launch because the protected runtime owner PID `19892` held port `5950` under session `cmre_alenger-20260804-072839-7f6a1d11`. No protected process was terminated, no v2 checkpoint was loaded, and no P2 action was sent.
+- `blocked`: this attempt therefore has no CreateGame/JoinGame, model hash, P2 intent acknowledgement, native replay, or same-window ScriptError evidence. It is not a native ML PASS.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-p2-ml-v2-20260804/launcher-blocked.json`.

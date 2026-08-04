@@ -304,3 +304,39 @@ after the runtime recipe exists and the simulator gate passes.
 - Runtime recipe and evidence bundle proving native P1/P2 team identity and a
   typed cooperative action, or a truthful blocked record with next action.
 - Updated project handoff only after all evidence and validation gates agree.
+
+## Comparative Research Addendum 2026-08-04
+
+The candidate set was expanded before freezing the selection. The full comparison, source
+URLs, retrieval date, local constraints, architecture alternatives, and phase gates are in
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-stack-comparison-20260804.md`.
+
+The added candidates change the decision boundaries as follows:
+
+- `DI-star` is the strongest full-game ML research reference in the set because it covers
+  replay supervised learning, self-play, and distributed training, but its upstream README
+  targets Python 3.6-3.8 and SC2 4.10 and its agent controls SC2 instances rather than the
+  native P2 Computer slot.
+- `SMAC`/`SMACv2` are valid cooperative MARL benchmarks, but their documented scope is
+  decentralized unit micromanagement, not the CMRE full-game economy and mission flow.
+- `TStarBot2` is a rule-based PySC2 bot, not an ML framework, and its upstream repository
+  does not provide license metadata suitable for copying into this project.
+- `TorchRL` is the preferred later PyTorch-native RL extension because it covers
+  TensorDict-based multi-agent data, collectors, replay buffers, imitation learning, and
+  SMACv2 examples. It remains a beta dependency and does not solve the native P2 bridge.
+- `Stable-Baselines3` plus its contrib MaskablePPO is a useful later PPO comparison, but
+  it still requires our custom environment, cooperative wrapper, action masks, and P2
+  bridge. `RLlib` is operationally too large for one local ally; `CleanRL` is a readable
+  algorithm reference rather than a modular dependency.
+
+### Frozen selection
+
+Keep native P1 Participant + map-native P2 Computer, with the existing
+SC2 API/Galaxy/Bank bridge, the project-owned deterministic simulator, and native PyTorch
+imitation learning. The model outputs schema-versioned high-level P2 intents; it never
+outputs raw ability IDs and it never bypasses P2 owner/alliance/action validation.
+
+Do not replace P2 with a `python-sc2`/`ares-sc2` Bot, PySC2/SMAC environment, AlphaStar or
+DI-star runtime, or an LLM action planner. Revisit TorchRL/SB3 only after reset, reward,
+state-version, action-mask, and native outcome contracts are proven. This is a technology
+selection decision, not a claim that the native ML P2 bridge has passed runtime acceptance.
