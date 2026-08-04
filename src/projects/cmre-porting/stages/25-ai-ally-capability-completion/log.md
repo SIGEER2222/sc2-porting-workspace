@@ -1349,3 +1349,24 @@ Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/manual-p1-20260804/manual-native-replay.SC2Replay`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/manual-p1-20260804/native-replay-probe/manual-native-replay_SC2Replay/verdict.json`,
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/manual-p1-20260804/full-map-player.html`.
+
+## Verification Loop 2026-08-04 Reborn Campaign Staging and WebUI Diagnostics
+
+- `static`: `launch-cmre-alenger.ps1` now resolves complete directory packages
+  from the project-owned `reference/sc2mapster/SC2GameData/campaigns` input,
+  copies them idempotently into the SC2 installation `Campaigns/` directory,
+  and verifies the four Galaxy libraries consumed by the Reborn map patch.
+- `runtime`: the user's `营救矿工.SC2Map + ZergAbathur + Reborn` approved
+  launcher preflight copied `209` campaign files and `15` utility-mod files;
+  a fresh API run on port `5001` reached API listen and passed the same-window
+  zero-new-ScriptError gate. The old missing-campaign failure was not reproduced.
+- `static`: WebUI launcher readers now retain bounded stdout/stderr tails,
+  wait for both readers before logging exit, and render unsigned Windows
+  `4294967295` as `4294967295 (signed=-1)`. The focused WebUI, launcher static,
+  syntax, and async-failure regression checks passed `14` tests.
+- `blocked`: this ApiMinimal probe intentionally stops before CreateGame/JoinGame;
+  Reborn heartbeat stayed at zero and no replay or native P2 action claim is made.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-reborn-campaign-20260804/runtime-verdict.json`,
+`tools/cmre-webui/test_launch_async_contract.py`.

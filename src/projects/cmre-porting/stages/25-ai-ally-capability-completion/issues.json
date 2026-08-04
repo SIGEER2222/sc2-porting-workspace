@@ -288,6 +288,32 @@
       "owner": "stage25",
       "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/manual-p1-20260804/native-replay-probe/manual-native-replay_SC2Replay/verdict.json",
       "nextAction": "Use this run for P1-context and P2 state/unit-event supervision. Add a P2 command attribution bridge or a controllable P2 policy session, then capture games with P2 gather/build/train/move/attack labels before retraining the native action model."
+    },
+    {
+      "id": "REBORN-CAMPAIGN-STAGING-20260804",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "WebUI Reborn launch failed when directory campaign dependencies were absent",
+      "detail": "The approved launcher now discovers complete swarmstory.sc2campaign and swarmstoryutil.sc2mod directory packages from the registered campaign source, copies them into the SC2 installation Campaigns directory, and verifies the Galaxy libraries required by the Reborn map patch. The original SwarmStory campaign not found failure was not reproduced in the fresh API probe.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-reborn-campaign-20260804/runtime-verdict.json",
+      "owner": "stage25",
+      "resolution": "tools/launchers/launch-cmre-alenger.ps1",
+      "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-reborn-campaign-20260804/runtime-verdict.json",
+      "nextAction": "Keep the Campaigns staging check before every Reborn launch; validate post-JoinGame P2 behavior separately."
+    },
+    {
+      "id": "WEBUI-ASYNC-LAUNCHER-ERROR-20260804",
+      "severity": "low",
+      "status": "resolved",
+      "title": "WebUI could show launcher exit before the real stderr cause",
+      "detail": "The async launcher reader now retains bounded stdout/stderr tails, joins both readers before emitting the exit line, adds a failure summary, and converts unsigned Windows exit code 4294967295 to signed -1 for diagnosis.",
+      "evidence_type": "static",
+      "evidence": "tools/cmre-webui/test_launch_async_contract.py",
+      "owner": "stage25",
+      "resolution": "tools/cmre-webui/server.py",
+      "latestEvidence": "tools/cmre-webui/test_launch_async_contract.py",
+      "nextAction": "Keep SSE failure lines ordered: real launcher output first, exit code last."
     }
   ]
 }

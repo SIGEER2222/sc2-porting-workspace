@@ -242,6 +242,105 @@ Write-Host "CMRE Alenger selection: $MapName x $Commander"
 Write-Host "On-demand packages: $($selectedMods -join ', ')"
 if ($DryRun) { $dependencies | ForEach-Object { Write-Host "  $_" }; exit 0 }
 
+function Ensure-CmreRebornCampaignDependencies {
+    <#
+      Reborn's main mod references the SwarmStory campaign and utility mod as
+      directory packages.  They are not ordinary files, so a file-only sync
+      can silently miss them even when the source data is present in the repo.
+      Resolve a complete source package, copy its contents into the SC2
+      installation staging directory, and verify the exact Galaxy libraries
+      that Patch-RebornLibraryInit consumes later in this launcher.
+    #>
+    param(
+        [Parameter(Mandatory = $true)][string]$Sc2Root,
+        [Parameter(Mandatory = $true)][string]$WorkspaceRoot,
+        [Parameter(Mandatory = $true)][string]$LegacyRoot
+    )
+
+    $campaignsRoot = Join-Path $Sc2Root "Campaigns"
+    [System.IO.Directory]::CreateDirectory($campaignsRoot) | Out-Null
+
+    $packages = @(
+        @{
+            Name = "swarmstory.sc2campaign"
+            RequiredFiles = @(
+                "base.sc2data\TriggerLibs\SwarmCampaignLib.galaxy",
+                "base.sc2data\TriggerLibs\SwarmCampaignLib_h.galaxy"
+            )
+        },
+        @{
+            Name = "swarmstoryutil.sc2mod"
+            RequiredFiles = @(
+                "base.sc2data\Lib281DEC45.galaxy",
+                "base.sc2data\Lib281DEC45_h.galaxy"
+            )
+        }
+    )
+
+    $sourceRoots = @(
+        (Join-Path $LegacyRoot "Campaigns"),
+        (Join-Path $WorkspaceRoot "reference\sc2mapster\SC2GameData\campaigns"),
+        (Join-Path $Sc2Root "GameData\campaigns")
+    ) | Select-Object -Unique
+
+    foreach ($package in $packages) {
+        $target = Join-Path $campaignsRoot $package.Name
+        $targetMissing = @($package.RequiredFiles | Where-Object {
+            -not (Test-Path -LiteralPath (Join-Path $target $_) -PathType Leaf)
+        })
+        if ((Test-Path -LiteralPath $target -PathType Container) -and $targetMissing.Count -eq 0) {
+            Write-Host "Reborn campaign dependency already staged: $target"
+            continue
+        }
+
+        $source = $null
+        $diagnostics = @()
+        foreach ($root in $sourceRoots) {
+            $candidate = Join-Path $root $package.Name
+            if (-not (Test-Path -LiteralPath $candidate -PathType Container)) {
+                $diagnostics += "missing $candidate"
+                continue
+            }
+            $missing = @($package.RequiredFiles | Where-Object {
+                -not (Test-Path -LiteralPath (Join-Path $candidate $_) -PathType Leaf)
+            })
+            if ($missing.Count -eq 0) {
+                $source = $candidate
+                break
+            }
+            $diagnostics += "incomplete $candidate (missing: $($missing -join ', '))"
+        }
+
+        if ($null -eq $source) {
+            $targetState = if (Test-Path -LiteralPath $target -PathType Container) {
+                "target incomplete (missing: $($targetMissing -join ', '))"
+            } else {
+                "target missing"
+            }
+            throw "Reborn campaign dependency unavailable: $($package.Name); $targetState; searched: $($diagnostics -join '; ')"
+        }
+
+        [System.IO.Directory]::CreateDirectory($target) | Out-Null
+        $copied = 0
+        foreach ($file in @(Get-ChildItem -LiteralPath $source -Recurse -File)) {
+            $relative = $file.FullName.Substring($source.Length).TrimStart([char]'\', [char]'/')
+            $destination = Join-Path $target $relative
+            $parent = Split-Path -Parent $destination
+            [System.IO.Directory]::CreateDirectory($parent) | Out-Null
+            [System.IO.File]::Copy($file.FullName, $destination, $true)
+            $copied++
+        }
+
+        $remaining = @($package.RequiredFiles | Where-Object {
+            -not (Test-Path -LiteralPath (Join-Path $target $_) -PathType Leaf)
+        })
+        if ($remaining.Count -gt 0) {
+            throw "Reborn campaign dependency staging incomplete: $target (missing: $($remaining -join ', '))"
+        }
+        Write-Host "SYNC (Reborn campaign dependency): $($package.Name) <- $source ($copied files)"
+    }
+}
+
 function Enable-CmreSavedProfileStartup {
     param(
         [Parameter(Mandatory = $true)][string]$MapPath,
@@ -1619,6 +1718,7 @@ try {
             throw "optionalPackageMods not declared in cmre-alenger-dependencies.json"
         }
         Sync-ModSet -ModRelPaths $cmre.optionalPackageMods -ProjRoot $LegacyRoot -Sc2Root $Sc2Root
+        Ensure-CmreRebornCampaignDependencies -Sc2Root $Sc2Root -WorkspaceRoot $WorkspaceRoot -LegacyRoot $LegacyRoot
         # 校验 SwarmStory 战役依赖是否已部署
         $swarmStoryCampaignPath = Join-Path $Sc2Root "Campaigns\swarmstory.sc2campaign"
         $swarmStoryUtilPath = Join-Path $Sc2Root "Campaigns\swarmstoryutil.sc2mod"

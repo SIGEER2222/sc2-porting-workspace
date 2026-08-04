@@ -20,6 +20,7 @@ import time
 import threading
 import webbrowser
 import xml.etree.ElementTree as ET
+from collections import deque
 from http.server import HTTPServer, ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
@@ -1076,11 +1077,18 @@ def _append_log(line):
                 pass
 
 
-def _read_pipe(pipe, prefix=""):
-    """后台线程函数：逐行读取子进程 stdout/stderr 并推送到日志缓冲。"""
+def _read_pipe(pipe, prefix="", output_tail=None, tail_lock=None, stream_name=""):
+    """逐行读取 launcher 输出，并保留有限尾部供失败摘要使用。"""
     try:
         for line in iter(pipe.readline, ''):
-            _append_log(prefix + line.rstrip('\n'))
+            clean = line.rstrip('\r\n')
+            if output_tail is not None and stream_name:
+                if tail_lock is None:
+                    output_tail[stream_name].append(clean)
+                else:
+                    with tail_lock:
+                        output_tail[stream_name].append(clean)
+            _append_log(prefix + clean)
     finally:
         try:
             pipe.close()
@@ -1088,15 +1096,43 @@ def _read_pipe(pipe, prefix=""):
             pass
 
 
-def _wait_for_process(proc):
-    """后台线程函数：等待子进程结束并记录退出码，清理全局进程引用。"""
+def _format_launcher_exit_code(code):
+    """把 Windows 无符号进程码补充为可读的有符号值。"""
+    try:
+        numeric = int(code)
+    except (TypeError, ValueError):
+        return str(code)
+    if numeric > 0x7FFFFFFF and numeric <= 0xFFFFFFFF:
+        return f"{numeric} (signed={numeric - 0x100000000})"
+    if numeric < 0:
+        return f"{numeric} (unsigned={numeric & 0xFFFFFFFF})"
+    return str(numeric)
+
+
+def _wait_for_process(proc, reader_threads=None, output_tail=None, tail_lock=None):
+    """等待 launcher 和 reader 完成，再按顺序记录错误摘要与退出码。"""
     global _launcher_process
+    reader_threads = reader_threads or []
     try:
         code = proc.wait()
     except Exception as exc:
         _append_log(f"[webui] 等待进程结束异常: {exc}")
         code = -1
-    _append_log(f"[webui] launcher 进程结束, exit={code}")
+    for reader in reader_threads:
+        reader.join()
+    if code != 0 and output_tail is not None:
+        if tail_lock is None:
+            stderr_tail = list(output_tail.get("stderr", []))[-40:]
+            stdout_tail = list(output_tail.get("stdout", []))[-40:]
+        else:
+            with tail_lock:
+                stderr_tail = list(output_tail.get("stderr", []))[-40:]
+                stdout_tail = list(output_tail.get("stdout", []))[-40:]
+        if stderr_tail:
+            _append_log("[webui] launcher stderr summary: " + " | ".join(stderr_tail))
+        if stdout_tail:
+            _append_log("[webui] launcher stdout summary: " + " | ".join(stdout_tail))
+    _append_log(f"[webui] launcher 进程结束, exit={_format_launcher_exit_code(code)}")
     with _launcher_lock:
         if _launcher_process is proc:
             _launcher_process = None
@@ -1723,16 +1759,32 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         _append_log(f"[webui] 异步启动 launcher, pid={proc.pid}, commander={commander}")
         _append_log(f"[webui] args: {' '.join(args)}")
 
-        # 启动 daemon 线程读取 stdout / stderr，逐行推送到日志缓冲
-        threading.Thread(
-            target=_read_pipe, args=(proc.stdout, ""), daemon=True
-        ).start()
-        threading.Thread(
-            target=_read_pipe, args=(proc.stderr, "[stderr] "), daemon=True
-        ).start()
+        # 启动 daemon 线程读取 stdout / stderr；等待线程会先 join reader，
+        # 确保失败原因已经进入 SSE 队列后才发送 launcher exit 行。
+        output_tail = {
+            "stdout": deque(maxlen=80),
+            "stderr": deque(maxlen=80),
+        }
+        tail_lock = threading.Lock()
+        stdout_reader = threading.Thread(
+            target=_read_pipe,
+            args=(proc.stdout, ""),
+            kwargs={"output_tail": output_tail, "tail_lock": tail_lock, "stream_name": "stdout"},
+            daemon=True,
+        )
+        stderr_reader = threading.Thread(
+            target=_read_pipe,
+            args=(proc.stderr, "[stderr] "),
+            kwargs={"output_tail": output_tail, "tail_lock": tail_lock, "stream_name": "stderr"},
+            daemon=True,
+        )
+        stdout_reader.start()
+        stderr_reader.start()
         # 启动 daemon 线程等待进程结束并记录退出码
         threading.Thread(
-            target=_wait_for_process, args=(proc,), daemon=True
+            target=_wait_for_process,
+            args=(proc, [stdout_reader, stderr_reader], output_tail, tail_lock),
+            daemon=True,
         ).start()
 
         self._send_json({
