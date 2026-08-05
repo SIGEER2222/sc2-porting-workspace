@@ -101,3 +101,32 @@ victory remains unverified because the 2048-decision run had no `player_result`.
 The evaluator correctly refuses to turn bounded/no-terminal or launcher-blocked
 runs into a win-rate claim. P2 remains native Computer and is outside the
 ML-control claim.
+
+## G7: DirectMapApi Attach Retry
+
+- **Static implementation**: `tools/run_live_rl.py` now launches the approved
+  `-DirectMapApi` path and constructs `LiveRawSc2Session(join_existing=True)`,
+  so the runner does not issue `CreateGame`. `Sc2ApiClient` reconnects after a
+  SC2 WebSocket close, while `JoinGame` retries for the map initialization
+  window. Ordinary action/step requests are not replayed automatically.
+- **Focused validation**: `test_direct_map_attach_skips_create_game` and the
+  transient JoinGame retry test passed; full project suite passed with 173
+  tests; changed Python modules compiled.
+- **Runtime attempt**: command
+  `python src/projects/cmre-rl-training/tools/run_live_rl.py ... --port 6004
+  --max-steps 64 --step-mul 8 --stop-on-terminal --save-replay` was rejected
+  before API readiness by the approved launcher because external
+  `owner_pid=44508` held the SC2 runtime lease for
+  `zchar01_reborn_port.SC2Map`. The runner did not terminate that process.
+- **Evidence**:
+  `artifacts/stage-10-runtime-policy-eval/direct-map-entry-retry-6004/live-rl-report.json`,
+  `artifacts/stage-10-runtime-policy-eval/direct-map-entry-retry-6004/launcher.err.log`。
+  This is a truthful runtime block (`api_ready=false`), not proof of map entry
+  or victory; DirectMapApi still needs a fresh lease-available run.
+
+## Current Outcome
+
+The direct-entry implementation and attach contract are in place, but current
+runtime evidence is blocked by an external SC2 process. The previous
+ApiMinimal/CreateGame runs remain historical bridge evidence only; they do not
+validate the new DirectMapApi path. No mission victory or win rate is claimed.

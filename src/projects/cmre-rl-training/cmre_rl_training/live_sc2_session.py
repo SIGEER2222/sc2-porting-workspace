@@ -409,21 +409,43 @@ def parse_observation_response(
 class Sc2ApiClient:
     """Synchronous facade over the SC2 websocket API."""
 
-    def __init__(self, port: int, *, timeout: float = 120.0) -> None:
+    def __init__(
+        self,
+        port: int,
+        *,
+        timeout: float = 120.0,
+        reconnect_delay: float = 0.5,
+    ) -> None:
         self.port = int(port)
         self.timeout = float(timeout)
+        self.reconnect_delay = max(0.1, float(reconnect_delay))
         self.api_url = f"ws://127.0.0.1:{self.port}/sc2api"
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._loop.run_forever, daemon=True)
         self._thread.start()
         self._session: Any = None
         self._websocket: Any = None
+        self._next_request_id = 1
 
     def connect(self) -> None:
-        self._submit(self._connect(), timeout=30.0)
+        self._submit(self._connect_with_retry(timeout=30.0), timeout=35.0)
 
-    def send(self, request: Any, *, timeout: float | None = None) -> Any:
-        return self._submit(self._send(request), timeout=timeout or self.timeout)
+    def send(
+        self,
+        request: Any,
+        *,
+        timeout: float | None = None,
+        retry_on_disconnect: bool = False,
+    ) -> Any:
+        request_timeout = timeout or self.timeout
+        return self._submit(
+            self._send(
+                request,
+                timeout=request_timeout,
+                retry_on_disconnect=retry_on_disconnect,
+            ),
+            timeout=request_timeout + 5.0,
+        )
 
     def close(self) -> None:
         try:
@@ -440,21 +462,94 @@ class Sc2ApiClient:
     async def _connect(self) -> None:
         import aiohttp
 
-        self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout))
-        self._websocket = await self._session.ws_connect(self.api_url)
+        await self._close()
+        self._session = aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(sock_connect=15, sock_read=self.timeout)
+        )
+        self._websocket = await self._session.ws_connect(
+            self.api_url,
+            max_msg_size=0,
+            timeout=aiohttp.ClientWSTimeout(ws_close=30),
+            autoclose=False,
+            autoping=False,
+        )
 
-    async def _send(self, request: Any) -> Any:
-        if self._websocket is None:
-            raise LiveSc2Error("sc2_api_not_connected")
-        await self._websocket.send_bytes(request.SerializeToString())
-        message = await self._websocket.receive()
-        if getattr(message, "type", None) != 2:  # aiohttp.WSMsgType.BINARY
-            raise LiveSc2Error(f"sc2_api_non_binary_response:{getattr(message, 'type', None)}")
+    async def _connect_with_retry(self, *, timeout: float) -> None:
+        deadline = time.monotonic() + max(0.1, float(timeout))
+        last_error: Exception | None = None
+        while time.monotonic() < deadline:
+            try:
+                await self._connect()
+                return
+            except Exception as exc:
+                last_error = exc
+                await self._close()
+                await asyncio.sleep(min(self.reconnect_delay, max(0.0, deadline - time.monotonic())))
+        raise LiveSc2Error(f"sc2_api_connect_timeout:{last_error}") from last_error
+
+    async def _send(
+        self,
+        request: Any,
+        *,
+        timeout: float,
+        retry_on_disconnect: bool = False,
+    ) -> Any:
         from s2clientprotocol import sc2api_pb2 as sc_pb
 
-        response = sc_pb.Response()
-        response.ParseFromString(bytes(message.data))
-        return response
+        import aiohttp
+
+        request_name = request.WhichOneof("request") or "request"
+        deadline = time.monotonic() + max(0.1, float(timeout))
+        attempts = 0
+        try:
+            request.id = self._next_request_id
+            self._next_request_id += 1
+        except (AttributeError, TypeError):
+            request_id = 0
+        else:
+            request_id = int(request.id)
+        while True:
+            try:
+                if self._websocket is None or self._websocket.closed:
+                    if not retry_on_disconnect:
+                        raise LiveSc2Error("sc2_api_not_connected")
+                    await self._connect_with_retry(timeout=min(15.0, max(0.1, deadline - time.monotonic())))
+                await self._websocket.send_bytes(request.SerializeToString())
+                while time.monotonic() < deadline:
+                    remaining = max(0.1, deadline - time.monotonic())
+                    message = await asyncio.wait_for(
+                        self._websocket.receive(), timeout=remaining
+                    )
+                    if message.type == aiohttp.WSMsgType.BINARY:
+                        response = sc_pb.Response()
+                        response.ParseFromString(bytes(message.data))
+                        if not response.HasField("id") or not request_id or response.id == request_id:
+                            return response
+                        continue
+                    if message.type in (
+                        aiohttp.WSMsgType.CLOSE,
+                        aiohttp.WSMsgType.CLOSED,
+                        aiohttp.WSMsgType.ERROR,
+                    ):
+                        raise ConnectionError(
+                            f"sc2_api_websocket_closed:{message.type}:{getattr(message, 'data', '')}"
+                        )
+                    raise ConnectionError(f"sc2_api_non_binary_response:{message.type}")
+                raise TimeoutError(f"timeout waiting for response to {request_name}")
+            except (
+                ConnectionError,
+                asyncio.TimeoutError,
+                TimeoutError,
+                aiohttp.ClientError,
+            ) as exc:
+                if not retry_on_disconnect or time.monotonic() >= deadline:
+                    if isinstance(exc, (ConnectionError, asyncio.TimeoutError, TimeoutError)):
+                        raise LiveSc2Error(str(exc)) from exc
+                    raise
+                attempts += 1
+                await self._close()
+                await asyncio.sleep(min(self.reconnect_delay * min(attempts, 4), max(0.0, deadline - time.monotonic())))
+                await self._connect_with_retry(timeout=min(15.0, max(0.1, deadline - time.monotonic())))
 
     async def _close(self) -> None:
         if self._websocket is not None:
@@ -479,6 +574,7 @@ class LiveRawSc2Session:
         computer_difficulty: int = DIFFICULTY_EASY,
         realtime: bool = False,
         progress_loop_limit: int = 100000,
+        join_existing: bool = False,
         client: Sc2ApiClient | None = None,
     ) -> None:
         self.map_path = Path(map_path).resolve()
@@ -491,6 +587,7 @@ class LiveRawSc2Session:
         self.computer_difficulty = int(computer_difficulty)
         self.realtime = bool(realtime)
         self.progress_loop_limit = max(1, int(progress_loop_limit))
+        self.join_existing = bool(join_existing)
         self.client = client or Sc2ApiClient(self.port)
         self._sc_pb: Any = None
         self._raw_pb: Any = None
@@ -503,7 +600,9 @@ class LiveRawSc2Session:
         self.runtime_stats: dict[str, Any] = {
             "api_url": f"ws://127.0.0.1:{self.port}/sc2api",
             "create_game": False,
+            "join_existing": self.join_existing,
             "join_game": False,
+            "join_attempts": 0,
             "observations": 0,
             "request_steps": 0,
             "requested_step_loops": 0,
@@ -528,29 +627,30 @@ class LiveRawSc2Session:
         if not self._connected:
             self.client.connect()
             self._connected = True
-        map_data = self.map_path.read_bytes()
-        create = self._sc_pb.Request(
-            create_game=self._sc_pb.RequestCreateGame(
-                local_map=self._sc_pb.LocalMap(map_data=map_data),
-                player_setup=[
-                    self._sc_pb.PlayerSetup(
-                        type=PLAYER_PARTICIPANT,
-                        race=RACE_TERRAN,
-                        player_name=self.player_name,
-                    ),
-                    self._sc_pb.PlayerSetup(
-                        type=PLAYER_COMPUTER,
-                        race=RACE_TERRAN,
-                        difficulty=self.computer_difficulty,
-                        player_name=self.computer_name,
-                    ),
-                ],
-                realtime=self.realtime,
+        if not self.join_existing:
+            map_data = self.map_path.read_bytes()
+            create = self._sc_pb.Request(
+                create_game=self._sc_pb.RequestCreateGame(
+                    local_map=self._sc_pb.LocalMap(map_data=map_data),
+                    player_setup=[
+                        self._sc_pb.PlayerSetup(
+                            type=PLAYER_PARTICIPANT,
+                            race=RACE_TERRAN,
+                            player_name=self.player_name,
+                        ),
+                        self._sc_pb.PlayerSetup(
+                            type=PLAYER_COMPUTER,
+                            race=RACE_TERRAN,
+                            difficulty=self.computer_difficulty,
+                            player_name=self.computer_name,
+                        ),
+                    ],
+                    realtime=self.realtime,
+                )
             )
-        )
-        create_response = self.client.send(create, timeout=120.0)
-        _raise_response_error(create_response, "CreateGame")
-        self.runtime_stats["create_game"] = True
+            create_response = self.client.send(create, timeout=120.0)
+            _raise_response_error(create_response, "CreateGame")
+            self.runtime_stats["create_game"] = True
 
         join = self._sc_pb.Request(
             join_game=self._sc_pb.RequestJoinGame(
@@ -558,8 +658,29 @@ class LiveRawSc2Session:
                 options=self._sc_pb.InterfaceOptions(raw=True, score=True, show_cloaked=True),
             )
         )
-        join_response = self.client.send(join, timeout=120.0)
-        _raise_response_error(join_response, "JoinGame")
+        # DirectMapApi exposes the socket before the map's game state is ready.
+        # JoinGame is safe to retry here; action requests deliberately are not.
+        join_deadline = time.monotonic() + 120.0
+        join_response: Any = None
+        last_join_error: Exception | None = None
+        while time.monotonic() < join_deadline:
+            self.runtime_stats["join_attempts"] += 1
+            remaining = max(1.0, join_deadline - time.monotonic())
+            try:
+                join_response = self.client.send(
+                    join,
+                    timeout=min(15.0, remaining),
+                    retry_on_disconnect=True,
+                )
+                _raise_response_error(join_response, "JoinGame")
+                break
+            except LiveSc2Error as exc:
+                last_join_error = exc
+                time.sleep(min(0.5, max(0.0, join_deadline - time.monotonic())))
+        else:
+            raise LiveSc2Error(f"JoinGame_timeout:{last_join_error}") from last_join_error
+        if join_response is None:
+            raise LiveSc2Error(f"JoinGame_failed:{last_join_error}") from last_join_error
         self._player_id = int(join_response.join_game.player_id or player_id)
         self._joined = True
         self.runtime_stats["join_game"] = True
@@ -727,6 +848,23 @@ def _raise_response_error(response: Any, operation: str) -> None:
         details = list(getattr(response, "error_details", ()))
         suffix = f" details={details}" if details else ""
         raise LiveSc2Error(f"{operation}_failed:{errors}{suffix}")
+    if operation == "JoinGame" and getattr(response, "HasField", None):
+        try:
+            has_join_response = bool(response.HasField("join_game"))
+        except (TypeError, ValueError):
+            has_join_response = False
+        if has_join_response:
+            join_response = response.join_game
+            try:
+                has_join_error = bool(join_response.HasField("error"))
+            except (AttributeError, TypeError, ValueError):
+                has_join_error = False
+            if has_join_error:
+                details = list(getattr(join_response, "error_details", ()))
+                suffix = f" details={details}" if details else ""
+                raise LiveSc2Error(
+                    f"{operation}_failed:{join_response.error}{suffix}"
+                )
 
 
 def _entity_id(unit: Mapping[str, Any]) -> int:

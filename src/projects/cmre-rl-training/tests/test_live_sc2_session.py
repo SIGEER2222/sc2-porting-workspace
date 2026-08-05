@@ -10,6 +10,8 @@ from cmre_rl_training.action_space import ACTION_NAMES
 from cmre_rl_training.action_grounding import ActionGrounder
 from cmre_rl_training.env import CmreRLEnv
 from cmre_rl_training.live_sc2_session import (
+    LiveRawSc2Session,
+    LiveSc2Error,
     RawActionError,
     build_raw_action,
     build_raw_action_spec,
@@ -79,6 +81,45 @@ class _CommonPb:
     Point2D = SimpleNamespace
 
 
+class _FakeRequest:
+    def __init__(self, **fields: object) -> None:
+        self.kind = next(iter(fields))
+        for name, value in fields.items():
+            setattr(self, name, value)
+
+    def WhichOneof(self, _name: str) -> str:
+        return self.kind
+
+
+class _FakeScPb:
+    Request = _FakeRequest
+    RequestJoinGame = SimpleNamespace
+    InterfaceOptions = SimpleNamespace
+
+
+class _RecordingSc2Client:
+    def __init__(self, *, failures_before_success: int = 0) -> None:
+        self.connected = False
+        self.failures_before_success = int(failures_before_success)
+        self.requests: list[tuple[str, dict[str, Any]]] = []
+
+    def connect(self) -> None:
+        self.connected = True
+
+    def send(self, request: _FakeRequest, **kwargs: Any) -> Any:
+        self.requests.append((request.kind, kwargs))
+        if self.failures_before_success > 0:
+            self.failures_before_success -= 1
+            raise LiveSc2Error("JoinGame_failed:[map_loading]")
+        return SimpleNamespace(
+            error=[],
+            join_game=SimpleNamespace(player_id=1),
+        )
+
+    def close(self) -> None:
+        self.connected = False
+
+
 class _TerminalObservationResponse:
     def __init__(self, result: int) -> None:
         self.observation = SimpleNamespace(
@@ -141,6 +182,45 @@ class _OfflineRawSession:
 
 
 class LiveActionSpecTests(unittest.TestCase):
+    def test_direct_map_attach_skips_create_game(self) -> None:
+        client = _RecordingSc2Client()
+        session = LiveRawSc2Session(
+            __file__,
+            port=6003,
+            join_existing=True,
+            client=client,
+        )
+        session._sc_pb = _FakeScPb
+        session._load_protocol = lambda: None
+        session.observe = lambda: {"loop": 0, "player_id": 1}
+
+        observation = session.reset("dead-of-night", 1)
+
+        self.assertEqual(observation["player_id"], 1)
+        self.assertTrue(client.connected)
+        self.assertEqual([kind for kind, _ in client.requests], ["join_game"])
+        self.assertTrue(client.requests[0][1]["retry_on_disconnect"])
+        self.assertFalse(session.runtime_stats["create_game"])
+        self.assertTrue(session.runtime_stats["join_game"])
+
+    def test_direct_map_join_retries_transient_loading_error(self) -> None:
+        client = _RecordingSc2Client(failures_before_success=1)
+        session = LiveRawSc2Session(
+            __file__,
+            port=6003,
+            join_existing=True,
+            client=client,
+        )
+        session._sc_pb = _FakeScPb
+        session._load_protocol = lambda: None
+        session.observe = lambda: {"loop": 0, "player_id": 1}
+
+        session.reset("dead-of-night", 1)
+
+        self.assertEqual([kind for kind, _ in client.requests], ["join_game", "join_game"])
+        self.assertEqual(session.runtime_stats["join_attempts"], 2)
+        self.assertTrue(session.runtime_stats["join_game"])
+
     def test_player_result_becomes_terminal_mission_state(self) -> None:
         observation = parse_observation_response(
             _TerminalObservationResponse(1),

@@ -57,6 +57,23 @@
         "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64/evaluation-report.json",
         "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/evaluation-report.json"
       ]
+    },
+    {
+      "type": "static",
+      "claim": "The current live runner uses DirectMapApi with join_existing=true; the raw session skips CreateGame and retries JoinGame after transient API disconnects.",
+      "evidence": [
+        "tools/run_live_rl.py",
+        "cmre_rl_training/live_sc2_session.py",
+        "tests/test_live_sc2_session.py::LiveActionSpecTests.test_direct_map_attach_skips_create_game"
+      ]
+    },
+    {
+      "type": "blocked",
+      "claim": "The first fresh DirectMapApi runtime attempt on port 6004 was rejected before API readiness by an external SC2 runtime lease; it provides no map-entry or victory evidence.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/direct-map-entry-retry-6004/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/direct-map-entry-retry-6004/launcher.err.log"
+      ]
     }
   ],
   "outputs": [
@@ -128,6 +145,16 @@
       "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py ... --port 5967 --stop-on-terminal --save-replay",
       "exitCode": 1,
       "summary": "truthful blocked result: approved launcher owner_pid=16288 owner_port=5966"
+    },
+    {
+      "command": "PYTHONPATH=.;..\\cmre-neuro-adapter;..\\cmre-porting python -m unittest discover -s tests -v",
+      "exitCode": 0,
+      "summary": "173 tests passed, including direct-map attach and JoinGame retry regressions"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py ... --port 6004 --max-steps 64 --step-mul 8 --stop-on-terminal --save-replay --variant direct-map-entry-retry-6004",
+      "exitCode": 1,
+      "summary": "truthful blocked result: approved launcher rejected external owner_pid=44508 before API readiness"
     }
   ],
   "nextStage": null

@@ -5,8 +5,8 @@
       "id": "EVAL-001",
       "severity": "high",
       "title": "External SC2 runtime lease intermittently blocks matrix evaluation",
-      "description": "The 2-map x 3-variant matrix and several isolated retries were rejected by the approved launcher because another SC2 session owned the runtime lease. A later fresh current-map run on port 6001 succeeded after the lease was available; held-out matrix comparison remains unverified.",
-      "impact": "Cross-map live policy comparison remains unavailable; the current-map direct-entry bridge is independently verified.",
+      "description": "The 2-map x 3-variant matrix and several isolated retries were rejected by the approved launcher because another SC2 session owned the runtime lease. A later fresh current-map run on port 6001 succeeded through the historical ApiMinimal/CreateGame path, but the new DirectMapApi attach path has not yet obtained a lease-available runtime window.",
+      "impact": "Cross-map live policy comparison and fresh DirectMapApi map-entry evidence remain unavailable.",
       "status": "blocked",
       "nextAction": "Rerun the held-out evaluator when the runtime lease is available; do not terminate external owners or their SC2 children.",
       "evidence": [
@@ -14,7 +14,9 @@
         "artifacts/stage-10-runtime-policy-eval/blocked-lease-dead-of-night/launcher.err.log",
         "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry/evaluation-report.json",
         "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/evaluation-report.json",
-        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/dead-of-night-frozen-stochastic/launcher.err.log"
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/dead-of-night-frozen-stochastic/launcher.err.log",
+        "artifacts/stage-10-runtime-policy-eval/direct-map-entry-retry-6004/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/direct-map-entry-retry-6004/launcher.err.log"
       ]
     },
     {

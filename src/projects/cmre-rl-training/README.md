@@ -32,10 +32,11 @@ python src/projects/cmre-rl-training/tools/run_live_rl.py `
   --stop-on-terminal --save-replay --variant current-map-victory
 ```
 
-The live runner starts the approved launcher in minimized Debug/API mode, so
-the native commander-selection frontend is not the visible control surface.
-The runtime gate still requires API readiness, `CreateGame`, `JoinGame`, frame
-progress, successful actions, and clean same-window ScriptError evidence.
+The live runner starts the approved launcher in DirectMapApi mode. The launcher
+loads the map directly and the raw client attaches with `JoinGame`; it does not
+open the commander-selection flow or send `CreateGame`. The runtime gate still
+requires API readiness, `direct_map_api=true`, `JoinGame`, frame progress,
+successful actions, and clean same-window ScriptError evidence.
 
 ## Run Training
 
@@ -97,11 +98,11 @@ python src/projects/cmre-rl-training/tools/run_live_rl.py `
 ```
 
 The report is written under `artifacts/stage-09-live-rl-bridge/`. A runtime PASS
-requires API readiness, CreateGame/JoinGame, frame advancement, at least one
-successful action result, and a clean same-window ScriptError scan. The bounded
-reward is an observation-derived runtime proxy; it is not a mission win-rate
-claim. The ML-controlled participant is P1; a native Computer P2 remains the
-environment opponent.
+requires API readiness, direct map entry, JoinGame, frame advancement, at least
+one successful action result, and a clean same-window ScriptError scan. The
+bounded reward is an observation-derived runtime proxy; it is not a mission
+win-rate claim. The ML-controlled participant is P1; a native Computer P2
+remains the environment opponent.
 
 ## Evaluate Across Maps
 

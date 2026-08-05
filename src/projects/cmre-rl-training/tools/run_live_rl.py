@@ -53,7 +53,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--map-path",
         default="artifacts/live-maps/亡者之夜_live_packed.SC2Map",
-        help="Packed .SC2Map passed to CreateGame",
+        help="Packed .SC2Map used as the runtime map artifact",
     )
     parser.add_argument(
         "--checkpoint",
@@ -120,13 +120,10 @@ def launch_approved_launcher(args: argparse.Namespace, output_dir: Path) -> tupl
         args.commander,
         "-ListenPort",
         str(args.port),
-        "-ApiMinimal",
-        # DebugMode keeps the approved API bootstrap headless/minimized so the
-        # native commander-selection frontend cannot become the visible run UI.
-        "-DebugMode",
+        "-DirectMapApi",
+        # DirectMapApi makes SC2Switcher load the staged map with -e first;
+        # the API client attaches with JoinGame instead of booting the menu.
         "-KeepAlive",
-        "-MapCopySuffix",
-        args.launcher_suffix,
     ]
     stdout = launcher_log.open("wb")
     stderr = launcher_err.open("wb")
@@ -271,6 +268,8 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
             "variant": str(args.variant),
         },
         "launcher_started": False,
+        "direct_map_api": True,
+        "map_entry": "direct_map_api",
         "api_ready": False,
         "create_game": False,
         "join_game": False,
@@ -308,6 +307,7 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
             port=args.port,
             protocol_root=resolve_repo_path(args.protocol_root),
             progress_loop_limit=max(args.max_steps * args.step_mul, 1),
+            join_existing=True,
         )
         backend = RawSc2Backend(session, map_name=args.map_name, player_id=1, step_mul=args.step_mul)
         base_env = CmreRLEnv(backend, normalize_reward=False)
@@ -388,7 +388,7 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
         report["script_error_verdict"] = script_error_verdict(start_epoch)
         required_runtime = (
             report.get("api_ready")
-            and report.get("create_game")
+            and (report.get("create_game") or report.get("direct_map_api"))
             and report.get("join_game")
             and report.get("frame_advancement")
             and report.get("action_results_observed")
@@ -419,6 +419,8 @@ def main(argv: list[str] | None = None) -> int:
         "report": report.get("report_path"),
         "api_ready": report.get("api_ready"),
         "create_game": report.get("create_game"),
+        "direct_map_api": report.get("direct_map_api"),
+        "map_entry": report.get("map_entry"),
         "join_game": report.get("join_game"),
         "frame_advancement": report.get("frame_advancement"),
         "action_results_observed": report.get("action_results_observed"),
