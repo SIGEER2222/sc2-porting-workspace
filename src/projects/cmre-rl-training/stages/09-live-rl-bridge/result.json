@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "stage": "09-live-rl-bridge",
+  "status": "passed",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "项目内新增正式 raw SC2 session、标准 Catalog ID 归一化、19-action raw command spec、sc2api Action envelope 和 approved-launcher live runner。",
+      "evidence": [
+        "cmre_rl_training/live_sc2_session.py",
+        "tools/run_live_rl.py",
+        "tests/test_live_sc2_session.py"
+      ]
+    },
+    {
+      "type": "simulator",
+      "claim": "多地图 SimulatorSession PPO 入口生成了可供 live runner 加载的 map-aware checkpoint。",
+      "evidence": [
+        "artifacts/projects/cmre-rl-training/multi-map-training/training-report.json",
+        "artifacts/projects/cmre-rl-training/multi-map-training/map-aware-policy.pt"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "fresh approved launcher runtime 中，map-aware PPO checkpoint 完成了真实 SC2 API ready、CreateGame、JoinGame、8 次 RequestStep、8 次 RequestAction 以及一次 PPO update。",
+      "evidence": [
+        "artifacts/stage-09-live-rl-bridge/20260805-dead-of-night-6/live-rl-report.json",
+        "artifacts/stage-09-live-rl-bridge/20260805-dead-of-night-6/launcher.log",
+        "artifacts/stage-09-live-rl-bridge/20260805-dead-of-night-6/launcher.err.log"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "同一 fresh runtime window 的 ScriptError gate 通过，未发现新增 ScriptError。",
+      "evidence": [
+        "artifacts/stage-09-live-rl-bridge/20260805-dead-of-night-6/live-rl-report.json"
+      ]
+    },
+    {
+      "type": "blocked",
+      "claim": "P2 仍是 native Computer，因此本阶段不声称 P2 已被外部 ML 控制；live reward 仍是 observation-derived proxy，不声称任务胜率。",
+      "evidence": [
+        "stages/09-live-rl-bridge/issues.json",
+        "artifacts/stage-09-live-rl-bridge/20260805-dead-of-night-6/live-rl-report.json"
+      ]
+    }
+  ],
+  "outputs": [
+    "cmre_rl_training/live_sc2_session.py",
+    "tools/run_live_rl.py",
+    "tests/test_live_sc2_session.py",
+    "README.md",
+    "stages/09-live-rl-bridge/plan.md",
+    "stages/09-live-rl-bridge/log.md",
+    "stages/09-live-rl-bridge/result.json",
+    "stages/09-live-rl-bridge/issues.json",
+    "artifacts/stage-09-live-rl-bridge/20260805-dead-of-night-6/live-rl-report.json"
+  ],
+  "validation": [
+    {
+      "command": "PYTHONPATH=.;..\\cmre-neuro-adapter;..\\cmre-porting python -m unittest tests.test_live_sc2_session -v",
+      "exitCode": 0,
+      "summary": "8 focused live bridge tests passed"
+    },
+    {
+      "command": "PYTHONPATH=.;..\\cmre-neuro-adapter;..\\cmre-porting python -m unittest discover -s tests -v",
+      "exitCode": 0,
+      "summary": "165 tests passed"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/train_multi_map.py --backend simulator --maps dead-of-night,void-launch --iterations 1 --rollout-steps 4 --max-episode-steps 4 --hidden-dim 16 --ppo-epochs 1 --batch-size 4 --output-dir artifacts/projects/cmre-rl-training/multi-map-training",
+      "exitCode": 0,
+      "summary": "SimulatorSession PPO path completed and wrote checkpoint/report"
+    },
+    {
+      "command": "python -m py_compile src/projects/cmre-rl-training/tools/run_live_rl.py",
+      "exitCode": 0,
+      "summary": "runner syntax and import compilation passed"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py ... --port 5953 --max-steps 8 --step-mul 8 --train",
+      "exitCode": 0,
+      "summary": "fresh approved launcher runtime gate passed with API/CreateGame/JoinGame/frame/action/PPO evidence"
+    }
+  ],
+  "nextStage": "10-runtime-policy-eval"
+}

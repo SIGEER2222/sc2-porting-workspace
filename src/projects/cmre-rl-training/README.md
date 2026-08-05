@@ -50,3 +50,22 @@ map-aware-policy.pt
 These simulator results establish a runnable training path. They are not
 real-SC2 win-rate or all-map generalization evidence; live validation must use
 the registered launcher and its runtime evidence gates.
+
+## Run A Live Rollout
+
+After producing a checkpoint, run a bounded participant-side rollout through the
+approved launcher:
+
+```powershell
+python src/projects/cmre-rl-training/tools/run_live_rl.py `
+  --checkpoint artifacts/projects/cmre-rl-training/multi-map-training/map-aware-policy.pt `
+  --map-path artifacts/live-maps/亡者之夜_live_packed.SC2Map `
+  --max-steps 8 --step-mul 8 --train
+```
+
+The report is written under `artifacts/stage-09-live-rl-bridge/`. A runtime PASS
+requires API readiness, CreateGame/JoinGame, frame advancement, at least one
+successful action result, and a clean same-window ScriptError scan. The bounded
+reward is an observation-derived runtime proxy; it is not a mission win-rate
+claim. The ML-controlled participant is P1; a native Computer P2 remains the
+environment opponent.

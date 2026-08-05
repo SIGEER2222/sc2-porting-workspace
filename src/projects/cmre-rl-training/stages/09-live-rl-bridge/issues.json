@@ -1,0 +1,37 @@
+{
+  "stage": "09-live-rl-bridge",
+  "issues": [
+    {
+      "id": "LIVE-004",
+      "severity": "high",
+      "title": "Approved launcher cannot acquire the SC2 runtime lease",
+      "description": "The first two attempts were blocked by an existing runtime lease. After that owner exited, the final fresh run acquired the lease and passed the complete runtime gate.",
+      "impact": "No remaining impact on Stage 09 acceptance; stale-port reuse is now rejected by runner preflight.",
+      "status": "resolved",
+      "resolution": "Fresh port-5953 run passed with zero-byte launcher.err.log and runtime report runtime_gate=true.",
+      "evidence": [
+        "artifacts/stage-09-live-rl-bridge/20260805-dead-of-night-6/live-rl-report.json",
+        "artifacts/stage-09-live-rl-bridge/20260805-dead-of-night-6/launcher.err.log"
+      ]
+    },
+    {
+      "id": "LIVE-005",
+      "severity": "high",
+      "title": "P2 native Computer is not an external ML action issuer",
+      "description": "The runner topology creates P1 participant plus native Computer P2. This is suitable for P1 external policy validation but cannot prove externally controlled P2 ally behavior.",
+      "impact": "P2 economy, production, and tactical ML control remain unverified.",
+      "status": "open",
+      "nextAction": "Add a separately authorized participant/API control topology before claiming P2 cooperative ML control."
+    },
+    {
+      "id": "LIVE-006",
+      "severity": "medium",
+      "title": "Live bounded reward is a runtime proxy",
+      "description": "The current raw observation has no mission-specific terminal contract. The runner derives bounded progress from game loop and labels reward as observation-derived runtime proxy.",
+      "impact": "The live PPO update and bounded rollout cannot establish mission win rate or tactical improvement.",
+      "status": "open",
+      "nextAction": "Add mission-owned terminal and reward events, then run held-out map/seed evaluation with replay-backed attribution."
+    }
+  ],
+  "total": 3
+}
