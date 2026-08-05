@@ -32,6 +32,24 @@
       ]
     },
     {
+      "type": "runtime",
+      "claim": "A current-map dead-of-night rollout reached API, CreateGame, JoinGame, frame advancement, successful actions, and replay save for 2048 decisions, but did not observe a mission player_result before the bounded cutoff.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/current-map-victory-20260805/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/current-map-victory-20260805/launcher.log"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The fresh DebugMode current-map run bypassed commander selection, minimized the API bootstrap window, entered dead-of-night through CreateGame+JoinGame, completed 2048 decisions with 578 successful actions, saved a replay, and produced a clean same-window ScriptError verdict; no player_result was observed.",
+      "evidence": [
+        "tools/run_live_rl.py",
+        "artifacts/stage-10-runtime-policy-eval/current-map-victory-headless-6001/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/current-map-victory-headless-6001/launcher.log",
+        "artifacts/stage-10-runtime-policy-eval/current-map-victory-headless-6001/live-replay.SC2Replay"
+      ]
+    },
+    {
       "type": "blocked",
       "claim": "No terminal result or win rate is reported; P2 remains native Computer and the live evaluation boundary is unresolved.",
       "evidence": [
@@ -85,6 +103,26 @@
       "command": "python src/projects/cmre-rl-training/tools/evaluate_live_policy.py ... --max-steps 64 --port-start 5970 --output-dir src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2",
       "exitCode": 1,
       "summary": "retry-2 remained blocked by external KeepAlive owner_pid=69888, SC2 child_pid=52096, port=6119; all six reports had api_ready=false and terminal_count=0"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/train_multi_map.py --backend simulator --maps dead-of-night --iterations 10 --rollout-steps 64 --max-episode-steps 64 --resume artifacts/projects/cmre-rl-training/multi-map-training/map-aware-policy.pt --output-dir src/projects/cmre-rl-training/artifacts/current-map-victory-20260805",
+      "exitCode": 0,
+      "summary": "current-map simulator training passed: 640 steps, total_mean_reward=151.2, checkpoint emitted"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py ... --port 5991 --max-steps 2048 --step-mul 8 --stop-on-terminal --save-replay",
+      "exitCode": 0,
+      "summary": "current-map runtime gate passed through API/CreateGame/JoinGame and 2048 decisions; replay saved, ScriptError clean, but player_result absent"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py ... --port 6001 --max-steps 2048 --step-mul 8 --stop-on-terminal --save-replay --variant current-map-victory-headless-6001",
+      "exitCode": 0,
+      "summary": "fresh DebugMode run entered dead-of-night through CreateGame/JoinGame, minimized the bootstrap window, completed 2048 decisions with 578 successful actions, saved replay, ScriptError clean; player_result absent"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py ... --port 5992 --max-steps 2048 --step-mul 8 --stop-on-terminal --save-replay",
+      "exitCode": 1,
+      "summary": "earlier headless retry blocked before API by external owner_pid=58160; no map or terminal claim"
     },
     {
       "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py ... --port 5967 --stop-on-terminal --save-replay",

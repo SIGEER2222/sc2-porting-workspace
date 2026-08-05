@@ -121,6 +121,9 @@ def launch_approved_launcher(args: argparse.Namespace, output_dir: Path) -> tupl
         "-ListenPort",
         str(args.port),
         "-ApiMinimal",
+        # DebugMode keeps the approved API bootstrap headless/minimized so the
+        # native commander-selection frontend cannot become the visible run UI.
+        "-DebugMode",
         "-KeepAlive",
         "-MapCopySuffix",
         args.launcher_suffix,

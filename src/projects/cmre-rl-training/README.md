@@ -4,6 +4,39 @@ This project provides a shared map-conditioned PPO loop for cooperative PvE
 tactics. One policy is updated across the selected map profiles; the rollout
 uses observation-driven action grounding and writes a resumable checkpoint.
 
+The current MVP is victory-first training on `dead-of-night`. Multi-map
+generalization and adversarial opponents are optional follow-up work; they are
+not required to run the current-map loop.
+
+## Current Map Victory-First Run
+
+Continue training on the current map only:
+
+```powershell
+python src/projects/cmre-rl-training/tools/train_multi_map.py `
+  --backend simulator --maps dead-of-night --iterations 10 `
+  --rollout-steps 64 --max-episode-steps 64 --device cpu `
+  --resume artifacts/projects/cmre-rl-training/multi-map-training/map-aware-policy.pt `
+  --output-dir src/projects/cmre-rl-training/artifacts/current-map-victory
+```
+
+Run the policy through the approved launcher and stop only on a real mission
+`player_result` or the explicit bounded cutoff:
+
+```powershell
+python src/projects/cmre-rl-training/tools/run_live_rl.py `
+  --checkpoint src/projects/cmre-rl-training/artifacts/current-map-victory/map-aware-policy.pt `
+  --map-name dead-of-night --launcher-map-name 亡者之夜.SC2Map `
+  --map-path artifacts/live-maps/亡者之夜_live_packed.SC2Map `
+  --port 5992 --max-steps 2048 --step-mul 8 `
+  --stop-on-terminal --save-replay --variant current-map-victory
+```
+
+The live runner starts the approved launcher in minimized Debug/API mode, so
+the native commander-selection frontend is not the visible control surface.
+The runtime gate still requires API readiness, `CreateGame`, `JoinGame`, frame
+progress, successful actions, and clean same-window ScriptError evidence.
+
 ## Run Training
 
 From the repository root:

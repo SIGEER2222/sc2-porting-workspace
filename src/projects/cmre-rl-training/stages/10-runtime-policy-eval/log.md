@@ -2,7 +2,7 @@
 
 **Date**: 2026-08-05
 **Stage**: 10-runtime-policy-eval
-**Status**: BLOCKED FOR FRESH SC2 LEASE AND TERMINAL EVIDENCE
+**Status**: BLOCKED FOR MISSION TERMINAL EVIDENCE
 
 ## G1: Terminal Contract
 
@@ -68,11 +68,36 @@
   external owner PIDs `16288`, `48212`, and `69888` were not touched. The latest
   owner was still alive after the retry and is a separate `-KeepAlive` session.
 
+## G6: Current-Map Victory-First MVP
+
+- **Simulator**: `train_multi_map.py --backend simulator --maps dead-of-night`
+  resumed the existing checkpoint for 10 iterations / 640 steps and emitted
+  `artifacts/current-map-victory-20260805/map-aware-policy.pt`; the training
+  report status is `passed` with `total_mean_reward=151.2`.
+- **Runtime**: a current-map run on port `5991` reached API readiness,
+  `CreateGame`, `JoinGame`, frame advancement, 581 successful actions, and
+  native replay save over 2048 decisions through loop `16384`; same-window
+  ScriptError was clean. No `player_result` arrived before the bounded cutoff,
+  so this is runtime bridge evidence, not a victory claim.
+- **UI diagnosis**: the launcher log records `commander selection code disabled`
+  and `headless startup patch`; the visible frontend was the SC2 API bootstrap
+  window. `run_live_rl.py` now passes approved-launcher `-DebugMode`, which
+  minimizes that frontend while preserving API `CreateGame+JoinGame` map entry.
+- **Headless runtime**: a fresh run with the new flag on port `6001` passed the
+  full API bridge: `CreateGame`, `JoinGame`, frame advancement, 578 successful
+  actions, 2048 decisions through loop `16384`, native replay save, and clean
+  same-window ScriptError verdict. The launcher recorded `commander selection
+  code disabled`, `headless startup patch`, `SC2 API mode (ApiMinimal)`, and
+  `DebugMode: SC2 窗口已最小化`. No `player_result` arrived before the bounded
+  cutoff, so the map-entry/UI issue is resolved but mission victory remains
+  unverified.
+
 ## Outcome
 
-Stage 10 implementation is ready for rerun when the external SC2 runtime lease is
-released. The latest retry again produced six fresh runtime reports, but all were
-blocked before API/CreateGame/JoinGame by `SC2_RUNTIME_BUSY`; no terminal, replay,
-or win-rate evidence exists. The evaluator correctly refuses to turn
-bounded/no-terminal or launcher-blocked runs into win-rate evidence. P2 remains
-native Computer and is outside the ML-control claim.
+Stage 10 now has a current-map victory-first path and a verified direct map-entry
+surface with the bootstrap window minimized. The runtime bridge is proven through
+`CreateGame+JoinGame` and bounded action/replay evidence, while a real mission
+victory remains unverified because the 2048-decision run had no `player_result`.
+The evaluator correctly refuses to turn bounded/no-terminal or launcher-blocked
+runs into a win-rate claim. P2 remains native Computer and is outside the
+ML-control claim.
