@@ -1,0 +1,33 @@
+{
+  "stage": "06-multi-map-self-training",
+  "issues": [
+    {
+      "id": "ISSUE-013",
+      "severity": "high",
+      "title": "真实 SC2 全地图泛化尚未形成矩阵证据",
+      "description": "当前 G5 只在两个 map profile 的 fake backend 上验证共享 PPO 闭环；Stage 05 的 raw API 运行证据也只覆盖单地图 transport smoke/sim2real 对比。",
+      "impact": "不能据此声称在任意真实地图上达到稳定胜率或自动发现最优战术。",
+      "workaround": "后续通过注册 launcher 对多个真实地图分别 Create/Join/Step/Leave，记录 GameLogs、ScriptErrors、动作结果、任务终止和奖励，并按地图做 held-out 评估。",
+      "status": "deferred-to-runtime-matrix"
+    },
+    {
+      "id": "ISSUE-014",
+      "severity": "medium",
+      "title": "当前 fake reward 不能证明 PPO 的任务收益提升",
+      "description": "FakeBackend 奖励主要由进度、资源和基地状态变化产生，与具体高层动作没有充分因果关联。",
+      "impact": "本阶段可证明训练路径、策略更新和动作行为变化，但不能证明 self-training 提升真实任务完成率。",
+      "workaround": "接入带敌军、基地伤害、目标完成和胜负结果的真实 SimulatorSession 或 raw SC2 reward collector，再做 held-out map/seed 评估。",
+      "status": "deferred-to-task-reward-eval"
+    },
+    {
+      "id": "ISSUE-015",
+      "severity": "low",
+      "title": "未知地图目前只有 family-level fallback",
+      "description": "未知地图会稳定落到 family/scale/night-cycle 的固定上下文，战略点仍主要来自当前 observation，不会自动读取完整地图 Catalog。",
+      "impact": "新地图可以运行，但初始 profile 先验较弱，可能需要更多 self-training 或地图侧 metadata。",
+      "workaround": "在 raw session 初始化阶段采集地图尺寸、资源点、目标点和可通行战略区域，版本化 profile schema 后加入 registry。",
+      "status": "documented"
+    }
+  ],
+  "total": 3
+}

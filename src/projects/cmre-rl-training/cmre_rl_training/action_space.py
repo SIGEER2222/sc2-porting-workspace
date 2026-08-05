@@ -89,7 +89,11 @@ def _has_orders(unit: Mapping[str, Any]) -> bool:
     }
 
 
-def compute_action_mask(observation: Mapping[str, Any]) -> "np.ndarray":
+def compute_action_mask(
+    observation: Mapping[str, Any],
+    *,
+    strict_targets: bool = False,
+) -> "np.ndarray":
     """Return boolean mask: ``True`` = action is legal given the observation.
 
     Masking rules:
@@ -104,6 +108,10 @@ def compute_action_mask(observation: Mapping[str, Any]) -> "np.ndarray":
     - cancel_order requires at least one unit with active orders.
     - load_units / unload_units require a transport-capable unit.
     - rally_producer requires a production structure.
+
+    When ``strict_targets`` is true, target-dependent actions are also disabled
+    when the current observation has no suitable target candidate. The default
+    remains the historical capability-only mask for backwards compatibility.
     """
 
     mask = np.zeros(NUM_ACTIONS, dtype=bool)
@@ -154,7 +162,40 @@ def compute_action_mask(observation: Mapping[str, Any]) -> "np.ndarray":
     if has_producer:
         mask[ACTION_INDEX["rally_producer"]] = True
 
+    if strict_targets:
+        if not _has_target(observation.get("visible_enemies")):
+            mask[ACTION_INDEX["attack_units"]] = False
+        if not _has_target(observation.get("mineral_fields")):
+            mask[ACTION_INDEX["gather_resources"]] = False
+        if not _has_target(observation.get("own_units")):
+            mask[ACTION_INDEX["repair_units"]] = False
+            mask[ACTION_INDEX["cast_unit_ability"]] = False
+
+        cargo_candidates = [
+            unit for unit in own_units
+            if not _is_transport(unit) and _has_entity_id(unit)
+        ]
+        if not cargo_candidates:
+            mask[ACTION_INDEX["load_units"]] = False
+
     return mask
+
+
+def _has_target(value: Any) -> bool:
+    if not isinstance(value, (list, tuple)):
+        return False
+    return any(
+        isinstance(item, Mapping) and _has_entity_id(item)
+        for item in value
+    )
+
+
+def _has_entity_id(unit: Mapping[str, Any]) -> bool:
+    value = unit.get("entity_id", unit.get("tag"))
+    try:
+        return int(value) > 0
+    except (TypeError, ValueError):
+        return False
 
 
 __all__ = [

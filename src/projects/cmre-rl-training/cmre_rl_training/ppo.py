@@ -222,19 +222,25 @@ class PPOTrainer:
             lam=self.lam,
             normalize=self.normalize_advantages,
         )
-        obs = buffer.observations_tensor()
-        actions = buffer.actions_tensor()
-        old_logprobs = buffer.logprobs_tensor()
+        try:
+            policy_device = next(self.policy.parameters()).device
+        except (AttributeError, StopIteration):
+            policy_device = torch.device("cpu")
+        obs = buffer.observations_tensor().to(policy_device)
+        actions = buffer.actions_tensor().to(policy_device)
+        old_logprobs = buffer.logprobs_tensor().to(policy_device)
         masks = buffer.masks_tensor()
-        adv_t = torch.as_tensor(advantages, dtype=torch.float32)
-        ret_t = torch.as_tensor(returns, dtype=torch.float32)
+        if masks is not None:
+            masks = masks.to(policy_device)
+        adv_t = torch.as_tensor(advantages, dtype=torch.float32, device=policy_device)
+        ret_t = torch.as_tensor(returns, dtype=torch.float32, device=policy_device)
 
         self.policy.train()
         last_metrics = {"total_loss": 0.0, "policy_loss": 0.0, "value_loss": 0.0, "entropy": 0.0}
         batch_size = max(1, min(self.batch_size, n))
 
         for _ in range(self.epochs):
-            perm = torch.randperm(n)
+            perm = torch.randperm(n, device=policy_device)
             for start in range(0, n, batch_size):
                 idx = perm[start : start + batch_size]
                 batch_obs = obs[idx]

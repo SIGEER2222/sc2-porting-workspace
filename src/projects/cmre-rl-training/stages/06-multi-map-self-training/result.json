@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "stage": "06-multi-map-self-training",
+  "status": "passed",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "共享策略使用固定 8 维 map context，保留现有 49 维 BC encoder，并通过 strict target mask 与 ActionGrounder 将高层动作绑定到当前 observation 的合法实体、目标或点。",
+      "evidence": [
+        "cmre_rl_training/map_profiles.py",
+        "cmre_rl_training/map_aware.py",
+        "cmre_rl_training/action_space.py",
+        "cmre_rl_training/action_grounding.py"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "地图 profile、map-aware policy/checkpoint、动作 grounding 和 raw session contract 的 runtime-local MVP 测试通过。",
+      "evidence": [
+        "python -m unittest tests.test_map_profiles tests.test_map_aware tests.test_action_grounding tests.test_raw_sc2_backend -v",
+        "11 Stage 06 tests passed"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "一个共享 policy 在两个地图 profile 上完成 PPO 自训练，并返回 per-map/total metrics 与可加载 checkpoint。",
+      "evidence": [
+        "python -m unittest tests.test_self_training -v",
+        "Dead of Night + Void Launch, 8 total rollout steps, checkpoint roundtrip passed"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "Stage 01-05 既有测试与 Stage 06 新增测试全量通过。",
+      "evidence": [
+        "PYTHONPATH=.;..\\cmre-neuro-adapter;..\\cmre-porting python -m unittest discover -s tests -v",
+        "153 tests, 0 failures",
+        "python -m json.tool project.json"
+      ]
+    },
+    {
+      "type": "inference",
+      "claim": "实现为跨地图自适应战术的可运行训练基础，但真实 SC2 任意地图胜率泛化和动作相关任务收益仍需后续 runtime matrix 验证。",
+      "evidence": [
+        "stages/06-multi-map-self-training/issues.json",
+        "Stage 05 raw API evidence is single-map runtime evidence"
+      ]
+    }
+  ],
+  "outputs": [
+    "cmre_rl_training/map_profiles.py",
+    "cmre_rl_training/map_aware.py",
+    "cmre_rl_training/action_grounding.py",
+    "cmre_rl_training/raw_sc2_backend.py",
+    "cmre_rl_training/self_training.py",
+    "tests/test_map_profiles.py",
+    "tests/test_map_aware.py",
+    "tests/test_action_grounding.py",
+    "tests/test_raw_sc2_backend.py",
+    "tests/test_self_training.py",
+    "stages/06-multi-map-self-training/plan.md",
+    "stages/06-multi-map-self-training/log.md",
+    "stages/06-multi-map-self-training/result.json",
+    "stages/06-multi-map-self-training/issues.json"
+  ],
+  "validation": [
+    {
+      "command": "PYTHONPATH=.;..\\cmre-neuro-adapter;..\\cmre-porting python -m unittest discover -s tests -v",
+      "exitCode": 0,
+      "summary": "153 tests passed"
+    },
+    {
+      "command": "python -m json.tool project.json",
+      "exitCode": 0,
+      "summary": "valid project manifest"
+    }
+  ],
+  "nextStage": null
+}

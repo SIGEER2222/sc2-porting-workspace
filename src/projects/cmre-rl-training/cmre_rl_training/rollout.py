@@ -7,7 +7,8 @@ for ``n_steps`` (handling auto-reset on termination) and returns a filled
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import Any, Callable
 
 import numpy as np
 
@@ -21,6 +22,8 @@ from .action_space import ACTION_NAMES, NUM_ACTIONS
 from .observation import rl_feature_count
 from .ppo import RolloutBuffer
 
+ActionBuilder = Callable[[str, Mapping[str, Any] | None], Mapping[str, Any]]
+
 
 def collect_rollout(
     env: Any,
@@ -29,6 +32,7 @@ def collect_rollout(
     *,
     deterministic: bool = False,
     device: str = "cpu",
+    action_builder: ActionBuilder | None = None,
 ) -> RolloutBuffer:
     """Run ``n_steps`` of interaction and return a populated buffer.
 
@@ -51,6 +55,9 @@ def collect_rollout(
         otherwise sample from the masked Categorical.
     device
         Torch device for the policy forward pass.
+    action_builder
+        Optional callback that grounds ``(action_name, last_observation)`` into
+        canonical action arguments before calling ``env.step``.
     """
 
     if n_steps < 1:
@@ -92,7 +99,12 @@ def collect_rollout(
         value_scalar = float(value.flatten()[0].item())
 
         action_name = ACTION_NAMES[action_idx] if action_idx < len(ACTION_NAMES) else str(action_idx)
-        next_obs, reward, terminated, info = env.step(action_name)
+        if action_builder is None:
+            next_obs, reward, terminated, info = env.step(action_name)
+        else:
+            raw_observation = getattr(env, "last_observation", None)
+            args = action_builder(action_name, raw_observation)
+            next_obs, reward, terminated, info = env.step(action_name, args)
         buffer.store(
             obs=obs_vec,
             action=np.array([action_idx], dtype=np.int64),
@@ -115,4 +127,4 @@ def collect_rollout(
     return buffer
 
 
-__all__ = ["collect_rollout"]
+__all__ = ["ActionBuilder", "collect_rollout"]
