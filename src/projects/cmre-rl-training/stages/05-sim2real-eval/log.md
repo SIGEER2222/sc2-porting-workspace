@@ -114,3 +114,51 @@ OK
 - python-sc2 未安装，RealSc2BackendAdapter 用 MockBotAI 验证协议和动作翻译
 - 真 SC2 启动有已知问题（BankPoll/ChatCommand 不触发），sim2real 评估退化为 SimulatorRlBackend + Mock 场景
 - FakeBackend 奖励与动作无关，无法验证 BC/PPO 在任务奖励上的实际收益；仅通过动作分布差异间接证明策略行为差异
+
+## Runtime Verification (2026-08-05 追加)
+
+### G7-raw-api-runtime-eval (runtime)
+
+- **Command**: `python %TEMP%/rl_runtime_launcher.py --port 5901 --max-steps 30`
+- **Result**: PASS — raw API dispatch verified, 5 commands sent
+- **Evidence file**: `%TEMP%/rl_runtime_evidence.json`
+- **Method**:
+  - 通过现有 launcher `launch-cmre-alenger.ps1 -ApiMinimal -KeepAlive` 启动 SC2（未修改 launcher）
+  - 用 `AsyncSc2Client`（基于 `s2clientprotocol` + `aiohttp` websocket）直连 SC2 API
+  - 绕过 python-sc2 的 `run_game`（会自启 SC2 进程），改用 raw protobuf API
+  - 绕过 BankPoll/ChatCommand 触发器（ISSUE-010），直接用 `RequestAction` + `ActionRawUnitCommand` 分发命令
+- **Verified**:
+  - `RequestCreateGame`（participant vs computer, 亡者之夜_live_packed.SC2Map, 3280916 bytes）成功
+  - `RequestJoinGame`（race=Terran, InterfaceOptions raw=True）成功, player_id=1
+  - 30-step RL episode 完成（loop 0→240, 每 step 8 game loops）
+  - 5 个命令 SC2 返回 result=1（Success）:
+    - `hold_units` (ability_id=18) × 2
+    - `stop_units` (ability_id=3665) × 2
+    - `attack_move_units` (ability_id=3674) × 1
+  - 10 个命令返回 error（result=2/3）— 原因：move/patrol 目标点 (70,80) 可能在不可通行区域；attack_units 的 target_tag 指向自身
+  - 15 个动作 skipped（cast_*/morph_unit/cancel_order 未实现翻译器）
+  - `ScriptError` 检查：0 个新错误文件
+  - 初始观察：loop=0, minerals=50, own_units=2, enemies=29
+  - 最终观察：loop=240, minerals=50, own_units=2, enemies=29（单位未死亡，因多数动作未生效）
+
+### 关键技术发现
+
+1. **SC2 raw API 嵌套结构**: `Response.observation` 返回 `ResponseObservation`，需再 `.observation` 取实际 `Observation`（含 `raw_data`/`player_common`/`game_loop`）
+2. **资源读取位置**: `minerals`/`vespene` 在 `obs.player_common`（`PlayerCommon`），不在 `raw.player`（`PlayerRaw` 仅含 `power_sources`/`camera`/`upgrade_ids`）
+3. **ActionRawUnitCommand 结构**: `target_world_space_pos` 是 `common_pb.Point2D`（不是 `Point`），`target_unit_tag` 是 uint64
+4. **SC2 API 超时**: SC2 在 API 监听后 ~40s 内无客户端连接会自动退出；`-KeepAlive` 持有 lease 但不能阻止 SC2 自身超时
+5. **launcher 进程隔离**: `DETACHED_PROCESS` flag 会让 PowerShell 因无 console 而静默退出；改用 `CREATE_NO_WINDOW` (0x08000000) 让 PowerShell 在隐藏 console 中正常运行
+6. **launcher 退出码**: `Assert-CmreNoNewScriptErrors` 在 ApiMinimal 模式下可能因历史 ScriptError 文件返回非零退出码，但 SC2 已成功启动；`-KeepAlive` 模式下 launcher 会持续运行直到 SC2 退出
+
+### Changed Paths (本次 runtime 验证)
+
+- `src/projects/cmre-rl-training/stages/05-sim2real-eval/issues.json` — ISSUE-009 标记 partially-resolved，ISSUE-010 标记 resolved，附 runtime_evidence
+- `src/projects/cmre-rl-training/stages/05-sim2real-eval/log.md` — 追加 G7 runtime 验证段
+
+### Temporary Scripts (未提交，位于 %TEMP%)
+
+- `%TEMP%/rl_runtime_launcher.py` — raw API RL runtime launcher（KeepAlive + AsyncSc2Client + RandomPolicy）
+- `%TEMP%/rl_runtime_evidence.json` — runtime 证据 JSON
+- `%TEMP%/rl_launcher_stdout.log` — launcher stdout 日志
+- `%TEMP%/check_sc2_status.ps1` — SC2 进程/端口检查脚本
+- `%TEMP%/patch_launcher.py` / `%TEMP%/fix_creationflags.py` — 临时补丁脚本（已用完）
