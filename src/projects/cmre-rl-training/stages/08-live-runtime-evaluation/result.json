@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "stage": "08-live-runtime-evaluation",
+  "status": "blocked",
+  "claims": [
+    {
+      "type": "runtime",
+      "claim": "Approved launcher started a real Dead of Night API window and the live runner completed CreateGame, JoinGame, frame stepping, observation, and correlated action dispatch.",
+      "evidence": [
+        "artifacts/stage-08-live-smoke/20260805-dead-of-night/live-runtime-report.json",
+        "artifacts/stage-08-live-smoke/20260805-dead-of-night/live-replay.SC2Replay"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The P1 PyTorch imitation checkpoint loaded in the real runner and produced observed decisions and dispatch labels.",
+      "evidence": [
+        "artifacts/stage-08-live-smoke/20260805-dead-of-night-p1-ml/p1-ml-runtime-report.json",
+        "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ml-p1-action-pytorch-20260804/p1-action.pt"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "Both launch windows passed the same-window ScriptError scan with zero new non-empty ScriptError files.",
+      "evidence": [
+        "artifacts/stage-08-live-smoke/20260805-dead-of-night/script-error-verdict.json",
+        "artifacts/stage-08-live-smoke/20260805-dead-of-night-p1-ml/script-error-verdict.json"
+      ]
+    },
+    {
+      "type": "blocked",
+      "claim": "Live RL acceptance is blocked because the tested single-client topology exposes P2 as native Computer and the Stage 07 map-aware PPO checkpoint is not wired into the live runner.",
+      "evidence": [
+        "stages/08-live-runtime-evaluation/issues.json",
+        "artifacts/stage-08-live-smoke/20260805-dead-of-night-p1-ml/p1-ml-runtime-report.json"
+      ]
+    }
+  ],
+  "outputs": [
+    "stages/08-live-runtime-evaluation/plan.md",
+    "stages/08-live-runtime-evaluation/log.md",
+    "stages/08-live-runtime-evaluation/result.json",
+    "stages/08-live-runtime-evaluation/issues.json"
+  ],
+  "validation": [
+    {
+      "command": "approved launcher + run_dead_of_night_live.py on port 5940",
+      "exitCode": 1,
+      "summary": "runtime report produced; runner truthfully returned INCONCLUSIVE because the bounded native Computer topology did not satisfy the strategy acceptance gate"
+    },
+    {
+      "command": "approved launcher + run_dead_of_night_live.py --p1-model ... on port 5941",
+      "exitCode": 1,
+      "summary": "P1 model loaded and dispatched decisions; runner truthfully returned INCONCLUSIVE for the same topology and bounded-run reasons"
+    },
+    {
+      "command": "python tools/galaxy-vibe/script_error_check.py --since 1785928608 --out src/projects/cmre-rl-training/artifacts/stage-08-live-smoke/20260805-dead-of-night/script-error-verdict.json",
+      "exitCode": 0,
+      "summary": "baseline live window reported has_new_errors=false and count=0"
+    },
+    {
+      "command": "python tools/galaxy-vibe/script_error_check.py --since 1785929012 --out src/projects/cmre-rl-training/artifacts/stage-08-live-smoke/20260805-dead-of-night-p1-ml/script-error-verdict.json",
+      "exitCode": 0,
+      "summary": "P1 ML live window reported has_new_errors=false and count=0"
+    }
+  ],
+  "nextStage": "09-live-rl-bridge"
+}

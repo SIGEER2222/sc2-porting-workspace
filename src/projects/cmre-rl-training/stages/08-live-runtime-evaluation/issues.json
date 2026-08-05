@@ -1,0 +1,33 @@
+{
+  "stage": "08-live-runtime-evaluation",
+  "issues": [
+    {
+      "id": "LIVE-001",
+      "severity": "high",
+      "title": "Stage 07 map-aware PPO checkpoint is not connected to the live runner",
+      "description": "The real runner accepted the existing P1 imitation checkpoint and proved model loading/dispatch, but it does not load map-aware-policy.pt from the multi-map PPO trainer.",
+      "impact": "The live result cannot be interpreted as real-SC2 evaluation or improvement of the Stage 07 self-trained policy.",
+      "status": "open",
+      "nextAction": "Implement a RawSc2Backend environment factory for the approved launcher and validate feature_schema_hash/action contracts before loading the map-aware PPO checkpoint."
+    },
+    {
+      "id": "LIVE-002",
+      "severity": "high",
+      "title": "Single-client P2 native Computer topology is not externally controllable",
+      "description": "The live report observes P2 units as alliance=2 and accepts P1 ally chat, but P2 remains a native Computer; no P2 participant action issuer or model acknowledgement is present.",
+      "impact": "P2 ML economy, production, and tactical actions cannot be claimed from this window.",
+      "status": "open",
+      "nextAction": "Use two independent approved SC2 client/API endpoints or a map-owned control bridge with explicit ownership and action acknowledgements."
+    },
+    {
+      "id": "LIVE-003",
+      "severity": "medium",
+      "title": "Bounded smoke did not reach full tactical outcome",
+      "description": "Both runs stopped at loop 1501 with successful transport and observation, but did not satisfy the full build/train/attack/victory strategy audit.",
+      "impact": "No tactical win-rate or causal reward improvement can be inferred.",
+      "status": "open",
+      "nextAction": "After the live RL bridge is connected, run a longer held-out-map evaluation with explicit terminal reward and replay-backed action attribution."
+    }
+  ],
+  "total": 3
+}
