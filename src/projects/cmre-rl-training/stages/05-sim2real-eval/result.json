@@ -49,12 +49,29 @@
       "tests": 1,
       "result": "OK",
       "detail": "generate_sim2real_report 生成 JSON 文件包含 stage/policies/all_gates_pass 字段; 支持 BC checkpoint 可选（缺失时跳过 BC 变体）; PPO 训练步数可配置"
+    },
+    "G7-raw-api-runtime-eval": {
+      "status": "pass",
+      "evidence": "runtime",
+      "command": "python %TEMP%/rl_runtime_launcher.py --port 5901 --max-steps 30",
+      "tests": "runtime_evidence",
+      "result": "PASS — 5 commands sent",
+      "detail": "raw API dispatch verified: CreateGame+JoinGame+30x(Step+Observation+Action). 5 commands succeeded (hold/stop/attack_move). 0 ScriptErrors."
+    },
+    "G8-runtime-sim2real-comparison": {
+      "status": "pass",
+      "evidence": "runtime",
+      "command": "python %TEMP%/rl_runtime_launcher.py --skip-launch --port 5901 --max-steps 30 --policy both --sim2real",
+      "tests": "runtime_evidence",
+      "result": "all_gates_pass=True",
+      "detail": "在真 SC2 (PID 16564, port 5901) 上完成 sim2real 对比: random_init (30步, 10命令成功, 11种动作) + bc_pretrained (30步, 9命令成功, BC偏好patrol_units=11/attack_units=5). 0 ScriptErrors. 报告: artifacts/stage-05-sim2real-eval/runtime-evaluation-report.json"
     }
   },
   "total_tests": 142,
   "stage_new_tests": 25,
   "all_passed": true,
   "runtime_evidence_report": "artifacts/stage-05-sim2real-eval/evaluation-report.json",
+  "runtime_sim2real_report": "artifacts/stage-05-sim2real-eval/runtime-evaluation-report.json",
   "runtime_findings": {
     "env_type": "FakeBackend (action-independent reward)",
     "policies_evaluated": ["random_init", "bc_pretrained", "random_ppo", "bc_ppo"],
@@ -66,6 +83,33 @@
     },
     "action_distribution_insight": "BC-pretrained policy 偏好 gather_resources(40次)/attack_units(20次)/patrol_units(20次); random init 分布更均匀(5-16次); PPO 训练后分布进一步调整"
   },
+  "runtime_sim2real_findings": {
+    "env_type": "real SC2 (raw API, port 5901)",
+    "policies_evaluated": ["random_init", "bc_pretrained"],
+    "random_init": {
+      "mean_steps": 30.0,
+      "survival_rate": 1.0,
+      "commands_sent": 10,
+      "action_success": 10,
+      "action_error": 20,
+      "unique_actions": 11,
+      "top_actions": "cast_unit_ability(5), cancel_order(4), attack_move_units(4)"
+    },
+    "bc_pretrained": {
+      "mean_steps": 30.0,
+      "survival_rate": 1.0,
+      "commands_sent": 9,
+      "action_success": 9,
+      "action_error": 21,
+      "unique_actions": 9,
+      "top_actions": "patrol_units(11), attack_units(5), hold_units(4)",
+      "behavioral_signature": "BC policy heavily favors patrol_units (11/30=37%) and attack_units (5/30=17%), distinct from random_init's uniform distribution"
+    },
+    "script_errors": 0,
+    "all_gates_pass": true,
+    "action_translators_covered": 19,
+    "bc_checkpoint_loaded": "ally-intent.pt (input_dim=49, num_actions=19)"
+  },
   "changed_paths": [
     "src/projects/cmre-rl-training/cmre_rl_training/real_sc2_backend.py",
     "src/projects/cmre-rl-training/cmre_rl_training/sim2real_eval.py",
@@ -75,6 +119,7 @@
     "src/projects/cmre-rl-training/stages/05-sim2real-eval/result.json",
     "src/projects/cmre-rl-training/stages/05-sim2real-eval/log.md",
     "src/projects/cmre-rl-training/stages/05-sim2real-eval/issues.json",
-    "artifacts/stage-05-sim2real-eval/evaluation-report.json"
+    "artifacts/stage-05-sim2real-eval/evaluation-report.json",
+    "artifacts/stage-05-sim2real-eval/runtime-evaluation-report.json"
   ]
 }

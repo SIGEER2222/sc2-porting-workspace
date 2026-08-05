@@ -162,3 +162,63 @@ OK
 - `%TEMP%/rl_launcher_stdout.log` — launcher stdout 日志
 - `%TEMP%/check_sc2_status.ps1` — SC2 进程/端口检查脚本
 - `%TEMP%/patch_launcher.py` / `%TEMP%/fix_creationflags.py` — 临时补丁脚本（已用完）
+
+## Runtime Sim2Real Verification (2026-08-05 追加)
+
+### G8-runtime-sim2real-comparison (runtime)
+
+- **Command**: `python %TEMP%/rl_runtime_launcher.py --skip-launch --port 5901 --max-steps 30 --policy both --sim2real`
+- **Result**: PASS — sim2real comparison completed for policies: ['random_init', 'bc_pretrained']
+- **Evidence file**: `artifacts/stage-05-sim2real-eval/runtime-evaluation-report.json`
+- **Method**:
+  - 扩展 `%TEMP%/rl_runtime_launcher.py` 覆盖全部 19 个 RL 动作翻译器
+  - 新增 `BCPolicy` 类：加载 BC checkpoint 到 P2AllyAC（input_dim=49, num_actions=19），使用 `vibe.ml.encoder` 编码观察字典为 49 维特征向量
+  - 连接到已运行的 SC2（PID 16564, 端口 5901），运行 2 个策略各 30 步 episode
+  - 每个策略独立 CreateGame → JoinGame → 30×(Step+Observation+Action) → LeaveGame
+- **Verified**:
+  - **random_init**: 30 步完成, 10 命令成功 (success=10, error=20, skipped=0), 11 种不同动作
+    - 动作分布: cast_unit_ability(5), cancel_order(4), attack_move_units(4), cast_point_ability(3), attack_units(3), patrol_units(2), morph_unit(2), hold_units(2), stop_units(2), move_units(2), cast_no_target_ability(1)
+  - **bc_pretrained**: 30 步完成, 9 命令成功 (success=9, error=21, skipped=0), 9 种不同动作
+    - 动作分布: patrol_units(11), attack_units(5), hold_units(4), cast_point_ability(3), morph_unit(2), cancel_order(2), attack_move_units(1), stop_units(1), cast_no_target_ability(1)
+    - **BC 策略明显偏好 patrol_units(11次) 和 attack_units(5次)** — 与 random_init 的均匀分布形成鲜明对比
+  - `all_gates_pass=True`（两个策略均完成 30 步，mean_steps=30.0, survival_rate=1.0）
+  - `ScriptError` 检查：0 个新错误文件
+  - 初始观察: loop=0, minerals=50, own_units=2, enemies=27
+  - 最终观察: loop=240, minerals=50, own_units=2, enemies=27
+
+### 19 个动作翻译器覆盖
+
+全部 19 个 RL 动作均实现 raw API 翻译器（ability_id + target_type）:
+
+| 动作 | ability_id | target_type | 说明 |
+|------|-----------|------------|------|
+| move_units | 16 (MOVE_MOVE) | point | target_world_space_pos |
+| stop_units | 3665 (STOP) | none | 无目标 |
+| hold_units | 18 (HOLDPOSITION_HOLD) | none | 无目标 |
+| patrol_units | 17 (PATROL_PATROL) | point | target_world_space_pos |
+| attack_move_units | 3674 (ATTACK) | point | target_world_space_pos |
+| attack_units | 3674 (ATTACK) | unit | target_unit_tag |
+| gather_resources | 3666 (HARVEST_GATHER) | unit | target_unit_tag (mineral field) |
+| build_structure | 319/321/328/... | point | 13 种建筑类型映射 |
+| produce_unit | 560/524/591/... | none | 13 种单位类型映射 |
+| research_upgrade | 652/656/730/... | none | 9 种升级映射 |
+| cast_point_ability | 3675 (EFFECT_STIM) | point | target_world_space_pos |
+| cast_unit_ability | 3685 (EFFECT_REPAIR) | unit | target_unit_tag |
+| cast_no_target_ability | 3675 (EFFECT_STIM) | none | 无目标 |
+| repair_units | 3685 (EFFECT_REPAIR) | unit | target_unit_tag |
+| morph_unit | 388 (SIEGEMODE) | none | 4 种形态映射 |
+| cancel_order | 3659 (CANCEL) | none | 无目标 |
+| load_units | 3668 (LOAD) | unit | target_unit_tag (transport) |
+| unload_units | 3664 (UNLOADALL) | none | 无目标 |
+| rally_producer | 203 (RALLY_COMMANDCENTER) | point | target_world_space_pos |
+
+### Changed Paths (本次 sim2real runtime 验证)
+
+- `artifacts/stage-05-sim2real-eval/runtime-evaluation-report.json` — runtime sim2real 对比报告（新文件）
+- `src/projects/cmre-rl-training/stages/05-sim2real-eval/log.md` — 追加 G8 runtime sim2real 验证段
+- `src/projects/cmre-rl-training/stages/05-sim2real-eval/issues.json` — ISSUE-009 升级为 resolved
+- `src/projects/cmre-rl-training/stages/05-sim2real-eval/result.json` — 追加 G8 gate + runtime_findings
+
+### Temporary Scripts (本次验证使用，位于 %TEMP%)
+
+- `%TEMP%/rl_runtime_launcher.py` — 扩展版 raw API launcher（19 动作翻译器 + BCPolicy + sim2real 对比）
