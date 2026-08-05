@@ -70,6 +70,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--skip-launch", action="store_true", help="Use an already running API")
     parser.add_argument("--deterministic", action="store_true")
     parser.add_argument("--train", action="store_true", help="Apply one PPO update to the live rollout")
+    parser.add_argument("--stop-on-terminal", action="store_true", help="Stop at the first mission terminal event")
+    parser.add_argument("--save-replay", action="store_true", help="Save the native SC2 replay before leaving")
+    parser.add_argument("--variant", default="checkpoint", help="Evaluation variant label")
     parser.add_argument("--ppo-epochs", type=int, default=1)
     parser.add_argument("--batch-size", type=int, default=8)
     return parser
@@ -146,6 +149,61 @@ def stop_launcher(process: subprocess.Popen[bytes] | None) -> None:
             process.kill()
 
 
+def sc2_process_snapshot() -> dict[int, str]:
+    """Return current SC2 process IDs and paths without assuming ownership."""
+
+    command = (
+        "Get-CimInstance Win32_Process -Filter \"Name='SC2_x64.exe'\" | "
+        "Select-Object ProcessId,ExecutablePath | ConvertTo-Json -Compress"
+    )
+    try:
+        completed = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", command],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        if completed.returncode != 0 or not completed.stdout.strip():
+            return {}
+        payload = json.loads(completed.stdout)
+    except (OSError, json.JSONDecodeError, subprocess.TimeoutExpired):
+        return {}
+    rows = payload if isinstance(payload, list) else [payload]
+    result: dict[int, str] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        try:
+            pid = int(row.get("ProcessId"))
+        except (TypeError, ValueError):
+            continue
+        path = str(row.get("ExecutablePath") or "")
+        if pid > 0:
+            result[pid] = path
+    return result
+
+
+def stop_owned_sc2_processes(baseline_pids: set[int]) -> list[int]:
+    """Stop only SC2 processes created after this runner's baseline snapshot."""
+
+    stopped: list[int] = []
+    for pid, path in sc2_process_snapshot().items():
+        normalized = path.replace("/", "\\").lower()
+        if pid in baseline_pids or not normalized.endswith("\\sc2_x64.exe"):
+            continue
+        if "\\starcraft ii\\versions\\" not in normalized:
+            continue
+        subprocess.run(
+            ["taskkill", "/PID", str(pid), "/T", "/F"],
+            capture_output=True,
+            timeout=20,
+            check=False,
+        )
+        stopped.append(pid)
+    return stopped
+
+
 def script_error_verdict(start_epoch: float) -> dict[str, Any]:
     logs_dir = Path.home() / "Documents" / "StarCraft II" / "GameLogs"
     if not logs_dir.is_dir():
@@ -189,6 +247,7 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
     start_epoch = time.time()
     launcher_process: subprocess.Popen[bytes] | None = None
     launcher_handles: Any = None
+    baseline_sc2_pids = sc2_process_snapshot()
     session: LiveRawSc2Session | None = None
     base_env: CmreRLEnv | None = None
     report: dict[str, Any] = {
@@ -204,6 +263,9 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
             "step_mul": args.step_mul,
             "deterministic": bool(args.deterministic),
             "train": bool(args.train),
+            "stop_on_terminal": bool(args.stop_on_terminal),
+            "save_replay": bool(args.save_replay),
+            "variant": str(args.variant),
         },
         "launcher_started": False,
         "api_ready": False,
@@ -261,20 +323,29 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
             deterministic=args.deterministic,
             device="cpu",
             action_builder=grounder.ground,
+            auto_reset_on_terminal=not args.stop_on_terminal,
         )
         rewards = [float(step.reward) for step in getattr(buffer, "_steps", ())]
         actions = [int(step.action.flatten()[0]) for step in getattr(buffer, "_steps", ())]
+        final_observation = getattr(session, "_last_observation", None) or {}
         report.update({
             "player_id": session.player_id,
             "steps_collected": len(buffer),
             "loop_start": loop_start,
-            "loop_end": int(getattr(session, "_last_observation", {}).get("loop", 0)),
+            "loop_end": int(final_observation.get("loop", 0)),
             "reward_sum": float(sum(rewards)),
             "reward_mean": float(np.mean(rewards)) if rewards else 0.0,
             "action_indices": actions,
             "policy_config": policy.config(),
             "feature_dim": int(env.observation_dim),
         })
+        if args.stop_on_terminal and bool(final_observation.get("mission", {}).get("terminated", False)):
+            report["reward_basis"] = "mission-owned player_result terminal + observation-derived dense signals"
+        if args.save_replay:
+            replay_data = session.save_replay()
+            replay_path = output_dir / "live-replay.SC2Replay"
+            replay_path.write_bytes(replay_data)
+            report["replay_path"] = str(replay_path.relative_to(REPO_ROOT))
         if args.train:
             trainer = PPOTrainer(policy, epochs=args.ppo_epochs, batch_size=args.batch_size)
             metrics = trainer.train(buffer)
@@ -297,11 +368,17 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
             report["action_results_observed"] = bool(session.runtime_stats.get("action_results"))
             report["action_successes"] = int(session.runtime_stats.get("action_successes", 0))
             report["frame_advancement"] = bool(session.runtime_stats.get("requested_step_loops", 0) > 0)
+            report["action_trace"] = list(session.runtime_stats.get("action_trace", []))
+            report["terminal_results"] = list(session.runtime_stats.get("terminal_results", []))
+            report["terminal_observed"] = bool(report["terminal_results"])
+            report["replay_saved"] = bool(session.runtime_stats.get("save_replay", False))
             try:
                 session.leave()
             except Exception as exc:
                 report["leave_error"] = f"{type(exc).__name__}: {exc}"
         stop_launcher(launcher_process)
+        if not args.skip_launch:
+            report["owned_sc2_pids_stopped"] = stop_owned_sc2_processes(set(baseline_sc2_pids))
         if launcher_handles is not None:
             for handle in launcher_handles:
                 handle.close()
@@ -313,7 +390,10 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
             and report.get("frame_advancement")
             and report.get("action_results_observed")
             and int(report.get("action_successes", 0)) > 0
-            and int(report.get("steps_collected", 0)) == int(args.max_steps)
+            and (
+                int(report.get("steps_collected", 0)) == int(args.max_steps)
+                or (args.stop_on_terminal and report.get("terminal_observed"))
+            )
         )
         report["runtime_gate"] = bool(required_runtime)
         if report.get("error"):
@@ -339,6 +419,8 @@ def main(argv: list[str] | None = None) -> int:
         "join_game": report.get("join_game"),
         "frame_advancement": report.get("frame_advancement"),
         "action_results_observed": report.get("action_results_observed"),
+        "terminal_observed": report.get("terminal_observed", False),
+        "replay_saved": report.get("replay_saved", False),
         "script_errors": report.get("script_error_verdict", {}).get("has_new_errors"),
     }, ensure_ascii=False))
     return 0 if report.get("status") == "passed" else 1

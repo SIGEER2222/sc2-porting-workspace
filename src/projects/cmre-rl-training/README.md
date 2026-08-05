@@ -69,3 +69,22 @@ successful action result, and a clean same-window ScriptError scan. The bounded
 reward is an observation-derived runtime proxy; it is not a mission win-rate
 claim. The ML-controlled participant is P1; a native Computer P2 remains the
 environment opponent.
+
+## Evaluate Across Maps
+
+The Stage 10 evaluator runs frozen-stochastic, live-update, and deterministic
+variants for every supplied map. Each run uses a fresh approved launcher,
+stops only on a real `player_result` or the bounded step limit, and saves the
+native replay when the runtime is reachable:
+
+```powershell
+python src/projects/cmre-rl-training/tools/evaluate_live_policy.py `
+  --checkpoint artifacts/projects/cmre-rl-training/multi-map-training/map-aware-policy.pt `
+  --map 'dead-of-night|亡者之夜.SC2Map|artifacts/live-maps/亡者之夜_live_packed.SC2Map' `
+  --map 'void-launch|虚空降临.SC2Map|src/projects/cmre-rl-training/artifacts/live-maps/void-launch_live_packed.SC2Map' `
+  --max-steps 64 --step-mul 8
+```
+
+The map-aware policy is evaluated as P1. P2 remains a native Computer, and a
+bounded run without `player_result` is reported as inconclusive rather than a
+win or loss.

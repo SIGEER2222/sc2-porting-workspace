@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "stage": "10-runtime-policy-eval",
+  "status": "blocked",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "Stage 10 evaluator generates independent fresh-launch commands for two map profiles and three policy variants, including checkpoint hash, terminal stop, replay save, and report paths.",
+      "evidence": [
+        "tools/evaluate_live_policy.py",
+        "artifacts/stage-10-runtime-policy-eval/dry-run-2/evaluation-report.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "Raw player_result values are normalized to mission terminal state and action traces preserve loop and dispatch attribution.",
+      "evidence": [
+        "cmre_rl_training/live_sc2_session.py",
+        "tests/test_live_sc2_session.py",
+        "tests/test_live_policy_eval.py"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The evaluator attempted six fresh runtime matrix entries, but none reached API/CreateGame/JoinGame because the approved launcher reported an external SC2_RUNTIME_BUSY owner.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64/evaluation-report.json",
+        "artifacts/stage-10-runtime-policy-eval/blocked-lease-dead-of-night/launcher.err.log"
+      ]
+    },
+    {
+      "type": "blocked",
+      "claim": "No terminal result or win rate is reported; P2 remains native Computer and the live evaluation boundary is unresolved.",
+      "evidence": [
+        "stages/10-runtime-policy-eval/issues.json",
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64/evaluation-report.json"
+      ]
+    }
+  ],
+  "outputs": [
+    "tools/evaluate_live_policy.py",
+    "cmre_rl_training/live_sc2_session.py",
+    "cmre_rl_training/rollout.py",
+    "tools/run_live_rl.py",
+    "tests/test_live_policy_eval.py",
+    "tests/test_live_sc2_session.py",
+    "tests/test_rollout.py",
+    "README.md",
+    "stages/10-runtime-policy-eval/plan.md",
+    "stages/10-runtime-policy-eval/log.md",
+    "stages/10-runtime-policy-eval/result.json",
+    "stages/10-runtime-policy-eval/issues.json"
+  ],
+  "validation": [
+    {
+      "command": "PYTHONPATH=.;..\\cmre-neuro-adapter;..\\cmre-porting python -m unittest discover -s tests -v",
+      "exitCode": 0,
+      "summary": "171 tests passed"
+    },
+    {
+      "command": "python -m py_compile cmre_rl_training/live_sc2_session.py cmre_rl_training/rollout.py tools/run_live_rl.py tools/evaluate_live_policy.py tests/test_live_sc2_session.py tests/test_live_policy_eval.py",
+      "exitCode": 0,
+      "summary": "changed Python modules compile"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/evaluate_live_policy.py ... --dry-run",
+      "exitCode": 0,
+      "summary": "2-map x 3-variant command matrix generated"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/evaluate_live_policy.py ... --max-steps 64 --port-start 5960",
+      "exitCode": 1,
+      "summary": "truthful blocked result: six fresh launcher attempts rejected by external SC2_RUNTIME_BUSY"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py ... --port 5967 --stop-on-terminal --save-replay",
+      "exitCode": 1,
+      "summary": "truthful blocked result: approved launcher owner_pid=16288 owner_port=5966"
+    }
+  ],
+  "nextStage": null
+}

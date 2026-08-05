@@ -1,0 +1,49 @@
+{
+  "stage": "10-runtime-policy-eval",
+  "issues": [
+    {
+      "id": "EVAL-001",
+      "severity": "high",
+      "title": "External SC2 runtime lease blocks fresh evaluation",
+      "description": "The 2-map x 3-variant matrix and an isolated retry were rejected by the approved launcher because another zchar01_reborn_port SC2 session owned the runtime lease.",
+      "impact": "No Stage 10 live API, terminal, replay, or policy comparison evidence can be accepted yet.",
+      "status": "blocked",
+      "nextAction": "Rerun the exact evaluator after the external owner releases its lease; do not terminate PID 16288 unless its owner explicitly authorizes it.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64/evaluation-report.json",
+        "artifacts/stage-10-runtime-policy-eval/blocked-lease-dead-of-night/launcher.err.log"
+      ]
+    },
+    {
+      "id": "EVAL-002",
+      "severity": "high",
+      "title": "No mission terminal result reached within bounded evidence",
+      "description": "The six attempted evaluation reports contain no player_result; therefore no victory, defeat, or win rate is reported.",
+      "impact": "Cross-map tactical uplift is not established.",
+      "status": "blocked",
+      "nextAction": "Run the evaluator to a real player_result on both maps after the runtime lease is available.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64/evaluation-report.json"
+      ]
+    },
+    {
+      "id": "EVAL-003",
+      "severity": "medium",
+      "title": "StormLib output is not readable by the local mpyq verifier",
+      "description": "The existing StormLib packer produced the void-launch artifact, but verify_mpq.py reports that its encryption is unsupported by mpyq.",
+      "impact": "Static MPQ verification is unavailable; SC2 launcher/API acceptance remains the authoritative map-load check.",
+      "status": "open",
+      "nextAction": "Use the approved launcher against the packed artifact and retain its CreateGame/JoinGame evidence; improve the verifier only if it blocks runtime loading."
+    },
+    {
+      "id": "EVAL-004",
+      "severity": "high",
+      "title": "P2 is still native Computer",
+      "description": "The evaluation topology controls P1 only and cannot establish external ML action ownership for P2.",
+      "impact": "P2 cooperative ML control remains unverified.",
+      "status": "open",
+      "nextAction": "Use a separately authorized two-participant/API topology before making a P2 ML claim."
+    }
+  ],
+  "total": 4
+}

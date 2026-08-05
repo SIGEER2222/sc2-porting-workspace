@@ -37,6 +37,14 @@ class CollectRolloutTests(unittest.TestCase):
         buf = collect_rollout(env, self.policy, n_steps=7)
         self.assertEqual(len(buf), 7)
 
+    def test_collect_can_stop_at_terminal_for_live_evaluation(self) -> None:
+        from cmre_rl_training.rollout import collect_rollout
+
+        env = CmreRLEnv(FakeBackend(max_steps=3), normalize_reward=False)
+        buf = collect_rollout(env, self.policy, n_steps=7, auto_reset_on_terminal=False)
+        self.assertEqual(len(buf), 3)
+        self.assertTrue(buf._steps[-1].done)
+
     def test_buffer_observation_dim_matches_env(self) -> None:
         from cmre_rl_training.rollout import collect_rollout
 

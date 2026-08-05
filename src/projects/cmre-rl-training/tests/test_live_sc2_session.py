@@ -13,6 +13,7 @@ from cmre_rl_training.live_sc2_session import (
     RawActionError,
     build_raw_action,
     build_raw_action_spec,
+    parse_observation_response,
     resolve_ability_and_target,
     unit_type_name,
     wrap_raw_action,
@@ -78,6 +79,26 @@ class _CommonPb:
     Point2D = SimpleNamespace
 
 
+class _TerminalObservationResponse:
+    def __init__(self, result: int) -> None:
+        self.observation = SimpleNamespace(
+            observation=SimpleNamespace(
+                game_loop=32,
+                raw_data=SimpleNamespace(units=[]),
+                player_common=SimpleNamespace(
+                    minerals=100,
+                    vespene=0,
+                    food_used=4,
+                    food_cap=11,
+                ),
+            ),
+            player_result=[SimpleNamespace(player_id=1, result=result)],
+        )
+
+    def HasField(self, name: str) -> bool:
+        return name == "observation"
+
+
 class _OfflineRawSession:
     def __init__(self) -> None:
         self.loop = 0
@@ -120,6 +141,18 @@ class _OfflineRawSession:
 
 
 class LiveActionSpecTests(unittest.TestCase):
+    def test_player_result_becomes_terminal_mission_state(self) -> None:
+        observation = parse_observation_response(
+            _TerminalObservationResponse(1),
+            player_id=1,
+            map_name="dead-of-night",
+            progress_loop_limit=100,
+        )
+        self.assertTrue(observation["mission"]["terminated"])
+        self.assertEqual(observation["mission"]["end_reason"], "player_result_victory")
+        self.assertEqual(observation["mission"]["win_condition"], "player_result")
+        self.assertEqual(observation["player_result"][0]["result_name"], "victory")
+
     def test_catalog_ids_are_normalized_for_policy_contract(self) -> None:
         self.assertEqual(unit_type_name(45), "SCV")
         self.assertEqual(unit_type_name(48), "Marine")

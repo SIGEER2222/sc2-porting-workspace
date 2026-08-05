@@ -33,10 +33,13 @@ def collect_rollout(
     deterministic: bool = False,
     device: str = "cpu",
     action_builder: ActionBuilder | None = None,
+    auto_reset_on_terminal: bool = True,
 ) -> RolloutBuffer:
     """Run ``n_steps`` of interaction and return a populated buffer.
 
-    The environment is auto-reset whenever a terminal step is reached.
+    The environment is auto-reset whenever a terminal step is reached unless
+    ``auto_reset_on_terminal`` is false, in which case collection stops at the
+    terminal transition.
     The returned buffer's GAE ``last_value`` defaults to 0 (correct when
     the rollout ends on a terminal step); callers can override via
     :meth:`RolloutBuffer.compute_gae` if needed.
@@ -58,6 +61,9 @@ def collect_rollout(
     action_builder
         Optional callback that grounds ``(action_name, last_observation)`` into
         canonical action arguments before calling ``env.step``.
+    auto_reset_on_terminal
+        Keep the default training behavior, or stop a live evaluation at the
+        first mission terminal event.
     """
 
     if n_steps < 1:
@@ -116,6 +122,8 @@ def collect_rollout(
         )
 
         if bool(terminated):
+            if not auto_reset_on_terminal:
+                break
             obs = env.reset()
         else:
             obs = next_obs

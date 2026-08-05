@@ -23,6 +23,12 @@ PLAYER_PARTICIPANT = 1
 PLAYER_COMPUTER = 2
 DIFFICULTY_EASY = 2
 ACTION_RESULT_SUCCESS = 1
+PLAYER_RESULT_NAMES = {
+    1: "victory",
+    2: "defeat",
+    3: "tie",
+    4: "undecided",
+}
 
 # Stable SC2 catalog names required by the shared encoder and action mask.
 # Unknown IDs remain numeric strings so the raw observation is not discarded.
@@ -349,6 +355,24 @@ def parse_observation_response(
     loop = int(response_observation.game_loop)
     limit = max(1, int(progress_loop_limit))
     progress = min(1.0, max(0.0, loop / limit))
+    player_results = [
+        {
+            "player_id": int(result.player_id),
+            "result": int(result.result),
+            "result_name": PLAYER_RESULT_NAMES.get(int(result.result), "unknown"),
+        }
+        for result in response.observation.player_result
+    ]
+    player_result = next(
+        (result for result in player_results if result["player_id"] == int(player_id)),
+        None,
+    )
+    terminal = player_result is not None
+    end_reason = (
+        f"player_result_{player_result['result_name']}"
+        if player_result is not None
+        else ""
+    )
     return {
         "loop": loop,
         "player_id": int(player_id),
@@ -364,20 +388,20 @@ def parse_observation_response(
             "state_version": loop,
         },
         "mission": {
-            "phase": "active",
+            "phase": "terminal" if terminal else "active",
             "night": 0,
             "wave": 0,
-            "terminated": False,
-            "end_reason": "",
-            "win_condition": "runtime_step_budget",
-            "progress": progress,
+            "terminated": terminal,
+            "end_reason": end_reason,
+            "win_condition": "player_result" if terminal else "runtime_step_budget",
+            "progress": 1.0 if terminal else progress,
             "state_version": loop,
         },
         "mineral_fields": mineral_fields,
         "vespene_geysers": vespene_geysers,
         "tech": {"completed_upgrades": [], "researching": []},
         "action_errors": [],
-        "player_result": [],
+        "player_result": player_results,
         "strategic_points": [],
     }
 
@@ -485,8 +509,12 @@ class LiveRawSc2Session:
             "requested_step_loops": 0,
             "action_requests": 0,
             "action_results": [],
+            "action_trace": [],
             "action_successes": 0,
             "action_errors": 0,
+            "terminal_results": [],
+            "save_replay": False,
+            "replay_bytes": 0,
             "leave_game": False,
         }
 
@@ -552,11 +580,23 @@ class LiveRawSc2Session:
         )
         self._last_observation = observation
         self.runtime_stats["observations"] += 1
+        self.runtime_stats["terminal_results"] = list(observation.get("player_result", []))
+        action_trace = self.runtime_stats.get("action_trace", [])
+        if action_trace and action_trace[-1].get("loop_after") is None:
+            action_trace[-1]["loop_after"] = int(observation.get("loop", 0))
         return observation
 
     def dispatch(self, action_id: str, args: Mapping[str, Any]) -> Mapping[str, Any]:
         self._load_protocol()
         observation = self._last_observation or dict(self.observe())
+        trace_entry: dict[str, Any] = {
+            "decision_index": len(self.runtime_stats["action_trace"]),
+            "action_id": str(action_id),
+            "args": dict(args or {}),
+            "loop_before": int(observation.get("loop", 0)),
+            "loop_after": None,
+        }
+        self.runtime_stats["action_trace"].append(trace_entry)
         try:
             spec = build_raw_action_spec(
                 action_id,
@@ -567,6 +607,7 @@ class LiveRawSc2Session:
             raw_action = build_raw_action(spec, self._raw_pb, self._common_pb)
         except RawActionError as exc:
             self.runtime_stats["action_errors"] += 1
+            trace_entry.update({"translated": False, "success": False, "error": str(exc)})
             return {
                 "success": False,
                 "translated": False,
@@ -593,6 +634,18 @@ class LiveRawSc2Session:
             self.runtime_stats["action_successes"] += 1
         else:
             self.runtime_stats["action_errors"] += 1
+        trace_entry.update({
+            "translated": True,
+            "success": success,
+            "ability_id": spec.ability_id,
+            "unit_tag": spec.unit_tag,
+            "target_type": spec.target_type,
+            "target_unit_tag": spec.target_unit_tag,
+            "target_x": spec.target_x,
+            "target_y": spec.target_y,
+            "results": results,
+            "errors": [str(error) for error in errors],
+        })
         return {
             "success": success,
             "translated": True,
@@ -620,6 +673,22 @@ class LiveRawSc2Session:
         self.runtime_stats["request_steps"] += 1
         self.runtime_stats["requested_step_loops"] += count
         return None
+
+    def save_replay(self) -> bytes:
+        """Save the native SC2 replay while the session is still active."""
+
+        self._load_protocol()
+        response = self.client.send(
+            self._sc_pb.Request(save_replay=self._sc_pb.RequestSaveReplay()),
+            timeout=45.0,
+        )
+        _raise_response_error(response, "SaveReplay")
+        data = bytes(response.save_replay.data)
+        self.runtime_stats["save_replay"] = bool(data)
+        self.runtime_stats["replay_bytes"] = len(data)
+        if not data:
+            raise LiveSc2Error("SaveReplay_empty")
+        return data
 
     def leave(self) -> None:
         try:
@@ -733,6 +802,7 @@ __all__ = [
     "ABILITY_IDS",
     "LiveRawSc2Session",
     "LiveSc2Error",
+    "PLAYER_RESULT_NAMES",
     "RawActionError",
     "RawActionSpec",
     "Sc2ApiClient",
