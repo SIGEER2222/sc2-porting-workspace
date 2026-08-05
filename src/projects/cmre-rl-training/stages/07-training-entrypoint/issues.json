@@ -1,0 +1,33 @@
+{
+  "stage": "07-training-entrypoint",
+  "issues": [
+    {
+      "id": "ISSUE-016",
+      "severity": "high",
+      "title": "CLI 目前默认连接 SimulatorSession，不是实时 SC2",
+      "description": "默认 simulator backend 使用内置小场景完成可运行训练；CLI 尚未把训练循环直接绑定到 SC2 launcher/raw websocket session。",
+      "impact": "用户可以自主训练策略和验证 pipeline，但不能把本次 CLI smoke 解释为真实地图对局训练。",
+      "workaround": "下一阶段将 RawSc2Session 工厂接入注册 launcher，保留 Create/Join/RequestStep/RequestAction/Leave 及 ScriptError 证据。",
+      "status": "deferred-to-live-training"
+    },
+    {
+      "id": "ISSUE-017",
+      "severity": "medium",
+      "title": "长任务训练尚未做周期 checkpoint",
+      "description": "当前 CLI 在一次 MultiMapSelfTrainer.train 完成后写 checkpoint；进程中断不会保存中间 iteration。",
+      "impact": "长时间训练的恢复粒度仍为整次命令，不适合无人值守长跑。",
+      "workaround": "后续增加按 iteration/map 保存 optimizer state、iteration cursor 和随机数状态的 durable checkpoint。",
+      "status": "deferred-to-durable-training"
+    },
+    {
+      "id": "ISSUE-018",
+      "severity": "medium",
+      "title": "内置训练场景奖励仍不是动作因果任务奖励",
+      "description": "内置场景主要用于证明 SimulatorSession 到 PPO 的完整链路，现有 reward 中基地存活/状态信号占主导，尚不能区分战术质量。",
+      "impact": "可以自主运行和更新 policy，但不能从该 smoke report 得出战术收益提升结论。",
+      "workaround": "使用地图提取 scenario 或真实任务 reward collector，并加入 held-out seed/map 评估。",
+      "status": "documented"
+    }
+  ],
+  "total": 3
+}

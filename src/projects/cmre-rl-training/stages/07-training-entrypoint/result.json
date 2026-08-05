@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "stage": "07-training-entrypoint",
+  "status": "passed",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "项目提供了可复用的命令行训练入口，统一连接多地图 factory、MapAware policy、PPO、checkpoint 和 JSON report。",
+      "evidence": [
+        "cmre_rl_training/training_cli.py",
+        "tools/train_multi_map.py",
+        "README.md"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "fake backend 命令可以端到端执行并输出 report/checkpoint。",
+      "evidence": [
+        "python src/projects/cmre-rl-training/tools/train_multi_map.py --backend fake ...",
+        "two map profiles, 8 collected steps, status=passed"
+      ]
+    },
+    {
+      "type": "simulator",
+      "claim": "实际 SimulatorSession 到 PPO 的 MVP 训练路径可运行，两个 map profile 共完成 8 steps。",
+      "evidence": [
+        "python src/projects/cmre-rl-training/tools/train_multi_map.py --backend simulator --maps dead-of-night,void-launch --iterations 1 --rollout-steps 4 --max-episode-steps 4 --hidden-dim 16 --ppo-epochs 1 --batch-size 4 --output-dir artifacts/stage-07-training-entrypoint/mvp",
+        "artifacts/stage-07-training-entrypoint/mvp/training-report.json",
+        "artifacts/stage-07-training-entrypoint/mvp/map-aware-policy.pt"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "已有 map-aware checkpoint 可以通过 --resume 加载并继续训练。",
+      "evidence": [
+        "resume smoke command recorded in stages/07-training-entrypoint/log.md",
+        "resume run completed 4 additional steps"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "Stage 01-06 回归加 Stage 07 CLI tests 全部通过。",
+      "evidence": [
+        "PYTHONPATH=.;..\\cmre-neuro-adapter;..\\cmre-porting python -m unittest discover -s tests -v",
+        "157 tests, 0 failures",
+        "python -m json.tool src/projects/cmre-rl-training/project.json"
+      ]
+    },
+    {
+      "type": "inference",
+      "claim": "用户现在可以自主启动基础多地图训练，但真实 SC2 训练、无人值守周期 checkpoint 和动作因果胜率评估仍未完成。",
+      "evidence": [
+        "stages/07-training-entrypoint/issues.json"
+      ]
+    }
+  ],
+  "outputs": [
+    "cmre_rl_training/training_cli.py",
+    "tools/train_multi_map.py",
+    "tests/test_training_cli.py",
+    "README.md",
+    ".gitignore",
+    "stages/07-training-entrypoint/plan.md",
+    "stages/07-training-entrypoint/log.md",
+    "stages/07-training-entrypoint/result.json",
+    "stages/07-training-entrypoint/issues.json"
+  ],
+  "validation": [
+    {
+      "command": "python src/projects/cmre-rl-training/tools/train_multi_map.py --backend simulator --maps dead-of-night,void-launch --iterations 1 --rollout-steps 4 --max-episode-steps 4 --hidden-dim 16 --ppo-epochs 1 --batch-size 4 --output-dir artifacts/stage-07-training-entrypoint/mvp",
+      "exitCode": 0,
+      "summary": "simulator MVP completed 8 steps and wrote report/checkpoint"
+    },
+    {
+      "command": "PYTHONPATH=.;..\\cmre-neuro-adapter;..\\cmre-porting python -m unittest discover -s tests -v",
+      "exitCode": 0,
+      "summary": "157 tests passed"
+    },
+    {
+      "command": "python -m json.tool src/projects/cmre-rl-training/project.json",
+      "exitCode": 0,
+      "summary": "valid project manifest"
+    }
+  ],
+  "nextStage": null
+}
