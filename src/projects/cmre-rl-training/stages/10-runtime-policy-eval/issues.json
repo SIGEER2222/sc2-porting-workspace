@@ -5,13 +5,16 @@
       "id": "EVAL-001",
       "severity": "high",
       "title": "External SC2 runtime lease blocks fresh evaluation",
-      "description": "The 2-map x 3-variant matrix and an isolated retry were rejected by the approved launcher because another zchar01_reborn_port SC2 session owned the runtime lease.",
+      "description": "The 2-map x 3-variant matrix, isolated retries, and the latest retry-2 were rejected by the approved launcher because another SC2 session owned the runtime lease. The latest owner is PID 69888, a KeepAlive launch-cmre-alenger process for zchar01_reborn_port, with SC2 PID 52096 on port 6119 and session cmre_alenger-20260805-205731-6abdb4cd.",
       "impact": "No Stage 10 live API, terminal, replay, or policy comparison evidence can be accepted yet.",
       "status": "blocked",
-      "nextAction": "Rerun the exact evaluator after the external owner releases its lease; do not terminate PID 16288 unless its owner explicitly authorizes it.",
+      "nextAction": "Rerun the exact evaluator after external PID 69888 and its KeepAlive session release the lease; do not terminate the external owner or its SC2 child.",
       "evidence": [
         "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64/evaluation-report.json",
-        "artifacts/stage-10-runtime-policy-eval/blocked-lease-dead-of-night/launcher.err.log"
+        "artifacts/stage-10-runtime-policy-eval/blocked-lease-dead-of-night/launcher.err.log",
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry/evaluation-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/evaluation-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/dead-of-night-frozen-stochastic/launcher.err.log"
       ]
     },
     {
@@ -23,7 +26,8 @@
       "status": "blocked",
       "nextAction": "Run the evaluator to a real player_result on both maps after the runtime lease is available.",
       "evidence": [
-        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64/evaluation-report.json"
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64/evaluation-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/evaluation-report.json"
       ]
     },
     {

@@ -40,10 +40,20 @@
   launcher because an external runtime owner held PID `20740` on port `5965`.
   A subsequent isolated retry on port `5967` was rejected by the same launcher
   with external PID `16288`, port `5966`, session `zchar01_reborn_port`.
+  After that owner released, a fresh retry on ports `5970-5975` was again rejected
+  by external PID `48212`, with unknown port and session
+  `cmre_alenger-20260805-205220-7132742a`.
+  A further retry on the same ports was rejected by external PID `69888`, a
+  `-KeepAlive` `launch-cmre-alenger.ps1` process for `zchar01_reborn_port`; its
+  SC2 child was PID `52096` listening on port `6119`, session
+  `cmre_alenger-20260805-205731-6abdb4cd`.
 - **Evidence**:
   `artifacts/stage-10-runtime-policy-eval/20260805-bounded-64/evaluation-report.json`,
   `artifacts/stage-10-runtime-policy-eval/blocked-lease-dead-of-night/live-rl-report.json`,
-  `artifacts/stage-10-runtime-policy-eval/blocked-lease-dead-of-night/launcher.err.log`。
+  `artifacts/stage-10-runtime-policy-eval/blocked-lease-dead-of-night/launcher.err.log`,
+  `artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry/evaluation-report.json`,
+  `artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/evaluation-report.json`,
+  `artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/dead-of-night-frozen-stochastic/launcher.err.log`。
 - **Interpretation**: `sample_count=6`, `terminal_count=0`, and
   `runtime_clean=false`; no win rate is computed. This is a runtime lease block,
   not a policy defeat or victory.
@@ -55,11 +65,14 @@
 - **Full project tests**: 171 passed.
 - **Compilation**: `py_compile` passed for all changed Python modules.
 - **Runtime cleanup**: runner-owned SC2 PID snapshots are used for cleanup; the
-  external owner PID `16288` was not touched.
+  external owner PIDs `16288`, `48212`, and `69888` were not touched. The latest
+  owner was still alive after the retry and is a separate `-KeepAlive` session.
 
 ## Outcome
 
 Stage 10 implementation is ready for rerun when the external SC2 runtime lease is
-released. The evaluator correctly refuses to turn bounded/no-terminal or
-launcher-blocked runs into win-rate evidence. P2 remains native Computer and is
-outside the ML-control claim.
+released. The latest retry again produced six fresh runtime reports, but all were
+blocked before API/CreateGame/JoinGame by `SC2_RUNTIME_BUSY`; no terminal, replay,
+or win-rate evidence exists. The evaluator correctly refuses to turn
+bounded/no-terminal or launcher-blocked runs into win-rate evidence. P2 remains
+native Computer and is outside the ML-control claim.

@@ -25,7 +25,10 @@
       "claim": "The evaluator attempted six fresh runtime matrix entries, but none reached API/CreateGame/JoinGame because the approved launcher reported an external SC2_RUNTIME_BUSY owner.",
       "evidence": [
         "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64/evaluation-report.json",
-        "artifacts/stage-10-runtime-policy-eval/blocked-lease-dead-of-night/launcher.err.log"
+        "artifacts/stage-10-runtime-policy-eval/blocked-lease-dead-of-night/launcher.err.log",
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry/evaluation-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/evaluation-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/dead-of-night-frozen-stochastic/launcher.err.log"
       ]
     },
     {
@@ -33,7 +36,8 @@
       "claim": "No terminal result or win rate is reported; P2 remains native Computer and the live evaluation boundary is unresolved.",
       "evidence": [
         "stages/10-runtime-policy-eval/issues.json",
-        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64/evaluation-report.json"
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64/evaluation-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/evaluation-report.json"
       ]
     }
   ],
@@ -71,6 +75,16 @@
       "command": "python src/projects/cmre-rl-training/tools/evaluate_live_policy.py ... --max-steps 64 --port-start 5960",
       "exitCode": 1,
       "summary": "truthful blocked result: six fresh launcher attempts rejected by external SC2_RUNTIME_BUSY"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/evaluate_live_policy.py ... --max-steps 64 --port-start 5970",
+      "exitCode": 1,
+      "summary": "retry remained blocked by external owner_pid=48212 with unknown port"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/evaluate_live_policy.py ... --max-steps 64 --port-start 5970 --output-dir src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2",
+      "exitCode": 1,
+      "summary": "retry-2 remained blocked by external KeepAlive owner_pid=69888, SC2 child_pid=52096, port=6119; all six reports had api_ready=false and terminal_count=0"
     },
     {
       "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py ... --port 5967 --stop-on-terminal --save-replay",
