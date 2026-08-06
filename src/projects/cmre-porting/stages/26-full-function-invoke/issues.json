@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "stage": "26-full-function-invoke",
+  "issues": [
+    {
+      "id": "RUNTIME-LIVE-VALIDATION-BLOCKED",
+      "severity": "medium",
+      "status": "open",
+      "title": "Live runtime validation (staged rollout, sampling, census, ScriptError gate) blocked on this machine",
+      "detail": "本机无 SC2 安装，分档放量实测（逐档编译时间/包体积）、类型族抽样实调、只读普查与同窗口 ScriptError 零新增门均无法在本机执行。2026-08-06 穷尽排查确认缺失：注册表卸载项与 Blizzard Entertainment\\StarCraft II 键均无、全部盘符 8 类候选安装位（SC2\\SC2new\\StarCraft II 等）均不存在、无 SC2_x64/SC2 运行进程、artifacts/runtime/sc2-runtime-lease.json 不存在。机制与选择证据已就绪：tier dispatch 变体 + overlay -InvokeTier 0|100|1000 放量开关；runtime_invoke_probe.py 支持 --sample/--census（预算+超时保护）；--plan-only 已产出 55 族样本与 200 普查候选分类清单。",
+      "evidence_type": "blocked",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/probe-selection.json",
+      "owner": "environment",
+      "nextAction": "在有 SC2 的机器上：launcher -InvokeTier 100 → 1000 → 0 逐档记录编译时间与地图包体积；执行 runtime_invoke_probe.py --sample 与 --census 产出普查 JSON；走 Assert-CmreNoNewScriptErrors 门确认同窗口 ScriptError 零新增。"
+    },
+    {
+      "id": "ROUTING-MISDISPATCH-FIXED",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Top-level dispatch routed 6,108 functions to the wrong shard (position-based sharding vs range-based routing)",
+      "detail": "自审发现：顶层两级区间分派按全局 id 区间路由（(id-1)//SHARD_SIZE），而分片按 available 列表位置切分；每图 available 子集存在空洞（如 ids 2548/2549 缺失）导致 6,108 个函数被路由到不含自身 adapter 的分片，产生 FUNCTION_NOT_IN_MAP 假阴性。修复为按全局 id 区间切分（区间号 = 分片号，空洞区间跳过），顶层路由与片内成员构造性一致。",
+      "evidence_type": "static",
+      "evidence": "src/projects/cmre-porting/stages/26-full-function-invoke/test_generate_invoke_adapters.py::test_dispatch_routes_each_adapter_to_its_global_id_range_shard",
+      "owner": "stage26",
+      "resolution": "src/projects/cmre-porting/stages/26-full-function-invoke/generate_invoke_adapters.py (emit_map_bundle/emit_dispatch 全局区间分片)",
+      "nextAction": "回归测试已防复发；任何分片粒度调整必须保持分片号与全局区间号一致。"
+    },
+    {
+      "id": "STRUCTREF-NO-PRODUCER",
+      "severity": "low",
+      "status": "open",
+      "title": "No cataloged function returns a structref, so structref-argument calls cannot succeed",
+      "detail": "目录中无函数返回 structref 类型；仅有的 2 个 structref 参数函数 gen.9785/gen.9786（libCOTF_gf_HistogramHorizontalCreate 等，histogram 句柄）的入参只能来自其他调用返回值，当前必然返回 HANDLE_NOT_FOUND。按计划如实标注、结构化拒绝，不伪装成功。",
+      "evidence_type": "static",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/invoke-plan.json",
+      "owner": "stage26",
+      "nextAction": "完整 CMRE 源绑定恢复后复查是否存在 structref 生产者；若确无，考虑在目录中显式标注该 2 函数为不可成功调用。"
+    },
+    {
+      "id": "AMBIGUOUS-OVERLOADS-EXCLUDED",
+      "severity": "low",
+      "status": "resolved",
+      "title": "7 same-name ambiguous signatures excluded from the invoke plan",
+      "detail": "23,019 声明去重为 11,890 唯一签名时，7 个同名但签名冲突且无法静态消歧的函数被排除：AICampaignDiffSelect、gf_AttackWaveatTime、gf_CreateEscortUnit、gf_SendEscortUnit、gf_TimerColor、gf_UpdateBonusObjectiveTimer、gf_UpdateBonusObjectiveUI。整数 id 分派以唯一签名为单位，排除为如实记账而非遗漏。",
+      "evidence_type": "static",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/invoke-plan.json",
+      "owner": "stage26",
+      "nextAction": "如后续需要调用这 7 个函数，引入显式重载消歧参数（按完整签名选 id）而非自动猜测。"
+    },
+    {
+      "id": "CMRE-FULL-SOURCE-BINDING",
+      "severity": "low",
+      "status": "open",
+      "title": "Full CMRE source binding (35,404 declarations) still not restored; generation covers owned packages only",
+      "detail": "继承 Stage 25 STATIC-CATALOG-SOURCE-BINDING-20260803：本 checkout 无 src/config/local.sources.json，生成范围限于可复现 owned packages 目录（23,019 声明 → 11,890 唯一签名）。历史全源目录 35,404 条声明未纳入 adapter 生成。",
+      "evidence_type": "blocked",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json",
+      "owner": "environment",
+      "nextAction": "恢复 approved local CMRE 源绑定后重跑 discover_function_catalog.mjs 与 generate_invoke_adapters.py，补齐全量声明范围并重走静态/运行时验收。"
+    },
+    {
+      "id": "INVOKE-TIER-LAUNCHER-PASSTHROUGH",
+      "severity": "low",
+      "status": "resolved",
+      "title": "-InvokeTier top-level launcher passthrough implemented",
+      "detail": "初版误判 launch-cmre-alenger.ps1 在 writeScope 之外（实际 project.json writeScope 含该文件）。已补齐：顶层参数 [int]$InvokeTier = 0（0=全量，100/1000=分档）并透传给 Install-CmreObserverOverlay；PS1 AST 语法校验通过；静态测试 test_launcher_top_level_passes_invoke_tier_to_observer_overlay 防复发；launchers 全套 23 passed。",
+      "evidence_type": "static",
+      "evidence": "tools/launchers/tests/test_launch_cmre_alenger_static.py::test_launcher_top_level_passes_invoke_tier_to_observer_overlay",
+      "owner": "stage26",
+      "resolution": "tools/launchers/launch-cmre-alenger.ps1",
+      "nextAction": "有 SC2 的机器上直接用 launch-cmre-alenger.ps1 -InvokeTier 100/1000/0 执行分档放量。"
+    }
+  ]
+}

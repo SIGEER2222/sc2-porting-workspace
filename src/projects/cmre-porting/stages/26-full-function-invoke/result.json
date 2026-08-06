@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "stage": "26-full-function-invoke",
+  "status": "PARTIAL",
+  "evidence_type": "mixed",
+  "summary": "全函数 function.invoke 扩展的静态部分全部达成：11,890 个唯一签名通过编译期生成的类型化 adapter 可调用（gen.<int> 整数分派，非反射），22 种句柄类型走 LibVibeHandles 登记表强行全覆盖，funcref 静态查值表 667 候选、structref 仅登记表引用，未知值结构化拒绝。注册表 11,910 条（11,890 gen + 20 手写）、whitelist 新增 handle.* 三操作、宿主侧整数 id 优先归一化、strategy 模式 debug_only 拒绝不变、策略审计新增 invoke.generated 族。798 个生成/kernel Galaxy 文件 0 解析错误，run-all-validation 52/52，Stage 19/20/22/23/25 回归全绿，三副本 hash 一致。自审修复一处严重路由缺陷（位置分片与区间路由错位，6,108 函数会错片）。运行时实测（分档放量编译数据、类型族实调、只读普查、ScriptError 门）因本机无 SC2 阻塞，机制与选择清单证据已就绪。",
+  "changed_paths": [
+    "src/projects/cmre-porting/project.json",
+    "src/projects/cmre-porting/stages/26-full-function-invoke/plan.md",
+    "src/projects/cmre-porting/stages/26-full-function-invoke/log.md",
+    "src/projects/cmre-porting/stages/26-full-function-invoke/result.json",
+    "src/projects/cmre-porting/stages/26-full-function-invoke/issues.json",
+    "src/projects/cmre-porting/stages/26-full-function-invoke/generate_invoke_adapters.py",
+    "src/projects/cmre-porting/stages/26-full-function-invoke/parse_generated.mjs",
+    "src/projects/cmre-porting/stages/26-full-function-invoke/test_generate_invoke_adapters.py",
+    "src/projects/cmre-porting/stages/26-full-function-invoke/runtime_invoke_probe.py",
+    "src/projects/cmre-porting/vibe/function_registry.py",
+    "src/projects/cmre-porting/vibe/debug_vm.py",
+    "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_debug_vm.py",
+    "tools/galaxy-vibe/kernel/LibVibeKernel.galaxy",
+    "tools/galaxy-vibe/kernel/LibVibeKernel_h.galaxy",
+    "tools/galaxy-vibe/kernel/LibVibeHandles.galaxy",
+    "tools/galaxy-vibe/kernel/function-registry.json",
+    "tools/galaxy-vibe/kernel/whitelist.json",
+    "tools/galaxy-vibe/kernel/generated/**",
+    "tools/galaxy-vibe/galaxy-debug-mod/Base.SC2Data/LibVibeKernel.galaxy",
+    "tools/galaxy-vibe/galaxy-debug-mod/Base.SC2Data/LibVibeKernel_h.galaxy",
+    "tools/galaxy-vibe/galaxy-debug-mod/Base.SC2Data/LibVibeHandles.galaxy",
+    "tools/galaxy-vibe/galaxy-debug-mod/Base.SC2Data/generated/**",
+    "src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/LibVibeKernel.galaxy",
+    "src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/LibVibeKernel_h.galaxy",
+    "src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/LibVibeHandles.galaxy",
+    "src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/generated/亡者之夜.SC2Map/**",
+    "tools/galaxy-vibe/host/vibe_host.py",
+    "tools/galaxy-vibe/schema/rpc-schema.json",
+    "tools/galaxy-vibe/tests/test_kernel.py",
+    "tools/launchers/launch-cmre-alenger.ps1",
+    "tools/launchers/lib/cmre-on-demand-overlay.ps1",
+    "tools/launchers/tests/test_launch_cmre_alenger_static.py"
+  ],
+  "verification": [
+    {
+      "name": "stage26-generator-unit-tests",
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/26-full-function-invoke/test_generate_invoke_adapters.py",
+      "status": "PASS",
+      "detail": "26 passed：调用计划 11,890 唯一签名、id 1..11890 连续无重复、每参数编解码方案齐全、funcref/structref 标注、注册表契约（11,890 gen + 20 手写、debug_only/generated）、whitelist handle.*、产物齐全、顶层路由与片内成员一致、tier 变体、整数 id 优先、strategy 拒绝、DebugVm 整数 id 一致、fake-bridge 基础类型/句柄往返/未知句柄/FUNCREF 拒绝"
+    },
+    {
+      "name": "galaxy-static-parse-gate",
+      "command": "node src/projects/cmre-porting/stages/26-full-function-invoke/parse_generated.mjs",
+      "status": "PASS",
+      "detail": "798 files parsed, 0 parse errors (reference/sc2-galaxy-toolkit)",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/static/parse-generated.json"
+    },
+    {
+      "name": "kernel-contract-and-mirror-hash",
+      "command": "python -m pytest -q tools/galaxy-vibe/tests/test_kernel.py",
+      "status": "PASS",
+      "detail": "53 passed，含 TestKernelMirrorConsistency 三副本 sha256 一致（kernel → galaxy-debug-mod → 亡者之夜，含 generated 全 bundle）"
+    },
+    {
+      "name": "run-all-validation",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1",
+      "status": "PASS",
+      "detail": "52/52 通过（生成后与 overlay 改动后各一次）",
+      "evidence": "artifacts/galaxy-vibe/static-validation-report.json"
+    },
+    {
+      "name": "stage-regressions-19-20-22-23-25",
+      "command": "python -m pytest -q stages/19-simulator-ai-ally-clearance stages/20-simulator-ai-ally-adversarial-hardening stages/22-runtime-typed-combat-census stages/23-runtime-full-structure-clearance stages/25-ai-ally-capability-completion",
+      "status": "PASS",
+      "detail": "67 passed + 6 subtests；Stage 25 registry 对齐不变量适配生成 adapter 族后保持绿"
+    },
+    {
+      "name": "overlay-and-launcher-static-tests",
+      "command": "python -m pytest -q tools/launchers/tests",
+      "status": "PASS",
+      "detail": "23 passed，含新增 test_observer_overlay_mounts_invoke_bundle_with_rollout_tiers 与 test_launcher_top_level_passes_invoke_tier_to_observer_overlay；PS1 AST 语法校验通过"
+    },
+    {
+      "name": "runtime-staged-rollout",
+      "command": "launch-cmre-alenger.ps1 -InvokeTier 100/1000/0（staged 亡者之夜）",
+      "status": "BLOCKED",
+      "detail": "本机无 SC2 安装（注册表/全盘符候选位/进程/运行时租约穷尽排查均无）。机制就绪：tier dispatch 变体 + overlay -InvokeTier + launcher 顶层 -InvokeTier 透传；每档编译时间/包体积待有 SC2 的机器记录"
+    },
+    {
+      "name": "runtime-type-family-sampling-and-census",
+      "command": "python src/projects/cmre-porting/stages/26-full-function-invoke/runtime_invoke_probe.py --sample / --census",
+      "status": "BLOCKED",
+      "detail": "live 执行需 SC2；准备证据（55 族样本 + 200 普查候选分类清单）已产出",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/probe-selection.json"
+    },
+    {
+      "name": "runtime-script-error-gate",
+      "command": "Assert-CmreNoNewScriptErrors（launcher 内建）",
+      "status": "BLOCKED",
+      "detail": "同窗口 ScriptError 零新增需 live 窗口验证，随运行时放量一并执行"
+    }
+  ],
+  "numbers": {
+    "catalog_declarations": 23019,
+    "callable_unique_signatures": 11890,
+    "ambiguous_excluded": 7,
+    "funcref_candidates": 667,
+    "handle_types": 22,
+    "map_bundles": 15,
+    "functions_per_bundle": 8734,
+    "shards_per_bundle": 24,
+    "registry_total": 11910,
+    "registry_generated": 11890,
+    "registry_handwritten": 20,
+    "galaxy_files_parsed": 798,
+    "parse_errors": 0
+  },
+  "next_actions": [
+    "在有 SC2 的机器上执行分档放量（launch-cmre-alenger.ps1 -InvokeTier 100 → 1000 → 0），逐档记录编译时间与地图包体积",
+    "执行 runtime_invoke_probe.py --sample 与 --census，产出类型族抽样与只读普查 JSON，走 ScriptError 门",
+    "恢复完整 CMRE 源绑定（local.sources.json）后重跑生成器补齐 35,404 声明范围"
+  ]
+}
