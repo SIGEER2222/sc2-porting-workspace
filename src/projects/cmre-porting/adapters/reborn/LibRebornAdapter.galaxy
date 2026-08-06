@@ -254,27 +254,36 @@ void libRebornAdapter_gf_CreateZergStartingBuildings(int player) {
         }
     }
 
-    // === 1. 创建 Zerg 起始建筑（绕过 placement，围绕基地 5 格半径）===
-    UnitCreate(1, "SpawningPool", c_unitCreateIgnorePlacement, player,
-        PointWithOffsetPolar(lv_base, 5.0, 0.0), 270.0);
-    UnitCreate(1, "RoachWarren", c_unitCreateIgnorePlacement, player,
-        PointWithOffsetPolar(lv_base, 5.0, 72.0), 270.0);
-    UnitCreate(1, "HydraliskDen", c_unitCreateIgnorePlacement, player,
-        PointWithOffsetPolar(lv_base, 5.0, 144.0), 270.0);
-    UnitCreate(1, "BanelingNest", c_unitCreateIgnorePlacement, player,
-        PointWithOffsetPolar(lv_base, 5.0, 216.0), 270.0);
-    UnitCreate(1, "EvolutionChamber", c_unitCreateIgnorePlacement, player,
-        PointWithOffsetPolar(lv_base, 5.0, 288.0), 270.0);
-    UnitCreate(1, "Spire", c_unitCreateIgnorePlacement, player,
-        PointWithOffsetPolar(lv_base, 7.0, 216.0), 270.0);
-    UnitCreate(1, "UltraliskCavern", c_unitCreateIgnorePlacement, player,
-        PointWithOffsetPolar(lv_base, 7.0, 288.0), 270.0);
+    // Create each starting building only when it is absent. SwarmSetup can be
+    // reached more than once across a CMRE startup path, so unconditional
+    // UnitCreate calls produce stacked buildings on the spawn point.
+    if (libMapModBridge_gf_AliveUnitCount("SpawningPool", player) == 0) {
+        UnitCreate(1, "SpawningPool", c_unitCreateIgnorePlacement, player, PointWithOffsetPolar(lv_base, 5.0, 0.0), 270.0);
+    }
+    if (libMapModBridge_gf_AliveUnitCount("RoachWarren", player) == 0) {
+        UnitCreate(1, "RoachWarren", c_unitCreateIgnorePlacement, player, PointWithOffsetPolar(lv_base, 5.0, 72.0), 270.0);
+    }
+    if (libMapModBridge_gf_AliveUnitCount("HydraliskDen", player) == 0) {
+        UnitCreate(1, "HydraliskDen", c_unitCreateIgnorePlacement, player, PointWithOffsetPolar(lv_base, 5.0, 144.0), 270.0);
+    }
+    if (libMapModBridge_gf_AliveUnitCount("BanelingNest", player) == 0) {
+        UnitCreate(1, "BanelingNest", c_unitCreateIgnorePlacement, player, PointWithOffsetPolar(lv_base, 5.0, 216.0), 270.0);
+    }
+    if (libMapModBridge_gf_AliveUnitCount("EvolutionChamber", player) == 0) {
+        UnitCreate(1, "EvolutionChamber", c_unitCreateIgnorePlacement, player, PointWithOffsetPolar(lv_base, 5.0, 288.0), 270.0);
+    }
+    if (libMapModBridge_gf_AliveUnitCount("Spire", player) == 0) {
+        UnitCreate(1, "Spire", c_unitCreateIgnorePlacement, player, PointWithOffsetPolar(lv_base, 7.0, 216.0), 270.0);
+    }
+    if (libMapModBridge_gf_AliveUnitCount("UltraliskCavern", player) == 0) {
+        UnitCreate(1, "UltraliskCavern", c_unitCreateIgnorePlacement, player, PointWithOffsetPolar(lv_base, 7.0, 288.0), 270.0);
+    }
 
     // === 2. 创建 Extractor（找最近的 VespeneGeyser）===
     lv_geysers = UnitGroup("VespeneGeyser", 0, RegionCircle(lv_base, 20.0),
         UnitFilter(0, 0, 0, (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1);
     lv_geyser = UnitGroupUnit(lv_geysers, 1);
-    if (lv_geyser != null) {
+    if ((lv_geyser != null) && (libMapModBridge_gf_AliveUnitCount("Extractor", player) == 0)) {
         UnitCreate(1, "Extractor", c_unitCreateIgnorePlacement, player,
             UnitGetPosition(lv_geyser), 270.0);
     }
@@ -297,8 +306,10 @@ void libRebornAdapter_gf_CreateZergStartingBuildings(int player) {
         UnitFilter(0, 0, (1 << c_targetFilterMissile),
             (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1);
     if (UnitGroupCount(lv_overlords, c_unitCountAlive) < 2) {
-        UnitCreate(1, "Overlord", c_unitCreateIgnorePlacement, player,
-            PointWithOffsetPolar(lv_base, 8.0, 90.0), 270.0);
+        for (lv_i = UnitGroupCount(lv_overlords, c_unitCountAlive); lv_i < 2; lv_i += 1) {
+            UnitCreate(1, "Overlord", c_unitCreateIgnorePlacement, player,
+                PointWithOffsetPolar(lv_base, 8.0, (IntToFixed(lv_i) * 45.0) + 90.0), 270.0);
+        }
     }
 
     // === 5. 创建 HunterKiller（Abathur 起始英雄单位）===

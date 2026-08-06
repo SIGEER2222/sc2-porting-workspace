@@ -41,9 +41,17 @@ bool gf_CmreOnDemandInitializationReady() {
     bool lv_buildingP2 = false;
     bool lv_unitsP1 = false;
     bool lv_unitsP2 = false;
+    bool lv_rebornDirectReady = false;
 
     if (gf_CmreOnDemandDebugInt("map_init_entered") == 0) { return false; }
-    if (gf_CmreOnDemandDebugInt("startup_dev_finish") == 0) { return false; }
+    // Direct Reborn launches do not pass through CMRE's saved-profile
+    // startup, so startup_dev_finish remains zero even after the native
+    // Reborn library and adapter have initialized successfully.
+    lv_rebornDirectReady =
+        (gf_CmreOnDemandDebugInt("initlib_patch_ran") != 0) &&
+        (gf_CmreOnDemandDebugInt("reborn_adapter_initialized") != 0);
+    if ((gf_CmreOnDemandDebugInt("startup_dev_finish") == 0) &&
+        (!lv_rebornDirectReady)) { return false; }
     if (gf_CmreOnDemandDebugInt("runtime_listener_ready") == 0) { return false; }
     if (gf_CmreOnDemandDebugInt("world_cover_dialog_visible_p1") != 0) { return false; }
 

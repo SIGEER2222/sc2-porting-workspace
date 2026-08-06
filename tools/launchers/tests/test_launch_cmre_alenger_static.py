@@ -47,6 +47,46 @@ def test_launcher_delegates_on_demand_overlay_work():
     assert "Install-CmreCoreRuntimeErrorOverlay" in core_body
 
 
+def test_launcher_accepts_an_explicit_read_only_map_source():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    assert '[string]$MapSourceOverride = ""' in source
+    assert "Resolve-Path -LiteralPath $MapSourceOverride" in source
+    assert 'Join-Path $mapSource "MapScript.galaxy"' in source
+
+
+def test_overlay_supports_reborn_generated_map_library_anchors():
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+    for anchor in [
+        'include "Lib48DF4533"',
+        'include "Lib281DEC45"',
+        'include "Lib114935F5"',
+        'include "TriggerLibs/NativeLib"',
+        '    lib48DF4533_InitLib();',
+        '    lib281DEC45_InitLib();',
+        '    lib114935F5_InitLib();',
+        '    libNtve_InitLib();',
+    ]:
+        assert anchor in overlay
+
+
+def test_keepalive_without_reuse_lock_does_not_fail_during_cleanup():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    wait_body = _function_body(source, "Wait-Sc2RuntimeProcess")
+
+    assert "[AllowNull()]$LockContext" in wait_body
+    assert "if ($null -ne $LockContext)" in wait_body
+
+
+def test_on_demand_mod_dependencies_are_repaired_in_staged_install_copy():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "Repair-CmreOnDemandDependencyPaths" in source
+    assert "file:Mods/7vs1/AlengerCommon.SC2Mod" in source
+    assert "file:Mods/Commanders/SharedAlengerCommon.SC2Mod" in source
+    assert "Read-DocumentHeaderDependencies" in source
+    assert "Write-DocumentHeaderDependencies" in source
+
+
 def test_launch_profile_carries_on_demand_runtime_inputs():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
     profile_body = _function_body(source, "Write-CmreLaunchProfile")
@@ -87,6 +127,10 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
     assert "initialization_units_ready_p1" in wait_body
     assert "Wait-CmreRuntimeListener -TimeoutSeconds 120" in source
     assert "CMRERebornDebug" in overlay
+    assert "sourceMapDependencies" in source
+    assert "Merge-CmreMapDependencies" in source
+    assert "file:Mods/reborn/crys_the_swarm_reborn.SC2Mod" in source
+    assert "SwarmStory" in source
     assert '@{ Name = "GalaxyVibe"; Player = "1" }' in overlay
     assert 'Documents\\StarCraft II\\Banks' in overlay
     assert "gt_CmreOnDemandRuntimeListener_Init();" in observer_overlay_body
@@ -159,7 +203,7 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
             'p2_economy_probe_p2marine_train_',
                 'c_orderQueueReplace);',
             'UnitTypePlacementFromPoint(',
-            'UnitIssueOrder(worker,\n            OrderTargetingUnit(AbilityCommand("smart", 0), resource),',
+            'UnitIssueOrder(worker,\n            OrderTargetingUnit(AbilityCommand("Smart", 0), resource),',
             'if ((UnitOrderCount(worker) > 0)',
         ]:
             assert required in computer_map_glue
@@ -185,12 +229,15 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
     assert 'BankValueSetFromInt(BankLastCreated(), "debug", "triggers_customscript_entered", 1);' in overlay
     assert "api_customscript_init_started" in overlay
     assert "api_customscript_init_complete" in overlay
-    assert "libVibeKernel_gv_initialized" in overlay
+    assert "libVibeKernel_gv_initialized" not in overlay
     assert "InitMap" in overlay
     assert "single path" in overlay
-    assert "InitMap();" not in overlay
+    assert "InitMap();" in overlay
     assert 'UnitCreate(1, "Marine"' not in overlay
     assert "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_INITMAP_GUARD" in overlay
+    assert "CMRE_ON_DEMAND_INITMAP_ENTERED_STATE" in overlay
+    assert "gv_CmreOnDemandInitMapEntered" in overlay
+    assert "if (gv_CmreOnDemandInitMapEntered) { return; }" in overlay
     assert 'libVibeKernel_gf_RegisterEntryPoints();' in overlay
     assert "registration belongs after the generated InitTriggers graph" in overlay
     assert 'stage16_before_vibe' in overlay
@@ -214,8 +261,11 @@ def test_player_mode_launches_direct_map_from_gamelog_signal():
     assert '$args = @("`"$liveMap`"")' not in source
 
 
-def test_direct_map_api_mode_attaches_after_map_initialization():
+def test_direct_map_api_mode_attaches_before_runtime_listener_gate():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
+    direct_map_start = source.index("        if ($DirectMapApi) {")
+    direct_map_end = source.index("        } else {", direct_map_start)
+    direct_map_body = source[direct_map_start:direct_map_end]
 
     assert "[switch]$DirectMapApi" in source
     assert '"-DirectMapApi 必须配合 -ListenPort <port> 使用"' in source
@@ -223,9 +273,52 @@ def test_direct_map_api_mode_attaches_after_map_initialization():
     assert "SC2 direct-map + API mode" in source
     assert "Wait-CmreGameLogMapLoadSignal -Since $launchStartedAt" in source
     assert "Wait-CmreRuntimeListener -TimeoutSeconds 120" in source
+    assert "--join-existing topology" in direct_map_body
+    assert "Wait-CmreRuntimeListener -TimeoutSeconds 120" not in direct_map_body
     assert "Host must attach with --join-existing" in source
     assert "--join-existing" in source
     assert '"-listen", "127.0.0.1", "-port", "$ListenPort", "-debug"' in source
+    assert "function Send-CmreRebornLoadingConfirm" in source
+    assert "sent Enter to SC2" in source
+    assert "Send-CmreRebornLoadingConfirm -ProcessId $runtimePid" in source
+    assert "GetForegroundWindow" in source
+    assert "public static uint SendEnter()" in source
+    assert "SendEnter()" in source
+    assert "using System.Text;" in source
+    assert "SendVirtualKey(0x20)" in source
+    assert "sent Space to SC2" in source
+    assert "public ulong unionPadding" in source
+    assert "SendLoadingClick" in source
+    assert "mouse_event" in source
+    assert "PostMessage" in source
+    assert "clicked continuation strip" in source
+
+
+def test_reborn_loading_patch_preserves_mission_kind_and_only_disables_wait():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    body = _function_body(source, "Patch-RebornCampaignLoadingConfirm")
+
+    assert "Base.SC2Data\\TriggerLibs\\SwarmCampaignLib.galaxy" in body
+    assert "optional call" in body
+    assert "Split-Path -Leaf $MapPath" in body
+    assert "no Swarm campaign map id" not in body
+    assert "CMRE_REBORN_SKIP_LOADING_CONFIRM_V1" in body
+    assert "lv_waitForKey = false;" in body
+    assert "CMap.Kind=Mission" in body
+    assert "CMap.Kind=Story" not in body
+    assert "expected one waitForKey anchor" in body
+    assert "Patch-RebornCampaignLoadingConfirm -MapPath $liveMap" in source
+
+
+def test_reborn_loading_patch_runs_after_campaign_library_is_staged():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    copy_index = source.index("Patch-RebornLibraryInit -Sc2Root $Sc2Root -MapPath $liveMap")
+    loading_index = source.index("Patch-RebornCampaignLoadingConfirm -MapPath $liveMap")
+    owner_index = source.index("Patch-RebornMapPlayerOwnerBounds -MapPath $liveMap")
+
+    assert copy_index < loading_index < owner_index
+    assert "SwarmCampaignLib.galaxy" in source
+    assert "TriggerLibs" in source
 
 
 def test_overlay_assets_hold_galaxy_fragments_outside_launcher():
@@ -279,13 +372,11 @@ def test_overlay_assets_hold_galaxy_fragments_outside_launcher():
 def test_headless_startup_is_the_default_non_selection_path():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
     overlay = OVERLAY.read_text(encoding="utf-8-sig")
+    map_lib = (ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "亡者之夜.SC2Map" / "Base.SC2Data" / "LibCOOC.galaxy").read_text(encoding="utf-8-sig")
 
-    assert '$commanderSelectionDisabled = $MapName -eq "亡者之夜.SC2Map"' in source
-    assert 'throw "-ShowSelectionUI is disabled for ${MapName}' in source
-    assert 'forcing headless startup' in source
-    assert "-Headless" in source
-    assert "-Headless:$Headless" in source
-    assert "[switch]$Headless" in overlay
+    assert "ShowSelectionUI" not in source
+    assert "ShowSelectionUI" not in overlay
+    assert "CommanderSelectionScreen" not in map_lib
     assert "tail.headless.galaxy" in overlay
     assert "CMRE_ON_DEMAND_NO_COMMANDER_SELECTION" in overlay
     assert "CommanderSelectionScreen" in overlay
@@ -297,6 +388,151 @@ def test_headless_startup_is_the_default_non_selection_path():
     assert "Replace('include \"LibVibeKernel_h\"', 'include \"LibVibeKernel\"')" in overlay
     assert "declarations but no implementations" in overlay
     assert "Select-String -Pattern 'CommanderSelectionScreen' -SimpleMatch" in overlay
+
+
+def test_map_script_overlay_uses_available_cmre_library_anchors():
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+
+    assert "function Select-CmreExistingAnchor" in overlay
+    assert "'include \"LibCOUI\"'" in overlay
+    assert "'include \"LibCOOC\"'" in overlay
+    assert "'include \"LibCOMI\"'" in overlay
+    assert "'    libCOUI_InitLib();'" in overlay
+    assert "'    libCOOC_InitLib();'" in overlay
+    assert "'    libCOMI_InitLib();'" in overlay
+
+
+def test_generic_map_glue_uses_valid_galaxy_start_offset_primitive():
+    glue = (ASSETS / "map-glue.generic.galaxy").read_text(encoding="utf-8-sig")
+
+    assert "PointWithOffsetPolar(lv_p1Start, 25.0, 45.0)" in glue
+    assert "PointWithPolarProjection" not in glue
+
+
+def test_reborn_headless_path_skips_only_campaign_cinematic():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+
+    assert "Install-CmreRebornCampaignIntroSkipOverlay -MapPath $liveMap" in source
+    assert "CMRE_REBORN_SKIP_CAMPAIGN_INTRO" in overlay
+    assert "TriggerExecute(gt_IntroCinematic, true, true);" in overlay
+    assert "TriggerExecute(gt_IntroCinematicEnd, true, true);" in overlay
+    assert "gv_introCinematicCompleted = false;" in overlay
+    assert "Preserve campaign setup and cleanup" in overlay
+    assert "CMRE_REBORN_DEFER_PLAYABLE_STARTUP" not in overlay
+    assert "TriggerAddEventTimeElapsed(gt_IntroQ, 0.0, c_timeGame);" not in overlay
+    assert "Keep the map's original intro queue timing" in overlay
+    assert "Install-CmreRebornCampaignFrontendGuardOverlay -MapPath $liveMap" in source
+    assert "CMRE_REBORN_CAMPAIGN_FRONTEND_GUARD" in overlay
+    assert 'libSwaC_gf_ULoadCampaignData("ZChar1");' in overlay
+    assert 'libSwaC_gf_PurchaseStorymodeTech();' in overlay
+    assert "CampaignMode/CampaignProgress UI services" in overlay
+
+
+def test_reborn_library_black_screen_patch_uses_declared_swarm_api():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "libSwaC_gf_ShowHideWorldCover(false, 0.0);" in source
+    assert "libCOOC_gf_ShowHideWorldCover(false, 0.0, 1);" not in source
+
+
+def test_reborn_library_keeps_native_map_init_and_swarm_setup_path():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "CMRE_PATCH_DEFERRED_INITIALIZATION" not in source
+    assert "TriggerAddEventTimeElapsed(lib48DF4533_gt_Initialization, 0.0, c_timeGame);" not in source
+    assert "TriggerAddEventMapInit(lib48DF4533_gt_Initialization);" in source
+    assert "TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);" in source
+
+
+def test_reborn_staged_map_guards_invalid_achievement_owner_ids():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    assert "function Patch-RebornMapPlayerOwnerBounds" in source
+    assert "CMRE_PATCH_PLAYER_OWNER_BOUNDS" in source
+    assert "Patch-RebornMapPlayerOwnerBounds -MapPath $liveMap" in source
+
+
+def test_reborn_startup_does_not_write_unstable_larva_button_fields():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    assert 'libRebornAdapter_gf_ForceEnableLarvaMorphButtons(1);' not in source
+    assert 'libRebornAdapter_gf_ForceEnableLarvaMorphButtons(2);' not in source
+    assert 'larva_morph_buttons_forced_p1", 0' in source
+
+
+def test_reborn_zchar01_targets_all_enemy_owners_at_both_coop_players():
+    glue = (ASSETS / "map-glue.reborn-zchar01.galaxy").read_text(encoding="utf-8-sig")
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+
+    for player in [3, 4, 5, 6, 10, 11, 12]:
+        assert f"AIAttackWaveSetTargetPlayer({player}, gv_CmreRebornZChar01CoopTargets);" in glue
+        assert f"libNtve_gf_SetAlliance({player}, 1, libNtve_ge_AllianceSetting_Enemy);" in glue
+        assert f"libNtve_gf_SetAlliance(1, {player}, libNtve_ge_AllianceSetting_Enemy);" in glue
+        assert f"libNtve_gf_SetAlliance({player}, 2, libNtve_ge_AllianceSetting_Enemy);" in glue
+        assert f"libNtve_gf_SetAlliance(2, {player}, libNtve_ge_AllianceSetting_Enemy);" in glue
+
+    assert "CMRE_REBORN_ZCHAR01_SCRIPTED_TARGET_PATCH_V1" in overlay
+    assert "gv_CmreRebornZChar01CoopTargets" in overlay
+    assert "ZChar01 scripted target anchor not found" in overlay
+    assert "TriggerAddEventTimePeriodic(gt_CmreRebornZChar01AllyGuard, 1.0, c_timeGame);" in glue
+
+
+def test_reborn_zchar01_sets_coop_target_before_native_campaign_ai_starts():
+    glue = (ASSETS / "map-glue.reborn-zchar01.galaxy").read_text(encoding="utf-8-sig")
+    start = glue.index("void gf_CmreRebornZChar01StartAI()")
+    end = glue.index("void gf_CmreRebornZChar01StartEnemyWaves()", start)
+    body = glue[start:end]
+
+    assert "PlayerType(2) == c_playerTypeComputer" in body
+    assert "gt_CmreOnDemandComputerAllyReady_Func(false, true);" in body
+    assert "gf_CmreRebornZChar01DisableP2EnemyWaves();" in body
+    alliance_index = body.index("gf_CmreRebornZChar01SetCoopAlliances();")
+    first_target_index = body.index("gf_CmreRebornZChar01RetargetEnemyAI();")
+    first_campaign_index = body.index("AICampaignStart(3);")
+    last_target_index = body.rindex("gf_CmreRebornZChar01RetargetEnemyAI();")
+
+    init_index = body.index("gt_CmreOnDemandComputerAllyReady_Func(false, true);")
+    disable_waves_index = body.index("gf_CmreRebornZChar01DisableP2EnemyWaves();")
+    assert init_index < alliance_index < disable_waves_index < first_campaign_index
+    assert first_target_index < first_campaign_index
+    assert last_target_index > first_campaign_index
+
+
+def test_reborn_zchar01_skips_original_p2_enemy_waves_for_computer_ally():
+    glue = (ASSETS / "map-glue.reborn-zchar01.galaxy").read_text(encoding="utf-8-sig")
+    start = glue.index("void gf_CmreRebornZChar01StartEnemyWaves()")
+    end = glue.index("bool gt_CmreRebornZChar01AllyGuard_Func", start)
+    body = glue[start:end]
+
+    assert "if (PlayerType(2) != c_playerTypeComputer)" in body
+    assert "PlayerGroupAlliance(c_playerGroupAlly, 1)" not in body
+
+
+def test_staged_map_glue_replaces_stale_generated_blocks():
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+
+    assert "function Replace-CmreBlockBetweenMarkers" in overlay
+    assert '"// CMRE_ON_DEMAND_MAP_GLUE"' in overlay
+    assert '"// CMRE_ON_DEMAND_INITMAP_ENTERED_STATE"' in overlay
+    assert '"// CMRE_REBORN_ZCHAR01_ALLY_GUARD"' in overlay
+    assert 'Name "CMRE map glue"' in overlay
+    assert 'Name "ZChar01 ally glue"' in overlay
+
+
+def test_reborn_zchar01_start_hooks_have_forward_declarations():
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+
+    assert "CMRE_REBORN_ZCHAR01_FORWARD_DECLS_V1" in overlay
+    assert "void gf_CmreRebornZChar01StartAI();" in overlay
+    assert "void gf_CmreRebornZChar01StartEnemyWaves();" in overlay
+
+
+def test_initialization_gate_accepts_native_reborn_direct_startup():
+    gate = (ASSETS / "startup" / "initialization-gate.galaxy").read_text(encoding="utf-8-sig")
+
+    assert "lv_rebornDirectReady" in gate
+    assert 'gf_CmreOnDemandDebugInt("initlib_patch_ran")' in gate
+    assert 'gf_CmreOnDemandDebugInt("reborn_adapter_initialized")' in gate
+    assert "startup_dev_finish" in gate
 
 
 def test_native_computer_catalog_overlay_restores_marine_before_map_load():

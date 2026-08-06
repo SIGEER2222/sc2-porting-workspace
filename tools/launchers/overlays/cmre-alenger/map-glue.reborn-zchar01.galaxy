@@ -1,0 +1,141 @@
+// CMRE_REBORN_ZCHAR01_ALLY_GUARD
+// ZChar1 originally uses P2 as Zagara's enemy-wave owner. The launcher
+// reuses P2 as the native Computer ally, so the original P2 AI and scripted
+// Zerg waves must not keep the old role.
+
+trigger gt_CmreRebornZChar01AllyGuard;
+
+playergroup gf_CmreRebornZChar01GetCoopTargets() {
+    playergroup targets = PlayerGroupEmpty();
+    PlayerGroupAdd(targets, 1);
+    PlayerGroupAdd(targets, 2);
+    return targets;
+}
+
+void gf_CmreRebornZChar01SetCoopAlliances() {
+    libNtve_gf_SetAlliance(1, 2,
+        libNtve_ge_AllianceSetting_AllyWithSharedVisionAndPushable);
+    libNtve_gf_SetAlliance(2, 1,
+        libNtve_ge_AllianceSetting_AllyWithSharedVisionAndPushable);
+
+    // Make both P1 and P2 valid targets for the campaign Computer players.
+    libNtve_gf_SetAlliance(3, 1, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(1, 3, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(3, 2, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(2, 3, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(4, 1, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(1, 4, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(4, 2, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(2, 4, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(5, 1, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(1, 5, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(5, 2, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(2, 5, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(6, 1, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(1, 6, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(6, 2, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(2, 6, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(10, 1, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(1, 10, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(10, 2, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(2, 10, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(11, 1, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(1, 11, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(11, 2, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(2, 11, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(12, 1, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(1, 12, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(12, 2, libNtve_ge_AllianceSetting_Enemy);
+    libNtve_gf_SetAlliance(2, 12, libNtve_ge_AllianceSetting_Enemy);
+}
+
+void gf_CmreRebornZChar01DisableP2EnemyWaves() {
+    // These triggers either launch the P2 Zagara wave chain or periodically
+    // create additional P2 attack waves. The direct gt_StartAI call is also
+    // patched below because TriggerExecute does not depend on enable state.
+    TriggerEnable(gt_ZergAttackWaves, false);
+    TriggerEnable(gt_SwarmWaves, false);
+    TriggerEnable(gt_ZagaraCentralWaves, false);
+    TriggerEnable(gt_ZagaraFirstAttackQ, false);
+    TriggerEnable(gt__50EggAttack, false);
+}
+
+void gf_CmreRebornZChar01RetargetEnemyAI() {
+    gv_CmreRebornZChar01CoopTargets = gf_CmreRebornZChar01GetCoopTargets();
+
+    // Reapply this group for waves created after AICampaignStart.
+    AIAttackWaveSetTargetPlayer(3, gv_CmreRebornZChar01CoopTargets);
+    AIAttackWaveSetTargetPlayer(4, gv_CmreRebornZChar01CoopTargets);
+    AIAttackWaveSetTargetPlayer(5, gv_CmreRebornZChar01CoopTargets);
+    AIAttackWaveSetTargetPlayer(6, gv_CmreRebornZChar01CoopTargets);
+    AIAttackWaveSetTargetPlayer(10, gv_CmreRebornZChar01CoopTargets);
+    AIAttackWaveSetTargetPlayer(11, gv_CmreRebornZChar01CoopTargets);
+    AIAttackWaveSetTargetPlayer(12, gv_CmreRebornZChar01CoopTargets);
+}
+
+void gf_CmreRebornZChar01StartAI() {
+    // The map's original Start AI trigger runs before the cooperative
+    // alliance exists. Detect the staged topology from the slot type first;
+    // checking P1's current ally group here always falls through to
+    // cai_startall(), leaving P2 as the original enemy-wave owner.
+    if (PlayerType(2) == c_playerTypeComputer) {
+        // Reuse the project-owned native Computer initializer so P2 receives
+        // the map-defined start location, real starting units/resources, and
+        // the normal AIMeleeStart economy before campaign waves are created.
+        gt_CmreOnDemandComputerAllyReady_Func(false, true);
+        gf_CmreRebornZChar01SetCoopAlliances();
+        gf_CmreRebornZChar01DisableP2EnemyWaves();
+
+        // Establish the cooperative roster before any native campaign AI is
+        // started. AICampaignStart may emit its first wave synchronously, so
+        // a target-group update made only afterwards is too late for that
+        // wave and leaves it locked onto the map's original P1 target.
+        gf_CmreRebornZChar01SetCoopAlliances();
+        gf_CmreRebornZChar01RetargetEnemyAI();
+
+        // Preserve every campaign AI except the original P2 Zagara owner.
+        cai_start("aiAADAE1CE", 10);
+        AICampaignStart(3);
+        AICampaignStart(4);
+        AICampaignStart(5);
+        AICampaignStart(6);
+        AICampaignStart(11);
+        AICampaignStart(12);
+
+        // Some campaign AI implementations initialize their wave state during
+        // AICampaignStart; reapply after startup for those implementations and
+        // for waves created by later map triggers.
+        gf_CmreRebornZChar01RetargetEnemyAI();
+        return;
+    }
+
+    // Preserve unadapted map behavior outside the cooperative staging path.
+    cai_startall();
+}
+
+void gf_CmreRebornZChar01StartEnemyWaves() {
+    if (PlayerType(2) != c_playerTypeComputer) {
+        TriggerExecute(gt_ZergAttackWaves, true, false);
+    }
+}
+
+bool gt_CmreRebornZChar01AllyGuard_Func(bool testConds, bool runActions) {
+    if (!runActions) {
+        return true;
+    }
+    if (PlayerType(2) != c_playerTypeComputer) {
+        return true;
+    }
+
+    gf_CmreRebornZChar01SetCoopAlliances();
+    gf_CmreRebornZChar01DisableP2EnemyWaves();
+    gf_CmreRebornZChar01RetargetEnemyAI();
+    return true;
+}
+
+void gt_CmreRebornZChar01AllyGuard_Init() {
+    gt_CmreRebornZChar01AllyGuard =
+        TriggerCreate("gt_CmreRebornZChar01AllyGuard_Func");
+    TriggerAddEventTimePeriodic(gt_CmreRebornZChar01AllyGuard, 1.0, c_timeGame);
+    TriggerExecute(gt_CmreRebornZChar01AllyGuard, false, true);
+}

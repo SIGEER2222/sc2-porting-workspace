@@ -7,7 +7,7 @@
 - 从仓库根目录运行；优先使用 PowerShell 7：`pwsh -NoProfile -ExecutionPolicy Bypass -File <script> ...`。
 - 禁止直接启动 `SC2_x64.exe`；需要真实游戏时走本目录或项目专用 launcher。
 - `-DryRun` 只打印/解析依赖；`-NoLaunch` 完成 staging 但不启动游戏。
-- 普通/WebUI 启动沿用 CMRE baseline：把 `"<liveMap>"` 作为 `SC2Switcher_x64.exe` 的位置参数；只有显式 `-ShowSelectionUI` 才保留指挥官选择界面。
+- 普通/WebUI 启动沿用 CMRE baseline：把 `"<liveMap>"` 作为 `SC2Switcher_x64.exe` 的位置参数；CMRE commander 由 launcher 预设，选择界面已移除。
 - 真实启动的轻量地图加载判定：本次 GameLogs 新增 `*Alert*.txt` 表示地图已加载；新增 `*ScriptError*.txt` 表示地图已进入脚本加载但失败。
 - API/debug 启动不传 map 给 Switcher；先开 `-listen/-port/-debug`，再由客户端 `CreateGame + JoinGame` 进入地图。
 - 改过 `tools/launchers/` 或 `.galaxy` 后，`-NoLaunch` 不算最终验收；必须实际启动游戏、等待 ready，复核本次新增 `*ScriptError*.txt`，并确认 runtime listener/heartbeat。

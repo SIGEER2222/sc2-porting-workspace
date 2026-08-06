@@ -904,6 +904,34 @@ Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-20260803-followup.json`,
 `artifacts/galaxy-vibe/static-validation-report.json`.
 
+## Verification Loop 2026-08-06 Reborn Auto-Confirm and Native Initialization
+
+- `static`: the staged `SwarmCampaignLib.galaxy` disables only the standalone
+  loading `waitForKey` transition; `CMap.Kind` remains `Mission`. The source
+  map's `DocInfo/DescShort` is `ZChar01`, while its Chinese `DocInfo/Name` is
+  `绝对统治`; therefore SC2 `GameInfo.map_name=绝对统治` is the expected
+  localized name for `zchar01`, not a wrong-map substitution.
+- `runtime`: the approved launcher on port `5995` reached API listen. The
+  runner's CreateGame returned OK, logged the targeted continuation click and
+  both Enter/Space input fallbacks, then reached Observation/in_game with
+  `player_id=1` after JoinGame retry recovery.
+- `runtime`: GameInfo exposed P1 `Participant` and P2 `Computer`; the fresh
+  Bank reached `initialization_complete=1`, `bridge_heartbeat=17`,
+  `ally_computer_ally_ready=1`, `ally_p2_starting_units_initialized=1`, and
+  `ally_p2_starting_resources_initialized=1`. The runner observed 177 P2-owned
+  allied units and saved a native SC2 replay.
+- `runtime`: the run is `INCONCLUSIVE`, not a full-game PASS. It processed the
+  bounded probe window, one gather action succeeded, nine move actions were
+  `NotSupported`, and no P1 command acknowledgement or P2 state delta was
+  observed in this short run. The launcher same-window ScriptError gate passed;
+  no new ScriptError file was observed for this run.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-confirm-fix-20260806/runtime-report-installed.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-confirm-fix-20260806/launcher5995.stdout.log`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-confirm-fix-20260806/live-replay-installed.SC2Replay`,
+`E:/SC2/SC2new/StarCraft II/Maps/zchar01_reborn_port.SC2Map/DocumentInfo`.
+
 ## Verification Loop 2026-08-03 Native Ally Command Recovery
 
 - `static`: the Dead of Night map-owned adapter now contains an explicit
@@ -1370,3 +1398,107 @@ Evidence:
 Evidence:
 `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-webui-reborn-campaign-20260804/runtime-verdict.json`,
 `tools/cmre-webui/test_launch_async_contract.py`.
+
+## Verification Loop 2026-08-05 CMRE Matrix Bootstrap
+
+- `static`: P1 live observation now normalizes Probe/Drone/Nexus/Hatchery and
+  related non-Terran catalog names, and the shared policy treats non-Terran
+  structures as structures instead of combat units. `py_compile` passed.
+- `static`: `resolve_p1_base_region` prefers a valid observed town hall near
+  the source-map P1 `ACHeroSpawnPlacement`, rejects zero/off-map mission
+  objects, and falls back to the source marker. Custom repeated numeric
+  worker IDs are recognized from public observation without commander-specific
+  unit injection.
+- `static`: the matrix runner now injects the project package path into child
+  processes and cleans only matrix-owned SC2 processes by exact port after a
+  run. The focused live/runtime suites passed `28` tests.
+- `runtime`: `ProtossAlarak x 亡者之夜` passed the native Computer-ally gate;
+  `ProtossAlenger13 x 亡者之夜` passed after repair with four real P1 gather
+  actions (`ActionResult.Success`), P1/P2 Computer roster, P2 visible ally,
+  command acknowledgement, native initialization, and zero new ScriptError.
+- `static`: the complete Stage 25 collection passed `55` tests in `202.66s`;
+  `run-all-validation.ps1` passed `52/52` checks with zero warnings.
+- `in_progress`: the single CMRE runtime matrix runner is executing the
+  authoritative `450` pair sequence under
+  `artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-runtime-matrix-night-20260805`.
+  At log time, `2/450` pairs were fresh PASS and the third pair was active.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-runtime-matrix-fix-20260805-b/runtime-summary.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-runtime-matrix-night-20260805/`,
+`artifacts/galaxy-vibe/static-validation-report.json`.
+
+## Verification Loop 2026-08-05 Reborn Confirmation Sequence
+
+- `static`: `launch-cmre-alenger.ps1` DirectMapApi no longer waits for
+  `Wait-CmreRuntimeListener` before the `--join-existing` Host attaches. The
+  focused launcher/live-runner suite passed `45` tests; `py_compile` and
+  `git diff --check` also passed.
+- `runtime`: the approved DirectMapApi probe for
+  `zchar01_reborn_port.SC2Map` reached API listen and logged
+  `Reborn loading confirm: clicked continuation strip`, but the direct-map
+  WebSocket did not answer `Ping`, the Host never reached `JoinGame`, and SC2
+  later exited. This path remains blocked and is not acceptance evidence.
+- `runtime`: the approved standard API probe on port `5950` loaded the same
+  staged map as a packed `.SC2Map`, returned `CreateGame OK`, executed the
+  confirmation click twice (initial attempt plus JoinGame retry), and reached
+  `Observation OK`/`player_id=1` after JoinGame timed out. The runner advanced
+  `900/900` loops and saved both a `126472`-byte API trace and a native
+  `api-live-replay.SC2Replay`.
+- `runtime`: the standard API probe observed P1 Participant plus P2 Computer
+  in GameInfo and zero new same-window ScriptError files. It did not observe
+  P2 units or map-bridge initialization: `initialization_complete=0`,
+  `bridge_heartbeat=0`, and `ally_p2_unit_count=0`; the verdict is therefore
+  `INCONCLUSIVE`, not a native P2 capability pass. Move actions also returned
+  `NotSupported` in this map window.
+
+Evidence:
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-confirm-fix-20260805/api-runner.log`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-confirm-fix-20260805/api-live-replay.SC2Replay`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-confirm-fix-20260805/api-live-replay.jsonl`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-confirm-fix-20260805/api-printwindow-after-run.png`.
+
+## Verification Loop 2026-08-05 Commander Selection Removal
+
+- `static`: removed the `-ShowSelectionUI` launcher parameter and all bank-deletion/selection branches. Every CMRE launch now applies the saved commander profile and uses the headless startup tail.
+- `static`: removed the `CommanderSelectionScreen` trigger call from the owned 亡者之夜 `LibCOOC.galaxy` source. The staging overlay still performs an idempotent assertion against copied map code, so a stale CMRE library cannot reintroduce the trigger silently.
+- `static`: launcher regression tests and `git diff --check` passed after the change.
+- `static`: `node tools/analysis/galaxy-lint.mjs .../LibCOOC.galaxy --no-type-check` returned zero diagnostics, and the global Galaxy/Vibe validation remained `52/52`.
+
+Evidence:
+`tools/launchers/launch-cmre-alenger.ps1`,
+`tools/launchers/lib/cmre-on-demand-overlay.ps1`,
+`src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/LibCOOC.galaxy`,
+`tools/launchers/tests/test_launch_cmre_alenger_static.py`.
+
+## Verification Loop 2026-08-06 ZChar01 Enemy Target Diagnosis
+
+- `static`: the ZChar01 startup gate previously tested P1's ally group before
+  the adapter created the P1/P2 alliance. In the Computer-ally topology that
+  condition was false, so the map fell through to `cai_startall()` and kept
+  P2 in the original enemy-wave role. The project glue now detects
+  `PlayerType(2) == c_playerTypeComputer`, runs the existing native P2
+  initializer first, disables P2's original enemy-wave triggers, sets
+  reciprocal P1/P2 alliances, and retargets campaign waves to both players.
+- `static`: staged-map idempotence now replaces the generated CMRE and
+  ZChar01 blocks between stable markers, so reusing a previous staged map
+  cannot silently retain old glue. ZChar01 StartAI and wave hooks also have
+  forward declarations before the generated map functions that call them.
+- `static`: 57 launcher/live-runner tests passed, both relevant PowerShell
+  files parsed, and the updated Galaxy glue reported zero diagnostics.
+- `runtime`: the v4 standard API probe completed 2000 loops and emitted a
+  native replay, but observed `p2_unit_count=0`, no P2 alliance values, and no
+  enemy survivors; it is `INCONCLUSIVE` because map-side initialization did not
+  run in that API window.
+- `blocked`: the v5 DirectMapApi probe loaded the map and the launcher sent
+  the Reborn confirmation input. The same window produced no non-empty
+  ScriptError, but the runtime listener heartbeat stayed at zero and the
+  join-existing WebSocket did not reach Ping/Observation. No runtime claim
+  about enemy target distribution is promoted.
+
+Evidence:
+`tools/launchers/overlays/cmre-alenger/map-glue.reborn-zchar01.galaxy`,
+`tools/launchers/lib/cmre-on-demand-overlay.ps1`,
+`tools/launchers/launch-cmre-alenger.ps1`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-reborn-ally-target-v4-p2init-20260806/runtime-report.json`,
+`artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-reborn-ally-target-v5-p2init-direct-20260806/launcher.stdout.log`.

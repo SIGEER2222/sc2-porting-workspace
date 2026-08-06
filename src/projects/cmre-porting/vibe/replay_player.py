@@ -441,7 +441,8 @@ def _load_minimap_asset(
 
     minimap_path_value = map_metadata.get("minimap_path")
     if not minimap_path_value and map_metadata.get("map_path"):
-        minimap_path_value = f"{str(map_metadata['map_path']).rstrip('/\\\\')}/Minimap.tga"
+        map_path_value = str(map_metadata["map_path"]).rstrip("/\\\\")
+        minimap_path_value = f"{map_path_value}/Minimap.tga"
     if not minimap_path_value:
         return "", {}, {}
     minimap_path = _resolve_repo_path(str(minimap_path_value), jsonl_path)
@@ -684,7 +685,8 @@ def render_player_html(frames: list[dict], jsonl_path: Path, output_path: Path) 
     p2_native_spawn_count = header.get("p2_native_spawn_count", "n/a")
     minimap_source_text = map_metadata.get("minimap_path")
     if not minimap_source_text and map_metadata.get("map_path"):
-        minimap_source_text = f"{str(map_metadata['map_path']).rstrip('/\\\\')}/Minimap.tga"
+        map_path_value = str(map_metadata["map_path"]).rstrip("/\\\\")
+        minimap_source_text = f"{map_path_value}/Minimap.tga"
     minimap_source_text = minimap_source_text or "n/a"
 
     # 单位颜色映射（JSON 给 JS 用）

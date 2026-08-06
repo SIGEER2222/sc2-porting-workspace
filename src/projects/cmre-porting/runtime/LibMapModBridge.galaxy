@@ -11,21 +11,65 @@ void libMapModBridge_gf_WriteDebugBank(string key, int value) {
     BankSave(BankLastCreated());
 }
 
+int libMapModBridge_gf_AliveUnitCount(string unitType, int player) {
+    unitgroup lv_units;
+    if ((unitType == "") || (!CatalogEntryIsValid(c_gameCatalogUnit, unitType))) { return 0; }
+    lv_units = UnitGroup(unitType, player, RegionEntireMap(),
+        UnitFilter(0, 0, (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    return UnitGroupCount(lv_units, c_unitCountAlive);
+}
+
 void libMapModBridge_gf_CreateStartingUnits(int player, string structureType, string workerType, int workerCount) {
     point lv_start = PlayerStartLocation(player);
+    point lv_base = null;
+    unitgroup lv_structures;
+    unit lv_structure;
     int lv_i = 0;
+    int lv_existingStructures = 0;
+    int lv_existingWorkers = 0;
+    int lv_workersToCreate = 0;
+    int lv_removedVanilla = 0;
+    int lv_reused = 0;
     if (lv_start == null) { return; }
+    if (workerCount <= 0) { workerCount = 5; }
 
-    // 创建基地
-    UnitCreate(1, structureType, c_unitCreateIgnorePlacement, player, lv_start, 270.0);
+    // CMRE/Reborn maps may already have a melee opening when the adapter runs.
+    // Remove only the six canonical base/worker types when replacing them with a
+    // commander-specific opening; mission units and production remain untouched.
+    if (structureType != "CommandCenter") { lv_removedVanilla += libMapModBridge_gf_RemoveAllUnitsOfType(player, "CommandCenter"); }
+    if (structureType != "Nexus") { lv_removedVanilla += libMapModBridge_gf_RemoveAllUnitsOfType(player, "Nexus"); }
+    if (structureType != "Hatchery") { lv_removedVanilla += libMapModBridge_gf_RemoveAllUnitsOfType(player, "Hatchery"); }
+    if (workerType != "SCV") { lv_removedVanilla += libMapModBridge_gf_RemoveAllUnitsOfType(player, "SCV"); }
+    if (workerType != "Probe") { lv_removedVanilla += libMapModBridge_gf_RemoveAllUnitsOfType(player, "Probe"); }
+    if (workerType != "Drone") { lv_removedVanilla += libMapModBridge_gf_RemoveAllUnitsOfType(player, "Drone"); }
 
-    // 创建工蜂（围绕基地，间隔 72 度）
-    for (lv_i = 0; lv_i < workerCount; lv_i += 1) {
-        UnitCreate(1, workerType, c_unitCreateIgnorePlacement, player,
-            PointWithOffsetPolar(lv_start, 3.0, (IntToFixed(lv_i) * 72.0)), 270.0);
+    lv_existingStructures = libMapModBridge_gf_AliveUnitCount(structureType, player);
+    if (lv_existingStructures > 0) {
+        lv_reused = 1;
+        lv_structures = UnitGroup(structureType, player, RegionEntireMap(),
+            UnitFilter(0, 0, (1 << c_targetFilterMissile),
+                (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+        lv_structure = UnitGroupUnit(lv_structures, 1);
+        if (lv_structure != null) { lv_base = UnitGetPosition(lv_structure); }
+    }
+    if (lv_base == null) { lv_base = lv_start; }
+
+    // Create the commander base only when the expected base is absent.
+    if (lv_existingStructures == 0) {
+        UnitCreate(1, structureType, c_unitCreateIgnorePlacement, player, lv_base, 270.0);
     }
 
-    // 记录创建状态
+    // Top up the expected worker count instead of creating a second opening.
+    lv_existingWorkers = libMapModBridge_gf_AliveUnitCount(workerType, player);
+    lv_workersToCreate = workerCount - lv_existingWorkers;
+    for (lv_i = 0; lv_i < lv_workersToCreate; lv_i += 1) {
+        UnitCreate(1, workerType, c_unitCreateIgnorePlacement, player,
+            PointWithOffsetPolar(lv_base, 3.0, (IntToFixed(lv_existingWorkers + lv_i) * 30.0)), 270.0);
+    }
+
+    libMapModBridge_gf_WriteDebugBank("bridge_starting_units_removed_vanilla_p" + IntToString(player), lv_removedVanilla);
+    libMapModBridge_gf_WriteDebugBank("bridge_starting_units_reused_p" + IntToString(player), lv_reused);
     if (player == 1) {
         libMapModBridge_gv_startingUnitsCreatedP1 = 1;
         libMapModBridge_gf_WriteDebugBank("bridge_starting_units_created_p1", 1);
@@ -43,6 +87,20 @@ void libMapModBridge_gf_EnsurePreventDefeat(int player, string structureType) {
             (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
     if (UnitGroupCount(lv_existing, c_unitCountAlive) > 0) {
         // 已有 PreventDefeat 单位，记录状态并跳过
+        if (player == 1) {
+            libMapModBridge_gv_preventDefeatEnsuredP1 = 1;
+            libMapModBridge_gf_WriteDebugBank("bridge_prevent_defeat_p1", 1);
+        } else if (player == 2) {
+            libMapModBridge_gv_preventDefeatEnsuredP2 = 1;
+            libMapModBridge_gf_WriteDebugBank("bridge_prevent_defeat_p2", 1);
+        }
+        return;
+    }
+
+    // CreateStartingUnits may have just ensured the requested commander base.
+    // Do not place a second base at the same start location merely because the
+    // catalog unit does not carry PreventDefeat in this map composition.
+    if (libMapModBridge_gf_AliveUnitCount(structureType, player) > 0) {
         if (player == 1) {
             libMapModBridge_gv_preventDefeatEnsuredP1 = 1;
             libMapModBridge_gf_WriteDebugBank("bridge_prevent_defeat_p1", 1);

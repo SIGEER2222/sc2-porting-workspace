@@ -81,6 +81,17 @@ class DefendBasePolicy:
         "MissileTurret", "Bunker", "SensorTower", "BarracksTechLab",
         "BarracksReactor", "FactoryTechLab", "FactoryReactor", "StarportTechLab",
         "StarportReactor",
+        # Non-Terran town halls and production structures can appear in the
+        # P1 slot when a commander replaces the vanilla opening.  They are
+        # still structures for tactical filtering even though this policy's
+        # economy planner is intentionally Terran-specific.
+        "Nexus", "Hatchery", "Lair", "Hive", "GreaterSpire", "Pylon",
+        "Gateway", "WarpGate", "CyberneticsCore", "Assimilator", "Forge",
+        "SpawningPool", "Extractor", "EvolutionChamber", "RoachWarren",
+        "HydraliskDen", "Spire", "UltraliskCavern", "InfestationPit",
+        "NydusNetwork", "CreepTumor", "RoboticsFacility", "Stargate",
+        "TwilightCouncil", "RoboticsBay", "FleetBeacon", "TemplarArchive",
+        "DarkShrine", "ShieldBattery",
     }
     # Mission/commander caster units can appear in raw observations but do not
     # expose a weapon. They must not be treated as combat units by the policy.

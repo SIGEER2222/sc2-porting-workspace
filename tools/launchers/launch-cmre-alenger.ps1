@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$DirectMapApi, [switch]$ShowSelectionUI, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "")
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [string]$MapSourceOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$DirectMapApi, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "")
 # -MapCopySuffix: 可选的地图副本后缀，用于避免多会话同时操作同一 live 地图导致 DocumentInfo 冲突。
 # 例如 -MapCopySuffix "reborn" 会使用 Maps\亡者之夜.SC2Map.reborn\ 作为 live 地图。
 # 不指定时使用原始路径（向后兼容）。
@@ -64,8 +64,8 @@ function Convert-TestCommanderToCommanderPowerKey {
     param([string]$Commander)
     return (Convert-CommanderPowerCommanderToBankKey -Commander $Commander -WorkspaceRoot $LegacyRoot)
 }
-$cmre = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\cmre-alenger-dependencies.json") -Raw | ConvertFrom-Json
-$alenger = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\alenger-mods.json") -Raw | ConvertFrom-Json
+$cmre = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\cmre-alenger-dependencies.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+$alenger = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\alenger-mods.json") -Raw -Encoding UTF8 | ConvertFrom-Json
 # 加载地图需求声明（map-requirements.json）：地图声明硬性需求（PreventDefeat、起始单位），
 # 由 launcher 读取并通知 mod adapter 中间层执行
 $mapRequirements = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "src\config\map-requirements.json") -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -178,12 +178,46 @@ if ($EnableReborn -and $RebornCommander -ne "") {
 } elseif ($commanderRace) {
     Write-Host "Alenger mode with Reborn library: commanderRace=$commanderRace (for Zerg unit unlock injection)"
 }
-$mapSource = Join-Path $LegacyRoot "Maps\CMRE\$MapName"
+$mapSource = if ($MapSourceOverride -ne "") { (Resolve-Path -LiteralPath $MapSourceOverride).Path } else { Join-Path $LegacyRoot "Maps\CMRE\$MapName" }
 if (-not (Test-Path -LiteralPath $mapSource)) { throw "CMRE map source not found: $mapSource" }
-$commanderSelectionDisabled = $MapName -eq "亡者之夜.SC2Map"
-if ($commanderSelectionDisabled -and $ShowSelectionUI) {
-    throw "-ShowSelectionUI is disabled for ${MapName}: the map-owned startup code permanently bypasses commander selection"
+if (-not (Test-Path -LiteralPath (Join-Path $mapSource "MapScript.galaxy"))) {
+    throw "Map source is not an unpacked .SC2Map directory: $mapSource"
 }
+Write-Host "Map source: $mapSource"
+
+# Preserve the source map's declared dependency chain when the launcher stages
+# an adapter composition.  This matters for campaign maps: Reborn's map script
+# includes SwarmCampaignLib, so replacing the source dependencies with only the
+# CMRE adapter set makes CreateGame succeed but leaves the playable map without
+# its campaign library at JoinGame/startup time.
+$sourceMapDependencies = @()
+$sourceMapInfoPath = Join-Path $mapSource "DocumentInfo"
+if (Test-Path -LiteralPath $sourceMapInfoPath) {
+    $sourceMapDependencies = @(Read-DocumentInfoDependencies -Path $sourceMapInfoPath)
+}
+
+function Merge-CmreMapDependencies {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$BaseDependencies,
+        [Parameter(Mandatory = $true)][string[]]$SourceDependencies
+    )
+
+    $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $merged = [System.Collections.Generic.List[string]]::new()
+    foreach ($dependency in @($SourceDependencies) + @($BaseDependencies)) {
+        if ([string]::IsNullOrWhiteSpace($dependency)) { continue }
+        $normalized = $dependency
+        # Reborn source maps refer to the main mod at the legacy root.  The
+        # launcher stages it under Mods/reborn, so keep the declaration while
+        # pointing it at the actual staged package.
+        if ($normalized -match '^file:Mods[\\/]crys_the_swarm_reborn\.SC2Mod$') {
+            $normalized = 'file:Mods/reborn/crys_the_swarm_reborn.SC2Mod'
+        }
+        if ($seen.Add($normalized)) { [void]$merged.Add($normalized) }
+    }
+    return @($merged)
+}
+
 if ($isAlengerCommander) {
     $selectedMods = @($alenger.commanderToAlenger.$alengerId)
 } else {
@@ -204,6 +238,55 @@ if ($isAlengerCommander) {
     }
 }
 $dependencies = @($cmre.baseDependencyPaths) + @($cmre.commanderBaseDependencyPaths) + @($selectedMods | ForEach-Object { "file:Mods/Commanders/$_.SC2Mod" })
+
+function Repair-CmreOnDemandDependencyPaths {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$ModNames,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$LegacyCommanderId
+    )
+    $pathMap = @{
+        "file:Mods/7vs1/AlengerCommon.SC2Mod" = "file:Mods/Commanders/SharedAlengerCommon.SC2Mod"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($LegacyCommanderId)) {
+        $pathMap["file:Mods/7vs1/$LegacyCommanderId.SC2Mod"] =
+            "file:Mods/Commanders/$($alengerId)Alenger.SC2Mod"
+    }
+    foreach ($modName in @($ModNames)) {
+        $modRoot = Join-Path $Sc2Root "Mods\Commanders\$modName.SC2Mod"
+        $infoPath = Join-Path $modRoot "DocumentInfo"
+        $headerPath = Join-Path $modRoot "DocumentHeader"
+        if (-not (Test-Path -LiteralPath $infoPath)) { continue }
+        $infoDependencies = @(Read-DocumentInfoDependencies -Path $infoPath)
+        $mappedInfoDependencies = @(
+            $infoDependencies | ForEach-Object {
+                if ($pathMap.ContainsKey($_)) { $pathMap[$_] } else { $_ }
+            }
+        )
+        $diff = @(Compare-Object -ReferenceObject $infoDependencies -DifferenceObject $mappedInfoDependencies)
+        if ($diff.Count -eq 0) { continue }
+        Write-DocumentInfoDependencies -Path $infoPath -Dependencies $mappedInfoDependencies
+        if (Test-Path -LiteralPath $headerPath) {
+            $headerDependencies = @(Read-DocumentHeaderDependencies -Path $headerPath)
+            $mappedHeaderDependencies = @(
+                $headerDependencies | ForEach-Object {
+                    if ($pathMap.ContainsKey($_)) { $pathMap[$_] } else { $_ }
+                }
+            )
+            Write-DocumentHeaderDependencies -Path $headerPath -Dependencies $mappedHeaderDependencies
+        }
+        Write-Host "PATCH dependency paths: $modName -> $($mappedInfoDependencies -join ', ')"
+    }
+}
+
+$legacyCommanderId = ""
+if ($alenger.PSObject.Properties.Name -contains "alengerIdToName") {
+    foreach ($entry in $alenger.alengerIdToName.PSObject.Properties) {
+        if ([string]$entry.Value -eq [string]$alengerId) {
+            $legacyCommanderId = [string]$entry.Name
+            break
+        }
+    }
+}
 if ($ExtraMods -ne "") {
     $extraList = $ExtraMods.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
     $selectedSet = [System.Collections.Generic.HashSet[string]]::new()
@@ -237,6 +320,10 @@ if ($EnableReborn) {
     }
 } elseif ($RebornCommander -ne "") {
     throw "-RebornCommander requires -EnableReborn to load reborn mod packages."
+}
+$dependencies = Merge-CmreMapDependencies -BaseDependencies $dependencies -SourceDependencies $sourceMapDependencies
+if ($sourceMapDependencies.Count -gt 0) {
+    Write-Host "Preserved source map dependencies: $($sourceMapDependencies -join ', ')"
 }
 Write-Host "CMRE Alenger selection: $MapName x $Commander"
 Write-Host "On-demand packages: $($selectedMods -join ', ')"
@@ -348,10 +435,9 @@ function Enable-CmreSavedProfileStartup {
         [switch]$SkipCountdown,
         [switch]$ApiMinimal,
         [switch]$SkipPause,
-        [switch]$Headless,
         [switch]$KeepPlayer1Vanilla
     )
-    Install-CmreSavedProfileStartupOverlay -MapPath $MapPath -Commander $Commander -SkipCountdown:$SkipCountdown -ApiMinimal:$ApiMinimal -SkipPause:$SkipPause -Headless:$Headless -KeepPlayer1Vanilla:$KeepPlayer1Vanilla
+    Install-CmreSavedProfileStartupOverlay -MapPath $MapPath -Commander $Commander -SkipCountdown:$SkipCountdown -ApiMinimal:$ApiMinimal -SkipPause:$SkipPause -KeepPlayer1Vanilla:$KeepPlayer1Vanilla
 }
 function Patch-RebornK5KerriganSpawn {
     <#
@@ -607,14 +693,8 @@ function Patch-RebornLibraryInit {
     # CommanderStart 仍会执行，但找不到 K5Kerrigan 会跳过替换逻辑。
     Write-Host "Patch-RebornLibraryInit: K5Kerrigan injection skipped (disabled by user request)"
 
-    # === 3b. 在 lib48DF4533_InitLib() 末尾注入 SwarmSetup 直接触发 ===
-    # 根因：lib48DF4533_gt_Initialization_Func 中有两处 Wait(1.0, c_timeGame)（行 4620/4684），
-    # 若游戏处于 pause 状态（CMRE 框架 GameSetMissionTimePaused(true)），Wait 永不返回，
-    # 导致 Initialization_Func 永远执行不到 TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false)。
-    # 结果：K5Kerrigan spawn + CommanderStart 替换逻辑（Abathur→HunterKiller 等）从未执行。
-    # 修复：在 lib48DF4533_InitLib() 末尾（lib48DF4533_InitTriggers() 之后）直接异步触发 SwarmSetup。
-    # 此时 SwarmSetup trigger 已通过 InitTriggers() 创建，TriggerExecute 不会阻塞 InitLib。
-    # 幂等性：SwarmSetup_Func 末尾有 TriggerEnable(TriggerGetCurrent(), false)，重复触发会被跳过。
+    # === 3b. 保留 Reborn 的原生 MapInit 初始化入口 ===
+    # 加载确认属于战役前端输入层，不能通过推迟 Galaxy 初始化来替代。
     $initLibMarker = '    lib48DF4533_InitTriggers();'
     $initLibMarkerCount = ([regex]::Matches($content, [regex]::Escape($initLibMarker))).Count
     if ($initLibMarkerCount -eq 0) {
@@ -635,6 +715,10 @@ function Patch-RebornLibraryInit {
         $ensureP2PreventDefeat = ($mapPreventDefeatPlayers -contains 2).ToString().ToLower()
         $createP1StartingUnits = ($mapStartingUnitsPlayers -contains 1).ToString().ToLower()
         $createP2StartingUnits = ($mapStartingUnitsPlayers -contains 2).ToString().ToLower()
+        $initializationAnchor = '    TriggerAddEventMapInit(lib48DF4533_gt_Initialization);'
+        if (-not $content.Contains($initializationAnchor)) {
+            throw "Patch-RebornLibraryInit: Reborn Initialization event anchor not found"
+        }
         $initLibInjectBlock = @"
     $initLibInjectMarker
     // 直接异步触发 SwarmSetup，绕过 Initialization_Func 中的 Wait 卡死问题。
@@ -654,10 +738,10 @@ function Patch-RebornLibraryInit {
     GameSetMissionTimePaused(false);
     AITimePause(false);
     UnitPauseAll(false);
-    libCOOC_gf_ShowHideWorldCover(false, 0.0, 1);
-    if ((PlayerType(14) == c_playerTypeUser)) {
-        libCOOC_gf_ShowHideWorldCover(false, 0.0, 14);
-    }
+    // Lib48DF4533 declares LibSwaC, not LibCOOC. Keep this injected block
+    // within the library's existing dependency boundary and show the world
+    // for all players through the two-argument LibSwaC API.
+    libSwaC_gf_ShowHideWorldCover(false, 0.0);
     libNtve_gf_HideGameUI(true, PlayerGroupAll()); // true=显示UI（HideGameUI 函数名反直觉：lp_showHide=true 显示, false 隐藏）
     BankLoad("CMRERebornDebug", 1);
     BankValueSetFromInt(BankLastCreated(), "debug", "black_screen_fix_ran", 1);
@@ -679,10 +763,6 @@ function Patch-RebornLibraryInit {
     // 的所有单位/建筑都被 TechTreeUnitAllow(false) 禁用，Larva 也丢失 morph 能力。
     // 修复：SwarmSetup 触发后强制调用 TechTreeUnitAllow(true) 解锁所有 Zerg 单位/建筑。
     // 注意：必须在 SwarmSetup 之后调用，否则 UnitUnlocks_Func 中的 false 会覆盖此处的 true。
-    if ("$commanderRace" == "Zerg") {
-        libRebornAdapter_gf_UnlockAllZergUnits(1);
-        libRebornAdapter_gf_UnlockAllZergUnits(2);
-    }
     // === 公共层：注册 DisableArmySelect 定时补加触发器 ===
     // 在 InitLib 末尾注册（而非 SwarmSetup_Func），因为 Galaxy 不支持函数向前引用，
     // gt_DisableArmySelectPoll_Init 定义在文件末尾，只有 InitLib（也在文件末尾）才能引用到。
@@ -690,10 +770,8 @@ function Patch-RebornLibraryInit {
 "@
 
         # === 3c. 在 SwarmSetup_Func 末尾（return true 之前）注入深度调试代码 ===
-        # 根因：InitLib 中 Wait 会阻塞库初始化，导致进程退出前深度调试代码未执行。
-        # 改在 SwarmSetup_Func 末尾注入，SwarmSetup 执行完所有逻辑后立即写入调试银行。
-        # SwarmSetup_Func 中有 Wait(1.0, c_timeGame) 调用，但在 InitLib 中直接
-        # TriggerExecute(SwarmSetup) 时游戏尚未暂停，Wait 能正常返回。
+        # SwarmSetup 现在从可推进的游戏时间事件进入；调试标记仍写在其
+        # 原生逻辑之后，避免把 MapInit 的异步调用误报为完成。
         $swarmSetupEndMarker = '    TriggerExecute(lib48DF4533_gt_AllySettings, true, false);
     return true;'
         if (-not $content.Contains($swarmSetupEndMarker)) {
@@ -794,12 +872,11 @@ function Patch-RebornLibraryInit {
         // 没有这些建筑，Larva 即使解锁了单位也无法变异（morph 需要前置建筑存在）。
         libRebornAdapter_gf_CreateZergStartingBuildings(1);
         libRebornAdapter_gf_CreateZergStartingBuildings(2);
-        // === 强制启用 Larva 变异按钮 ===
-        // UnitCreate 创建的建筑可能不被 HaveSpawningPool 等需求验证器识别，
-        // 导致 LarvaTrainSwarm2 的 Suppressed 按钮全部隐藏。
-        // 使用 CatalogFieldValueSet 清除 Requirements 和 State，让按钮无条件显示。
-        libRebornAdapter_gf_ForceEnableLarvaMorphButtons(1);
-        libRebornAdapter_gf_ForceEnableLarvaMorphButtons(2);
+        // Reborn 的 LarvaTrainSwarm2 按钮字段不是稳定的运行时目录结构：
+        // 某些版本没有 Button.State，尾部索引也不存在。不要在启动阶段
+        // 写入这些字段，否则会把目录字段错误升级为 ScriptError。
+        libMapModBridge_gf_WriteDebugBank("larva_morph_buttons_forced_p1", 0);
+        libMapModBridge_gf_WriteDebugBank("larva_morph_buttons_forced_p2", 0);
     }
     BankSave(BankLastCreated());
     return true;
@@ -809,7 +886,7 @@ function Patch-RebornLibraryInit {
 
         # 只替换最后一次出现的 initLibMarker（即 InitLib 函数中的那个，不是 InitTriggers 函数定义）
         $content = [regex]::Replace($content, [regex]::Escape($initLibMarker) + '\s*\r?\n}', $initLibMarker + "`r`n" + $initLibInjectBlock + "`r`n}")
-        Write-Host "Patch-RebornLibraryInit: injected direct K5Kerrigan spawn + SwarmSetup trigger + black screen fix into lib48DF4533_InitLib()"
+        Write-Host "Patch-RebornLibraryInit: injected deferred Reborn startup + black screen fix into lib48DF4533_InitLib()"
     } else {
         Write-Host "Patch-RebornLibraryInit: black screen fix already injected, skipping"
     }
@@ -982,6 +1059,110 @@ void gt_DisableArmySelectPoll_Init() {
     $mapOutBytes = $utf8NoBom.GetBytes($mapScript)
     [System.IO.File]::WriteAllBytes($mapScriptPath, $mapOutBytes)
     Write-Host "Patch-RebornLibraryInit: MapScript.galaxy patched successfully"
+}
+
+function Patch-RebornCampaignLoadingConfirm {
+    param(
+        [Parameter(Mandatory = $true)][string]$MapPath
+    )
+
+    # Reborn's campaign library derives UISetNextLoadingScreen.waitForInput
+    # from CMap.Kind. Mission maps intentionally have Kind=Mission (0), which
+    # is semantically required by campaign victory/progression code, but also
+    # makes standalone map launches stop at the campaign confirmation screen.
+    # Patch only the copied library in the staged map: preserve the catalog
+    # classification and disable this one interactive loading transition.
+    $mapScriptPath = Join-Path $MapPath "MapScript.galaxy"
+    $campaignLibPath = Join-Path $MapPath "Base.SC2Data\TriggerLibs\SwarmCampaignLib.galaxy"
+    if (-not (Test-Path -LiteralPath $mapScriptPath -PathType Leaf)) {
+        throw "Patch-RebornCampaignLoadingConfirm: MapScript.galaxy not found: $mapScriptPath"
+    }
+    if (-not (Test-Path -LiteralPath $campaignLibPath -PathType Leaf)) {
+        throw "Patch-RebornCampaignLoadingConfirm: staged SwarmCampaignLib not found: $campaignLibPath"
+    }
+
+    # Mission maps loaded directly by SC2 do not necessarily call the
+    # campaign-data loader from MapScript.galaxy. The authoritative contract
+    # for this patch is the copied campaign library and its loading-screen
+    # wait expression, so do not reject valid maps based on an optional call
+    # that belongs to the campaign front-end path.
+    $mapLabel = Split-Path -Leaf $MapPath
+    if ([string]::IsNullOrWhiteSpace($mapLabel)) { $mapLabel = $MapPath }
+    $marker = "CMRE_REBORN_SKIP_LOADING_CONFIRM_V1"
+    $content = [System.Text.Encoding]::UTF8.GetString([System.IO.File]::ReadAllBytes($campaignLibPath))
+    if ($content.Contains($marker)) {
+        Write-Host "Reborn campaign loading confirm: staged library already patched for $mapLabel"
+        return
+    }
+
+    $anchor = '    lv_waitForKey = !(libSwaC_gf_StoryMapTypeCheck(lp_nextMap, c_mapKindStory));'
+    $matches = [regex]::Matches($content, [regex]::Escape($anchor))
+    if ($matches.Count -ne 1) {
+        throw "Patch-RebornCampaignLoadingConfirm: expected one waitForKey anchor, found $($matches.Count)"
+    }
+    $replacement = @"
+    // $marker
+    // Keep CMap.Kind=Mission so campaign progression and victory checks retain
+    // their native meaning; standalone launches do not require user input.
+    lv_waitForKey = false;
+"@.TrimEnd()
+    $content = $content.Replace($anchor, $replacement)
+    [System.IO.File]::WriteAllText($campaignLibPath, $content, [System.Text.UTF8Encoding]::new($false))
+
+    $verify = [System.Text.Encoding]::UTF8.GetString([System.IO.File]::ReadAllBytes($campaignLibPath))
+    if (-not $verify.Contains($marker) -or -not $verify.Contains('    lv_waitForKey = false;')) {
+        throw "Patch-RebornCampaignLoadingConfirm: staged library verification failed for $mapLabel"
+    }
+    if ($verify.Contains($anchor)) {
+        throw "Patch-RebornCampaignLoadingConfirm: original waitForKey expression remains"
+    }
+    Write-Host "Reborn campaign loading confirm: disabled staged waitForKey for $mapLabel (CMap.Kind preserved)"
+}
+
+function Patch-RebornMapPlayerOwnerBounds {
+    param(
+        [Parameter(Mandatory = $true)][string]$MapPath
+    )
+
+    # Reborn achievement triggers subscribe to every unit-death event. Neutral
+    # or synthetic deaths can report owner 16, while PlayerIsEnemy accepts only
+    # the real player range 0..15. Patch the staged map copy before launch so
+    # this compatibility guard never changes the registered source map.
+    $mapScriptPath = Join-Path $MapPath "MapScript.galaxy"
+    if (-not (Test-Path -LiteralPath $mapScriptPath)) {
+        throw "Patch-RebornMapPlayerOwnerBounds: MapScript.galaxy not found: $mapScriptPath"
+    }
+    $bytes = [System.IO.File]::ReadAllBytes($mapScriptPath)
+    if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+        $bytes = $bytes[3..($bytes.Length - 1)]
+    }
+    $content = [System.Text.Encoding]::UTF8.GetString($bytes)
+    $marker = '// CMRE_PATCH_PLAYER_OWNER_BOUNDS'
+    if ($content.Contains($marker)) {
+        Write-Host "Patch-RebornMapPlayerOwnerBounds: already applied"
+        return
+    }
+
+    $anchor = '        if (!((libNtve_gf_PlayerIsEnemy(UnitGetOwner(EventUnit()), UnitGetOwner(libNtve_gf_KillingUnit()), libNtve_ge_PlayerRelation_Enemy) == true))) {'
+    if (-not $content.Contains($anchor)) {
+        Write-Host "Patch-RebornMapPlayerOwnerBounds: achievement trigger not present, skipping"
+        return
+    }
+    $guard = @(
+        "        $marker",
+        '        // Unit-death events may carry neutral/synthetic owner 16.',
+        '        if ((UnitGetOwner(EventUnit()) < 0) || (UnitGetOwner(EventUnit()) > 15) ||',
+        '            (UnitGetOwner(libNtve_gf_KillingUnit()) < 0) ||',
+        '            (UnitGetOwner(libNtve_gf_KillingUnit()) > 15)) {',
+        '            return false;',
+        '        }',
+        '',
+        $anchor
+    ) -join "`r`n"
+    $content = $content.Replace($anchor, $guard)
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllBytes($mapScriptPath, $utf8NoBom.GetBytes($content))
+    Write-Host "Patch-RebornMapPlayerOwnerBounds: guarded achievement owner IDs"
 }
 
 function Install-CmreGalaxyHostOverlay {
@@ -1392,7 +1573,94 @@ function Reset-CmreRuntimeListenerBank {
             "bridge_prevent_defeat_p1", "bridge_prevent_defeat_p2",
             "bridge_prevent_defeat_created_p1", "bridge_prevent_defeat_created_p2",
             "reborn_adapter_initialized",
-            "zerg_starting_buildings_created_p1", "zerg_starting_buildings_created_p2"
+            "zerg_starting_buildings_created_p1", "zerg_starting_buildings_created_p2",
+            # Reborn library patch markers (previously not reset, causing stale
+            # initlib_patch_ran=1 / black_screen_fix_ran=1 / deep_debug_ran=1
+            # values from prior runs to mask the current run's InitMap failure).
+            "initlib_patch_ran", "black_screen_fix_ran", "deep_debug_ran",
+            "k5kerrigan_patch_ran", "abathur_abilities_trigger_enabled",
+            "abathur_upgrade_count", "k5kerrigan_p1_after_swarmsetup",
+            "zerg_units_unlocked_p1", "zerg_units_unlocked_p2",
+            "larva_morph_buttons_forced_p1", "larva_morph_buttons_forced_p2",
+            "ally_p2_starting_units_initialized", "ally_p2_starting_resources_initialized",
+            "ally_computer_ally_ready", "ally_p2_start_point_available",
+            "ally_p2_native_ai_path", "ally_p2_player_type", "ally_p2_unit_count",
+            "ally_p2_economy_build_orders", "ally_p2_economy_gather_orders",
+            "ally_p2_economy_native_build_requests", "ally_p2_economy_native_train_requests",
+            "ally_p2_economy_barracks_count", "ally_p2_economy_barracks_complete_count",
+            "ally_p2_economy_barracks_queued_count", "ally_p2_economy_barracks_train_disabled",
+            "ally_p2_economy_barracks_train_no_minerals",
+            "ally_p2_economy_barracks_has_standard_train",
+            "ally_p2_economy_barracks_has_p2marine_train",
+            "ally_p2_economy_barracks_has_nova_train",
+            "ally_p2_economy_barracks_script_controlled_before",
+            "ally_p2_economy_barracks_script_controlled_cleared",
+            "ally_p2_economy_marine_count", "ally_p2_economy_marine_queued_count",
+            "ally_p2_economy_marine_queued_after_order",
+            "ally_p2_economy_train_queue_cleared",
+            "ally_p2_economy_combat_train_orders", "ally_p2_economy_combat_train_order_valid",
+            "ally_p2_economy_combat_train_order_valid_before",
+            "ally_p2_economy_combat_train_fallback_valid",
+            "ally_p2_economy_combat_train_dispatch_return",
+            "ally_p2_economy_combat_train_order_after_ability",
+            "ally_p2_economy_combat_train_order_after_command",
+            "ally_p2_economy_combat_train_order_after_count",
+            "ally_p2_economy_ai_build_queue", "ally_p2_economy_ai_train_queue",
+            "ally_p2_economy_ai_train_queue_after_request",
+            "ally_p2_economy_build_point_available",
+            "ally_p2_economy_barracks_order_count", "ally_p2_economy_barracks_order_command",
+            "ally_p2_economy_barracks_ability_1", "ally_p2_economy_barracks_ability_2",
+            "ally_p2_economy_barracks_ability_3", "ally_p2_economy_barracks_ability_4",
+            "ally_p2_economy_barracks_ability_5", "ally_p2_economy_barracks_ability_6",
+            "ally_p2_economy_barracks_ability_7", "ally_p2_economy_barracks_ability_8",
+            "ally_p2_economy_barracks_ability_9",
+            "ally_p2_economy_p2marine_train_no_minerals",
+            "ally_p2_economy_p2marine_train_hidden",
+            "ally_p2_economy_barracks_train_hidden",
+            "ally_p2_economy_catalog_barracks_abil0",
+            "ally_p2_economy_catalog_p2marine_unit0",
+            "p1_p2_start_distance", "p2_start_overlap",
+            "diag_hydden_p1", "diag_hydden_p2", "diag_spire_p1", "diag_spire_p2",
+            "diag_infpit_p1", "diag_infpit_p2", "diag_ultracav_p1", "diag_ultracav_p2",
+            "diag_sppool_p2", "diag_banenest_p2",
+            "hunterkiller_has_melee", "hunterkiller_has_range",
+            "hunterkiller_has_mechanical", "hunterkiller_has_broodlings",
+            "world_cover_dialog_id",
+            "warpig_p1_count", "hunterkiller_p1_count", "hydraliskimpaler_p1_count",
+            "primalhydralisk2_p1_count", "primaligniter_p1_count", "siqueen_p1_count",
+            "higharchontemplar_p1_count", "queen_p1_count", "revenantgun_p1_count",
+            "infestedmarine_p1_count", "witch_p1_count", "huntress_p1_count",
+            "mengskmarauder_p1_count", "infestedabomination_p1_count",
+            "stalkershakuras_p1_count", "k5kerrigan_p1_count",
+            "zerg_p1_total_units",
+            "hatchery_p1_count", "spawningpool_p1_count",
+            "roachwarren_p1_count", "hydraliskden_p1_count", "drone_p1_count",
+            "game_mission_time_paused",
+            "ally_p2_economy_probe_barracks_train_0",
+            "ally_p2_economy_probe_barracks_train_1",
+            "ally_p2_economy_probe_barracks_train_2",
+            "ally_p2_economy_probe_barracks_train_3",
+            "ally_p2_economy_probe_barracks_train_4",
+            "ally_p2_economy_probe_barracks_train_6",
+            "ally_p2_economy_probe_barracks_train_7",
+            "ally_p2_economy_probe_barracks_train_9",
+            "ally_p2_economy_probe_barracks_train_10",
+            "ally_p2_economy_probe_barracks_train_11",
+            "ally_p2_economy_probe_barracks_train_12",
+            "ally_p2_economy_probe_barracks_train_13",
+            "ally_p2_economy_probe_p2marine_train_0",
+            "ally_p2_economy_probe_p2marine_train_1",
+            "ally_p2_economy_probe_p2marine_train_2",
+            "ally_p2_economy_probe_p2marine_train_3",
+            "ally_p2_economy_probe_p2marine_train_4",
+            "ally_p2_economy_probe_p2marine_train_6",
+            "ally_p2_economy_probe_p2marine_train_7",
+            "ally_p2_economy_probe_p2marine_train_8",
+            "ally_p2_economy_probe_p2marine_train_9",
+            "ally_p2_economy_probe_p2marine_train_10",
+            "ally_p2_economy_probe_p2marine_train_11",
+            "ally_p2_economy_probe_p2marine_train_12",
+            "ally_p2_economy_probe_p2marine_train_13"
         )) {
             Set-CmreRuntimeBankInt -Path $path -Key $key -Value 0
         }
@@ -1579,6 +1847,216 @@ function Get-Sc2GameProcesses {
     return @(Get-Sc2RuntimeProcesses | Where-Object { $_.ProcessName -notmatch "Switcher" })
 }
 
+function Send-CmreRebornLoadingConfirm {
+    param(
+        [Parameter(Mandatory = $true)][int]$ProcessId
+    )
+    if ($ProcessId -le 0) {
+        Write-Host "Reborn loading confirm: skipped because SC2 process id is unavailable"
+        return $false
+    }
+
+    # The standalone Reborn campaign frontend pauses on a native "press any
+    # key to continue" screen before the map listener can advance. Restrict
+    # the input to the launcher-owned SC2 window and send exactly one Enter;
+    # this is deliberately outside Galaxy and does not alter map state.
+    if ($null -eq ('CmreRebornInput.Win32' -as [type])) {
+        Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+namespace CmreRebornInput {
+    public static class Win32 {
+        [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+        [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+        [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
+        [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+        [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc callback, IntPtr extraInfo);
+        [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+        [DllImport("user32.dll")] public static extern int GetClassName(IntPtr hWnd, StringBuilder className, int maxCount);
+        [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr hWnd, StringBuilder title, int maxCount);
+        [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+        [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+        [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
+        [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hWnd, uint msg, UIntPtr wParam, IntPtr lParam);
+        [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RECT {
+            public int left;
+            public int top;
+            public int right;
+            public int bottom;
+        }
+        [StructLayout(LayoutKind.Sequential)]
+        public struct KEYBDINPUT {
+            public ushort wVk;
+            public ushort wScan;
+            public uint dwFlags;
+            public uint time;
+            public UIntPtr dwExtraInfo;
+        }
+        [StructLayout(LayoutKind.Sequential)]
+        public struct INPUT {
+            public uint type;
+            public KEYBDINPUT ki;
+            // INPUT is a union in Win32. Keep the union size at the native
+            // x64 size (40 bytes), even when this call only sends keyboard input.
+            public ulong unionPadding;
+        }
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+        public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr extraInfo);
+
+        public static IntPtr FindInputWindow(uint processId, out string className, out string title) {
+            IntPtr bestWindow = IntPtr.Zero;
+            int bestScore = -1;
+            string bestClass = "";
+            string bestTitle = "";
+            EnumWindows(delegate(IntPtr hWnd, IntPtr extraInfo) {
+                uint ownerProcessId;
+                GetWindowThreadProcessId(hWnd, out ownerProcessId);
+                if (ownerProcessId != processId || !IsWindowVisible(hWnd)) { return true; }
+                StringBuilder candidateClass = new StringBuilder(128);
+                StringBuilder candidateTitle = new StringBuilder(256);
+                GetClassName(hWnd, candidateClass, candidateClass.Capacity);
+                GetWindowText(hWnd, candidateTitle, candidateTitle.Capacity);
+                string currentClass = candidateClass.ToString();
+                int score = 10;
+                if (string.Equals(currentClass, "D3DProxyWindow", StringComparison.OrdinalIgnoreCase)) {
+                    score = 100;
+                } else if (string.Equals(currentClass, "StarCraft II", StringComparison.OrdinalIgnoreCase)) {
+                    score = 50;
+                }
+                if (score > bestScore) {
+                    bestWindow = hWnd;
+                    bestScore = score;
+                    bestClass = currentClass;
+                    bestTitle = candidateTitle.ToString();
+                }
+                return true;
+            }, IntPtr.Zero);
+            className = bestClass;
+            title = bestTitle;
+            return bestWindow;
+        }
+
+        public static uint SendVirtualKey(ushort virtualKey) {
+            INPUT[] inputs = new INPUT[2];
+            inputs[0].type = 1;
+            inputs[0].ki.wVk = virtualKey;
+            inputs[1].type = 1;
+            inputs[1].ki.wVk = virtualKey;
+            inputs[1].ki.dwFlags = 0x0002;
+            return SendInput(2, inputs, Marshal.SizeOf(typeof(INPUT)));
+        }
+
+        public static uint SendEnter() { return SendVirtualKey(0x0D); }
+
+        public static bool SendLoadingClick(IntPtr hwnd, out int x, out int y) {
+            RECT rect;
+            x = 0;
+            y = 0;
+            if (!GetWindowRect(hwnd, out rect)) { return false; }
+            int width = Math.Max(1, rect.right - rect.left);
+            int height = Math.Max(1, rect.bottom - rect.top);
+            x = rect.left + (width / 2);
+            // Reborn's "press any key" overlay exposes its active hit area
+            // on the lower-center continuation strip, below the tip panel.
+            y = rect.top + (int)Math.Round(height * 0.95);
+            int clientX = width / 2;
+            int clientY = (int)Math.Round(height * 0.95);
+            IntPtr lParam = (IntPtr)((clientY << 16) | (clientX & 0xFFFF));
+            bool postedDown = PostMessage(hwnd, 0x0201, (UIntPtr)1, lParam);
+            bool postedUp = PostMessage(hwnd, 0x0202, UIntPtr.Zero, lParam);
+            bool positioned = SetCursorPos(x, y);
+            if (positioned) {
+                mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero);
+                mouse_event(0x0004, 0, 0, 0, UIntPtr.Zero);
+            }
+            return postedDown || postedUp || positioned;
+        }
+
+        public static bool PostVirtualKey(IntPtr hwnd, ushort virtualKey) {
+            IntPtr downResult = PostMessage(hwnd, 0x0100, (UIntPtr)virtualKey, IntPtr.Zero) ? (IntPtr)1 : IntPtr.Zero;
+            bool upResult = PostMessage(hwnd, 0x0101, (UIntPtr)virtualKey, IntPtr.Zero);
+            return downResult != IntPtr.Zero || upResult;
+        }
+    }
+}
+"@
+    }
+
+    $deadline = (Get-Date).AddSeconds(20)
+    $window = [IntPtr]::Zero
+    $windowClass = ''
+    $windowTitle = ''
+    while ((Get-Date) -lt $deadline) {
+        $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+        if ($null -eq $process) {
+            Write-Host "Reborn loading confirm: SC2 process $ProcessId exited before input"
+            return $false
+        }
+        $process.Refresh()
+        $candidateClass = ''
+        $candidateTitle = ''
+        $candidateWindow = [CmreRebornInput.Win32]::FindInputWindow([uint32]$ProcessId, [ref]$candidateClass, [ref]$candidateTitle)
+        if ($candidateWindow -ne [IntPtr]::Zero) {
+            $window = $candidateWindow
+            $windowClass = $candidateClass
+            $windowTitle = $candidateTitle
+        } elseif ($process.MainWindowHandle -ne [IntPtr]::Zero) {
+            $window = $process.MainWindowHandle
+            $windowClass = 'Process.MainWindowHandle'
+            $windowTitle = $process.MainWindowTitle
+        }
+        if ($window -ne [IntPtr]::Zero) {
+            break
+        }
+        Start-Sleep -Milliseconds 250
+    }
+    if ($window -eq [IntPtr]::Zero) {
+        Write-Host "Reborn loading confirm: SC2 window was not available"
+        return $false
+    }
+
+    Write-Host "Reborn loading confirm: selected hwnd=$window class=$windowClass title=$windowTitle"
+    [CmreRebornInput.Win32]::ShowWindow($window, 9) | Out-Null
+    [CmreRebornInput.Win32]::BringWindowToTop($window) | Out-Null
+    [CmreRebornInput.Win32]::SetForegroundWindow($window) | Out-Null
+    Start-Sleep -Milliseconds 750
+    if ([CmreRebornInput.Win32]::GetForegroundWindow() -ne $window) {
+        Write-Host "Reborn loading confirm: foreground window mismatch; continuing targeted click"
+    }
+    $clickX = 0
+    $clickY = 0
+    $clicked = [CmreRebornInput.Win32]::SendLoadingClick($window, [ref]$clickX, [ref]$clickY)
+    if ($clicked) {
+        Write-Host "Reborn loading confirm: clicked continuation strip at x=$clickX y=$clickY for SC2 PID=$ProcessId hwnd=$window"
+    }
+    $postedEnter = [CmreRebornInput.Win32]::PostVirtualKey($window, 0x0D)
+    $sent = [CmreRebornInput.Win32]::SendEnter()
+    if ($sent -ne 2) {
+        $errorCode = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+        Write-Host "Reborn loading confirm: SendInput sent $sent/2 events (win32=$errorCode); using keybd_event fallback"
+        [CmreRebornInput.Win32]::keybd_event([byte]0x0D, 0, 0, [UIntPtr]::Zero)
+        Start-Sleep -Milliseconds 60
+        [CmreRebornInput.Win32]::keybd_event([byte]0x0D, 0, [uint32]0x0002, [UIntPtr]::Zero)
+        Write-Host "Reborn loading confirm: sent Enter via keybd_event fallback to SC2 PID=$ProcessId hwnd=$window"
+    } else {
+        Write-Host "Reborn loading confirm: sent Enter to SC2 PID=$ProcessId hwnd=$window (2/2 events)"
+    }
+    Write-Host "Reborn loading confirm: posted Enter to hwnd=$window result=$postedEnter"
+    # Space is a harmless second confirmation key and covers builds where the
+    # frontend consumes Enter before the continuation strip is ready.
+    Start-Sleep -Milliseconds 250
+    $postedSpace = [CmreRebornInput.Win32]::PostVirtualKey($window, 0x20)
+    $spaceSent = [CmreRebornInput.Win32]::SendVirtualKey(0x20)
+    Write-Host "Reborn loading confirm: sent Space to SC2 PID=$ProcessId hwnd=$window ($spaceSent/2 events), posted=$postedSpace"
+    return ($clicked -or $postedEnter -or $sent -eq 2 -or $postedSpace -or $spaceSent -eq 2)
+}
+
 function Format-Sc2RuntimeBusyMessage {
     param([object[]]$Processes, $Lease)
     $ownerPid = "unknown"
@@ -1599,13 +2077,15 @@ function Format-Sc2RuntimeBusyMessage {
 function Wait-Sc2RuntimeProcess {
     param(
         [Parameter(Mandatory = $true)][int]$RuntimePid,
-        [Parameter(Mandatory = $true)]$LockContext,
+        [AllowNull()]$LockContext,
         [Parameter(Mandatory = $true)][string]$OwnerSession,
         [int]$Port = 0
     )
     Write-Host "SC2 runtime lease: KeepAlive holds the global lease while PID=$RuntimePid is alive"
     while ($null -ne (Get-Process -Id $RuntimePid -ErrorAction SilentlyContinue)) {
-        try { Renew-TestLock -LockContext $LockContext -AdditionalSeconds 300 | Out-Null } catch { }
+        if ($null -ne $LockContext) {
+            try { Renew-TestLock -LockContext $LockContext -AdditionalSeconds 300 | Out-Null } catch { }
+        }
         Write-Sc2RuntimeLease -State "keepalive" -OwnerSession $OwnerSession -RuntimePid $RuntimePid -Port $Port
         Start-Sleep -Seconds 5
     }
@@ -1705,6 +2185,7 @@ try {
     }
     if ($selectedMods.Count -gt 0) {
         Sync-ModSet -ModRelPaths @($selectedMods | ForEach-Object { "Commanders\$_.SC2Mod" }) -ProjRoot $AlengerPackagesRoot -Sc2Root $Sc2Root
+        Repair-CmreOnDemandDependencyPaths -ModNames $selectedMods -LegacyCommanderId $legacyCommanderId
     }
     if ($dedupedExtra.Count -gt 0) {
         Sync-ModSet -ModRelPaths @($dedupedExtra | ForEach-Object { "Commanders\$_.SC2Mod" }) -ProjRoot $AlengerPackagesRoot -Sc2Root $Sc2Root
@@ -1810,25 +2291,16 @@ try {
     robocopy $mapSource $liveMap /MIR /NFL /NDL /NJH /NJS /NC /NS /NP | Out-Null
     Install-CmreNativeComputerMapCatalogOverlay -MapPath $liveMap
     Install-CmreGalaxyHostOverlay -ModsRoot (Join-Path $Sc2Root "Mods") -MapPath $liveMap
-    if ($ShowSelectionUI -and -not $commanderSelectionDisabled) {
-        # ShowSelectionUI: 不 patch LibCOOC.galaxy，保留 CMRE 原生启动流程。
-        # 仅对仍保留原生选择流程的其他 CMRE 地图开放。
-        Write-Host "CMRE ShowSelectionUI: skipping saved-profile startup patch, selection UI will be shown"
-    } elseif ($commanderSelectionDisabled) {
-        # 亡者之夜的选择界面属于不再使用的地图启动代码：staged map 必须删除该分支，
-        # 不能依赖 LaunchProfile bank 或调用方参数避免误入。
-        Write-Host "CMRE map policy: commander selection code disabled for $MapName; forcing headless startup"
-        Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -ApiMinimal:$ApiMinimal -SkipCountdown:$SkipCountdown -SkipPause:$SkipPause -Headless
-    } elseif ($ApiMinimal) {
+    if ($ApiMinimal) {
         # ApiMinimal: API 客户端负责 CreateGame+JoinGame，但 staged map 仍强制使用
         # 预设 commander 并移除 selection fallback，避免进入地图后回到选择界面。
-        Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -ApiMinimal -Headless
+        Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -ApiMinimal
     } elseif ($SkipCountdown) {
         # 显式 SkipCountdown：客户端用 CreateGame+JoinGame 推进状态；仍走 headless startup。
-        Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -SkipCountdown -Headless
+        Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -SkipCountdown
     } else {
         # 默认模式：注入 commander 设置并直接调用 CMUIX_ReadyBeginCountdown，
-        # 让启动直接进入地图；只有显式 -ShowSelectionUI 才保留指挥官选择界面。
+        # 让启动直接进入地图；指挥官选择界面已从 CMRE 启动路径移除。
         # 之前把 -ListenPort > 0 合并到 SkipCountdown 分支是错误的：ReadyBeginCountdown 被跳过
         # 导致 SC2 永远卡在 Launched，GameInfo/Step 全部报 "Not in a game"。
         # 2026-07-25 修复：API 模式（-ListenPort > 0）加 -SkipPause，跳过
@@ -1840,9 +2312,9 @@ try {
             # API 以 P1 身份加入，操作 P1 的指挥官单位（type_4390/4386 CC / type_4382 SCV）。
             # 这才是 CMRE 的"玩家队友"角色——有指挥官的单位，而非 vanilla 单位。
             # ability ID 使用 CMRE 自定义值（17428/17514 训练 SCV，16/17/18 建造建筑）。
-            Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -SkipPause -Headless
+            Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -SkipPause
         } else {
-            Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander -Headless
+            Enable-CmreSavedProfileStartup -MapPath $liveMap -Commander $Commander
         }
     }
     # Install-CmreDynamicObserver 必须始终调用：
@@ -1863,6 +2335,12 @@ try {
         Patch-RebornK5KerriganSpawn -ModsRoot (Join-Path $Sc2Root "Mods")
         Patch-RebornBankAuthorization -MapPath $liveMap
         Patch-RebornLibraryInit -Sc2Root $Sc2Root -MapPath $liveMap
+        Patch-RebornCampaignLoadingConfirm -MapPath $liveMap
+        Patch-RebornMapPlayerOwnerBounds -MapPath $liveMap
+        if ($PlayerMode -or $ApiMinimal -or $ListenPort -gt 0) {
+            Install-CmreRebornCampaignIntroSkipOverlay -MapPath $liveMap
+            Install-CmreRebornCampaignFrontendGuardOverlay -MapPath $liveMap
+        }
     }
     Set-MapDependencies -MapPath $liveMap -Dependencies $dependencies
     $roundtrip = Test-DocumentDependencyRoundtrip -HeaderPath (Join-Path $liveMap "DocumentHeader") -InfoPath (Join-Path $liveMap "DocumentInfo")
@@ -1884,15 +2362,7 @@ try {
     if ($EnableReborn -and $RebornCommander -ne "") {
         Set-RebornCommander -Commander $RebornCommander -Difficulty $RebornDifficulty -Speed $RebornSpeed -UnlockAllMaps
     }
-    if ($ShowSelectionUI -and -not $commanderSelectionDisabled -and -not $SecondaryClient) {
-        # 删除已有的 LaunchProfile 银行文件，确保 CMRE 不会自动应用已保存的配置，
-        # 而是显示指挥官选择界面。
-        $bankPath = "C:\Users\22448\Documents\StarCraft II\Banks\CMCoopLaunchProfile.SC2Bank"
-        if (Test-Path -LiteralPath $bankPath) {
-            [System.IO.File]::Delete($bankPath)
-            Write-Host "CMRE ShowSelectionUI: deleted existing CMCoopLaunchProfile.SC2Bank to force selection UI"
-        }
-    } elseif (-not $SecondaryClient) {
+    if (-not $SecondaryClient) {
         Write-CmreLaunchProfile
     } else {
         Write-Host "SecondaryClient: skipping shared CMRE launch profile bank write"
@@ -1955,12 +2425,20 @@ try {
                 throw "SC2 direct-map + API mode: API port $ListenPort did not open within 120s"
             }
             Write-Host "SC2 direct-map + API mode: API listening on 127.0.0.1:$ListenPort"
-            Wait-CmreRuntimeListener -TimeoutSeconds 120
-            Assert-CmreNoNewScriptErrors -Since $launchStartedAt
-            $runtimeReady = $true
             $runtimeProcess = @(Get-Sc2GameProcesses | Select-Object -First 1)
             if ($runtimeProcess.Count -gt 0) {
                 $runtimePid = [int]$runtimeProcess[0].Id
+                if ($EnableReborn) {
+                    Send-CmreRebornLoadingConfirm -ProcessId $runtimePid | Out-Null
+                }
+            }
+            # DirectMapApi is intentionally ready before the runtime listener
+            # gate.  The map-side listener and initialization graph only make
+            # progress after the API Host attaches with JoinGame; waiting here
+            # deadlocks the approved --join-existing topology.
+            Assert-CmreNoNewScriptErrors -Since $launchStartedAt
+            $runtimeReady = $true
+            if ($runtimeProcess.Count -gt 0) {
                 Write-Sc2RuntimeLease -State "ready" -OwnerSession $sc2RuntimeLeaseSession -RuntimePid $runtimePid -Port $ListenPort
             }
             Write-Host "SC2 direct-map + API mode: map is ready; Host must attach with --join-existing"
@@ -2137,12 +2615,17 @@ try {
         Start-Process -FilePath $switcher -ArgumentList $argList -WorkingDirectory (Split-Path -Parent $switcher)
         Wait-CmreGameLogMapLoadSignal -Since $launchStartedAt -TimeoutSeconds 180 | Out-Null
         Assert-CmreNoNewScriptErrors -Since $launchStartedAt
-        Wait-CmreRuntimeListener -TimeoutSeconds 120
-        Assert-CmreNoNewScriptErrors -Since $launchStartedAt
-        $runtimeReady = $true
         $runtimeProcess = @(Get-Sc2GameProcesses | Select-Object -First 1)
         if ($runtimeProcess.Count -gt 0) {
             $runtimePid = [int]$runtimeProcess[0].Id
+            if ($EnableReborn) {
+                Send-CmreRebornLoadingConfirm -ProcessId $runtimePid | Out-Null
+            }
+        }
+        Wait-CmreRuntimeListener -TimeoutSeconds 120
+        Assert-CmreNoNewScriptErrors -Since $launchStartedAt
+        $runtimeReady = $true
+        if ($runtimeProcess.Count -gt 0) {
             if (-not $SecondaryClient) {
                 Write-Sc2RuntimeLease -State "ready" -OwnerSession $sc2RuntimeLeaseSession -RuntimePid $runtimePid -Port 0
             }

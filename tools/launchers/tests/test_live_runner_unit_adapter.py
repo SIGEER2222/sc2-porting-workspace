@@ -1,6 +1,7 @@
 import io
 import json
 import sys
+from types import SimpleNamespace
 from pathlib import Path
 
 
@@ -12,6 +13,25 @@ from vibe.defend_policy import DefendAction
 from vibe.ml.model import P2AllyPolicyNet, save_checkpoint
 from vibe.replay_player import load_replay, render_player_html
 from s2clientprotocol import raw_pb2
+
+
+def test_reborn_api_confirm_is_between_create_and_join():
+    source = (ROOT / "src" / "projects" / "cmre-porting" / "vibe" / "run_dead_of_night_live.py").read_text(
+        encoding="utf-8"
+    )
+
+    create_ok = source.index('print("  CreateGame OK")')
+    confirm = source.index("_send_reborn_loading_confirm(port, verbose=verbose)")
+    join = source.index('print("[4] JoinGame...")')
+
+    assert create_ok < confirm < join
+    assert "if realtime and not join_existing:" in source
+    assert "reborn_confirm_attempts < 2" in source
+    assert "mouse_event(0x0002" in source
+    assert "PostMessageW" in source
+    assert "height * 0.95" in source
+    assert '"d3dproxywindow"' in source
+    assert "virtual_key in (0x0D, 0x20)" in source
 
 
 def _unit(unit_type: int, *, owner: int = 1, alliance: int = 1, tag: int = 1):
@@ -38,6 +58,103 @@ def test_live_unit_adapter_maps_empire_units_and_filters_hero_placement():
     assert town_hall["unit_type_id"] == "CommandCenter"
     assert town_hall["unit_type_int"] == 4390
     assert hero_placement is None
+
+
+def test_live_unit_adapter_normalizes_non_terran_worker_and_town_hall_names():
+    assert runner._canonical_live_unit_name("PROBE") == "Probe"
+    assert runner._canonical_live_unit_name("DRONE") == "Drone"
+    assert runner._canonical_live_unit_name("NEXUS") == "Nexus"
+    assert runner._canonical_live_unit_name("HATCHERY") == "Hatchery"
+
+
+def test_map_base_resolution_prefers_valid_custom_town_hall_near_source_marker():
+    source = SimpleNamespace(
+        object_units=[{
+            "unit_type": "ACHeroSpawnPlacement",
+            "player": 1,
+            "position": {"x": 85.0, "y": 94.0},
+        }],
+        map_bounds={"min_x": 27.5, "min_y": 15.5, "max_x": 171.5, "max_y": 166.5},
+    )
+    observation = runner.LiveObservation(
+        loop=2,
+        player_id=1,
+        own_units=[
+            {"entity_id": 10, "unit_type_id": "4365", "x": 90.5, "y": 87.5,
+             "max_health": 2_304_000},
+            *[
+                {"entity_id": 100 + index, "unit_type_id": "4376",
+                 "x": 90.0 + index * 0.1, "y": 88.0, "max_health": 46_080}
+                for index in range(6)
+            ],
+        ],
+        visible_enemies=[],
+        resources={},
+        mission={},
+    )
+
+    base = runner.resolve_p1_base_region(observation, source, (76.0, 103.0, 15.0))
+
+    assert base == (90.5, 87.5, 15.0)
+
+
+def test_map_driven_policy_treats_replaced_workers_as_workers():
+    source = SimpleNamespace(
+        object_units=[{
+            "unit_type": "ACHeroSpawnPlacement",
+            "player": 1,
+            "position": {"x": 85.0, "y": 94.0},
+        }],
+        map_bounds={"min_x": 27.5, "min_y": 15.5, "max_x": 171.5, "max_y": 166.5},
+        script={"stages": []},
+    )
+    policy = runner.MapDrivenP1Policy(source, (90.5, 87.5, 15.0), 22)
+    observation = runner.LiveObservation(
+        loop=2,
+        player_id=1,
+        own_units=[
+            *[
+                {"entity_id": 100 + index, "unit_type_id": "4376",
+                 "x": 90.0 + index * 0.1, "y": 88.0, "max_health": 46_080,
+                 "orders": []}
+                for index in range(6)
+            ],
+        ],
+        visible_enemies=[],
+        resources={},
+        mission={},
+        mineral_fields=[{"entity_id": 900, "unit_type_id": "MineralField", "x": 85.0, "y": 80.0}],
+    )
+
+    worker_ids = policy._infer_worker_ids(observation)
+
+    assert worker_ids == {100, 101, 102, 103, 104, 105}
+
+
+def test_map_driven_policy_has_map_anchored_worker_fallback_action():
+    source = SimpleNamespace(
+        object_units=[],
+        map_bounds={"min_x": 27.5, "min_y": 15.5, "max_x": 171.5, "max_y": 166.5},
+        script={"stages": []},
+    )
+    policy = runner.MapDrivenP1Policy(source, (90.5, 87.5, 15.0), 22)
+    observation = runner.LiveObservation(
+        loop=2,
+        player_id=1,
+        own_units=[
+            {"entity_id": 101, "unit_type_id": "Probe", "unit_type_int": 84,
+             "x": 90.0, "y": 88.0, "max_health": 46_080, "orders": []},
+        ],
+        visible_enemies=[],
+        resources={},
+        mission={},
+    )
+
+    actions = policy.decide(observation, 2, {})
+
+    assert [(action.kind, action.target_x, action.target_y) for action in actions] == [
+        ("move", 90.5, 87.5),
+    ]
 
 
 def test_live_unit_adapter_preserves_construction_and_order_target_state():
@@ -155,6 +272,10 @@ def test_shared_kernel_accepts_only_explicit_p2_model_transport():
     assert 'pendingAllyPlayer == 2' in kernel
     assert 'pendingAllySource == "ml_policy"' in kernel
     assert 'last_issuer_player_id", 2' in kernel
+    assert "pending_economy_intent" in kernel
+    assert "pending_production_intent" in kernel
+    assert "libVibeKernel_gf_ApplyModelP2Intent" in kernel
+    assert 'AITrain(2, c_makePriorityAttack, c_townMain, "Marine", 1);' in kernel
     assert "p2CombatUnits = UnitGroup(null, 2" in kernel
     assert "c_targetFilterWorker) | (1 << c_targetFilterStructure)" in kernel
 
@@ -226,6 +347,69 @@ def test_live_model_command_is_explicitly_p2_owned_and_provenanced(tmp_path):
     assert values["pending_decision_id"] == {"string": "ml:22:1"}
 
 
+def test_live_model_command_carries_typed_economy_and_production_heads(tmp_path):
+    bank = tmp_path / "GalaxyVibe.SC2Bank"
+    bank.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<Bank version="1"><Section name="ally" /></Bank>',
+        encoding="utf-8",
+    )
+
+    ok, error = runner._queue_runtime_ally_command(
+        "!ally hold ml:22:typed",
+        bank_path=bank,
+        issuer_player_id=runner.P2_PLAYER_ID,
+        source="ml_policy",
+        model_schema="cmre-ally-intent-pytorch.v2",
+        model_hash="checkpoint-hash",
+        decision_id="ml:22:typed",
+        economy_intent="train_worker",
+        production_intent="build_refinery",
+    )
+
+    assert ok is True
+    assert error == ""
+    root = runner.ET.parse(bank).getroot()
+    section = next(item for item in root.findall("Section") if item.get("name") == "ally")
+    values = {
+        key.get("name"): key.find("Value").attrib
+        for key in section.findall("Key")
+    }
+    assert values["pending_economy_intent"] == {"string": "train_worker"}
+    assert values["pending_production_intent"] == {"string": "build_refinery"}
+
+
+def test_p2_policy_uses_native_bank_resource_snapshot():
+    observation = runner.LiveObservation(
+        loop=22,
+        player_id=runner.P2_PLAYER_ID,
+        own_units=[],
+        visible_allies=[],
+        visible_enemies=[],
+        resources={"minerals": 0, "vespene": 0, "supply_used": 0, "supply_cap": 0},
+        mission={},
+    )
+
+    resources = runner._apply_p2_bank_resources(
+        observation,
+        {
+            "p2_minerals": 275,
+            "p2_vespene": 90,
+            "p2_supply_used": 7,
+            "p2_supply_cap": 23,
+        },
+    )
+
+    assert resources == {
+        "minerals": 275,
+        "vespene": 90,
+        "supply_used": 7,
+        "supply_cap": 23,
+        "state_version": 22,
+        "source": "galaxy_p2_bank",
+    }
+
+
 def test_live_model_bridge_acknowledges_only_matching_galaxy_result():
     trace = [
         {
@@ -250,6 +434,66 @@ def test_live_model_bridge_acknowledges_only_matching_galaxy_result():
     assert trace[0]["ack_loop"] == 64
     assert trace[0]["ack_result"] == "attack_issued"
     assert trace[1]["acknowledged"] is False
+
+
+def test_live_model_bridge_uses_matching_model_decision_over_stale_command():
+    trace = [
+        {
+            "decision_id": "run-b:1",
+            "message": "!ally follow run-b:1",
+            "bridge_queued": True,
+            "acknowledged": False,
+        },
+        {
+            "decision_id": "run-b:2",
+            "message": "!ally follow run-b:2",
+            "bridge_queued": True,
+            "acknowledged": False,
+        },
+    ]
+
+    runner._ack_mode_model_decisions(
+        trace,
+        {
+            "last_command": "!ally status old-run",
+            "last_result": "status",
+            "last_model_decision_id": "run-b:2",
+        },
+        current_loop=88,
+    )
+
+    assert trace[0]["acknowledged"] is False
+    assert trace[1]["acknowledged"] is True
+    assert trace[1]["ack_result"] == "model_acknowledged"
+
+
+def test_live_model_bridge_reset_clears_persistent_transient_state(tmp_path):
+    bank = tmp_path / "GalaxyVibe.SC2Bank"
+    bank.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<Bank version="1"><Section name="ally">'
+        '<Key name="pending_command"><Value string="!ally follow old" /></Key>'
+        '<Key name="pending_player_id"><Value int="2" /></Key>'
+        '<Key name="last_model_decision_id"><Value string="old" /></Key>'
+        '<Key name="command_count"><Value int="9" /></Key>'
+        '</Section></Bank>',
+        encoding="utf-8",
+    )
+
+    ok, error = runner._reset_runtime_ally_bridge(bank_path=bank)
+
+    assert ok is True
+    assert error == ""
+    root = runner.ET.parse(bank).getroot()
+    section = next(item for item in root.findall("Section") if item.get("name") == "ally")
+    values = {
+        key.get("name"): key.find("Value").attrib
+        for key in section.findall("Key")
+    }
+    assert values["pending_command"] == {"string": ""}
+    assert values["pending_player_id"] == {"int": "0"}
+    assert values["last_model_decision_id"] == {"string": ""}
+    assert values["command_count"] == {"int": "0"}
 
 
 def test_live_runner_loads_only_versioned_pytorch_intent_checkpoint(tmp_path):

@@ -1558,6 +1558,193 @@ bool libVibeKernel_gf_ProcessAllyCommand(string chat) {
     return true;
 }
 
+// Publish only P2-owned economy counters. The API client is P1, so its
+// player_common observation cannot be reused as the ally's resource state.
+void libVibeKernel_gf_WriteModelP2Snapshot() {
+    libVibeKernel_gf_WriteBankInt("ally", "p2_minerals",
+        PlayerGetPropertyInt(2, c_playerPropMinerals));
+    libVibeKernel_gf_WriteBankInt("ally", "p2_vespene",
+        PlayerGetPropertyInt(2, c_playerPropVespene));
+    libVibeKernel_gf_WriteBankInt("ally", "p2_supply_used",
+        PlayerGetPropertyInt(2, c_playerPropSuppliesUsed));
+    libVibeKernel_gf_WriteBankInt("ally", "p2_supply_cap",
+        PlayerGetPropertyInt(2, c_playerPropSuppliesMade));
+}
+
+// Apply high-level model labels through native P2 Computer boundaries. This
+// function intentionally contains no raw ability IDs: the native AI resolves
+// the current map/catalog, while worker orders are restricted to P2 workers
+// and public resource targets.
+bool libVibeKernel_gf_ApplyModelP2Intent(string economy, string production) {
+    unitgroup workers;
+    unitgroup idleWorkers;
+    unitgroup mineralFields;
+    unitgroup refineries;
+    unit worker;
+    unit resource;
+    int workerIndex;
+    int mineralCount;
+    int refineryCount;
+    int minerals;
+    int economyDispatched;
+    int productionDispatched;
+    string economyResult;
+    string productionResult;
+
+    if (!PlayerGroupHasPlayer(PlayerGroupAlliance(c_playerGroupAlly, 1), 2)) {
+        libVibeKernel_gf_WriteBankKey("ally", "last_model_result", "rejected_not_allied");
+        return false;
+    }
+    if ((economy != "gather_minerals") && (economy != "gather_gas")
+        && (economy != "train_worker") && (economy != "build_supply")
+        && (economy != "maintain_economy")) {
+        libVibeKernel_gf_WriteBankKey("ally", "last_model_result", "rejected_unknown_economy");
+        return false;
+    }
+    if ((production != "no_op") && (production != "build_refinery")
+        && (production != "build_barracks") && (production != "build_factory")
+        && (production != "train_marine") && (production != "train_marauder")
+        && (production != "research_upgrade")) {
+        libVibeKernel_gf_WriteBankKey("ally", "last_model_result", "rejected_unknown_production");
+        return false;
+    }
+
+    economyDispatched = 0;
+    productionDispatched = 0;
+    economyResult = "no_op";
+    productionResult = "no_op";
+    minerals = PlayerGetPropertyInt(2, c_playerPropMinerals);
+
+    workers = UnitGroup(null, 2, RegionEntireMap(),
+        UnitFilter((1 << c_targetFilterWorker), 0, (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    mineralFields = UnitGroup(null, c_playerAny, RegionEntireMap(),
+        UnitFilter((1 << c_targetFilterHarvestableResource), 0,
+            (1 << c_targetFilterMissile),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    refineries = UnitGroup("Refinery", 2, RegionEntireMap(),
+        UnitFilter(0, 0, (1 << c_targetFilterStructure),
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    mineralCount = UnitGroupCount(mineralFields, c_unitCountAlive);
+    refineryCount = UnitGroupCount(refineries, c_unitCountAlive);
+
+    if ((economy == "gather_minerals") || (economy == "maintain_economy")) {
+        idleWorkers = UnitGroupFilter(null, 2, UnitGroupIdle(2, false),
+            UnitFilter((1 << c_targetFilterWorker), 0, (1 << c_targetFilterMissile),
+                (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+        workerIndex = UnitGroupCount(idleWorkers, c_unitCountAlive);
+        while (workerIndex > 0 && mineralCount > 0) {
+            worker = UnitGroupUnitFromEnd(idleWorkers, workerIndex);
+            resource = UnitGroupClosestToPoint(mineralFields, UnitGetPosition(worker));
+            if (worker != null && resource != null) {
+                UnitIssueOrder(worker,
+                    OrderTargetingUnit(AbilityCommand("smart", 0), resource),
+                    c_orderQueueReplace);
+                economyDispatched += 1;
+            }
+            workerIndex -= 1;
+        }
+        economyResult = "gather_minerals";
+    } else if (economy == "gather_gas") {
+        idleWorkers = UnitGroupFilter(null, 2, UnitGroupIdle(2, false),
+            UnitFilter((1 << c_targetFilterWorker), 0, (1 << c_targetFilterMissile),
+                (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+        workerIndex = UnitGroupCount(idleWorkers, c_unitCountAlive);
+        while (workerIndex > 0 && refineryCount > 0) {
+            worker = UnitGroupUnitFromEnd(idleWorkers, workerIndex);
+            resource = UnitGroupClosestToPoint(refineries, UnitGetPosition(worker));
+            if (worker != null && resource != null) {
+                UnitIssueOrder(worker,
+                    OrderTargetingUnit(AbilityCommand("smart", 0), resource),
+                    c_orderQueueReplace);
+                economyDispatched += 1;
+            }
+            workerIndex -= 1;
+        }
+        if (refineryCount > 0) {
+            economyResult = "gather_gas";
+        } else {
+            economyResult = "gather_gas_waiting_refinery";
+        }
+    } else if (economy == "train_worker") {
+        if ((minerals >= 50)
+            && (TechTreeUnitCount(2, "SCV", c_techCountQueuedOrBetter) < 20)) {
+            AITrain(2, c_makePriorityTown, c_townMain, "SCV", 1);
+            economyDispatched = 1;
+            economyResult = "train_worker_requested";
+        } else if (TechTreeUnitCount(2, "SCV", c_techCountQueuedOrBetter) >= 20) {
+            economyResult = "train_worker_target_reached";
+        } else {
+            economyResult = "train_worker_waiting_minerals";
+        }
+    } else if (economy == "build_supply") {
+        if ((minerals >= 100)
+            && (PlayerGetPropertyInt(2, c_playerPropSuppliesUsed) + 2
+                >= PlayerGetPropertyInt(2, c_playerPropSuppliesMade))
+            && (AIGetInternalBuildQueueCount(2) <= 1)) {
+            AIBuild(2, c_makePriorityTown, c_townMain, "SupplyDepot", 1, c_makeDefault);
+            economyDispatched = 1;
+            economyResult = "build_supply_requested";
+        } else {
+            economyResult = "build_supply_waiting_minerals";
+        }
+    }
+
+    if ((production == "build_refinery") && (refineryCount <= 0)) {
+        AISetStock(2, 1, "Refinery");
+        AIBuild(2, c_makePriorityTown, c_townMain, "Refinery", 1, c_makeDefault);
+        productionDispatched = 1;
+        productionResult = "build_refinery_requested";
+    } else if ((production == "build_refinery") && (refineryCount > 0)) {
+        productionResult = "build_refinery_target_reached";
+    } else if ((production == "build_barracks")
+        && (TechTreeUnitCount(2, "Barracks", c_techCountQueuedOrBetter) <= 0)) {
+        AIBuild(2, c_makePriorityTown, c_townMain, "Barracks", 1, c_makeDefault);
+        productionDispatched = 1;
+        productionResult = "build_barracks_requested";
+    } else if ((production == "build_barracks")
+        && (TechTreeUnitCount(2, "Barracks", c_techCountQueuedOrBetter) > 0)) {
+        productionResult = "build_barracks_target_reached";
+    } else if ((production == "build_factory")
+        && (TechTreeUnitCount(2, "Factory", c_techCountQueuedOrBetter) <= 0)) {
+        AIBuild(2, c_makePriorityTown, c_townMain, "Factory", 1, c_makeDefault);
+        productionDispatched = 1;
+        productionResult = "build_factory_requested";
+    } else if ((production == "build_factory")
+        && (TechTreeUnitCount(2, "Factory", c_techCountQueuedOrBetter) > 0)) {
+        productionResult = "build_factory_target_reached";
+    } else if ((production == "train_marine")
+        && (TechTreeUnitCount(2, "Marine", c_techCountQueuedOrBetter) < 8)) {
+        AITrain(2, c_makePriorityAttack, c_townMain, "Marine", 1);
+        productionDispatched = 1;
+        productionResult = "train_marine_requested";
+    } else if ((production == "train_marine")
+        && (TechTreeUnitCount(2, "Marine", c_techCountQueuedOrBetter) >= 8)) {
+        productionResult = "train_marine_target_reached";
+    } else if ((production == "train_marauder")
+        && (TechTreeUnitCount(2, "Marauder", c_techCountQueuedOrBetter) < 8)) {
+        AITrain(2, c_makePriorityAttack, c_townMain, "Marauder", 1);
+        productionDispatched = 1;
+        productionResult = "train_marauder_requested";
+    } else if ((production == "train_marauder")
+        && (TechTreeUnitCount(2, "Marauder", c_techCountQueuedOrBetter) >= 8)) {
+        productionResult = "train_marauder_target_reached";
+    } else if (production == "research_upgrade") {
+        AIResearch(2, 4, -1, "TerranInfantryWeapons");
+        productionDispatched = 1;
+        productionResult = "research_upgrade_requested";
+    }
+
+    libVibeKernel_gf_WriteBankKey("ally", "last_model_economy", economy);
+    libVibeKernel_gf_WriteBankKey("ally", "last_model_production", production);
+    libVibeKernel_gf_WriteBankKey("ally", "last_model_economy_result", economyResult);
+    libVibeKernel_gf_WriteBankKey("ally", "last_model_production_result", productionResult);
+    libVibeKernel_gf_WriteBankInt("ally", "last_model_economy_dispatched", economyDispatched);
+    libVibeKernel_gf_WriteBankInt("ally", "last_model_production_dispatched", productionDispatched);
+    libVibeKernel_gf_WriteModelP2Snapshot();
+    return true;
+}
+
 // The external imitation model is a P2 controller. It is accepted only from
 // the explicit Bank source tag and records provenance before reusing the same
 // owner/alliance-safe order implementation as the player command path.
@@ -1565,6 +1752,8 @@ bool libVibeKernel_gf_ProcessModelAllyCommand(string chat) {
     string modelSchema;
     string modelHash;
     string decisionId;
+    string economyIntent;
+    string productionIntent;
     if (libVibeKernel_gf_ReadBankKey("ally", "pending_source") != "ml_policy") {
         libVibeKernel_gf_WriteBankKey("ally", "last_result", "rejected_model_source");
         return true;
@@ -1572,15 +1761,23 @@ bool libVibeKernel_gf_ProcessModelAllyCommand(string chat) {
     modelSchema = libVibeKernel_gf_ReadBankKey("ally", "pending_model_schema");
     modelHash = libVibeKernel_gf_ReadBankKey("ally", "pending_model_hash");
     decisionId = libVibeKernel_gf_ReadBankKey("ally", "pending_decision_id");
+    economyIntent = libVibeKernel_gf_ReadBankKey("ally", "pending_economy_intent");
+    productionIntent = libVibeKernel_gf_ReadBankKey("ally", "pending_production_intent");
     if (modelSchema == "" || modelHash == "" || decisionId == "") {
         libVibeKernel_gf_WriteBankKey("ally", "last_result", "rejected_model_provenance");
         return true;
     }
+    if (economyIntent == "") { economyIntent = "maintain_economy"; }
+    if (productionIntent == "") { productionIntent = "no_op"; }
     libVibeKernel_gf_WriteBankKey("ally", "last_source", "ml_policy");
     libVibeKernel_gf_WriteBankInt("ally", "last_issuer_player_id", 2);
     libVibeKernel_gf_WriteBankKey("ally", "last_model_schema", modelSchema);
     libVibeKernel_gf_WriteBankKey("ally", "last_model_hash", modelHash);
     libVibeKernel_gf_WriteBankKey("ally", "last_model_decision_id", decisionId);
+    if (!libVibeKernel_gf_ApplyModelP2Intent(economyIntent, productionIntent)) {
+        libVibeKernel_gf_WriteBankKey("ally", "last_result", "rejected_model_intent");
+        return true;
+    }
     return libVibeKernel_gf_ProcessAllyCommand(chat);
 }
 
@@ -1640,6 +1837,9 @@ bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
         libVibeKernel_gf_ReloadBank();
         // 诊断计数
         libVibeKernel_gv_bankPollCount += 1;
+        // Make the native P2 economy observable to the P2 policy without
+        // exposing P2 through the P1 player_common observation.
+        libVibeKernel_gf_WriteModelP2Snapshot();
 
         // ChatMessage is not delivered reliably while a game is driven by
         // SC2API. The P1 API adapter mirrors its real team-chat message into
@@ -1655,12 +1855,16 @@ bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
             libVibeKernel_gf_WriteBankKey("ally", "pending_command", "");
             libVibeKernel_gf_WriteBankInt("ally", "pending_player_id", 0);
             libVibeKernel_gf_WriteBankKey("ally", "pending_source", "");
+            libVibeKernel_gf_WriteBankKey("ally", "pending_economy_intent", "");
+            libVibeKernel_gf_WriteBankKey("ally", "pending_production_intent", "");
         } else if (pendingAllyPlayer == 2 && pendingAllyCommand != ""
             && pendingAllySource == "ml_policy") {
             libVibeKernel_gf_ProcessModelAllyCommand(pendingAllyCommand);
             libVibeKernel_gf_WriteBankKey("ally", "pending_command", "");
             libVibeKernel_gf_WriteBankInt("ally", "pending_player_id", 0);
             libVibeKernel_gf_WriteBankKey("ally", "pending_source", "");
+            libVibeKernel_gf_WriteBankKey("ally", "pending_economy_intent", "");
+            libVibeKernel_gf_WriteBankKey("ally", "pending_production_intent", "");
         }
 
         // 读取 pending_request_id

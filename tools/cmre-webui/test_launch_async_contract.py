@@ -8,6 +8,24 @@ import threading
 import server
 
 
+def test_launcher_prefers_powershell_core(monkeypatch):
+    monkeypatch.setattr(server.shutil, "which", lambda name: {
+        "pwsh": r"C:\Program Files\PowerShell\7\pwsh.exe",
+        "powershell": r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+    }.get(name))
+
+    assert server._resolve_powershell_executable().endswith("pwsh.exe")
+
+
+def test_launcher_falls_back_to_windows_powershell(monkeypatch):
+    monkeypatch.setattr(server.shutil, "which", lambda name: (
+        r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+        if name == "powershell" else None
+    ))
+
+    assert server._resolve_powershell_executable().endswith("powershell.exe")
+
+
 class _FinishedProcess:
     def wait(self):
         return 4294967295

@@ -24,16 +24,19 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import ctypes
 import hashlib
 import json
 import math
 import os
+import subprocess
 import sys
 import time
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
+from ctypes import wintypes
 import xml.etree.ElementTree as ET
 
 # 添加 vendored s2clientprotocol 到 sys.path
@@ -68,6 +71,7 @@ try:
     from .consumers.ally_ai import AllyAction, AllyPolicy
     from .strategy_audit import audit_native_strategy
     from .map_source import MapSource, read_map_source, resolve_map_source
+    from .p1_ml import load_checkpoint as load_p1_action_model
 except ImportError:
     # Support the documented direct-script invocation as well as package imports.
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -78,6 +82,7 @@ except ImportError:
     from vibe.consumers.ally_ai import AllyAction, AllyPolicy  # type: ignore
     from strategy_audit import audit_native_strategy  # type: ignore
     from vibe.map_source import MapSource, read_map_source, resolve_map_source  # type: ignore
+    from vibe.p1_ml import load_checkpoint as load_p1_action_model  # type: ignore
 
 # 默认地图（已验证可加载，3MB 打包版）
 DEFAULT_MAP = r"E:\SC2\SC2new\StarCraft II\Maps\亡者之夜_p0_default_packed.SC2Map"
@@ -91,6 +96,194 @@ PLAYER_TYPE_COMPUTER = 2
 # the guest slot in the shared Portconfig; it is not private to one API
 # websocket.
 MULTIPLAYER_PORT_BASE = 5200
+
+
+def _sc2_process_id_for_api_port(port: int) -> Optional[int]:
+    """Resolve the SC2 process that owns the matrix-controlled API port."""
+    if os.name != "nt" or port <= 0:
+        return None
+    command = (
+        "(Get-NetTCPConnection -LocalAddress '127.0.0.1' "
+        f"-LocalPort {int(port)} -State Listen -ErrorAction SilentlyContinue "
+        "| Select-Object -First 1 -ExpandProperty OwningProcess)"
+    )
+    try:
+        completed = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", command],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    try:
+        return int(completed.stdout.strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _sc2_window_for_process(process_id: int) -> Optional[int]:
+    """Find the top-level SC2 render window without assuming its title."""
+    if os.name != "nt" or process_id <= 0:
+        return None
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+    user32.IsWindowVisible.argtypes = [wintypes.HWND]
+    user32.IsWindowVisible.restype = wintypes.BOOL
+    user32.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    user32.GetClassNameW.restype = ctypes.c_int
+    candidates: list[tuple[int, int]] = []
+
+    def visit(hwnd: int, _lparam: int) -> bool:
+        owner = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
+        if owner.value == process_id and user32.IsWindowVisible(hwnd):
+            class_name = ctypes.create_unicode_buffer(128)
+            user32.GetClassNameW(hwnd, class_name, len(class_name))
+            normalized_class = class_name.value.casefold()
+            # SC2 exposes both a localized wrapper and the actual D3D render
+            # window. Global keyboard/mouse input is consumed by the latter.
+            score = 100 if normalized_class == "d3dproxywindow" else 50
+            candidates.append((score, int(hwnd)))
+        return True
+
+    callback = callback_type(visit)
+    user32.EnumWindows(callback, 0)
+    return max(candidates, key=lambda item: item[0])[1] if candidates else None
+
+
+def _send_reborn_loading_confirm(port: int, *, verbose: bool = False) -> bool:
+    """Dismiss Reborn's native pre-Join loading confirmation once."""
+    if os.name != "nt":
+        return False
+    process_id = _sc2_process_id_for_api_port(port)
+    if process_id is None:
+        if verbose:
+            print("  Reborn confirm: SC2 API process not found", flush=True)
+        return False
+    hwnd = _sc2_window_for_process(process_id)
+    if hwnd is None:
+        if verbose:
+            print(f"  Reborn confirm: window not found for SC2 PID={process_id}", flush=True)
+        return False
+
+    class _KeyboardInput(ctypes.Structure):
+        _fields_ = [
+            ("wVk", wintypes.WORD),
+            ("wScan", wintypes.WORD),
+            ("dwFlags", wintypes.DWORD),
+            ("time", wintypes.DWORD),
+            ("dwExtraInfo", ctypes.c_void_p),
+        ]
+
+    class _Input(ctypes.Structure):
+        _fields_ = [("type", wintypes.DWORD), ("ki", _KeyboardInput)]
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+    user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+    user32.BringWindowToTop.argtypes = [wintypes.HWND]
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    class _Rect(ctypes.Structure):
+        _fields_ = [
+            ("left", wintypes.LONG),
+            ("top", wintypes.LONG),
+            ("right", wintypes.LONG),
+            ("bottom", wintypes.LONG),
+        ]
+
+    user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(_Rect)]
+    user32.GetWindowRect.restype = wintypes.BOOL
+    user32.SetCursorPos.argtypes = [ctypes.c_int, ctypes.c_int]
+    user32.SetCursorPos.restype = wintypes.BOOL
+    user32.PostMessageW.argtypes = [
+        wintypes.HWND,
+        wintypes.UINT,
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+    ]
+    user32.PostMessageW.restype = wintypes.BOOL
+    user32.mouse_event.argtypes = [
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        ctypes.c_void_p,
+    ]
+    user32.SendInput.argtypes = [wintypes.UINT, ctypes.POINTER(_Input), ctypes.c_int]
+    user32.SendInput.restype = wintypes.UINT
+    user32.keybd_event.argtypes = [
+        wintypes.BYTE,
+        wintypes.BYTE,
+        wintypes.DWORD,
+        ctypes.c_void_p,
+    ]
+
+    user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+    user32.BringWindowToTop(hwnd)
+    user32.SetForegroundWindow(hwnd)
+    time.sleep(0.25)
+    if user32.GetForegroundWindow() != hwnd:
+        if verbose:
+            print(
+                "  Reborn confirm: SC2 window did not become foreground; "
+                "continuing targeted click",
+                flush=True,
+            )
+
+    clicked = False
+    rect = _Rect()
+    if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+        width = max(1, int(rect.right - rect.left))
+        height = max(1, int(rect.bottom - rect.top))
+        click_x = int(rect.left + width / 2)
+        click_y = int(rect.top + height * 0.95)
+        client_x = width // 2
+        client_y = int(height * 0.95)
+        lparam = (client_y << 16) | (client_x & 0xFFFF)
+        posted_down = bool(user32.PostMessageW(hwnd, 0x0201, 1, lparam))
+        posted_up = bool(user32.PostMessageW(hwnd, 0x0202, 0, lparam))
+        positioned = bool(user32.SetCursorPos(click_x, click_y))
+        if positioned:
+            user32.mouse_event(0x0002, 0, 0, 0, None)  # MOUSEEVENTF_LEFTDOWN
+            user32.mouse_event(0x0004, 0, 0, 0, None)  # MOUSEEVENTF_LEFTUP
+        if posted_down or posted_up or positioned:
+            clicked = True
+            if verbose:
+                print(
+                    f"  Reborn confirm: clicked continuation strip at x={click_x} y={click_y} "
+                    f"for SC2 PID={process_id}",
+                    flush=True,
+                )
+
+    posted_keys: list[int] = []
+    sent_keys: list[int] = []
+    for virtual_key in (0x0D, 0x20):
+        posted_down = bool(user32.PostMessageW(hwnd, 0x0100, virtual_key, 0))
+        posted_up = bool(user32.PostMessageW(hwnd, 0x0101, virtual_key, 0))
+        if posted_down or posted_up:
+            posted_keys.append(virtual_key)
+        key_down = _Input(type=1, ki=_KeyboardInput(wVk=virtual_key))
+        key_up = _Input(type=1, ki=_KeyboardInput(wVk=virtual_key, dwFlags=0x0002))
+        inputs = (_Input * 2)(key_down, key_up)
+        sent = int(user32.SendInput(2, inputs, ctypes.sizeof(_Input)))
+        if sent == 2:
+            sent_keys.append(virtual_key)
+        else:
+            user32.keybd_event(virtual_key, 0, 0, None)
+            time.sleep(0.06)
+            user32.keybd_event(virtual_key, 0, 0x0002, None)
+    if verbose:
+        print(
+            f"  Reborn confirm: targeted hwnd={hwnd}, posted_keys={posted_keys}, "
+            f"sent_keys={sent_keys}",
+            flush=True,
+        )
+    return clicked or bool(posted_keys) or bool(sent_keys)
 
 
 def _multiplayer_port_topology(
@@ -162,6 +355,7 @@ def _write_live_replay_header(
     computer_ally: bool,
     map_source_audit: Optional[dict] = None,
     mode_model_summary: Optional[dict] = None,
+    p1_model_summary: Optional[dict] = None,
 ) -> None:
     replay_fp.write(json.dumps({
         "record_type": "header",
@@ -192,6 +386,10 @@ def _write_live_replay_header(
             "enabled": False,
             "evidence_type": "inference",
         },
+        "p1_model": p1_model_summary or {
+            "enabled": False,
+            "evidence_type": "inference",
+        },
     }, ensure_ascii=False) + "\n")
     replay_fp.flush()
 
@@ -218,11 +416,13 @@ class Sc2Connection:
     async def connect(self) -> None:
         if self._session is not None and not self._session.closed:
             await self._session.close()
-        self._session = aiohttp.ClientSession()
+        self._session = aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(sock_connect=15, sock_read=60)
+        )
         self._ws = await self._session.ws_connect(
             f"ws://127.0.0.1:{self.port}/sc2api",
             max_msg_size=0,
-            timeout=30,
+            timeout=aiohttp.ClientWSTimeout(ws_close=30),
             autoclose=False,
             autoping=False,
         )
@@ -284,11 +484,13 @@ class Sc2Connection:
 
 async def connect_ws(port: int):
     """兼容旧接口：返回 (session, ws) 元组。新代码应直接用 Sc2Connection。"""
-    session = aiohttp.ClientSession()
+    session = aiohttp.ClientSession(
+        timeout=aiohttp.ClientTimeout(sock_connect=15, sock_read=60)
+    )
     ws = await session.ws_connect(
         f"ws://127.0.0.1:{port}/sc2api",
         max_msg_size=0,
-        timeout=30,
+        timeout=aiohttp.ClientWSTimeout(ws_close=30),
         autoclose=False,
         autoping=False,
     )
@@ -426,6 +628,10 @@ async def _advance_non_realtime_startup(
 # MARINE), while project policies use the map-extractor spelling (Marine).
 _LIVE_UNIT_NAME_ALIASES = {
     "COMMANDCENTER": "CommandCenter",
+    "NEXUS": "Nexus",
+    "HATCHERY": "Hatchery",
+    "LAIR": "Lair",
+    "HIVE": "Hive",
     "SUPPLYDEPOT": "SupplyDepot",
     "REFINERY": "Refinery",
     "BARRACKS": "Barracks",
@@ -435,6 +641,10 @@ _LIVE_UNIT_NAME_ALIASES = {
     "FACTORY": "Factory",
     "STARPORT": "Starport",
     "SCV": "SCV",
+    "PROBE": "Probe",
+    "DRONE": "Drone",
+    "OVERLORD": "Overlord",
+    "LARVA": "Larva",
     "MARINE": "Marine",
     "MARAUDER": "Marauder",
     "HELLION": "Hellion",
@@ -445,6 +655,20 @@ _LIVE_UNIT_NAME_ALIASES = {
     "BANSHEE": "Banshee",
     "RAVEN": "Raven",
     "THOR": "Thor",
+    "PYLON": "Pylon",
+    "GATEWAY": "Gateway",
+    "WARPGATE": "WarpGate",
+    "SPAWNINGPOOL": "SpawningPool",
+    "EXTRACTOR": "Extractor",
+    "ASSIMILATOR": "Assimilator",
+    "QUEEN": "Queen",
+    "ZERGLING": "Zergling",
+    "ROACH": "Roach",
+    "HYDRALISK": "Hydralisk",
+    "MUTALISK": "Mutalisk",
+    "ZEALOT": "Zealot",
+    "STALKER": "Stalker",
+    "IMMORTAL": "Immortal",
     "MINERALFIELD": "MineralField",
     "VESPENEGEYSER": "VespeneGeyser",
     "SPACEPLATFORMGEYSER": "VespeneGeyser",
@@ -545,6 +769,85 @@ def build_observation(resp: sc_pb.Response, player_id: int) -> LiveObservation:
         mineral_fields=mineral_fields,
         vespene_geysers=vespene_geysers,
     )
+
+
+P1_TOWN_HALL_TYPES = frozenset({
+    "CommandCenter", "OrbitalCommand", "PlanetaryFortress",
+    "Nexus", "Hatchery", "Lair", "Hive", "GreaterSpire",
+})
+
+
+def _valid_map_position(x: float, y: float, source: Optional[MapSource]) -> bool:
+    """Reject zero/off-map catalog objects before using them as a rally point."""
+    if not math.isfinite(x) or not math.isfinite(y) or (x == 0.0 and y == 0.0):
+        return False
+    if source is None:
+        return True
+    bounds = source.map_bounds
+    return (
+        float(bounds.get("min_x", -math.inf)) - 5.0 <= x <= float(bounds.get("max_x", math.inf)) + 5.0
+        and float(bounds.get("min_y", -math.inf)) - 5.0 <= y <= float(bounds.get("max_y", math.inf)) + 5.0
+    )
+
+
+def _map_spawn_position(source: Optional[MapSource], player_id: int) -> Optional[tuple[float, float]]:
+    if source is None:
+        return None
+    markers = [
+        unit for unit in source.object_units
+        if unit.get("unit_type") == "ACHeroSpawnPlacement"
+        and int(unit.get("player", 0)) == player_id
+    ]
+    if not markers:
+        return None
+    position = markers[0].get("position", {})
+    x = float(position.get("x", 0.0))
+    y = float(position.get("y", 0.0))
+    return (x, y) if _valid_map_position(x, y, source) else None
+
+
+def resolve_p1_base_region(
+    observation: LiveObservation,
+    source: Optional[MapSource],
+    fallback: tuple[float, float, float],
+) -> tuple[float, float, float]:
+    """Resolve P1's actual map-side base without trusting invalid custom units.
+
+    CMRE commander adapters replace vanilla town halls with custom catalog
+    objects.  The raw API may expose those objects as numeric IDs, and some
+    transient mission objects report position ``(0, 0)``.  Prefer a valid
+    observed town hall near the source-map P1 placement marker, then fall back
+    to the marker itself.  This keeps rally/build decisions inside the map's
+    real playable bounds.
+    """
+    marker = _map_spawn_position(source, P1_PLAYER_ID)
+    anchor = marker or (float(fallback[0]), float(fallback[1]))
+    candidates = [
+        unit for unit in observation.own_units
+        if str(unit.get("unit_type_id", "")) in P1_TOWN_HALL_TYPES
+        and _valid_map_position(float(unit.get("x", 0.0)), float(unit.get("y", 0.0)), source)
+    ]
+    if not candidates:
+        # Custom commander town halls are generally the only high-health
+        # structures close to the source placement marker.  The explicit
+        # threshold excludes workers/army while still accepting custom IDs.
+        candidates = [
+            unit for unit in observation.own_units
+            if float(unit.get("max_health", 0.0)) >= 500_000.0
+            and _valid_map_position(float(unit.get("x", 0.0)), float(unit.get("y", 0.0)), source)
+        ]
+    if candidates:
+        base = min(
+            candidates,
+            key=lambda unit: math.hypot(
+                float(unit.get("x", 0.0)) - anchor[0],
+                float(unit.get("y", 0.0)) - anchor[1],
+            ),
+        )
+        return (float(base["x"]), float(base["y"]), float(fallback[2]))
+    if marker is not None:
+        return (marker[0], marker[1], float(fallback[2]))
+    return fallback
 
 
 # ---------------------------------------------------------------------------
@@ -755,6 +1058,8 @@ class MapDrivenP1Policy:
         source: MapSource,
         base_region: tuple[float, float, float],
         command_interval: int,
+        action_model: Optional[object] = None,
+        action_model_summary: Optional[dict] = None,
     ) -> None:
         self.source = source
         self.economy = DefendBasePolicy(
@@ -764,6 +1069,46 @@ class MapDrivenP1Policy:
         )
         self.objective_trace: list[dict] = []
         self._last_objective_key = ""
+        self.action_model = action_model
+        self.action_model_summary = dict(action_model_summary or {})
+        self.ml_decision_trace: list[dict] = []
+        self.ml_decision_count = 0
+        # Some commander adapters already assign every worker a native gather
+        # order before the first API observation. Keep one explicit, map-
+        # anchored gather for the P1 runtime contract without reissuing it on
+        # every decision tick.
+        self._opening_gather_issued = False
+
+    def _infer_worker_ids(self, obs: LiveObservation) -> set[int]:
+        """Identify commander-replaced workers from public observation state."""
+        worker_ids = {
+            int(unit["entity_id"])
+            for unit in obs.own_units
+            if str(unit.get("unit_type_id", "")) in DefendBasePolicy.WORKER_TYPES
+        }
+        unknown_by_type: Counter[str] = Counter(
+            str(unit.get("unit_type_id", ""))
+            for unit in obs.own_units
+            if str(unit.get("unit_type_id", "")).isdigit()
+        )
+        for unit in obs.own_units:
+            unit_type = str(unit.get("unit_type_id", ""))
+            if not unit_type.isdigit() or unit_type in DefendBasePolicy.BUILDING_TYPES:
+                continue
+            x = float(unit.get("x", 0.0))
+            y = float(unit.get("y", 0.0))
+            if not _valid_map_position(x, y, self.source):
+                continue
+            repeated = unknown_by_type[unit_type] >= 6
+            mineral_order = any(
+                int(order.get("target_unit_tag", 0)) in {
+                    int(field.get("entity_id", 0)) for field in obs.mineral_fields
+                }
+                for order in unit.get("orders", ())
+            )
+            if _valid_map_position(x, y, self.source) and (repeated or mineral_order):
+                worker_ids.add(int(unit["entity_id"]))
+        return worker_ids
 
     @staticmethod
     def _is_combat(unit: dict) -> bool:
@@ -785,13 +1130,134 @@ class MapDrivenP1Policy:
 
     def decide(self, obs: LiveObservation, loop: int, resources: dict) -> list[DefendAction]:
         actions = self.economy.decide(obs, loop, resources=resources)
+        worker_ids = self._infer_worker_ids(obs)
+        # The shared economy policy is intentionally conservative and does not
+        # know every commander replacement catalog.  Remove tactical actions
+        # for custom workers before they can be mistaken for combat units.
+        actions = [
+            action for action in actions
+            if not (
+                int(action.entity_id) in worker_ids
+                and action.kind in {"hold", "move", "attack"}
+            )
+            and not (
+                action.kind == "gather"
+                and int(action.target_entity_id) == 0
+            )
+            and action.kind not in {"build", "train", "research"}
+        ]
+        opening_gather_added = False
+        if not self._opening_gather_issued:
+            opening_mineral = min(
+                obs.mineral_fields,
+                key=lambda item: math.hypot(
+                    float(item.get("x", 0.0)) - self.economy.base_x,
+                    float(item.get("y", 0.0)) - self.economy.base_y,
+                ),
+                default=None,
+            )
+            opening_worker = next(
+                (
+                    unit for unit in obs.own_units
+                    if int(unit.get("entity_id", 0)) in worker_ids
+                ),
+                None,
+            )
+            if opening_mineral is not None and opening_worker is not None:
+                actions.append(DefendAction(
+                    entity_id=int(opening_worker["entity_id"]),
+                    kind="gather",
+                    target_entity_id=int(opening_mineral["entity_id"]),
+                    reason="map_worker_explicit_opening_gather",
+                ))
+                self._opening_gather_issued = True
+                opening_gather_added = True
         own_by_id = {int(unit["entity_id"]): unit for unit in obs.own_units}
         combat_ids = {
             int(unit["entity_id"])
             for unit in obs.own_units
-            if self._is_combat(unit)
+            if (
+                self._is_combat(unit)
+                and int(unit["entity_id"]) not in worker_ids
+                and _valid_map_position(
+                    float(unit.get("x", 0.0)),
+                    float(unit.get("y", 0.0)),
+                    self.source,
+                )
+            )
         }
-        if not combat_ids:
+        model_label = ""
+        model_prediction: dict = {}
+        if self.action_model is not None:
+            decision_id = f"p1-ml:{int(loop)}:{len(self.ml_decision_trace) + 1}"
+            prediction = self.action_model.predict_action(
+                obs,
+                decision_id=decision_id,
+                player_id=P1_PLAYER_ID,
+            )
+            if hasattr(prediction, "to_dict"):
+                model_prediction = dict(prediction.to_dict())
+            elif isinstance(prediction, dict):
+                model_prediction = dict(prediction)
+            else:
+                model_prediction = {
+                    "label": str(getattr(prediction, "label", "unknown")),
+                    "confidence": float(getattr(prediction, "confidence", 0.0)),
+                    "probabilities": dict(getattr(prediction, "probabilities", {})),
+                }
+            model_label = str(model_prediction.get("label", "unknown"))
+            self.ml_decision_count += 1
+            self.ml_decision_trace.append({
+                "loop": int(loop),
+                "decision_id": decision_id,
+                "issuer_player_id": P1_PLAYER_ID,
+                "source": "p1_supervised_pytorch",
+                "model_schema": self.action_model_summary.get("schema", ""),
+                "model_hash": self.action_model_summary.get("checkpoint_sha256", ""),
+                "prediction": model_prediction,
+                "observation_version": int(obs.resources.get("state_version", loop)),
+                "dispatch_label": model_label,
+            })
+
+        if not combat_ids and not opening_gather_added and not self._opening_gather_issued:
+            # A commander adapter may expose only custom workers during the
+            # first playable frames.  Exercise the real P1 economy with one
+            # map-observed mineral target instead of manufacturing a combat
+            # order or sending a worker to a guessed rally coordinate.
+            mineral = min(
+                obs.mineral_fields,
+                key=lambda item: math.hypot(
+                    float(item.get("x", 0.0)) - self.economy.base_x,
+                    float(item.get("y", 0.0)) - self.economy.base_y,
+                ),
+                default=None,
+            )
+            worker = next(
+                (
+                    unit for unit in obs.own_units
+                    if int(unit.get("entity_id", 0)) in worker_ids
+                ),
+                None,
+            )
+            if mineral is not None and worker is not None:
+                actions.append(DefendAction(
+                    entity_id=int(worker["entity_id"]),
+                    kind="gather",
+                    target_entity_id=int(mineral["entity_id"]),
+                    reason="map_worker_opening_gather",
+                ))
+            elif worker is not None:
+                # Some commander catalogs hide neutral mineral units from the
+                # P1 raw observation during startup.  The map placement marker
+                # is still authoritative, so keep one worker on a legal local
+                # rally point until the native economy exposes a target.
+                actions.append(DefendAction(
+                    entity_id=int(worker["entity_id"]),
+                    kind="move",
+                    target_x=float(self.economy.base_x),
+                    target_y=float(self.economy.base_y),
+                    reason="map_worker_base_rally",
+                ))
             return actions
 
         shard_targets = [
@@ -828,7 +1294,74 @@ class MapDrivenP1Policy:
             })
 
         replacement: dict[int, DefendAction] = {}
-        if target is not None:
+        # A loaded model owns the high-level P1 combat choice. Map source
+        # facts still resolve the target point/unit and the transport layer
+        # still validates ownership and the native ability.
+        if self.action_model is not None and model_label == "hold":
+            for unit_id in sorted(combat_ids):
+                replacement[unit_id] = DefendAction(
+                    entity_id=unit_id,
+                    kind="hold",
+                    reason="p1_ml_hold",
+                )
+        elif self.action_model is not None and model_label == "defend":
+            threats = [enemy for enemy in obs.visible_enemies if int(enemy.get("owner", 0)) != P1_PLAYER_ID]
+            for unit_id in sorted(combat_ids):
+                unit = own_by_id[unit_id]
+                threat = min(
+                    threats,
+                    key=lambda enemy: math.hypot(
+                        float(enemy.get("x", 0.0)) - float(unit.get("x", 0.0)),
+                        float(enemy.get("y", 0.0)) - float(unit.get("y", 0.0)),
+                    ),
+                    default=None,
+                )
+                if threat is not None:
+                    replacement[unit_id] = DefendAction(
+                        entity_id=unit_id,
+                        kind="attack",
+                        target_entity_id=int(threat["entity_id"]),
+                        reason="p1_ml_defend_visible_threat",
+                    )
+                else:
+                    replacement[unit_id] = DefendAction(
+                        entity_id=unit_id,
+                        kind="move",
+                        target_x=float(self.economy.base_x),
+                        target_y=float(self.economy.base_y),
+                        reason="p1_ml_defend_base",
+                    )
+        elif self.action_model is not None and model_label == "attack" and target is not None:
+            for unit_id in sorted(combat_ids):
+                replacement[unit_id] = DefendAction(
+                    entity_id=unit_id,
+                    kind="attack",
+                    target_entity_id=int(target["entity_id"]),
+                    reason="p1_ml_attack_map_objective",
+                )
+        elif self.action_model is not None and model_label == "move":
+            # Some CMRE source revisions do not expose the shard-stage
+            # assignments in the parser contract. In that case the only
+            # valid target we can prove statically is P1's map-owned base
+            # region; do not invent an objective coordinate.
+            point = (
+                stage["points"][0]["position"]
+                if stage and stage.get("points")
+                else {"x": self.economy.base_x, "y": self.economy.base_y}
+            )
+            for unit_id in sorted(combat_ids):
+                replacement[unit_id] = DefendAction(
+                    entity_id=unit_id,
+                    kind="move",
+                    target_x=float(point["x"]),
+                    target_y=float(point["y"]),
+                    reason=(
+                        "p1_ml_move_map_objective"
+                        if stage and stage.get("points")
+                        else "p1_ml_move_map_base_fallback"
+                    ),
+                )
+        elif self.action_model is None and target is not None:
             for unit_id in sorted(combat_ids):
                 replacement[unit_id] = DefendAction(
                     entity_id=unit_id,
@@ -836,7 +1369,7 @@ class MapDrivenP1Policy:
                     target_entity_id=int(target["entity_id"]),
                     reason="map_objective_visible",
                 )
-        elif stage and stage.get("points"):
+        elif self.action_model is None and stage and stage.get("points"):
             elapsed = float(loop) / 22.4
             spawn_seconds = stage.get("spawn_seconds")
             if spawn_seconds is None or elapsed >= float(spawn_seconds) - 180.0:
@@ -976,8 +1509,15 @@ def load_p2_intent_model(model_path: str | Path) -> tuple[object, dict]:
         from .ml.encoder import FEATURE_SCHEMA, feature_schema_hash
         from .ml.model import MODEL_SCHEMA, load_checkpoint
     except ImportError:
-        from ml.encoder import FEATURE_SCHEMA, feature_schema_hash  # type: ignore
-        from ml.model import MODEL_SCHEMA, load_checkpoint  # type: ignore
+        # Direct-script execution has no package parent, but the ML modules
+        # still use package-relative imports. Import through ``vibe`` after
+        # adding the project package root instead of using a broken top-level
+        # ``ml`` package.
+        project_root = Path(__file__).resolve().parents[1]
+        if str(project_root) not in sys.path:
+            sys.path.insert(0, str(project_root))
+        from vibe.ml.encoder import FEATURE_SCHEMA, feature_schema_hash  # type: ignore
+        from vibe.ml.model import MODEL_SCHEMA, load_checkpoint  # type: ignore
 
     model = load_checkpoint(path, device="cpu")
     summary = {
@@ -990,10 +1530,33 @@ def load_p2_intent_model(model_path: str | Path) -> tuple[object, dict]:
         "feature_schema_hash": feature_schema_hash(),
         "checkpoint_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         "controller_player_id": P2_PLAYER_ID,
-        "transport": "GalaxyVibe Bank -> Galaxy PollLoop -> P2-owned UnitGroup orders",
-        "p2_resources": "not_visible_from_p1_zeroed",
+        "transport": "GalaxyVibe typed P2 intent Bank -> Galaxy PollLoop -> native P2 AI/economy orders",
+        "p2_resources": "GalaxyVibe ally snapshot published by native bridge",
     }
     return model, summary
+
+
+def load_p1_action_policy(model_path: str | Path) -> tuple[object, dict]:
+    """Load the versioned PyTorch P1 action policy and its provenance."""
+
+    path = Path(model_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"P1 action model checkpoint not found: {path}")
+    model = load_p1_action_model(path)
+    metadata = dict(getattr(model, "checkpoint_metadata", {}) or {})
+    return model, {
+        "enabled": True,
+        "backend": "pytorch",
+        "evidence_type": "runtime",
+        "path": str(path),
+        "schema": str(metadata.get("schema", "cmre-p1-action-pytorch.v1")),
+        "feature_schema": str(metadata.get("feature_schema", "")),
+        "feature_schema_hash": str(metadata.get("feature_schema_hash", "")),
+        "checkpoint_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "controller_player_id": P1_PLAYER_ID,
+        "transport": "P1 PyTorch high-level action -> map source target resolver -> typed SC2 action",
+        "training": metadata.get("training", {}),
+    }
 
 
 def _has_p1_p2_participant_roster(player_roster: dict) -> bool:
@@ -1053,6 +1616,82 @@ def _read_runtime_bank_section(
     return result
 
 
+def _reset_runtime_ally_bridge(
+    bank_name: str = "GalaxyVibe",
+    bank_path: Optional[Path] = None,
+) -> tuple[bool, str]:
+    """Clear transient P2 bridge state before creating a native game.
+
+    SC2 Banks survive across local sessions. A prior pending model decision
+    must not be mistaken for an acknowledgement in the next run.
+    """
+
+    target = bank_path or _runtime_bank_path(bank_name)
+    if not target.exists():
+        return True, ""
+    try:
+        tree = ET.parse(target)
+        root = tree.getroot()
+        section = next(
+            (item for item in root.findall("Section") if item.get("name") == "ally"),
+            None,
+        )
+        if section is None:
+            section = ET.SubElement(root, "Section", {"name": "ally"})
+
+        reset_values = {
+            "pending_command": ("string", ""),
+            "pending_player_id": ("int", "0"),
+            "pending_source": ("string", ""),
+            "pending_model_schema": ("string", ""),
+            "pending_model_hash": ("string", ""),
+            "pending_decision_id": ("string", ""),
+            "pending_economy_intent": ("string", ""),
+            "pending_production_intent": ("string", ""),
+            "last_command": ("string", ""),
+            "last_result": ("string", ""),
+            "last_mode": ("string", ""),
+            "last_signal": ("string", ""),
+            "last_source": ("string", ""),
+            "last_issuer_player_id": ("int", "0"),
+            "last_model_schema": ("string", ""),
+            "last_model_hash": ("string", ""),
+            "last_model_decision_id": ("string", ""),
+            "last_model_economy": ("string", ""),
+            "last_model_production": ("string", ""),
+            "last_model_economy_result": ("string", ""),
+            "last_model_production_result": ("string", ""),
+            "last_model_economy_dispatched": ("int", "0"),
+            "last_model_production_dispatched": ("int", "0"),
+            "command_count": ("int", "0"),
+            "signal_count": ("int", "0"),
+        }
+        for key_name, (value_kind, value) in reset_values.items():
+            key = next(
+                (item for item in section.findall("Key") if item.get("name") == key_name),
+                None,
+            )
+            if key is None:
+                key = ET.SubElement(section, "Key", {"name": key_name})
+            value_node = key.find("Value")
+            if value_node is None:
+                value_node = ET.SubElement(key, "Value")
+            value_node.attrib.clear()
+            value_node.set(value_kind, value)
+
+        temp_path = target.with_name(f".{target.name}.bridge-reset.tmp")
+        tree.write(temp_path, encoding="utf-8", xml_declaration=True)
+        os.replace(temp_path, target)
+    except (OSError, ET.ParseError, ValueError) as exc:
+        try:
+            if "temp_path" in locals() and temp_path.exists():
+                temp_path.unlink()
+        except OSError:
+            pass
+        return False, str(exc)
+    return True, ""
+
+
 def _queue_runtime_ally_command(
     command: str,
     bank_name: str = "GalaxyVibe",
@@ -1062,6 +1701,8 @@ def _queue_runtime_ally_command(
     model_schema: str = "",
     model_hash: str = "",
     decision_id: str = "",
+    economy_intent: str = "",
+    production_intent: str = "",
 ) -> tuple[bool, str]:
     """Queue a typed ally command for API-mode Galaxy polling.
 
@@ -1069,6 +1710,8 @@ def _queue_runtime_ally_command(
     corresponding Galaxy ChatMessage event. The map PollLoop consumes this
     short-lived bridge record. P1 chat and the external P2 model use separate
     issuer/source fields so the model never impersonates a player command.
+    The model head labels travel in separate typed Bank fields; the chat
+    string remains only the tactical compatibility projection.
     """
     normalized = str(command).strip()
     if not normalized.startswith("!ally "):
@@ -1115,8 +1758,17 @@ def _queue_runtime_ally_command(
         set_value("pending_model_schema", "string", model_schema)
         set_value("pending_model_hash", "string", model_hash)
         set_value("pending_decision_id", "string", decision_id)
-        tree.write(target, encoding="utf-8", xml_declaration=True)
+        set_value("pending_economy_intent", "string", economy_intent)
+        set_value("pending_production_intent", "string", production_intent)
+        temp_path = target.with_name(f".{target.name}.bridge-request.tmp")
+        tree.write(temp_path, encoding="utf-8", xml_declaration=True)
+        os.replace(temp_path, target)
     except (OSError, ET.ParseError, ValueError) as exc:
+        try:
+            if "temp_path" in locals() and temp_path.exists():
+                temp_path.unlink()
+        except OSError:
+            pass
         return False, str(exc)
     return True, ""
 
@@ -1127,19 +1779,51 @@ def _ack_mode_model_decisions(
     """Close ML requests only after Galaxy records the matching P2 result."""
     last_command = str(bank_state.get("last_command", ""))
     last_result = str(bank_state.get("last_result", ""))
-    if not last_command or not last_result:
+    last_model_decision_id = str(bank_state.get("last_model_decision_id", ""))
+    if not last_command and not last_model_decision_id:
         return
     for entry in decision_trace:
-        if (
-            entry.get("bridge_queued")
-            and not entry.get("acknowledged")
-            and entry.get("message") == last_command
-        ):
+        if not entry.get("bridge_queued") or entry.get("acknowledged"):
+            continue
+        model_match = (
+            bool(last_model_decision_id)
+            and entry.get("decision_id") == last_model_decision_id
+        )
+        command_match = bool(last_command) and entry.get("message") == last_command
+        if model_match or (not last_model_decision_id and command_match):
             entry.update({
                 "acknowledged": True,
                 "ack_loop": int(current_loop),
-                "ack_result": last_result,
+                "ack_result": (
+                    "model_acknowledged" if model_match else last_result
+                ),
             })
+
+
+def _apply_p2_bank_resources(observation: LiveObservation, bank_state: dict) -> dict:
+    """Overlay the P2 resource snapshot published by the native bridge.
+
+    The API client is P1, so ``ResponseObservation.player_common`` only
+    contains P1's economy. The Galaxy bridge publishes P2's own counters in
+    the ally Bank; using that explicit snapshot keeps the ML input public and
+    avoids treating P1's resources as P2's state.
+    """
+
+    resource_map = {
+        "minerals": "p2_minerals",
+        "vespene": "p2_vespene",
+        "supply_used": "p2_supply_used",
+        "supply_cap": "p2_supply_cap",
+    }
+    if not all(key in bank_state for key in resource_map.values()):
+        return dict(observation.resources)
+    resources = dict(observation.resources)
+    for resource_name, bank_key in resource_map.items():
+        resources[resource_name] = int(bank_state[bank_key])
+    resources["state_version"] = int(observation.loop)
+    resources["source"] = "galaxy_p2_bank"
+    observation.resources = resources
+    return resources
 
 
 def _find_nearest_mineral_field_live(mineral_fields: list[dict],
@@ -1230,6 +1914,8 @@ class LiveGameReport:
     runtime_catalog_summary: dict = field(default_factory=dict)
     mode_model_summary: dict = field(default_factory=dict)
     mode_model_decision_trace: list[dict] = field(default_factory=list)
+    p1_model_summary: dict = field(default_factory=dict)
+    p1_model_decision_trace: list[dict] = field(default_factory=list)
 
 
 def _replay_entity(unit: dict, owner: int) -> dict:
@@ -1487,6 +2173,8 @@ async def run_live(
     map_source_audit_path: Optional[str] = None,
     render_html: bool = False,
     mode_model_path: Optional[str] = None,
+    p1_model_path: Optional[str] = None,
+    realtime: bool = False,
 ) -> LiveGameReport:
     """运行真机 AI 盟友自主对局。
 
@@ -1509,6 +2197,9 @@ async def run_live(
         mode_model_path: optional PyTorch P2 intent checkpoint. The model
             emits a typed four-head intent; the Galaxy bridge owns P2 order
             execution after validating the tactical command projection.
+        p1_model_path: optional PyTorch P1 high-level action checkpoint. The
+            model chooses only an action family; map facts and typed SC2
+            validation resolve the actual target and transport.
     """
     start_time = time.time()
     mode_model = None
@@ -1518,6 +2209,13 @@ async def run_live(
     }
     if mode_model_path:
         mode_model, mode_model_summary = load_p2_intent_model(mode_model_path)
+    p1_model = None
+    p1_model_summary: dict = {
+        "enabled": bool(p1_model_path),
+        "evidence_type": "runtime" if p1_model_path else "inference",
+    }
+    if p1_model_path:
+        p1_model, p1_model_summary = load_p1_action_policy(p1_model_path)
     conn = Sc2Connection(port)
     await conn.connect()
     server_ports, client_ports = _multiplayer_port_topology(multiplayer_port_base)
@@ -1585,6 +2283,14 @@ async def run_live(
                     print(f"[2] LeaveGame skipped: {e}")
             await asyncio.sleep(2)
 
+            bridge_reset_ok, bridge_reset_error = _reset_runtime_ally_bridge()
+            if not bridge_reset_ok:
+                raise RuntimeError(
+                    f"failed to reset persistent P2 ally Bank bridge: {bridge_reset_error}"
+                )
+            if verbose:
+                print("  P2 ally Bank bridge reset")
+
             # 3. CreateGame（realtime=False 避免异步通知干扰）
             if verbose:
                 print(f"[3] CreateGame: {os.path.basename(map_path)}")
@@ -1629,7 +2335,7 @@ async def run_live(
             req = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
                 local_map=local_map,
                 player_setup=player_setup,
-                realtime=False,
+                realtime=realtime,
             ))
             r = await conn.send_request(req, timeout=60, max_retries=5)
             if r.HasField("create_game") and r.create_game.HasField("error"):
@@ -1639,6 +2345,16 @@ async def run_live(
             else:
                 if verbose:
                     print("  CreateGame OK")
+
+        # Reborn's standalone campaign frontend can leave a native loading
+        # confirmation between CreateGame and JoinGame.  The approved launcher
+        # can handle DirectMap launches, while API sessions need the same
+        # input after the client has actually loaded this map.
+        reborn_confirm_attempts = 0
+        if realtime and not join_existing:
+            await asyncio.sleep(0.5)
+            reborn_confirm_attempts += 1
+            _send_reborn_loading_confirm(port, verbose=verbose)
 
         # 4. JoinGame（raw 接口）—— 参考 RealProfile：重试 30 次每次 500ms
         if verbose:
@@ -1666,6 +2382,9 @@ async def run_live(
                 if r.error:
                     if verbose and attempt == 0:
                         print(f"  JoinGame attempt {attempt+1}: error={r.error}")
+                    if realtime and not join_existing and reborn_confirm_attempts < 2:
+                        reborn_confirm_attempts += 1
+                        _send_reborn_loading_confirm(port, verbose=verbose)
                     await asyncio.sleep(0.5)
                     continue
                 joined = True
@@ -1673,6 +2392,9 @@ async def run_live(
             except Exception as e:
                 if verbose and attempt == 0:
                     print(f"  JoinGame attempt {attempt+1} exc: {e}")
+                if realtime and not join_existing and reborn_confirm_attempts < 2:
+                    reborn_confirm_attempts += 1
+                    _send_reborn_loading_confirm(port, verbose=verbose)
                 await asyncio.sleep(0.5)
         if not joined:
             # 最后一次尝试：用 Observation 探测是否已在 in_game
@@ -1707,9 +2429,17 @@ async def run_live(
 
         # Non-realtime SC2 is frame-driven. Advance the startup graph instead
         # of sleeping and assuming that Galaxy has already executed.
-        if verbose:
-            print("  驱动首帧，让 Galaxy 地图初始化...")
-        await _advance_non_realtime_startup(conn, verbose=verbose)
+        # Realtime mode: the simulation advances on its own; just wait for
+        # map initialization to complete (Reborn SwarmSetup uses Wait(c_timeGame)
+        # which deadlocks in non-realtime mode).
+        if realtime:
+            if verbose:
+                print("  realtime 模式：等待地图初始化（15s）...")
+            await asyncio.sleep(15)
+        else:
+            if verbose:
+                print("  驱动首帧，让 Galaxy 地图初始化...")
+            await _advance_non_realtime_startup(conn, verbose=verbose)
         try:
             runtime_ability_catalog = await fetch_runtime_ability_catalog(
                 conn,
@@ -1819,6 +2549,7 @@ async def run_live(
             computer_ally,
             map_source_audit=map_source_summary,
             mode_model_summary=mode_model_summary,
+            p1_model_summary=p1_model_summary,
         )
         if verbose:
             print(f"[5] Map: {map_name} | local_map_path={local_map_path}")
@@ -1844,6 +2575,7 @@ async def run_live(
             "CMRERebornDebug", "debug"
         )
         mode_model_decision_trace: list[dict] = []
+        p1_model_decision_trace: list[dict] = []
         last_mode_model_decide_loop = -10_000
         last_mode_model_label = "follow"
 
@@ -1852,6 +2584,7 @@ async def run_live(
         # simulator, emits a P2 acknowledgement, and then continues its own
         # native economy/tactical loop.
         run_token = str(int(start_time))
+        model_run_token = f"{run_token}-{time.time_ns() % 1000000:06d}"
         commands = [] if player_id == P2_PLAYER_ID else (ally_commands or [
             f"!ally status stage25_{run_token}_status",
             f"!ally defend stage25_{run_token}_defend",
@@ -1878,10 +2611,13 @@ async def run_live(
 
         while current_loop < max_loops:
             try:
-                # Step 推进游戏
-                await conn.send_request(
-                    sc_pb.Request(step=sc_pb.RequestStep(count=step_size)),
-                    timeout=15)
+                # Step 推进游戏（realtime 模式下游戏自动推进，无需 RequestStep）
+                if not realtime:
+                    await conn.send_request(
+                        sc_pb.Request(step=sc_pb.RequestStep(count=step_size)),
+                        timeout=15)
+                else:
+                    await asyncio.sleep(0.1)
 
                 # Observation
                 r = await conn.send_request(
@@ -1918,15 +2654,23 @@ async def run_live(
             # this separate from the P1 chat command trace.
             if mode_model_decision_trace:
                 model_bank = _read_runtime_bank_section()
+                acknowledged_before = {
+                    entry.get("decision_id")
+                    for entry in mode_model_decision_trace
+                    if entry.get("acknowledged")
+                }
+                _ack_mode_model_decisions(
+                    mode_model_decision_trace,
+                    model_bank,
+                    current_loop,
+                )
                 for model_entry in mode_model_decision_trace:
-                    if model_entry.get("acknowledged"):
-                        continue
-                    if model_bank.get("last_model_decision_id") != model_entry["decision_id"]:
-                        continue
-                    model_entry["acknowledged"] = True
-                    model_entry["ack_loop"] = current_loop
-                    model_entry["ack_result"] = model_bank.get("last_result", "")
-                    model_entry["p2_after"] = _p2_state(obs)
+                    if (
+                        model_entry.get("acknowledged")
+                        and model_entry.get("decision_id") not in acknowledged_before
+                    ):
+                        model_entry["bank_after"] = dict(model_bank)
+                        model_entry["p2_after"] = _p2_state(obs)
 
             # 检查游戏是否结束
             if r.observation.player_result:
@@ -2006,10 +2750,14 @@ async def run_live(
                     if native_base is not None else default_p2_base
                 )
                 if computer_ally and map_source is not None:
+                    base_region = resolve_p1_base_region(obs, map_source, base_region)
+                if computer_ally and map_source is not None:
                     policy = MapDrivenP1Policy(
                         source=map_source,
                         base_region=base_region,
                         command_interval=decision_interval,
+                        action_model=(p1_model if player_id == P1_PLAYER_ID else None),
+                        action_model_summary=p1_model_summary,
                     )
                 else:
                     policy = DefendBasePolicy(
@@ -2297,9 +3045,10 @@ async def run_live(
                         }
                     command_cursor += 1
 
-                # The external MLP is a P2 controller, not a second P1 chat
-                # client. It emits only a high-level mode; Galaxy validates
-                # the source/issuer and performs the P2-owned order.
+                # The external PyTorch policy is a P2 controller, not a
+                # second P1 chat client. Tactical/command stay on the legacy
+                # chat projection, while economy/production are sent as
+                # separate typed Bank labels for native P2 execution.
                 model_inflight = any(
                     item.get("bridge_queued") and not item.get("acknowledged")
                     for item in mode_model_decision_trace
@@ -2313,6 +3062,8 @@ async def run_live(
                 ):
                     last_mode_model_decide_loop = current_loop
                     p2_view = build_p2_policy_observation(obs)
+                    p2_bank_state = _read_runtime_bank_section()
+                    _apply_p2_bank_resources(p2_view, p2_bank_state)
                     p2_base = next(
                         (
                             unit for unit in p2_view.own_units
@@ -2330,7 +3081,10 @@ async def run_live(
                         )
                         if p2_base is not None else default_p2_base
                     )
-                    decision_id = f"p2-ml:{int(current_loop)}:{len(mode_model_decision_trace) + 1}"
+                    decision_id = (
+                        f"p2-ml:{model_run_token}:{int(current_loop)}:"
+                        f"{len(mode_model_decision_trace) + 1}"
+                    )
                     intent = mode_model.predict_intent(
                         p2_view,
                         requested_mode=last_mode_model_label,
@@ -2344,9 +3098,18 @@ async def run_live(
                     command_mode = MODEL_MODE_TO_COMMAND.get(
                         command_projection
                     ) or MODEL_MODE_TO_COMMAND.get(predicted_mode)
+                    # ``command=none`` is a valid economy/production-only
+                    # decision. Preserve those heads instead of rejecting the
+                    # whole intent; the native bridge treats hold as no
+                    # tactical mutation while still applying the two typed
+                    # task labels.
+                    if command_mode is None:
+                        command_mode = "hold"
                     model_entry = {
                         "loop": current_loop,
                         "decision_id": decision_id,
+                        "economy_intent": str(intent.economy),
+                        "production_intent": str(intent.production),
                         "predicted_mode": predicted_mode,
                         "command_projection": command_projection,
                         "command_mode": command_mode or "rejected_unknown_mode",
@@ -2358,38 +3121,35 @@ async def run_live(
                         "source": "ml_policy",
                         "model_schema": mode_model_summary.get("schema", ""),
                         "model_hash": mode_model_summary.get("checkpoint_sha256", ""),
+                        "p2_resources_before": dict(p2_view.resources),
                         "p2_before": _p2_state(obs),
                         "acknowledged": False,
                     }
-                    if command_mode is None:
-                        model_entry.update({
-                            "bridge_queued": False,
-                            "bridge_error": "unknown_model_mode",
-                        })
+                    model_command = f"!ally {command_mode} {decision_id}"
+                    queued, queue_error = _queue_runtime_ally_command(
+                        model_command,
+                        issuer_player_id=P2_PLAYER_ID,
+                        source="ml_policy",
+                        model_schema=str(mode_model_summary.get("schema", "")),
+                        model_hash=str(mode_model_summary.get("checkpoint_sha256", "")),
+                        decision_id=decision_id,
+                        economy_intent=str(intent.economy),
+                        production_intent=str(intent.production),
+                    )
+                    model_entry.update({
+                        "message": model_command,
+                        "transport": "bank_to_galaxy_p2_typed_intent",
+                        "bridge_queued": queued,
+                        "bridge_error": queue_error,
+                    })
+                    if queued:
+                        total_commands_issued += 1
+                        total_commands_dispatched += 1
+                        cmd_ok_stats["ml_ally_mode"] += 1
+                        cmd_ok_by_kind["ml_ally_mode"] += 1
                     else:
-                        model_command = f"!ally {command_mode} {decision_id}"
-                        queued, queue_error = _queue_runtime_ally_command(
-                            model_command,
-                            issuer_player_id=P2_PLAYER_ID,
-                            source="ml_policy",
-                            model_schema=str(mode_model_summary.get("schema", "")),
-                            model_hash=str(mode_model_summary.get("checkpoint_sha256", "")),
-                            decision_id=decision_id,
-                        )
-                        model_entry.update({
-                            "message": model_command,
-                            "transport": "bank_to_galaxy_p2_order",
-                            "bridge_queued": queued,
-                            "bridge_error": queue_error,
-                        })
-                        if queued:
-                            total_commands_issued += 1
-                            total_commands_dispatched += 1
-                            cmd_ok_stats["ml_ally_mode"] += 1
-                            cmd_ok_by_kind["ml_ally_mode"] += 1
-                        else:
-                            cmd_fail_stats["ml_ally_mode"] += 1
-                            cmd_fail_by_kind["ml_ally_mode"] += 1
+                        cmd_fail_stats["ml_ally_mode"] += 1
+                        cmd_fail_by_kind["ml_ally_mode"] += 1
                     mode_model_decision_trace.append(model_entry)
                     last_mode_model_label = command_mode or predicted_mode
 
@@ -2527,6 +3287,22 @@ async def run_live(
         in {"status", "acknowledged", "attack_issued", "attack_no_target", "hold"}
         for item in ally_command_trace
     ) or bool(p2_signal_trace)
+    mode_model_typed_intent_ok = (
+        not bool(mode_model_path)
+        or any(
+            item.get("bridge_queued")
+            and item.get("acknowledged")
+            and item.get("issuer_player_id") == P2_PLAYER_ID
+            and item.get("source") == "ml_policy"
+            and item.get("economy_intent")
+            and item.get("production_intent")
+            and item.get("bank_after", {}).get("last_model_economy")
+                == item.get("economy_intent")
+            and item.get("bank_after", {}).get("last_model_production")
+                == item.get("production_intent")
+            for item in mode_model_decision_trace
+        )
+    )
     mode_model_bridge_ok = (
         not bool(mode_model_path)
         or any(
@@ -2537,6 +3313,7 @@ async def run_live(
             and item.get("model_hash") == mode_model_summary.get("checkpoint_sha256")
             for item in mode_model_decision_trace
         )
+        and mode_model_typed_intent_ok
     )
 
     # A native run is complete only when SC2 emits a player_result. Reaching
@@ -2578,6 +3355,7 @@ async def run_live(
                 "native_player_result_victory": p1_result == 1,
                 "raw_p2_actions_issued": False,
                 "mode_model_bridge": mode_model_bridge_ok,
+                "mode_model_typed_intent": mode_model_typed_intent_ok,
             },
         }
         if not mode_model_bridge_ok:
@@ -2651,6 +3429,23 @@ async def run_live(
             "p1_command_received": bool(p1_command_trace),
             "p2_signal_observed": bool(p2_signal_trace),
             "p2_ml_model_bridge": mode_model_bridge_ok,
+            "p2_ml_typed_intent_bridge": mode_model_typed_intent_ok,
+            "p1_ml_model_loaded": bool(p1_model_summary.get("enabled")),
+            "p1_ml_decision_observed": bool(
+                isinstance(policy, MapDrivenP1Policy) and policy.ml_decision_trace
+            ),
+            "p1_ml_dispatch_label_observed": bool(
+                isinstance(policy, MapDrivenP1Policy)
+                and any(item.get("dispatch_label") for item in policy.ml_decision_trace)
+            ),
+            "p2_ml_economy_intent_observed": any(
+                item.get("acknowledged") and item.get("economy_intent")
+                for item in mode_model_decision_trace
+            ),
+            "p2_ml_production_intent_observed": any(
+                item.get("acknowledged") and item.get("production_intent")
+                for item in mode_model_decision_trace
+            ),
             "p2_ml_decision_observed": bool(mode_model_decision_trace),
             "p2_ml_decision_acknowledged": any(
                 item.get("acknowledged") for item in mode_model_decision_trace
@@ -2692,6 +3487,12 @@ async def run_live(
         runtime_catalog_summary=runtime_catalog_summary,
         mode_model_summary=mode_model_summary,
         mode_model_decision_trace=mode_model_decision_trace,
+        p1_model_summary=p1_model_summary,
+        p1_model_decision_trace=(
+            list(policy.ml_decision_trace)
+            if isinstance(policy, MapDrivenP1Policy)
+            else []
+        ),
     )
 
     # Keep the report as a final JSONL record so the same file is both a
@@ -2825,7 +3626,14 @@ def main():
         default=None,
         help="P2 imitation-learning checkpoint; model output is sent through the explicit Galaxy P2 bridge",
     )
+    parser.add_argument(
+        "--p1-model",
+        type=str,
+        default=None,
+        help="P1 PyTorch high-level action checkpoint; map source resolves targets and native transport validates actions",
+    )
     parser.add_argument("--quiet", action="store_true", help="静默模式")
+    parser.add_argument("--realtime", action="store_true", help="realtime 模式（Reborn 地图需要）")
     parser.add_argument("--output", type=str, default=None, help="报告输出 JSON 路径")
     args = parser.parse_args()
 
@@ -2860,6 +3668,8 @@ def main():
         map_source_audit_path=args.map_source_audit,
         render_html=args.render_html,
         mode_model_path=args.mode_model,
+        p1_model_path=args.p1_model,
+        realtime=args.realtime,
     ))
 
     if args.output:

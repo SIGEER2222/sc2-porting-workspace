@@ -254,6 +254,17 @@
       "nextAction": "Treat the import as read-only input until a later stage declares ownership, dependency, and runtime validation scope."
     },
     {
+      "id": "CMRE-RUNTIME-MATRIX-NIGHT-20260805",
+      "severity": "medium",
+      "status": "open",
+      "title": "CMRE commander-map runtime matrix is still running",
+      "detail": "The repaired single-instance runner has fresh native PASS evidence for the first two pairs and is continuing the remaining 448 pairs serially. This issue remains open until runtime-summary.json reports completed_count=450 and every pair status=pass.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/cmre-runtime-matrix-night-20260805/runtime-results.jsonl",
+      "owner": "stage25",
+      "nextAction": "Keep the single runner alive; after 450/450 PASS update result.json, resolve this issue, and create the Reborn/HOTS migration stage plan."
+    },
+    {
       "id": "SIMULATOR-KEHA-FULL-GAME-UNREACHABLE-20260803",
       "severity": "medium",
       "status": "resolved",
@@ -314,6 +325,68 @@
       "resolution": "tools/cmre-webui/server.py",
       "latestEvidence": "tools/cmre-webui/test_launch_async_contract.py",
       "nextAction": "Keep SSE failure lines ordered: real launcher output first, exit code last."
+    },
+    {
+      "id": "REBORN-CONFIRMATION-SEQUENCE-20260805",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Reborn campaign confirmation blocked standard API JoinGame",
+      "detail": "The approved standard API path now clicks the Reborn continuation strip after CreateGame and retries the input during JoinGame recovery. A fresh zchar01_reborn_port.SC2Map window logged the click, reached Observation OK/in_game with player_id=1, and advanced 900 realtime loops.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-confirm-fix-20260805/api-runner.log",
+      "owner": "stage25",
+      "resolution": "tools/launchers/launch-cmre-alenger.ps1",
+      "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-confirm-fix-20260805/api-live-replay.SC2Replay",
+      "nextAction": "Keep the click in the standard API CreateGame-to-JoinGame path; do not promote DirectMapApi until its WebSocket responds."
+    },
+    {
+      "id": "REBORN-DIRECT-MAP-API-NO-RESPONSE-20260805",
+      "severity": "high",
+      "status": "open",
+      "title": "DirectMapApi listens but does not answer SC2 API requests",
+      "detail": "The direct-map Reborn launcher reached TCP listen and logged the confirmation click, but the Host's first Ping received no WebSocket response. The Host never reached JoinGame and the SC2 process later exited. Removing the pre-Join listener wait fixed the ordering deadlock but did not make DirectMapApi a usable topology.",
+      "evidence_type": "blocked",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-confirm-fix-20260805/runner.log",
+      "owner": "stage25",
+      "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-confirm-fix-20260805/launcher.stdout.log",
+      "nextAction": "Keep standard API CreateGame+JoinGame as the approved Reborn entry path; only revisit DirectMapApi with a raw Ping/JoinGame response proof."
+    },
+    {
+      "id": "REBORN-ZCHAR-P2-INIT-20260805",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Standard API Reborn zchar01 map enters in_game without map bridge or P2 units",
+      "detail": "The original 900-loop probe missed map-side initialization. A fresh approved standard API run now reaches initialization_complete=1, bridge_heartbeat=17, ally_computer_ally_ready=1, initialized P2 starting units/resources, and 177 visible P2 allied units after the confirmation sequence. The bounded run still has NotSupported move actions and does not claim full mission victory or P2 command/state-delta completion.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-confirm-fix-20260806/runtime-report-installed.json",
+      "owner": "stage25",
+      "resolution": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-confirm-fix-20260806/live-replay-installed.SC2Replay",
+      "latestEvidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-confirm-fix-20260806/launcher5995.stdout.log",
+      "nextAction": "Keep the standard API confirmation path and continue with a longer zchar01 full-flow run; require successful P1 command acknowledgement, P2 state delta, and mission victory before closing the remaining runtime gap."
+    },
+    {
+      "id": "CMRE-COMMANDER-SELECTION-ENTRY-20260805",
+      "severity": "low",
+      "status": "resolved",
+      "title": "CMRE commander-selection UI remained reachable through launcher and map startup code",
+      "detail": "The launcher no longer accepts -ShowSelectionUI or deletes the launch-profile bank to force the UI. Every startup uses the headless tail, and the owned 亡者之夜 LibCOOC source no longer calls the CommanderSelectionScreen trigger.",
+      "evidence_type": "static",
+      "evidence": "tools/launchers/tests/test_launch_cmre_alenger_static.py",
+      "owner": "stage25",
+      "resolution": "tools/launchers/launch-cmre-alenger.ps1; src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/LibCOOC.galaxy",
+      "latestEvidence": "tools/launchers/tests/test_launch_cmre_alenger_static.py",
+      "nextAction": "Keep launcher startup profile required for commander assignment; do not reintroduce a selection-mode flag."
+    },
+    {
+      "id": "REBORN-ZCHAR01-ENEMY-TARGET-P1-20260806",
+      "severity": "high",
+      "status": "open",
+      "title": "ZChar01 enemy waves can fall back to P1 when P2 topology is not initialized",
+      "detail": "The original ZChar01 adapter checked P1's ally group before creating that alliance. The check therefore fell through to cai_startall(), left P2 in the original enemy-wave role, and made P1 the only valid cooperative target. The project glue now keys the path on PlayerType(2)==c_playerTypeComputer, initializes P2 before campaign AI, disables the original P2 wave chain, sets reciprocal alliances, and refreshes enemy target groups. Static and Galaxy checks pass; a fresh runtime target-distribution proof remains open because the standard API window did not execute map-side initialization and DirectMapApi did not answer Ping.",
+      "evidence_type": "mixed",
+      "evidence": "tools/launchers/overlays/cmre-alenger/map-glue.reborn-zchar01.galaxy; artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-reborn-ally-target-v4-p2init-20260806/runtime-report.json; artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/runtime-reborn-ally-target-v5-p2init-direct-20260806/launcher.stdout.log",
+      "owner": "stage25",
+      "nextAction": "Use the already-proven standard Reborn Computer-ally recipe that reaches initialization_complete, then extend the zchar01 run beyond the first hostile wave and require observed P2 ownership plus enemy target evidence before resolving this issue."
     }
   ]
 }

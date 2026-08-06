@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 
@@ -44,6 +45,7 @@ from vibe.map_replay import (  # noqa: E402
     load_dead_of_night_map_cooperative_scenario,
 )
 from vibe.run_cmre_map_matrix import run_matrix  # noqa: E402
+from vibe.run_dead_of_night_live import LiveObservation, MapDrivenP1Policy  # noqa: E402
 
 
 def _cooperative_scenario(seed: int = 42) -> dict:
@@ -74,6 +76,60 @@ def _cooperative_scenario(seed: int = 42) -> dict:
 
 
 class Stage25AiAllyCapabilityTests(unittest.TestCase):
+    def test_map_driven_policy_emits_one_explicit_gather_for_native_opening(self):
+        source = SimpleNamespace(
+            map_bounds={"min_x": 0.0, "min_y": 0.0, "max_x": 100.0, "max_y": 100.0},
+            script={"stages": []},
+        )
+        policy = MapDrivenP1Policy(
+            source,
+            base_region=(85.0, 94.0, 12.0),
+            command_interval=22,
+        )
+        observation = LiveObservation(
+            loop=1,
+            player_id=1,
+            own_units=[
+                {
+                    "entity_id": 900,
+                    "unit_type_id": "3292",
+                    "x": 85.0,
+                    "y": 94.0,
+                    "health": 100,
+                    "max_health": 100,
+                    "orders": [],
+                },
+                {
+                    "entity_id": 901,
+                    "unit_type_id": "Probe",
+                    "x": 86.0,
+                    "y": 94.0,
+                    "health": 20,
+                    "max_health": 20,
+                    "orders": [{"target_unit_tag": 200}],
+                },
+            ],
+            visible_enemies=[],
+            resources={
+                "minerals": 50,
+                "vespene": 0,
+                "supply_used": 12,
+                "supply_cap": 75,
+            },
+            mission={"win_condition": "live_sc2"},
+            mineral_fields=[{"entity_id": 200, "x": 82.0, "y": 94.0}],
+        )
+
+        first = policy.decide(observation, 1, resources=observation.resources)
+        second = policy.decide(observation, 30, resources=observation.resources)
+
+        gathers = [action for action in first if action.kind == "gather"]
+        self.assertEqual(len(gathers), 1)
+        self.assertEqual(gathers[0].entity_id, 901)
+        self.assertEqual(gathers[0].target_entity_id, 200)
+        self.assertEqual(gathers[0].reason, "map_worker_explicit_opening_gather")
+        self.assertFalse(any(action.kind == "gather" for action in second))
+
     def test_all_cmre_maps_extract_and_pass_bounded_tactical_matrix(self):
         # Keep the matrix output under the repository so generated evidence
         # remains repo-relative, then remove it when the regression finishes.

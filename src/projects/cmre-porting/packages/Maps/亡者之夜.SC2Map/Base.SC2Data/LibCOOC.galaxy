@@ -4802,10 +4802,8 @@ void libCOOC_gf_CC_DevStartupBegin () {
         return ;
     }
 
-    if ((libCOOC_gf_CC_MapIsLauncher(libCOOC_gf_CC_CurrentMap()) == true)) {
-        libCOTF_gf_RunTriggerByNameEasy(UserDataGetString("GlobalOptions", "CommanderSelectionScreen", "TriggerString", 1), false, false);
-    }
-
+    // CMRE commander selection is launcher-owned and permanently disabled
+    // for this map. A missing launch profile must never open the UI.
 }
 
 void libCOOC_gf_CC_DevStartupFinish () {

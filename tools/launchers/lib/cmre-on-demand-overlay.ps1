@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 function Get-CmreOverlayRoot {
     return (Join-Path (Split-Path -Parent $PSScriptRoot) "overlays\cmre-alenger")
@@ -52,6 +52,18 @@ function Add-CmreLinesAfter {
     return $Content.Replace($Anchor, ($Anchor + [Environment]::NewLine + ($missing -join [Environment]::NewLine)))
 }
 
+function Select-CmreExistingAnchor {
+    param(
+        [Parameter(Mandatory = $true)][string]$Content,
+        [Parameter(Mandatory = $true)][string[]]$Candidates,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+    foreach ($candidate in $Candidates) {
+        if ($Content.Contains($candidate)) { return $candidate }
+    }
+    throw "$Name anchor not found; tried: $($Candidates -join ', ')"
+}
+
 function Add-CmreBlockAfter {
     param(
         [Parameter(Mandatory = $true)][string]$Content,
@@ -91,6 +103,23 @@ function Add-CmreBlockBefore {
     if ($Content.Contains($Marker)) { return $Content }
     if (-not $Content.Contains($Anchor)) { throw "Anchor not found: $Anchor" }
     return $Content.Replace($Anchor, ($Block.TrimEnd() + [Environment]::NewLine + [Environment]::NewLine + $Anchor))
+}
+
+function Replace-CmreBlockBetweenMarkers {
+    param(
+        [Parameter(Mandatory = $true)][string]$Content,
+        [Parameter(Mandatory = $true)][string]$StartMarker,
+        [Parameter(Mandatory = $true)][string]$EndMarker,
+        [Parameter(Mandatory = $true)][string]$Block,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+    $startIndex = $Content.IndexOf($StartMarker, [System.StringComparison]::Ordinal)
+    if ($startIndex -lt 0) { throw "$Name start marker not found: $StartMarker" }
+    $endSearchIndex = $startIndex + $StartMarker.Length
+    $endIndex = $Content.IndexOf($EndMarker, $endSearchIndex, [System.StringComparison]::Ordinal)
+    if ($endIndex -lt 0) { throw "$Name end marker not found: $EndMarker" }
+    return $Content.Substring(0, $startIndex) + $Block.TrimEnd() +
+        [Environment]::NewLine + [Environment]::NewLine + $Content.Substring($endIndex)
 }
 
 function Replace-CmreFirstRegex {
@@ -533,6 +562,10 @@ void cmre_on_demand_trigger_customscript_init() {
         BankValueSetFromInt(BankLastCreated(), "debug", "api_customscript_init_complete", 1);
         BankSave(BankLastCreated());
     }
+    // Reborn campaign maps can enter the API game through CustomScript without
+    // the engine invoking MapScript.InitMap. InitMap owns an independent
+    // re-entry guard, so this also remains safe when the normal map path ran.
+    InitMap();
 }
 '@.Trim()
 
@@ -598,7 +631,6 @@ function Install-CmreSavedProfileStartupOverlay {
         [switch]$SkipCountdown,
         [switch]$ApiMinimal,
         [switch]$SkipPause,
-        [switch]$Headless,
         [switch]$KeepPlayer1Vanilla
     )
     Assert-CmreGalaxyToken -Value $Commander -Name "Commander"
@@ -612,15 +644,10 @@ function Install-CmreSavedProfileStartupOverlay {
     $playerTemplate = Join-Path $startupRoot "player-commander.galaxy.tpl"
     $p1 = if ($KeepPlayer1Vanilla) { "" } else { Expand-CmreTemplate -TemplatePath $playerTemplate -Values @{ PLAYER = "1"; COMMANDER = $Commander } }
     $p2 = Expand-CmreTemplate -TemplatePath $playerTemplate -Values @{ PLAYER = "2"; COMMANDER = $Commander }
-    $tail = if ($Headless) {
-        Read-CmreUtf8 -Path (Join-Path $startupRoot "tail.headless.galaxy")
-    } elseif ($SkipPause) {
-        Read-CmreUtf8 -Path (Join-Path $startupRoot "tail.skip-pause.galaxy")
-    } elseif ($SkipCountdown) {
-        Read-CmreUtf8 -Path (Join-Path $startupRoot "tail.skip-countdown.galaxy")
-    } else {
-        Read-CmreUtf8 -Path (Join-Path $startupRoot "tail.default.galaxy")
-    }
+    # Commander selection is permanently removed from the CMRE startup path.
+    # Keep the staged map on the headless tail for every launch mode so no
+    # caller can accidentally restore the selection trigger.
+    $tail = Read-CmreUtf8 -Path (Join-Path $startupRoot "tail.headless.galaxy")
     $replacement = Expand-CmreTemplate -TemplatePath (Join-Path $startupRoot "saved-profile-body.galaxy.tpl") -Values @{
         P1_COMMANDER_SETUP = $p1.TrimEnd()
         P2_COMMANDER_SETUP = $p2.TrimEnd()
@@ -647,7 +674,7 @@ function Install-CmreSavedProfileStartupOverlay {
     } else {
         throw "CMRE saved-profile startup anchor not found"
     }
-    if ($Headless -and -not $content.Contains("CMRE_ON_DEMAND_NO_COMMANDER_SELECTION")) {
+    if (-not $content.Contains("CMRE_ON_DEMAND_NO_COMMANDER_SELECTION")) {
         $selectionPattern = '(?ms)\r?\n    if \(\(libCOOC_gf_CC_MapIsLauncher\(libCOOC_gf_CC_CurrentMap\(\)\) == true\)\) \{\r?\n        libCOTF_gf_RunTriggerByNameEasy\(UserDataGetString\("GlobalOptions", "CommanderSelectionScreen", "TriggerString", 1\), false, false\);\r?\n    \}\r?\n'
         if (-not [regex]::IsMatch($content, $selectionPattern)) {
             throw "CMRE commander-selection fallback anchor not found"
@@ -659,10 +686,82 @@ function Install-CmreSavedProfileStartupOverlay {
             1)
     }
     Write-CmreUtf8NoBom -Path $path -Content $content
-    if ($Headless) {
-        Assert-CmreCommanderSelectionRemoved -MapPath $MapPath
-    }
+    Assert-CmreCommanderSelectionRemoved -MapPath $MapPath
     Write-Host "CMRE saved-profile startup overlay applied from versioned assets"
+}
+
+function Install-CmreRebornCampaignIntroSkipOverlay {
+    param(
+        [Parameter(Mandatory = $true)][string]$MapPath
+    )
+    $path = Join-Path $MapPath "MapScript.galaxy"
+    if (-not (Test-Path -LiteralPath $path)) {
+        throw "Reborn campaign intro overlay MapScript not found: $path"
+    }
+    $content = Read-CmreUtf8 -Path $path
+    $marker = "CMRE_REBORN_SKIP_CAMPAIGN_INTRO"
+    if (-not $content.Contains($marker)) {
+        # Keep map-owned setup/cleanup, but do not wait for the campaign
+        # cinematic and transmission queue in API or PlayerMode sessions.
+        $anchor = '    TriggerExecute(gt_IntroCinematic, true, true);' + [Environment]::NewLine + '    TriggerExecute(gt_IntroCinematicEnd, true, true);'
+        $replacement = @"
+    // $marker
+    // Preserve campaign setup and cleanup; skip only the interactive cinematic.
+    gv_introCinematicCompleted = false;
+    // $marker
+"@
+        if ($content.Contains($anchor)) {
+            $content = $content.Replace($anchor, $replacement.TrimEnd())
+        } else {
+            Write-Host "Reborn campaign intro not present; no cinematic skip required"
+        }
+    }
+
+    # Both the map-owned intro cleanup and the Reborn library initialization
+    # contain Wait(c_timeGame). A direct TriggerExecute from MapInit can start
+    # that work while CMRE still has mission time paused, permanently disabling
+    # SwarmSetup at its first wait. Schedule the intro after the first playable
+    # game-time tick so the original setup/cleanup remains map-owned.
+    # Keep the map's original intro queue timing. The campaign frontend
+    # confirmation is handled by the launcher input shim before the runtime
+    # listener gate; delaying gt_IntroQ changes mission-owned initialization.
+    Write-CmreUtf8NoBom -Path $path -Content $content
+    Write-Host "Reborn campaign intro skip overlay applied: $path"
+}
+
+function Install-CmreRebornCampaignFrontendGuardOverlay {
+    param(
+        [Parameter(Mandatory = $true)][string]$MapPath
+    )
+    $path = Join-Path $MapPath "MapScript.galaxy"
+    if (-not (Test-Path -LiteralPath $path)) {
+        throw "Reborn campaign frontend guard map script not found: $path"
+    }
+    $content = Read-CmreUtf8 -Path $path
+    $marker = "CMRE_REBORN_CAMPAIGN_FRONTEND_GUARD"
+    if ($content.Contains($marker)) {
+        Write-Host "Reborn campaign frontend guard already present"
+        return
+    }
+
+    # Direct-map/API sessions have no campaign front-end context. Keep the
+    # mission's local initialization triggers, but skip the two campaign-only
+    # calls that invoke CampaignMode/CampaignProgress UI services and crash
+    # the standalone map after the loading screen is dismissed.
+    $loadCampaign = '    libSwaC_gf_ULoadCampaignData("ZChar1");'
+    $purchaseTech = '    libSwaC_gf_PurchaseStorymodeTech();'
+    if (-not $content.Contains($loadCampaign) -or -not $content.Contains($purchaseTech)) {
+        throw "Reborn campaign frontend guard anchors not found in MapScript: $path"
+    }
+    $replacement = @"
+    // $marker
+    // Campaign data/UI services require the campaign front-end and are not
+    // available in direct-map/API sessions.
+"@
+    $content = $content.Replace($loadCampaign, $replacement.TrimEnd())
+    $content = $content.Replace($purchaseTech, "    // ${marker}: story-mode tech is supplied by the staged map/mod catalog.")
+    Write-CmreUtf8NoBom -Path $path -Content $content
+    Write-Host "Reborn campaign frontend calls isolated in staged MapScript: $path"
 }
 
 function Install-CmreObserverOverlay {
@@ -695,7 +794,10 @@ function Install-CmreObserverOverlay {
         @{ Source = Join-Path $adapterRoot "LibDeadOfNightObserver_h.galaxy"; Name = "LibDeadOfNightObserver_h.galaxy" },
         @{ Source = Join-Path $adapterRoot "LibDeadOfNightObserver.galaxy"; Name = "LibDeadOfNightObserver.galaxy" }
     )
-    if ($EnableReborn -and $RebornCommander -ne "") {
+    # Mixed mode is supported: an Alenger commander can run on a Reborn map.
+    # The Reborn library patch still calls the project-owned adapter for the
+    # commander-specific opening even when no Reborn commander bank is selected.
+    if ($EnableReborn) {
         $files += @(
             @{ Source = Join-Path $rebornAdapterRoot "LibRebornAdapter_h.galaxy"; Name = "LibRebornAdapter_h.galaxy" },
             @{ Source = Join-Path $rebornAdapterRoot "LibRebornAdapter.galaxy"; Name = "LibRebornAdapter.galaxy" }
@@ -747,20 +849,48 @@ function Install-CmreObserverOverlay {
 
     $mapScriptPath = Join-Path $MapPath "MapScript.galaxy"
     $mapScript = Read-CmreUtf8 -Path $mapScriptPath
+    $isRebornZChar01 = $EnableReborn -and ($MapName -match '(?i)^zchar01_reborn_port(?:\.SC2Map)?$')
     # The map-owned Vibe kernel is a source library, not an external TriggerLib
     # dependency. The header-only include leaves the generated compilation unit
     # with declarations but no implementations, so InitMap never links.
     if ($mapScript.Contains('include "LibVibeKernel_h"')) {
         $mapScript = $mapScript.Replace('include "LibVibeKernel_h"', 'include "LibVibeKernel"')
     } elseif (-not $mapScript.Contains('include "LibVibeKernel"')) {
-        $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor 'include "LibCOUI"' -Lines @('include "LibVibeKernel"')
+        $mapIncludeAnchor = Select-CmreExistingAnchor -Content $mapScript -Candidates @(
+            'include "LibCOUI"',
+            'include "LibCOOC"',
+            'include "LibCOMI"',
+            'include "Lib48DF4533"',
+            'include "Lib281DEC45"',
+            'include "Lib114935F5"',
+            'include "TriggerLibs/NativeLib"'
+        ) -Name 'map library include'
+        $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $mapIncludeAnchor -Lines @('include "LibVibeKernel"')
     }
+    $mapIncludeAnchor = Select-CmreExistingAnchor -Content $mapScript -Candidates @(
+        'include "LibCOUI"',
+        'include "LibCOOC"',
+        'include "LibCOMI"',
+        'include "Lib48DF4533"',
+        'include "Lib281DEC45"',
+        'include "Lib114935F5"',
+        'include "TriggerLibs/NativeLib"'
+    ) -Name 'map library include'
     $includeLines = @('include "LibEFA54406"', 'include "LibNeuroCommandBridge"', 'include "LibPortingObserver"', 'include "LibDeadOfNightObserver"', 'include "LibMapModBridge"')
     if ($IsAlengerCommander -and $AdapterLibPrefix -ne "") { $includeLines += ('include "Lib' + $AdapterLibPrefix + '"') }
-    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor 'include "LibCOUI"' -Lines $includeLines
+    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $mapIncludeAnchor -Lines $includeLines
+    $mapInitAnchor = Select-CmreExistingAnchor -Content $mapScript -Candidates @(
+        '    libCOUI_InitLib();',
+        '    libCOOC_InitLib();',
+        '    libCOMI_InitLib();',
+        '    lib48DF4533_InitLib();',
+        '    lib281DEC45_InitLib();',
+        '    lib114935F5_InitLib();',
+        '    libNtve_InitLib();'
+    ) -Name 'map library init'
     $initLibLines = @('    libEFA54406_InitLib();', '    libNeuroCommandBridge_InitLib();', '    libPortingObserver_InitLib();', '    libMapModBridge_InitLib();')
     if ($IsAlengerCommander -and $AdapterLibPrefix -ne "") { $initLibLines += ('    lib' + $AdapterLibPrefix + '_InitLib();') }
-    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    libCOUI_InitLib();' -Lines $initLibLines
+    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $mapInitAnchor -Lines $initLibLines
     # Windows PowerShell can decode this UTF-8-no-BOM script with the active
     # code page, so a Chinese MapName comparison is not stable. Dead of Night
     # has an ASCII-only MapScript signature that survives staging and avoids
@@ -768,20 +898,88 @@ function Install-CmreObserverOverlay {
     $isDeadOfNight = $mapScript.Contains("gv_day_Duration_First")
     $fragmentName = if ($isDeadOfNight) { "map-glue.dead-of-night.galaxy" } else { "map-glue.generic.galaxy" }
     $fragment = Read-CmreUtf8 -Path (Join-Path (Get-CmreOverlayRoot) $fragmentName)
+    if ($isRebornZChar01) {
+        $zcharGlue = Read-CmreUtf8 -Path (Join-Path (Get-CmreOverlayRoot) "map-glue.reborn-zchar01.galaxy")
+        $fragment = $fragment.TrimEnd() + [Environment]::NewLine + [Environment]::NewLine + $zcharGlue.Trim()
+    }
     $initializationGate = Read-CmreUtf8 -Path (Join-Path (Get-CmreOverlayRoot) "startup\initialization-gate.galaxy")
     $fragment = $fragment.TrimEnd() + [Environment]::NewLine + [Environment]::NewLine + $initializationGate.Trim()
     $mapInitAnchor = "//--------------------------------------------------------------------------------------------------" + [Environment]::NewLine + "// Map Initialization"
-    $mapScript = Add-CmreBlockBefore -Content $mapScript -Anchor $mapInitAnchor -Marker "CMRE_ON_DEMAND_MAP_GLUE" -Block $fragment
+    $mapGlueMarker = "// CMRE_ON_DEMAND_MAP_GLUE"
+    $mapGlueEndMarker = "// CMRE_ON_DEMAND_INITMAP_ENTERED_STATE"
+    if ($mapScript.Contains($mapGlueMarker)) {
+        # A staged map may come from an earlier launcher run. Replace the
+        # generated block so changed project-owned glue is not silently
+        # masked by Add-CmreBlockBefore's idempotence shortcut.
+        $mapScript = Replace-CmreBlockBetweenMarkers -Content $mapScript -StartMarker $mapGlueMarker -EndMarker $mapGlueEndMarker -Block $fragment -Name "CMRE map glue"
+    } else {
+        $mapScript = Add-CmreBlockBefore -Content $mapScript -Anchor $mapInitAnchor -Marker "CMRE_ON_DEMAND_MAP_GLUE" -Block $fragment
+    }
+    if ($isRebornZChar01) {
+        $zcharMarker = "// CMRE_REBORN_ZCHAR01_ALLY_GUARD"
+        if ($mapScript.Contains($zcharMarker)) {
+            $mapScript = Replace-CmreBlockBetweenMarkers -Content $mapScript -StartMarker $zcharMarker -EndMarker $mapInitAnchor -Block $zcharGlue -Name "ZChar01 ally glue"
+        } else {
+            $mapScript = Add-CmreBlockBefore -Content $mapScript -Anchor $mapInitAnchor -Marker "CMRE_REBORN_ZCHAR01_ALLY_GUARD" -Block $zcharGlue
+        }
+    }
     # Register Vibe after the generated map initialization graph. Trigger
     # objects created before InitLibs/InitTriggers are not reliable in SC2.
     $mapScript = [regex]::Replace($mapScript, '(?m)^[ \t]*libVibeKernel_gf_RegisterEntryPoints\(\);\r?\n', '')
+    $initMapStateMarker = "CMRE_ON_DEMAND_INITMAP_ENTERED_STATE"
+    $mapScript = Add-CmreBlockBefore -Content $mapScript -Anchor $mapInitAnchor -Marker $initMapStateMarker -Block @'
+// CMRE_ON_DEMAND_INITMAP_ENTERED_STATE
+// Protect only the generated map bootstrap from accidental re-entry. The
+// Vibe kernel has its own lifecycle and must not control whether InitMap runs.
+bool gv_CmreOnDemandInitMapEntered = false;
+'@
     $initMapFunctionAnchor = "void InitMap () " + [char]123
     $mapScript = Add-CmreBlockAfter -Content $mapScript -Anchor $initMapFunctionAnchor -Marker "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_INITMAP_GUARD" -Block @'
     // CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_INITMAP_GUARD
-    if (libVibeKernel_gv_initialized) { return; }
+    if (gv_CmreOnDemandInitMapEntered) { return; }
+    gv_CmreOnDemandInitMapEntered = true;
 '@
     $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $initMapFunctionAnchor -Lines @('    libMapModBridge_gf_WriteDebugBank("stage16_before_vibe", 1);', '    libVibeKernel_gf_WriteBankInt("index", "stage16_before_vibe", 160801);')
     $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    InitTriggers();' -Lines @('    libVibeKernel_gf_WriteBankInt("index", "stage16_after_vibe", 160801);', '    libVibeKernel_gf_RegisterEntryPoints();', '    libMapModBridge_gf_WriteDebugBank("stage16_after_vibe", 1);', '    libDeadOfNightObserver_InitLib();', '    gt_CmreOnDemandRuntimeListener_Init();', '    gt_CmreOnDemandDeadOfNightPoll_Init();', '    gt_CmreOnDemandCommanderStartingUnits_Init();', '    gt_CmreOnDemandAllyChat_Init();', '    gt_CmreOnDemandComputerAllyReady_Init();', '    gt_CmreOnDemandInitializationGate_Init();')
+    if ($isRebornZChar01) {
+        $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    gt_CmreOnDemandComputerAllyReady_Init();' -Lines @('    gt_CmreRebornZChar01AllyGuard_Init();')
+        $zcharTargetMarker = "CMRE_REBORN_ZCHAR01_SCRIPTED_TARGET_PATCH_V1"
+        if (-not $mapScript.Contains($zcharTargetMarker)) {
+            $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor 'include "TriggerLibs/NativeLib"' -Lines @(
+                "// $zcharTargetMarker",
+                'playergroup gv_CmreRebornZChar01CoopTargets;'
+            )
+            $zcharTargetReplacements = @(
+                @{ Anchor = 'AIAttackWaveSetTargetPlayer(gv_pLAYER_02_ZERG, gv_fren);'; Replacement = 'AIAttackWaveSetTargetPlayer(gv_pLAYER_02_ZERG, gv_CmreRebornZChar01CoopTargets);' },
+                @{ Anchor = 'AIAttackWaveSetTargetPlayer(gv_pLAYER_02_ZERG, PlayerGroupSingle(gv_pLAYER_01_USER));'; Replacement = 'AIAttackWaveSetTargetPlayer(gv_pLAYER_02_ZERG, gv_CmreRebornZChar01CoopTargets);' },
+                @{ Anchor = 'AIAttackWaveSetTargetPlayer(gv_pLAYER_02_ZERG2223, PlayerGroupSingle(gv_pLAYER_02_ZERG));'; Replacement = 'AIAttackWaveSetTargetPlayer(gv_pLAYER_02_ZERG2223, gv_CmreRebornZChar01CoopTargets);' }
+            )
+            foreach ($replacement in $zcharTargetReplacements) {
+                if (-not $mapScript.Contains($replacement.Anchor)) {
+                    throw "ZChar01 scripted target anchor not found: $($replacement.Anchor)"
+                }
+                $mapScript = $mapScript.Replace($replacement.Anchor, $replacement.Replacement)
+            }
+        }
+        $zcharForwardDeclMarker = "CMRE_REBORN_ZCHAR01_FORWARD_DECLS_V1"
+        if (-not $mapScript.Contains($zcharForwardDeclMarker)) {
+            $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor 'include "TriggerLibs/NativeLib"' -Lines @(
+                "// $zcharForwardDeclMarker",
+                'void gf_CmreRebornZChar01StartAI();',
+                'void gf_CmreRebornZChar01StartEnemyWaves();'
+            )
+        }
+        $startAiPattern = '(?m)^([ \t]*)cai_startall\(\);\r?(?=\n[ \t]*AISetAPM\(gv_pLAYER_02_ZERG2223, 10000\);)'
+        if ([regex]::Matches($mapScript, $startAiPattern).Count -ne 1 -and -not $mapScript.Contains('CMRE_REBORN_ZCHAR01_START_AI_PATCH')) {
+            throw 'ZChar01 StartAI anchor count is not exactly one'
+        }
+        $mapScript = Replace-CmreFirstRegex -Content $mapScript -Pattern $startAiPattern -Replacement ('$1// CMRE_REBORN_ZCHAR01_START_AI_PATCH' + [Environment]::NewLine + '$1gf_CmreRebornZChar01StartAI();') -AlreadyMarker 'CMRE_REBORN_ZCHAR01_START_AI_PATCH' -Label 'ZChar01 StartAI'
+        $wavePattern = '(?m)^([ \t]*)TriggerExecute\(gt_ZergAttackWaves, true, false\);\r?(?=\n[ \t]*if \(\(libHots_gf_DifficultyValueInt2\(0, 0, 1\) == 1\)\))'
+        if ([regex]::Matches($mapScript, $wavePattern).Count -ne 1 -and -not $mapScript.Contains('CMRE_REBORN_ZCHAR01_WAVE_PATCH')) {
+            throw 'ZChar01 enemy-wave anchor count is not exactly one'
+        }
+        $mapScript = Replace-CmreFirstRegex -Content $mapScript -Pattern $wavePattern -Replacement ('$1// CMRE_REBORN_ZCHAR01_WAVE_PATCH' + [Environment]::NewLine + '$1gf_CmreRebornZChar01StartEnemyWaves();') -AlreadyMarker 'CMRE_REBORN_ZCHAR01_WAVE_PATCH' -Label 'ZChar01 enemy waves'
+    }
     $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $initMapFunctionAnchor -Lines @(
         '    libVibeKernel_gf_RegisterEntryPoints();',
         '    libMapModBridge_gf_WriteDebugBank("map_init_entered", 1);'

@@ -20,6 +20,9 @@ trigger libMapModBridge_gt_Heartbeat;       // 心跳触发器
 // API 声明
 void libMapModBridge_InitLib();
 
+// Count live units owned by a player without exposing hidden/dead entities.
+int libMapModBridge_gf_AliveUnitCount(string unitType, int player);
+
 // 为指定玩家创建起始单位（基地 + 工蜂）
 // 参数由 commander profile 提供（startingStructure/startingWorker/workerCount）
 void libMapModBridge_gf_CreateStartingUnits(int player, string structureType, string workerType, int workerCount);

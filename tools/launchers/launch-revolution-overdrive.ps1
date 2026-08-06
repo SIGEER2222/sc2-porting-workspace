@@ -16,6 +16,8 @@ param(
     [int]$ListenPort = 0,
     [switch]$NoLaunch,
     [switch]$NoCheats,
+    [string]$VoidCampaignSource = "",
+    [switch]$ReplaceVoidCampaign,
     [int]$ReadyTimeoutSeconds = 180
 )
 
@@ -26,6 +28,7 @@ $modRoot = Join-Path $packageRoot "Commander\Mods"
 $mapsRoot = Join-Path $packageRoot "Maps"
 $evidenceRoot = Join-Path $workspace "artifacts\projects\revolution-overdrive-porting\stage03-commander-package\launcher"
 $gameLogsRoot = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "StarCraft II\GameLogs"
+$runtimeEvidenceRoot = Join-Path $workspace "artifacts\projects\revolution-overdrive-porting\stage05-runtime"
 
 $factions = @{
     Iron = "Iron"
@@ -68,6 +71,32 @@ function Copy-OwnedDirectory {
     if (Test-Path -LiteralPath $Destination) { Remove-Item -LiteralPath $Destination -Recurse -Force }
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Destination) | Out-Null
     Copy-Item -LiteralPath $Source -Destination $Destination -Recurse -Force
+}
+
+function Get-DirectoryManifest {
+    param([string]$Source)
+    $resolvedSource = (Resolve-Path -LiteralPath $Source).Path
+    $records = @(
+        Get-ChildItem -LiteralPath $resolvedSource -Recurse -File |
+            Sort-Object FullName |
+            ForEach-Object {
+                $relative = $_.FullName.Substring($resolvedSource.Length).TrimStart('\').Replace('\', '/')
+                $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash
+                [ordered]@{ path = $relative; bytes = $_.Length; sha256 = $hash }
+            }
+    )
+    $lines = @($records | ForEach-Object { "$($_.path)|$($_.bytes)|$($_.sha256)" }) -join "`n"
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $digest = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($lines)))
+    } finally {
+        $sha.Dispose()
+    }
+    return [ordered]@{
+        fileCount = $records.Count
+        totalBytes = [int64](($records | Measure-Object -Property bytes -Sum).Sum)
+        manifestSha256 = $digest
+    }
 }
 
 function Get-NewScriptErrors {
@@ -119,6 +148,29 @@ foreach ($mod in $requiredMods) {
 
 $liveMods = Join-Path $sc2Root "Mods"
 $liveMap = Join-Path $sc2Root ("Maps\RevolutionOverdrive\" + $mapStem)
+$voidCampaignTarget = Join-Path $sc2Root "Campaigns\Void.SC2Campaign"
+$voidCampaign = [ordered]@{
+    required = $true
+    target = "Campaigns/Void.SC2Campaign"
+    source = "installed"
+    presentBefore = (Test-Path -LiteralPath $voidCampaignTarget -PathType Container)
+    presentAfter = $false
+}
+if ($VoidCampaignSource) {
+    if (-not (Test-Path -LiteralPath $VoidCampaignSource -PathType Container)) {
+        throw "Void Campaign source directory not found: $VoidCampaignSource"
+    }
+    if ((Test-Path -LiteralPath $voidCampaignTarget) -and -not $ReplaceVoidCampaign) {
+        throw "Void Campaign target already exists; pass -ReplaceVoidCampaign only after verifying the replacement source."
+    }
+    $voidCampaign.source = "explicit-local-official-data-mirror"
+    $voidCampaign.sourceManifest = Get-DirectoryManifest -Source $VoidCampaignSource
+    Copy-OwnedDirectory -Source $VoidCampaignSource -Destination $voidCampaignTarget
+}
+$voidCampaign.presentAfter = Test-Path -LiteralPath $voidCampaignTarget -PathType Container
+if (-not $NoLaunch -and -not $voidCampaign.presentAfter) {
+    throw "Required Campaigns/Void.SC2Campaign is absent. Pass -VoidCampaignSource with a verified official data mirror."
+}
 foreach ($mod in $requiredMods) { Copy-OwnedDirectory -Source (Join-Path $modRoot $mod) -Destination (Join-Path $liveMods $mod) }
 Copy-OwnedDirectory -Source $mapSource -Destination $liveMap
 
@@ -133,6 +185,7 @@ $evidence = [ordered]@{
     sourceMap = "src/projects/revolution-overdrive-porting/packages/Maps/$mapStem"
     stagedMap = $liveMap
     stagedMods = $requiredMods
+    voidCampaign = $voidCampaign
     noLaunch = [bool]$NoLaunch
     listenPort = $ListenPort
     startedAtUtc = $startedAt.ToUniversalTime().ToString("o")
@@ -145,6 +198,8 @@ if ($NoLaunch) {
     Write-Host "Staged map: $liveMap"
     exit 0
 }
+
+New-Item -ItemType Directory -Force -Path $runtimeEvidenceRoot | Out-Null
 
 Get-Process -Name "SC2_x64", "SC2Switcher_x64" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
@@ -173,7 +228,7 @@ if ($evidence.ready -and -not $NoCheats) {
     Start-Sleep -Seconds 2
     $evidence.factionChatSent = Send-FactionChat -Chat $factions[$Faction]
 } else { $evidence.factionChatSent = $false }
-$evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $evidenceRoot "last-run.json") -Encoding UTF8
+$evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $runtimeEvidenceRoot "launcher-runtime.json") -Encoding UTF8
 if (-not $evidence.ready) { throw "SC2 did not produce a ready signal within $ReadyTimeoutSeconds seconds." }
 if (-not $evidence.scriptErrorFree) { throw "New ScriptError detected: $($evidence.scriptErrors -join ', ')" }
 Write-Host "Revolution Overdrive ready: $mapStem / $Faction"

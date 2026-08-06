@@ -135,6 +135,8 @@ void gt_CmreOnDemandAllyChat_Init() {
 bool gt_CmreOnDemandComputerAllyReady_Func(bool testConds, bool runActions) {
     point lv_p2Start;
     string lv_p2Race;
+    point lv_p1Start;
+    fixed lv_p1p2Distance;
     if (testConds) { return true; }
     if (!runActions) { return true; }
 
@@ -161,6 +163,18 @@ bool gt_CmreOnDemandComputerAllyReady_Func(bool testConds, bool runActions) {
     if (lv_p2Start == null) {
         gf_CmreOnDemandWriteAllyDebugString("not_ready_reason", "p2_start_point_missing");
         return true;
+    }
+    // Detect and resolve P1/P2 start location overlap. Campaign/cooperative
+    // maps may assign P2 the same start point as P1, causing MeleeInit to
+    // place the P2 base on top of P1's base.
+    lv_p1Start = PlayerStartLocation(1);
+    if (lv_p1Start != null) {
+        lv_p1p2Distance = DistanceBetweenPoints(lv_p1Start, lv_p2Start);
+        gf_CmreOnDemandWriteAllyDebugInt("p1_p2_start_distance", FixedToInt(lv_p1p2Distance));
+        if (lv_p1p2Distance < 15.0) {
+            lv_p2Start = PointWithOffsetPolar(lv_p1Start, 25.0, 45.0);
+            gf_CmreOnDemandWriteAllyDebugString("p2_start_overlap", "resolved_offset_25_45");
+        }
     }
     MeleeInitUnitsForPlayer(2, lv_p2Race, lv_p2Start);
     MeleeInitResourcesForPlayer(2, lv_p2Race);
@@ -611,7 +625,7 @@ void gf_CmreOnDemandComputerAllyEconomyTick() {
         resource = UnitGroupClosestToPoint(mineralFields, UnitGetPosition(worker));
         if (resource == null) { continue; }
         UnitIssueOrder(worker,
-            OrderTargetingUnit(AbilityCommand("smart", 0), resource),
+            OrderTargetingUnit(AbilityCommand("Smart", 0), resource),
             c_orderQueueReplace);
         gf_CmreOnDemandWriteAllyDebugInt("p2_economy_gather_orders", 1);
     }
