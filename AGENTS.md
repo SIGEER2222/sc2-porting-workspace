@@ -8,7 +8,8 @@ explicitly grants a narrow write scope.
 
 ## Required workflow
 
-1. Read `src/config/workspace.json`, resolve the active project, then use its `project.json.currentStage`.
+1. Read `src/config/workspace.json`, resolve the active project from its `activeProject` field
+   (`src/projects/<activeProject>/project.json`), then use its `project.json.currentStage`.
 2. Read that stage's `plan.md` and `log.md`.
 3. Select the required project-local Skills.
 4. Run static discovery before proposing dependency or adapter changes.
@@ -82,3 +83,40 @@ At the end of every agent session that changed repository files:
 - Use the Lore Commit Protocol for every commit message.
 - Do not leave verified, in-scope work only in the working tree; either commit it, or document why it is intentionally left uncommitted.
 - Do not commit external read-only sources, local caches, or bulky generated artifacts unless the active stage explicitly requires them.
+
+## Lore Commit Protocol
+
+Every commit message is a concise decision record using git-native trailers. This section is the
+repository-local mirror of the canonical spec (owned by the user-global OMX agent contract);
+keep the two consistent when either changes.
+
+```
+<intent line: why the change was made, not what changed>
+
+<optional concise body: constraints and approach rationale>
+
+Constraint: <external constraint that shaped the decision>
+Rejected: <alternative considered> | <reason for rejection>
+Confidence: <low|medium|high>
+Scope-risk: <narrow|moderate|broad>
+Directive: <forward-looking warning for future modifiers>
+Tested: <what was verified>
+Not-tested: <known gaps in verification>
+```
+
+Rules:
+
+- Intent line first; describe why, not what.
+- Use trailers only when they add decision context.
+- Use `Rejected:` for alternatives future agents should not re-explore.
+
+## Stage evidence rotation
+
+- When a stage's `log.md` exceeds ~50 KB, move the older sections into
+  `stages/<stage>/archive/log-<date>.md` and keep a pointer plus the latest entries in the
+  active `log.md`.
+- `result.json` stays the current stage snapshot (it must keep matching the stage schema);
+  archive superseded snapshots to `stages/<stage>/archive/result-<date>.json`.
+- Resolved issues may move from `issues.json` into `stages/<stage>/archive/issues-<date>.md`;
+  open issues stay active.
+- Rotation must keep the plan/log/result/issues quartet present and the completion gate unchanged.

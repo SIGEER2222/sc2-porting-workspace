@@ -2,7 +2,7 @@ import { copyFile, mkdir, readFile, readdir, writeFile } from "node:fs/promises"
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -263,6 +263,81 @@ async function staticValidateCommand(projectId, options) {
   await runTool("node", args);
 }
 
+// check-writescope 子命令：用 git 变更对照全部项目的 writeScope 与只读源，机械拦截越界写入
+function gitChangedPaths() {
+  const tracked = spawnSync("git", ["-C", repoRoot, "-c", "core.quotepath=false", "diff", "--name-only", "HEAD", "--ignore-submodules"], { encoding: "utf8" });
+  const untracked = spawnSync("git", ["-C", repoRoot, "-c", "core.quotepath=false", "ls-files", "--others", "--exclude-standard"], { encoding: "utf8" });
+  if (tracked.error || untracked.error) throw new Error("git 不可用，无法确定变更文件集");
+  if (tracked.status !== 0 || untracked.status !== 0) throw new Error("git 查询失败: " + (tracked.stderr || untracked.stderr));
+  const paths = [...tracked.stdout.split("\n"), ...untracked.stdout.split("\n")]
+    .map((line) => line.trim().replace(/\\/g, "/"))
+    .filter(Boolean);
+  return [...new Set(paths)];
+}
+
+function underPrefix(filePath, scope) {
+  // 支持 "dir/**"、"dir/"、精确文件三种 writeScope 写法；带源绑定前缀（如 legacy-project:）的条目不在仓库内，跳过
+  if (scope.includes(":")) return false;
+  const normalized = scope.replace(/\\/g, "/").replace(/\/\*\*$/, "").replace(/\*\*$/, "").replace(/\/$/, "");
+  if (!normalized) return false;
+  return filePath === normalized || filePath.startsWith(normalized + "/");
+}
+
+async function checkWriteScope(options) {
+  const changed = gitChangedPaths();
+  const config = await loadConfig();
+  const readOnlyPrefixes = (config.sources ?? [])
+    .filter((source) => source.writePolicy === "read-only" && source.path)
+    .map((source) => source.path);
+  const workspaceScope = config.workspaceWriteScope ?? [];
+
+  const projectScopes = [];
+  const projectsDir = join(repoRoot, "src", "projects");
+  for (const entry of await readdir(projectsDir)) {
+    const projectPath = join(projectsDir, entry, "project.json");
+    if (!existsSync(projectPath)) continue;
+    const project = await readJson(projectPath);
+    projectScopes.push({ id: entry, writeScope: project.writeScope ?? [] });
+  }
+
+  const violations = [];
+  const overlaps = [];
+  const checkOne = (file, simulated) => {
+    const tag = simulated ? "[simulate] " : "";
+    const inReadOnly = readOnlyPrefixes.some((prefix) => underPrefix(file, prefix));
+    if (inReadOnly) {
+      violations.push({ file, reason: tag + "修改了注册的只读源" });
+      return;
+    }
+    const matched = projectScopes
+      .filter((project) => project.writeScope.some((scope) => underPrefix(file, scope)))
+      .map((project) => project.id);
+    if (workspaceScope.some((scope) => underPrefix(file, scope))) matched.push("workspace-governance");
+    if (matched.length === 0) {
+      violations.push({ file, reason: tag + "不在任何项目的 writeScope 内" });
+    } else if (matched.length > 1) {
+      // 多个项目共享同一文件（如 launcher）是合法状态，仅作信息提示
+      overlaps.push({ file, matched });
+    }
+  };
+  for (const file of changed) checkOne(file, false);
+  if (options.simulate) checkOne(options.simulate.replace(/\\/g, "/"), true);
+
+  const result = {
+    ok: violations.length === 0,
+    checkedFiles: changed.length,
+    projects: projectScopes.map((p) => p.id),
+    violations,
+    overlaps
+  };
+  if (options.simulate) {
+    const simulated = options.simulate.replace(/\\/g, "/");
+    result.simulation = { path: simulated, flagged: violations.some((v) => v.file === simulated) };
+  }
+  console.log(JSON.stringify(result, null, 2));
+  process.exitCode = result.ok ? 0 : 1;
+}
+
 // 解析 --key value 形式的选项
 function parseOptions(argv) {
   const opts = {};
@@ -308,6 +383,10 @@ if (command === "validate") {
   // workspace.mjs static-validate --request <request.json> --out-dir <dir>
   const opts = parseOptions(process.argv.slice(3));
   await staticValidateCommand(argument, opts);
+} else if (command === "check-writescope") {
+  // workspace.mjs check-writescope [--simulate <path>]：对照 git 变更检查全部项目的 writeScope
+  const opts = parseOptions(process.argv.slice(3));
+  await checkWriteScope(opts);
 } else if (command === "search") {
   // workspace.mjs search "<question>" [--top-k <n>]
   const opts = parseOptions(process.argv.slice(3));

@@ -283,48 +283,14 @@ bool MyClickHandler(bool testCond, bool runActions) {
 
 ---
 
-## Hero Selection Dialog Pattern (SSF)
+## Hero Selection & Scoreboard Panel Patterns (SSF)
 
-SSF uses hooked XML frames for hero selection. Each panel is a separate file under `scripts/UI/`. The `HeroSelection.galaxy` file drives the logic while `UI-HeroPanel.galaxy` owns the dialog controls:
-
-```galaxy
-// UI-HeroPanel.galaxy
-static dialogcontrol HeroPanel_MainFrame;
-static dialogcontrol[gv_MaxAmountHeroes + 1] HeroPanel_HeroButtons;
-
-void HeroPanel_Init() {
-    HeroPanel_MainFrame = DialogControlHookup(gv_UI_MasterFrame, c_triggerControlTypePanel, "HeroPanel");
-    int i = 1;
-    for (; i <= gv_MaxAmountHeroes; i += 1) {
-        HeroPanel_HeroButtons[i] = DialogControlHookup(HeroPanel_MainFrame, c_triggerControlTypeButton, "Hero" + IntToString(i));
-    }
-    TriggerAddEventDialogControl(TriggerCreate("HeroPanel_Click"), c_playerAny, c_invalidDialogControlId, c_triggerControlEventTypeClick);
-}
-
-void HeroPanel_UpdatePlayer(int playerID) {
-    // Show/hide based on unlock state
-    int i = 1;
-    for (; i <= gv_MaxAmountHeroes; i += 1) {
-        bool unlocked = ((gv_PlayerStats[playerID].heroUnlocked & (1 << i)) != 0);
-        DialogControlSetEnabled(HeroPanel_HeroButtons[i], PlayerGroupSingle(playerID), unlocked);
-    }
-}
-```
-
-### Level-up upgrade panel
-
-```galaxy
-bool HeroLevelUp_Handler(bool testCond, bool runActions) {
-    unit hero = EventUnit();
-    int level = UnitXPGetCurrentLevel(hero);
-    int player = UnitGetOwner(hero);
-    // Show appropriate upgrade panel for this level
-    if (level == 2) {
-        DialogControlSetVisible(gv_UpgradeFrame_Level2, PlayerGroupSingle(player), true);
-    }
-    return true;
-}
-```
+SSF uses hooked XML frames for hero selection and the player board: a logic file
+(`HeroSelection.galaxy`) drives behavior while panel files (`UI-HeroPanel.galaxy`,
+`UI-PlayerBoard.galaxy`) own static dialogcontrol arrays, hook frames in `_Init()`, and expose
+`*_UpdatePlayer(playerID)` refresh functions (level-up upgrade panels follow the same shape).
+Full code examples live in
+[references/ui-panel-patterns.md](references/ui-panel-patterns.md).
 
 ---
 
@@ -399,30 +365,9 @@ PingCreate(PlayerGroupAll(), lv_point, 10.0, ColorWithAlpha(255, 0, 0, 255), "")
 
 ## Scoreboard / Stats Panel (SSF pattern)
 
-SSF uses hooked XML frames for the player board, updated by calling `PlayerBoard_UpdatePlayer(playerID)`:
-
-```galaxy
-// UI-PlayerBoard.galaxy
-static dialogcontrol PlayerBoard_MainFrame;
-static dialogcontrol[gv_MaxAmountPlayers + 1] PlayerBoard_KillsLabel;
-static dialogcontrol[gv_MaxAmountPlayers + 1] PlayerBoard_ScoreLabel;
-
-void PlayerBoard_Init() {
-    PlayerBoard_MainFrame = DialogControlHookup(gv_UI_MasterFrame, c_triggerControlTypePanel, "PlayerBoard");
-    int i = 1;
-    for (; i <= gv_MaxAmountPlayers; i += 1) {
-        PlayerBoard_KillsLabel[i] = DialogControlHookup(PlayerBoard_MainFrame, c_triggerControlTypeLabel, "Player" + IntToString(i) + "/Kills");
-    }
-}
-
-void PlayerBoard_UpdatePlayer(int playerID) {
-    libNtve_gf_SetDialogItemText(
-        PlayerBoard_KillsLabel[playerID],
-        IntToText(gv_PlayerStats[playerID].kills),
-        PlayerGroupAll()
-    );
-}
-```
+See the PlayerBoard example in
+[references/ui-panel-patterns.md](references/ui-panel-patterns.md) — hooked XML frame updated
+via `PlayerBoard_UpdatePlayer(playerID)`.
 
 ### UI mode control
 
