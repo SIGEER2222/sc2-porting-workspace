@@ -30,13 +30,15 @@ int    libVibeKernel_gv_rejectedCount = 0;
 trigger libVibeKernel_gt_ChatCommand = null;
 trigger libVibeKernel_gt_AllyCommand = null;
 trigger libVibeKernel_gt_BankPoll = null;
-trigger libVibeKernel_gt_MapCommand = null;
+trigger libVibeKernel_gt_UnitWake = null;
+trigger libVibeKernel_gt_PollLoop = null;
 string libVibeKernel_gv_lastPolledRequestId = "";
 string libVibeKernel_gv_lastAllyCommand = "";
 
 // ---- 诊断计数器 ----
 int libVibeKernel_gv_bankPollCount = 0;
 int libVibeKernel_gv_mapCommandCount = 0;
+bool libVibeKernel_gv_pollLoopRunning = false;
 
 // ---- Bank 名称 ----
 const string libVibeKernel_gv_BankName = "GalaxyVibe";
@@ -105,11 +107,22 @@ string libVibeKernel_gf_MakeResponse(string kind, string sessionId, string reque
 void   libVibeKernel_gf_WriteResponseToBank(string requestId, string responseJson);
 void   libVibeKernel_gf_EchoChat(string message);
 
-// ---- Chat / Bank 轮询 / MapCommand 入口 ----
+// ---- Chat / Bank 轮询 / UnitWake / PollLoop 入口 ----
 bool   libVibeKernel_gt_ChatCommand_Func(bool testConds, bool runActions);
 bool   libVibeKernel_gt_AllyCommand_Func(bool testConds, bool runActions);
 bool   libVibeKernel_gt_BankPoll_Func(bool testConds, bool runActions);
-bool   libVibeKernel_gt_MapCommand_Func(bool testConds, bool runActions);
+bool   libVibeKernel_gt_UnitWake_Func(bool testConds, bool runActions);
+bool   libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions);
 
 // ---- 主分发器 ----
 string libVibeKernel_gf_Dispatch(string requestJson);
+
+// ==== BEGIN STAGE26_FULL_INVOKE PROTOTYPES ====
+// Stage 26: prototypes needed by generated invoke adapters.
+string libVibeKernel_gf_ArgsGet(string args, string key);
+int libVibeKernel_gf_ArgsGetInt(string args, string key);
+fixed libVibeKernel_gf_ArgsGetFixed(string args, string key);
+string libVibeKernel_gf_Trim(string s);
+unit libVibeKernel_gf_FindUnitByTag(int unitTag);
+string libVibeInvoke_gf_Dispatch(int functionId, string argsJson);
+// ==== END STAGE26_FULL_INVOKE PROTOTYPES ====

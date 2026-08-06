@@ -17,6 +17,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import tempfile
@@ -880,6 +881,69 @@ class TestGalaxyStaticCheck(unittest.TestCase):
         self.assertIn("libVibeKernel_gf_FunctionUnitQueryBehavior", content)
         self.assertIn("libVibeKernel_gf_FunctionUnitAddAbility", content)
         self.assertIn("libVibeKernel_gt_AllyCommand_Func", content)
+
+
+# ---- Stage 26: kernel 三副本 hash 一致性 ----
+
+class TestKernelMirrorConsistency(unittest.TestCase):
+    """kernel（权威）→ galaxy-debug-mod → 亡者之夜 副本必须字节一致。"""
+
+    KERNEL = REPO_ROOT / "tools" / "galaxy-vibe" / "kernel"
+    DEBUG_MOD = REPO_ROOT / "tools" / "galaxy-vibe" / "galaxy-debug-mod" / "Base.SC2Data"
+    MAP_MIRROR = REPO_ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "亡者之夜.SC2Map" / "Base.SC2Data"
+
+    @staticmethod
+    def _digest(path: Path) -> str:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def test_kernel_galaxy_files_match_across_mirrors(self):
+        for name in ("LibVibeKernel.galaxy", "LibVibeKernel_h.galaxy", "LibVibeHandles.galaxy"):
+            authoritative = self._digest(self.KERNEL / name)
+            for mirror in (self.DEBUG_MOD, self.MAP_MIRROR):
+                self.assertTrue((mirror / name).is_file(), str(mirror / name))
+                self.assertEqual(authoritative, self._digest(mirror / name),
+                                 f"{name} 副本不一致: {mirror}")
+
+    def test_generated_bundles_match_between_kernel_and_debug_mod(self):
+        kernel_generated = self.KERNEL / "generated"
+        mod_generated = self.DEBUG_MOD / "generated"
+        self.assertTrue(kernel_generated.is_dir())
+        self.assertTrue(mod_generated.is_dir())
+        bundles = sorted(p.name for p in kernel_generated.iterdir() if p.is_dir())
+        self.assertEqual(len(bundles), 15)
+        for bundle in bundles:
+            files = sorted(f.name for f in (kernel_generated / bundle).iterdir())
+            self.assertEqual(files, sorted(f.name for f in (mod_generated / bundle).iterdir()), bundle)
+            for file_name in files:
+                self.assertEqual(
+                    self._digest(kernel_generated / bundle / file_name),
+                    self._digest(mod_generated / bundle / file_name),
+                    f"generated/{bundle}/{file_name} 副本不一致",
+                )
+
+    def test_map_local_bundle_matches_kernel_bundle(self):
+        bundle = "亡者之夜.SC2Map"
+        kernel_bundle = self.KERNEL / "generated" / bundle
+        map_bundle = self.MAP_MIRROR / "generated" / bundle
+        self.assertTrue(kernel_bundle.is_dir())
+        self.assertTrue(map_bundle.is_dir())
+        files = sorted(f.name for f in kernel_bundle.iterdir())
+        self.assertEqual(files, sorted(f.name for f in map_bundle.iterdir()))
+        for file_name in files:
+            self.assertEqual(
+                self._digest(kernel_bundle / file_name),
+                self._digest(map_bundle / file_name),
+                f"generated/{bundle}/{file_name} 地图内副本不一致",
+            )
+
+    def test_registry_generated_entries_match_invoke_plan(self):
+        registry = json.loads((self.KERNEL / "function-registry.json").read_text(encoding="utf-8"))
+        functions = registry["functions"]
+        generated = [k for k in functions if k.startswith("gen.")]
+        self.assertEqual(len(generated), 11890)
+        for key in generated:
+            self.assertTrue(functions[key]["debug_only"])
+            self.assertTrue(functions[key]["generated"])
 
 
 if __name__ == "__main__":
