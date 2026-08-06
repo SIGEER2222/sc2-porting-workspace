@@ -262,9 +262,9 @@ simulator evidence and must remain separate from native SC2 runtime evidence.
 ### Static and simulator
 
 ```text
-python -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py
-python -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/test_adversarial_hardening.py src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/test_simulator_ai_ally_clearance.py
-python -m py_compile src/projects/cmre-porting/vibe/contracts.py src/projects/cmre-porting/vibe/consumers/ally_ai.py src/projects/cmre-porting/vibe/run_dead_of_night.py src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py
+py -3.13 -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py
+py -3.13 -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py src/projects/cmre-porting/stages/20-simulator-ai-ally-adversarial-hardening/test_adversarial_hardening.py src/projects/cmre-porting/stages/19-simulator-ai-ally-clearance/test_simulator_ai_ally_clearance.py
+py -3.13 -m py_compile src/projects/cmre-porting/vibe/contracts.py src/projects/cmre-porting/vibe/consumers/ally_ai.py src/projects/cmre-porting/vibe/run_dead_of_night.py src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1
 PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.ladder_ai --batch --max-loops 5000 --out artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/ladder-full-game-20260802.json
 PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.ladder_ai --seed 42 --max-loops 5000
