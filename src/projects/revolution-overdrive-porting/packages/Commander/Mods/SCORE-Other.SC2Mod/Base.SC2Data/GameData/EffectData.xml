@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CEffectEnumArea id="CommandStructureAutoRallySearchO">
+        <EditorCategories value=""/>
+        <LaunchLocation Value="CasterUnit"/>
+        <ImpactLocation Value="CasterUnit"/>
+        <SearchFilters value="HarvestableResource;Self"/>
+        <TargetSorts>
+            <SortArray value="TSFarthestDistance"/>
+        </TargetSorts>
+        <AreaArray MaxCount="1" Radius="6.5" Effect="CommandStructureOrderAutoRallyNormalO"/>
+    </CEffectEnumArea>
+    <CEffectIssueOrder id="CommandStructureOrderAutoRallyNormalO">
+        <ValidatorArray value="Minerals"/>
+        <ValidatorArray value="CasterIsNotHatcheryO"/>
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <CmdFlags index="Preempt" value="1"/>
+        <CmdFlags index="AutoQueued" value="1"/>
+        <Target Value="TargetUnit"/>
+        <Abil value="Rally"/>
+    </CEffectIssueOrder>
+    <CEffectIssueOrder id="CommandStructureOrderAutoRallyZergO">
+        <EditorCategories value=""/>
+        <WhichUnit Value="Caster"/>
+        <AbilCmdIndex value="1"/>
+        <CmdFlags index="Preempt" value="1"/>
+        <CmdFlags index="AutoQueued" value="1"/>
+        <Target Value="TargetUnit"/>
+        <Abil value="RallyHatchery"/>
+        <ValidatorArray value="Minerals"/>
+    </CEffectIssueOrder>
+    <CEffectApplyBehavior id="LargeCrashHighAB">
+        <EditorCategories value="Race:Protoss"/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="LargeCrashHigh"/>
+    </CEffectApplyBehavior>
+    <CEffectSet id="LargeCrashHighBHVSet">
+        <EditorCategories value="Race:Protoss"/>
+        <EffectArray value="LargeCrashHighAB"/>
+        <EffectArray value="LargeCrashHighHeight"/>
+    </CEffectSet>
+    <CEffectDamage id="CrashHighDamage">
+        <EditorCategories value="Race:Protoss"/>
+        <Amount value="200"/>
+    </CEffectDamage>
+    <CEffectDamage id="LargeCrashHighDamage">
+        <EditorCategories value="Race:Protoss"/>
+        <Amount value="2000"/>
+    </CEffectDamage>
+    <CEffectEnumArea id="CrashHighDamageSearch">
+        <EditorCategories value="Race:Protoss"/>
+        <SearchFilters value="-;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="1" Effect="CrashHighDamage"/>
+        <SearchFlags index="ExtendByUnitRadius" value="1"/>
+    </CEffectEnumArea>
+    <CEffectEnumArea id="LargeCrashHighDamageSearch">
+        <EditorCategories value="Race:Protoss"/>
+        <SearchFilters value="-;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="1.25" Effect="LargeCrashHighDamage"/>
+        <SearchFlags index="ExtendByUnitRadius" value="1"/>
+    </CEffectEnumArea>
+    <CEffectSet id="CrashHighDamageSet">
+        <EditorCategories value="Race:Protoss"/>
+        <EffectArray value="CrashHighDamageSearch"/>
+        <EffectArray value="Suicide"/>
+    </CEffectSet>
+    <CEffectSet id="LargeCrashHighDamageSet">
+        <EditorCategories value="Race:Protoss"/>
+        <EffectArray value="LargeCrashHighDamageSearch"/>
+        <EffectArray value="Suicide"/>
+    </CEffectSet>
+    <CEffectModifyUnit id="LargeCrashHighHeight">
+        <EditorCategories value="Race:Protoss"/>
+        <ImpactUnit Value="Caster"/>
+        <Height value="-15"/>
+        <HeightTime value="3"/>
+    </CEffectModifyUnit>
+    <CEffectDamage id="CrashMediumDamage">
+        <EditorCategories value="Race:Protoss"/>
+        <Amount value="50"/>
+    </CEffectDamage>
+    <CEffectEnumArea id="CrashMediumDamageSearch">
+        <EditorCategories value="Race:Protoss"/>
+        <SearchFilters value="-;Player,Ally,Air,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="0.75" Effect="CrashMediumDamage"/>
+        <SearchFlags index="ExtendByUnitRadius" value="1"/>
+    </CEffectEnumArea>
+    <CEffectSet id="CrashLargeDamageSet">
+        <EditorCategories value="Race:Protoss"/>
+        <EffectArray value="CrashLargeDamageSearch"/>
+        <EffectArray value="Suicide"/>
+    </CEffectSet>
+    <CEffectDamage id="CrashLargeDamage">
+        <EditorCategories value="Race:Protoss"/>
+        <Amount value="200"/>
+    </CEffectDamage>
+    <CEffectEnumArea id="CrashLargeDamageSearch">
+        <EditorCategories value="Race:Protoss"/>
+        <SearchFilters value="-;Player,Ally,Air,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="1" Effect="CrashLargeDamage"/>
+        <SearchFlags index="ExtendByUnitRadius" value="1"/>
+    </CEffectEnumArea>
+    <CEffectSet id="CrashMediumDamageSet">
+        <EditorCategories value="Race:Protoss"/>
+        <EffectArray value="CrashMediumDamageSearch"/>
+        <EffectArray value="Suicide"/>
+    </CEffectSet>
+    <CEffectApplyBehavior id="CrashLargeAB">
+        <EditorCategories value="Race:Protoss"/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="CrashLarge"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="CrashHighAB">
+        <EditorCategories value="Race:Protoss"/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="CrashHigh"/>
+    </CEffectApplyBehavior>
+    <CEffectSet id="CrashHighBHVSet">
+        <EditorCategories value="Race:Protoss"/>
+        <EffectArray value="CrashHighAB"/>
+        <EffectArray value="CrashHighHeight"/>
+    </CEffectSet>
+    <CEffectModifyUnit id="CrashHighHeight">
+        <EditorCategories value="Race:Protoss"/>
+        <ImpactUnit Value="Caster"/>
+        <Height value="-15"/>
+        <HeightTime value="1.5"/>
+    </CEffectModifyUnit>
+    <CEffectApplyBehavior id="CrashMediumAB">
+        <EditorCategories value="Race:Protoss"/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="CrashMedium"/>
+    </CEffectApplyBehavior>
+    <CEffectSet id="CrashLargeBHVSet">
+        <EditorCategories value="Race:Protoss"/>
+        <EffectArray value="CrashLargeAB"/>
+        <EffectArray value="CrashLargeHeight"/>
+    </CEffectSet>
+    <CEffectSet id="CrashMediumBHVSet">
+        <EditorCategories value="Race:Protoss"/>
+        <EffectArray value="CrashMediumAB"/>
+        <EffectArray value="CrashMediumHeight"/>
+    </CEffectSet>
+    <CEffectDamage id="CrashSmallDamage">
+        <EditorCategories value="Race:Protoss"/>
+        <Amount value="20"/>
+    </CEffectDamage>
+    <CEffectEnumArea id="CrashSmallDamageSearch">
+        <EditorCategories value="Race:Protoss"/>
+        <SearchFilters value="-;Player,Ally,Air,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="0.5" Effect="CrashSmallDamage"/>
+        <SearchFlags index="ExtendByUnitRadius" value="1"/>
+    </CEffectEnumArea>
+    <CEffectModifyUnit id="CrashMediumHeight">
+        <EditorCategories value="Race:Protoss"/>
+        <ImpactUnit Value="Caster"/>
+        <Height value="-3.75"/>
+        <HeightTime value="3"/>
+    </CEffectModifyUnit>
+    <CEffectApplyBehavior id="CrashSmallAB">
+        <EditorCategories value="Race:Protoss"/>
+        <WhichUnit Value="Caster"/>
+        <Behavior value="CrashSmall"/>
+    </CEffectApplyBehavior>
+    <CEffectSet id="CrashSmallBHVSet">
+        <EditorCategories value="Race:Protoss"/>
+        <EffectArray value="CrashSmallAB"/>
+        <EffectArray value="CrashSmallHeight"/>
+    </CEffectSet>
+    <CEffectSet id="CrashSmallDamageSet">
+        <EditorCategories value="Race:Protoss"/>
+        <EffectArray value="CrashSmallDamageSearch"/>
+        <EffectArray value="Suicide"/>
+    </CEffectSet>
+    <CEffectModifyUnit id="CrashSmallHeight">
+        <EditorCategories value="Race:Protoss"/>
+        <ImpactUnit Value="Caster"/>
+        <Height value="-3.75"/>
+        <HeightTime value="3"/>
+    </CEffectModifyUnit>
+    <CEffectModifyUnit id="CrashLargeHeight">
+        <EditorCategories value="Race:Protoss"/>
+        <ImpactUnit Value="Caster"/>
+        <Height value="-3.75"/>
+        <HeightTime value="4.5"/>
+    </CEffectModifyUnit>
+</Catalog>

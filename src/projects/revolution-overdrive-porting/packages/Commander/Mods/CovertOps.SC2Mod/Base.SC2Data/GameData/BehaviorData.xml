@@ -1,0 +1,1905 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CBehaviorBuff id="CycloneLockWeaponCooldownC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Icon\btn-upgrade-terran-vehicleweaponslevel3C.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="0.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="D8ChargeFateJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-hornerhan-reaper-deaththrows.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="3.5"/>
+        <InitialEffect value="D8ClusterBombCreatePersistantJ"/>
+        <ExpireEffect value="D8ChargeExplodeJ"/>
+        <Modification>
+            <StateFlags index="SuppressCloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="D8ChargeFateJB">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-kd8chargeex3.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="3.5"/>
+        <ExpireEffect value="D8ChargeExplodeJ"/>
+        <Modification>
+            <StateFlags index="SuppressCloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="D8ClusterBombFateJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-kd8chargeex3.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="2.5"/>
+        <ExpireEffect value="D8ClusterBombExplodeJ"/>
+        <Modification>
+            <StateFlags index="SuppressCloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="FirebatEFReJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-yagdra-firewave.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DamageResponse>
+            <Fatal value="1"/>
+            <Handled value="FirebatEFMUSetJ"/>
+            <ModifyFraction value="0"/>
+            <ModifyMinimumDamage value="1"/>
+            <Chance value="1"/>
+        </DamageResponse>
+        <DisableValidatorArray value="JunkerAbility2J"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ArtanisResurgenceInvulnerable2">
+        <Alignment value="Positive"/>
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-resurgence.dds"/>
+        <DisplayDuration index="Self" value="1"/>
+        <Duration value="3"/>
+        <Period value="3"/>
+        <PeriodicEffect value="ArtanisResurgenceExplodeSet"/>
+        <DamageResponse ModifyFraction="0" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="FirebatDeathCheckJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-yagdra-firewave.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="0.0625"/>
+        <Modification>
+            <DeathResponse Chance="1" Effect="FirebatCESearchJ"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="AutoHarvestVespeneC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-building-nova-autorefinery.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <RemoveValidatorArray value="AutoHarvesterFinish"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Period value="2.1"/>
+        <PeriodicEffect value="AutoHarvestVespeneC"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BunkerCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-building-terran-bunker-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="2">
+            <LifeArmorBonus value="2"/>
+        </Modification>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BCHyperjumpTeleportInC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-hornerhan-fleethyperjump.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.6"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BCHyperjumpTeleportC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-hornerhan-fleethyperjump.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.1"/>
+        <ExpireEffect value="BCHyperjumpTeleportInABC"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BCHyperjumpTeleportOutC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-hornerhan-fleethyperjump.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.6"/>
+        <ExpireEffect value="BCHyperjumpTeleportSetC"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BCHyperjumpTeleportOutTargetSuppressCollisionC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-hornerhan-fleethyperjump.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.0625"/>
+        <ExpireEffect value="SuicideRemove"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="SuppressCollision" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BattlecruiserCLBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-battlecruiser-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="3" RangedWeaponRange="2"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="GhostMeleeC">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-holdfire.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <WeaponDisableArray value="C10CanisterRifleC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerAbility2J">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerHasUpgradesJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerTwinWeaponJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-hornerhan-mechbioweaponupgrades-c.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="JunkerWeaponJ"/>
+        <Modification>
+            <VitalRegenArray index="Life" value="1"/>
+            <WeaponEnableArray value="PunisherGrenadesJT"/>
+            <WeaponEnableArray value="FirebatJU"/>
+            <WeaponDisableArray value="PunisherGrenadesJ"/>
+            <WeaponDisableArray value="FirebatJ"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerUnitSuicideJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="0.625"/>
+        <FinalEffect value="Suicide"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerHealthJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerAttackSpeedJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-tychus-attackspeed.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification AttackSpeedMultiplier="1.3"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="DecloakCU">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-cloak-color.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="DeCloakCU"/>
+        <Modification>
+            <StateFlags index="SuppressCloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerAbility1J">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <AbilLinkDisableArray value="StimpackJ"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="FirebatJU">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoFlags index="AlwaysUseGameText" value="1"/>
+        <InfoIcon value="Icon\btn-unit-collection-firebat-junker.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="JunkerAllUpgradesJ"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification UnitNameOverride="Unit/Name/FirebatJU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MarauderSlowJU">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-marauder-superconcussiveshells.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <Modification AttackSpeedMultiplier="0.5">
+            <ModifyFlags index="SuppressMoving" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MarineJU">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoFlags index="AlwaysUseGameText" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-marine-junker.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="JunkerAllUpgradesJ"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification UnitNameOverride="Unit/Name/MarineJU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MarauderJU">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoFlags index="AlwaysUseGameText" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-marauder-junker.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="JunkerAllUpgradesJ"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification UnitNameOverride="Unit/Name/MarauderJU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MedicJU">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoFlags index="AlwaysUseGameText" value="1"/>
+        <InfoIcon value="Icon\btn-unit-terran-medic-junker-collection-blue.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="JunkerAllUpgradesJ"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification UnitNameOverride="Unit/Name/MedicJU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="GhostJU">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoFlags index="AlwaysUseGameText" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-ghost-junker.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="JunkerAllUpgradesJ"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification UnitNameOverride="Unit/Name/GhostJU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerAttackSpeedJM">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-tychus-attackspeed.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="JunkerAttackSpeedJ"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification HealDealtMultiplier="1.3">
+            <AdditiveAttackSpeedFactor value="-0.3"/>
+            <VitalDamageLeechArray index="Life">
+                <KindArray index="Spell" value="1"/>
+                <KindArray index="Melee" value="1"/>
+                <KindArray index="Ranged" value="1"/>
+                <KindArray index="Splash" value="1"/>
+                <KindArray index="NoProc" value="1"/>
+            </VitalDamageLeechArray>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MedicHealJA">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-tychus-tankhealth.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="JunkerAbility1J"/>
+        <Modification>
+            <VitalRegenArray index="Energy" value="0.625"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MedicTargetDamageBoostJ">
+        <InfoIcon value="Icon\btn-ability-stetmann-stetelliteoverloadspeedJ.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.25"/>
+        <Modification>
+            <DamageDealtFraction index="Spell" value="0.3"/>
+            <DamageDealtFraction index="Melee" value="0.3"/>
+            <DamageDealtFraction index="Ranged" value="0.3"/>
+            <DamageDealtFraction index="Splash" value="0.3"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MedicTargetDamageBoostJS">
+        <InfoIcon value="Assets\Textures\btn-progression-stetmann-09-dualqueue.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="15"/>
+        <FinalEffect value="MedicHealApplyTargetBehaviorJD"/>
+        <Modification MoveSpeedMultiplier="1.5">
+            <DamageDealtFraction index="Spell" value="0.5"/>
+            <DamageDealtFraction index="Melee" value="0.5"/>
+            <DamageDealtFraction index="Ranged" value="0.5"/>
+            <DamageDealtFraction index="Splash" value="0.5"/>
+            <DamageTakenFraction index="Spell" value="-0.5"/>
+            <DamageTakenFraction index="Melee" value="-0.5"/>
+            <DamageTakenFraction index="Ranged" value="-0.5"/>
+            <DamageTakenFraction index="Splash" value="-0.5"/>
+            <DamageTakenFraction index="NoProc" value="-0.5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MedicTargetDamageBoostJD">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-progression-stetmann-09-dualqueue.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="MedicBoostMUJD"/>
+        <Modification MoveSpeedMultiplier="0.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorSpeedC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-transformationservos.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMultiplier="1.4"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorWeaponC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Icon\btn-upgrade-terran-vehicleweaponslevel3C.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <InitialEffect value="ThorWeaponDisableBhvC"/>
+        <FinalEffect value="ThorWeaponDisableBhvC"/>
+        <Modification>
+            <BehaviorLinkDisableArray value="ThorSpeedC"/>
+            <WeaponEnableArray value="ThorsHammerC"/>
+            <WeaponDisableArray value="JavelinMissileLaunchersC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ReaperJU">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoFlags index="AlwaysUseGameText" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-reaper-junker.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="JunkerAllUpgradesJ"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification UnitNameOverride="Unit/Name/ReaperJU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MarineShieldJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Icon\btn-techupgrade-terran-combatshield-colorJ.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="JunkerAbility2J"/>
+        <Modification>
+            <VitalMaxArray index="Life" value="20"/>
+        </Modification>
+        <DamageResponse ClampMaximum="30" Minimum="30">
+            <Kind index="Spell" value="0"/>
+            <Kind index="NoProc" value="0"/>
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerWeaponJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerInfantryWeaponJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-reapercombatdrugs.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="JunkerWeaponJ"/>
+        <Modification AttackSpeedMultiplier="1.2">
+            <VitalRegenArray index="Life" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerDamageJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Icon\btn-upgrade-protoss-vanguard-increasedarmordamageJ.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <DamageDealtFraction index="Spell" value="0.2"/>
+            <DamageDealtFraction index="Melee" value="0.2"/>
+            <DamageDealtFraction index="Ranged" value="0.2"/>
+            <DamageDealtFraction index="Splash" value="0.2"/>
+        </Modification>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerArmorJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-swann-hellarmor.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <VitalMaxFractionArray index="Life" value="0.4"/>
+        </Modification>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerInfantryArmorsJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-tychus-armor-level4.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="JunkerHealthJ"/>
+        <Modification>
+            <LifeArmorBonus value="2"/>
+            <VitalMaxFractionArray index="Life" value="0.25"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerEArmorJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-hornerhan-mechbioarmorupgrades-c.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="JunkerHealthJ"/>
+        <Modification>
+            <VitalMaxFractionArray index="Life" value="0.25"/>
+        </Modification>
+        <DamageResponse ClampMaximum="10" Handled="JunkerEArmorSetJ" Minimum="10">
+            <Kind index="Spell" value="0"/>
+            <Kind index="NoProc" value="0"/>
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MercAirDropA">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="0.1"/>
+        <ExpireEffect value="MercAirDropSetBC"/>
+        <Modification Height="10" MoveSpeedMultiplier="0.1">
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <HeightTime index="Stop" value="3"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+            <AbilLinkDisableArray value="MagrailMunitionsMarauderTC"/>
+            <AbilLinkDisableArray value="MagrailMunitionsMarineTC"/>
+            <AbilLinkDisableArray value="Snipe_BlackOpsC"/>
+            <AbilLinkDisableArray value="HellBatJumpJetC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MercAirDropBC">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="1.1"/>
+        <ExpireEffect value="MercAirDropApplyBehaviorCC"/>
+        <Modification MoveSpeedMultiplier="0.1">
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+            <AbilLinkDisableArray value="MagrailMunitionsMarauderTC"/>
+            <AbilLinkDisableArray value="MagrailMunitionsMarineTC"/>
+            <AbilLinkDisableArray value="Snipe_BlackOpsC"/>
+            <AbilLinkDisableArray value="HellBatJumpJetC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MercAirDropCC">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="0.9"/>
+        <Modification MoveSpeedMultiplier="0.25">
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+            <AbilLinkDisableArray value="MagrailMunitionsMarauderTC"/>
+            <AbilLinkDisableArray value="MagrailMunitionsMarineTC"/>
+            <AbilLinkDisableArray value="Snipe_BlackOpsC"/>
+            <AbilLinkDisableArray value="HellBatJumpJetC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MercAirDropDelayC">
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.5"/>
+        <ExpireEffect value="MercAirDropApplyBehaviorAC"/>
+        <Modification>
+            <AbilLinkDisableArray value="MagrailMunitionsMarauderTC"/>
+            <AbilLinkDisableArray value="MagrailMunitionsMarineTC"/>
+            <AbilLinkDisableArray value="Snipe_BlackOpsC"/>
+            <AbilLinkDisableArray value="HellBatJumpJetC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MercGroundDropC">
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="3"/>
+        <ExpireEffect value="RemovePrecursorMercC"/>
+        <Modification>
+            <AbilLinkDisableArray value="MagrailMunitionsMarauderTC"/>
+            <AbilLinkDisableArray value="MagrailMunitionsMarineTC"/>
+            <AbilLinkDisableArray value="Snipe_BlackOpsC"/>
+            <AbilLinkDisableArray value="HellBatJumpJetC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MercGroundDropDelayC">
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="1"/>
+        <ExpireEffect value="MercGroundDropApplyBehaviorC"/>
+        <Modification>
+            <AbilLinkDisableArray value="MagrailMunitionsMarauderTC"/>
+            <AbilLinkDisableArray value="MagrailMunitionsMarineTC"/>
+            <AbilLinkDisableArray value="Snipe_BlackOpsC"/>
+            <AbilLinkDisableArray value="HellBatJumpJetC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MissileTurretCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-building-terran-missileturret-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="2">
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BurstLaserMovementBuffC">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DisableValidatorArray value="WraithIsMovingC"/>
+        <DamageResponse Location="Attacker" ModifyFraction="2">
+            <RequireEffectArray value="WraithGUC"/>
+            <RequireEffectArray value="WraithGUCS"/>
+            <Chance value="1"/>
+        </DamageResponse>
+        <InfoIcon value="Assets\Textures\btn-upgrade-swann-improvedburstlaser.dds"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="DefensiveMatrixC">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-personaldefensivematrix.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="20"/>
+        <DamageResponse ModifyFraction="0" ModifyLimit="400" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+            <Cost>
+                <Charge Link="Behavior/ImmortalOverload"/>
+                <Cooldown Link="Behavior/ImmortalOverload"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="DefensiveMatrixCK">
+        <InfoIcon value="Assets\Textures\btn-upgrade-swann-defensivematrix.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="20"/>
+        <DamageResponse ModifyFraction="0" ModifyLimit="300" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+            <Cost>
+                <Charge Link="Behavior/ImmortalOverload"/>
+                <Cooldown Link="Behavior/ImmortalOverload"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="DefensiveMatrixCT">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-personaldefensivematrix.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="20"/>
+        <DamageResponse ModifyFraction="0" ModifyLimit="300" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+            <Cost>
+                <Charge Link="Behavior/ImmortalOverload"/>
+                <Cooldown Link="Behavior/ImmortalOverload"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="GeminiMissileMovementBuffC">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DisableValidatorArray value="WraithIsMovingC"/>
+        <DamageResponse Location="Attacker" ModifyFraction="2">
+            <RequireEffectArray value="WraithAUC"/>
+            <RequireEffectArray value="WraithAUCS"/>
+            <Chance value="1"/>
+        </DamageResponse>
+        <InfoIcon value="Assets\Textures\btn-upgrade-swann-improvedburstlaser.dds"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BattlecruiserCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Icon\btn-unit-collection-battlecruiser-BlackOpsC.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="3" RangedWeaponRange="2"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HyperjumpTeleportC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-warpjump.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="2.4"/>
+        <ExpireEffect value="HyperjumpTeleportInABC"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HyperjumpTeleportCK">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-warpjump.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="2.4"/>
+        <ExpireEffect value="HyperjumpTeleportInABCK"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HyperjumpTeleportInC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-warpjump.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.3"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HyperjumpTeleportInCK">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-warpjump.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.3"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HyperjumpTeleportOutC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-warpjump.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.3"/>
+        <ExpireEffect value="HyperjumpTeleportSetC"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HyperjumpTeleportOutCK">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-warpjump.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.3"/>
+        <ExpireEffect value="HyperjumpTeleportSetCK"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HyperjumpTeleportOutTargetSuppressCollisionC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-warpjump.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.0312"/>
+        <ExpireEffect value="SuicideRemove"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="SuppressCollision" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HyperjumpTeleportOutTargetSuppressCollisionCK">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-warpjump.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.0312"/>
+        <ExpireEffect value="SuicideRemove"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="SuppressCollision" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="DefensiveMatrixDroneTimedLifeC" parent="TimedLife">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-defensivedrone.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="45"/>
+        <DisplayDuration index="Enemy" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="CoopCasterDefensiveMatrixC">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-personaldefensivematrix.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="30"/>
+        <DamageResponse ModifyFraction="0" ModifyLimit="200" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MarauderCDBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-maurader-collectionskin-deluxe.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="2"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.5">
+            <Kind index="Spell" value="0"/>
+            <Kind index="Melee" value="0"/>
+            <Kind index="Ranged" value="0"/>
+            <Kind index="NoProc" value="0"/>
+            <Chance value="1"/>
+        </DamageResponse>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="CommandCenterReactorQueueC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Icon\btn-building-terran-techreactor-blackops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Structures"/>
+        <Modification QueueCount="1" QueueSize="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SensorTowerCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-building-terran-sensortower-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="PlanetaryFortressCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-building-terran-planetaryfortress.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="2"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="PrecursorMercC">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMultiplier="0.05">
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="NoDraw" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+            <AbilLinkDisableArray value="MagrailMunitionsMarauderTC"/>
+            <AbilLinkDisableArray value="MagrailMunitionsMarineTC"/>
+            <AbilLinkDisableArray value="Snipe_BlackOpsC"/>
+            <AbilLinkDisableArray value="HellBatJumpJetC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ProjectileAcceleratorsC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-lazertargetingsystem.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Structures"/>
+        <Modification WeaponRange="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ReactorQueueC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Icon\btn-building-terran-techreactor-blackops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Structures"/>
+        <Requirements value="HaveAttachedNuclearReactorC"/>
+        <Modification QueueCount="1" QueueSize="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="RefineryMorphC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-building-nova-autorefinery.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Requirements value="UseAutomatedRefinery"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Duration value="0.1"/>
+        <ExpireEffect value="RefineryMorphC"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SiegeTankSiegedDBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-siegetankstatic-commando.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="3"/>
+        </Modification>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SiegeTankStimD">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-jotunboosters.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5">
+            <VitalRegenArray index="Life" value="5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JunkerBirthABController">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="0.0625"/>
+        <FinalEffect value="JunkerRandomABControllerJS"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MarauderSlowJ">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-punishergrenade-color.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <Modification MoveSpeedMultiplier="0.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="StimpackJ">
+        <InfoIcon value="Icon\btn-ability-terran-stimpack-colorJ.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5">
+            <VitalRegenArray index="Life" value="-1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MedicMLJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\ui_tipicon_campaign_hyb02-lifedrain.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="JunkerHealthJ"/>
+        <Modification>
+            <VitalDamageLeechArray index="Life">
+                <KindArray index="Spell" value="0.5"/>
+                <KindArray index="Melee" value="0.5"/>
+                <KindArray index="Ranged" value="0.5"/>
+                <KindArray index="Splash" value="0.5"/>
+                <KindArray index="NoProc" value="0.5"/>
+            </VitalDamageLeechArray>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="StimpackJFU">
+        <InfoIcon value="Assets\Textures\btn-upgrade-raynor-incineratorgauntlets.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.75">
+            <VitalRegenArray index="Life" value="-2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="FirebatEAJ">
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-yagdra-firewave.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisplayDuration index="Neutral" value="1"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <Duration value="5"/>
+        <FinalEffect value="Suicide"/>
+        <ExpireEffect value="FirebatDESearchJ"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="StimpackJRU">
+        <InfoIcon value="Assets\Textures\btn-ability-hornerhan-reaper-deaththrows.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.75">
+            <VitalRegenArray index="Life" value="-2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="StimpackJU">
+        <InfoIcon value="Icon\talent-tychus-level12-ultimategear1J.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.75">
+            <DamageDealtFraction index="Spell" value="0.5"/>
+            <DamageDealtFraction index="Melee" value="0.5"/>
+            <DamageDealtFraction index="Ranged" value="0.5"/>
+            <DamageDealtFraction index="Splash" value="0.5"/>
+            <VitalRegenArray index="Life" value="-2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="StimpackJMU">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-marauder-shrapnel.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.75">
+            <VitalRegenArray index="Life" value="-2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SupplyDepotAutoDropC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\BTN-Ability-Terran-CalldownExtraSupplies-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Duration value="0.1"/>
+        <ExpireEffect value="SupplyDropApplyTempBehaviorC"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SalvageSharedC" parent="Salvage">
+        <Name value="Behavior/Name/SalvageSharedC"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-salvage.dds"/>
+        <Modification>
+            <AbilLinkEnableArray index="1" removed="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SupplyDropC">
+        <InfoIcon value="Assets\Textures\BTN-Ability-Terran-CalldownExtraSupplies-color.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Structures"/>
+        <DisableValidatorArray value="NotBuildingStasis"/>
+        <Modification Food="8">
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SupplyDropEnRouteC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\BTN-Ability-Terran-CalldownExtraSupplies-color.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Structures"/>
+        <RemoveValidatorArray value="NotSupplyDropC"/>
+        <Duration value="2"/>
+        <ExpireEffect value="SupplyDropApplyBehaviorC"/>
+        <Modification>
+            <AbilClassDisableArray index="CAbilMorph" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="NovaShieldImmunityC">
+        <InfoIcon value="Assets\Textures\btn-upgrade-nova-btn-upgrade-nova-novarespawn.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisplayDuration index="Neutral" value="1"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <BuffFlags index="Countdown" value="0"/>
+        <Duration value="60"/>
+        <ExpireEffect value="NovaRepairHealC"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Passive" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="Daze" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="SuppressCollision" value="1"/>
+            <StateFlags index="SuppressCombat" value="1"/>
+            <StateFlags index="SuppressDetection" value="1"/>
+            <StateFlags index="SuppressPassenger" value="1"/>
+            <StateFlags index="SuppressRadar" value="1"/>
+            <StateFlags index="SuppressThreat" value="1"/>
+            <StateFlags index="SuppressEnergyRegen" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorShieldProcBuffC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\talent-swann-level12-immortalityprotocol.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DamageResponse Fatal="1" Handled="ThorRepairSetC" ModifyFraction="0">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorShieldImmunityC">
+        <InfoIcon value="Assets\Textures\talent-swann-level12-immortalityprotocol.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisplayDuration index="Neutral" value="1"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <BuffFlags index="Countdown" value="0"/>
+        <Duration value="15"/>
+        <ExpireEffect value="ThorRepairHealC"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Passive" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <AbilLinkEnableArray value="ThorCloak"/>
+            <AbilLinkEnableArray value="DefensiveMatrixCT"/>
+            <AbilLinkDisableArray value="ThorHyperjumpC"/>
+            <BehaviorLinkDisableArray value="ThorShieldProcBuffC"/>
+            <BehaviorLinkDisableArray value="RegenerativeBioSteelHeavyC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="NovaShieldProcBuffC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-nova-btn-upgrade-nova-novarespawn.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DamageResponse Fatal="1" Handled="NovaRepairSetC" ModifyFraction="0">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorShieldWeaknessC">
+        <Alignment value="Negative"/>
+        <BehaviorFlags index="Permanent" value="1"/>
+        <BehaviorFlags index="EnabledWhileDead" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-techupgrade-terran-tomahawkpowercell.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="60"/>
+        <Modification>
+            <BehaviorLinkDisableArray value="ThorShieldProcBuffC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorRageTurnDownC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-stetmann-garypersonalstetzone-speed.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="0.1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="VikingPhasingArmorD">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-viking-doabarrelrolll.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DamageResponse Handled="VikingPhasingArmorApplyD" ModifyFraction="0" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+            <Cost>
+                <Cooldown TimeUse="5"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="VikingPhasingArmorBuffD">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-viking-doabarrelrolll.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="2"/>
+        <DamageResponse ModifyFraction="0" ModifyMinimumDamage="1">
+            <Chance value="0.9"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="VikingBarrierArmorD">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-viking-cheatdeath.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DamageResponse Handled="VikingDefensiveMatrixApplyBehaviorD" ModifyFraction="0" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+            <Cost>
+                <Cooldown TimeUse="10"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ReaperArBrJ">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-shotgunaoe.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <MaxStackCount value="100"/>
+        <Duration value="5"/>
+        <Modification ShieldArmorBonus="-0.2">
+            <LifeArmorBonus value="-0.2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="FireWindJ">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-zerg-yagdra-firewave.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <RemoveValidatorArray value="CasterNotStunned"/>
+        <Duration value="3"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="FireWindBehaviorSetJ"/>
+        <Modification>
+            <StateFlags index="SuppressCollision" value="1"/>
+            <WeaponArray Link="FireWindFakeWeaponJ"/>
+            <WeaponDisableArray value="FirebatJ"/>
+            <WeaponDisableArray value="FirebatJU"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorWeaponDisableC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Icon\btn-upgrade-terran-vehicleweaponslevel3C.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WarHoundCloakC">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-cloak-color.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="10"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="LockOnC">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-lockon.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <MaxStackCount value="65535"/>
+        <MaxStackCountPerCaster value="1"/>
+        <DamageResponse Fatal="1" Handled="LockOnTurretClearC">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="LockOnDisableAttackC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-lockon.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="LockOnTargetNotDeadC"/>
+        <FinalEffect value="LockOnClearSetC"/>
+        <Modification>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="IsKiting" value="1"/>
+            <WeaponArray Link="CycloneLockOnDummyC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="LockOnDummyWeaponC">
+        <BehaviorFlags index="Permanent" value="1"/>
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="LockOnTargetNotDeadNewC"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorCloakC">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-ghost-supercloak.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="VikingDefensiveMatrixD">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-viking-cheatdeath.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="5"/>
+        <DamageResponse ModifyFraction="0" ModifyLimit="100" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+            <Cost>
+                <Charge Link="Behavior/ImmortalOverload"/>
+                <Cooldown Link="Behavior/ImmortalOverload"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WarHoundHolographicDecoyTimedLifeC" parent="TimedLife">
+        <InfoIcon value="Icon\btn-unit-terran-tychuswarhound-holoC.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="10"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WarHoundAssaultC">
+        <InfoIcon value="Assets\Textures\BTN-Upgrade-Nova-ShotGun.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="3"/>
+            <WeaponEnableArray value="WarHoundShotGunC"/>
+            <WeaponDisableArray value="WarHoundC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WarHoundSnipC">
+        <InfoIcon value="Assets\Textures\btn-upgrade-mengsk-trooper-plasmarifle.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="2">
+            <WeaponEnableArray value="WarHoundC"/>
+            <WeaponDisableArray value="WarHoundShotGunC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WraithCBhvC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Icon\btn-unit-terran-wraith-blackops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="3" MoveSpeedBonus="1.1992" RangedWeaponRange="2"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="CloakDistortionFieldC">
+        <Alignment value="Positive"/>
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-swann-displacementfield.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DamageResponse ModifyFraction="0" ModifyMinimumDamage="1">
+            <Chance value="0.3"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WraithCloakC">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-cloak-color.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="CycloneCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-cyclone-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="3" MoveSpeedMultiplier="1.2" RangedWeaponRange="4"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WarHoundDefensiveMatrixC">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-personaldefensivematrix.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="5"/>
+        <DamageResponse ModifyFraction="0" ModifyLimit="200" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+            <Cost>
+                <Charge Link="Behavior/ImmortalOverload"/>
+                <Cooldown Link="Behavior/ImmortalOverload"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WarHoundCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Icon\btn-unit-terran-warhound-blackops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="2" RangedWeaponRange="1">
+            <LifeArmorBonus value="2"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.5" TargetFilters="Light;-">
+            <Chance value="1"/>
+            <Cost>
+                <Charge Link="Behavior/WidowMinePreConfusionC"/>
+                <Cooldown Link="Behavior/WidowMinePreConfusionC"/>
+            </Cost>
+        </DamageResponse>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="CycloneCloakC">
+        <InfoIcon value="Assets\Textures\btn-upgrade-nova-tacticalstealthsuit.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="CycloneIsNotMovingC"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="CycloneWeaponLaunchMissileAlternateC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Icon\btn-upgrade-terran-vehicleweaponslevel3C.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="RavenAnalyzeC">
+        <InfoIcon value="Icon\btn-ability-hornerhan-raven-analyzetargetC.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <DamageTakenScaled index="Spell" value="5"/>
+            <DamageTakenScaled index="Melee" value="5"/>
+            <DamageTakenScaled index="Ranged" value="5"/>
+            <DamageTakenScaled index="Splash" value="5"/>
+            <DamageTakenScaled index="NoProc" value="5"/>
+        </Modification>
+        <Alignment value="Negative"/>
+        <RemoveValidatorArray value="IsNotFriendly"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="RavenAnalyzeCasterC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Icon\btn-ability-hornerhan-raven-analyzetargetC.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <MaxStackCount value="4"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="RavenLowEnergyC">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-superscience.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="RavenCasterEnergyLT75C"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="AutoTurretTimedLifeC" parent="TimedLife">
+        <InfoIcon value="Assets\Textures\btn-unit-collection-autoturret-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <Duration value="90"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="AutoTurretCBhvC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-autoturret-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="2">
+            <LifeArmorBonus value="2"/>
+        </Modification>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HealingDroneTimedLifeC" parent="TimedLife">
+        <InfoIcon value="Assets\Textures\BTN-Unit-BiomechanicalDrone.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <Duration value="45"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="RDSuppressMoving2sC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\BTN-Unit-BiomechanicalDrone.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="2"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="RavenScramblerMissileC">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-interferencematrix.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisplayDuration index="Neutral" value="1"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <DisableValidatorArray value="NotHeroic"/>
+        <BuffFlags index="UpdateDurationWhileDisabled" value="1"/>
+        <Duration value="20"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="EnableAttack" value="1"/>
+            <ModifyFlags index="EnableMove" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="SuppressCombat" value="1"/>
+            <AbilClassEnableArray index="CAbilStop" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="RavenShredderMissileArmorReductionUISubtructC">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-enhancedmunitions.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisplayDuration index="Neutral" value="1"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <Duration value="20"/>
+        <Modification MoveSpeedMultiplier="0.75" ShieldArmorBonus="-3">
+            <LifeArmorBonus value="-3"/>
+        </Modification>
+        <DisableValidatorArray value="NotHeroic"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SeekerMissileC">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-huntermissile-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.2"/>
+        <AINotifyEffect value="SeekerMissileDamage"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WidowMineConfusionC">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-confusion.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Period value="0.25"/>
+        <InitialEffect value="WidowMineConfusionStopInitialSetC"/>
+        <ExpireEffect value="WidowMineConfusionEndSetC"/>
+        <Player Value="Hostile"/>
+        <Modification TimeScale="2">
+            <StateFlags index="SuppressFoodUsed" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <StateFlags index="IgnorePlayerAlliedFlags" value="1"/>
+            <AbilLinkDisableArray value="WidowMineBurrowC"/>
+            <AbilLinkDisableArray value="WidowMineUnburrowC"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.5">
+            <Chance value="1"/>
+            <Cost>
+                <Charge Link="Behavior/WidowMinePreConfusionC"/>
+                <Cooldown Link="Behavior/WidowMinePreConfusionC"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="GiantWidowMineLeapStunC">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-ultrasonicpulse.dds"/>
+        <BehaviorCategories index="Stun" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="6"/>
+        <Modification>
+            <ModifyFlags index="Reveal" value="1"/>
+            <ModifyFlags index="Detected" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WidowMineCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-widowmine-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="2"/>
+        </Modification>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="VikingCABhvC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-vikingassault-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="2" RangedWeaponRange="2"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="VikingShieldC">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-transformationservos.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.9"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="VikingCBhvC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-vikingfighter-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="3" RangedWeaponRange="4"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="FireSuppressionSystemC">
+        <InfoIcon value="Assets\Textures\btn-upgrade-swann-firesuppressionsystem.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="NotDeadOrConstruction"/>
+        <DisableValidatorArray value="LifeLTHalf"/>
+        <Modification>
+            <VitalRegenArray index="Life" value="5"/>
+            <BehaviorLinkDisableArray value="TerranBuildingBurnDown"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MedivacCBhvC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-medivac-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification MoveSpeedBonus="1.1992"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="LiberatorCloakC">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-cloak-color.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="LiberatorCBhvC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-liberator-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="3" RangedWeaponRange="4"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="LiberatorAGCBhvC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-liberatorburster-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="3" RangedWeaponRange="6"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MedivacHealBeamBusyC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-healingmastery.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <MaxStackCount value="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MedivacSpeedBoostC">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-medivac-igniteafterburners.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="8"/>
+        <Modification MoveSpeedMultiplier="2" AccelerationBonus="500" DecelerationBonus="500"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MedivacTargetBeingHealedC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-healingmastery.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MedivacTargetCloakC">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-repairbeamcloak.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+        <Duration value="0.25"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="VultureCBhvC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Icon\btn-unit-terran-vulture-blackops-ghostfemale.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="2" RangedWeaponRange="1"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BansheeCloakC">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-cloak-color.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="EMPDecloakC">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-ghost-staticempblast.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="IsNotBuried"/>
+        <Duration value="20"/>
+        <Modification>
+            <StateFlags index="SuppressCloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="GhostCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-ghost-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="5" RangedWeaponRange="3"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="GhostCloakC">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-cloak-color.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="GhostHoldFireC">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-holdfire.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="0.07"/>
+        <ExpireEffect value="GhostHoldFireBC"/>
+        <Modification>
+            <StateFlags index="Passive" value="1"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="GhostHoldFireBC">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-holdfire.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="CasterNotAttacking"/>
+        <Modification>
+            <StateFlags index="Passive" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="LiberatorInitialMovableC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-liberatorburster-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="0.875"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="LiberatorTargetMorphAGAttackableC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-liberatorburster-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <MaxStackCount value="65535"/>
+        <MaxStackCountPerCaster value="1"/>
+        <Duration value="0.3125"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="LiberatorTargetMorphBehaviorC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-liberatorburster-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="HasNoLiberatorYoink"/>
+        <RemoveValidatorArray value="IsNotRecallingCombine"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="RavenSensorC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-hornerhan-raven-radar.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification Radar="30" RadarFilters="-;Player,Ally,Neutral,RawResource,HarvestableResource,Missile,Destructible,Cloaked,Invulnerable"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="RegenerativeBioSteelHeavyC">
+        <InfoIcon value="Assets\Textures\btn-research-zerg-regenerativebio-steel.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="CasterNotInCombat5C"/>
+        <DisableValidatorArray value="NotMaxHP"/>
+        <Modification>
+            <VitalRegenArray index="Life" value="15"/>
+        </Modification>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BansheeCBhvC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-banshee-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="3" MoveSpeedBonus="1.25" RangedWeaponRange="2"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorRage1C">
+        <InfoIcon value="Assets\Textures\btn-ability-stetmann-garypersonalstetzone-speed.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="5"/>
+        <Modification AttackSpeedMultiplier="1.15"/>
+        <ExpireEffect value="ThorRageTurnDownABC"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorRage2C">
+        <InfoIcon value="Assets\Textures\btn-ability-stetmann-garypersonalstetzone-speed.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="5"/>
+        <Modification AttackSpeedMultiplier="1.3"/>
+        <ExpireEffect value="ThorRageTurnDownABC"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorRage3C">
+        <InfoIcon value="Assets\Textures\btn-ability-stetmann-garypersonalstetzone-speed.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="5"/>
+        <Modification AttackSpeedMultiplier="1.45"/>
+        <ExpireEffect value="ThorRageTurnDownABC"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorRage4C">
+        <InfoIcon value="Assets\Textures\btn-ability-stetmann-garypersonalstetzone-speed.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="5"/>
+        <Modification AttackSpeedMultiplier="1.6"/>
+        <ExpireEffect value="ThorRageTurnDownABC"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorRage5C">
+        <InfoIcon value="Assets\Textures\btn-ability-stetmann-garypersonalstetzone-speed.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="5"/>
+        <Modification AttackSpeedMultiplier="1.75"/>
+        <ExpireEffect value="ThorRageTurnDownABC"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-thormorph-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="3" RangedWeaponRange="2"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorSlowC">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-stetmann-garystetelliteovercharge-speed.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="NoPurificationNova"/>
+        <Duration value="1.5"/>
+        <Modification MoveSpeedMultiplier="0.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SiegeTankCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-siegetank-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="3" RangedWeaponRange="2"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorJump id="GoliathCliffJumpC">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <TriggerHeightDeltaMin value="1.5"/>
+        <TriggerHeightDeltaMax value="4.5"/>
+        <InitiateRangeUp value="1.5"/>
+        <InitiateRangeDown value="0.5"/>
+        <JumpRangeMax value="12"/>
+        <Mover value="CliffJumper"/>
+        <MoverUp value="ReaperJumpDown"/>
+        <MoverDown value="ReaperJumpDown"/>
+        <DurationPreLaunch value="0.05"/>
+        <DurationPostLand value="0.075"/>
+        <DurationMoveOut value="0.08"/>
+        <Placeholder value="ReaperPlaceholder"/>
+        <LandAdjustmentDown value="1"/>
+        <LandArrivalRange value="0.05"/>
+        <LandCheckRadius value="5"/>
+    </CBehaviorJump>
+    <CBehaviorBuff id="HellionTankReadyC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-hellbat-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="4"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="GoliathCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-terran-goliathblackops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="2" RangedWeaponRange="4"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="GoliathUnitLockdownC">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-hellfiremissiles.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="4"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="Reveal" value="1"/>
+            <ModifyFlags index="Detected" value="1"/>
+            <StateFlags index="Stun" value="1"/>
+            <StateFlags index="SuppressDetection" value="1"/>
+            <BehaviorLinkDisableArray value="Detector10"/>
+            <BehaviorLinkDisableArray value="Detector11"/>
+            <BehaviorLinkDisableArray value="Detector12"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ReaperCloakC">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-cloak-color.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMultiplier="0.5">
+            <ModifyFlags index="DisableWeapons" value="1"/>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="KD8ChargeFateC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-kd8chargeex3.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="1.5"/>
+        <ExpireEffect value="KD8ChargeInitialSetC"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MarauderCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-marauder-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="2" RangedWeaponRange="1">
+            <LifeArmorBonus value="2"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.5">
+            <Kind index="Spell" value="0"/>
+            <Kind index="Melee" value="0"/>
+            <Kind index="Ranged" value="0"/>
+            <Kind index="NoProc" value="0"/>
+            <Chance value="1"/>
+        </DamageResponse>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MarauderSlowC">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-punishergrenade-color.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="NoPurificationNova"/>
+        <Duration value="1.5"/>
+        <Modification MoveSpeedMultiplier="0.5" AttackSpeedMultiplier="0.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ReaperCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-reaper-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="2" RangedWeaponRange="1"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorJump id="ReaperJumpC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\BTN-Ability-Terran-JetPack-color.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <TriggerHeightDeltaMin value="1.5"/>
+        <TriggerHeightDeltaMax value="4.5"/>
+        <InitiateRangeUp value="1.5"/>
+        <InitiateRangeDown value="0.5"/>
+        <JumpRangeMax value="12"/>
+        <Mover value="CliffJumper"/>
+        <MoverUp value="ReaperJumpDownC"/>
+        <MoverDown value="ReaperJumpDownC"/>
+        <DurationPreLaunch value="0.025"/>
+        <DurationPostLand value="0.025"/>
+        <DurationMoveOut value="0.04"/>
+        <Placeholder value="ReaperPlaceholder"/>
+        <LandAdjustmentDown value="1"/>
+        <LandArrivalRange value="0.05"/>
+        <LandCheckRadius value="5"/>
+    </CBehaviorJump>
+    <CBehaviorBuff id="RegenerativeBioSteelC">
+        <InfoIcon value="Assets\Textures\btn-research-zerg-regenerativebio-steel.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="CasterNotInCombat5C"/>
+        <DisableValidatorArray value="NotMaxHP"/>
+        <Modification>
+            <VitalRegenArray index="Life" value="10"/>
+        </Modification>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SiegeTankSiegedCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-siegetankstatic-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="3"/>
+        </Modification>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SiegeTankJumpJetCreateTimeOutC">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="1.75"/>
+        <FinalEffect value="SuicideRemove"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SiegeTankSiegeModeProgressiveRangeInceaseC">
+        <BehaviorFlags index="Permanent" value="1"/>
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-siegetankrange.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <RemoveValidatorArray value="IsSiegeTankSiegedBlackOpsC"/>
+        <MaxStackCount value="5"/>
+        <Period value="3"/>
+        <PeriodCount value="1"/>
+        <PeriodicEffect value="SiegeTankSiegeModeProgressiveRangeInceaseABC"/>
+        <FinalEffect value="SiegeTankSiegeModeProgressiveRangeInceaseRBC"/>
+        <Modification RangedWeaponRange="1">
+            <AttributeChangeArray/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SuperStimC">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-superstimppack.dds"/>
+        <BehaviorCategories index="Fast" value="1"/>
+        <BehaviorCategories index="User13" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5">
+            <VitalRegenArray index="Life" value="3"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MarineCBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-marine-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification SightBonus="2" RangedWeaponRange="1">
+            <LifeArmorBonus value="1"/>
+        </Modification>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SuperStimCG">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-superstimppack.dds"/>
+        <BehaviorCategories index="Fast" value="1"/>
+        <BehaviorCategories index="User13" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5">
+            <VitalRegenArray index="Life" value="5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SuperStimCR">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-superstimppack.dds"/>
+        <BehaviorCategories index="Fast" value="1"/>
+        <BehaviorCategories index="User13" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5">
+            <VitalRegenArray index="Life" value="3"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SuperStimCM">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-superstimppack.dds"/>
+        <BehaviorCategories index="Fast" value="1"/>
+        <BehaviorCategories index="User13" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5">
+            <VitalRegenArray index="Life" value="5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="VultureSpiderMineBurrowFirstC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-spidermine.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="2"/>
+        <InitialEffect value="VultureSpiderMineBurrowOrderC"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WidowMineBCBhvC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-widowmine-covertops.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification LifeArmorMultiplier="2">
+            <VitalRegenArray index="Life" value="10"/>
+        </Modification>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WidowMinePreConfusionC">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-confusion.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisplayDuration index="Neutral" value="1"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <Duration value="30"/>
+        <FinalEffect value="WidowMineConfusionApplyC"/>
+        <Modification TimeScale="2">
+            <AbilLinkDisableArray value="WidowMineBurrowC"/>
+            <AbilLinkDisableArray value="WidowMineUnburrowC"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.5">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WidowMineJumpController">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-widowmine-covertops.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="10"/>
+        <Modification>
+            <WeaponDisableArray value="WidowMineInterceptorLaunchC"/>
+            <WeaponDisableArray value="InterceptorsDummyC"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WidowMineAnimationControllerC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-widowmine-covertops.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisableValidatorArray value="NotStasis"/>
+        <DisableValidatorArray value="NotVortexd"/>
+        <DisableValidatorArray value="NotGravitonBeamd"/>
+        <DisableValidatorArray value="NotThunderCannond"/>
+        <Duration value="15"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BattlecruiserCloakC">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-cloak-color.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SpaceStationHyperjumpInvulnerableC">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-hornerhan-fleethyperjump.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="2"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="DisableWeapons" value="1"/>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+</Catalog>

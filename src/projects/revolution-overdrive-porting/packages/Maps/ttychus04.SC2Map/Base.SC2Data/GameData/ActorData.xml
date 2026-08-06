@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <!--                                                                                         -->
+    <!-- Archive Vault ......................................................................... -->
+    <!--                                                                                         -->
+    <CActorUnit id="ArtifactVault">
+        <Scale value="2.000000"/>
+    </CActorUnit>
+    <!--                                                                                         -->
+    <!-- DestructibleRock4x4 ................................................................... -->
+    <!--                                                                                         -->
+    <CActorUnit id="DestructibleRock4x4">
+        <On Terms="ActorCreation" Send="SetTintColor {0,0,255 5.000000}"/>
+    </CActorUnit>
+    <!--                                                                                         -->
+    <!-- DestructibleRock6x6 ................................................................... -->
+    <!--                                                                                         -->
+    <CActorUnit id="DestructibleRock6x6">
+        <Scale value="4.000000"/>
+    </CActorUnit>
+    <CActorDoodad id="FireMedium">
+        <Scale value="10.000000"/>
+    </CActorDoodad>
+    <CActorDoodad id="GenericFireHUGE">
+        <Aliases value="_EditorHelper"/>
+        <EditorCategories value="DoodadType:Environment"/>
+        <On index="0" Terms="ActorCreation" Send="Create SoundEmitter Doodad_GenericFire_Large"/>
+        <On Terms="ActorCreation" Send="Create Generic_ProtossFire_Large_ActorSound"/>
+        <Model value="GenericFire_Large"/>
+        <Scale value="8.000000"/>
+        <EditorFlags index="NoAutoRotate" value="1"/>
+    </CActorDoodad>
+    <CActorDoodad id="GenericFireHugeLong">
+        <Aliases value="_EditorHelper"/>
+        <EditorCategories value="DoodadType:Environment"/>
+        <On index="0" Terms="ActorCreation" Send="Create SoundEmitter Doodad_GenericFire_Large_Long"/>
+        <On Terms="ActorCreation" Send="Create Generic_ProtossFire_Large_Long_ActorSound"/>
+        <Model value="GenericFire_Large_Long"/>
+        <Scale value="4.000000"/>
+        <EditorFlags index="NoAutoRotate" value="1"/>
+    </CActorDoodad>
+    <CActorSound id="Generic_ProtossFire_Large_ActorSound2" parent="SoundContinuous">
+        <EditorCategories value=""/>
+        <Sound value="Generic_ProtossFire_Large"/>
+    </CActorSound>
+    <CActorModel id="MutatorScorchedEarthFireBeamLargeModel">
+        <Scale value="17.000000,17.000000,1.000000"/>
+    </CActorModel>
+    <CActorModel id="MutatorTornadoWarningSplat">
+        <On index="2" Terms="Effect.MassEjectionPrecursor.Start" Send="Create"/>
+        <On index="3" Terms="ActorCreation" Send="TimerSet 120.000000 WarningTimer"/>
+        <On index="4" Terms="TimerExpired; TimerName WarningTimer"/>
+        <HostSiteOps Ops="SOpTargetPoint SOpShadow"/>
+        <Scale value="3.000000,3.000000,1.000000"/>
+    </CActorModel>
+    <CActorModel id="MassEjectionWarning" parent="ModelAnimationStyleContinuous">
+        <Flags index="SuppressSaveLoad" value="1"/>
+        <FogVisibility value="Visible"/>
+        <On Terms="TimerExpired; TimerName DelayDestroy" Send="Destroy"/>
+        <On Terms="ActorCreation" Send="SetTintColor {255,0,0 5.000000}"/>
+        <HostSiteOps Ops="SOpTargetPoint SOpShadow"/>
+        <Model value="SOAOrbitalStrikeTargetModel"/>
+        <Scale value="10.000000"/>
+    </CActorModel>
+    <CActorAction id="RavagerCorrosiveBileAttackDown2">
+        <On/>
+        <On/>
+        <On/>
+        <On/>
+        <On/>
+        <On/>
+        <On Terms="Effect.BurningResidueLMDown.Start; At Effect"/>
+    </CActorAction>
+    <CActorModel id="SOAOrbitalStrikeLaunch">
+        <Scale value="6.000000"/>
+    </CActorModel>
+</Catalog>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CEffectDamage id="AshWormDamage">
+        <Amount value="30"/>
+    </CEffectDamage>
+    <CEffectCreateUnit id="BlightbringerCreateLargeEggs">
+        <SpawnUnit index="0" value="YagdraEggBig"/>
+    </CEffectCreateUnit>
+    <CEffectCreateUnit id="CreateAshWormLarva">
+        <EditorCategories value="Race:Terran"/>
+        <WhichLocation Value="CasterUnit"/>
+        <CreateFlags index="PlacementIgnoreBlockers" value="1"/>
+        <RallyUnit Value="Source"/>
+        <SpawnEffect value="InfestedTerransTimedLife"/>
+        <SpawnUnit value="ScantipedeParasitic"/>
+        <SpawnCount value="3"/>
+        <SpawnRange value="1.5"/>
+        <SpawnOffset value="0.4,-0.2"/>
+    </CEffectCreateUnit>
+    <CEffectDamage id="ScantipedeParasiticDamage">
+        <Amount value="15"/>
+    </CEffectDamage>
+    <CEffectSet id="SpawnAshWormLarvaSet">
+        <EditorCategories value=""/>
+        <EffectArray value="CreateAshWormLarva"/>
+        <EffectArray value="Suicide"/>
+    </CEffectSet>
+    <CEffectDamage id="YagdraFireballDamage">
+        <AttributeBonus index="Armored" value="50"/>
+        <AttributeBonus index="Psionic" value="0"/>
+        <Amount value="75"/>
+        <AreaArray index="0" Radius="0.5"/>
+        <AreaArray index="1" Radius="1.25"/>
+        <AreaArray index="2" Radius="1.5"/>
+    </CEffectDamage>
+    <CEffectDamage id="YagdraFirebreathDamage">
+        <AttributeBonus index="Psionic" value="0"/>
+        <AttributeBonus index="Heroic" value="30"/>
+    </CEffectDamage>
+</Catalog>

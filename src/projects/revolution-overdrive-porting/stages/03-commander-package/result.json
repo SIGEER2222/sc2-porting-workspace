@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "stage": "03-commander-package",
+  "status": "passed-with-runtime-blocker",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "The owned package contains the main Mod, seven dependency Mods, and all 31 maps with no missing or changed source files.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/03-commander-package/evidence/static/source-copy-hashes.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The owned main Mod and a heavy faction Mod parse with zero Catalog errors, and the owned Galaxy files lint with zero diagnostics.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/03-commander-package/evidence/static/owned-main-catalog.json",
+        "src/projects/revolution-overdrive-porting/stages/03-commander-package/evidence/static/owned-madness-catalog.json",
+        "src/projects/revolution-overdrive-porting/stages/03-commander-package/evidence/static/owned-galaxy-lint.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "A real WebUI HTTP request reached the Revolution Overdrive launcher and staged the selected owned map plus eight-Mod closure into the SC2 installation.",
+      "evidence": [
+        "tools/cmre-webui/test_revolution_overdrive.py",
+        "artifacts/projects/revolution-overdrive-porting/stage03-commander-package/launcher/last-run.json"
+      ]
+    },
+    {
+      "type": "blocked",
+      "claim": "No live-game runtime claim is made because the local SC2 installation lacks the declared Void Campaign dependency.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/03-commander-package/issues.json"
+      ]
+    }
+  ],
+  "outputs": [
+    "src/projects/revolution-overdrive-porting/packages/Commander/revolution-overdrive-commander.json",
+    "src/projects/revolution-overdrive-porting/packages/Commander/Mods/",
+    "src/projects/revolution-overdrive-porting/packages/Maps/",
+    "src/projects/revolution-overdrive-porting/packages/maps.json",
+    "tools/launchers/launch-revolution-overdrive.ps1",
+    "tools/cmre-webui/test_revolution_overdrive.py"
+  ],
+  "validation": [
+    { "command": "node tools/utils/workspace.mjs validate", "exitCode": 0, "summary": "Workspace valid; unrelated missing external source warnings remain." },
+    { "command": "node tools/analysis/analyze-catalog.mjs revolution-overdrive-owned-package Commander/Mods/RevolutionOverdrive.SC2Mod .* <report>", "exitCode": 0, "summary": "4,135 entries and zero parse errors." },
+    { "command": "node tools/utils/workspace.mjs lint src/projects/revolution-overdrive-porting/packages --format json --no-type-check", "exitCode": 0, "summary": "74 Galaxy files and zero diagnostics." },
+    { "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-revolution-overdrive.ps1 -MapName traynor01.SC2Map -Faction Iron -NoLaunch", "exitCode": 0, "summary": "Staged the selected map and all eight Mods into the SC2 installation." },
+    { "command": "python -m unittest tools/cmre-webui/test_revolution_overdrive.py -v", "exitCode": 0, "summary": "Two tests passed, including an HTTP request that executed the real launcher staging path." }
+  ],
+  "nextStage": "04-ai-ally"
+}

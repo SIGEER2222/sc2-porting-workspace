@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "stage": "02-static-extraction",
+  "status": "passed",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "All seven file-based source Mod archives passed MPQ verification and extraction, with seven package records and zero extraction failures.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/archive-extraction-manifest.json",
+        "artifacts/projects/revolution-overdrive-porting/stage02-extraction/extraction-run-summary.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "All seven extracted Mod Catalog trees parsed with zero errors; the extracted Catalog entry counts are recorded per package.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/mod-catalog-summary.json",
+        "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/mod-catalogs/"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The six extracted Galaxy files have symbol/include records and the three packages that contain Galaxy source pass the repository Galaxy lint parser without type checking.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/galaxy-symbol-catalog.json",
+        "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/galaxy-lint/"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The source tree is unchanged against the Stage 01 hash baseline: no changed or missing analysis file.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/source-unchanged.json"
+      ]
+    },
+    {
+      "type": "inference",
+      "claim": "The main Revolution Overdrive Mod is the candidate independent commander runtime/glue package, with faction Mods and shared effect packages kept as explicit dependencies until runtime proves a narrower split.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/ownership-boundary.json",
+        "src/projects/revolution-overdrive-porting/stages/02-static-extraction/self-assessment.md"
+      ]
+    }
+  ],
+  "outputs": [
+    "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/archive-extraction-manifest.json",
+    "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/mod-catalog-summary.json",
+    "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/mod-catalogs/",
+    "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/galaxy-symbol-catalog.json",
+    "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/galaxy-lint/",
+    "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/ownership-boundary.json",
+    "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/source-unchanged.json",
+    "src/projects/revolution-overdrive-porting/stages/02-static-extraction/self-assessment.md"
+  ],
+  "validation": [
+    {
+      "command": "node tools/utils/workspace.mjs validate",
+      "exitCode": 0,
+      "summary": "Workspace and generated analysis source registration valid; pre-existing unrelated missing-binding warnings remain."
+    },
+    {
+      "command": "python tools/mpq/scripts/verify_mpq.py <each file-based source *.SC2Mod>",
+      "exitCode": 0,
+      "summary": "Seven archive packages verified."
+    },
+    {
+      "command": "python tools/mpq/scripts/extract_mpq.py <resolved source archive> artifacts/projects/revolution-overdrive-porting/stage02-extraction/<archive>/ *",
+      "exitCode": 0,
+      "summary": "Seven archive packages extracted."
+    },
+    {
+      "command": "node tools/analysis/analyze-catalog.mjs revolution-overdrive-stage02-extraction <each archive directory> .* <Stage 02 report>",
+      "exitCode": 0,
+      "summary": "Seven extracted Catalog reports with zero parse errors."
+    },
+    {
+      "command": "node tools/utils/workspace.mjs lint <each extracted package with .galaxy> --format json --no-type-check",
+      "exitCode": 0,
+      "summary": "Three applicable Galaxy packages passed; four packages were marked not-applicable because they contain no Galaxy files."
+    },
+    {
+      "command": "recompute Stage 01 SHA-256 baseline and compare source-unchanged.json",
+      "exitCode": 0,
+      "summary": "All 1,009 baseline files unchanged; changed=0, missing=0."
+    },
+    {
+      "command": "parse all Stage 02 JSON outputs",
+      "exitCode": 0,
+      "summary": "Required evidence and result files parse as JSON."
+    }
+  ],
+  "nextStage": "03-commander-package"
+}

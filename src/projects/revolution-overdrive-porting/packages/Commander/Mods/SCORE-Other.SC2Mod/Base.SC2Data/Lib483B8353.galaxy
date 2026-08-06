@@ -1,0 +1,82 @@
+include "TriggerLibs/NativeLib"
+
+include "Lib483B8353_h"
+
+//--------------------------------------------------------------------------------------------------
+// Library: ??????????????????
+//--------------------------------------------------------------------------------------------------
+// External Library Initialization
+void lib483B8353_InitLibraries () {
+    libNtve_InitVariables();
+}
+
+// Functions
+trigger auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_Trigger = null;
+unit auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_lp_e79BAEE6A087E58D95E4BD8D;
+fixed auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_lp_e6A087E58786E59DA0E6AF81E697B6E995BF;
+fixed auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_lp_e6A087E58786E59DA0E6AF81E9AB98E5BAA6;
+
+void lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98 (unit lp_e79BAEE6A087E58D95E4BD8D, fixed lp_e6A087E58786E59DA0E6AF81E697B6E995BF, fixed lp_e6A087E58786E59DA0E6AF81E9AB98E5BAA6) {
+    auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_lp_e79BAEE6A087E58D95E4BD8D = lp_e79BAEE6A087E58D95E4BD8D;
+    auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_lp_e6A087E58786E59DA0E6AF81E697B6E995BF = lp_e6A087E58786E59DA0E6AF81E697B6E995BF;
+    auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_lp_e6A087E58786E59DA0E6AF81E9AB98E5BAA6 = lp_e6A087E58786E59DA0E6AF81E9AB98E5BAA6;
+
+    if (auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_Trigger == null) {
+        auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_Trigger = TriggerCreate("auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_TriggerFunc");
+    }
+
+    TriggerExecute(auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_Trigger, false, false);
+}
+
+bool auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_TriggerFunc (bool testConds, bool runActions) {
+    unit lp_e79BAEE6A087E58D95E4BD8D = auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_lp_e79BAEE6A087E58D95E4BD8D;
+    fixed lp_e6A087E58786E59DA0E6AF81E697B6E995BF = auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_lp_e6A087E58786E59DA0E6AF81E697B6E995BF;
+    fixed lp_e6A087E58786E59DA0E6AF81E9AB98E5BAA6 = auto_lib483B8353_gf_E59DA0E6AF81E9AB98E5BAA6E694B9E58F98_lp_e6A087E58786E59DA0E6AF81E9AB98E5BAA6;
+
+    // Variable Declarations
+    int lv_e9878DE5A48DE6ACA1E695B0;
+    fixed lv_e9AB98E5BAA6E58F98E58C96A;
+    fixed lv_e9AB98E5BAA6E58F98E58C96B;
+    fixed lv_e79BAEE6A087E9AB98E5BAA6;
+    fixed lv_e58AA0E9809FE5BAA6;
+
+    // Automatic Variable Declarations
+    // Variable Initialization
+
+    // Implementation
+    lv_e58AA0E9809FE5BAA6 = ((lp_e6A087E58786E59DA0E6AF81E9AB98E5BAA6 * 2.0) / Pow(lp_e6A087E58786E59DA0E6AF81E697B6E995BF, 2.0));
+    lv_e79BAEE6A087E9AB98E5BAA6 = UnitGetHeight(lp_e79BAEE6A087E58D95E4BD8D);
+    lv_e9AB98E5BAA6E58F98E58C96A = (0.5*lv_e58AA0E9809FE5BAA6*0.0625);
+    while (true) {
+        lv_e9AB98E5BAA6E58F98E58C96B = (lv_e58AA0E9809FE5BAA6*lv_e9878DE5A48DE6ACA1E695B0*0.25);
+        lv_e79BAEE6A087E9AB98E5BAA6 -= (lv_e9AB98E5BAA6E58F98E58C96A+lv_e9AB98E5BAA6E58F98E58C96B);
+        if ((lv_e79BAEE6A087E9AB98E5BAA6 <= 0.25)) {
+            lv_e79BAEE6A087E9AB98E5BAA6 = 0.25;
+            UnitSetHeight(lp_e79BAEE6A087E58D95E4BD8D, lv_e79BAEE6A087E9AB98E5BAA6, 0.25);
+            UnitBehaviorRemove(lp_e79BAEE6A087E58D95E4BD8D, "Crash", 1);
+            break;
+        }
+        else {
+            UnitSetHeight(lp_e79BAEE6A087E58D95E4BD8D, lv_e79BAEE6A087E9AB98E5BAA6, 0.25);
+        }
+        lv_e9878DE5A48DE6ACA1E695B0 += 1;
+        Wait(0.25, c_timeGame);
+    }
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool lib483B8353_InitLib_completed = false;
+
+void lib483B8353_InitLib () {
+    if (lib483B8353_InitLib_completed) {
+        return;
+    }
+
+    lib483B8353_InitLib_completed = true;
+
+    lib483B8353_InitLibraries();
+}
+

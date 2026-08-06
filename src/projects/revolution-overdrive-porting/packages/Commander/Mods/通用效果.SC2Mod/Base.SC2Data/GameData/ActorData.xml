@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CActorSquib id="0hedanexElode3">
+        <On Terms="Effect.0hedanDamage3.Start; At Effect" Send="Create"/>
+        <HostSiteOps Ops="SOpTargetPointStationary SOpShadow"/>
+        <Map index="None" Model="0hedanExplode3" Sound="Ghost_NukeExplode"/>
+    </CActorSquib>
+    <CActorFoliageFXSpawner id="0hedanFoliageFXSpawner3" parent="FoliageFXSpawnerFire">
+        <On Terms="Effect.0hedanDamage3.Start" Send="Create"/>
+        <Radius value="24.000000"/>
+    </CActorFoliageFXSpawner>
+    <CActorRegionCircle id="0hedanTreekiller3">
+        <On Terms="Effect.0hedanDamage3.Start; At Effect" Send="Create"/>
+        <On Terms="ActorCreation" Send="QueryRegion ::Self TreeBurnQuery AgainstCenter"/>
+        <On Terms="ActorCreation" Send="QueryRegion ::Self NukedQuery AgainstCenter"/>
+        <On Terms="Effect.0hedanDamage3.Start; At Effect" Send="Destroy"/>
+        <Radius value="24.000000"/>
+    </CActorRegionCircle>
+    <CActorModel id="0hefushe3" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.0hefushePersistent3.Start" Send="Create"/>
+        <On Terms="Effect.0hefushePersistent3.Stop" Send="Destroy"/>
+        <On Terms="ActorCreation" Send="SetOpacity"/>
+        <On Terms="ActorCreation" Send="SetOpacity 0.500000 2.000000"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Model value="0hefushe"/>
+        <Scale value="4.000000"/>
+    </CActorModel>
+    <CActorModel id="0heidongmodel" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.0heidongpersistent.Start" Send="Create"/>
+        <On Terms="Effect.0heidongpersistent.Stop" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Scale value="2.000000"/>
+    </CActorModel>
+    <CActorModel id="0acid" parent="ModelAddition">
+        <Inherits index="TintColor" value="0"/>
+        <On Terms="Behavior.0acid.On" Send="Create"/>
+        <On Terms="Behavior.0acid.Off" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpAttachCenterSoft"/>
+        <Model value="CorruptionModel"/>
+        <AutoScaleFactor value="1.000000"/>
+    </CActorModel>
+    <CActorSquib id="0hedanexplode">
+        <On Terms="Effect.0hedandamage.Start; At Effect" Send="Create"/>
+        <HostSiteOps Ops="SOpTargetPointStationary SOpShadow"/>
+        <Map index="None" Sound="Ghost_NukeExplode"/>
+    </CActorSquib>
+    <CActorSquib id="0hedanexplode2">
+        <On Terms="Effect.0hedandamage2.Start; At Effect" Send="Create"/>
+        <HostSiteOps Ops="SOpTargetPointStationary SOpShadow"/>
+        <Map index="None" Sound="Ghost_NukeExplode"/>
+    </CActorSquib>
+    <CActorFoliageFXSpawner id="0hedanfoliagefxspawner" parent="FoliageFXSpawnerFire">
+        <On Terms="Effect.0hedandamage.Start" Send="Create"/>
+        <Radius value="12.000000"/>
+    </CActorFoliageFXSpawner>
+    <CActorFoliageFXSpawner id="0hedanfoliagefxspawner2" parent="FoliageFXSpawnerFire">
+        <On Terms="Effect.0hedandamage2.Start" Send="Create"/>
+        <Radius value="6.000000"/>
+    </CActorFoliageFXSpawner>
+    <CActorAction id="0hedanshieldhitter" parent="AoESplashShieldHitter" effectHit="0hedandamage">
+        <On Terms="Effect.0hedandamage2.Start" Send="Create"/>
+        <On Terms="Effect.0hedandamage2.Stop" Send="Destroy"/>
+        <On Terms="Effect.0hedanDamage3.Start" Send="Create"/>
+        <On Terms="Effect.0hedanDamage3.Stop" Send="Destroy"/>
+    </CActorAction>
+    <CActorRegionCircle id="0hedantreekiller">
+        <On Terms="Effect.0hedandamage.Start; At Effect" Send="Create"/>
+        <On Terms="ActorCreation" Send="QueryRegion ::Self TreeBurnQuery AgainstCenter"/>
+        <On Terms="ActorCreation" Send="QueryRegion ::Self NukedQuery AgainstCenter"/>
+        <On Terms="Effect.0hedandamage.Start; At Effect" Send="Destroy"/>
+        <Radius value="12.000000"/>
+    </CActorRegionCircle>
+    <CActorRegionCircle id="0hedantreekiller2">
+        <On Terms="Effect.0hedandamage2.Start; At Effect" Send="Create"/>
+        <On Terms="ActorCreation" Send="QueryRegion ::Self TreeBurnQuery AgainstCenter"/>
+        <On Terms="ActorCreation" Send="QueryRegion ::Self NukedQuery AgainstCenter"/>
+        <On Terms="Effect.0hedandamage2.Start; At Effect" Send="Destroy"/>
+        <Radius value="6.000000"/>
+    </CActorRegionCircle>
+    <CActorModel id="0hefushe2" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.0hefushepersisdent2.Start" Send="Create"/>
+        <On Terms="Effect.0hefushepersisdent2.Stop" Send="Destroy"/>
+        <On Terms="ActorCreation" Send="SetOpacity"/>
+        <On Terms="ActorCreation" Send="SetOpacity 0.500000 2.000000"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Model value="0hefushe"/>
+    </CActorModel>
+    <CActorModel id="0hefushe" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.0hefushepersisdent.Start" Send="Create"/>
+        <On Terms="Effect.0hefushepersisdent.Stop" Send="Destroy"/>
+        <On Terms="ActorCreation" Send="SetOpacity"/>
+        <On Terms="ActorCreation" Send="SetOpacity 0.500000 2.000000"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Scale value="2.000000"/>
+    </CActorModel>
+    <CActorModel id="0hefushemodel" parent="ModelAnimationStyleContinuousUNIT">
+        <On Terms="Behavior.0hefushe.On" Send="Create"/>
+        <On Terms="Behavior.0hefushe.Off" Send="Destroy"/>
+        <On Terms="ActorCreation" Send="SetOpacity 0.500000"/>
+        <Inherits index="CloakEffect" value="1"/>
+        <Inherits index="Opacity" value="1"/>
+        <Inherits index="Visibility" value="1"/>
+        <Inherits index="WarpGroup" value="1"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <Model value="IrradiateEffect"/>
+        <AutoScaleFactor value="0.400000"/>
+    </CActorModel>
+    <CActorModel id="0chaojiheidongmodel" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.0chaojiheidongpersistent.Start" Send="Create"/>
+        <On Terms="Effect.0chaojiheidongpersistent.Stop" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Model value="0heidongmodel"/>
+        <Scale value="4.000000"/>
+    </CActorModel>
+    <CActorModel id="0xiaoheidongmodel" parent="ModelAnimationStyleContinuous">
+        <On Terms="Effect.0xiaoheidongpersistent.Start" Send="Create"/>
+        <On Terms="Effect.0xiaoheidongpersistent.Stop" Send="AnimBracketStop BSD"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Model value="0heidongmodel"/>
+    </CActorModel>
+    <CActorSound id="0heidongbirthsound" parent="SoundOneShot">
+        <On Terms="Effect.0chaojiheidongpersistent.Start" Send="Create"/>
+        <On Terms="Effect.0heidongpersistent.Start" Send="Create"/>
+        <On Terms="Effect.0xiaoheidongpersistent.Start" Send="Create"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Sound value="Mothership_VortexStart"/>
+    </CActorSound>
+    <CActorSound id="0heidongdeathsound" parent="SoundOneShot">
+        <On Terms="Effect.0chaojiheidongpersistent.Stop" Send="Create"/>
+        <On Terms="Effect.0heidongpersistent.Stop" Send="Create"/>
+        <On Terms="Effect.0xiaoheidongpersistent.Stop" Send="Create"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Sound value="Mothership_VortexEnd"/>
+    </CActorSound>
+    <CActorSound id="0heidongloopsound" parent="SoundContinuous">
+        <On Terms="Effect.0chaojiheidongpersistent.Start" Send="Create"/>
+        <On Terms="Effect.0chaojiheidongpersistent.Stop" Send="Destroy"/>
+        <On Terms="Effect.0heidongpersistent.Start" Send="Create"/>
+        <On Terms="Effect.0heidongpersistent.Stop" Send="Destroy"/>
+        <On Terms="Effect.0xiaoheidongpersistent.Start" Send="Create"/>
+        <On Terms="Effect.0xiaoheidongpersistent.Stop" Send="Destroy"/>
+        <HostSiteOps Ops="SOpShadow"/>
+        <Sound value="Mothership_VortexLoop"/>
+    </CActorSound>
+    <CActorModel id="0chixuranshaoModel" parent="ModelAnimationStyleContinuousUNIT">
+        <On Terms="Behavior.0fire.On; ValidateUnitType NotStructureTarget" Send="Create"/>
+        <On Terms="Behavior.0fire.Off" Send="AnimBracketStop BSD"/>
+        <On Terms="ActorCreation" Send="SetOpacity 0.300000"/>
+        <HostSiteOps Ops="SOpAttachHead"/>
+        <Model value="0chixuranshaoFire"/>
+        <Scale value="0.600000"/>
+    </CActorModel>
+    <CActorModel id="0chixuranshaoModelStructure" parent="ModelAnimationStyleContinuousUNIT">
+        <On Terms="Effect.0fire.Start; ValidateUnitType IsStructureTarget; At Target" Send="Create"/>
+        <On Terms="ActorCreation" Send="TimerSet 8.000000 0chixuranshaoStructure"/>
+        <On Terms="TimerExpired; TimerName 0chixuranshaoStructure" Send="AnimBracketStop BSD"/>
+        <On Terms="ActorCreation" Send="SetOpacity 0.800000"/>
+        <HostSiteOps Ops="SOpAttachRandomDamage"/>
+        <Model value="0chixuranshaoFire"/>
+        <Scale value="0.600000"/>
+    </CActorModel>
+    <CActorModel id="0dianranUnitImpact" parent="ModelAnimationStyleContinuous">
+        <On Terms="Behavior.0dianran.On" Send="Create"/>
+        <On Terms="Behavior.0dianran.Off" Send="AnimBracketStop BSD"/>
+        <Host Subject="_Unit"/>
+        <HostSiteOps Ops="SOpAttachCenter"/>
+        <Model value="ColossusPurifierAttackBeamUnitImpact"/>
+        <AutoScaleFactor value="1.000000"/>
+        <ModelFlags index="AllowHitTest" value="0"/>
+    </CActorModel>
+</Catalog>

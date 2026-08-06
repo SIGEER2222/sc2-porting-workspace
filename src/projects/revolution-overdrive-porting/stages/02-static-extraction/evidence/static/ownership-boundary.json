@@ -1,0 +1,94 @@
+{
+  "SchemaVersion": 1,
+  "Commander": {
+    "Id": "revolution-overdrive-commander",
+    "DirectPackage": "RevolutionOverdrive.SC2Mod",
+    "Status": "candidate",
+    "Reason": "main Mod owns the faction-switch/runtime glue and is the common dependency of all mission maps",
+    "RequiredDirectDependencies": [
+      "file:Mods\\33克哈.SC2Mod",
+      "file:Mods\\CovertOps.SC2Mod",
+      "file:Mods\\9海盗2333.SC2Mod",
+      "file:Mods\\Umojan.SC2Mod",
+      "file:Mods\\1钢铁之翼.SC2Mod"
+    ],
+    "SelectionBoundary": "keep faction presets explicit until Stage 03 WebUI contract is frozen"
+  },
+  "SharedCandidates": [
+    {
+      "Package": "通用效果.SC2Mod",
+      "Reason": "declared by multiple faction Mods and contains only Catalog/text/info components"
+    },
+    {
+      "Package": "SCORE-Other.SC2Mod",
+      "Reason": "declared by CovertOps and Umojan and marked ExtensionMod"
+    }
+  ],
+  "FactionCandidates": [
+    {
+      "Package": "1钢铁之翼.SC2Mod",
+      "Reason": "faction-specific Catalog/trigger or extension content selected by the original launcher",
+      "Dependencies": [
+        "file:Mods\\通用效果.SC2Mod"
+      ],
+      "GalaxyFiles": [
+        "1钢铁之翼.SC2Mod/Base.SC2Data/Lib1A1D096B_h.galaxy",
+        "1钢铁之翼.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy"
+      ],
+      "CatalogEntries": 861
+    },
+    {
+      "Package": "33克哈.SC2Mod",
+      "Reason": "faction-specific Catalog/trigger or extension content selected by the original launcher",
+      "Dependencies": [
+        "bnet:虚空之遗 (战役)/0.0/999,file:Campaigns/Void.SC2Campaign",
+        "bnet:自由之翼 (战役)/0.0/999,file:Campaigns/Liberty.SC2Campaign",
+        "bnet:虫群之心(战役)/0.0/999,file:Campaigns/Swarm.SC2Campaign",
+        "file:Mods\\通用效果.SC2Mod"
+      ],
+      "GalaxyFiles": [
+        "33克哈.SC2Mod/Base.SC2Data/LibDE538C36_h.galaxy",
+        "33克哈.SC2Mod/Base.SC2Data/LibDE538C36.galaxy"
+      ],
+      "CatalogEntries": 1964
+    },
+    {
+      "Package": "9海盗2333.SC2Mod",
+      "Reason": "faction-specific Catalog/trigger or extension content selected by the original launcher",
+      "Dependencies": [
+        "bnet:虚空之遗 (战役)/0.0/999,file:Campaigns/Void.SC2Campaign",
+        "file:Mods\\通用效果.SC2Mod"
+      ],
+      "GalaxyFiles": [],
+      "CatalogEntries": 1387
+    },
+    {
+      "Package": "CovertOps.SC2Mod",
+      "Reason": "faction-specific Catalog/trigger or extension content selected by the original launcher",
+      "Dependencies": [
+        "bnet:虚空之遗 (战役)/0.0/999,file:Campaigns/Void.SC2Campaign",
+        "bnet:SCORE_Other/0.0/225352,file:Mods\\SCORE-Other.SC2Mod"
+      ],
+      "GalaxyFiles": [],
+      "CatalogEntries": 3270
+    },
+    {
+      "Package": "Umojan.SC2Mod",
+      "Reason": "faction-specific Catalog/trigger or extension content selected by the original launcher",
+      "Dependencies": [
+        "bnet:虚空之遗 (战役)/0.0/999,file:Campaigns/Void.SC2Campaign",
+        "bnet:SCORE_Other/0.0/225352,file:Mods\\SCORE-Other.SC2Mod"
+      ],
+      "GalaxyFiles": [],
+      "CatalogEntries": 2019
+    }
+  ],
+  "MapOwned": [
+    "31 maps remain mission-owned; their MapScript, Triggers, Banks, objectives, rewards, and alliance setup are not moved into the commander package."
+  ],
+  "AIAllyBoundary": {
+    "StaticFinding": "mission scripts define alliances; map scripts do not call native AIStart/AIMeleeStart",
+    "AdapterRule": "preserve map alliance initialization and expose allied-player observations through an adapter contract",
+    "RuntimeStatus": "not-yet-verified"
+  }
+}

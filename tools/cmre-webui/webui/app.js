@@ -49,7 +49,10 @@ const state = {
   presetListOpen: false,
   selected: {
     mapName: "亡者之夜.SC2Map",
+    mapPackage: "cmre",
     commander: "TerranRaynor",
+    commanderPackage: "cmre",
+    faction: "",
     commanderBank: "Raynor",
     commanderPortrait: "ui_commanderportrait_raynor.dds",
     commanderCachedImage: "",
@@ -96,6 +99,7 @@ const GROUP_LABELS = {
   official: "官方",
   alenger: "起义",
   reborn: "重生",
+  "revolution-overdrive": "起义狂潮",
 };
 
 function $(id) { return document.getElementById(id); }
@@ -127,7 +131,10 @@ function buildPresetSnapshot() {
   return {
     name: "",
     mapName: s.mapName,
+    mapPackage: s.mapPackage,
     commander: s.commander,
+    commanderPackage: s.commanderPackage,
+    faction: s.faction,
     mode: s.mode,
     difficultyBase: s.difficultyBase,
     difficultyPlus: s.difficultyPlus,
@@ -142,6 +149,8 @@ function buildPresetSnapshot() {
 function applyPreset(preset) {
   const s = state.selected;
   s.mapName = preset.mapName || s.mapName;
+  const map = state.maps.find(m => m.id === s.mapName && (!preset.mapPackage || m.packageId === preset.mapPackage));
+  if (map) s.mapPackage = map.packageId || "cmre";
   s.mode = preset.mode || 1;
   s.difficultyBase = preset.difficultyBase || 0;
   s.difficultyPlus = preset.difficultyPlus || 0;
@@ -152,6 +161,8 @@ function applyPreset(preset) {
   const cmdr = state.commanders.find(c => c.id === preset.commander);
   if (cmdr) {
     s.commander = cmdr.id;
+    s.commanderPackage = cmdr.packageId || "cmre";
+    s.faction = cmdr.faction || "";
     s.commanderBank = cmdr.bank;
     s.commanderPortrait = cmdr.portrait;
     s.commanderCachedImage = cmdr.cachedImage || "";
@@ -220,16 +231,21 @@ async function loadFactors() {
 
 async function loadMaps() {
   const data = await fetch(API.maps).then(r => r.json());
-  state.maps = data.maps || [];
+  state.maps = [...(data.maps || []), ...(data.revolutionMaps || [])];
+  const selectedMap = state.maps.find(m => m.id === state.selected.mapName && m.packageId === state.selected.mapPackage)
+    || state.maps.find(m => m.id === state.selected.mapName);
+  if (selectedMap) state.selected.mapPackage = selectedMap.packageId || "cmre";
   renderMaps();
 }
 
 async function loadCommanders() {
   const data = await fetch(API.factors).then(r => r.json());
-  state.commanders = data.commanders || [];
+  state.commanders = [...(data.commanders || []), ...(data.revolutionCommanders || [])];
   if (state.commanders.length > 0 && !state.commanders.find(c => c.id === state.selected.commander)) {
     const c = state.commanders[0];
     state.selected.commander = c.id;
+    state.selected.commanderPackage = c.packageId || "cmre";
+    state.selected.faction = c.faction || "";
     state.selected.commanderBank = c.bank;
     state.selected.commanderPortrait = c.portrait;
     state.selected.commanderCachedImage = c.cachedImage || "";
@@ -743,6 +759,7 @@ function renderMaps() {
     div.appendChild(nameDiv);
     div.onclick = () => {
       state.selected.mapName = m.id;
+      state.selected.mapPackage = m.packageId || "cmre";
       $$(".map-item").forEach(el => el.classList.toggle("selected", el === div));
       updateFooter();
     };
@@ -800,6 +817,8 @@ function renderCommanderGrid() {
     div.appendChild(nameDiv);
     div.onclick = () => {
       state.selected.commander = c.id;
+      state.selected.commanderPackage = c.packageId || "cmre";
+      state.selected.faction = c.faction || "";
       state.selected.commanderBank = c.bank;
       state.selected.commanderPortrait = c.portrait;
       state.selected.commanderCachedImage = c.cachedImage || "";
@@ -816,6 +835,8 @@ function renderCommanderCard() {
   const c = state.commanders[idx] || state.commanders[0];
   if (!c) return;
   state.selected.commander = c.id;
+  state.selected.commanderPackage = c.packageId || "cmre";
+  state.selected.faction = c.faction || "";
   state.selected.commanderBank = c.bank;
   state.selected.commanderPortrait = c.portrait;
   state.selected.commanderCachedImage = c.cachedImage || "";
@@ -1128,6 +1149,15 @@ async function launchGame() {
     enemy: s.enemy, mutators: s.mutators,
     voicePack: s.voicePack, extraMods: s.extraMods,
   };
+  if (s.mapPackage === "revolution-overdrive" || s.commanderPackage === "revolution-overdrive") {
+    if (s.mapPackage !== "revolution-overdrive" || s.commanderPackage !== "revolution-overdrive") {
+      showStatus("起义狂潮地图必须搭配起义狂潮阵营预设", "warn");
+      btn.disabled = false; btn.textContent = "启动游戏";
+      return;
+    }
+    body.packageId = "revolution-overdrive";
+    body.faction = s.faction;
+  }
   if (s.apiMode) { body.listenPort = s.listenPort; body.apiMinimal = true; }
   // 重生虫心指挥官：透传 reborn 标志和指挥官名，server.py 据此追加 -EnableReborn -RebornCommander
   // 注意：state.selected.commander 是 "RebornZergAbathur" 形式（避免与原版 8 个重名指挥官冲突），
@@ -1248,7 +1278,10 @@ function resetSelection() {
   const c0 = state.commanders.find(c => c.group === "official") || state.commanders[0] || {};
   state.selected = {
     mapName: "亡者之夜.SC2Map",
+    mapPackage: "cmre",
     commander: c0.id || "TerranRaynor",
+    commanderPackage: c0.packageId || "cmre",
+    faction: c0.faction || "",
     commanderBank: c0.bank || "Raynor",
     commanderPortrait: c0.portrait || "ui_commanderportrait_raynor.dds",
     commanderCachedImage: c0.cachedImage || "",

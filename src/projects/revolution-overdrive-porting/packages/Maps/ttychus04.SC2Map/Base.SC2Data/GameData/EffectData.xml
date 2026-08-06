@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CEffectEnumArea id="BurningResidueInitSearch">
+        <SearchFilters value="-;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+    </CEffectEnumArea>
+    <CEffectDamage id="MassEjectionBurningDamage">
+        <Amount value="4"/>
+        <AttributeFactor index="Armored" value="0"/>
+        <AttributeFactor index="MapBoss" value="2000"/>
+    </CEffectDamage>
+    <CEffectSet id="MassEjectionImpactSet">
+        <EffectArray index="2" removed="1"/>
+    </CEffectSet>
+    <CEffectCreatePersistent id="MassEjectionPrecursor">
+        <ExpireDelay value="0"/>
+        <ExpireEffect value=""/>
+        <PeriodCount value="1"/>
+        <PeriodicEffectArray value="SOAOrbitalStrikeCP"/>
+        <PeriodicPeriodArray value="120"/>
+    </CEffectCreatePersistent>
+    <CEffectCreateUnit id="PathingBlockerCU">
+        <SpawnUnit index="0" value="DestructibleRock6x6"/>
+    </CEffectCreateUnit>
+    <CEffectCreatePersistent id="SOAOrbitalStrikeCP">
+        <ExpireEffect value="MassEjectionImpactSet"/>
+    </CEffectCreatePersistent>
+    <CEffectEnumArea id="SupernovaProtSearch">
+        <SearchFilters value="-;Neutral,Enemy,Stasis,Dead,Hidden"/>
+    </CEffectEnumArea>
+</Catalog>

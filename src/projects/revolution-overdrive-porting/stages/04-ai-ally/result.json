@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "stage": "04-ai-ally",
+  "status": "passed-with-runtime-blocker",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "All 31 owned Revolution Overdrive maps have deterministic static roster records; 29 are mission maps and two are entry-flow maps.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/evidence/static/map-roster-manifest.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "No owned map script calls generic AIStart or AIMeleeStart, and all map scripts remain byte-identical after extraction.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/evidence/static/map-roster-manifest.json",
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ai_ally_adapter.py"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "Mission-derived contracts authorize only P1 commands, expose P1/P2 observations, and accept only explicitly declared positive P1 enemy owners as targets.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/evidence/static/contract-samples.json",
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ai_ally_adapter.py"
+      ]
+    },
+    {
+      "type": "simulator",
+      "claim": "The existing CMRE ally contract remains green in the targeted AI behavior regressions and runtime matrix after the RO adapter was added.",
+      "evidence": [
+        "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py",
+        "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_runtime_matrix.py"
+      ]
+    },
+    {
+      "type": "blocked",
+      "claim": "No native SC2 runtime pass is claimed because the required Void Campaign dependency is missing.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/issues.json",
+        "src/projects/revolution-overdrive-porting/stages/03-commander-package/issues.json"
+      ]
+    }
+  ],
+  "outputs": [
+    "src/projects/revolution-overdrive-porting/vibe/__init__.py",
+    "src/projects/revolution-overdrive-porting/vibe/ai_ally.py",
+    "src/projects/revolution-overdrive-porting/stages/04-ai-ally/evidence/static/map-roster-manifest.json",
+    "src/projects/revolution-overdrive-porting/stages/04-ai-ally/evidence/static/contract-samples.json",
+    "src/projects/revolution-overdrive-porting/stages/04-ai-ally/self-assessment.md",
+    "src/projects/revolution-overdrive-porting/stages/04-ai-ally/issues.json"
+  ],
+  "validation": [
+    {
+      "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ai_ally_adapter.py -v",
+      "exitCode": 0,
+      "summary": "Five deterministic adapter tests passed across all 31 maps and representative mission/entry-flow contracts."
+    },
+    {
+      "command": "python -m py_compile src/projects/revolution-overdrive-porting/vibe/__init__.py src/projects/revolution-overdrive-porting/vibe/ai_ally.py",
+      "exitCode": 0,
+      "summary": "Project-local adapter modules compiled successfully."
+    },
+    {
+      "command": "python -m unittest src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_runtime_matrix.py -v",
+      "exitCode": 0,
+      "summary": "Nine existing runtime-matrix regression tests passed."
+    },
+    {
+      "command": "python -m unittest selected Stage 25 ally capability tests -v",
+      "exitCode": 0,
+      "summary": "Five targeted ally behavior tests passed, including roster, P2 visibility, command authorization, and friendly-fire gates."
+    },
+    {
+      "command": "python -m unittest tools/cmre-webui/test_revolution_overdrive.py -v",
+      "exitCode": 0,
+      "summary": "Two WebUI tests passed, including a real HTTP request reaching the owned launcher staging path."
+    },
+    {
+      "command": "node tools/utils/workspace.mjs validate",
+      "exitCode": 0,
+      "summary": "Workspace validation passed; nine unrelated registered-path warnings remain."
+    }
+  ],
+  "verificationGaps": [
+    {
+      "command": "python -m unittest src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py -v",
+      "status": "timeout",
+      "detail": "The full suite did not finish within the bounded 60-second command window; this is recorded as RO-AI-002."
+    }
+  ],
+  "nextStage": "05-runtime"
+}

@@ -1,0 +1,179 @@
+﻿<#
+.SYNOPSIS
+    Stage and launch the owned Revolution Overdrive commander/map package.
+
+.DESCRIPTION
+    This launcher owns orchestration only. It copies the verified package closure into the SC2
+    install, launches through SC2Switcher, and records staging/runtime evidence. Mission scripts,
+    alliance initialization, objectives, and rewards remain inside the selected map.
+#>
+[CmdletBinding()]
+param(
+    [string]$MapName = "traynor01.SC2Map",
+    [ValidateSet("Iron", "Madness", "Pirate", "Coverts", "Umojan")]
+    [string]$Faction = "Iron",
+    [string]$Sc2Root = "",
+    [int]$ListenPort = 0,
+    [switch]$NoLaunch,
+    [switch]$NoCheats,
+    [int]$ReadyTimeoutSeconds = 180
+)
+
+$ErrorActionPreference = "Stop"
+$workspace = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$packageRoot = Join-Path $workspace "src\projects\revolution-overdrive-porting\packages"
+$modRoot = Join-Path $packageRoot "Commander\Mods"
+$mapsRoot = Join-Path $packageRoot "Maps"
+$evidenceRoot = Join-Path $workspace "artifacts\projects\revolution-overdrive-porting\stage03-commander-package\launcher"
+$gameLogsRoot = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "StarCraft II\GameLogs"
+
+$factions = @{
+    Iron = "Iron"
+    Madness = "Madness"
+    Pirate = "Pirate"
+    Coverts = "Coverts"
+    Umojan = "Umojan"
+}
+$requiredMods = @(
+    "RevolutionOverdrive.SC2Mod",
+    "1钢铁之翼.SC2Mod",
+    "33克哈.SC2Mod",
+    "9海盗2333.SC2Mod",
+    "通用效果.SC2Mod",
+    "CovertOps.SC2Mod",
+    "SCORE-Other.SC2Mod",
+    "Umojan.SC2Mod"
+)
+
+function Resolve-Sc2Root {
+    param([string]$Requested)
+    if ($Requested) { return (Resolve-Path -LiteralPath $Requested).Path }
+    $candidates = @(
+        $env:SC2_ROOT,
+        "E:\SC2\SC2new\StarCraft II",
+        "C:\Program Files (x86)\StarCraft II",
+        "C:\Program Files\StarCraft II"
+    ) | Where-Object { $_ }
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath (Join-Path $candidate "Support64\SC2Switcher_x64.exe")) {
+            return (Resolve-Path -LiteralPath $candidate).Path
+        }
+    }
+    throw "SC2 installation not found. Pass -Sc2Root or set SC2_ROOT."
+}
+
+function Copy-OwnedDirectory {
+    param([string]$Source, [string]$Destination)
+    if (-not (Test-Path -LiteralPath $Source -PathType Container)) { throw "Package directory not found: $Source" }
+    if (Test-Path -LiteralPath $Destination) { Remove-Item -LiteralPath $Destination -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Destination) | Out-Null
+    Copy-Item -LiteralPath $Source -Destination $Destination -Recurse -Force
+}
+
+function Get-NewScriptErrors {
+    param([datetime]$Since)
+    if (-not (Test-Path -LiteralPath $gameLogsRoot)) { return @() }
+    return @(Get-ChildItem -LiteralPath $gameLogsRoot -Recurse -File -Filter "*ScriptError*.txt" -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -ge $Since -and $_.Length -gt 0 })
+}
+
+function Wait-ApiReady {
+    param([int]$Port, [int]$TimeoutSeconds)
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    while ([DateTime]::UtcNow -lt $deadline) {
+        $client = New-Object System.Net.Sockets.TcpClient
+        try {
+            $task = $client.ConnectAsync("127.0.0.1", $Port)
+            if ($task.Wait(1000) -and $client.Connected) { return $true }
+        } catch {}
+        finally { $client.Dispose() }
+        if (-not (Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue)) { return $false }
+    }
+    return $false
+}
+
+function Send-FactionChat {
+    param([string]$Chat)
+    Add-Type -AssemblyName Microsoft.VisualBasic
+    $process = Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $process) { Write-Warning "SC2 process not found; faction chat was not sent: $Chat"; return $false }
+    try { [Microsoft.VisualBasic.Interaction]::AppActivate($process.Id) | Out-Null } catch { Write-Warning "Could not focus SC2: $($_.Exception.Message)"; return $false }
+    Start-Sleep -Milliseconds 500
+    $shell = New-Object -ComObject WScript.Shell
+    $shell.SendKeys("{ENTER}")
+    Start-Sleep -Milliseconds 150
+    $shell.SendKeys($Chat)
+    Start-Sleep -Milliseconds 150
+    $shell.SendKeys("{ENTER}")
+    return $true
+}
+
+$sc2Root = Resolve-Sc2Root -Requested $Sc2Root
+$switcher = Join-Path $sc2Root "Support64\SC2Switcher_x64.exe"
+$mapStem = if ($MapName.EndsWith(".SC2Map", [StringComparison]::OrdinalIgnoreCase)) { $MapName } else { "$MapName.SC2Map" }
+$mapSource = Join-Path $mapsRoot $mapStem
+if (-not (Test-Path -LiteralPath $mapSource -PathType Container)) { throw "Owned map not found: $mapStem" }
+foreach ($mod in $requiredMods) {
+    if (-not (Test-Path -LiteralPath (Join-Path $modRoot $mod) -PathType Container)) { throw "Owned Mod not found: $mod" }
+}
+
+$liveMods = Join-Path $sc2Root "Mods"
+$liveMap = Join-Path $sc2Root ("Maps\RevolutionOverdrive\" + $mapStem)
+foreach ($mod in $requiredMods) { Copy-OwnedDirectory -Source (Join-Path $modRoot $mod) -Destination (Join-Path $liveMods $mod) }
+Copy-OwnedDirectory -Source $mapSource -Destination $liveMap
+
+$startedAt = Get-Date
+$evidence = [ordered]@{
+    schemaVersion = 1
+    classification = "static"
+    package = "revolution-overdrive"
+    map = $mapStem
+    faction = $Faction
+    factionChat = $factions[$Faction]
+    sourceMap = "src/projects/revolution-overdrive-porting/packages/Maps/$mapStem"
+    stagedMap = $liveMap
+    stagedMods = $requiredMods
+    noLaunch = [bool]$NoLaunch
+    listenPort = $ListenPort
+    startedAtUtc = $startedAt.ToUniversalTime().ToString("o")
+}
+New-Item -ItemType Directory -Force -Path $evidenceRoot | Out-Null
+if ($NoLaunch) {
+    $evidence | Add-Member -NotePropertyName status -NotePropertyValue "staged"
+    $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $evidenceRoot "last-run.json") -Encoding UTF8
+    Write-Host "Revolution Overdrive staged: $mapStem / $Faction"
+    Write-Host "Staged map: $liveMap"
+    exit 0
+}
+
+Get-Process -Name "SC2_x64", "SC2Switcher_x64" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+$args = @($liveMap)
+if ($ListenPort -gt 0) { $args += @("-listen", "127.0.0.1", "-port", "$ListenPort", "-debug") }
+Write-Host "Launching SC2 through SC2Switcher_x64.exe: $($args -join ' ')"
+$process = Start-Process -FilePath $switcher -ArgumentList $args -PassThru
+$evidence.classification = "runtime"
+$evidence.status = "launched"
+$evidence.launcherPid = $process.Id
+$evidence.ready = $false
+$evidence.scriptErrors = @()
+if ($ListenPort -gt 0) {
+    $evidence.ready = Wait-ApiReady -Port $ListenPort -TimeoutSeconds $ReadyTimeoutSeconds
+} else {
+    $deadline = [DateTime]::UtcNow.AddSeconds($ReadyTimeoutSeconds)
+    while ([DateTime]::UtcNow -lt $deadline) {
+        if (Get-ChildItem -LiteralPath $gameLogsRoot -Recurse -File -Filter "*Alert*.txt" -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $startedAt }) { $evidence.ready = $true; break }
+        if (-not (Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue)) { break }
+        Start-Sleep -Seconds 1
+    }
+}
+$evidence.scriptErrors = @(Get-NewScriptErrors -Since $startedAt | ForEach-Object { $_.FullName })
+$evidence.scriptErrorFree = ($evidence.scriptErrors.Count -eq 0)
+if ($evidence.ready -and -not $NoCheats) {
+    Start-Sleep -Seconds 2
+    $evidence.factionChatSent = Send-FactionChat -Chat $factions[$Faction]
+} else { $evidence.factionChatSent = $false }
+$evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $evidenceRoot "last-run.json") -Encoding UTF8
+if (-not $evidence.ready) { throw "SC2 did not produce a ready signal within $ReadyTimeoutSeconds seconds." }
+if (-not $evidence.scriptErrorFree) { throw "New ScriptError detected: $($evidence.scriptErrors -join ', ')" }
+Write-Host "Revolution Overdrive ready: $mapStem / $Faction"

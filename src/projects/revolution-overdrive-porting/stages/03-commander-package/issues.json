@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "RO-PKG-001",
+      "severity": "high",
+      "status": "blocked",
+      "summary": "The local SC2 installation is missing Campaigns/Void.SC2Campaign, a declared dependency of the owned main Mod and faction packages.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/packages/Commander/Mods/RevolutionOverdrive.SC2Mod/DocumentInfo",
+        "src/projects/revolution-overdrive-porting/stages/03-commander-package/log.md"
+      ],
+      "impact": "A live SC2 load cannot be accepted, regardless of staging or process startup status.",
+      "nextAction": "Install the required official campaign data or provide an approved owned dependency replacement, then run the launcher with a runtime listener and same-window ScriptError gate."
+    },
+    {
+      "id": "RO-PKG-002",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Faction activation uses post-load chat triggers, so staging does not prove the selected faction replaced player-one units at runtime.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/packages/Commander/Mods/RevolutionOverdrive.SC2Mod/Base.SC2Data/Lib6B3CCD85.galaxy",
+        "artifacts/projects/revolution-overdrive-porting/stage03-commander-package/launcher/last-run.json"
+      ],
+      "impact": "The UI may expose a valid preset that cannot yet be proven in an engine session.",
+      "nextAction": "After RO-PKG-001 is resolved, use the approved launcher to capture faction-specific unit state, runtime listener/heartbeat evidence, and ScriptError verdict."
+    },
+    {
+      "id": "RO-PKG-003",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Mission AI and alliance logic remain map-owned and need per-map roster evidence before a shared ally adapter can act on them.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/ai-ally-discovery.json"
+      ],
+      "impact": "A generic melee-AI replacement could break mission objectives or player ownership.",
+      "nextAction": "Complete Stage 04 roster extraction and deterministic AI ally contract tests."
+    }
+  ]
+}

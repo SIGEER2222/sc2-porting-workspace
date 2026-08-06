@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "stage": "01-discovery",
+  "status": "passed",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "The registered source contains 31 maps, 8 Mod packages, and 2,311 files; 1,009 key source files have stable SHA-256 records.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/source-inventory.json",
+        "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/source-hashes.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The main Mod Catalog parses 36 XML documents and 4,135 entries with zero parser errors; all 31 map Catalog reports also have zero parser errors.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/catalog-summary.json",
+        "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/catalog-map-summary.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The main Mod declares the Void Campaign and five faction Mod dependencies, while the launch script maps five cheat names to those faction Mods.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/dependency-boundary.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "Twenty-nine map scripts contain explicit alliance setup and no map script calls native AIStart or AIMeleeStart; the main Mod only provides the AI library entry points.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/ai-ally-discovery.json"
+      ]
+    },
+    {
+      "type": "inference",
+      "claim": "Commander extraction must initially preserve the main Mod plus the faction dependency closure and keep mission alliance initialization map-owned until Stage 02 extraction proves a narrower split.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/01-discovery/self-assessment.md",
+        "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/dependency-boundary.json"
+      ]
+    }
+  ],
+  "outputs": [
+    "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/source-inventory.json",
+    "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/dependency-boundary.json",
+    "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/catalog-summary.json",
+    "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/catalog-map-summary.json",
+    "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/catalog-maps/",
+    "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/ai-ally-discovery.json",
+    "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/source-hashes.json",
+    "src/projects/revolution-overdrive-porting/stages/01-discovery/self-assessment.md"
+  ],
+  "validation": [
+    {
+      "command": "node tools/utils/workspace.mjs validate",
+      "exitCode": 0,
+      "summary": "Workspace schema and source registration valid; only pre-existing unrelated missing-binding warnings remain."
+    },
+    {
+      "command": "node tools/utils/workspace.mjs status",
+      "exitCode": 0,
+      "summary": "Registered Revolution Overdrive source is bound and exists."
+    },
+    {
+      "command": "node tools/analysis/analyze-catalog.mjs revolution-overdrive-download RevolutionOverdrive.SC2Mod .* src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/catalog-summary.json",
+      "exitCode": 0,
+      "summary": "36 XML documents, 4,135 entries, 0 parse errors."
+    },
+    {
+      "command": "node tools/analysis/analyze-catalog.mjs revolution-overdrive-download <each *.SC2Map> .* src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/catalog-maps/<map>.json",
+      "exitCode": 0,
+      "summary": "31/31 map reports generated with 0 parse errors each."
+    },
+    {
+      "command": "python tools/mpq/scripts/verify_mpq.py <each file-based source *.SC2Mod>",
+      "exitCode": 0,
+      "summary": "All seven file-based Mod archives verified successfully."
+    },
+    {
+      "command": "python -m json.tool <all Stage 01 JSON outputs>",
+      "exitCode": 0,
+      "summary": "Generated evidence and result files parse as JSON."
+    }
+  ],
+  "nextStage": "02-static-extraction"
+}

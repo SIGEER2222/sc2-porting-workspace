@@ -1,0 +1,874 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CBehaviorBuff id="AutoHarvestVespeneU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DisableValidatorArray value="AutoHarvesterHarvestU"/>
+        <RemoveValidatorArray value="AutoHarvesterFinishU"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Period value="2.1"/>
+        <PeriodicEffect value="AutoHarvestVespeneU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BansheeCloakU">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-cloak.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMultiplier="1.3">
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0.7">
+            <Chance value="1"/>
+            <Cost>
+                <Charge Link="Behavior/VikingPZHD"/>
+                <Cooldown Link="Behavior/VikingPZHD"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BurstCapacitorsAttackingU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="0.01"/>
+        <FinalEffect value="BurstCapacitorsApplyChargeBehaviorU"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-mobiusreactor.dds"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BurstCapacitorsAttackingUS">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-mobiusreactor.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="0.01"/>
+        <FinalEffect value="BurstCapacitorsApplyChargeBehaviorUS"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BurstCapacitorsChargingU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="MarineNotAttackingU"/>
+        <Duration value="5"/>
+        <FinalEffect value="BurstCapacitorsApplyDamageBuffU"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-mobiusreactor.dds"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BurstCapacitorsChargingU2">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-mobiusreactor.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="MarineNotAttackingU"/>
+        <Duration value="3"/>
+        <FinalEffect value="BurstCapacitorsApplyDamageBuffUS"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BurstCapacitorsDamageBuffW">
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="MarineNotAttackingU"/>
+        <Modification>
+            <DamageDealtFraction index="Spell" value="1"/>
+            <DamageDealtFraction index="Melee" value="1"/>
+            <DamageDealtFraction index="Ranged" value="1"/>
+            <DamageDealtFraction index="Splash" value="1"/>
+        </Modification>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-mobiusreactor.dds"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BurstCapacitorsDamageBuffW2">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-mobiusreactor.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="MarineNotAttackingU"/>
+        <Modification>
+            <DamageDealtFraction index="Spell" value="2"/>
+            <DamageDealtFraction index="Melee" value="2"/>
+            <DamageDealtFraction index="Ranged" value="2"/>
+            <DamageDealtFraction index="Splash" value="2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="CloakDistortionFieldU">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-swann-displacementfield.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DamageResponse ModifyFraction="0" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+            <Cost>
+                <Cooldown TimeUse="1.5"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="CycloneWeaponLaunchMissileAlternateU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="DefensiveMatrixU">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-defensivematrix.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="30"/>
+        <DamageResponse ModifyFraction="0" ModifyLimit="300" ModifyMinimumDamage="1">
+            <ModifyAmount value="-5"/>
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="DefensiveMatrixUM">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-invulnerabilityshield.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="30"/>
+        <InitialEffect value="MedicBarrierRestoreUM"/>
+        <DamageResponse ModifyFraction="0" ModifyLimit="50" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HercRebornU">
+        <InfoIcon value="Assets\Textures\btn-upgrade-tychus-herc-criticalsystemU.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="4"/>
+        <InitialEffect value="HercRebornRestoreU"/>
+        <FinalEffect value="HercRebornWeakApplyU"/>
+        <Modification>
+            <BehaviorLinkDisableArray value="HercRebornActiveU"/>
+            <BehaviorLinkDisableArray value="HercPhasingArmorBuffU"/>
+            <BehaviorLinkDisableArray value="HercPhasingArmorU"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HercRebornActiveU">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-tychus-herc-criticalsystemU.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DamageResponse>
+            <Fatal value="1"/>
+            <Handled value="HercRebornApplyU"/>
+            <ModifyFraction value="0"/>
+            <ModifyMinimumDamage value="1"/>
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HercRebornWeakU">
+        <InfoIcon value="Assets\Textures\btn-upgrade-tychus-herc-criticalsystemU.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="60"/>
+        <Modification>
+            <BehaviorLinkDisableArray value="HercRebornActiveU"/>
+            <BehaviorLinkDisableArray value="HercPhasingArmorBuffU"/>
+            <BehaviorLinkDisableArray value="HercPhasingArmorU"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MedicShieldUM">
+        <InfoIcon value="Assets\Textures\btn-ability-stetmann-stetzonegenerator-speed.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <VitalRegenMultiplier index="Energy" value="0.5"/>
+            <AbilLinkDisableArray value="MedicShieldUM"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0" ModifyLimit="100" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="DistortionSensorsU" parent="Detector">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-status-detector.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Structures"/>
+        <Modification Detect="10"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="GrappleCasterInMotionU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="2"/>
+        <Modification>
+            <StateFlags index="SuppressPassenger" value="1"/>
+            <BehaviorLinkDisableArray value="FungalGrowthMovement"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="GrappleCreatePlaceholderU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="2"/>
+        <ExpireEffect value="SuicideRemoveHU"/>
+        <Modification SightMaximum="3" MoveSpeedBonus="3">
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="SuppressCollision" value="1"/>
+            <StateFlags index="NoDraw" value="1"/>
+            <StateFlags index="Uncommandable" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Unstoppable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <WeaponDisableArray value="HERCWeaponU"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HellbatBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-hellbat-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <DamageDealtFraction index="Spell" value="0.5"/>
+            <DamageDealtFraction index="Melee" value="0.5"/>
+            <DamageDealtFraction index="Ranged" value="0.5"/>
+            <DamageDealtFraction index="Splash" value="0.5"/>
+            <DamageDealtFraction index="NoProc" value="0.5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HellionBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-hellion-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HercPhasingArmorU">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\sc2_ui_collection_warchest_selectedbundle_lockicon.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DamageResponse Handled="HercPhasingArmorApplyU" ModifyFraction="0" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+            <Cost>
+                <Cooldown TimeUse="10"/>
+            </Cost>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HercPhasingArmorBuffU">
+        <InfoIcon value="Assets\Textures\sc2_ui_collection_warchest_selectedbundle_lockicon.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="2"/>
+        <DamageResponse ModifyFraction="0" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="StimpackUS">
+        <InfoIcon value="Assets\Textures\btn-upgrade-mengsk-armory-smartservos.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5">
+            <VitalRegenMultiplier index="Life" value="1"/>
+            <VitalRegenMultiplier index="Shields" value="1"/>
+            <VitalRegenMultiplier index="Energy" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="StimpackUM">
+        <InfoIcon value="Assets\Textures\btn-upgrade-mengsk-armory-smartservos.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5">
+            <VitalRegenMultiplier index="Energy" value="0.5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="VultureBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-terran-vulture-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMultiplier="1.2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="IrradiateU">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-irradiate.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="20"/>
+        <Period value="1"/>
+        <PeriodicEffect value="IrradiateSearchAreaU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="LockOnDisableAttackU">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-snipe.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="LockOnTargetNotDeadSetU"/>
+        <FinalEffect value="LockOnClearSetU"/>
+        <Modification>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="IsKiting" value="1"/>
+            <WeaponArray Link="CycloneLockOnDummyU"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="LockOnU">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-snipe.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <MaxStackCount value="65535"/>
+        <MaxStackCountPerCaster value="1"/>
+        <Modification>
+            <ModifyFlags index="Reveal" value="1"/>
+        </Modification>
+        <DamageResponse Fatal="1" Handled="LockOnTurretClearU">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MindControlU">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\ui_debuff_hivemindemulator.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisplayDuration index="Neutral" value="1"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <Duration value="600"/>
+        <InitialEffect value="MindControlKillCargoU"/>
+        <FinalEffect value="Suicide"/>
+        <Player Value="Caster"/>
+        <Modification>
+            <AbilLinkDisableArray value="NeuralParasite"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="OracleRevelationU">
+        <Alignment value="Negative"/>
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-status-detector.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="NotOracleStasisTrapped"/>
+        <RemoveValidatorArray value="NoPurificationNova"/>
+        <Duration value="1.1"/>
+        <FinalEffect value="RevelationDestroyU"/>
+        <ExpireEffect value="RevelationDestroyU"/>
+        <Modification>
+            <ModifyFlags index="Reveal" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="PsiDisruptionU">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-psidisruption.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="0.1875"/>
+        <Modification MoveSpeedMultiplier="0.5" AttackSpeedMultiplier="0.5">
+            <RateMultiplierArray index="Queueable" value="0.5"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="PsiDisruptionSearchU">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-psidisruption.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Structures"/>
+        <DisableValidatorArray value="NotDeadOrConstruction"/>
+        <Period value="0.125"/>
+        <PeriodicEffect value="PsiDisruptionSearchAreaU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ScramblerMissileU">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-interferencematrix.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisplayDuration index="Neutral" value="1"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <BuffFlags index="UpdateDurationWhileDisabled" value="1"/>
+        <Duration value="20"/>
+        <Modification>
+            <ModifyFlags index="DisableAbils" value="1"/>
+            <ModifyFlags index="EnableAttack" value="1"/>
+            <ModifyFlags index="EnableMove" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="SuppressCombat" value="1"/>
+            <AbilClassEnableArray index="CAbilStop" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ReaperRegenU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="ReaperOutOfCombatU"/>
+        <DisableValidatorArray value="NotFullLife"/>
+        <Modification>
+            <VitalRegenArray index="Life" value="9"/>
+        </Modification>
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-reapercombatdrugsU.dds"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="TurretBurrowU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Structures"/>
+        <Period value="1"/>
+        <PeriodicEffect value="PerditionTurretBurrowOrderU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WraithBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-terran-wraith-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WraithReadyU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HyperjumpTeleportU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="4.8"/>
+        <ExpireEffect value="HyperjumpTeleportInABU"/>
+        <Modification>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressAttack" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HyperjumpTeleportInU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.6"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HyperjumpTeleportOutU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.6"/>
+        <ExpireEffect value="HyperjumpTeleportSetU"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="HyperjumpTeleportOutTargetSuppressCollisionU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.0625"/>
+        <ExpireEffect value="SuicideRemoveU"/>
+        <Modification>
+            <ModifyFlags index="SuppressMoving" value="1"/>
+            <ModifyFlags index="SuppressTurning" value="1"/>
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="Stasis" value="1"/>
+            <StateFlags index="SuppressCloak" value="1"/>
+            <StateFlags index="SuppressCollision" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="LiberatorInitialMovableU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="2.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WidMinBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-widowmine-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="3"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WarHoundBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-terran-warhound-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <DamageDealtScaled index="Melee" value="22"/>
+        </Modification>
+        <DamageResponse>
+            <Kind index="Spell" value="0"/>
+            <Kind index="Ranged" value="0"/>
+            <Kind index="Splash" value="0"/>
+            <Kind index="NoProc" value="0"/>
+            <ModifyAmount value="-6"/>
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="Detector15U" parent="Detector">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-status-detector.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification Detect="15"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="FirebatBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-terran-firebat-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="RavenCloakU">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-cloak.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MedivacSpeedBoostU">
+        <Alignment value="Positive"/>
+        <InfoIcon value="Assets\Textures\BTN-Upgrade-Terran-MedivacEmergencyThrusters.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="2" AccelerationBonus="500" DecelerationBonus="500"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="AutoTurretBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-autoturret-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="FZMZXT">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-battlecruiser-decksights.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="1"/>
+        <Modification RangedWeaponRange="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SeekerMissileU">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-huntermissile-color.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="0.2"/>
+        <AINotifyEffect value="SeekerMissileDamage"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="FZMZPersistentBehavior">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-battlecruiser-decksights.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Period value="0.25"/>
+        <PeriodicEffect value="FZMZSearch"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="VikingBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-terran-vikingfighter-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ReaperBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-terran-reaper-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BunkerWeaponRangeBonusU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Structures"/>
+        <Modification WeaponRange="1">
+            <AbilLinkEnableArray value="StimpackU"/>
+            <AbilLinkEnableArray value="StimpackU2"/>
+            <AbilLinkEnableArray value="healU"/>
+            <AbilLinkEnableArray value="RepairU"/>
+            <AbilLinkEnableArray value="stop"/>
+            <AbilLinkEnableArray value="HoldFire"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="BunkerWeaponRangeBonusUU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Structures"/>
+        <Modification WeaponRange="2">
+            <DamageDealtFraction index="Spell" value="0.3"/>
+            <DamageDealtFraction index="Melee" value="0.3"/>
+            <DamageDealtFraction index="Ranged" value="0.3"/>
+            <DamageDealtFraction index="Splash" value="0.3"/>
+            <DamageDealtFraction index="NoProc" value="0.3"/>
+            <AbilLinkEnableArray value="StimpackU"/>
+            <AbilLinkEnableArray value="StimpackU2"/>
+            <AbilLinkEnableArray value="healU"/>
+            <AbilLinkEnableArray value="RepairU"/>
+            <AbilLinkEnableArray value="stop"/>
+            <AbilLinkEnableArray value="HoldFire"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="EMPDecloakU">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-emp.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="IsNotBuried"/>
+        <Duration value="10"/>
+        <Modification>
+            <StateFlags index="SuppressCloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="EMPEDU">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-terran-emp-color.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisplayDuration index="Neutral" value="1"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <RemoveValidatorArray value="NotHeroic"/>
+        <RemoveValidatorArray value="IsMechanical"/>
+        <Duration value="3"/>
+        <Modification>
+            <StateFlags index="Stun" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="FotressBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-building-terran-bunkerneosteelshriketurret.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="GhostCloakU">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-cloak.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="GhostBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-ghost-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification ShieldArmorBonus="5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MercGroundDropU">
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="3"/>
+        <DurationRandomMin value="1"/>
+        <ExpireEffect value="RemovePrecursorMercU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MercGroundDropDelayU">
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="1"/>
+        <DurationRandomMin value="1"/>
+        <ExpireEffect value="MercGroundDropApplyBehaviorU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="PrecursorMercU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification MoveSpeedMultiplier="0.05">
+            <StateFlags index="Invulnerable" value="1"/>
+            <StateFlags index="NoDraw" value="1"/>
+            <StateFlags index="Unselectable" value="1"/>
+            <StateFlags index="Untargetable" value="1"/>
+            <AbilClassDisableArray index="CAbilAttack" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ProjectileAcceleratorsU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Structures"/>
+        <DisableValidatorArray value="BLXWU"/>
+        <Modification WeaponRange="1"/>
+    </CBehaviorBuff>
+    <CBehaviorJump id="ReaperJumpU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <TriggerHeightDeltaMin value="1.5"/>
+        <TriggerHeightDeltaMax value="4.5"/>
+        <InitiateRangeUp value="1.5"/>
+        <InitiateRangeDown value="0.5"/>
+        <JumpRangeMax value="12"/>
+        <Mover value="CliffJumper"/>
+        <MoverUp value="ReaperJumpDown"/>
+        <MoverDown value="ReaperJumpDown"/>
+        <DurationPreLaunch value="0.05"/>
+        <DurationPostLand value="0.075"/>
+        <DurationMoveOut value="0.08"/>
+        <Placeholder value="ReaperPlaceholder"/>
+        <LandAdjustmentDown value="1"/>
+        <LandArrivalRange value="0.05"/>
+        <LandCheckRadius value="5"/>
+    </CBehaviorJump>
+    <CBehaviorBuff id="SalvageSharedU" parent="Salvage">
+        <Name value="Behavior/Name/SalvageSharedU"/>
+        <Modification>
+            <AbilLinkEnableArray index="1" removed="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SensorTowerRadarU">
+        <Alignment value="Positive"/>
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-status-radar.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Structures"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification Radar="30" RadarFilters="-;Neutral,RawResource,HarvestableResource,Missile,Destructible,Buried,Cloaked"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ThorBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-collection-thor-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MissileTurretBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-building-terran-missileturrettitaniumhousing.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="FireSuppressionSystemU">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-swann-firesuppressionsystem.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisableValidatorArray value="NotDeadOrConstruction"/>
+        <DisableValidatorArray value="LifeLTHalf"/>
+        <Modification>
+            <VitalRegenArray index="Life" value="6"/>
+            <BehaviorLinkDisableArray value="TerranBuildingBurnDown"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MULETimedLifeU" parent="TimedLife">
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="120"/>
+        <ExpireEffect value="MULEFateU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="PlanetaryFotressBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-building-terran-planetaryfortress.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SiegeTankBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-terran-siegetank-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MarineBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-terran-marine-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MarauderBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-terran-marauder-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <LifeArmorBonus value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ATLSBhv">
+        <InfoFlags index="Hidden" value="1"/>
+        <InfoIcon value="Assets\Textures\btn-unit-terran-goliath-umojan.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification RangedWeaponRange="1"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="JackhammerConcussionGrenadeU">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-ability-stetmann-garystetelliteovercharge-speed.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <RemoveValidatorArray value="NotHeroic"/>
+        <RemoveValidatorArray value="NotFrenzied"/>
+        <BuffFlags index="RefreshStack" value="1"/>
+        <MaxStackCount value="5"/>
+        <MaxStackCountPerCaster value="1"/>
+        <Duration value="5"/>
+        <Modification>
+            <AdditiveMoveSpeedFactor value="-0.2"/>
+            <AdditiveAttackSpeedFactor value="-0.2"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="StimpackU">
+        <InfoIcon value="Assets\Textures\btn-upgrade-mengsk-armory-smartservos.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="StimpackU2">
+        <InfoIcon value="Assets\Textures\btn-upgrade-mengsk-armory-smartservos.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="15"/>
+        <Modification MoveSpeedMultiplier="1.5" AttackSpeedMultiplier="1.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SupplyDepotDropMorphU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Duration value="0.001"/>
+        <ExpireEffect value="SupplyDepotDropMorphU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SupplyDropU">
+        <Alignment value="Positive"/>
+        <InfoIcon value="Assets\Textures\BTN-Building-Terran-SupplyDepot.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Structures"/>
+        <DisableValidatorArray value="NotBuildingStasis"/>
+        <Modification Food="8">
+            <LifeArmorBonus value="3"/>
+            <VitalMaxArray index="Life" value="200"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="SupplyDropEnRouteU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Structures"/>
+        <Duration value="4"/>
+        <ExpireEffect value="SupplyDropApplyBehaviorU"/>
+        <Modification>
+            <AbilClassDisableArray index="CAbilMorph" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="UmojanReaperBomb">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-tychus-reaper-explosivecharges.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisplayDuration index="Neutral" value="1"/>
+        <DisplayDuration index="Enemy" value="1"/>
+        <RemoveValidatorArray value="TargetNotDead"/>
+        <MaxStackCount value="500"/>
+        <MaxStackCountPerCaster value="500"/>
+        <TimeScaleSource Value="Global"/>
+        <Duration value="4"/>
+        <FinalEffect value="UmojanReaperBombU"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="UmojanReaperBombMarker">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Duration value="2"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="VikingPZHD">
+        <InfoIcon value="Assets\Textures\btn-ability-mengsk-viking-cheatdeath.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DisableValidatorArray value="ShieldGZero"/>
+        <DamageResponse ModifyFraction="0.25" ModifyMinimumDamage="1">
+            <Chance value="1"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ViralPlasmaU">
+        <Alignment value="Negative"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-tychus-firebat-hadesoilU.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <MaxStackCountPerCaster value="1"/>
+        <Duration value="5"/>
+        <Period value="1"/>
+        <PeriodicEffect value="FlameThrowerViralPlasmaDoTDamageU"/>
+        <Modification MoveSpeedMultiplier="0.5"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WidowMineAnimationControllerU">
+        <InfoFlags index="Hidden" value="1"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <DisplayDuration index="Self" value="1"/>
+        <DisplayDuration index="Ally" value="1"/>
+        <DisableValidatorArray value="NotStasis"/>
+        <DisableValidatorArray value="NotVortexd"/>
+        <DisableValidatorArray value="NotGravitonBeamd"/>
+        <DisableValidatorArray value="NotThunderCannond"/>
+        <Duration value="30"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="WraithCloakU">
+        <InfoIcon value="Assets\Textures\btn-ability-terran-cloak.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <Modification>
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="fydU">
+        <InfoIcon value="Assets\Textures\btn-building-terran-reactor.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Modification QueueCount="1" QueueSize="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="cgqzl">
+        <InfoIcon value="Assets\Textures\btn-upgrade-terran-nova-detector.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+        <BuffFlags index="DisableWhileUnderConstruction" value="1"/>
+        <Modification Radar="30" RadarFilters="-;Neutral,RawResource,HarvestableResource,Missile,Destructible,Buried,Cloaked"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="zgfU">
+        <Alignment value="Positive"/>
+        <InfoIcon value="Assets\Textures\btn-upgrade-tychus-reaper-shadesuit.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Duration value="10"/>
+        <Modification MoveSpeedMultiplier="1.5">
+            <StateFlags index="Cloak" value="1"/>
+        </Modification>
+        <DamageResponse ModifyFraction="0" ModifyMinimumDamage="1">
+            <Kind index="Spell" value="0"/>
+            <Chance value="0.5"/>
+        </DamageResponse>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="zhzxfydU">
+        <InfoIcon value="Assets\Textures\btn-research-terran-commandcenterreactor.dds"/>
+        <EditorCategories value="AbilityorEffectType:Units,Race:Terran"/>
+        <Modification QueueCount="1" QueueSize="3"/>
+    </CBehaviorBuff>
+    <CBehaviorBuff id="kjsysU">
+        <InfoIcon value="Assets\Textures\btn-building-terran-techlab.dds"/>
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units"/>
+    </CBehaviorBuff>
+</Catalog>

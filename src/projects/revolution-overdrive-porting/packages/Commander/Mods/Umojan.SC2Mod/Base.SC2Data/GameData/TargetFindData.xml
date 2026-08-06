@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CTargetFindSet id="EMPU">
+        <Type value="Sequential"/>
+        <Array value="EMP2AU"/>
+        <Array value="EMPBestPointU"/>
+    </CTargetFindSet>
+    <CTargetFindEffect id="EMP2AU">
+        <TargetValidator value="EMPValidTargetsU"/>
+        <Effect value="EMPSearchU"/>
+    </CTargetFindEffect>
+    <CTargetFindBestPoint id="EMPBestPointU">
+        <Flags index="EvaluateCmd" value="1"/>
+        <DamageBase value="20"/>
+        <Effect value="EMPSearchU"/>
+        <MinCount value="4"/>
+        <MinScore value="1"/>
+    </CTargetFindBestPoint>
+    <CTargetFindSet id="ReaperBombTargetU">
+        <Type value="Successful"/>
+        <Array value="ReaperBombThreatU"/>
+    </CTargetFindSet>
+    <CTargetFindEnumArea id="ReaperBombThreatU">
+        <TargetValidator value="ThreatensReaperU"/>
+        <SearchFilters value="-;Self,Player,Ally,Neutral,Air,Missile,Stasis,Dead,Hidden,Hallucination,Invulnerable"/>
+        <SearchFlags index="ExtendByUnitRadius" value="1"/>
+        <AreaArray/>
+        <Abil value="UmojanReaperBomb"/>
+        <ExtendRadius value="6"/>
+        <TargetSorts>
+            <SortArray value="TSLife"/>
+        </TargetSorts>
+    </CTargetFindEnumArea>
+</Catalog>

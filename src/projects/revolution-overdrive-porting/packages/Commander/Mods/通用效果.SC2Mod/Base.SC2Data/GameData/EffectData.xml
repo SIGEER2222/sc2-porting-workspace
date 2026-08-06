@@ -1,0 +1,1006 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CEffectDamage id="0dianranDamage">
+        <EditorCategories value=""/>
+        <AttributeFactor index="Light" value="0.5"/>
+        <AttributeFactor index="Biological" value="0.5"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoGain" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoScaledTakenBonus" value="1"/>
+        <Flags index="NoFractionTakenBonus" value="1"/>
+        <Flags index="NoUnscaledTakenBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Flags index="NoVitalGainLife" value="1"/>
+        <Flags index="NoVitalGainShields" value="1"/>
+        <Flags index="NoVitalGainEnergy" value="1"/>
+        <Amount value="6"/>
+    </CEffectDamage>
+    <CEffectApplyBehavior id="00hefusheapply">
+        <EditorCategories value=""/>
+        <Behavior value="0hefushe"/>
+    </CEffectApplyBehavior>
+    <CEffectEnumArea id="0chaojiheidongchushisearch">
+        <EditorCategories value=""/>
+        <SearchFilters value="-;Missile,Dead,Hidden"/>
+        <AreaArray Radius="32"/>
+        <ImpactLocation Value="TargetPoint"/>
+        <UnCreep value="1"/>
+    </CEffectEnumArea>
+    <CEffectApplyBehavior id="0dianranApply">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <Behavior value="0dianran"/>
+    </CEffectApplyBehavior>
+    <CEffectSet id="0dianranDamageset">
+        <EditorCategories value=""/>
+        <EffectArray value="0fire"/>
+        <EffectArray value="0dianranDamage"/>
+    </CEffectSet>
+    <CEffectDamage id="0hedanDamage3">
+        <EditorCategories value=""/>
+        <AINotifyFlags index="HurtFriend" value="1"/>
+        <AINotifyFlags index="HurtEnemy" value="1"/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Acquire" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <Visibility value="Hidden"/>
+        <Amount value="1800"/>
+        <Death value="Fire"/>
+        <AreaArray Radius="2" Fraction="1"/>
+        <AreaArray Radius="4" Fraction="0.9"/>
+        <AreaArray Radius="6" Fraction="0.8"/>
+        <AreaArray Radius="8" Fraction="0.7"/>
+        <AreaArray Radius="10" Fraction="0.6"/>
+        <AreaArray Radius="12" Fraction="0.5"/>
+        <AreaArray Radius="14" Fraction="0.4"/>
+        <AreaArray Radius="16" Fraction="0.3"/>
+        <AreaArray Radius="18" Fraction="0.2"/>
+        <AreaArray Radius="20" Fraction="0.1"/>
+        <SearchFilters value="-;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <SearchFlags index="CallForHelp" value="1"/>
+        <SearchFlags index="SameCliff" value="0"/>
+    </CEffectDamage>
+    <CEffectSet id="0hedanDamageset3">
+        <EditorCategories value=""/>
+        <EffectArray value="0hedanDamage3"/>
+        <EffectArray value="0hedanhuoyanSearch3"/>
+        <EffectArray value="0hefushePersistent3"/>
+    </CEffectSet>
+    <CEffectEnumArea id="0hedanhuoyanSearch3">
+        <EditorCategories value=""/>
+        <SearchFilters value="-;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="20" Effect="0fire"/>
+    </CEffectEnumArea>
+    <CEffectCreatePersistent id="0hefushePersistent3">
+        <EditorCategories value=""/>
+        <PeriodCount value="100"/>
+        <PeriodicEffectArray value="0hefusheSearch3"/>
+        <PeriodicPeriodArray value="0.2"/>
+    </CEffectCreatePersistent>
+    <CEffectEnumArea id="0hefusheSearch3">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <SearchFilters value="-;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="20" Effect="00hefusheapply"/>
+    </CEffectEnumArea>
+    <CEffectEnumArea id="0heidongchushisearch">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <SearchFilters value="-;Missile,Dead,Hidden"/>
+        <AreaArray Radius="16"/>
+        <UnCreep value="1"/>
+    </CEffectEnumArea>
+    <CEffectDamage id="0heidongdamage1">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="32"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0heidongdamage2">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="16"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0heidongdamage3">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="8"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0heidongdamage4">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="4"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0heidongdamage5">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="2.828"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0heidongdamage6">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="2"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0heidongdamage7">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="1.414"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0heidongdamage8">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="1"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectSet id="0heidongdamagese3">
+        <EditorCategories value=""/>
+        <EffectArray value="0heidongdamage3"/>
+        <EffectArray value="0heidongmodify3"/>
+        <EffectArray value="0heidongshikongniuquapply6"/>
+    </CEffectSet>
+    <CEffectSet id="0heidongdamageset1">
+        <EditorCategories value=""/>
+        <EffectArray value="0heidongdamage1"/>
+        <EffectArray value="0heidongmodify1"/>
+        <EffectArray value="0heidongshikongniuquapply8"/>
+    </CEffectSet>
+    <CEffectSet id="0heidongdamageset2">
+        <EditorCategories value=""/>
+        <EffectArray value="0heidongdamage2"/>
+        <EffectArray value="0heidongmodify2"/>
+        <EffectArray value="0heidongshikongniuquapply7"/>
+    </CEffectSet>
+    <CEffectSet id="0heidongdamageset4">
+        <EditorCategories value=""/>
+        <EffectArray value="0heidongdamage4"/>
+        <EffectArray value="0heidongmodify4"/>
+        <EffectArray value="0heidongshikongniuquapply5"/>
+    </CEffectSet>
+    <CEffectSet id="0heidongdamageset5">
+        <EditorCategories value=""/>
+        <EffectArray value="0heidongdamage5"/>
+        <EffectArray value="0heidongmodify5"/>
+        <EffectArray value="0heidongshikongniuquapply4"/>
+    </CEffectSet>
+    <CEffectSet id="0heidongdamageset6">
+        <EditorCategories value=""/>
+        <EffectArray value="0heidongdamage6"/>
+        <EffectArray value="0heidongmodify6"/>
+        <EffectArray value="0heidongshikongniuquapply3"/>
+    </CEffectSet>
+    <CEffectSet id="0heidongdamageset7">
+        <EditorCategories value=""/>
+        <EffectArray value="0heidongdamage7"/>
+        <EffectArray value="0heidongmodify7"/>
+        <EffectArray value="0heidongshikongniuquapply2"/>
+    </CEffectSet>
+    <CEffectSet id="0heidongdamageset8">
+        <EditorCategories value=""/>
+        <EffectArray value="0heidongdamage8"/>
+        <EffectArray value="0heidongmodify8"/>
+        <EffectArray value="0heidongshikongniuquapply1"/>
+    </CEffectSet>
+    <CEffectModifyUnit id="0xiaoheidongmodify1">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <VitalArray index="Life">
+            <ChangeFraction value="-0.004"/>
+        </VitalArray>
+        <VitalArray index="Shields">
+            <ChangeFraction value="-0.004"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectModifyUnit id="0xiaoheidongmodify2">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <VitalArray index="Life">
+            <ChangeFraction value="-0.002"/>
+        </VitalArray>
+        <VitalArray index="Shields">
+            <ChangeFraction value="-0.002"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectModifyUnit id="0xiaoheidongmodify3">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Acquire" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <VitalArray index="Life">
+            <ChangeFraction value="-0.001"/>
+        </VitalArray>
+        <VitalArray index="Shields">
+            <ChangeFraction value="-0.001"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectModifyUnit id="0xiaoheidongmodify4">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Acquire" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <VitalArray index="Life">
+            <ChangeFraction value="-0.0004"/>
+        </VitalArray>
+        <VitalArray index="Shields">
+            <ChangeFraction value="-0.0004"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectCreatePersistent id="0heidongpersistent">
+        <EditorCategories value=""/>
+        <InitialEffect value="0heidongchushisearch"/>
+        <PeriodCount value="100"/>
+        <PeriodicEffectArray value="0heidongsearch"/>
+        <PeriodicPeriodArray value="0.2"/>
+        <RevealRadius value="12"/>
+        <RevealFlags index="Unfog" value="1"/>
+    </CEffectCreatePersistent>
+    <CEffectEnumArea id="0chaojiheidongsearch">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <SearchFilters value="-;Missile,Dead,Hidden"/>
+        <AreaArray Radius="4" Effect="0chaojiheidongdamageset1"/>
+        <AreaArray Radius="8" Effect="0chaojiheidongdamageset2"/>
+        <AreaArray Radius="12" Effect="0chaojiheidongdamagese3"/>
+        <AreaArray Radius="16" Effect="0chaojiheidongdamageset4"/>
+        <AreaArray Radius="20" Effect="0chaojiheidongdamageset5"/>
+        <AreaArray Radius="24" Effect="0chaojiheidongdamageset6"/>
+        <AreaArray Radius="28" Effect="0chaojiheidongdamageset7"/>
+        <AreaArray Radius="32" Effect="0chaojiheidongdamageset8"/>
+        <UnCreep value="1"/>
+    </CEffectEnumArea>
+    <CEffectDamage id="0chaojiheidongdamage1">
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="64"/>
+        <Death value="Squish"/>
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0chaojiheidongdamage5">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="5.656"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0chaojiheidongdamage6">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="4"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0chaojiheidongdamage3">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="16"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0chaojiheidongdamage2">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="32"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0chaojiheidongdamage7">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="2.828"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0chaojiheidongdamage4">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="8"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0chaojiheidongdamage8">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="2"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectSet id="0chaojiheidongdamageset7">
+        <EditorCategories value=""/>
+        <EffectArray value="0chaojiheidongdamage7"/>
+        <EffectArray value="0heidongmodify7"/>
+        <EffectArray value="0heidongshikongniuquapply4"/>
+    </CEffectSet>
+    <CEffectSet id="0chaojiheidongdamageset1">
+        <EditorCategories value=""/>
+        <EffectArray value="0chaojiheidongdamage1"/>
+        <EffectArray value="0heidongmodify1"/>
+        <EffectArray value="0heidongshikongniuquapply16"/>
+    </CEffectSet>
+    <CEffectSet id="0chaojiheidongdamageset5">
+        <EditorCategories value=""/>
+        <EffectArray value="0chaojiheidongdamage5"/>
+        <EffectArray value="0heidongmodify5"/>
+        <EffectArray value="0heidongshikongniuquapply8"/>
+    </CEffectSet>
+    <CEffectSet id="0chaojiheidongdamageset2">
+        <EditorCategories value=""/>
+        <EffectArray value="0chaojiheidongdamage2"/>
+        <EffectArray value="0heidongmodify2"/>
+        <EffectArray value="0heidongshikongniuquapply14"/>
+    </CEffectSet>
+    <CEffectSet id="0chaojiheidongdamagese3">
+        <EditorCategories value=""/>
+        <EffectArray value="0chaojiheidongdamage3"/>
+        <EffectArray value="0heidongmodify3"/>
+        <EffectArray value="0heidongshikongniuquapply12"/>
+    </CEffectSet>
+    <CEffectSet id="0chaojiheidongdamageset6">
+        <EditorCategories value=""/>
+        <EffectArray value="0chaojiheidongdamage6"/>
+        <EffectArray value="0heidongmodify6"/>
+        <EffectArray value="0heidongshikongniuquapply6"/>
+    </CEffectSet>
+    <CEffectSet id="0chaojiheidongdamageset4">
+        <EditorCategories value=""/>
+        <EffectArray value="0chaojiheidongdamage4"/>
+        <EffectArray value="0heidongmodify4"/>
+        <EffectArray value="0heidongshikongniuquapply10"/>
+    </CEffectSet>
+    <CEffectSet id="0chaojiheidongdamageset8">
+        <EditorCategories value=""/>
+        <EffectArray value="0chaojiheidongdamage8"/>
+        <EffectArray value="0heidongmodify8"/>
+        <EffectArray value="0heidongshikongniuquapply2"/>
+    </CEffectSet>
+    <CEffectModifyUnit id="0heidongmodify1">
+        <EditorCategories value=""/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <VitalArray index="Life">
+            <ChangeFraction value="-0.004"/>
+        </VitalArray>
+        <VitalArray index="Shields">
+            <ChangeFraction value="-0.004"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectModifyUnit id="0heidongmodify5">
+        <EditorCategories value=""/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Acquire" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <VitalArray index="Life">
+            <ChangeFraction value="-0.001"/>
+        </VitalArray>
+        <VitalArray index="Shields">
+            <ChangeFraction value="-0.001"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectModifyUnit id="0heidongmodify2">
+        <EditorCategories value=""/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <VitalArray index="Life">
+            <ChangeFraction value="-0.0026"/>
+        </VitalArray>
+        <VitalArray index="Shields">
+            <ChangeFraction value="-0.0026"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectModifyUnit id="0heidongmodify6">
+        <EditorCategories value=""/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Acquire" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <VitalArray index="Life">
+            <ChangeFraction value="-0.0007"/>
+        </VitalArray>
+        <VitalArray index="Shields">
+            <ChangeFraction value="-0.0007"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectModifyUnit id="0heidongmodify3">
+        <EditorCategories value=""/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <VitalArray index="Life">
+            <ChangeFraction value="-0.002"/>
+        </VitalArray>
+        <VitalArray index="Shields">
+            <ChangeFraction value="-0.002"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectModifyUnit id="0heidongmodify7">
+        <EditorCategories value=""/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Acquire" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <VitalArray index="Life">
+            <ChangeFraction value="-0.0004"/>
+        </VitalArray>
+        <VitalArray index="Shields">
+            <ChangeFraction value="-0.0004"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectModifyUnit id="0heidongmodify4">
+        <EditorCategories value=""/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <VitalArray index="Life">
+            <ChangeFraction value="-0.0014"/>
+        </VitalArray>
+        <VitalArray index="Shields">
+            <ChangeFraction value="-0.0014"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectModifyUnit id="0heidongmodify8">
+        <EditorCategories value=""/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Acquire" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <VitalArray index="Life">
+            <ChangeFraction value="-0.0002"/>
+        </VitalArray>
+        <VitalArray index="Shields">
+            <ChangeFraction value="-0.0002"/>
+        </VitalArray>
+    </CEffectModifyUnit>
+    <CEffectCreatePersistent id="0chaojiheidongpersistent">
+        <EditorCategories value=""/>
+        <PeriodCount value="200"/>
+        <PeriodicPeriodArray value="0.2"/>
+        <InitialEffect value="0chaojiheidongchushisearch"/>
+        <PeriodicEffectArray value="0chaojiheidongsearch"/>
+        <RevealRadius value="24"/>
+        <RevealFlags index="Unfog" value="1"/>
+    </CEffectCreatePersistent>
+    <CEffectEnumArea id="0heidongsearch">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <SearchFilters value="-;Missile,Dead,Hidden"/>
+        <AreaArray Radius="2" Effect="0heidongdamageset1"/>
+        <AreaArray Radius="4" Effect="0heidongdamageset2"/>
+        <AreaArray Radius="6" Effect="0heidongdamagese3"/>
+        <AreaArray Radius="8" Effect="0heidongdamageset4"/>
+        <AreaArray Radius="10" Effect="0heidongdamageset5"/>
+        <AreaArray Radius="12" Effect="0heidongdamageset6"/>
+        <AreaArray Radius="14" Effect="0heidongdamageset7"/>
+        <AreaArray Radius="16" Effect="0heidongdamageset8"/>
+        <UnCreep value="1"/>
+    </CEffectEnumArea>
+    <CEffectApplyBehavior id="0fire">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+    </CEffectApplyBehavior>
+    <CEffectDamage id="0fire2">
+        <EditorCategories value=""/>
+        <AttributeFactor index="Light" value="0.5"/>
+        <AttributeFactor index="Biological" value="0.5"/>
+        <ShieldFactor value="0.5"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoScaledTakenBonus" value="1"/>
+        <Flags index="NoFractionTakenBonus" value="1"/>
+        <Flags index="NoUnscaledTakenBonus" value="1"/>
+        <Amount value="2"/>
+        <Death value="Fire"/>
+        <Visibility value="Hidden"/>
+        <ValidatorArray value="0mubiaobushiwudide"/>
+    </CEffectDamage>
+    <CEffectDamage id="0acid2">
+        <EditorCategories value=""/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoScaledTakenBonus" value="1"/>
+        <Flags index="NoFractionTakenBonus" value="1"/>
+        <Flags index="NoUnscaledTakenBonus" value="1"/>
+        <Amount value="1"/>
+        <Death value="Disintegrate"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectApplyBehavior id="0acid">
+        <ValidatorArray index="0" value=""/>
+        <ValidatorArray value="TargetIsEnemy"/>
+        <EditorCategories value=""/>
+    </CEffectApplyBehavior>
+    <CEffectDamage id="0hedandamage">
+        <EditorCategories value=""/>
+        <AINotifyFlags index="HurtFriend" value="1"/>
+        <AINotifyFlags index="HurtEnemy" value="1"/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Acquire" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <Amount value="600"/>
+        <Death value="Fire"/>
+        <AreaArray Radius="2" Fraction="1"/>
+        <AreaArray Radius="4" Fraction="0.8"/>
+        <AreaArray Radius="6" Fraction="0.6"/>
+        <AreaArray Radius="8" Fraction="0.4"/>
+        <AreaArray Radius="10" Fraction="0.2"/>
+        <SearchFilters value="-;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <SearchFlags index="CallForHelp" value="1"/>
+        <SearchFlags index="SameCliff" value="0"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0hedandamage2">
+        <EditorCategories value=""/>
+        <AINotifyFlags index="HurtFriend" value="1"/>
+        <AINotifyFlags index="HurtEnemy" value="1"/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Acquire" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <Amount value="200"/>
+        <Death value="Fire"/>
+        <AreaArray Radius="1" Fraction="1"/>
+        <AreaArray Radius="2" Fraction="0.8"/>
+        <AreaArray Radius="3" Fraction="0.6"/>
+        <AreaArray Radius="4" Fraction="0.4"/>
+        <AreaArray Radius="5" Fraction="0.2"/>
+        <SearchFilters value="-;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <SearchFlags index="CallForHelp" value="1"/>
+        <SearchFlags index="SameCliff" value="0"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectEnumArea id="0hedanhuoyansearch">
+        <EditorCategories value=""/>
+        <SearchFilters value="-;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="10" Effect="0fire"/>
+    </CEffectEnumArea>
+    <CEffectDamage id="0hedanyoushangdamage3">
+        <EditorCategories value=""/>
+        <AINotifyFlags index="HurtFriend" value="1"/>
+        <AINotifyFlags index="HurtEnemy" value="1"/>
+        <AINotifyFlags index="MajorDanger" value="1"/>
+        <ResponseFlags index="Acquire" value="1"/>
+        <ResponseFlags index="Flee" value="1"/>
+        <Amount value="300"/>
+        <Death value="Fire"/>
+        <AreaArray Radius="2" Fraction="1"/>
+        <AreaArray Radius="4" Fraction="0.8"/>
+        <AreaArray Radius="6" Fraction="0.6"/>
+        <AreaArray Radius="8" Fraction="0.4"/>
+        <AreaArray Radius="10" Fraction="0.2"/>
+        <SearchFilters value="-;Neutral,Enemy,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <SearchFlags index="CallForHelp" value="1"/>
+        <SearchFlags index="SameCliff" value="0"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectSet id="0hedandamageset">
+        <EditorCategories value=""/>
+        <EffectArray value="0hedandamage"/>
+        <EffectArray value="0hedanyoushangdamage3"/>
+        <EffectArray value="0hedanhuoyansearch"/>
+        <EffectArray value="0hefushepersisdent"/>
+    </CEffectSet>
+    <CEffectSet id="0hedandamageset2">
+        <EditorCategories value=""/>
+        <EffectArray value="0hedandamage2"/>
+        <EffectArray value="0hedanhuoyansearch2"/>
+        <EffectArray value="0hefushepersisdent2"/>
+    </CEffectSet>
+    <CEffectEnumArea id="0hedanhuoyansearch2">
+        <EditorCategories value=""/>
+        <SearchFilters value="-;Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="5" Effect="0fire"/>
+    </CEffectEnumArea>
+    <CEffectDamage id="0hefushedamage">
+        <EditorCategories value=""/>
+        <AttributeFactor index="Biological" value="2"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoScaledTakenBonus" value="1"/>
+        <Flags index="NoFractionTakenBonus" value="1"/>
+        <Flags index="NoUnscaledTakenBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalAbsorbShields" value="1"/>
+        <Flags index="NoVitalAbsorbEnergy" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="0.5"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectCreatePersistent id="0hefushepersisdent">
+        <EditorCategories value=""/>
+        <PeriodCount value="100"/>
+        <PeriodicEffectArray value="0hefushesearch"/>
+        <PeriodicPeriodArray value="0.2"/>
+    </CEffectCreatePersistent>
+    <CEffectCreatePersistent id="0hefushepersisdent2">
+        <EditorCategories value=""/>
+        <PeriodCount value="100"/>
+        <PeriodicEffectArray value="0hefushesearch2"/>
+        <PeriodicPeriodArray value="0.2"/>
+    </CEffectCreatePersistent>
+    <CEffectEnumArea id="0hefushesearch">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <SearchFilters value="-;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="10" Effect="00hefusheapply"/>
+    </CEffectEnumArea>
+    <CEffectEnumArea id="0hefushesearch2">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <SearchFilters value="-;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="5" Effect="00hefusheapply"/>
+    </CEffectEnumArea>
+    <CEffectApplyBehavior id="0heidongshikongniuquapply1">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <Behavior value="0heidongshikongniuqu1"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="0heidongshikongniuquapply5">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <Behavior value="0heidongshikongniuqu5"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="0heidongshikongniuquapply10">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <Behavior value="0heidongshikongniuqu10"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="0heidongshikongniuquapply6">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <Behavior value="0heidongshikongniuqu6"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="0heidongshikongniuquapply3">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <Behavior value="0heidongshikongniuqu3"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="0heidongshikongniuquapply2">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <Behavior value="0heidongshikongniuqu2"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="0heidongshikongniuquapply12">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <Behavior value="0heidongshikongniuqu12"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="0heidongshikongniuquapply7">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <Behavior value="0heidongshikongniuqu7"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="0heidongshikongniuquapply4">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <Behavior value="0heidongshikongniuqu4"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="0heidongshikongniuquapply14">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <Behavior value="0heidongshikongniuqu14"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="0heidongshikongniuquapply8">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <Behavior value="0heidongshikongniuqu8"/>
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="0heidongshikongniuquapply16">
+        <ValidatorArray index="0" removed="1"/>
+        <EditorCategories value=""/>
+        <Behavior value="0heidongshikongniuqu16"/>
+    </CEffectApplyBehavior>
+    <CEffectEnumArea id="0xiaoheidongchushisearch">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <SearchFilters value="-;Missile,Dead,Hidden"/>
+        <AreaArray Radius="8"/>
+        <UnCreep value="1"/>
+    </CEffectEnumArea>
+    <CEffectDamage id="0xiaoheidongdamage1">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="16"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0xiaoheidongdamage2">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="8"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0xiaoheidongdamage3">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="4"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectDamage id="0xiaoheidongdamage4">
+        <ValidatorArray value="0mubiaobushiwudide"/>
+        <ValidatorArray value="0mubiaobushiyoujun"/>
+        <EditorCategories value=""/>
+        <ArmorReduction value="1"/>
+        <Flags index="Notification" value="1"/>
+        <Flags index="NoLeech" value="1"/>
+        <Flags index="NoScaledDealtBonus" value="1"/>
+        <Flags index="NoFractionDealtBonus" value="1"/>
+        <Flags index="NoUnscaledDealtBonus" value="1"/>
+        <Flags index="NoBehaviorResponse" value="1"/>
+        <Flags index="NoVitalLeechLife" value="1"/>
+        <Flags index="NoVitalLeechShields" value="1"/>
+        <Flags index="NoVitalLeechEnergy" value="1"/>
+        <Amount value="2"/>
+        <Death value="Squish"/>
+        <Visibility value="Hidden"/>
+    </CEffectDamage>
+    <CEffectSet id="0xiaoheidongdamageset1">
+        <EditorCategories value=""/>
+        <EffectArray value="0xiaoheidongdamage1"/>
+        <EffectArray value="0xiaoheidongmodify1"/>
+        <EffectArray value="0heidongshikongniuquapply4"/>
+    </CEffectSet>
+    <CEffectSet id="0xiaoheidongdamageset2">
+        <EditorCategories value=""/>
+        <EffectArray value="0xiaoheidongdamage2"/>
+        <EffectArray value="0xiaoheidongmodify2"/>
+        <EffectArray value="0heidongshikongniuquapply3"/>
+    </CEffectSet>
+    <CEffectSet id="0xiaoheidongdamageset3">
+        <EditorCategories value=""/>
+        <EffectArray value="0xiaoheidongdamage3"/>
+        <EffectArray value="0xiaoheidongmodify3"/>
+        <EffectArray value="0heidongshikongniuquapply2"/>
+    </CEffectSet>
+    <CEffectSet id="0xiaoheidongdamageset4">
+        <EditorCategories value=""/>
+        <EffectArray value="0xiaoheidongdamage4"/>
+        <EffectArray value="0xiaoheidongmodify4"/>
+        <EffectArray value="0heidongshikongniuquapply1"/>
+    </CEffectSet>
+    <CEffectEnumArea id="0xiaoheidongsearch">
+        <EditorCategories value=""/>
+        <ImpactLocation Value="TargetPoint"/>
+        <SearchFilters value="-;Missile,Dead,Hidden"/>
+        <AreaArray Radius="2" Effect="0xiaoheidongdamageset1"/>
+        <AreaArray Radius="4" Effect="0xiaoheidongdamageset2"/>
+        <AreaArray Radius="6" Effect="0xiaoheidongdamageset3"/>
+        <AreaArray Radius="8" Effect="0xiaoheidongdamageset4"/>
+        <UnCreep value="1"/>
+    </CEffectEnumArea>
+    <CEffectCreatePersistent id="0xiaoheidongpersistent">
+        <EditorCategories value=""/>
+        <InitialEffect value="0xiaoheidongchushisearch"/>
+        <PeriodCount value="50"/>
+        <PeriodicEffectArray value="0xiaoheidongsearch"/>
+        <PeriodicPeriodArray value="0.2"/>
+        <RevealRadius value="6"/>
+        <RevealFlags index="Unfog" value="1"/>
+    </CEffectCreatePersistent>
+</Catalog>

@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CTargetFindEffect id="AutoTurretC"/>
+    <CTargetFindBestPoint id="AutoTurretBestPointC">
+        <Flags index="EvaluateCmd" value="1"/>
+        <DamageBase value="40"/>
+        <Effect value="AutoTurretC"/>
+        <MinCount value="2"/>
+        <MinScore value="1.5"/>
+    </CTargetFindBestPoint>
+    <CTargetFindEffect id="HurricaneMissileDamageC">
+        <Effect value="BattlecruiserMissileStrikeSearchCM"/>
+    </CTargetFindEffect>
+    <CTargetFindEffect id="HurricaneMissileDamageCK">
+        <Effect value="BattlecruiserMissileStrikeSearchCKM"/>
+    </CTargetFindEffect>
+    <CTargetFindBestPoint id="MissilePodsBestPointCK">
+        <Flags index="EvaluateCmd" value="1"/>
+        <DamageBase value="100"/>
+        <Effect value="BattlecruiserMissileStrikeSearchCKM"/>
+        <MinCount value="3"/>
+        <MinScore value="2"/>
+        <BonusAttri value="Light"/>
+    </CTargetFindBestPoint>
+    <CTargetFindSet id="MissilePodsC">
+        <Type value="Sequential"/>
+        <Array value="HurricaneMissileDamageC"/>
+        <Array value="MissilePodsBestPointC"/>
+    </CTargetFindSet>
+    <CTargetFindBestPoint id="MissilePodsBestPointC">
+        <Flags index="EvaluateCmd" value="1"/>
+        <DamageBase value="100"/>
+        <Effect value="BattlecruiserMissileStrikeSearchCM"/>
+        <MinCount value="3"/>
+        <MinScore value="2"/>
+        <BonusAttri value="Light"/>
+    </CTargetFindBestPoint>
+    <CTargetFindSet id="MissilePodsCK">
+        <Type value="Sequential"/>
+        <Array value="HurricaneMissileDamageCK"/>
+        <Array value="MissilePodsBestPointCK"/>
+    </CTargetFindSet>
+    <CTargetFindBestPoint id="RavenBombBestPointC">
+        <Flags index="EvaluateCmd" value="1"/>
+        <DamageBase value="150"/>
+        <Effect value="RavenShredderMissileImpactSearchAreaC"/>
+        <MinCount value="3"/>
+        <MinScore value="2"/>
+    </CTargetFindBestPoint>
+    <CTargetFindSet id="RavenBombC">
+        <Type value="Sequential"/>
+        <Array value="RavenBombSearchC"/>
+        <Array value="RavenBombBestPointC"/>
+    </CTargetFindSet>
+    <CTargetFindEffect id="RavenBombSearchC">
+        <Effect value="RavenShredderMissileImpactSearchAreaC"/>
+        <TargetValidator value="RavenBombUFC"/>
+    </CTargetFindEffect>
+    <CTargetFindSet id="TacticalAutoTurretC">
+        <Type value="Sequential"/>
+        <Array value="AutoTurretC"/>
+        <Array value="AutoTurretBestPointC"/>
+    </CTargetFindSet>
+    <CTargetFindSet id="BattlecruiserBlinkC">
+        <CasterValidator value="CasterLifeLT50Percent"/>
+        <Type value="Sequential"/>
+        <Array value="BlinkAttacker"/>
+        <Array value="BlinkAwayOffset"/>
+    </CTargetFindSet>
+    <CTargetFindSet id="WarHoundBlinkC">
+        <Type value="Successful"/>
+        <Array value="BlinkRetreat"/>
+        <Array value="BlinkAttack"/>
+    </CTargetFindSet>
+    <CTargetFindSet id="TankRetreatCST">
+        <CasterValidator value="BlinkCST"/>
+        <Type value="Sequential"/>
+        <Array value="BlinkAttacker"/>
+        <Array value="BlinkAwayOffset"/>
+    </CTargetFindSet>
+    <CTargetFindSet id="TankRetreatCSTS">
+        <CasterValidator value="BlinkCSTS"/>
+        <Type value="Sequential"/>
+        <Array value="BlinkAttacker"/>
+        <Array value="BlinkAwayOffset"/>
+    </CTargetFindSet>
+    <CTargetFindSet id="ThorBlinkC">
+        <CasterValidator value="CasterLifeLT50Percent"/>
+        <Type value="Sequential"/>
+        <Array value="BlinkAttacker"/>
+        <Array value="BlinkAwayOffset"/>
+    </CTargetFindSet>
+    <CTargetFindEffect id="VultureMine2AC">
+        <TargetValidator value="VultureMineTargetC"/>
+        <Effect value="VultureMineSearchAreaC"/>
+    </CTargetFindEffect>
+    <CTargetFindBestPoint id="VultureMineBestPointC">
+        <Flags index="EvaluateCmd" value="1"/>
+        <DamageBase value="20"/>
+        <Effect value="VultureMineSearchAreaC"/>
+        <MinCount value="2"/>
+        <MinScore value="1"/>
+    </CTargetFindBestPoint>
+    <CTargetFindSet id="VultureMineC">
+        <Type value="Sequential"/>
+        <Array value="VultureMine2AC"/>
+        <Array value="VultureMineBestPointC"/>
+    </CTargetFindSet>
+    <CTargetFindEffect id="VultureEMP2AC">
+        <TargetValidator value="EMPValidTargetsC"/>
+        <Effect value="EMPSearchCV"/>
+    </CTargetFindEffect>
+    <CTargetFindBestPoint id="VultureEMPBestPointC">
+        <Flags index="EvaluateCmd" value="1"/>
+        <DamageBase value="100"/>
+        <Effect value="EMPSearchCV"/>
+        <MinCount value="3"/>
+        <MinScore value="1"/>
+    </CTargetFindBestPoint>
+    <CTargetFindSet id="EMPC">
+        <Type value="Sequential"/>
+        <Array value="EMP2AC"/>
+        <Array value="EMPBestPointC"/>
+    </CTargetFindSet>
+    <CTargetFindEffect id="EMP2AC">
+        <TargetValidator value="EMPValidTargetsC"/>
+        <Effect value="EMPSearchC"/>
+    </CTargetFindEffect>
+    <CTargetFindBestPoint id="EMPBestPointC">
+        <Flags index="EvaluateCmd" value="1"/>
+        <DamageBase value="50"/>
+        <Effect value="EMPSearchC"/>
+        <MinCount value="3"/>
+        <MinScore value="1"/>
+    </CTargetFindBestPoint>
+    <CTargetFindSet id="VultureEMPC">
+        <Type value="Sequential"/>
+        <Array value="VultureEMP2AC"/>
+        <Array value="VultureEMPBestPointC"/>
+    </CTargetFindSet>
+    <CTargetFindSet id="ReaperBombC">
+        <Type value="Sequential"/>
+        <Array value="ReaperBombAC"/>
+        <Array value="ReaperBombBestPointC"/>
+    </CTargetFindSet>
+    <CTargetFindBestPoint id="ReaperBombBestPointC">
+        <Flags index="EvaluateCmd" value="1"/>
+        <DamageBase value="40"/>
+        <Effect value="KD8SearchAreaC"/>
+        <MinCount value="2"/>
+        <MinScore value="1"/>
+    </CTargetFindBestPoint>
+    <CTargetFindEffect id="ReaperBombAC">
+        <TargetValidator value="ReaperBombUFC"/>
+        <Effect value="KD8SearchAreaC"/>
+    </CTargetFindEffect>
+    <CTargetFindEnumArea id="YamatoMThreatCF">
+        <TargetValidator value="YamatoTargetC"/>
+        <SearchFilters value="-;Self,Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Hallucination,Invulnerable"/>
+        <SearchFlags index="ExtendByUnitRadius" value="1"/>
+        <AreaArray/>
+        <Abil value="YamatoCF"/>
+        <ExtendRadius value="3"/>
+        <TargetSorts>
+            <SortArray value="TSLifeC"/>
+        </TargetSorts>
+    </CTargetFindEnumArea>
+    <CTargetFindEnumArea id="YamatoMThreatCK">
+        <TargetValidator value="YamatoTargetC"/>
+        <SearchFilters value="-;Self,Player,Ally,Neutral,Missile,Stasis,Dead,Hidden,Hallucination,Invulnerable"/>
+        <SearchFlags index="ExtendByUnitRadius" value="1"/>
+        <AreaArray/>
+        <Abil value="YamatoCK"/>
+        <ExtendRadius value="3"/>
+        <TargetSorts>
+            <SortArray value="TSLifeC"/>
+        </TargetSorts>
+    </CTargetFindEnumArea>
+</Catalog>

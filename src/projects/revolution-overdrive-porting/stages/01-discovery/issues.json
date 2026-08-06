@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "RO-DISC-001",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Five faction Mods and two additional shared Mods are archive inputs rather than editable package directories.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/source-inventory.json",
+        "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/dependency-boundary.json"
+      ],
+      "impact": "Commander ownership and catalog collisions cannot be finalized from the main Mod directory alone.",
+      "nextAction": "Extract the archive closure into generated artifacts, compare Catalog IDs and Galaxy entry points, then copy only approved owned content into the Stage 02 package scope."
+    },
+    {
+      "id": "RO-DISC-002",
+      "severity": "low",
+      "status": "open",
+      "summary": "The lobby map and story transition map do not share the mission maps' explicit alliance initialization.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/ai-ally-discovery.json"
+      ],
+      "impact": "They may need separate launch/selection handling and must not be treated as ordinary cooperative missions by default.",
+      "nextAction": "Classify tarcade and tstory01 during map adapter design and exclude them from the first runtime MVP if their entry flow cannot use the approved launcher."
+    },
+    {
+      "id": "RO-DISC-003",
+      "severity": "medium",
+      "status": "deferred",
+      "summary": "No runtime evidence exists yet for source map loading, commander activation, or AI ally state transitions.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/01-discovery/self-assessment.md"
+      ],
+      "impact": "Static discovery cannot prove the user-facing port works.",
+      "nextAction": "Run the smallest approved launcher path only after an owned map/commander package and runtime listener recipe are available."
+    }
+  ]
+}

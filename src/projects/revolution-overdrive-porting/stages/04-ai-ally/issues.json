@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "stage": "04-ai-ally",
+  "issues": [
+    {
+      "id": "RO-AI-001",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Twenty-four maps contain dynamically resolved alliance calls that the static adapter cannot safely authorize.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/evidence/static/map-roster-manifest.json"
+      ],
+      "impact": "The safe contract may expose fewer targets than the mission creates at runtime; unresolved owners are never treated as allies or enemies by inference.",
+      "nextAction": "After the campaign dependency is available, capture runtime alliance and owner state for representative maps before widening the adapter."
+    },
+    {
+      "id": "RO-AI-002",
+      "severity": "low",
+      "status": "open",
+      "summary": "The full Stage 25 AI ally capability unittest command exceeded the bounded 60-second validation window.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/log.md"
+      ],
+      "impact": "No claim is made for a fresh full-suite pass; targeted ally capability and runtime-matrix regressions remain green.",
+      "nextAction": "Run the full capability suite in a longer validation window when the runtime stage is executed."
+    },
+    {
+      "id": "RO-PKG-001",
+      "severity": "high",
+      "status": "blocked",
+      "summary": "The local SC2 installation is missing Campaigns/Void.SC2Campaign, declared by the Revolution Overdrive Mod dependency graph.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/03-commander-package/issues.json"
+      ],
+      "impact": "A live map, commander, faction, or runtime AI ally claim cannot be accepted until the dependency is available.",
+      "nextAction": "Install the official campaign data or provide an approved owned replacement, then execute the Stage 05 runtime plan."
+    }
+  ]
+}

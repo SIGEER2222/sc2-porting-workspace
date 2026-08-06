@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "RO-EXT-001",
+      "severity": "high",
+      "status": "open",
+      "summary": "The candidate commander is not self-contained; it requires five faction Mod packages and external campaign data.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/ownership-boundary.json",
+        "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/archive-extraction-manifest.json"
+      ],
+      "impact": "A WebUI selection can appear to work while the game silently loads an incomplete Catalog closure.",
+      "nextAction": "Stage the full closure in Stage 03 and validate the effective DocumentInfo dependency graph before runtime."
+    },
+    {
+      "id": "RO-EXT-002",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Most faction packages are Catalog-heavy and contain no Galaxy source, so static Galaxy lint cannot prove their runtime behavior.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/galaxy-symbol-catalog.json",
+        "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/mod-catalog-summary.json"
+      ],
+      "impact": "The package may compile statically but still fail to activate units/abilities at runtime.",
+      "nextAction": "Run an approved launcher smoke path after package staging and inspect same-window ScriptError plus runtime listener evidence."
+    },
+    {
+      "id": "RO-EXT-003",
+      "severity": "medium",
+      "status": "deferred",
+      "summary": "The final user-facing choice may be one commander with faction presets or multiple commander entries; the source launcher uses five cheat-selected factions.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/01-discovery/evidence/static/dependency-boundary.json",
+        "src/projects/revolution-overdrive-porting/stages/02-static-extraction/self-assessment.md"
+      ],
+      "impact": "Incorrect WebUI modeling could expose selections that do not map to a valid effective Mod composition.",
+      "nextAction": "Freeze the commander/faction preset contract after Stage 03 effective-composition static validation."
+    },
+    {
+      "id": "RO-EXT-004",
+      "severity": "medium",
+      "status": "deferred",
+      "summary": "No runtime evidence yet proves the source scripted ally roster or the ported AI ally adapter.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/02-static-extraction/evidence/static/ownership-boundary.json"
+      ],
+      "impact": "Static alliance calls are not proof of correct player ownership, visibility, or cooperative commands in the target runtime.",
+      "nextAction": "Add simulator and runtime ally checks in Stage 04 and keep them separate from commander package static checks."
+    }
+  ]
+}

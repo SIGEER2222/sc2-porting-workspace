@@ -14,6 +14,7 @@ import csv
 import json
 import os
 import queue
+import shutil
 import subprocess
 import sys
 import time
@@ -39,6 +40,10 @@ ALENGER_MODS_JSON = CONFIG_DIR / "alenger-mods.json"
 REBORN_COMMANDERS_JSON = CONFIG_DIR / "reborn-commanders.json"
 LAUNCH_SCRIPT = Path(__file__).resolve().parents[1] / "launchers" / "launch-cmre-alenger.ps1"
 REPO_ROOT = SCRIPT_DIR.parents[1]
+REVOLUTION_PACKAGE_ROOT = REPO_ROOT / "src" / "projects" / "revolution-overdrive-porting" / "packages"
+REVOLUTION_COMMANDER_JSON = REVOLUTION_PACKAGE_ROOT / "Commander" / "revolution-overdrive-commander.json"
+REVOLUTION_MAPS_JSON = REVOLUTION_PACKAGE_ROOT / "maps.json"
+REVOLUTION_LAUNCH_SCRIPT = Path(__file__).resolve().parents[1] / "launchers" / "launch-revolution-overdrive.ps1"
 GALAXY_VIBE_ROOT = REPO_ROOT / "tools" / "galaxy-vibe"
 VIBE_FUNCTION_REGISTRY = GALAXY_VIBE_ROOT / "kernel" / "function-registry.json"
 VIBE_FUNCTION_CATALOG = (
@@ -87,6 +92,15 @@ COMMANDER_RACES = ["Terran", "Zerg", "Protoss"]
 # 但显式传入可避免环境差异。可通过环境变量 CMRE_LEGACY_ROOT 覆盖默认值。
 DEFAULT_LEGACY_ROOT = str(CMRE_RUNTIME_ROOT)
 LEGACY_ROOT = os.environ.get("CMRE_LEGACY_ROOT", DEFAULT_LEGACY_ROOT)
+
+
+def _resolve_powershell_executable() -> str:
+    """Use the PowerShell host required by the launcher on Windows."""
+    for candidate in ("pwsh", "powershell"):
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+    return "pwsh"
 
 # 因子元数据
 FACTORS_DATA = {
@@ -149,6 +163,55 @@ def load_maps():
                 "preview": preview,
             })
     return maps
+
+
+def load_revolution_maps():
+    """Load the owned Revolution Overdrive maps without changing the CMRE map API."""
+    if not REVOLUTION_MAPS_JSON.exists():
+        return []
+    try:
+        entries = json.loads(REVOLUTION_MAPS_JSON.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"[warn] unable to load Revolution Overdrive map registry: {exc}")
+        return []
+    return [
+        {
+            "id": entry["id"],
+            "name": entry.get("name", entry["id"].removesuffix(".SC2Map")),
+            "preview": "",
+            "packageId": "revolution-overdrive",
+        }
+        for entry in entries
+        if isinstance(entry, dict) and entry.get("id")
+    ]
+
+
+def load_revolution_commanders():
+    """Expose native faction presets as selectable Revolution Overdrive commanders."""
+    if not REVOLUTION_COMMANDER_JSON.exists():
+        return []
+    try:
+        metadata = json.loads(REVOLUTION_COMMANDER_JSON.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"[warn] unable to load Revolution Overdrive commander registry: {exc}")
+        return []
+    commanders = []
+    for faction in metadata.get("factions", []):
+        faction_id = faction.get("id", "")
+        if not faction_id:
+            continue
+        commanders.append({
+            "id": f"RevolutionOverdrive{faction_id}",
+            "label": f"起义狂潮：{faction.get('label', faction_id)}",
+            "bank": faction_id,
+            "portrait": "",
+            "cachedImage": "",
+            "race": "Terran",
+            "group": "revolution-overdrive",
+            "packageId": "revolution-overdrive",
+            "faction": faction_id,
+        })
+    return commanders
 
 
 def load_extra_mods(bank_commander=""):
@@ -370,6 +433,7 @@ def build_factors_data():
     """构造 /api/factors 返回数据，指挥官每次实时从配置派生。"""
     data = dict(FACTORS_DATA)
     data["commanders"] = load_commanders()
+    data["revolutionCommanders"] = load_revolution_commanders()
     return data
 
 
@@ -1290,7 +1354,10 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             self._send_json(load_buff_metadata())
             return
         if self.path == "/api/maps":
-            self._send_json({"maps": load_maps()})
+            self._send_json({
+                "maps": load_maps(),
+                "revolutionMaps": load_revolution_maps(),
+            })
             return
         if self.path == "/api/logs/stream":
             self._handle_logs_stream()
@@ -1463,6 +1530,53 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         except Exception as exc:
             self._send_json({"success": False, "error": str(exc), "status": _runtime_console.status()}, 400)
 
+    def _build_revolution_launch_args(self, body):
+        """Build an explicit map-plus-faction request for the owned package."""
+        map_name = body.get("mapName", "")
+        faction = body.get("faction", "")
+        commander = body.get("commander", "")
+        if not faction and commander.startswith("RevolutionOverdrive"):
+            faction = commander.removeprefix("RevolutionOverdrive")
+        valid_maps = {entry["id"] for entry in load_revolution_maps()}
+        valid_factions = {
+            entry["faction"] for entry in load_revolution_commanders()
+        }
+        if map_name not in valid_maps:
+            self._send_json({"success": False, "error": f"未知起义狂潮地图: {map_name}"}, 400)
+            return None
+        if faction not in valid_factions:
+            self._send_json({"success": False, "error": f"未知起义狂潮阵营: {faction}"}, 400)
+            return None
+        if not REVOLUTION_LAUNCH_SCRIPT.exists():
+            self._send_json({"success": False, "error": f"启动脚本不存在: {REVOLUTION_LAUNCH_SCRIPT}"}, 500)
+            return None
+
+        listen_port = int(body.get("listenPort", 0) or 0)
+        args = [
+            _resolve_powershell_executable(),
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(REVOLUTION_LAUNCH_SCRIPT),
+            "-MapName",
+            map_name,
+            "-Faction",
+            faction,
+        ]
+        if listen_port > 0:
+            args.extend(["-ListenPort", str(listen_port)])
+        if os.environ.get("CMRE_WEBUI_DRY_RUN"):
+            args.append("-NoLaunch")
+        return {
+            "kind": "revolution-overdrive",
+            "args": args,
+            "commander": commander or f"RevolutionOverdrive{faction}",
+            "faction": faction,
+            "map_name": map_name,
+            "listen_port": listen_port,
+        }
+
     def _build_launch_args(self, body):
         """从请求 body 解析参数、校验并构建 launcher 命令行参数。
 
@@ -1470,6 +1584,9 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                         buffs, masteries, listen_port, commander}；
         失败时发送错误 JSON 响应并返回 None。
         """
+        if body.get("packageId") == "revolution-overdrive":
+            return self._build_revolution_launch_args(body)
+
         commander = body.get("commander", "TerranAlenger3")
         map_name = body.get("mapName", "亡者之夜.SC2Map")
         mode = int(body.get("mode", 1))
@@ -1578,7 +1695,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         chaos_mutator_str = ",".join(m["id"] for m in mutators) if mode == 3 else ""
 
         args = [
-            "powershell",
+            _resolve_powershell_executable(),
             "-NoProfile",
             "-ExecutionPolicy",
             "Bypass",
@@ -1639,6 +1756,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             args.append("-NoLaunch")
 
         return {
+            "kind": "cmre",
             "args": args,
             "mode": mode,
             "capped": capped,
@@ -1650,6 +1768,41 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             "commander": commander,
         }
 
+    def _handle_revolution_launch(self, ctx):
+        """Synchronously run the owned-package launcher for compatibility with /api/launch."""
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        try:
+            proc = subprocess.Popen(
+                ctx["args"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                encoding="utf-8", errors="replace", creationflags=creationflags,
+            )
+            stdout, stderr = proc.communicate(timeout=720)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            self._send_json({"success": False, "error": "起义狂潮启动脚本超时（720s）"}, 504)
+            return
+        except Exception as exc:
+            self._send_json({"success": False, "error": str(exc)}, 500)
+            return
+        if proc.returncode != 0:
+            self._send_json({
+                "success": False,
+                "error": f"起义狂潮启动脚本退出码 {proc.returncode}",
+                "output": stdout[-800:] if stdout else "",
+                "stderr": stderr[-800:] if stderr else "",
+            }, 500)
+            return
+        self._send_json({
+            "success": True,
+            "message": "起义狂潮已启动" if not os.environ.get("CMRE_WEBUI_DRY_RUN") else "起义狂潮已完成 staging",
+            "packageId": "revolution-overdrive",
+            "faction": ctx["faction"],
+            "mapName": ctx["map_name"],
+            "listenPort": ctx["listen_port"] or None,
+            "output": stdout[-800:] if stdout else "",
+            "debug_args": ctx["args"],
+        })
+
     def _handle_launch(self):
         """同步启动 launcher（阻塞等待完成）。保留兼容旧前端。"""
         body = self._read_body()
@@ -1657,6 +1810,9 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if ctx is None:
             return
         _force_stop_current_game()
+        if ctx.get("kind") == "revolution-overdrive":
+            self._handle_revolution_launch(ctx)
+            return
         args = ctx["args"]
         mode = ctx["mode"]
         capped = ctx["capped"]

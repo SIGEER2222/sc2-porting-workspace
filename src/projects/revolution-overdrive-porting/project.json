@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "revolution-overdrive-porting",
+  "goal": "Port the Revolution Overdrive campaign maps into owned packages, extract its native faction behavior into an independently selectable commander, expose map and commander selection through the existing WebUI, and verify the existing AI ally contract without editing the read-only download source.",
+  "sources": [
+    {
+      "sourceId": "revolution-overdrive-download",
+      "path": "local-binding/revolution-overdrive-download",
+      "role": "read-only-source-package"
+    },
+    {
+      "sourceId": "cmre-owned-project",
+      "path": "src/projects/cmre-porting",
+      "role": "owned-runtime-and-WebUI-integration-reference"
+    }
+  ],
+  "target": {
+    "map": "revolution-overdrive-campaign-maps",
+    "commander": "revolution-overdrive-commander",
+    "series": "revolution-overdrive"
+  },
+  "currentStage": "05-runtime",
+  "writeScope": [
+    "src/config/workspace.json",
+    "src/projects/revolution-overdrive-porting/project.json",
+    "src/projects/revolution-overdrive-porting/stages/05-runtime/**",
+    "artifacts/projects/revolution-overdrive-porting/stage05-runtime/**",
+    "tools/launchers/launch-revolution-overdrive.ps1"
+  ],
+  "acceptance": [
+    "Every source map and mod is inventory-listed with a stable logical owner and declared dependency chain.",
+    "The extracted commander has an explicit boundary from reusable shared and map-owned behavior.",
+    "Maps can be launched through the approved repository launcher and selected in WebUI without source-path assumptions.",
+    "AI ally behavior is covered by deterministic simulator evidence and a bounded native runtime probe, or is recorded as blocked with the next action."
+  ]
+}
