@@ -774,7 +774,8 @@ function Install-CmreObserverOverlay {
         [object[]]$AdapterFiles = @(),
         [bool]$EnableReborn = $false,
         [string]$RebornCommander = "",
-        [string]$VibeKernelOverride = ""
+        [string]$VibeKernelOverride = "",
+        [int]$InvokeTier = 0
     )
     if ($AdapterLibPrefix -ne "") { Assert-CmreGalaxyToken -Value $AdapterLibPrefix -Name "AdapterLibPrefix" }
     $baseData = Join-Path $MapPath "Base.SC2Data"
@@ -827,10 +828,50 @@ function Install-CmreObserverOverlay {
     if (Test-Path -LiteralPath $vibeKernelRoot) {
         $vibeKernelFiles = @(
             @{ Source = Join-Path $vibeKernelRoot "LibVibeKernel_h.galaxy"; Name = "LibVibeKernel_h.galaxy" },
-            @{ Source = Join-Path $vibeKernelRoot "LibVibeKernel.galaxy"; Name = "LibVibeKernel.galaxy" }
+            @{ Source = Join-Path $vibeKernelRoot "LibVibeKernel.galaxy"; Name = "LibVibeKernel.galaxy" },
+            @{ Source = Join-Path $vibeKernelRoot "LibVibeHandles.galaxy"; Name = "LibVibeHandles.galaxy" }
         )
         Copy-CmreOverlayFiles -Files $vibeKernelFiles -DestinationRoot $baseData
         Write-Host "Project Vibe kernel overlay: copied $vibeKernelRoot"
+    }
+    # Stage 26: generated full-function invoke bundle (per-map adapter shards).
+    # Files are copied flat into Base.SC2Data; names are globally unique via the
+    # LibVibeInvoke prefix. The authoritative bundle lives in the shared kernel.
+    # InvokeTier (0 = full, 100/1000 = rollout tiers) mounts only the low-id
+    # shard range plus the matching tier dispatch variant renamed to the
+    # canonical dispatch name, so staged rollouts compile a bounded subset.
+    $vibeInvokeBundle = Join-Path $vibeKernelRoot "generated\$MapName"
+    if (-not (Test-Path -LiteralPath $vibeInvokeBundle)) {
+        $vibeInvokeBundle = Join-Path $WorkspaceRoot "tools\galaxy-vibe\kernel\generated\$MapName"
+    }
+    if (Test-Path -LiteralPath $vibeInvokeBundle) {
+        $bundleFiles = @()
+        foreach ($bundleFile in Get-ChildItem -LiteralPath $vibeInvokeBundle -Filter "*.galaxy") {
+            $sourceName = $bundleFile.Name
+            if ($sourceName -match '^LibVibeInvoke_(\d{2})(_h)?\.galaxy$') {
+                if ($InvokeTier -gt 0 -and ((([int]$Matches[1] - 1) * 400) + 1) -gt $InvokeTier) { continue }
+            } elseif ($sourceName -eq "LibVibeInvokeDispatch.galaxy") {
+                if ($InvokeTier -gt 0) {
+                    $tierSource = Join-Path $vibeInvokeBundle ("LibVibeInvokeDispatch_tier" + $InvokeTier + ".galaxy")
+                    if (-not (Test-Path -LiteralPath $tierSource)) {
+                        throw "Invoke tier $InvokeTier dispatch variant missing: $tierSource"
+                    }
+                    $bundleFiles += @{ Source = $tierSource; Name = "LibVibeInvokeDispatch.galaxy" }
+                    continue
+                }
+            } elseif ($sourceName -like "LibVibeInvokeDispatch_tier*.galaxy") {
+                continue
+            }
+            $bundleFiles += @{ Source = $bundleFile.FullName; Name = $sourceName }
+        }
+        Copy-CmreOverlayFiles -Files $bundleFiles -DestinationRoot $baseData
+        if ($InvokeTier -gt 0) {
+            Write-Host "Project Vibe kernel overlay: copied generated invoke bundle ($($bundleFiles.Count) files, tier $InvokeTier) for $MapName"
+        } else {
+            Write-Host "Project Vibe kernel overlay: copied generated invoke bundle ($($bundleFiles.Count) files) for $MapName"
+        }
+    } else {
+        Write-Host "Project Vibe kernel overlay: no generated invoke bundle for $MapName"
     }
     Install-CmreTriggerCustomScriptOverlay -MapPath $MapPath
 
@@ -876,6 +917,19 @@ function Install-CmreObserverOverlay {
         'include "Lib114935F5"',
         'include "TriggerLibs/NativeLib"'
     ) -Name 'map library include'
+    # Stage 26: mount the generated invoke bundle after the kernel so adapters
+    # see every map/mod function prototype included above.
+    $vibeInvokeIncludes = @('include "LibVibeHandles"', 'include "LibVibeInvokeCommon"')
+    $vibeInvokeBundleDir = Join-Path $baseData "LibVibeInvokeDispatch.galaxy"
+    if (Test-Path -LiteralPath $vibeInvokeBundleDir) {
+        $vibeInvokeShards = Get-ChildItem -LiteralPath $baseData -Filter "LibVibeInvoke_*.galaxy" |
+            Where-Object { $_.Name -notlike "*_h.galaxy" } |
+            Sort-Object Name |
+            ForEach-Object { 'include "' + $_.BaseName + '"' }
+        $vibeInvokeIncludes += $vibeInvokeShards
+        $vibeInvokeIncludes += 'include "LibVibeInvokeDispatch"'
+        $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor 'include "LibVibeKernel"' -Lines $vibeInvokeIncludes
+    }
     $includeLines = @('include "LibEFA54406"', 'include "LibNeuroCommandBridge"', 'include "LibPortingObserver"', 'include "LibDeadOfNightObserver"', 'include "LibMapModBridge"')
     if ($IsAlengerCommander -and $AdapterLibPrefix -ne "") { $includeLines += ('include "Lib' + $AdapterLibPrefix + '"') }
     $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $mapIncludeAnchor -Lines $includeLines

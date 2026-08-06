@@ -614,3 +614,31 @@ def test_api_port_owner_is_scalar_before_pid_conversion():
     assert "$portOwner = @(Get-NetTCPConnection" in source
     assert "$ownerPid = @($portOwner.OwningProcess) | Select-Object -First 1" in source
     assert "$proc = @(Get-Process -Id ([int]$ownerPid)" in source
+
+
+def test_observer_overlay_mounts_invoke_bundle_with_rollout_tiers():
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+    body = _function_body(overlay, "Install-CmreObserverOverlay")
+
+    # kernel 文件清单包含句柄登记表，bundle 扇平拷入 Base.SC2Data
+    assert "LibVibeHandles.galaxy" in body
+    assert 'generated\\$MapName' in body
+    assert "LibVibeInvokeDispatch.galaxy" in body
+    # MapScript include 注入：kernel 之后挂载句柄表/公共库/分片/分派
+    assert "'include \"LibVibeHandles\"', 'include \"LibVibeInvokeCommon\"'" in overlay
+    assert "'include \"LibVibeInvokeDispatch\"'" in overlay
+    assert 'Add-CmreLinesAfter -Content $mapScript -Anchor \'include "LibVibeKernel"\' -Lines $vibeInvokeIncludes' in overlay
+    # 分档放量：InvokeTier 参数、tier dispatch 变体改名、超档分片跳过
+    assert "[int]$InvokeTier = 0" in body
+    assert "LibVibeInvokeDispatch_tier" in body
+    assert "Invoke tier $InvokeTier dispatch variant missing" in body
+    assert "if ($InvokeTier -gt 0 -and ((([int]$Matches[1] - 1) * 400) + 1) -gt $InvokeTier) { continue }" in body
+
+
+def test_launcher_top_level_passes_invoke_tier_to_observer_overlay():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    # Stage 26 分档放量：顶层参数声明 + 透传给 Install-CmreObserverOverlay
+    assert "[int]$InvokeTier = 0)" in source
+    assert "-VibeKernelOverride $VibeKernelOverride -InvokeTier $InvokeTier" in source
+

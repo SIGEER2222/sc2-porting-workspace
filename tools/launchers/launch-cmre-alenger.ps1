@@ -1,8 +1,9 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [string]$MapSourceOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$DirectMapApi, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "")
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [string]$MapSourceOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$DirectMapApi, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "", [int]$InvokeTier = 0)
 # -MapCopySuffix: 可选的地图副本后缀，用于避免多会话同时操作同一 live 地图导致 DocumentInfo 冲突。
 # 例如 -MapCopySuffix "reborn" 会使用 Maps\亡者之夜.SC2Map.reborn\ 作为 live 地图。
 # 不指定时使用原始路径（向后兼容）。
+# -InvokeTier: Stage 26 全函数 invoke 分档放量开关（0=全量，100/1000=仅挂载 id≤tier 的分片）。
 $ErrorActionPreference = "Stop"
 # 模式校验：PlayerMode 和 DebugMode 互斥；DebugMode 自动启用 ApiMinimal 并要求 ListenPort
 if ($PlayerMode -and $DebugMode) { throw "-PlayerMode 和 -DebugMode 互斥，不能同时使用" }
@@ -1216,7 +1217,7 @@ function Install-CmreGalaxyHostOverlay {
 function Install-CmreDynamicObserver {
     param([Parameter(Mandatory = $true)][string]$MapPath)
 
-    Install-CmreObserverOverlay -WorkspaceRoot $WorkspaceRoot -MapPath $MapPath -MapName $MapName -IsAlengerCommander $isAlengerCommander -AdapterLibPrefix $adapterLibPrefix -AdapterFiles $adapterFiles -EnableReborn $EnableReborn -RebornCommander $RebornCommander -VibeKernelOverride $VibeKernelOverride
+    Install-CmreObserverOverlay -WorkspaceRoot $WorkspaceRoot -MapPath $MapPath -MapName $MapName -IsAlengerCommander $isAlengerCommander -AdapterLibPrefix $adapterLibPrefix -AdapterFiles $adapterFiles -EnableReborn $EnableReborn -RebornCommander $RebornCommander -VibeKernelOverride $VibeKernelOverride -InvokeTier $InvokeTier
 }
 function Patch-CmreCoreRuntimeErrors {
     param([Parameter(Mandatory = $true)][string]$MapPath)
