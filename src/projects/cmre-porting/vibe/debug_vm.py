@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Any, Protocol
 
-from .function_registry import FunctionRegistryError, validate_invocation
+from .function_registry import FunctionRegistryError, normalize_function_id, validate_invocation
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -178,9 +178,14 @@ class DebugVm:
         raise DebugVmError(f"unknown reference: ${reference}")
 
     async def _call(self, instruction: dict[str, Any], scope: str, position: int) -> None:
-        function_id = instruction.get("fn", instruction.get("function_id"))
-        if not isinstance(function_id, str) or not function_id:
+        raw_function_id = instruction.get("fn", instruction.get("function_id"))
+        if isinstance(raw_function_id, bool) or not isinstance(raw_function_id, (str, int)) or raw_function_id == "":
             raise DebugVmError(f"{scope}[{position}] call.fn is required")
+        try:
+            # Stage 26: 与宿主一致——整数/数字串 id 归一化为生成 adapter 族。
+            function_id = normalize_function_id(raw_function_id)
+        except FunctionRegistryError as exc:
+            raise DebugVmError(f"{scope}[{position}] call.fn rejected: {exc.code}: {exc.detail}") from exc
         metadata = self.function_metadata.get(function_id)
         if metadata is None:
             raise DebugVmError(f"function is not registered: {function_id}")

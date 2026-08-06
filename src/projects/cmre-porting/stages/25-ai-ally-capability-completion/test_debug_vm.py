@@ -177,10 +177,16 @@ class DebugVmTests(unittest.TestCase):
         self.assertEqual(sum(catalog["summary"]["by_disposition"].values()), len(catalog["functions"]))
         self.assertTrue(all(source["parse_errors"] == 0 for source in catalog["sources"]))
         callable_names = {entry["name"] for entry in catalog["functions"] if entry["registered_handler"]}
-        registry_handlers = {entry["handler"] for entry in registry.values()}
         catalog_names = {entry["name"] for entry in catalog["functions"]}
+        # Stage 26: 注册表新增生成 adapter 族（gen.*），其 handler 是适配器而
+        # 目标函数记录在 galaxy_name；手写条目保持原有 handler ⊆ callable_names 不变量。
+        handwritten = [entry for entry in registry.values() if not entry.get("generated", False)]
+        generated = [entry for entry in registry.values() if entry.get("generated", False)]
+        registry_handlers = {entry["handler"] for entry in handwritten}
         self.assertTrue(registry_handlers)
         self.assertTrue(registry_handlers <= callable_names)
+        self.assertTrue(generated)
+        self.assertTrue(all(entry["galaxy_name"] in catalog_names for entry in generated))
         self.assertTrue(catalog_names)
         self.assertTrue(all(
             entry["disposition"] == "inventory-only" or entry["registered_handler"]

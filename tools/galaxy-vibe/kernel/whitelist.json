@@ -16,8 +16,15 @@
       "category": "function",
       "produces_side_effect": false,
       "args": {
-        "function_id": {"type": "string", "required": true, "pattern": "^[a-z][a-z0-9._-]*$"},
-        "args": {"type": "object", "required": true}
+        "function_id": {
+          "type": "string",
+          "required": true,
+          "pattern": "^[a-z][a-z0-9._-]*$"
+        },
+        "args": {
+          "type": "object",
+          "required": true
+        }
       },
       "payload_schema": {
         "function_id": "string",
@@ -37,11 +44,33 @@
       "category": "unit",
       "produces_side_effect": true,
       "args": {
-        "unit_type": {"type": "string", "required": true, "catalog": "unit"},
-        "count": {"type": "integer", "required": true, "min": 1, "max": 200},
-        "player": {"type": "integer", "required": true, "min": 1, "max": 15},
-        "x": {"type": "fixed", "required": false, "default": 0.0},
-        "y": {"type": "fixed", "required": false, "default": 0.0}
+        "unit_type": {
+          "type": "string",
+          "required": true,
+          "catalog": "unit"
+        },
+        "count": {
+          "type": "integer",
+          "required": true,
+          "min": 1,
+          "max": 200
+        },
+        "player": {
+          "type": "integer",
+          "required": true,
+          "min": 1,
+          "max": 15
+        },
+        "x": {
+          "type": "fixed",
+          "required": false,
+          "default": 0.0
+        },
+        "y": {
+          "type": "fixed",
+          "required": false,
+          "default": 0.0
+        }
       },
       "payload_schema": {
         "created": "integer",
@@ -53,9 +82,29 @@
       "category": "unit",
       "produces_side_effect": true,
       "args": {
-        "player": {"type": "integer", "required": false, "min": 0, "max": 15, "default": 0},
-        "unit_type": {"type": "string", "required": false, "default": ""},
-        "all": {"type": "string", "required": false, "enum": ["0", "1", "true", "false"], "default": "0"}
+        "player": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 15,
+          "default": 0
+        },
+        "unit_type": {
+          "type": "string",
+          "required": false,
+          "default": ""
+        },
+        "all": {
+          "type": "string",
+          "required": false,
+          "enum": [
+            "0",
+            "1",
+            "true",
+            "false"
+          ],
+          "default": "0"
+        }
       },
       "payload_schema": {
         "killed": "integer"
@@ -65,9 +114,25 @@
       "category": "unit",
       "produces_side_effect": true,
       "args": {
-        "unit_tag": {"type": "integer", "required": true},
-        "vital": {"type": "string", "required": true, "enum": ["life", "shield", "energy"]},
-        "value": {"type": "fixed", "required": true, "min": 0.0, "max": 1000000.0}
+        "unit_tag": {
+          "type": "integer",
+          "required": true
+        },
+        "vital": {
+          "type": "string",
+          "required": true,
+          "enum": [
+            "life",
+            "shield",
+            "energy"
+          ]
+        },
+        "value": {
+          "type": "fixed",
+          "required": true,
+          "min": 0.0,
+          "max": 1000000.0
+        }
       },
       "payload_schema": {
         "unit_tag": "integer",
@@ -79,9 +144,27 @@
       "category": "player",
       "produces_side_effect": true,
       "args": {
-        "player": {"type": "integer", "required": true, "min": 1, "max": 15},
-        "resource": {"type": "string", "required": true, "enum": ["minerals", "vespene", "supply"]},
-        "value": {"type": "integer", "required": true, "min": 0, "max": 999999}
+        "player": {
+          "type": "integer",
+          "required": true,
+          "min": 1,
+          "max": 15
+        },
+        "resource": {
+          "type": "string",
+          "required": true,
+          "enum": [
+            "minerals",
+            "vespene",
+            "supply"
+          ]
+        },
+        "value": {
+          "type": "integer",
+          "required": true,
+          "min": 0,
+          "max": 999999
+        }
       },
       "payload_schema": {
         "player": "integer",
@@ -93,8 +176,18 @@
       "category": "query",
       "produces_side_effect": false,
       "args": {
-        "player": {"type": "integer", "required": false, "min": 0, "max": 15, "default": 0},
-        "unit_type": {"type": "string", "required": false, "default": ""}
+        "player": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 15,
+          "default": 0
+        },
+        "unit_type": {
+          "type": "string",
+          "required": false,
+          "default": ""
+        }
       },
       "payload_schema": {
         "count": "integer",
@@ -106,7 +199,10 @@
       "category": "query",
       "produces_side_effect": false,
       "args": {
-        "unit_tag": {"type": "integer", "required": true}
+        "unit_tag": {
+          "type": "integer",
+          "required": true
+        }
       },
       "payload_schema": {
         "unit_tag": "integer",
@@ -136,8 +232,15 @@
       "category": "visual",
       "produces_side_effect": true,
       "args": {
-        "unit_tag": {"type": "integer", "required": true},
-        "color": {"type": "string", "required": true, "description": "R,G,B 格式或 hex"}
+        "unit_tag": {
+          "type": "integer",
+          "required": true
+        },
+        "color": {
+          "type": "string",
+          "required": true,
+          "description": "R,G,B 格式或 hex"
+        }
       },
       "payload_schema": {
         "unit_tag": "integer",
@@ -148,8 +251,16 @@
       "category": "visual",
       "produces_side_effect": true,
       "args": {
-        "unit_tag": {"type": "integer", "required": true},
-        "scale": {"type": "fixed", "required": true, "min": 0.01, "max": 100.0}
+        "unit_tag": {
+          "type": "integer",
+          "required": true
+        },
+        "scale": {
+          "type": "fixed",
+          "required": true,
+          "min": 0.01,
+          "max": 100.0
+        }
       },
       "payload_schema": {
         "unit_tag": "integer",
@@ -160,8 +271,16 @@
       "category": "visual",
       "produces_side_effect": true,
       "args": {
-        "unit_tag": {"type": "integer", "required": true},
-        "opacity": {"type": "fixed", "required": true, "min": 0.0, "max": 1.0}
+        "unit_tag": {
+          "type": "integer",
+          "required": true
+        },
+        "opacity": {
+          "type": "fixed",
+          "required": true,
+          "min": 0.0,
+          "max": 1.0
+        }
       },
       "payload_schema": {
         "unit_tag": "integer",
@@ -172,9 +291,23 @@
       "category": "upgrade",
       "produces_side_effect": true,
       "args": {
-        "player": {"type": "integer", "required": true, "min": 1, "max": 15},
-        "upgrade": {"type": "string", "required": true, "pattern": "^[A-Za-z][A-Za-z0-9_]*$"},
-        "level": {"type": "integer", "required": true, "min": 0, "max": 15}
+        "player": {
+          "type": "integer",
+          "required": true,
+          "min": 1,
+          "max": 15
+        },
+        "upgrade": {
+          "type": "string",
+          "required": true,
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+        },
+        "level": {
+          "type": "integer",
+          "required": true,
+          "min": 0,
+          "max": 15
+        }
       },
       "payload_schema": {
         "applied": "integer",
@@ -187,8 +320,17 @@
       "category": "tech_tree",
       "produces_side_effect": false,
       "args": {
-        "player": {"type": "integer", "required": true, "min": 1, "max": 15},
-        "upgrade": {"type": "string", "required": true, "pattern": "^[A-Za-z][A-Za-z0-9_]*$"}
+        "player": {
+          "type": "integer",
+          "required": true,
+          "min": 1,
+          "max": 15
+        },
+        "upgrade": {
+          "type": "string",
+          "required": true,
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+        }
       },
       "payload_schema": {
         "count": "integer",
@@ -201,8 +343,18 @@
       "category": "query",
       "produces_side_effect": false,
       "args": {
-        "player": {"type": "integer", "required": false, "min": 0, "max": 15, "default": 0},
-        "unit_type": {"type": "string", "required": false, "default": ""}
+        "player": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 15,
+          "default": 0
+        },
+        "unit_type": {
+          "type": "string",
+          "required": false,
+          "default": ""
+        }
       },
       "payload_schema": {
         "count": "integer",
@@ -215,7 +367,10 @@
       "category": "query",
       "produces_side_effect": false,
       "args": {
-        "unit_tag": {"type": "integer", "required": true}
+        "unit_tag": {
+          "type": "integer",
+          "required": true
+        }
       },
       "payload_schema": {
         "unit_tag": "integer",
@@ -229,21 +384,101 @@
         "weapon_range": "string",
         "attributes": "string"
       }
+    },
+    "handle.query": {
+      "category": "handle",
+      "produces_side_effect": false,
+      "args": {
+        "handle_type": {
+          "type": "string",
+          "required": true
+        },
+        "handle_id": {
+          "type": "integer",
+          "required": true,
+          "min": 1
+        }
+      },
+      "payload_schema": {
+        "handle_type": "string",
+        "handle_id": "integer",
+        "alive": "boolean"
+      }
+    },
+    "handle.drop": {
+      "category": "handle",
+      "produces_side_effect": true,
+      "args": {
+        "handle_type": {
+          "type": "string",
+          "required": true
+        },
+        "handle_id": {
+          "type": "integer",
+          "required": true,
+          "min": 1
+        }
+      },
+      "payload_schema": {
+        "handle_type": "string",
+        "handle_id": "integer",
+        "dropped": "boolean"
+      }
+    },
+    "handle.clear": {
+      "category": "handle",
+      "produces_side_effect": true,
+      "args": {
+        "handle_type": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "payload_schema": {
+        "handle_type": "string"
+      }
     }
   },
   "assert_operations": {
-    "assert.exists": {"host_side": true, "description": "断言指定单位存在"},
-    "assert.count": {"host_side": true, "description": "断言单位数量"},
-    "assert.equals": {"host_side": true, "description": "断言状态值等于"},
-    "assert.range": {"host_side": true, "description": "断言状态值在范围内"},
-    "assert.eventually": {"host_side": true, "description": "断言最终成立（带超时）"},
-    "assert.not_exists": {"host_side": true, "description": "断言指定单位不存在"}
+    "assert.exists": {
+      "host_side": true,
+      "description": "断言指定单位存在"
+    },
+    "assert.count": {
+      "host_side": true,
+      "description": "断言单位数量"
+    },
+    "assert.equals": {
+      "host_side": true,
+      "description": "断言状态值等于"
+    },
+    "assert.range": {
+      "host_side": true,
+      "description": "断言状态值在范围内"
+    },
+    "assert.eventually": {
+      "host_side": true,
+      "description": "断言最终成立（带超时）"
+    },
+    "assert.not_exists": {
+      "host_side": true,
+      "description": "断言指定单位不存在"
+    }
   },
   "rejected_operations": [
     "call",
     "run",
     "exec",
     "eval",
-    "call_arbitrary_func"
-  ]
+    "call_arbitrary_func",
+    "function.invoke.unknown_generated_id",
+    "function.invoke.out_of_range_id",
+    "call_arbitrary_function_by_name"
+  ],
+  "generated_invoke": {
+    "stage": "26-full-function-invoke",
+    "function_id_format": "gen.<int>",
+    "callable_functions": 11890,
+    "debug_only": true
+  }
 }

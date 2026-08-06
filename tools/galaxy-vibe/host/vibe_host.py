@@ -744,6 +744,13 @@ class VibeHost:
             "issued_at": request.issued_at,
             "transport": transport,
         }
+        if operation == "function.invoke":
+            # Stage 26: 策略审计区分生成 adapter 族与手写 handler 族
+            try:
+                invoke_fid, _ = normalize_request_args(args)
+            except FunctionRegistryError:
+                invoke_fid = str(args.get("function_id", "") if isinstance(args, dict) else "")
+            req_record["family"] = "invoke.generated" if str(invoke_fid).startswith("gen.") else "invoke.handwritten"
         self.requests_log.append(req_record)
 
         # 通过 Transport 发送

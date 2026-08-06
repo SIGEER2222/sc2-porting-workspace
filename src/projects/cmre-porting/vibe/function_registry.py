@@ -88,9 +88,23 @@ def coerce_cli_args(function_id: Any, raw_args: dict[str, str]) -> dict[str, Any
     return validate_invocation(function_id, coerced)
 
 
+def normalize_function_id(function_id: Any) -> str:
+    """Stage 26: integer function ids resolve to the generated adapter family."""
+    if isinstance(function_id, bool):
+        raise FunctionRegistryError("FUNCTION_NOT_FOUND", str(function_id))
+    if isinstance(function_id, int):
+        return f"gen.{function_id}"
+    if isinstance(function_id, str) and function_id.isdigit():
+        return f"gen.{int(function_id)}"
+    if not isinstance(function_id, str):
+        raise FunctionRegistryError("FUNCTION_NOT_FOUND", str(function_id))
+    return function_id
+
+
 def validate_invocation(function_id: Any, args: Any, *, registry: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
     functions = registry or load_function_registry()
-    if not isinstance(function_id, str) or function_id not in functions:
+    function_id = normalize_function_id(function_id)
+    if function_id not in functions:
         raise FunctionRegistryError("FUNCTION_NOT_FOUND", str(function_id))
     if not isinstance(args, dict):
         raise FunctionRegistryError("INVALID_ARGS", "args must be an object")
@@ -114,12 +128,13 @@ def validate_invocation(function_id: Any, args: Any, *, registry: dict[str, dict
 def normalize_request_args(request_args: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     if not isinstance(request_args, dict):
         raise FunctionRegistryError("INVALID_ARGS", "function.invoke args must be an object")
-    function_id = request_args.get("function_id")
+    function_id = normalize_function_id(request_args.get("function_id"))
     call_args = request_args.get("args", {})
     return function_id, validate_invocation(function_id, call_args)
 
 
 def wire_function_args(function_id: Any, args: Any) -> dict[str, Any]:
+    function_id = normalize_function_id(function_id)
     normalized = validate_invocation(function_id, args)
     wire = {"function_id": function_id}
     for name, value in normalized.items():
