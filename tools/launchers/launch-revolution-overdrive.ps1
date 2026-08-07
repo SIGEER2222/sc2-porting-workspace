@@ -127,16 +127,23 @@ function Get-NewScriptErrors {
 
 function Pack-OwnedMap {
     param([string]$Source, [string]$Destination)
-    $packer = Join-Path $workspace "tools\mpq\scripts\pack_mpq.py"
+    $packer = Join-Path $workspace "tools\mpq\scripts\pack_stormlib.py"
     if (-not (Test-Path -LiteralPath $packer -PathType Leaf)) {
         throw "Map packer not found: $packer"
+    }
+    $stormlib = Join-Path $workspace "artifacts\stormlib-v9.40\x64\StormLib.dll"
+    if (-not (Test-Path -LiteralPath $stormlib -PathType Leaf)) {
+        $stormlib = Join-Path $workspace "artifacts\stormlib-v9.40\Win32\StormLib.dll"
+    }
+    if (-not (Test-Path -LiteralPath $stormlib -PathType Leaf)) {
+        throw "StormLib.dll not found under artifacts\stormlib-v9.40\"
     }
     $python = (Get-Command python -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Destination) | Out-Null
     if (Test-Path -LiteralPath $Destination) {
         Remove-Item -LiteralPath $Destination -Force
     }
-    & $python $packer $Source $Destination | Out-Host
+    & $python $packer $Source $Destination --stormlib $stormlib | Out-Host
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Destination -PathType Leaf)) {
         throw "Map packing failed for $Source"
     }

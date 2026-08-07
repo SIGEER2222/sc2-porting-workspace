@@ -20,28 +20,24 @@
       ]
     },
     {
-      "type": "simulator",
-      "claim": "The RO AI ally adapter and WebUI selection path pass their targeted deterministic regressions.",
+      "type": "runtime",
+      "claim": "The approved launcher stages the complete closure, reaches CreateGame=init_game and JoinGame=in_game, advances observations to loop 48, accepts ActionChat(Iron), and has a clean same-window ScriptError scan.",
       "evidence": [
-        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ai_ally_adapter.py",
-        "tools/cmre-webui/test_revolution_overdrive.py"
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/native-census.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/script-error-verdict.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-long/long-census.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-long/script-error-verdict.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-actions/launcher-runtime-18156.json"
       ]
     },
     {
       "type": "runtime",
-      "claim": "The approved launcher stages the complete closure, reaches its API ready signal, and has a clean same-window ScriptError scan.",
+      "claim": "Native AI ally behavior remains blocked after strict P1 participant plus P2 Computer setup and accepted ordinary native actions: Tychus dies before Region 24, P2-owned units remain absent, no P1-visible P2 ally appears, and no P2 command acknowledgement exists. The observed owner 16 units are Neutral.",
       "evidence": [
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json",
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18134/script-error-verdict.json"
-      ]
-    },
-    {
-      "type": "blocked",
-      "claim": "Native RO runtime remains unverified because the standard API session does not complete init_game to in_game after CreateGame.",
-      "evidence": [
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18131/realsmoke/result.json",
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18132/sc2api_runtime_probe.json",
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18134/realprofile/result.json"
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/native-census.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/script-error-verdict.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-actions/strict-action-census.json"
       ]
     }
   ],
@@ -79,23 +75,35 @@
       "summary": "2 tests passed."
     },
     {
-      "command": "approved launcher + Sc2Api.RealSmoke/RealProfile + path/map_data diagnosis on ports 18131-18134",
-      "exitCode": 1,
-      "summary": "Staging and listener readiness passed, but no run reached in_game; native gate remains blocked."
-    }
-  ],
-  "verificationGaps": [
-    {
-      "claim": "Native faction selection and unit creation",
-      "status": "blocked",
-      "reason": "The API session has no playable observation or Catalog data."
+      "command": "python -m py_compile tools/runtime-bridge/sc2api_runtime_probe.py src/projects/revolution-overdrive-porting/vibe/ai_ally.py",
+      "exitCode": 0,
+      "summary": "Python compile passed."
     },
     {
-      "claim": "P1/P2 owner/alliance census and native AI ally behavior",
-      "status": "blocked",
-      "reason": "The map never reached a state where owner/alliance observations are available."
+      "command": "PowerShell parser on tools/launchers/launch-revolution-overdrive.ps1",
+      "exitCode": 0,
+      "summary": "No parser errors."
+    },
+    {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-revolution-overdrive.ps1 -MapName thorner03.SC2Map -Faction Iron -ListenPort 18149 -NoLaunch",
+      "exitCode": 0,
+      "summary": "Real source input staged to the approved SC2 map directory; packed map exists and source/staged file count is 55/55."
+    },
+    {
+      "command": "approved launcher + strict native census on thorner03.SC2Map, port 18148",
+      "exitCode": 0,
+      "summary": "CreateGame=init_game, JoinGame=in_game, RequestStep reached loop 48, Iron chat accepted, Catalog non-empty, same-window ScriptError count=0; AI ally assertions remain blocked."
+    },
+    {
+      "command": "approved launcher port 18150 + galaxy_repl strict map session + 45s initialization + 12 x RequestStep(300) query batches",
+      "exitCode": 1,
+      "summary": "Native bootstrap and observations ran, but the bounded REPL script exited nonzero after all queries; P1 remained at 10 initial units, no P2/owner-16 units or P2 acknowledgement appeared, and the separate ScriptError gate passed. The later RescueUnit lifecycle remains unverified."
+    },
+    {
+      "command": "approved launcher port 18156 + strict SC2API P1 participant/P2 Computer action census",
+      "exitCode": 0,
+      "summary": "CreateGame=init_game and JoinGame=in_game; attack-move and move returned ActionResult=1; Tychus died before Region 24; P2-owned units=0, P1-visible P2 ally=0, owner 16 remained Neutral, P2 acknowledgement=false; same-window ScriptError count=0. Verdict remains blocked."
     }
   ],
-  "nextStage": "runtime-bootstrap-diagnosis",
-  "nextStagePlan": "src/projects/revolution-overdrive-porting/stages/07-commander-closure/next-stage-plan.md"
+  "nextStage": "ai-ally-native-closure"
 }

@@ -4,15 +4,16 @@
     {
       "id": "RO-RUN-004",
       "severity": "high",
-      "status": "blocked",
-      "summary": "The complete staged RO map does not transition from init_game to in_game through the standard SC2 API CreateGame/JoinGame path.",
+      "status": "resolved",
+      "summary": "The complete staged RO map initially failed to transition from init_game to in_game through the standard SC2 API path.",
       "evidence": [
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18131/realsmoke/result.json",
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18132/sc2api_runtime_probe.json",
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18134/realprofile/result.json"
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18134/realprofile/result.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/native-census.json"
       ],
-      "impact": "Native commander, faction, unit ownership, map alliance, and AI ally behavior cannot be accepted.",
-      "nextAction": "Run the bounded runtime-bootstrap diagnosis in next-stage-plan.md. Require strict response status checks and a known-good map comparison before changing RO map or AI logic."
+      "impact": "The stale launcher packaging path prevented native commander and AI ally verification until the launcher was corrected.",
+      "nextAction": "Keep the strict native census and StormLib packaging path as regression gates."
     },
     {
       "id": "RO-AI-001",
@@ -27,16 +28,32 @@
       "nextAction": "Capture native owner/alliance state for representative maps after RO reaches in_game; do not widen the contract before that evidence exists."
     },
     {
+      "id": "RO-AI-003",
+      "severity": "high",
+      "status": "blocked",
+      "summary": "The thorner03 native bootstrap window through loop 48 exposes P2 as a Computer roster entry but has not yet reached the map-owned Tychus rescue that should materialize P2-owned or P1-visible allied units.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/native-census.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/script-error-verdict.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-long/long-census.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-long/script-error-verdict.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-actions/strict-action-census.json"
+      ],
+      "impact": "The current AI ally adapter cannot safely expose P2 commands or classify the observed owner 16 units as an ally. Static shared-vision intent and accepted native actions are insufficient while the map-owned rescue lifecycle is unreachable.",
+      "nextAction": "Progress the mission-owned warehouse objective through a supported gameplay path and require P2-owned units, an explicit allied observation, and an acknowledged P2 command in the same window. If that progression cannot be reproduced without debug injection or map edits, keep the map-specific P2 contract unavailable."
+    },
+    {
       "id": "RO-RUN-005",
       "severity": "medium",
-      "status": "open",
-      "summary": "The current RO-specific API probe is permissive when JoinGame returns no nested error but the top-level status remains launched.",
+      "status": "resolved",
+      "summary": "The former RO-specific API probe accepted a no-error JoinGame response without requiring status=in_game.",
       "evidence": [
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18132/sc2api_runtime_probe.json",
-        "tools/sc2api-baseline/tests/Sc2Api.RealSmoke/Program.cs"
+        "tools/sc2api-baseline/tests/Sc2Api.RealSmoke/Program.cs",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/native-census.json"
       ],
-      "impact": "A permissive probe can produce a zero-unit report without failing at the exact state transition boundary.",
-      "nextAction": "Use the strict RealSmoke/RealProfile response-status pattern in the next runtime harness; do not promote the existing probe's exit code to a runtime pass."
+      "impact": "Strict response-state checks now prevent a listener or launched-only state from being reported as a playable runtime pass.",
+      "nextAction": "Keep strict CreateGame/JoinGame/RequestStep assertions in every future native run."
     }
   ]
 }
