@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "RO-MAP-001",
+      "severity": "high",
+      "status": "resolved",
+      "summary": "Owned RO maps were missing source closure files.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage06-map-closure/source-owned-closure-before.json",
+        "artifacts/projects/revolution-overdrive-porting/stage06-map-closure/source-owned-closure-after.json"
+      ],
+      "impact": "The map package was incomplete before Stage 06 and is complete after the controlled copy.",
+      "nextAction": "Keep the all-map closure audit as a regression gate."
+    },
+    {
+      "id": "RO-RUN-003",
+      "severity": "high",
+      "status": "blocked",
+      "summary": "The native API still cannot create or join the packed RO map after map closure repair.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage06-map-closure/api-traynor01-iron-18128.json"
+      ],
+      "impact": "Faction selection, map-owned alliances, and native AI ally behavior remain unverified.",
+      "nextAction": "Audit and close the complete commander Mod before repeating the API MVP."
+    }
+  ]
+}

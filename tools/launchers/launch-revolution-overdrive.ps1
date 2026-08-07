@@ -27,10 +27,11 @@ $ErrorActionPreference = "Stop"
 $workspace = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $packageRoot = Join-Path $workspace "src\projects\revolution-overdrive-porting\packages"
 $modRoot = Join-Path $packageRoot "Commander\Mods"
+$assetModsRoot = Join-Path $workspace "assets\src\projects\revolution-overdrive-porting\packages\Commander\Mods"
 $mapsRoot = Join-Path $packageRoot "Maps"
 $evidenceRoot = Join-Path $workspace "artifacts\projects\revolution-overdrive-porting\stage03-commander-package\launcher"
 $gameLogsRoot = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "StarCraft II\GameLogs"
-$runtimeEvidenceRoot = Join-Path $workspace "artifacts\projects\revolution-overdrive-porting\stage05-runtime"
+$runtimeEvidenceRoot = Join-Path $workspace "artifacts\projects\revolution-overdrive-porting\stage07-commander-closure"
 
 $factions = @{
     Iron = "Iron"
@@ -75,6 +76,22 @@ function Copy-OwnedDirectory {
     Copy-Item -LiteralPath $Source -Destination $Destination -Recurse -Force
 }
 
+function Copy-DirectoryOverlay {
+    param([string]$Source, [string]$Destination)
+    if (-not (Test-Path -LiteralPath $Source -PathType Container)) {
+        throw "Asset overlay directory not found: $Source"
+    }
+    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+    foreach ($item in @(Get-ChildItem -LiteralPath $Source -Force)) {
+        $target = Join-Path $Destination $item.Name
+        if ($item.PSIsContainer) {
+            Copy-DirectoryOverlay -Source $item.FullName -Destination $target
+        } else {
+            Copy-Item -LiteralPath $item.FullName -Destination $target -Force
+        }
+    }
+}
+
 function Get-DirectoryManifest {
     param([string]$Source)
     $resolvedSource = (Resolve-Path -LiteralPath $Source).Path
@@ -106,6 +123,24 @@ function Get-NewScriptErrors {
     if (-not (Test-Path -LiteralPath $gameLogsRoot)) { return @() }
     return @(Get-ChildItem -LiteralPath $gameLogsRoot -Recurse -File -Filter "*ScriptError*.txt" -ErrorAction SilentlyContinue |
         Where-Object { $_.LastWriteTime -ge $Since -and $_.Length -gt 0 })
+}
+
+function Pack-OwnedMap {
+    param([string]$Source, [string]$Destination)
+    $packer = Join-Path $workspace "tools\mpq\scripts\pack_mpq.py"
+    if (-not (Test-Path -LiteralPath $packer -PathType Leaf)) {
+        throw "Map packer not found: $packer"
+    }
+    $python = (Get-Command python -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Destination) | Out-Null
+    if (Test-Path -LiteralPath $Destination) {
+        Remove-Item -LiteralPath $Destination -Force
+    }
+    & $python $packer $Source $Destination | Out-Host
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Destination -PathType Leaf)) {
+        throw "Map packing failed for $Source"
+    }
+    return [string](Resolve-Path -LiteralPath $Destination).Path
 }
 
 function Wait-ApiReady {
@@ -144,6 +179,10 @@ $switcher = Join-Path $sc2Root "Support64\SC2Switcher_x64.exe"
 $mapStem = if ($MapName.EndsWith(".SC2Map", [StringComparison]::OrdinalIgnoreCase)) { $MapName } else { "$MapName.SC2Map" }
 $mapSource = Join-Path $mapsRoot $mapStem
 if (-not (Test-Path -LiteralPath $mapSource -PathType Container)) { throw "Owned map not found: $mapStem" }
+$assetMirrorAvailable = Test-Path -LiteralPath $assetModsRoot -PathType Container
+if (-not $assetMirrorAvailable) {
+    throw "RO asset mirror not found: $assetModsRoot"
+}
 foreach ($mod in $requiredMods) {
     if (-not (Test-Path -LiteralPath (Join-Path $modRoot $mod) -PathType Container)) { throw "Owned Mod not found: $mod" }
 }
@@ -198,7 +237,26 @@ foreach ($campaignName in @("Void.SC2Campaign", "Liberty.SC2Campaign", "Swarm.SC
     }
     $campaignDependencies += $campaign
 }
-foreach ($mod in $requiredMods) { Copy-OwnedDirectory -Source (Join-Path $modRoot $mod) -Destination (Join-Path $liveMods $mod) }
+$assetOverlays = @()
+foreach ($mod in $requiredMods) {
+    $ownedModSource = Join-Path $modRoot $mod
+    $liveModDestination = Join-Path $liveMods $mod
+    Copy-OwnedDirectory -Source $ownedModSource -Destination $liveModDestination
+    $assetModSource = Join-Path $assetModsRoot $mod
+    if (Test-Path -LiteralPath $assetModSource -PathType Container) {
+        Copy-DirectoryOverlay -Source $assetModSource -Destination $liveModDestination
+        $assetOverlays += [ordered]@{
+            mod = $mod
+            present = $true
+            manifest = Get-DirectoryManifest -Source $assetModSource
+        }
+    } else {
+        $assetOverlays += [ordered]@{
+            mod = $mod
+            present = $false
+        }
+    }
+}
 Copy-OwnedDirectory -Source $mapSource -Destination $liveMap
 
 $startedAt = Get-Date
@@ -212,6 +270,8 @@ $evidence = [ordered]@{
     sourceMap = "src/projects/revolution-overdrive-porting/packages/Maps/$mapStem"
     stagedMap = $liveMap
     stagedMods = $requiredMods
+    assetMirror = "assets/src/projects/revolution-overdrive-porting/packages/Commander/Mods"
+    assetOverlays = $assetOverlays
     campaignDependencies = $campaignDependencies
     voidCampaign = $campaignDependencies[0]
     noLaunch = [bool]$NoLaunch
@@ -229,12 +289,16 @@ if ($NoLaunch) {
 
 New-Item -ItemType Directory -Force -Path $runtimeEvidenceRoot | Out-Null
 
+$packedMapName = ([System.IO.Path]::GetFileNameWithoutExtension($mapStem) + ".stage07.packed.SC2Map")
+$packedMap = Pack-OwnedMap -Source $liveMap -Destination (Join-Path $runtimeEvidenceRoot $packedMapName)
+$evidence['packedMap'] = $packedMap
+
 Get-Process -Name "SC2_x64", "SC2Switcher_x64" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 $args = if ($ListenPort -gt 0) {
     @("-listen", "127.0.0.1", "-port", "$ListenPort", "-debug")
 } else {
-    "-run `"$liveMap`""
+    @("-run", $packedMap)
 }
 Write-Host "Launching SC2 through SC2Switcher_x64.exe: $($args -join ' ')"
 $process = Start-Process -FilePath $switcher -ArgumentList $args -WorkingDirectory $sc2Root -PassThru

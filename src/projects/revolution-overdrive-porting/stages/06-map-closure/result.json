@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "stage": "06-map-closure",
+  "status": "blocked",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "All 31 owned Revolution Overdrive maps now match the read-only source with zero missing, changed, or extra files.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage06-map-closure/source-owned-closure-after.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The representative traynor01 map packs successfully and all 50 MPQ entries are readable.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage06-map-closure/traynor01.stage06.packed.SC2Map"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The approved launcher reached its API ready signal and recorded a clean same-window ScriptError scan.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage06-map-closure/launcher-runtime.json"
+      ]
+    },
+    {
+      "type": "blocked",
+      "claim": "Native SC2 did not create or join a playable RO game; no faction, unit ownership, or native AI ally runtime claim is made.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage06-map-closure/api-traynor01-iron-18128.json"
+      ]
+    }
+  ],
+  "outputs": [
+    "src/projects/revolution-overdrive-porting/packages/Maps/",
+    "tools/launchers/launch-revolution-overdrive.ps1",
+    "artifacts/projects/revolution-overdrive-porting/stage06-map-closure/source-owned-closure-after.json"
+  ],
+  "validation": [
+    {
+      "command": "all-map source/owned closure audit",
+      "exitCode": 0,
+      "summary": "31/31 maps complete; missing=0, changed=0, extra=0."
+    },
+    {
+      "command": "python tools/mpq/scripts/verify_mpq.py artifacts/projects/revolution-overdrive-porting/stage06-map-closure/traynor01.stage06.packed.SC2Map",
+      "exitCode": 0,
+      "summary": "50/50 MPQ entries readable."
+    },
+    {
+      "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ai_ally_adapter.py -v",
+      "exitCode": 0,
+      "summary": "5 tests passed."
+    },
+    {
+      "command": "python -m unittest tools/cmre-webui/test_revolution_overdrive.py -v",
+      "exitCode": 0,
+      "summary": "2 tests passed."
+    },
+    {
+      "command": "native SC2 API MVP on port 18128",
+      "exitCode": 1,
+      "summary": "CreateGame=MissingMap; JoinGame=CannotOpenMap; stage blocked."
+    }
+  ],
+  "nextStage": "07-commander-closure"
+}

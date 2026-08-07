@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "RO-RUN-004",
+      "severity": "high",
+      "status": "blocked",
+      "summary": "The complete staged RO map does not transition from init_game to in_game through the standard SC2 API CreateGame/JoinGame path.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18131/realsmoke/result.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18132/sc2api_runtime_probe.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18134/realprofile/result.json"
+      ],
+      "impact": "Native commander, faction, unit ownership, map alliance, and AI ally behavior cannot be accepted.",
+      "nextAction": "Run the bounded runtime-bootstrap diagnosis in next-stage-plan.md. Require strict response status checks and a known-good map comparison before changing RO map or AI logic."
+    },
+    {
+      "id": "RO-AI-001",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Twenty-four RO maps still contain dynamically resolved owners or alliance expressions that the safe adapter cannot authorize statically.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/evidence/static/map-roster-manifest.json",
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/issues.json"
+      ],
+      "impact": "The adapter may expose fewer runtime targets than the mission creates, but it will not infer allies or enemies from unresolved values.",
+      "nextAction": "Capture native owner/alliance state for representative maps after RO reaches in_game; do not widen the contract before that evidence exists."
+    },
+    {
+      "id": "RO-RUN-005",
+      "severity": "medium",
+      "status": "open",
+      "summary": "The current RO-specific API probe is permissive when JoinGame returns no nested error but the top-level status remains launched.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18132/sc2api_runtime_probe.json",
+        "tools/sc2api-baseline/tests/Sc2Api.RealSmoke/Program.cs"
+      ],
+      "impact": "A permissive probe can produce a zero-unit report without failing at the exact state transition boundary.",
+      "nextAction": "Use the strict RealSmoke/RealProfile response-status pattern in the next runtime harness; do not promote the existing probe's exit code to a runtime pass."
+    }
+  ]
+}

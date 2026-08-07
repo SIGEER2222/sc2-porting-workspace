@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "stage": "07-commander-closure",
+  "status": "blocked",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "The effective owned commander closure covers all eight required Revolution Overdrive Mods with exact source/asset hashes and no effective missing files.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/source-owned-asset-closure.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/staged-effective-closure.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "All 31 owned RO maps remain source-complete and the representative traynor01 MPQ is readable.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/06-map-closure/result.json",
+        "artifacts/projects/revolution-overdrive-porting/stage06-map-closure/traynor01.stage06.packed.SC2Map"
+      ]
+    },
+    {
+      "type": "simulator",
+      "claim": "The RO AI ally adapter and WebUI selection path pass their targeted deterministic regressions.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ai_ally_adapter.py",
+        "tools/cmre-webui/test_revolution_overdrive.py"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The approved launcher stages the complete closure, reaches its API ready signal, and has a clean same-window ScriptError scan.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18134/script-error-verdict.json"
+      ]
+    },
+    {
+      "type": "blocked",
+      "claim": "Native RO runtime remains unverified because the standard API session does not complete init_game to in_game after CreateGame.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18131/realsmoke/result.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18132/sc2api_runtime_probe.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-diagnosis-18134/realprofile/result.json"
+      ]
+    }
+  ],
+  "outputs": [
+    "src/projects/revolution-overdrive-porting/stages/07-commander-closure/log.md",
+    "src/projects/revolution-overdrive-porting/stages/07-commander-closure/issues.json",
+    "src/projects/revolution-overdrive-porting/stages/07-commander-closure/self-assessment.md",
+    "src/projects/revolution-overdrive-porting/stages/07-commander-closure/next-stage-plan.md",
+    "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-evidence-index.json"
+  ],
+  "validation": [
+    {
+      "command": "node tools/utils/workspace.mjs validate",
+      "exitCode": 0,
+      "summary": "ok=true; 10 pre-existing registered-path warnings, no errors."
+    },
+    {
+      "command": "node tools/utils/workspace.mjs lint src/projects/revolution-overdrive-porting/packages --format json --no-type-check",
+      "exitCode": 0,
+      "summary": "74 Galaxy files, 0 diagnostics."
+    },
+    {
+      "command": "node tools/analysis/analyze-catalog.mjs revolution-overdrive-owned-package Commander/Mods/RevolutionOverdrive.SC2Mod '.*' <stage07 report>",
+      "exitCode": 0,
+      "summary": "4,135 catalog entries, 0 parse errors."
+    },
+    {
+      "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ai_ally_adapter.py -v",
+      "exitCode": 0,
+      "summary": "5 tests passed."
+    },
+    {
+      "command": "python -m unittest tools/cmre-webui/test_revolution_overdrive.py -v",
+      "exitCode": 0,
+      "summary": "2 tests passed."
+    },
+    {
+      "command": "approved launcher + Sc2Api.RealSmoke/RealProfile + path/map_data diagnosis on ports 18131-18134",
+      "exitCode": 1,
+      "summary": "Staging and listener readiness passed, but no run reached in_game; native gate remains blocked."
+    }
+  ],
+  "verificationGaps": [
+    {
+      "claim": "Native faction selection and unit creation",
+      "status": "blocked",
+      "reason": "The API session has no playable observation or Catalog data."
+    },
+    {
+      "claim": "P1/P2 owner/alliance census and native AI ally behavior",
+      "status": "blocked",
+      "reason": "The map never reached a state where owner/alliance observations are available."
+    }
+  ],
+  "nextStage": "runtime-bootstrap-diagnosis",
+  "nextStagePlan": "src/projects/revolution-overdrive-porting/stages/07-commander-closure/next-stage-plan.md"
+}
