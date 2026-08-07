@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "stage": "05-runtime",
+  "status": "blocked",
+  "claims": [
+    {
+      "type": "runtime",
+      "claim": "The approved launcher reaches the SC2 API listener for traynor01/Iron and the same launch window has no new ScriptError.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage05-runtime/launcher-runtime.json",
+        "artifacts/projects/revolution-overdrive-porting/stage05-runtime/script-error-verdict-18126.json"
+      ]
+    },
+    {
+      "type": "blocked",
+      "claim": "The native RO map path is not playable because the owned map closure is incomplete.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage05-runtime/source-owned-map-closure-traynor01.json",
+        "artifacts/projects/revolution-overdrive-porting/stage05-runtime/api-mapdata-joinafter-error-18126.json"
+      ]
+    },
+    {
+      "type": "simulator",
+      "claim": "The targeted RO AI ally adapter and existing CMRE runtime-matrix regressions remain green.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ai_ally_adapter.py",
+        "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_runtime_matrix.py"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The WebUI route exposes RO maps and factions and reaches the owned launcher staging path.",
+      "evidence": [
+        "tools/cmre-webui/test_revolution_overdrive.py"
+      ]
+    }
+  ],
+  "outputs": [
+    "src/projects/revolution-overdrive-porting/stages/05-runtime/log.md",
+    "src/projects/revolution-overdrive-porting/stages/05-runtime/issues.json",
+    "src/projects/revolution-overdrive-porting/stages/05-runtime/self-assessment.md",
+    "artifacts/projects/revolution-overdrive-porting/stage05-runtime/source-owned-map-closure-traynor01.json"
+  ],
+  "validation": [
+    {
+      "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ai_ally_adapter.py -v",
+      "exitCode": 0,
+      "summary": "Five RO AI ally adapter tests passed."
+    },
+    {
+      "command": "python -m unittest src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_runtime_matrix.py -v",
+      "exitCode": 0,
+      "summary": "Nine runtime-matrix regression tests passed."
+    },
+    {
+      "command": "python -m unittest tools/cmre-webui/test_revolution_overdrive.py -v",
+      "exitCode": 0,
+      "summary": "Two WebUI tests passed, including the owned launcher dry-run route."
+    },
+    {
+      "command": "python -m unittest src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py -v",
+      "exitCode": 1,
+      "summary": "27 passed and one pre-existing CMRE visual fallback assertion failed after 120.5 seconds."
+    },
+    {
+      "command": "python tools/galaxy-vibe/script_error_check.py --since <launcher-start> --out artifacts/projects/revolution-overdrive-porting/stage05-runtime/script-error-verdict-18126.json",
+      "exitCode": 0,
+      "summary": "No new ScriptError files in the 18126 launch window."
+    }
+  ],
+  "verificationGaps": [
+    {
+      "claim": "Native RO map, faction, and AI ally runtime behavior",
+      "status": "blocked",
+      "reason": "The owned map is missing two source files and JoinGame reports CannotOpenMap."
+    }
+  ],
+  "nextStage": "06-map-closure",
+  "nextStagePlan": "src/projects/revolution-overdrive-porting/stages/05-runtime/next-stage-plan.md"
+}

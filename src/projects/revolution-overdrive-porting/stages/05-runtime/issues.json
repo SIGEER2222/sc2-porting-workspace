@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "stage": "05-runtime",
+  "issues": [
+    {
+      "id": "RO-PKG-002",
+      "severity": "high",
+      "status": "blocked",
+      "summary": "The owned traynor01 map is missing the source entries t3TextureMasks and Triggers.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage05-runtime/source-owned-map-closure-traynor01.json"
+      ],
+      "impact": "SC2 cannot open the packed map; native commander, faction, and AI ally runtime claims cannot be accepted.",
+      "nextAction": "Create the next package-closure stage, copy the two missing files from the read-only source into the owned map package, verify all 49 source hashes, and repack before rerunning the native MVP."
+    },
+    {
+      "id": "RO-RUN-002",
+      "severity": "high",
+      "status": "blocked",
+      "summary": "Fresh native API sessions reach Ping but do not reach a playable RO game.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage05-runtime/api-mapdata-joinafter-error-18126.json",
+        "artifacts/projects/revolution-overdrive-porting/stage05-runtime/launcher-runtime.json"
+      ],
+      "impact": "No runtime evidence exists for frames, faction selection, ownership, alliances, or native AI allies.",
+      "nextAction": "Repeat CreateGame, JoinGame, RequestStep, Observation, and ActionChat after RO-PKG-002 is fixed."
+    },
+    {
+      "id": "RO-AI-001",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Twenty-four RO maps still contain dynamically resolved alliance calls that the static adapter cannot safely authorize.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/evidence/static/map-roster-manifest.json"
+      ],
+      "impact": "The safe adapter may expose fewer runtime targets than a mission creates; unresolved owners are never authorized by inference.",
+      "nextAction": "Capture runtime owner/alliance observations for representative maps after the map closure is repaired before widening the adapter."
+    },
+    {
+      "id": "CMRE-REG-001",
+      "severity": "low",
+      "status": "open",
+      "summary": "The full CMRE AI capability suite has one unrelated visual fallback failure.",
+      "evidence": [
+        "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_ai_ally_capability.py"
+      ],
+      "impact": "The full cross-project suite is not completely green, although all targeted RO and runtime-matrix regressions pass.",
+      "nextAction": "Repair or separately triage the CMRE embedded icon fixture; do not expand the RO stage to change it."
+    }
+  ]
+}

@@ -18,6 +18,8 @@ param(
     [switch]$NoCheats,
     [string]$VoidCampaignSource = "",
     [switch]$ReplaceVoidCampaign,
+    [string]$CampaignSourceRoot = "",
+    [switch]$ReplaceCampaignDependencies,
     [int]$ReadyTimeoutSeconds = 180
 )
 
@@ -88,13 +90,13 @@ function Get-DirectoryManifest {
     $lines = @($records | ForEach-Object { "$($_.path)|$($_.bytes)|$($_.sha256)" }) -join "`n"
     $sha = [System.Security.Cryptography.SHA256]::Create()
     try {
-        $digest = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($lines)))
+        $digest = [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($lines))).Replace("-", "")
     } finally {
         $sha.Dispose()
     }
     return [ordered]@{
         fileCount = $records.Count
-        totalBytes = [int64](($records | Measure-Object -Property bytes -Sum).Sum)
+        totalBytes = [int64](($records | ForEach-Object { [int64]$_['bytes'] } | Measure-Object -Sum).Sum)
         manifestSha256 = $digest
     }
 }
@@ -148,28 +150,53 @@ foreach ($mod in $requiredMods) {
 
 $liveMods = Join-Path $sc2Root "Mods"
 $liveMap = Join-Path $sc2Root ("Maps\RevolutionOverdrive\" + $mapStem)
-$voidCampaignTarget = Join-Path $sc2Root "Campaigns\Void.SC2Campaign"
-$voidCampaign = [ordered]@{
-    required = $true
-    target = "Campaigns/Void.SC2Campaign"
-    source = "installed"
-    presentBefore = (Test-Path -LiteralPath $voidCampaignTarget -PathType Container)
-    presentAfter = $false
-}
-if ($VoidCampaignSource) {
+$campaignsRoot = Join-Path $sc2Root "Campaigns"
+$resolvedCampaignSourceRoot = ""
+if ($CampaignSourceRoot) {
+    if (-not (Test-Path -LiteralPath $CampaignSourceRoot -PathType Container)) {
+        throw "Campaign source root directory not found: $CampaignSourceRoot"
+    }
+    $resolvedCampaignSourceRoot = (Resolve-Path -LiteralPath $CampaignSourceRoot).Path
+} elseif ($VoidCampaignSource) {
     if (-not (Test-Path -LiteralPath $VoidCampaignSource -PathType Container)) {
         throw "Void Campaign source directory not found: $VoidCampaignSource"
     }
-    if ((Test-Path -LiteralPath $voidCampaignTarget) -and -not $ReplaceVoidCampaign) {
-        throw "Void Campaign target already exists; pass -ReplaceVoidCampaign only after verifying the replacement source."
-    }
-    $voidCampaign.source = "explicit-local-official-data-mirror"
-    $voidCampaign.sourceManifest = Get-DirectoryManifest -Source $VoidCampaignSource
-    Copy-OwnedDirectory -Source $VoidCampaignSource -Destination $voidCampaignTarget
+    $resolvedCampaignSourceRoot = Split-Path -Parent (Resolve-Path -LiteralPath $VoidCampaignSource).Path
 }
-$voidCampaign.presentAfter = Test-Path -LiteralPath $voidCampaignTarget -PathType Container
-if (-not $NoLaunch -and -not $voidCampaign.presentAfter) {
-    throw "Required Campaigns/Void.SC2Campaign is absent. Pass -VoidCampaignSource with a verified official data mirror."
+
+$campaignDependencies = @()
+foreach ($campaignName in @("Void.SC2Campaign", "Liberty.SC2Campaign", "Swarm.SC2Campaign")) {
+    $target = Join-Path $campaignsRoot $campaignName
+    $source = if ($campaignName -eq "Void.SC2Campaign" -and $VoidCampaignSource) {
+        (Resolve-Path -LiteralPath $VoidCampaignSource).Path
+    } elseif ($resolvedCampaignSourceRoot) {
+        Join-Path $resolvedCampaignSourceRoot $campaignName
+    } else {
+        ""
+    }
+    $presentBefore = Test-Path -LiteralPath $target -PathType Container
+    $campaign = [ordered]@{
+        required = $true
+        target = ("Campaigns/" + $campaignName)
+        source = "installed"
+        presentBefore = $presentBefore
+        presentAfter = $false
+    }
+    $shouldReplace = ($ReplaceCampaignDependencies -or ($campaignName -eq "Void.SC2Campaign" -and $ReplaceVoidCampaign))
+    if ((-not $presentBefore -or $shouldReplace) -and -not [string]::IsNullOrWhiteSpace($source)) {
+        if (-not (Test-Path -LiteralPath $source -PathType Container)) {
+            throw "Required campaign source directory not found: $source"
+        }
+        $campaign.source = "explicit-local-official-data-mirror"
+        $campaign.sourceManifest = Get-DirectoryManifest -Source $source
+        Copy-OwnedDirectory -Source $source -Destination $target
+    }
+    $presentAfter = Test-Path -LiteralPath $target -PathType Container
+    $campaign['presentAfter'] = $presentAfter
+    if (-not $presentAfter) {
+        throw "Required $($campaign['target']) is absent. Pass -CampaignSourceRoot with the official campaign mirror."
+    }
+    $campaignDependencies += $campaign
 }
 foreach ($mod in $requiredMods) { Copy-OwnedDirectory -Source (Join-Path $modRoot $mod) -Destination (Join-Path $liveMods $mod) }
 Copy-OwnedDirectory -Source $mapSource -Destination $liveMap
@@ -185,7 +212,8 @@ $evidence = [ordered]@{
     sourceMap = "src/projects/revolution-overdrive-porting/packages/Maps/$mapStem"
     stagedMap = $liveMap
     stagedMods = $requiredMods
-    voidCampaign = $voidCampaign
+    campaignDependencies = $campaignDependencies
+    voidCampaign = $campaignDependencies[0]
     noLaunch = [bool]$NoLaunch
     listenPort = $ListenPort
     startedAtUtc = $startedAt.ToUniversalTime().ToString("o")
@@ -203,10 +231,13 @@ New-Item -ItemType Directory -Force -Path $runtimeEvidenceRoot | Out-Null
 
 Get-Process -Name "SC2_x64", "SC2Switcher_x64" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
-$args = @($liveMap)
-if ($ListenPort -gt 0) { $args += @("-listen", "127.0.0.1", "-port", "$ListenPort", "-debug") }
+$args = if ($ListenPort -gt 0) {
+    @("-listen", "127.0.0.1", "-port", "$ListenPort", "-debug")
+} else {
+    "-run `"$liveMap`""
+}
 Write-Host "Launching SC2 through SC2Switcher_x64.exe: $($args -join ' ')"
-$process = Start-Process -FilePath $switcher -ArgumentList $args -PassThru
+$process = Start-Process -FilePath $switcher -ArgumentList $args -WorkingDirectory $sc2Root -PassThru
 $evidence.classification = "runtime"
 $evidence.status = "launched"
 $evidence.launcherPid = $process.Id
@@ -224,7 +255,7 @@ if ($ListenPort -gt 0) {
 }
 $evidence.scriptErrors = @(Get-NewScriptErrors -Since $startedAt | ForEach-Object { $_.FullName })
 $evidence.scriptErrorFree = ($evidence.scriptErrors.Count -eq 0)
-if ($evidence.ready -and -not $NoCheats) {
+if ($evidence.ready -and -not $NoCheats -and $ListenPort -le 0) {
     Start-Sleep -Seconds 2
     $evidence.factionChatSent = Send-FactionChat -Chat $factions[$Faction]
 } else { $evidence.factionChatSent = $false }
