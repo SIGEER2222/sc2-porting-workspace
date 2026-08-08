@@ -39,6 +39,7 @@ class SimulatorRlBackend:
         action_operations: Mapping[str, str] | None = None,
         player_id: int = 1,
         map_name: str = "dead-of-night",
+        step_loops: int = 1,
     ) -> None:
         # Lazy import to avoid hard dependency when only FakeBackend is used
         from cmre_neuro_adapter.neuro.basic_actions import (
@@ -53,6 +54,16 @@ class SimulatorRlBackend:
         self._session = session
         self._player_id = player_id
         self._map_name = map_name
+        # How many game loops one RL step advances the simulator.
+        #
+        # The economy state machine needs MINING_LOOPS(=60) loops per worker
+        # trip, so at the historical hard-coded value of 1 loop/step an entire
+        # 600-step episode could not fund a single Marine (50 minerals). Any
+        # economy-driven reward was therefore structurally unreachable and the
+        # sandbox looked "unresponsive to policy actions". Keep the default at
+        # 1 for backwards compatibility with existing tests, but let training
+        # and evaluation dial it up to a realistic control frequency.
+        self._step_loops = max(1, int(step_loops))
         self._backend = SimulatorSessionBackend(
             session, action_operations=ops
         )
@@ -100,8 +111,8 @@ class SimulatorRlBackend:
         )
 
         result = self._transport.dispatch(command)
-        # Advance simulator by one step
-        self._backend.execute("scenario.step", {"loops": 1})
+        # Advance simulator by the configured control interval
+        self._backend.execute("scenario.step", {"loops": self._step_loops})
 
         obs = self._read_observation()
         terminated = bool(obs.get("mission", {}).get("terminated", False))

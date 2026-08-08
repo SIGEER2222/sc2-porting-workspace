@@ -74,7 +74,13 @@ class ActionGrounder:
             # NOTE: this branch must stay ahead of any broader membership test,
             # otherwise ``ability_id`` is never set and dispatch rejects the
             # command with "missing required argument 'ability_id'".
-            args["ability_id"] = "Repair"
+            #
+            # "Repair" is a CommandKind, NOT an ability, so the old hard-coded
+            # value always failed with "unknown ability: Repair". Pick a real
+            # unit-targeted ability whose caster we actually own instead.
+            ability, caster = _pick_ability(own, "cast_unit")
+            args["ability_id"] = ability
+            args["entity_ids"] = [int(_entity_id(caster))]
             args["target_entity_id"] = _target_id(obs.get("own_units", ()), "no_unit_target")
         elif action_id == "load_units":
             cargo = [
@@ -95,16 +101,20 @@ class ActionGrounder:
         elif action_id == "research_upgrade":
             args["upgrade_id"] = "TerranInfantryWeaponsLevel1"
         elif action_id in {"cast_point_ability", "cast_no_target_ability"}:
-            args["ability_id"] = "Stimpack"
+            # The caster matters: the simulator rejects the order outright when
+            # the selected entity cannot cast the ability (e.g. the old
+            # unconditional "Stimpack" on whatever unit came first produced
+            # "SupplyDepot 不能施放 Stimpack" on every single step).
+            kind = "cast_point" if action_id == "cast_point_ability" else "cast_no_target"
+            ability, caster = _pick_ability(own, kind)
+            args["ability_id"] = ability
+            args["entity_ids"] = [int(_entity_id(caster))]
             if action_id == "cast_point_ability":
                 args.update(_point_args(self.profile, "attack", obs))
-        elif action_id == "cast_unit_ability":
-            args["ability_id"] = "Repair"
-            args["target_entity_id"] = _target_id(obs.get("own_units", ()), "no_unit_target")
-        elif action_id == "repair_units":
-            args["target_entity_id"] = _target_id(obs.get("own_units", ()), "no_unit_target")
         elif action_id == "morph_unit":
-            args["unit_type_id"] = "SiegeTankSieged"
+            product, source = _pick_morph(own)
+            args["unit_type_id"] = product
+            args["entity_ids"] = [int(_entity_id(source))]
         return args
 
 

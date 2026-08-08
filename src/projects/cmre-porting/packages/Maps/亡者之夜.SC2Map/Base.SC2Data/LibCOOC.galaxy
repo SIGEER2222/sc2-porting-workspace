@@ -4797,13 +4797,36 @@ void libCOOC_gf_CC_DevStartupBegin () {
 
         libCOOC_gf_ShowHideWorldCover(true, 0.0, lv_indexPlayer);
     }
-    if ((libCMFE_gf_CMUIX_StartupApplySavedConfiguration() == true)) {
-        TriggerSendEvent("CU_CommChoiceEventClosed");
-        return ;
-    }
+    // CMRE_ON_DEMAND_FIXED_EMPIRE_STARTUP
+    libCOTF_gv_sELECTED_Commander[1] = "Empire";
+    libCOTF_gv_sELECTED_Commander_Random[1] = false;
+    libCOOC_gf_CC_PlayerCommanderSet(1, "Empire");
+    libCOUI_gv_cU_CommanderSelection[1] = "Empire";
+    libCOUI_gv_cU_CommanderSelect_PlayerReady[1] = true;
+    libCOUI_gf_CU_CommanderFinalizeStates(1);
 
-    // CMRE commander selection is launcher-owned and permanently disabled
-    // for this map. A missing launch profile must never open the UI.
+    libCOTF_gv_sELECTED_Commander[2] = "Empire";
+    libCOTF_gv_sELECTED_Commander_Random[2] = false;
+    libCOOC_gf_CC_PlayerCommanderSet(2, "Empire");
+    libCOUI_gv_cU_CommanderSelection[2] = "Empire";
+    libCOUI_gv_cU_CommanderSelect_PlayerReady[2] = true;
+    libCOUI_gf_CU_CommanderFinalizeStates(2);
+
+    GameSetMissionTimePaused(false);
+    AITimePause(false);
+    UnitPauseAll(false);
+    libCOOC_gf_ShowHideWorldCover(false, 0.0, 1);
+    if ((PlayerType(14) == c_playerTypeUser)) {
+        libCOOC_gf_ShowHideWorldCover(false, 0.0, 14);
+    }
+    libNtve_gf_HideGameUI(true, PlayerGroupAll());
+    BankLoad("CMRERebornDebug", 1);
+    if (BankLastCreated() != null) {
+        BankValueSetFromInt(BankLastCreated(), "debug", "fixed_commander_startup", 1);
+        BankSave(BankLastCreated());
+    }
+    libCOOC_gf_CC_DevStartupFinish();
+    return ;
 }
 
 void libCOOC_gf_CC_DevStartupFinish () {

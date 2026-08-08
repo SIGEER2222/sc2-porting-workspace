@@ -174,6 +174,9 @@ def make_env_factories(
     max_episode_steps: int,
     scenario_path: Path | None = None,
     scenario_overrides: Mapping[str, Path] | None = None,
+    step_loops: int = 1,
+    start_minerals: int | None = None,
+    start_vespene: int | None = None,
 ) -> dict[str, Callable[[], Any]]:
     if backend_name == "fake":
         return {
@@ -189,6 +192,12 @@ def make_env_factories(
     if backend_name != "simulator":
         raise ValueError(f"unsupported_backend:{backend_name}")
 
+    # ``max_episode_steps`` counts RL steps while the scenario's ``max_loops``
+    # counts game loops. With step_loops>1 the two units differ, so budget the
+    # scenario in loops or the episode gets truncated long before the step
+    # limit is reached.
+    scenario_max_loops = int(max_episode_steps) * max(1, int(step_loops))
+
     def factory(map_name: str) -> CmreRLEnv:
         from vibe.simulator_session import SimulatorSession
 
@@ -198,7 +207,7 @@ def make_env_factories(
             scenario = build_builtin_scenario(
                 map_name,
                 seed=seed,
-                max_loops=max_episode_steps,
+                max_loops=scenario_max_loops,
             )
         else:
             if not selected_path.exists():
@@ -210,10 +219,16 @@ def make_env_factories(
                 scenario = scenario["scenario"]
             scenario = dict(scenario)
             scenario["seed"] = int(seed)
-            scenario["max_loops"] = int(max_episode_steps)
+            scenario["max_loops"] = scenario_max_loops
         session.scenario_load(scenario_dict=scenario, catalog="m7")
         session.scenario_reset()
-        backend = SimulatorRlBackend(session, map_name=map_name)
+        if start_minerals is not None or start_vespene is not None:
+            session.player_set_resource(
+                1, minerals=start_minerals, vespene=start_vespene
+            )
+        backend = SimulatorRlBackend(
+            session, map_name=map_name, step_loops=step_loops
+        )
         return CmreRLEnv(backend, normalize_reward=False)
 
     return {
@@ -289,6 +304,29 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="MAP=PATH",
         help="Optional per-map simulator scenario override; repeatable",
     )
+    parser.add_argument(
+        "--step-loops",
+        type=int,
+        default=1,
+        help=(
+            "Game loops advanced per RL step (control interval). The economy "
+            "state machine needs ~60 loops per worker mining trip, so the "
+            "legacy value of 1 makes any economy-driven reward unreachable. "
+            "Use 8-32 for scenarios where production matters."
+        ),
+    )
+    parser.add_argument(
+        "--start-minerals",
+        type=int,
+        default=None,
+        help="Override player 1 starting minerals after scenario reset",
+    )
+    parser.add_argument(
+        "--start-vespene",
+        type=int,
+        default=None,
+        help="Override player 1 starting vespene after scenario reset",
+    )
     return parser
 
 
@@ -331,6 +369,9 @@ def run_training(args: argparse.Namespace) -> dict[str, Any]:
         max_episode_steps=args.max_episode_steps,
         scenario_path=scenario_path,
         scenario_overrides=scenario_overrides,
+        step_loops=int(getattr(args, "step_loops", 1) or 1),
+        start_minerals=getattr(args, "start_minerals", None),
+        start_vespene=getattr(args, "start_vespene", None),
     )
     config = MultiMapTrainingConfig(
         map_names=map_names,
