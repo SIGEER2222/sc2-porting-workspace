@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CEffectDamage id="HeroChainStrike@Damage">
+        <EditorCategories value=""/>
+        <Amount value="10"/>
+    </CEffectDamage>
+    <CEffectSet id="HeroChainStrike@ImpactSetBOUNCE">
+        <EditorCategories value=""/>
+        <EffectArray value="HeroChainStrike@Damage"/>
+        <EffectArray value="HeroChainStrike@UserDataCycle"/>
+    </CEffectSet>
+    <CEffectSet id="HeroChainStrike@ImpactSetINITIAL">
+        <EditorCategories value=""/>
+        <EffectArray value="HeroChainStrike@Damage"/>
+        <EffectArray value="HeroChainStrike@UserDataCycle"/>
+    </CEffectSet>
+    <CEffectLaunchMissile id="HeroChainStrike@LaunchMissileINITIAL">
+        <EditorCategories value=""/>
+        <ImpactEffect value="HeroChainStrike@ImpactSetINITIAL"/>
+        <AmmoUnit value="HeroChainStrike@Projectile"/>
+    </CEffectLaunchMissile>
+    <CEffectLaunchMissile id="HeroChainStrike@LaunchMissileBOUNCE">
+        <ValidatorArray index="0" value="noMarkers"/>
+        <EditorCategories value=""/>
+        <ImpactEffect value="HeroChainStrike@ImpactSetBOUNCE"/>
+        <AmmoUnit value="HeroChainStrike@Projectile"/>
+    </CEffectLaunchMissile>
+    <CEffectEnumArea id="HeroChainStrike@SearchBounce">
+        <EditorCategories value=""/>
+        <SearchFilters value="-;Player,Ally,Missile,Dead,Hidden,Invulnerable"/>
+        <TargetSorts>
+            <SortArray value="TSDistanceToTarget"/>
+        </TargetSorts>
+        <AreaArray MaxCount="1" Radius="5" Effect="HeroChainStrike@LaunchMissileBOUNCE"/>
+    </CEffectEnumArea>
+    <CEffectUserData id="HeroChainStrike@UserDataCycle">
+        <EditorCategories value=""/>
+        <Key value="ChainStrike"/>
+        <SourceKey value="ChainStrike"/>
+        <Operation value="Subtract"/>
+        <ValidateMax value="999"/>
+        <EffectSuccess value="HeroChainStrike@SearchBounce"/>
+    </CEffectUserData>
+    <CEffectUserData id="HeroChainStrike@UserDataStart">
+        <EditorCategories value=""/>
+        <Marker>
+            <MatchFlags index="Id" value="1"/>
+        </Marker>
+        <Key value="ChainStrike"/>
+        <Amount value="8"/>
+        <SourceKey value="ChainStrike"/>
+        <Operation value="Set"/>
+        <ValidateMax value="999"/>
+        <EffectSuccess value="HeroChainStrike@LaunchMissileINITIAL"/>
+        <TargetLocationType value="Unit"/>
+    </CEffectUserData>
+    <CAbilEffectTarget id="HeroChainStrike@Ability">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <Effect index="0" value="HeroChainStrike@UserDataStart"/>
+        <TargetFilters value="-;Player,Ally,Missile,Dead,Hidden,Invulnerable"/>
+        <Range value="7"/>
+        <CmdButtonArray index="Execute" DefaultButtonFace="HeroChainStrike@Button"/>
+    </CAbilEffectTarget>
+    <CButton id="HeroChainStrike@Button">
+        <Icon value="Assets\Textures\btn-upgrade-protoss-fenix-adeptchampionbounceattack.dds"/>
+    </CButton>
+    <CActorMissile id="HeroChainStrike@MISSILE" parent="GenericAttackMissile" unitName="HeroChainStrike@Projectile">
+        <Model value="HeroChainStrike@Missile"/>
+    </CActorMissile>
+    <CActorAction id="HeroChainStrike@ATTACKINITIAL" parent="GenericAttack" effectImpact="HeroChainStrike@ImpactSetINITIAL" effectLaunch="HeroChainStrike@LaunchMissileINITIAL">
+        <LaunchAssets Sound="HeroChainStrike@MissileLaunchSound"/>
+        <Missile value="HeroChainStrike@MISSILE"/>
+        <ImpactSite value="HeroChainStrike@ImpactSite"/>
+        <ImpactMap index="None" Model="HeroChainStrike@MissileImpact" Sound="HeroChainStrike@MissileImpactSound"/>
+    </CActorAction>
+    <CActorAction id="HeroChainStrike@ATTACKBOUNCE" parent="GenericAttack" effectImpact="HeroChainStrike@ImpactSetBOUNCE" effectLaunch="HeroChainStrike@LaunchMissileBOUNCE">
+        <LaunchRequest Subject="HeroChainStrike@ImpactSite" Actor="Find"/>
+        <LaunchAssets Sound="HeroChainStrike@MissileLaunchSound"/>
+        <Missile value="HeroChainStrike@MISSILE"/>
+        <ImpactSite value="HeroChainStrike@ImpactSite"/>
+        <ImpactMap index="None" Model="HeroChainStrike@MissileImpact" Sound="HeroChainStrike@MissileImpactSound"/>
+    </CActorAction>
+    <CActorSite id="HeroChainStrike@ImpactSite" parent="GenericAttackImpactSite"/>
+    <CModel id="HeroChainStrike@Missile" parent="MissileFX">
+        <Model value="Assets\Effects\Protoss\Adept_Missile_Upgrade\Adept_Missile_Upgrade.m3"/>
+        <EditorCategories value="Race:Protoss"/>
+    </CModel>
+    <CModel id="HeroChainStrike@MissileImpact" parent="MissileFX">
+        <Model value="Assets\Effects\Protoss\Adept_Missile_Impact_Upgrade\Adept_Missile_Impact_Upgrade.m3"/>
+        <EditorCategories value="Race:Protoss"/>
+        <Lighting value="AdeptImpact"/>
+    </CModel>
+    <CMoverMissile id="HeroChainStrike@Mover">
+        <MotionPhases>
+            <Driver value="Guidance"/>
+            <Acceleration value="3200"/>
+            <MaxSpeed value="18.75"/>
+            <ClearanceAcceleration value="75"/>
+            <Outro value="-1"/>
+            <YawPitchRoll value="719.2968"/>
+        </MotionPhases>
+        <MotionPhases YawPitchRoll="MAX"/>
+    </CMoverMissile>
+    <CSound id="HeroChainStrike@MissileImpactSound" parent="Combat">
+        <EditorCategories value="Race:Protoss"/>
+        <AssetArray File="Assets\Sounds\Adept_AttackImpact00.wav" FacialGroup=""/>
+        <AssetArray File="Assets\Sounds\Adept_AttackImpact01.wav" FacialGroup=""/>
+        <AssetArray File="Assets\Sounds\Adept_AttackImpact02.wav" FacialGroup=""/>
+        <AssetArray File="Assets\Sounds\Adept_AttackImpact03.wav" FacialGroup=""/>
+        <DupeMaximumMethod value="Replace"/>
+        <DupeMuteCount value="2"/>
+        <DupePrioritization value="Oldest"/>
+        <Pitch value="-1.000000,1.000000"/>
+        <Volume value="-9.000000,-9.000000"/>
+    </CSound>
+    <CSound id="HeroChainStrike@MissileLaunchSound" parent="Combat">
+        <EditorCategories value="Race:Protoss"/>
+        <AssetArray File="Assets\Sounds\Adept_AttackLaunch00.wav" FacialGroup=""/>
+        <AssetArray File="Assets\Sounds\Adept_AttackLaunch01.wav" FacialGroup=""/>
+        <AssetArray File="Assets\Sounds\Adept_AttackLaunch02.wav" FacialGroup=""/>
+        <AssetArray File="Assets\Sounds\Adept_AttackLaunch03.wav" FacialGroup=""/>
+        <AssetArray File="Assets\Sounds\Adept_AttackLaunch04.wav" FacialGroup=""/>
+        <DupeMaximumMethod value="Replace"/>
+        <DupeMuteCount value="3"/>
+        <DupePrioritization value="Oldest"/>
+        <Pitch value="-1.000000,1.000000"/>
+        <Volume value="-6.000000,-6.000000"/>
+    </CSound>
+    <CDataCollectionAbil id="HeroChainStrike">
+        <EditorCategories value=""/>
+        <DataRecord Entry="Button,HeroChainStrike@Button"/>
+        <DataRecord Entry="Abil,HeroChainStrike@Ability"/>
+        <DataRecord Entry="Effect,HeroChainStrike@UserDataStart"/>
+        <DataRecord Entry="Effect,HeroChainStrike@UserDataCycle"/>
+        <DataRecord Entry="Effect,HeroChainStrike@Damage"/>
+        <DataRecord Entry="Effect,HeroChainStrike@ImpactSetBOUNCE"/>
+        <DataRecord Entry="Effect,HeroChainStrike@ImpactSetINITIAL"/>
+        <DataRecord Entry="Effect,HeroChainStrike@LaunchMissileBOUNCE"/>
+        <DataRecord Entry="Effect,HeroChainStrike@SearchBounce"/>
+        <DataRecord Entry="Effect,HeroChainStrike@LaunchMissileINITIAL"/>
+        <DataRecord Entry="Actor,HeroChainStrike@ImpactSite"/>
+        <DataRecord Entry="Actor,HeroChainStrike@ATTACKINITIAL"/>
+        <DataRecord Entry="Actor,HeroChainStrike@ATTACKBOUNCE"/>
+        <DataRecord Entry="Actor,HeroChainStrike@MISSILE"/>
+        <DataRecord Entry="Model,HeroChainStrike@Missile"/>
+        <DataRecord Entry="Model,HeroChainStrike@MissileImpact"/>
+        <DataRecord Entry="Mover,HeroChainStrike@Mover"/>
+        <DataRecord Entry="Sound,HeroChainStrike@MissileImpactSound"/>
+        <DataRecord Entry="Sound,HeroChainStrike@MissileLaunchSound"/>
+        <DataRecord Entry="Unit,HeroChainStrike@Projectile"/>
+    </CDataCollectionAbil>
+    <CUnit id="HeroChainStrike@Projectile" parent="MISSILE">
+        <Race value="Prot"/>
+        <Mover value="HeroChainStrike@Mover"/>
+        <EditorCategories value="ObjectType:Projectile,ObjectFamily:Melee"/>
+    </CUnit>
+</Catalog>

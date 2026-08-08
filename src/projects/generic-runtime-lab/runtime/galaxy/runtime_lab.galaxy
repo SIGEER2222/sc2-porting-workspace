@@ -1,0 +1,60 @@
+// Map-owned fixture. It has no mission or commander dependency.
+trigger RuntimeLab_gt_StartTacticalArena = null;
+unit RuntimeLab_gv_TacticalPlayerOne = null;
+unit RuntimeLab_gv_TacticalPlayerTwo = null;
+
+void RuntimeLab_WriteStatus(string key, int value) {
+    libVibeKernel_gf_WriteBankInt("runtime_lab", key, value);
+}
+
+int RuntimeLab_BoolToInt(bool value) {
+    if (value) {
+        return 1;
+    }
+    return 0;
+}
+
+point RuntimeLab_ArenaCenter() {
+    point center;
+
+    center = RegionGetCenter(RegionPlayableMap());
+    if (center == null) {
+        return Point(0.0, 0.0);
+    }
+    return center;
+}
+
+bool RuntimeLab_StartTacticalArena(bool testConds, bool runActions) {
+    point center;
+
+    if (testConds) {
+        return true;
+    }
+    if (!runActions) {
+        return true;
+    }
+
+    center = RuntimeLab_ArenaCenter();
+    RuntimeLab_gv_TacticalPlayerOne = CMLib_SpawnForced(
+        "Marine", 1, PointWithOffset(center, -8.0, 0.0), 0.0);
+    RuntimeLab_gv_TacticalPlayerTwo = CMLib_SpawnForced(
+        "Zergling", 2, PointWithOffset(center, 8.0, 0.0), 180.0);
+
+    RuntimeLab_WriteStatus("tactical_player_one_ready",
+        RuntimeLab_BoolToInt(RuntimeLab_gv_TacticalPlayerOne != null));
+    RuntimeLab_WriteStatus("tactical_player_two_ready",
+        RuntimeLab_BoolToInt(RuntimeLab_gv_TacticalPlayerTwo != null));
+    RuntimeLab_WriteStatus("tactical_arena_ready",
+        RuntimeLab_BoolToInt(RuntimeLab_gv_TacticalPlayerOne != null && RuntimeLab_gv_TacticalPlayerTwo != null));
+    return true;
+}
+
+void RuntimeLab_Init() {
+    RuntimeLab_WriteStatus("map_init", 1);
+    RuntimeLab_WriteStatus("runtime_vm_initialized", RuntimeLab_BoolToInt(libVibeKernel_gv_initialized));
+    RuntimeLab_WriteStatus("generic_library_loaded", RuntimeLab_BoolToInt(CMLib_ClampInt(101, 0, 100) == 100));
+    RuntimeLab_WriteStatus("tactical_arena_scheduled", 1);
+
+    RuntimeLab_gt_StartTacticalArena = TriggerCreate("RuntimeLab_StartTacticalArena");
+    TriggerAddEventTimeElapsed(RuntimeLab_gt_StartTacticalArena, 8.0, c_timeGame);
+}

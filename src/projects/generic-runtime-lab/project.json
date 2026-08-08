@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "generic-runtime-lab",
+  "goal": "Provide an isolated StarCraft II map for repeatable runtime VM, reusable Galaxy library, and controlled tactical-scenario verification without modifying mission or commander packages.",
+  "sources": [
+    {
+      "sourceId": "runtime-lab-testmap-skeleton",
+      "path": "../../lib/_testmap_src",
+      "role": "read-only-map-template"
+    },
+    {
+      "sourceId": "runtime-lab-battle-sandbox-reference",
+      "role": "read-only-ui-reference"
+    },
+    {
+      "sourceId": "galaxy-vibe-runtime",
+      "path": "../../../tools/galaxy-vibe/kernel",
+      "role": "read-only-runtime-vm"
+    },
+    {
+      "sourceId": "cmlib",
+      "path": "../../lib/scripts/cmlib",
+      "role": "read-only-generic-library"
+    }
+  ],
+  "target": {
+    "map": "RuntimeLab.SC2Map",
+    "commander": "none",
+    "series": "generic-runtime-verification"
+  },
+  "currentStage": "01-foundation",
+  "writeScope": [
+    "src/config/workspace.json",
+    "src/projects/generic-runtime-lab/**",
+    "artifacts/projects/generic-runtime-lab/**"
+  ],
+  "acceptance": [
+    "The generated RuntimeLab.SC2Map contains no CMRE package dependency or mission script.",
+    "The runtime VM registers and responds to system.ping through its Bank transport.",
+    "The generic-library self-test produces its existing observable pass evidence.",
+    "A deterministic two-player tactical arena is created and exposes readiness through the runtime Bank.",
+    "The build uses current runtime VM and CMLib sources without maintaining forked copies."
+  ]
+}

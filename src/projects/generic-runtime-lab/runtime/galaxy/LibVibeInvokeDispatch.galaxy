@@ -1,0 +1,28 @@
+// Runtime Lab owns this narrow generated-dispatch substitute. It keeps the VM
+// compilation unit complete while exercising one typed call through CMLib.
+string libVibeInvoke_gf_Dispatch(int functionId, string argsJson) {
+    int input;
+    int result;
+
+    if (functionId != 1) {
+        return libVibeKernel_gf_MakeResponse(
+            "error",
+            libVibeKernel_gv_currentSession,
+            libVibeKernel_gv_lastRequestId,
+            libVibeKernel_gv_lastSequence,
+            "function.invoke",
+            "FUNCTION_NOT_IN_MAP",
+            "{\"reason\":\"FUNCTION_NOT_IN_MAP\",\"detail\":\"" + IntToString(functionId) + "\",\"profile\":\"runtime-lab\"}");
+    }
+
+    input = libVibeKernel_gf_ArgsGetInt(argsJson, "value");
+    result = CMLib_ClampInt(input, 0, 100);
+    return libVibeKernel_gf_MakeResponse(
+        "result",
+        libVibeKernel_gv_currentSession,
+        libVibeKernel_gv_lastRequestId,
+        libVibeKernel_gv_lastSequence,
+        "function.invoke",
+        "OK",
+        "{\"adapter\":\"runtime-lab\",\"value\":" + IntToString(result) + "}");
+}

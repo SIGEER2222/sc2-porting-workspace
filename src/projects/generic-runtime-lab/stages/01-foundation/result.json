@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "stage": "01-foundation",
+  "status": "blocked",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "RuntimeLab builds from the minimal map skeleton with current Vibe Kernel and CMLib sources, without a CMRE map, mission, or commander dependency.",
+      "evidence": [
+        "src/projects/generic-runtime-lab/project.json",
+        "src/projects/generic-runtime-lab/scripts/build_runtime_lab.py",
+        "artifacts/projects/generic-runtime-lab/stage01-foundation/maps/build-report.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The generated map has a map-local dispatch fixture, a P1/P2 GalaxyVibe BankList, and a deterministic Marine-versus-Zergling tactical fixture.",
+      "evidence": [
+        "src/projects/generic-runtime-lab/runtime/galaxy/LibVibeInvokeDispatch.galaxy",
+        "src/projects/generic-runtime-lab/runtime/galaxy/runtime_lab.galaxy",
+        "src/projects/generic-runtime-lab/tests/test_runtime_lab.py"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "A prior BankList-enabled load reached API ping, CreateGame, JoinGame, and kernel_initialized, but no current-package VM, CMLib, or tactical-arena pass is claimed because entrypoint RPC did not complete.",
+      "evidence": [
+        "artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/tier100-live-verdict-runtime-lab-with-bank-list.json"
+      ]
+    },
+    {
+      "type": "blocked",
+      "claim": "The final runtime gates require an exclusive SC2 API and GalaxyVibe Bank lease. A concurrent CMRE runtime job restarted the debug API on changing ports and wrote to the shared Bank, so corrected-map probe results are not attributable to RuntimeLab.",
+      "evidence": [
+        "artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/runtime-blocked-20260809.json",
+        "src/projects/generic-runtime-lab/stages/01-foundation/issues.json"
+      ]
+    }
+  ],
+  "outputs": [
+    "src/projects/generic-runtime-lab/scripts/build_runtime_lab.py",
+    "src/projects/generic-runtime-lab/runtime/galaxy/LibVibeInvokeDispatch.galaxy",
+    "src/projects/generic-runtime-lab/runtime/galaxy/runtime_lab.galaxy",
+    "src/projects/generic-runtime-lab/tests/test_runtime_lab.py",
+    "artifacts/projects/generic-runtime-lab/stage01-foundation/maps/RuntimeLab.SC2Map",
+    "artifacts/projects/generic-runtime-lab/stage01-foundation/maps/build-report.json",
+    "artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/runtime-blocked-20260809.json"
+  ],
+  "validation": [
+    {
+      "command": "python -m pytest -q src/projects/generic-runtime-lab/tests",
+      "exitCode": 0,
+      "summary": "4 regression tests passed."
+    },
+    {
+      "command": "python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py",
+      "exitCode": 0,
+      "summary": "Generated the 86-file packed RuntimeLab.SC2Map with SHA-256 12a7dbd3cbc373a7097c5094ad2bfecfea2d1eabcb7c68877f1782c01bc1d499."
+    },
+    {
+      "command": "node tools/analysis/galaxy-lint.mjs artifacts/projects/generic-runtime-lab/stage01-foundation/build/RuntimeLab.SC2Map/MapScript.galaxy --format text",
+      "exitCode": 0,
+      "summary": "0 diagnostics; 11 known include/symbol resolver diagnostics were suppressed by the analyzer."
+    },
+    {
+      "command": "python tools/galaxy-vibe/tier100_live_probe.py --port 5004 --map artifacts/projects/generic-runtime-lab/stage01-foundation/maps/RuntimeLab.SC2Map --fresh-bank --tag runtime-lab-final-port5004 --out-dir artifacts/projects/generic-runtime-lab/stage01-foundation/runtime",
+      "exitCode": 1,
+      "summary": "Truthful blocked result: CreateGame and JoinGame completed, but the shared Bank/API runtime was not attributable to RuntimeLab; no live pass was recorded."
+    }
+  ],
+  "nextStage": null
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "RUNTIME-LAB-REFERENCE-DEPENDENCY",
+      "status": "open",
+      "classification": "static",
+      "summary": "The supplied debug/battle map requires WarClassicSystem.SC2Mod, which is absent locally.",
+      "impact": "It cannot be used as the default live-validation map on this machine.",
+      "nextAction": "Keep it as a read-only UI reference; only stage a derivative after the dependency is supplied or deliberately removed and revalidated."
+    },
+    {
+      "id": "RUNTIME-LAB-REFERENCE-DOC-LOCKED",
+      "status": "open",
+      "classification": "blocked",
+      "summary": "The supplied .doc is locked by another process.",
+      "impact": "Its feature description cannot yet be cited as evidence.",
+      "nextAction": "Inspect it after the owning process releases its read lock."
+    },
+    {
+      "id": "RUNTIME-LAB-SHARED-RUNTIME-LEASE",
+      "status": "open",
+      "classification": "blocked",
+      "summary": "The fixed GalaxyVibe Bank and debug SC2 API are actively shared with a concurrent CMRE runtime job.",
+      "impact": "Corrected RuntimeLab probes cannot attribute Bank markers, RPC responses, or ScriptError evidence to this map, so Stage 01 cannot pass its live gate.",
+      "nextAction": "Retry only with an exclusive SC2 API and GalaxyVibe Bank lease. Archive then pre-seed a no-history Bank using the existing launch-test-arena format, run tier100 without --fresh-bank and cmlib_runtime_test.py, then retain the same-window ScriptError verdict."
+    }
+  ]
+}
