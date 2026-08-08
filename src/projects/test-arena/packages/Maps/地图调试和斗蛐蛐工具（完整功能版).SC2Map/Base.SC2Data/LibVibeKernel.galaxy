@@ -133,10 +133,15 @@ void libVibeKernel_gf_ReloadBank() {
 }
 
 void libVibeKernel_gf_EnsureBankLoaded() {
+    string diagMsg;
     libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
     if (libVibeKernel_gv_bankHandle != null) {
         BankWait(libVibeKernel_gv_bankHandle);
+        diagMsg = "[VIBE-DIAG] BankLoad OK: " + libVibeKernel_gv_BankName + " p=" + IntToString(libVibeKernel_gv_BankPlayer);
+    } else {
+        diagMsg = "[VIBE-DIAG] BankLoad NULL: " + libVibeKernel_gv_BankName + " p=" + IntToString(libVibeKernel_gv_BankPlayer);
     }
+    UIDisplayMessage(PlayerGroupAll(), c_messageAreaChat, StringToText(diagMsg));
 }
 // ==== END VIBE_KERNEL_003_NO_HANDLE_CACHE ====
 

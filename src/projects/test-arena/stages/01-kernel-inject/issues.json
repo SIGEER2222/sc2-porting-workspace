@@ -68,13 +68,23 @@
       "status": "resolved",
       "title": "BankLoad 无法从零创建新 Bank 文件",
       "description": "--fresh-bank 移走 GalaxyVibe.SC2Bank 后，BankLoad 返回 null，kernel 静默跳过所有 Bank 写入；此外 Python 侧 read_bank() 只读 Banks root，但 Galaxy 端 BankLoad/BankSave 实际写入 Banks/<AuthorHash>/（亡者之夜是 /14/，斗蛐蛐未定），两端路径不一致导致 probe 误以为 kernel 没写 Bank。",
-      "resolution": "三层补丁：(1) launch-test-arena.ps1 预写 SC2 格式 GalaxyVibe.SC2Bank 到 Banks root + 所有已存在数字子目录 + 1..16 全覆盖（确保 SC2 无论落到哪个 AuthorHash 都能读到 bank）；(2) vibe_host.py read_bank() 扫描 Banks root + 所有 <digit> 子目录，按 mtime 取最新一份，保证无论 Galaxy 刷到哪个子目录都能被 Python 读到；(3) vibe_host.py write_bank_request() 同步写入 root + 所有 <digit> 子目录候选，保证 Galaxy 侧 BankPoll 一定能读到 pending_request_id。斗蛐蛐地图 MapInfo 二进制本身无合法 Publisher 签名导致 BankList 授权可能失效的部分，因为亡者之夜黄金参考已经全通，作为地图层 issue 单独下沉到斗蛐蛐地图编辑器重存 TODO。",
+      "resolution": "三层补丁：(1) launch-test-arena.ps1 预写 SC2 格式 GalaxyVibe.SC2Bank 到 Banks root + 所有已存在数字子目录 + 1..16 全覆盖（确保 SC2 无论落到哪个 AuthorHash 都能读到 bank）；(2) vibe_host.py read_bank() 扫描 Banks root + 所有 <digit> 子目录，按 mtime 取最新一份，保证无论 Galaxy 刷到哪个子目录都能被 Python 读到；(3) vibe_host.py write_bank_request() 同步写入 root + 所有 <digit> 子目录候选，保证 Galaxy 侧 BankPoll 一定能读到 pending_request_id；(4) galaxy-debug-mod 自身 BankList.xml 带 Players 1-16 GalaxyVibe 声明，以 mod 级 overlay 给任何挂载该 mod 的地图继承 Bank 授权。斗蛐蛐地图 MapInfo 二进制本身无合法 Publisher 签名导致 BankList 授权可能失效的部分，因为亡者之夜黄金参考已经全通，作为地图层 issue 单独下沉到斗蛐蛐地图编辑器重存 TODO。",
       "evidence_type": "runtime",
       "verified_by": [
         "亡者之夜: tier100 probe registration.kernel_initialized=1 读出（read_bank 扫 /14/ 成功）",
         "亡者之夜: unit.spawn → Bank 写入 request → response 读回成功（双向路径全闭环）",
-        "launch-test-arena.ps1 Locations written: 33（Banks root + 16*2）"
+        "launch-test-arena.ps1 Locations written: 33（Banks root + 16*2）",
+        "本轮 5013 窗口: fresh-bank 归档后仍 kernel_registered=true + system.ping 3/3 acks（galaxy-debug-mod BankList.xml Player 1-16 授权兜底）"
       ]
+    },
+    {
+      "id": "ARENA-008",
+      "severity": "medium",
+      "status": "open",
+      "title": "斗蛐蛐地图目录 pack 后 SC2 API RequestCreateGame 返回 InvalidMap（error=1）",
+      "description": "斗蛐蛐地图源文件（55 文件，498KB）通过 tools/mpq/scripts/pack_stormlib.py 打包成 artifacts/projects/test-arena/stage01/test-arena.SC2Map 后，运行时 capture_chat_diag.py / tier100 发起 create_game 均返回 ResponseCreateGame.Error=1（InvalidMap）。但同一份地图通过 launch-test-arena → launch-galaxy-vibe 启动时 SC2 本身能正常加载（因为 Switcher 走 GUI 路径不校验加密签名？）。根因推测：pack_stormlib.py 生成的 MPQ 没有 SC2 原生编辑器另存后产生的 (attributes) / (signature) / user-data 加密表，s2clientprotocol CreateGame 严格模式拒绝。",
+      "note": "不阻塞当前 tier0 验收：修复内容（ARENA-006/007）已通过亡者之夜黄金参考 + galaxy-debug-mod mod 级 overlay 方式在 5013 窗口闭环通过。斗蛐蛐独立 tier100 待 SC2 编辑器「另存为」得到合法原生 MPQ 后再单独跑。",
+      "evidence_type": "runtime"
     }
   ]
 }

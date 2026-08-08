@@ -133,10 +133,15 @@ void libVibeKernel_gf_ReloadBank() {
 }
 
 void libVibeKernel_gf_EnsureBankLoaded() {
+    string diagMsg;
     libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
     if (libVibeKernel_gv_bankHandle != null) {
         BankWait(libVibeKernel_gv_bankHandle);
+        diagMsg = "[VIBE-DIAG] BankLoad OK: " + libVibeKernel_gv_BankName + " p=" + IntToString(libVibeKernel_gv_BankPlayer);
+    } else {
+        diagMsg = "[VIBE-DIAG] BankLoad NULL: " + libVibeKernel_gv_BankName + " p=" + IntToString(libVibeKernel_gv_BankPlayer);
     }
+    UIDisplayMessage(PlayerGroupAll(), c_messageAreaChat, StringToText(diagMsg));
 }
 // ==== END VIBE_KERNEL_003_NO_HANDLE_CACHE ====
 
@@ -2093,11 +2098,14 @@ void libVibeKernel_InitLib() {
     // 写入银行标记，证明 InitLib 被调用（供 Host 端验证）
     libVibeKernel_gf_WriteBankInt("index", "initlib_entered", 1);
     libVibeKernel_gf_Init();
-    // 自注册入口点：延迟到游戏时钟 0.0（即 InitTriggers 之后）再调用 RegisterEntryPoints，
-    // 避免触发器在库/触发器系统完全就绪前创建导致事件不触发。
-    // 由地图 MapScript 的 InitLibs() 调用本函数；TimeElapsed(0.0) 在完整 init 之后触发。
+    // 自注册入口点：
+    // ① TimeElapsed 0.0 兜底（依赖游戏时钟推进）
+    // ② 同步调用 RegisterEntryPoints() — 斗蛐蛐等 Sandbox 地图的 MapScript Init 阶段
+    //    游戏时钟尚未推进，TimeElapsed 0.0 可能不触发；同步调用保证 PollLoop 和
+    //    Watchdog 触发器在 InitLib 返回时已就位，不依赖游戏时钟的第一次 TimeElapsed。
     t = TriggerCreate("libVibeKernel_gf_RegisterEntryPoints_Func");
     TriggerAddEventTimeElapsed(t, 0.0, c_timeGame);
+    libVibeKernel_gf_RegisterEntryPoints();
 }
 
 // ==== BEGIN STAGE26_FULL_INVOKE HANDLE_OPS ====

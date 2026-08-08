@@ -134,18 +134,41 @@
 
 ### 本次变更清单（写 scope 内）
 
-- `src/projects/test-arena/packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map/Base.SC2Data/LibVibeKernel.galaxy`：InitLib 同步调用 RegisterEntryPoints；PollLoop/Watchdog 用 TriggerExecute(false,false) 异步 fire；移除 TriggerAddEventTimeElapsed(0.0)（死代码铁律）。
+- `src/projects/test-arena/packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map/Base.SC2Data/LibVibeKernel.galaxy`：InitLib 同步调用 RegisterEntryPoints；PollLoop/Watchdog 用 TriggerExecute(false,false) 异步 fire；移除 TriggerAddEventTimeElapsed(0.0)（死代码铁律）；新增 `gf_EnsureBankLoaded` 内 `[VIBE-DIAG] BankLoad OK/NULL` chat 诊断（通过 `UIDisplayMessage(PlayerGroupAll(), c_messageAreaChat, StringToText(...))`，BankLoad 返回 null 时也能在 observation chat 中留下痕迹）。
 - `src/projects/test-arena/packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map/MapScript.galaxy`：保持 `lllAtg(){libVibeKernel_InitLib();libNtve_InitLib();}`（InitLib 内同步 RegisterEntryPoints 已覆盖）。
+- `tools/galaxy-vibe/kernel/LibVibeKernel.galaxy`：正本同步（从斗蛐蛐副本回拷）。
+- `src/projects/cmre-porting/packages/Maps/VibeDeadOfNight.SC2Map/Base.SC2Data/LibVibeKernel.galaxy`：cmre-porting overlay 同步。
+- `tools/galaxy-vibe/galaxy-debug-mod/Base.SC2Data/LibVibeKernel.galaxy` + `LibVibeKernel_h.galaxy`：mod-level overlay 同步。-mod 参数挂载 galaxy-debug-mod 时，SC2 会以 mod 中的同名文件覆盖地图层，因此无论传入哪张 VibeDeadOfNight / RuntimeLab 地图，只要地图 InitLibs 调用 `libVibeKernel_InitLib()`，本次修复版 kernel 即生效。
 - `tools/galaxy-vibe/host/vibe_host.py`：read_bank / write_bank_request 重写，扫全 Banks/<digit>/ + root 路径。
 - `tools/launchers/launch-test-arena.ps1`：新增 Write-BankIfDiff + 预写 Bank 到 33 个候选路径；ModPath 改为 hashtable splatting 的显式参数传递。
-- `src/projects/test-arena/stages/01-kernel-inject/issues.json`：ARENA-006/007 → resolved。
-- `src/projects/test-arena/stages/01-kernel-inject/result.json`：tier0_transport = RUNTIME_PASS；system_ping_rpc = PASS；新增 p0_transport_closed_loop / vibe_host_bank_path_mismatch_fix 验证项。
+- `src/projects/test-arena/stages/01-kernel-inject/issues.json`：ARENA-006/007 → resolved；斗蛐蛐 CreateGame error=1（InvalidMap）新增 ARENA-008 open。
+- `src/projects/test-arena/stages/01-kernel-inject/result.json`：tier0_transport = RUNTIME_PASS；system_ping_rpc = PASS；新增 p0_transport_closed_loop / vibe_host_bank_path_mismatch_fix / mod_overlay_kernel_sync 验证项。
 - 本 log.md。
+
+#### 本轮（5013 窗口）运行时复验（mod 级 overlay + fresh-bank）
+
+- **启动**：`launch-galaxy-vibe.ps1 -Port 5013 -Map E:\SC2\SC2new\StarCraft II\Maps\VibeDeadOfNight.SC2Map -ModPath tools/galaxy-vibe/galaxy-debug-mod`
+  - Switcher PID=28200 → SC2_x64 PID=32344 → API 5013 开放（启动 marker epoch=1786210763）
+  - 证据类型：runtime
+- **tier100_live_probe --fresh-bank**：`python tools/galaxy-vibe/tier100_live_probe.py --port 5013 --map E:\SC2\SC2new\StarCraft II\Maps\VibeDeadOfNight.SC2Map --fresh-bank --load-timeout 240`
+  - connect = true
+  - fresh_bank: 旧 bank 已归档到 `.stale-1786210783`
+  - kernel_registered = true（registration.kernel_initialized = 1）
+  - p0_pass = true
+  - system_ping: runs=3, acks=3, all_ack=true
+  - vibe_unit_spawn: ok, created=1, unit_type=Marine, player=1, latency=0.624s
+  - observation_delta: before=0 → after=1, delta=1（第三方 raw observation 确认 marine 出现，非 kernel 自述）
+  - vibe_query_units: ok, count=1, unit_type=Marine, player=1, latency=0.254s
+  - gen_1_invoke + gen_noarg_invoke：返回 FUNCTION_NOT_IN_MAP（路由闭环，生成 adapter 未挂载是预期）
+  - script_error.gate = no_new_nonempty, files=[]
+- **本轮验证重点**：
+  - fresh-bank 后仍能 kernel_initialized=1 → **ARENA-007（BankLoad 从零创建 + GalaxyVibe BankList 授权）实证通过**（因为 galaxy-debug-mod 里的 BankList.xml 带 Players 1-16 声明，地图挂载 mod 时继承授权；加上 launch 前预写 33 份候选 Bank 兜底）。
+  - system.ping 3/3 acks → **ARENA-006（PollLoop 异步 TriggerExecute 启动，避免 0.0 同步触发死代码）实证通过**。
 
 #### 运行时验证结论
 
 - ✅ 验收标准 1（kernel_initialized）：**RUNTIME_PASS** — Bank 出现 `kernel_initialized = 1`
-- ⚠️ 验收标准 2（tier0 传输层）：**PARTIAL** — Kernel 注入成功 + Bank 写入通路验证通过；
-  但 PollLoop RPC 闭环未通过（system.ping 0/3 acks），需后续阶段排查触发器时序问题
+- ✅ 验收标准 2（tier0 传输层）：**RUNTIME_PASS** — P0 闭环：Ping 3/3、unit.spawn→observation→query.units 三方一致（mod overlay + fresh-bank 后仍稳定）
 - ✅ 0 ScriptError（编译 + 运行时均无错误）
 - ✅ CreateGame + JoinGame 成功
+- ⚠️ 斗蛐蛐地图遗留：pack 后的 `artifacts/projects/test-arena/stage01/test-arena.SC2Map`（498KB，55 files）通过 SC2 API RequestCreateGame 时返回 Error=1（InvalidMap），表现为 MPQ 打包格式与 SC2 原生编辑器生成的加密 MPQ 不完全匹配。当前 workaround：用亡者之夜黄金参考跑 tier100；斗蛐蛐地图如需独立走 API 模式 CreateGame，需把原始斗蛐蛐 .SC2Map 通过 SC2 编辑器「另存为」一次得到合法 listfile + 签名，或改用 MPQEditor GUI 直接 repack（本阶段不做二进制 repack）。

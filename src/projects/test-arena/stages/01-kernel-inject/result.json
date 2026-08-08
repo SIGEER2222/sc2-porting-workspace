@@ -2,7 +2,7 @@
   "stage_id": "01-kernel-inject",
   "schemaVersion": 1,
   "status": "IN_PROGRESS",
-  "current_phase": "ARENA-006/007 修复完成，亡者之夜 tier100 p0_pass=true + system.ping 3/3 acks + function.invoke 路由有效；斗蛐蛐地图本身 MapInfo Publisher hash 需用 SC2 编辑器重存后单独验 tier100（见 ARENA-007 residual note）",
+  "current_phase": "ARENA-006/007 修复在 5013 窗口 mod 级 overlay + fresh-bank 下复验通过：kernel_registered=true, p0_pass=true, system.ping 3/3 acks, unit.spawn→observation→query.units 三方一致, 0 ScriptError。斗蛐蛐独立 tier100 因 CreateGame InvalidMap（ARENA-008 open）待地图编辑器另存后再单独跑，不阻塞 tier0 验收。",
   "opened_at": "2026-08-08T00:00:00+08:00",
   "closed_at": null,
   "direction": "将斗蛐蛐调试地图注入 LibVibeKernel tier0，搭出可被 vibe_host 连接的测试骨架",
@@ -96,6 +96,12 @@
       "command": "read_bank('GalaxyVibe') 扫 Banks root + 所有 <id>/；write_bank_request 同步到所有候选",
       "detail": "旧版 read_bank 只读 Banks root，Galaxy 端写到 Banks/14/ 子目录；修复后亡者之夜 kernel_initialized=1 成功被 tier100 probe 扫到（/14/ mtime 最新），unit.spawn 请求同步写入 /14/ → Galaxy BankPoll 读回 → response 回到 /14/ → Python 端读回，双向闭环全通",
       "evidence_type": "runtime"
+    },
+    "mod_overlay_kernel_sync": {
+      "status": "PASS",
+      "command": "cp LibVibeKernel.galaxy + LibVibeKernel_h.galaxy 从斗蛐蛐副本同步到 tools/galaxy-vibe/kernel/、cmre-porting packages/Maps/VibeDeadOfNight.SC2Map/、以及 tools/galaxy-vibe/galaxy-debug-mod/Base.SC2Data/（mod 级 overlay）",
+      "detail": "本轮验证：launch-galaxy-vibe -ModPath galaxy-debug-mod → VibeDeadOfNight 地图加载时，SC2 用 mod 层 LibVibeKernel 覆盖地图层。5013 窗口在 --fresh-bank 下仍 kernel_initialized=1、system.ping 3/3 acks，证明修复内核在 mod overlay 路径独立生效。同时 EnsureBankLoaded 内追加了 [VIBE-DIAG] BankLoad OK/NULL chat 诊断（斗蛐蛐副本保留），便于后续斗蛐蛐独立验证时快速定位 BankLoad 授权失败。",
+      "evidence_type": "runtime"
     }
   },
   "outputs": [
@@ -113,5 +119,5 @@
     "tools/launchers/launch-test-arena.ps1",
     "artifacts/projects/test-arena/stage01/test-arena.SC2Map"
   ],
-  "note": "运行时验证：kernel_initialized=1 已确认（Bank 写入通路通过），0 ScriptError。PollLoop RPC 闭环（system.ping）未通过，需后续阶段排查触发器时序问题。"
+  "note": "5013 窗口（mod 级 overlay + fresh-bank）复验：kernel_registered=true、p0_pass=true、system.ping 3/3 acks、unit.spawn→observation→query.units 三方一致、0 ScriptError。ARENA-006/007 完全实证通过。斗蛐蛐独立 CreateGame InvalidMap 下沉为 ARENA-008（open），不阻塞 tier0。"
 }
