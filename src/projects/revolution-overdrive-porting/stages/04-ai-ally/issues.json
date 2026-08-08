@@ -5,13 +5,16 @@
     {
       "id": "RO-AI-001",
       "severity": "medium",
-      "status": "open",
-      "summary": "Twenty-four maps contain dynamically resolved alliance calls that the static adapter cannot safely authorize.",
+      "status": "partial",
+      "summary": "Twenty-four maps declare alliances through PlayerGroupLoop iterators. Deterministic group expansion now authorizes most of them; groups that stay opaque remain fail-closed.",
       "evidence": [
-        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/evidence/static/map-roster-manifest.json"
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/evidence/static/map-roster-manifest.json",
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ro_ai_001_dynamic_alliance.py",
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ally_capability_matrix.py",
+        "artifacts/projects/revolution-overdrive-porting/ro-ai-001-generalization/ally-capability-matrix.json"
       ],
-      "impact": "The safe contract may expose fewer targets than the mission creates at runtime; unresolved owners are never treated as allies or enemies by inference.",
-      "nextAction": "After the campaign dependency is available, capture runtime alliance and owner state for representative maps before widening the adapter."
+      "impact": "Generalization is now measured instead of assumed. 26 of 31 owned maps expose at least one valid fail-closed ally contract and 18 expose a P1-led pairing; the matrix independently reproduces the only runtime-verified handover (thorner03 P1 -> P2, time-gated). Maps whose groups stay opaque still expose fewer targets than the mission creates at runtime, and unresolved owners are never inferred.",
+      "nextAction": "Thread (1) re-baseline DONE: test_ro_ai_001_dynamic_alliance.py now pins 182 resolved / 18 unresolved (the post-group-scoping numbers), and the full RO ally suite is 31/31 green. Thread (2) open — static characterization of the 18 fail-closed calls (ally-capability-matrix.json): they spread 1-2 each across 12 maps; every supported map still resolves other edges, so the fail-closed contract is sound; the 2 calls inside unsupported maps (thorner05s, tvalerian03) are moot. Promoting the 18 needs runtime observation of PlayerGroupLoop group membership at handover on those 12 maps (Stage 05 runtime plan), not adapter inference. Phase 2 is coverage polish, not a correctness gap."
     },
     {
       "id": "RO-AI-002",
