@@ -3,7 +3,7 @@
   "stage": "26-full-function-invoke",
   "status": "PARTIAL",
   "evidence_type": "mixed",
-  "summary": "全函数 function.invoke 扩展的静态部分全部达成：11,890 个唯一签名通过编译期生成的类型化 adapter 可调用（gen.<int> 整数分派，非反射），22 种句柄类型走 LibVibeHandles 登记表强行全覆盖，funcref 静态查值表 667 候选、structref 仅登记表引用，未知值结构化拒绝。注册表 11,910 条（11,890 gen + 20 手写）、whitelist 新增 handle.* 三操作、宿主侧整数 id 优先归一化、strategy 模式 debug_only 拒绝不变、策略审计新增 invoke.generated 族。798 个生成/kernel Galaxy 文件 0 解析错误，run-all-validation 52/52，Stage 19/20/22/23/25 回归全绿，三副本 hash 一致。自审修复一处严重路由缺陷（位置分片与区间路由错位，6,108 函数会错片）。运行时实测（分档放量编译数据、类型族实调、只读普查、ScriptError 门）因本机无 SC2 阻塞，机制与选择清单证据已就绪。",
+  "summary": "全函数 function.invoke 扩展的静态部分全部达成：11,890 个唯一签名通过编译期生成的类型化 adapter 可调用（gen.<int> 整数分派，非反射），22 种句柄类型走 LibVibeHandles 登记表强行全覆盖，funcref 静态查值表 667 候选、structref 仅登记表引用，未知值结构化拒绝。注册表 11,910 条（11,890 gen + 20 手写）、whitelist 新增 handle.* 三操作、宿主侧整数 id 优先归一化、strategy 模式 debug_only 拒绝不变、策略审计新增 invoke.generated 族。798 个生成/kernel Galaxy 文件 0 解析错误，run-all-validation 52/52，Stage 19/20/22/23/25 回归全绿，三副本 hash 一致。自审修复一处严重路由缺陷（位置分片与区间路由错位，6,108 函数会错片）。运行时实测取得实质进展：本机 SC2 已确认安装（E:\\SC2\\SC2new\\StarCraft II），经 API 模式拉起获得 live 窗口；tier100 自定义探针证明 Kernel 自注册（kernel_initialized+register_entrypoints_done）、system.ping 闭环、vibe.unit.spawn 真机原生执行（SC2 原始观测独立确认 +1 Marine）、vibe.query.units 自查一致、function.invoke 路由到达 Kernel 并返回结构化响应、同窗口 ScriptError 零新增。gen.* 真机原生执行仍 build-blocked：需同时含有效 Kernel 与生成 adapter 包的『打包后 .SC2Map 文件』，当前有效地图缺包、含包目录地图经 API 加载报 InvalidMap，待 MPQ 打包闭环。",
   "changed_paths": [
     "src/projects/cmre-porting/project.json",
     "src/projects/cmre-porting/stages/26-full-function-invoke/plan.md",
@@ -80,8 +80,9 @@
     {
       "name": "runtime-staged-rollout",
       "command": "launch-cmre-alenger.ps1 -InvokeTier 100/1000/0（staged 亡者之夜）",
-      "status": "BLOCKED",
-      "detail": "本机无 SC2 安装（注册表/全盘符候选位/进程/运行时租约穷尽排查均无）。机制就绪：tier dispatch 变体 + overlay -InvokeTier + launcher 顶层 -InvokeTier 透传；每档编译时间/包体积待有 SC2 的机器记录"
+      "status": "PARTIAL",
+      "detail": "SC2 已安装并拉起 live 窗口；自定义 tier100 探针已取得同窗口 runtime 证据（Kernel 注册 + transport + vibe.* 原生 + function.invoke 路由 + 零 ScriptError）。计划指定的 launcher -InvokeTier 100/1000/0 三档 run 待执行：需有效『打包后含生成包的 .SC2Map』；当前含包目录地图经 API 加载报 InvalidMap（local_map.map_path 仅接受打包文件）、有效地图缺包，待 MPQ 打包闭环后补三档 run。",
+      "evidence": "artifacts/galaxy-vibe/tier100-live-verdict.json"
     },
     {
       "name": "runtime-type-family-sampling-and-census",
@@ -93,8 +94,16 @@
     {
       "name": "runtime-script-error-gate",
       "command": "Assert-CmreNoNewScriptErrors（launcher 内建）",
-      "status": "BLOCKED",
-      "detail": "同窗口 ScriptError 零新增需 live 窗口验证，随运行时放量一并执行"
+      "status": "PASS",
+      "detail": "live 窗口（VibeDeadOfNight.SC2Map，API 模式）全程零新增非空 ScriptError（create_game 起算窗口，tier100 探针 ScriptError 门 gate=no_new_nonempty）。",
+      "evidence": "artifacts/galaxy-vibe/tier100-live-verdict.json"
+    },
+    {
+      "name": "runtime-tier100-custom-probe",
+      "command": "tools/galaxy-vibe/tier100_live_probe.py --map VibeDeadOfNight.SC2Map",
+      "status": "PARTIAL",
+      "detail": "live 实证：Kernel 自注册(kernel_initialized+register_entrypoints_done) + system.ping 3/3 闭环 + vibe.unit.spawn 刷 Marine 经 SC2 原始观测独立确认(+1) + vibe.query.units 自查一致(count=1) + function.invoke 路由到 Kernel 返回结构化响应。gen.* 真机原生执行未达成：加载地图未挂载生成 adapter 包，gen.1/gen.11800 均返 FUNCTION_NOT_IN_MAP（transport+路由已实证，原生执行待含包有效地图）。",
+      "evidence": "artifacts/galaxy-vibe/tier100-live-verdict.json"
     }
   ],
   "numbers": {

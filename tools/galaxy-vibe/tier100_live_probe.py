@@ -96,11 +96,14 @@ async def a_main(opts) -> dict:
     }
     api_url = f"ws://127.0.0.1:{opts.port}/sc2api"
     map_path = Path(opts.map)
-    if not map_path.is_file():
+    if not (map_path.is_file() or map_path.is_dir()):
         out["errors"].append(f"map not found: {map_path}")
         return out
-    md = map_path.read_bytes()
-    out["map_bytes"] = len(md)
+    # 单文件 .SC2Map -> map_data 字节；解包目录地图 -> map_path（SC2 本地读取）
+    is_dir_map = map_path.is_dir()
+    md = map_path.read_bytes() if not is_dir_map else b""
+    out["map_bytes"] = len(md) if md else -1
+    out["map_is_dir"] = is_dir_map
 
     async def _send(ws, req):
         await ws.send_bytes(req.SerializeToString())
@@ -131,8 +134,13 @@ async def a_main(opts) -> dict:
 
         # ---- create_game（自加载 Vibe Kernel 地图）----
         window_start = time.time()  # 同窗口 ScriptError 门起点
+        local_map = sc_pb.LocalMap()
+        if is_dir_map:
+            local_map.map_path = str(map_path)
+        else:
+            local_map.map_data = md
         r = await _send(ws, sc_pb.Request(create_game=sc_pb.RequestCreateGame(
-            local_map=sc_pb.LocalMap(map_data=md),
+            local_map=local_map,
             player_setup=[sc_pb.PlayerSetup(type=1, race=sc_common.Terran,
                                             player_name="P1")],
             realtime=True)))

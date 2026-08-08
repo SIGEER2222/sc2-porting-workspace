@@ -110,3 +110,32 @@
   `Base.SC2Data/generated/**`（53 文件 7.1MB）——属 AGENTS.md 的 bulky generated
   artifacts，可由 `generate_invoke_adapters.py` 确定性重生成（三副本 hash
   测试保障一致性），故保留在工作树不入库。
+
+### 2026-08-08 live runtime 推进（tier100 真机探针）
+- 环境变更：本机 SC2 现已确认安装（E:\SC2\SC2new\StarCraft II，SC2Switcher +
+  Versions\Base97563\SC2_x64.exe）。经 `SC2Switcher_x64.exe -listen 127.0.0.1
+  -port 5000 -debug` 以 API 模式拉起 live 窗口（PID 视拉起批次浮动）。
+- 新增自包含探针 `tools/galaxy-vibe/tier100_live_probe.py`：连运行中 SC2 →
+  加载 VibeDeadOfNight.SC2Map（含 Vibe Kernel）→ 轮询 Bank 标记
+  kernel_initialized/register_entrypoints_done → 经 Bank-poll RPC 实测
+  system.ping / vibe.unit.spawn / vibe.query.units / function.invoke gen.*，
+  并补同窗口 ScriptError 门（create_game 起算，比对 GameLogs 新增非空文件）。
+- 实证结论（artifact: artifacts/galaxy-vibe/tier100-live-verdict.json）：
+  - Kernel 自注册：kernel_initialized=1 + register_entrypoints_done=1 ✓
+  - system.ping 闭环：3/3 ack ✓
+  - vibe.unit.spawn 真机原生执行：刷 Marine 经 **SC2 原始观测独立确认 +1** ✓
+    （第三方证据，绕开 Bank/Kernel 自述）
+  - vibe.query.units 自查：count=1 与观测一致 ✓
+  - function.invoke 路由：gen.1/gen.11800 到达 Kernel 并返回结构化响应 ✓
+    （transport + 整数 id 路由已实证）
+  - 同窗口 ScriptError 门：零新增非空文件 ✓
+- 未达成：gen.* 真机原生执行。加载地图未挂载生成 adapter 包，gen.1/gen.11800
+  均返 FUNCTION_NOT_IN_MAP。修复探针 verdict 逻辑（原误将"收到响应"判为成功，
+  实为 FUNCTION_NOT_IN_MAP 假阳性，已改为要求 error_code==OK）。
+- 阻塞根因（build-blocked，非逻辑缺陷）：需同时含有效 Kernel 与生成包的
+  『打包后 .SC2Map 文件』。standalone VibeDeadOfNight.SC2Map 有效但缺包；
+  packages/亡者之夜.SC2Map 含包但为解包目录，SC2 API 的 local_map.map_path
+  仅接受打包文件 → create_game 报 InvalidMap(sub_error=2)。待 MPQ 打包闭环。
+- 计划指定三档 run（launcher -InvokeTier 100/1000/0）与 runtime_invoke_probe.py
+  --sample/--census 待含包有效地图就绪后补；当前 runtime-staged-rollout /
+  runtime-tier100-custom-probe 标记 PARTIAL，runtime-script-error-gate 标记 PASS。
