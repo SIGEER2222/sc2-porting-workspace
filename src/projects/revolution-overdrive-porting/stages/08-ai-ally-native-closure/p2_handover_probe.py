@@ -60,6 +60,12 @@ REGION24_RADIUS = 1.1206
 
 ABIL_MOVE = 16
 ABIL_ATTACK = 23
+ABIL_STOP = 4
+HOSTILE_ALLIANCE = 4
+HOSTILE_CLEAR_RADIUS = 28.0
+# The map exposes its pre-handover, invulnerable Odin staging actor as hostile.
+# It must remain untouched until the map's own Region 24 rescue trigger runs.
+ESCORT_PROTECTED_HOSTILE_TYPES = {"OdinBuild"}
 
 # Escort waypoints from the P1 start pocket toward the Region 24 beacon.
 ESCORT_WAYPOINTS = [
@@ -131,6 +137,18 @@ class Census:
         return [u for u in self.units if u["owner"] == P1_USER]
 
     @property
+    def hostile_units(self) -> list[dict[str, Any]]:
+        """Visible, alive enemies only; neutral mission actors stay untargeted."""
+
+        return [
+            u
+            for u in self.units
+            if u["alliance"] == HOSTILE_ALLIANCE
+            and u["health"] > 0
+            and u["type"] not in ESCORT_PROTECTED_HOSTILE_TYPES
+        ]
+
+    @property
     def odin_units(self) -> list[dict[str, Any]]:
         return [u for u in self.units if "odin" in u["type"].lower()]
 
@@ -164,25 +182,58 @@ async def observe(ws, label: str, unit_names: dict[int, str]) -> Census:
     return Census(label, resp.observation, unit_names)
 
 
-async def issue(ws, ability_id: int, tags: list[int], target: tuple[float, float]) -> dict:
+async def issue(
+    ws,
+    ability_id: int,
+    tags: list[int],
+    target: tuple[float, float] | None = None,
+    target_tag: int | None = None,
+) -> dict:
     if not tags:
         return {"ability_id": ability_id, "skipped": "no_tags"}
+    if target is not None and target_tag is not None:
+        raise ValueError("raw unit command cannot have both point and unit targets")
     req = sc_pb.Request(action=sc_pb.RequestAction())
     a = req.action.actions.add()
     cmd = a.action_raw.unit_command
     cmd.ability_id = ability_id
-    cmd.target_world_space_pos.x = target[0]
-    cmd.target_world_space_pos.y = target[1]
+    if target_tag is not None:
+        cmd.target_unit_tag = target_tag
+    elif target is not None:
+        cmd.target_world_space_pos.x = target[0]
+        cmd.target_world_space_pos.y = target[1]
     cmd.unit_tags.extend(tags)
     cmd.queue_command = False
     resp = await send_recv(ws, req)
     return {
         "ability_id": ability_id,
         "unit_count": len(tags),
-        "target": list(target),
+        "target": list(target) if target is not None else None,
+        "target_unit_tag": target_tag,
         "results": [int(r) for r in resp.action.result],
         "errors": list(resp.error),
     }
+
+
+def threats_for_escort(
+    census: Census,
+    tychus: dict[str, Any],
+    waypoint: tuple[float, float],
+) -> list[dict[str, Any]]:
+    """Return hostile units near Tychus or the next map-owned escort waypoint."""
+
+    return sorted(
+        (
+            unit
+            for unit in census.hostile_units
+            if dist((unit["x"], unit["y"]), (tychus["x"], tychus["y"])) <= HOSTILE_CLEAR_RADIUS
+            or dist((unit["x"], unit["y"]), waypoint) <= HOSTILE_CLEAR_RADIUS / 2.0
+        ),
+        key=lambda unit: min(
+            dist((unit["x"], unit["y"]), (tychus["x"], tychus["y"])),
+            dist((unit["x"], unit["y"]), waypoint),
+        ),
+    )
 
 
 async def create_and_join(ws, map_path: str) -> dict:
@@ -250,7 +301,7 @@ async def run_probe(ws, map_path: str) -> dict:
         "stage": "08-ai-ally-native-closure",
         "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "map": Path(map_path).name,
-        "method": "native_map_precondition_then_owner_census",
+        "method": "native_hostile_target_clear_then_tychus_escort",
         "map_edits": False,
         "adapter_created_p2_units": False,
         "generic_melee_ai_injected": False,
@@ -303,7 +354,7 @@ async def run_probe(ws, map_path: str) -> dict:
     gate_reached = False
     gate_method = None
     wp_index = 0
-    deadline = time.time() + 200.0
+    deadline = time.time() + 360.0
     last_order = 0.0
     while time.time() < deadline:
         census = await observe(ws, "escort", unit_names)
@@ -331,18 +382,40 @@ async def run_probe(ws, map_path: str) -> dict:
             # Advance waypoint when close enough.
             while wp_index < len(ESCORT_WAYPOINTS) - 1 and dist((ty["x"], ty["y"]), ESCORT_WAYPOINTS[wp_index]) < 4.0:
                 wp_index += 1
-            if time.time() - last_order > 3.0:
-                wp = ESCORT_WAYPOINTS[wp_index]
-                squad = [u["tag"] for u in census.p1_units if u["health"] > 0 and u["type"] != GATE_UNIT_TYPE]
+            wp = ESCORT_WAYPOINTS[wp_index]
+            threats = threats_for_escort(census, ty, wp)
+            entry["nearby_hostile_count"] = len(threats)
+            entry["nearby_hostiles"] = threats[:8]
+            squad = [u["tag"] for u in census.p1_units if u["health"] > 0 and u["type"] != GATE_UNIT_TYPE]
+            if threats:
+                entry["control"] = "clear_hostile_unit"
+                target = threats[0]
+                if time.time() - last_order > 1.0:
+                    result["actions"].append(
+                        await issue(ws, ABIL_ATTACK, squad, target_tag=target["tag"])
+                    )
+                    result["actions"].append(await issue(ws, ABIL_STOP, [ty["tag"]]))
+                    last_order = time.time()
+                    print(
+                        f"    loop={census.game_loop} clear={target['type']}#{target['tag']} "
+                        f"at ({target['x']},{target['y']}) before wp{wp_index}",
+                        file=sys.stderr,
+                    )
+            elif time.time() - last_order > 2.0:
+                entry["control"] = "advance_safe_waypoint"
                 result["actions"].append(await issue(ws, ABIL_ATTACK, squad, wp))
                 result["actions"].append(await issue(ws, ABIL_MOVE, [ty["tag"]], wp))
                 last_order = time.time()
-                print(f"    loop={census.game_loop} tychus=({ty['x']},{ty['y']}) d={d:.1f} -> wp{wp_index}{wp}", file=sys.stderr)
+                print(
+                    f"    loop={census.game_loop} tychus=({ty['x']},{ty['y']}) "
+                    f"d={d:.1f} -> wp{wp_index}{wp}",
+                    file=sys.stderr,
+                )
         else:
             entry["note"] = "no live player-1 TychusCommando"
             print(f"    loop={census.game_loop} no live Tychus", file=sys.stderr)
             break
-        await asyncio.sleep(2.0)
+        await asyncio.sleep(0.75)
 
     result["gate_reached"] = gate_reached
     result["gate_method"] = gate_method

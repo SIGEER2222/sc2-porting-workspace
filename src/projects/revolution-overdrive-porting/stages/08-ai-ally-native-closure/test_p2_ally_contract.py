@@ -100,6 +100,15 @@ class Thorner03P2AllyContractTests(unittest.TestCase):
         for forbidden in ("RequestDebug", "DebugGameState", "create_unit", "game_state.god"):
             self.assertNotIn(forbidden, probe)
 
+    def test_native_probe_clears_visible_hostiles_before_escort(self):
+        """The escort must target real hostile units, not only attack-move coordinates."""
+        probe = (STAGE_DIR / "p2_handover_probe.py").read_text(encoding="utf-8")
+        self.assertIn("HOSTILE_ALLIANCE = 4", probe)
+        self.assertIn("target_unit_tag", probe)
+        self.assertIn("ABIL_STOP = 4", probe)
+        self.assertIn('ESCORT_PROTECTED_HOSTILE_TYPES = {"OdinBuild"}', probe)
+        self.assertIn('entry["control"] = "clear_hostile_unit"', probe)
+
     def test_adapter_exposes_thorner03_time_gate_and_blocks_pre_handover_dispatch(self):
         roster = extract_map_roster(self.map_dir)
         contract = build_ally_contract(roster, leader_player_id=1, ally_player_id=2)
