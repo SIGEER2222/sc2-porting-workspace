@@ -190,10 +190,15 @@ class TestBankTransport(unittest.TestCase):
                     "write",
                     side_effect=[PermissionError("bank locked"), None],
                 ) as write_mock:
-                    with patch("host.vibe_host.time.sleep") as sleep_mock:
-                        self.assertTrue(write_bank_request("RetryBank", "request-1", request))
+                    # os.replace 是原子写实现细节；mock 的 tree.write 不在磁盘落盘，
+                    # 若不 stub 它会在成功那次抛 FileNotFoundError(OSError 子类) 触发多余重试、
+                    # 耗尽 2 元素 side_effect 得 StopIteration。单测只验证 write 重试/backoff 行为。
+                    with patch("host.vibe_host.os.replace") as replace_mock:
+                        with patch("host.vibe_host.time.sleep") as sleep_mock:
+                            self.assertTrue(write_bank_request("RetryBank", "request-1", request))
         self.assertEqual(write_mock.call_count, 2)
         sleep_mock.assert_called_once()
+        replace_mock.assert_called_once()
 
 
 # ---- 白名单注册表测试 ----

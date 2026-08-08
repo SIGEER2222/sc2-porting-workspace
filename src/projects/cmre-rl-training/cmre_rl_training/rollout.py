@@ -88,6 +88,26 @@ def collect_rollout(
 
     for _ in range(n_steps):
         mask = env.action_mask()
+        # Ground-feasibility masking: an action the grounder cannot turn into a
+        # concrete order (no caster owned, no morph source, no visible enemy,
+        # ...) is not a real choice. Masking it here keeps the policy from
+        # spending probability mass on structurally impossible actions AND
+        # prevents ActionGroundingError from aborting the whole rollout.
+        grounded_args: dict[int, Any] = {}
+        if action_builder is not None:
+            raw_observation = getattr(env, "last_observation", None)
+            feasible = np.asarray(mask, dtype=bool).copy()
+            for idx in range(min(len(feasible), len(ACTION_NAMES))):
+                if not feasible[idx]:
+                    continue
+                try:
+                    grounded_args[idx] = action_builder(
+                        ACTION_NAMES[idx], raw_observation
+                    )
+                except Exception:  # noqa: BLE001 - ungroundable == unavailable
+                    feasible[idx] = False
+            if feasible.any():
+                mask = feasible
         obs_t = torch.as_tensor(obs_vec, dtype=torch.float32, device=device).unsqueeze(0)
         mask_t = torch.as_tensor(mask, dtype=torch.bool, device=device).unsqueeze(0)
         with torch.no_grad():
@@ -108,8 +128,16 @@ def collect_rollout(
         if action_builder is None:
             next_obs, reward, terminated, info = env.step(action_name)
         else:
-            raw_observation = getattr(env, "last_observation", None)
-            args = action_builder(action_name, raw_observation)
+            args = grounded_args.get(action_idx)
+            if args is None:
+                # Every legal action was ungroundable; fall back to the raw
+                # dispatch so the episode still advances instead of hanging.
+                try:
+                    args = action_builder(
+                        action_name, getattr(env, "last_observation", None)
+                    )
+                except Exception:  # noqa: BLE001
+                    args = {}
             next_obs, reward, terminated, info = env.step(action_name, args)
         buffer.store(
             obs=obs_vec,

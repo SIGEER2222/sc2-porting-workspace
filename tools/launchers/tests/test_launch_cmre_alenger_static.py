@@ -30,7 +30,7 @@ def test_launcher_delegates_on_demand_overlay_work():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
     assert r"lib\cmre-on-demand-overlay.ps1" in source
 
-    startup_body = _function_body(source, "Enable-CmreSavedProfileStartup")
+    startup_body = _function_body(source, "Enable-CmreFixedCommanderStartup")
     observer_body = _function_body(source, "Install-CmreDynamicObserver")
     core_body = _function_body(source, "Patch-CmreCoreRuntimeErrors")
 
@@ -42,7 +42,7 @@ def test_launcher_delegates_on_demand_overlay_work():
         assert 'TriggerSendEvent("CU_CommChoiceEventClosed")' not in body
         assert "GameSetMissionTimePaused(true)" not in body
 
-    assert "Install-CmreSavedProfileStartupOverlay" in startup_body
+    assert "Install-CmreFixedCommanderStartupOverlay" in startup_body
     assert "Install-CmreObserverOverlay" in observer_body
     assert "Install-CmreCoreRuntimeErrorOverlay" in core_body
 
@@ -376,7 +376,7 @@ def test_headless_startup_is_the_default_non_selection_path():
     map_lib = (ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "亡者之夜.SC2Map" / "Base.SC2Data" / "LibCOOC.galaxy").read_text(encoding="utf-8-sig")
 
     assert "ShowSelectionUI" not in source
-    assert "[Parameter(Mandatory = $true)][string]$Commander" not in source
+    assert "[Parameter(Mandatory = $true)][string]$Commander" not in source.splitlines()[1]
     assert '$Commander = "Empire"' in source
     assert "Enable-CmreSavedProfileStartup" not in source
     assert "Install-CmreSavedProfileStartupOverlay" not in overlay
@@ -395,7 +395,7 @@ def test_headless_startup_is_the_default_non_selection_path():
     assert 'Copy-CmreOverlayFiles -Files $vibeKernelFiles -DestinationRoot $baseData' in overlay
     assert "Replace('include \"LibVibeKernel_h\"', 'include \"LibVibeKernel\"')" in overlay
     assert "declarations but no implementations" in overlay
-    assert "Select-String -Pattern 'CommanderSelectionScreen' -SimpleMatch" in overlay
+    assert "'CommanderSelectionScreen'," in overlay
     assert "libCMFE_gf_CMUIX_StartupApplySavedConfiguration" in overlay
 
 

@@ -13,6 +13,7 @@ def _obs(
     supply_used: int = 5,
     enemies: list[dict] | None = None,
     workers: int = 3,
+    army_units: int = 0,
     progress: float = 0.0,
     night: int = 0,
     loop: int = 0,
@@ -29,6 +30,12 @@ def _obs(
             "entity_id": 10 + i, "unit_type_id": "SCV", "owner": 1,
             "x": 86, "y": 93, "health": 45, "shields": 0, "energy": 0,
             "state": "gathering", "orders": [],
+        })
+    for i in range(army_units):
+        units.append({
+            "entity_id": 50 + i, "unit_type_id": "Marine", "owner": 1,
+            "x": 84, "y": 92, "health": 45, "shields": 0, "energy": 0,
+            "state": "idle", "orders": [],
         })
     return {
         "loop": loop,
@@ -74,16 +81,32 @@ class RewardTrackerTests(unittest.TestCase):
         reward = tracker.compute(_obs(enemies=[]), False)
         self.assertGreater(reward, 0.0)
 
-    def test_progress_rewarded(self) -> None:
+    def test_progress_is_not_time_rewarded(self) -> None:
+        # Regression guard: mission progress (night-survival elapsed time) must
+        # NOT contribute a per-step reward. A time-driven term is identical for
+        # every action and erases the action->reward gradient (PPO could not
+        # learn: trained == random at raw_reward ~ 429). Changing only progress
+        # with no action-dependent delta must yield exactly 0.0.
         tracker = RewardTracker()
         tracker.compute(_obs(progress=0.0), False)
         reward = tracker.compute(_obs(progress=0.5), False)
-        self.assertGreater(reward, 0.0)
+        self.assertAlmostEqual(reward, 0.0)
 
-    def test_night_survival_bonus(self) -> None:
+    def test_night_alone_not_rewarded(self) -> None:
+        # Regression guard: night/loop advancing alone (no action-dependent
+        # delta) must yield 0.0 reward. Survival is rewarded emergently via
+        # accumulated army/kill shaping + the terminal victory/defeat credit.
         tracker = RewardTracker()
         tracker.compute(_obs(night=1, loop=5), False)
         reward = tracker.compute(_obs(night=1, loop=6), False)
+        self.assertAlmostEqual(reward, 0.0)
+
+    def test_army_growth_rewarded(self) -> None:
+        # Producing combat units (army delta) must be rewarded: this is the
+        # primary action-dependent build signal the policy should learn.
+        tracker = RewardTracker()
+        tracker.compute(_obs(army_units=1), False)
+        reward = tracker.compute(_obs(army_units=4), False)
         self.assertGreater(reward, 0.0)
 
     def test_worker_growth_rewarded(self) -> None:

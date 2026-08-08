@@ -118,6 +118,85 @@ class ActionGrounder:
         return args
 
 
+# Mirrors the simulator's ``CatalogSnapshot.abilities[*].kind`` and
+# ``casters_by_ability`` for the m7 catalog. Keeping a static copy here avoids
+# a hard dependency on the simulator package from the grounding layer while
+# still refusing to emit orders the engine is guaranteed to reject.
+ABILITY_TABLE: dict[str, tuple[str, tuple[str, ...]]] = {
+    "Stimpack": ("cast_no_target", ("Marine", "Marauder")),
+    "SiegeMode": ("cast_no_target", ("SiegeTank",)),
+    "Unsiege": ("cast_no_target", ("SiegeTank",)),
+    "GuardianShield": ("cast_no_target", ("Sentry",)),
+    "CloakOnBanshee": ("cast_no_target", ("Banshee",)),
+    "CloakOnGhost": ("cast_no_target", ("Ghost",)),
+    "BurrowDown": (
+        "cast_no_target",
+        ("Zergling", "Baneling", "Roach", "Hydralisk", "Infestor", "Ultralisk", "Drone"),
+    ),
+    "Blink": ("cast_point", ("Stalker",)),
+    "PsionicStorm": ("cast_point", ("HighTemplar",)),
+    "EMP": ("cast_point", ("Ghost",)),
+    "FungalGrowth": ("cast_point", ("Infestor",)),
+    "SpawnLocusts": ("cast_point", ("SwarmHost",)),
+    "Heal": ("cast_unit", ("Medivac",)),
+    "Feedback": ("cast_unit", ("HighTemplar",)),
+    "YamatoCannon": ("cast_unit", ("Battlecruiser",)),
+    "Abduct": ("cast_unit", ("Viper",)),
+    "NeuralParasite": ("cast_unit", ("Infestor",)),
+    "SpawnLarva": ("cast_unit", ("Queen",)),
+}
+
+# Morph products keyed by the unit type that can morph into them. Terran has no
+# morphs in the m7 catalog (SiegeMode is an ability, not a morph), so a Terran
+# scenario legitimately has no groundable morph.
+MORPH_SOURCES: dict[str, tuple[str, ...]] = {
+    "Larva": (
+        "Drone", "Overlord", "Zergling", "Roach", "Hydralisk",
+        "Mutalisk", "Corruptor", "Infestor", "SwarmHost", "Viper", "Queen",
+    ),
+    "Zergling": ("Baneling",),
+    "Corruptor": ("BroodLord",),
+    "Gateway": ("WarpGate",),
+    "Drone": ("Hatchery", "SpawningPool", "Extractor", "EvolutionChamber"),
+}
+
+
+def _pick_ability(
+    own: list[Mapping[str, Any]], kind: str
+) -> tuple[str, Mapping[str, Any]]:
+    """Return ``(ability_id, caster)`` for an ability we can actually cast.
+
+    Raises ``ActionGroundingError`` when no owned unit can cast anything of the
+    requested kind, so the action is skipped rather than dispatched into a
+    guaranteed engine rejection.
+    """
+
+    by_type: dict[str, Mapping[str, Any]] = {}
+    for unit in own:
+        by_type.setdefault(_unit_type(unit), unit)
+    for ability, (ability_kind, casters) in ABILITY_TABLE.items():
+        if ability_kind != kind:
+            continue
+        for caster_type in casters:
+            unit = by_type.get(caster_type)
+            if unit is not None:
+                return ability, unit
+    raise ActionGroundingError(f"no_caster_for:{kind}")
+
+
+def _pick_morph(own: list[Mapping[str, Any]]) -> tuple[str, Mapping[str, Any]]:
+    """Return ``(product, source_unit)`` for a viable morph order."""
+
+    by_type: dict[str, Mapping[str, Any]] = {}
+    for unit in own:
+        by_type.setdefault(_unit_type(unit), unit)
+    for source_type, products in MORPH_SOURCES.items():
+        unit = by_type.get(source_type)
+        if unit is not None and products:
+            return products[0], unit
+    raise ActionGroundingError("no_morph_source")
+
+
 def _match_producer(
     own: list[Mapping[str, Any]],
 ) -> tuple[str, Mapping[str, Any] | None]:

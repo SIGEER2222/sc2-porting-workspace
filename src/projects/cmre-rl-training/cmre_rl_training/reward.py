@@ -4,6 +4,18 @@ Derives dense (per-step) and terminal rewards from the public mission context
 without accessing hidden simulator state. All signals come from fields already
 present in the observation dict: ``own_units``, ``visible_enemies``,
 ``resources``, ``mission``.
+
+Reward-design contract (verified 2026-08-08)
+--------------------------------------------
+EVERY per-step term MUST be a function of an *action-dependent* quantity, not
+of elapsed time. A previous revision weighted ``W_PROGRESS = 5.0`` (mission
+progress = night-survival elapsed time) and ``W_NIGHT_SURVIVAL``. Those terms
+are identical for every action inside an episode, so the per-step TD target
+collapsed to ``f(loop)`` and the GAE advantage carried only the tiny
+kill/army deltas -> advantage SNR ~ 0 -> PPO could not learn (trained == random
+at raw_reward ~ 429). They are intentionally removed. Survival is still
+rewarded emergently: a longer episode accumulates more army/kill shaping and
+ends on the terminal victory/defeat credit.
 """
 
 from __future__ import annotations
@@ -25,16 +37,19 @@ _VICTORY_REASONS = frozenset({
     "victory", "all_objectives_success", "survive_loops", "max_loops_reached",
 })
 
-# Reward weights (tunable)
-W_BASE_HP_DELTA = 0.01
-W_SUPPLY_DELTA = 0.05
-W_ENEMY_HP_DELTA = 0.002
-W_ENEMY_KILLED = 0.1
-W_PROGRESS = 5.0
-W_NIGHT_SURVIVAL = 0.01
-W_WORKER_DELTA = 0.02
-W_ENEMY_PRESENCE = -0.10
-W_ARMY_PRESENCE = 0.05
+# Reward weights (tunable).
+#
+# All weights below are ACTION-DEPENDENT: they respond to production (supply /
+# worker / army deltas), combat (enemy damage / kills / threat), base defense,
+# or terminal outcome. None of them is a function of elapsed time.
+W_BASE_HP_DELTA = 0.004      # defend the base: reward recovered/kept HP
+W_SUPPLY_DELTA = 0.10        # economy: bigger army cap / more units produced
+W_ARMY_DELTA = 0.50          # actually training a combat unit (clear build signal)
+W_ENEMY_HP_DELTA = 0.02      # damage dealt to enemies (action-driven)
+W_ENEMY_KILLED = 1.0         # confirmed kill (strong, unambiguous gradient)
+W_WORKER_DELTA = 0.10        # economy: more workers gathering
+W_ENEMY_PRESENCE = -0.05     # threat penalty: fewer live enemies near base is better
+W_ARMY_PRESENCE = 0.10       # sustained fighting force (potential-like shaping)
 W_TERMINAL_VICTORY = 10.0
 W_TERMINAL_DEFEAT = -10.0
 
@@ -48,10 +63,9 @@ class RewardTracker:
     def reset(self) -> None:
         self._prev_base_hp: float = 0.0
         self._prev_supply_used: int = 0
+        self._prev_army_count: int = 0
         self._prev_enemy_count: int = 0
         self._prev_enemy_hp: float = 0.0
-        self._prev_progress: float = 0.0
-        self._prev_night: int = 0
         self._prev_worker_count: int = 0
         self._prev_loop: int = 0
         self._initialized: bool = False
@@ -71,7 +85,6 @@ class RewardTracker:
         own_units = list(obs.get("own_units", []))
         enemies = list(obs.get("visible_enemies", []))
         resources = dict(obs.get("resources", {}))
-        mission = dict(obs.get("mission", {}))
 
         bases = [u for u in own_units if str(u.get("unit_type_id", "")) in _BASE_TYPES]
         workers = [u for u in own_units if str(u.get("unit_type_id", "")) in _WORKER_TYPES]
@@ -81,19 +94,14 @@ class RewardTracker:
         supply_used = int(resources.get("supply_used", 0))
         enemy_count = len(enemies)
         enemy_hp = sum(float(u.get("health", 0)) for u in enemies)
-        progress = float(mission.get("progress", 0.0))
-        if progress > 1.0:
-            progress /= 100.0
-        night = int(mission.get("night", 0))
         loop = int(obs.get("loop", 0))
 
         if not self._initialized:
             self._prev_base_hp = base_hp
             self._prev_supply_used = supply_used
+            self._prev_army_count = army_count
             self._prev_enemy_count = enemy_count
             self._prev_enemy_hp = enemy_hp
-            self._prev_progress = progress
-            self._prev_night = night
             self._prev_worker_count = len(workers)
             self._prev_loop = loop
             self._initialized = True
@@ -101,62 +109,56 @@ class RewardTracker:
 
         reward = 0.0
 
-        # Base survival: penalize HP loss *only* via its delta. A constant
-        # "alive" bonus would be identical for every action (base HP barely
-        # moves within an episode) and therefore carry no learning signal, so
-        # it is intentionally omitted. Using the RAW fixed-point HP value for
-        # such a term also produced a ~153.0 constant per step (raw HP ~1.5M *
-        # 1e-4), which zeroed the policy gradient entirely.
+        # Base survival: only the HP *delta* is rewarded. A constant "alive"
+        # bonus would be identical for every action and carry no gradient; the
+        # raw fixed-point HP value (~1.5M * 1e-4) also produced a ~153.0
+        # constant per step that zeroed the policy gradient entirely.
         base_hp_delta = base_hp - self._prev_base_hp
         reward += base_hp_delta * W_BASE_HP_DELTA
 
-        # Economic growth: reward supply increase
+        # Economic growth: reward supply and worker increases (production).
         supply_delta = supply_used - self._prev_supply_used
         reward += supply_delta * W_SUPPLY_DELTA
 
-        # Enemy killed: reward damage and kills
+        # Army growth: reward actually training combat units.
+        army_delta = army_count - self._prev_army_count
+        if army_delta > 0:
+            reward += army_delta * W_ARMY_DELTA
+
+        # Combat: damage and kills.
         enemy_hp_delta = self._prev_enemy_hp - enemy_hp
         reward += enemy_hp_delta * W_ENEMY_HP_DELTA
         enemy_count_delta = self._prev_enemy_count - enemy_count
         if enemy_count_delta > 0:
             reward += enemy_count_delta * W_ENEMY_KILLED
 
-        # Mission progress
-        progress_delta = progress - self._prev_progress
-        reward += progress_delta * W_PROGRESS
-
-        # Night survival bonus
-        if night > 0 and night == self._prev_night:
-            reward += W_NIGHT_SURVIVAL
-
-        # Worker growth
+        # Worker growth.
         worker_delta = len(workers) - self._prev_worker_count
         reward += worker_delta * W_WORKER_DELTA
 
-        # Dense state shaping (policy-controllable, not a constant bonus): a
-        # larger own army and fewer visible enemies are continuously rewarded,
-        # pulling the policy toward "build and keep a fighting force". Unlike a
-        # constant base-alive bonus, these terms *change* with the policy's own
-        # production choices (army grows when it builds units), so they carry a
-        # real, dense gradient instead of a zero-signal constant.
+        # Dense state shaping (policy-controllable): a larger own army and fewer
+        # visible enemies are continuously rewarded, pulling the policy toward
+        # "build and keep a fighting force". Unlike a constant base-alive
+        # bonus, these terms *change* with the policy's own choices, so they
+        # carry a real, dense gradient.
         reward += W_ENEMY_PRESENCE * enemy_count
         reward += W_ARMY_PRESENCE * army_count
 
-        # Terminal reward
+        # Terminal reward.
         if terminated:
+            mission = dict(obs.get("mission", {}))
             end_reason = str(mission.get("end_reason", ""))
             if end_reason in _VICTORY_REASONS:
                 reward += W_TERMINAL_VICTORY
             else:
                 reward += W_TERMINAL_DEFEAT
 
-        # Update previous state
+        # Update previous state.
         self._prev_base_hp = base_hp
         self._prev_supply_used = supply_used
+        self._prev_army_count = army_count
         self._prev_enemy_count = enemy_count
         self._prev_enemy_hp = enemy_hp
-        self._prev_progress = progress
-        self._prev_night = night
         self._prev_worker_count = len(workers)
         self._prev_loop = loop
 
