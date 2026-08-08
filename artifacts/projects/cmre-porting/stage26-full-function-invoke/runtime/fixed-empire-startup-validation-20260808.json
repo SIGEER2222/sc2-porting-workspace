@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "stage": "26-full-function-invoke",
+  "task": "fixed-empire-launcher-startup",
+  "status": "PARTIAL",
+  "evidence": [
+    {
+      "classification": "static",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -NoLaunch -MapCopySuffix 'fixed-empire-20260808-final'",
+      "observed": "Launcher completed staging with the fixed Empire startup overlay and no Commander input."
+    },
+    {
+      "classification": "static",
+      "command": "Read staged Base.SC2Data/LibCOOC.galaxy",
+      "observed": {
+        "fixedMarker": true,
+        "commanderSelectionScreen": false,
+        "savedProfileEntry": false,
+        "empirePlayer1": true,
+        "empirePlayer2": true
+      }
+    },
+    {
+      "classification": "static",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -Commander Empire -DryRun",
+      "observed": "PowerShell rejected the legacy Commander parameter before launcher execution."
+    },
+    {
+      "classification": "blocked",
+      "command": "Get-Process SC2_x64",
+      "observed": "An existing SC2_x64 process owned the current GameLogs session. It was not terminated or reused, so this change has no new live UI or ScriptError evidence."
+    }
+  ]
+}

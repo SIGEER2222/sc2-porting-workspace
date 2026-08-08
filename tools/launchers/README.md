@@ -17,7 +17,7 @@
 
 | 脚本 | 用途 | 推荐命令 | 本次验证 |
 | --- | --- | --- | --- |
-| `launch-cmre-alenger.ps1` | 当前 CMRE/Alenger/Reborn 主入口；支持 on-demand overlay、API/debug、隔离地图副本。 | `pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\launchers\launch-cmre-alenger.ps1 -MapName "亡者之夜.SC2Map" -Commander Empire -NoLaunch -MapCopySuffix <suffix>` | PASS：`-DryRun`、`-NoLaunch`、真实启动均 exit 0。 |
+| `launch-cmre-alenger.ps1` | 当前固定 Empire 的 CMRE 主入口；支持 on-demand overlay、API/debug、隔离地图副本。 | `pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\launchers\launch-cmre-alenger.ps1 -MapName "亡者之夜.SC2Map" -NoLaunch -MapCopySuffix <suffix>` | PASS：`-DryRun`、`-NoLaunch`、真实启动均 exit 0。 |
 | `vibe.ps1` | simulator-first Vibe 入口；不会启动 SC2。 | `pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\launchers\vibe.ps1 probe` | PASS：`probe` exit 0；`-Backend sc2` 按设计拒绝。 |
 
 ## 条件入口 / 当前阻塞
@@ -35,7 +35,6 @@
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\launchers\launch-cmre-alenger.ps1 `
   -MapName "亡者之夜.SC2Map" `
-  -Commander Empire `
   -NoLaunch `
   -MapCopySuffix "dev"
 ```
@@ -44,8 +43,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\launchers\launch-cmre-alen
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\launchers\launch-cmre-alenger.ps1 `
-  -MapName "亡者之夜.SC2Map" `
-  -Commander Empire
+  -MapName "亡者之夜.SC2Map"
 ```
 
 普通真实启动不要带 `-MapCopySuffix`；本机实测隔离子目录只生成 SystemInfo/Graphics/UI，没有 `Alerts.txt`/runtime listener，无法作为直接进图证据。`-MapCopySuffix` 仍可用于 `-NoLaunch` staging 或 API/debug 路径。
@@ -55,22 +53,14 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\launchers\launch-cmre-alen
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\launchers\launch-cmre-alenger.ps1 `
   -MapName "亡者之夜.SC2Map" `
-  -Commander Empire `
   -ListenPort 5000 `
   -DebugMode `
   -MapCopySuffix "api"
 ```
 
-### Reborn commander 兼容路径
+### 指挥官策略
 
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\tools\launchers\launch-cmre-alenger.ps1 `
-  -MapName "亡者之夜.SC2Map" `
-  -Commander ZergZagara `
-  -EnableReborn `
-  -RebornCommander Zagara `
-  -MapCopySuffix "reborn"
-```
+`launch-cmre-alenger.ps1` 固定启动 `Empire`，不再接受 `-Commander`、`-EnableReborn` 或 `-RebornCommander`。地图启动路径直接完成 P1/P2 的 Empire 初始化，并删除 CMRE 指挥官选择入口。
 
 ### Vibe simulator probe
 

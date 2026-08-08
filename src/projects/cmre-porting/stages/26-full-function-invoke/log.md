@@ -139,3 +139,21 @@
 - 计划指定三档 run（launcher -InvokeTier 100/1000/0）与 runtime_invoke_probe.py
   --sample/--census 待含包有效地图就绪后补；当前 runtime-staged-rollout /
   runtime-tier100-custom-probe 标记 PARTIAL，runtime-script-error-gate 标记 PASS。
+
+### 2026-08-08 固定 Empire 启动与选择界面移除
+- 改动：`launch-cmre-alenger.ps1` 删除顶层 `-Commander`、`-EnableReborn`、
+  `-RebornCommander` 输入，固定为 `Empire`；`LibCOOC.galaxy` 与 staged overlay
+  改用 `CMRE_ON_DEMAND_FIXED_EMPIRE_STARTUP`，直接完成 P1/P2 commander 状态，
+  不再调用 saved-profile 或 `CommanderSelectionScreen`。
+- static：`python -m pytest -q tools/launchers/tests` → 59 passed；两个 PowerShell
+  文件 AST 解析通过。
+- static/MVP staging：`powershell -NoProfile -ExecutionPolicy Bypass -File
+  tools/launchers/launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -NoLaunch
+  -MapCopySuffix 'fixed-empire-20260808-final'` 成功。实际 staged `LibCOOC.galaxy`
+  含固定启动标记与 P1/P2 Empire 写入，不含 `CommanderSelectionScreen` 或
+  `libCMFE_gf_CMUIX_StartupApplySavedConfiguration`。旧 `-Commander Empire`
+  参数被 PowerShell 参数绑定拒绝。
+- blocked runtime：检查发现一个既有 `SC2_x64` 进程持有当前 GameLogs；为避免中断
+  外部运行中的游戏，本次未停止、复用或覆盖该进程，故没有新 live UI/listener/
+  ScriptError 证据。详情见
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/fixed-empire-startup-validation-20260808.json`。

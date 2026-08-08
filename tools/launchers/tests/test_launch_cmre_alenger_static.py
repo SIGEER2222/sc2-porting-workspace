@@ -376,8 +376,13 @@ def test_headless_startup_is_the_default_non_selection_path():
     map_lib = (ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "亡者之夜.SC2Map" / "Base.SC2Data" / "LibCOOC.galaxy").read_text(encoding="utf-8-sig")
 
     assert "ShowSelectionUI" not in source
-    assert "[Parameter(Mandatory = $true)][string]$Commander" not in source.splitlines()[1]
+    top_level_params = source.splitlines()[1]
+    assert "[Parameter(Mandatory = $true)][string]$Commander" not in top_level_params
+    assert "$EnableReborn" not in top_level_params
+    assert "$RebornCommander" not in top_level_params
     assert '$Commander = "Empire"' in source
+    assert "CMRE Alenger selection:" not in source
+    assert "CMRE fixed startup:" in source
     assert "Enable-CmreSavedProfileStartup" not in source
     assert "Install-CmreSavedProfileStartupOverlay" not in overlay
     assert "ShowSelectionUI" not in overlay

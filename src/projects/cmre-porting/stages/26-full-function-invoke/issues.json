@@ -6,12 +6,23 @@
       "id": "RUNTIME-LIVE-VALIDATION-BLOCKED",
       "severity": "medium",
       "status": "open",
-      "title": "Live runtime validation (staged rollout, sampling, census, ScriptError gate) blocked on this machine",
-      "detail": "本机无 SC2 安装，分档放量实测（逐档编译时间/包体积）、类型族抽样实调、只读普查与同窗口 ScriptError 零新增门均无法在本机执行。2026-08-06 穷尽排查确认缺失：注册表卸载项与 Blizzard Entertainment\\StarCraft II 键均无、全部盘符 8 类候选安装位（SC2\\SC2new\\StarCraft II 等）均不存在、无 SC2_x64/SC2 运行进程、artifacts/runtime/sc2-runtime-lease.json 不存在。机制与选择证据已就绪：tier dispatch 变体 + overlay -InvokeTier 0|100|1000 放量开关；runtime_invoke_probe.py 支持 --sample/--census（预算+超时保护）；--plan-only 已产出 55 族样本与 200 普查候选分类清单。",
+      "title": "Full generated-adapter runtime validation remains incomplete",
+      "detail": "SC2 已安装，tier100 probe 已取得 Kernel/transport/ScriptError runtime 证据；但完整 generated adapter bundle 尚无有效打包 .SC2Map，无法完成 tier 100/1000/0、类型族抽样与只读普查。",
       "evidence_type": "blocked",
-      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/probe-selection.json",
+      "evidence": "artifacts/galaxy-vibe/tier100-live-verdict.json",
       "owner": "environment",
-      "nextAction": "在有 SC2 的机器上：launcher -InvokeTier 100 → 1000 → 0 逐档记录编译时间与地图包体积；执行 runtime_invoke_probe.py --sample 与 --census 产出普查 JSON；走 Assert-CmreNoNewScriptErrors 门确认同窗口 ScriptError 零新增。"
+      "nextAction": "完成含生成 adapter bundle 的 .SC2Map MPQ 打包后，执行 launcher -InvokeTier 100 → 1000 → 0，并运行 runtime_invoke_probe.py --sample/--census。"
+    },
+    {
+      "id": "FIXED-EMPIRE-LIVE-UI-VALIDATION-BLOCKED",
+      "severity": "low",
+      "status": "open",
+      "title": "Fixed Empire startup has no new live UI evidence",
+      "detail": "最终无 Commander/Reborn 参数的 staging 已通过，且 staged LibCOOC 不含选择入口；检查时已有 SC2_x64 进程占用 GameLogs。为避免中断外部会话，未终止、复用或覆盖该进程，所以本次改动尚无 listener、截图或同窗口 ScriptError 的 live UI 证据。",
+      "evidence_type": "blocked",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/fixed-empire-startup-validation-20260808.json",
+      "owner": "environment",
+      "nextAction": "在无既有 SC2 会话时，通过 launch-cmre-alenger.ps1 非隔离启动，采集 runtime listener、固定 Empire 起始状态与同窗口 ScriptError 结果。"
     },
     {
       "id": "ROUTING-MISDISPATCH-FIXED",

@@ -36,7 +36,13 @@
     "tools/galaxy-vibe/tests/test_kernel.py",
     "tools/launchers/launch-cmre-alenger.ps1",
     "tools/launchers/lib/cmre-on-demand-overlay.ps1",
-    "tools/launchers/tests/test_launch_cmre_alenger_static.py"
+    "tools/launchers/tests/test_launch_cmre_alenger_static.py",
+    "tools/launchers/README.md",
+    "tools/launchers/overlays/cmre-alenger/startup/fixed-empire-startup.galaxy",
+    "tools/launchers/overlays/cmre-alenger/startup/saved-profile-body.galaxy.tpl",
+    "tools/launchers/overlays/cmre-alenger/startup/player-commander.galaxy.tpl",
+    "src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/LibCOOC.galaxy",
+    "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/fixed-empire-startup-validation-20260808.json"
   ],
   "verification": [
     {
@@ -75,7 +81,7 @@
       "name": "overlay-and-launcher-static-tests",
       "command": "python -m pytest -q tools/launchers/tests",
       "status": "PASS",
-      "detail": "23 passed，含新增 test_observer_overlay_mounts_invoke_bundle_with_rollout_tiers 与 test_launcher_top_level_passes_invoke_tier_to_observer_overlay；PS1 AST 语法校验通过"
+      "detail": "59 passed，含 fixed Empire startup/commander-selection removal 回归测试；PS1 AST 语法校验通过"
     },
     {
       "name": "runtime-staged-rollout",
@@ -104,6 +110,20 @@
       "status": "PARTIAL",
       "detail": "live 实证：Kernel 自注册(kernel_initialized+register_entrypoints_done) + system.ping 3/3 闭环 + vibe.unit.spawn 刷 Marine 经 SC2 原始观测独立确认(+1) + vibe.query.units 自查一致(count=1) + function.invoke 路由到 Kernel 返回结构化响应。gen.* 真机原生执行未达成：加载地图未挂载生成 adapter 包，gen.1/gen.11800 均返 FUNCTION_NOT_IN_MAP（transport+路由已实证，原生执行待含包有效地图）。",
       "evidence": "artifacts/galaxy-vibe/tier100-live-verdict.json"
+    },
+    {
+      "name": "fixed-empire-launcher-staging",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -NoLaunch -MapCopySuffix 'fixed-empire-20260808-final'",
+      "status": "PASS",
+      "detail": "最终 launcher 参数面无 Commander/Reborn 选择输入；实际 staged LibCOOC 含固定 Empire 启动标记与 P1/P2 设置，不含 CommanderSelectionScreen 或 saved-profile 入口。旧 -Commander 参数由 PowerShell 参数绑定拒绝。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/fixed-empire-startup-validation-20260808.json"
+    },
+    {
+      "name": "fixed-empire-live-ui-and-script-error-gate",
+      "command": "launch-cmre-alenger.ps1 (non-isolated live launch)",
+      "status": "BLOCKED",
+      "detail": "既有 SC2_x64 进程持有当前 GameLogs；为不干扰外部运行中会话，未启动第二个实例或终止该进程，因此没有本次改动的 listener/UI/ScriptError runtime 证据。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/fixed-empire-startup-validation-20260808.json"
     }
   ],
   "numbers": {

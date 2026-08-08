@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [string]$MapSourceOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$DirectMapApi, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "", [int]$InvokeTier = 0)
+param([Parameter(Mandatory = $true)][string]$MapName, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [string]$MapSourceOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$DirectMapApi, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "", [int]$InvokeTier = 0)
 # -MapCopySuffix: 可选的地图副本后缀，用于避免多会话同时操作同一 live 地图导致 DocumentInfo 冲突。
 # 例如 -MapCopySuffix "reborn" 会使用 Maps\亡者之夜.SC2Map.reborn\ 作为 live 地图。
 # 不指定时使用原始路径（向后兼容）。
@@ -8,6 +8,12 @@ $ErrorActionPreference = "Stop"
 # This launcher has one canonical CMRE commander. The map-side startup is
 # patched to the same value, so no caller can route into commander selection.
 $Commander = "Empire"
+# Reborn selection uses a separate commander picker and is intentionally not
+# exposed by this fixed-profile entry point.
+$EnableReborn = $false
+$RebornCommander = ""
+$RebornDifficulty = 5
+$RebornSpeed = 5
 # 模式校验：PlayerMode 和 DebugMode 互斥；DebugMode 自动启用 ApiMinimal 并要求 ListenPort
 if ($PlayerMode -and $DebugMode) { throw "-PlayerMode 和 -DebugMode 互斥，不能同时使用" }
 if ($DebugMode) {
@@ -329,7 +335,7 @@ $dependencies = Merge-CmreMapDependencies -BaseDependencies $dependencies -Sourc
 if ($sourceMapDependencies.Count -gt 0) {
     Write-Host "Preserved source map dependencies: $($sourceMapDependencies -join ', ')"
 }
-Write-Host "CMRE Alenger selection: $MapName x $Commander"
+Write-Host "CMRE fixed startup: $MapName x $Commander"
 Write-Host "On-demand packages: $($selectedMods -join ', ')"
 if ($DryRun) { $dependencies | ForEach-Object { Write-Host "  $_" }; exit 0 }
 
