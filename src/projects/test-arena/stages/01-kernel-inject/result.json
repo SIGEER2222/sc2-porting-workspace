@@ -1,0 +1,73 @@
+{
+  "stage_id": "01-kernel-inject",
+  "schemaVersion": 1,
+  "status": "IN_PROGRESS",
+  "current_phase": "静态验证通过（MPQ 打包 + include 闭包完整）；运行时验证待执行",
+  "opened_at": "2026-08-08T00:00:00+08:00",
+  "closed_at": null,
+  "direction": "将斗蛐蛐调试地图注入 LibVibeKernel tier0，搭出可被 vibe_host 连接的测试骨架",
+  "plan": "src/projects/test-arena/stages/01-kernel-inject/plan.md",
+  "acceptance_criteria": {
+    "kernel_injected": {
+      "status": "STATIC_PASS",
+      "evidence_type": "static",
+      "detail": "MapScript.galaxy 已 patch（3 include + InitLib），4 个内核文件在 MPQ 内，include 闭包自洽"
+    },
+    "tier0_transport": {
+      "status": "PENDING",
+      "evidence_type": "runtime",
+      "detail": "需启动地图后由 vibe_host P0 探针验证 Bank 出现 kernel_initialized 标记"
+    },
+    "ai_ally_ml_carrier": {
+      "status": "DEFERRED",
+      "evidence_type": "runtime",
+      "detail": "后续阶段逐步落地，本阶段只搭 tier0 骨架"
+    }
+  },
+  "verification_results": {
+    "pack": {
+      "status": "PASS",
+      "command": "powershell -File tools/launchers/launch-test-arena.ps1 -NoLaunch",
+      "output": "54 files packed, 0.47 MB",
+      "evidence_type": "static"
+    },
+    "mpq_integrity": {
+      "status": "PASS",
+      "command": "StormLib SFileOpenArchive",
+      "evidence_type": "static"
+    },
+    "include_closure": {
+      "status": "PASS",
+      "checked_files": [
+        "MapScript.galaxy",
+        "Base.SC2Data/LibVibeKernel.galaxy",
+        "Base.SC2Data/LibVibeKernel_h.galaxy",
+        "Base.SC2Data/LibVibeHandles.galaxy",
+        "Base.SC2Data/LibVibeInvokeDispatch_active.galaxy"
+      ],
+      "closure_chain": "MapScript -> LibVibeKernel -> LibVibeKernel_h (declares libVibeInvoke_gf_Dispatch) -> LibVibeInvokeDispatch_active (provides body) -> LibVibeHandles (depends on libVibeKernel_gf_FindUnitByTag)",
+      "evidence_type": "static"
+    },
+    "kernel_unit_test": {
+      "status": "BLOCKED",
+      "reason": "protobuf version conflict in Python environment (generated code needs protoc >= 3.19)",
+      "evidence_type": "static"
+    }
+  },
+  "outputs": [
+    "src/projects/test-arena/project.json",
+    "src/projects/test-arena/stages/01-kernel-inject/plan.md",
+    "src/projects/test-arena/stages/01-kernel-inject/log.md",
+    "src/projects/test-arena/stages/01-kernel-inject/result.json",
+    "src/projects/test-arena/stages/01-kernel-inject/issues.json",
+    "src/projects/test-arena/packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map/MapScript.galaxy",
+    "src/projects/test-arena/packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map/Base.SC2Data/LibVibeKernel.galaxy",
+    "src/projects/test-arena/packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map/Base.SC2Data/LibVibeKernel_h.galaxy",
+    "src/projects/test-arena/packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map/Base.SC2Data/LibVibeHandles.galaxy",
+    "src/projects/test-arena/packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map/Base.SC2Data/LibVibeInvokeDispatch_active.galaxy",
+    "tools/galaxy-vibe/consumers/test-arena/consumer.json",
+    "tools/launchers/launch-test-arena.ps1",
+    "artifacts/projects/test-arena/stage01/test-arena.SC2Map"
+  ],
+  "note": "静态验证全部通过。运行时验证（vibe_host P0 探针 + kernel_initialized Bank 标记）待用户确认后执行。"
+}

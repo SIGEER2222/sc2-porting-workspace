@@ -1,0 +1,29 @@
+{
+  "consumer_id": "test-arena-debug-map",
+  "map": "地图调试和斗蛐蛐工具（完整功能版)",
+  "commander": null,
+  "launcher": "tools/launchers/launch-test-arena.ps1",
+  "description": "斗蛐蛐调试地图测试消费者：独立地图，无 commander mod，承载 vibe kernel tier0 传输层验证",
+  "map_specific": {
+    "start_location_known": true,
+    "has_neutral_buildings": false,
+    "mission_type": "sandbox",
+    "max_players": 16,
+    "has_commander_mod": false,
+    "vibe_tier": 0,
+    "injected_kernel_files": [
+      "Base.SC2Data/LibVibeKernel.galaxy",
+      "Base.SC2Data/LibVibeKernel_h.galaxy",
+      "Base.SC2Data/LibVibeHandles.galaxy",
+      "Base.SC2Data/LibVibeInvokeDispatch_active.galaxy"
+    ]
+  },
+  "recipe": {
+    "recipe_id": "test-arena-tier0-ping",
+    "steps": [
+      {"action": "reset", "request_id": "arena-reset"},
+      {"action": "ping", "request_id": "arena-ping", "expected_verdict": "passed", "id": "arena-assert-kernel-ready"}
+    ]
+  },
+  "adapter_notes": "独立调试地图，MapScript.galaxy 已 patch（include LibVibeKernel/Handles/InvokeDispatch_active + lllAtg 调 libVibeKernel_InitLib）。无 PreventDefeat 需求（沙盒地图无失败条件）。运行时需先 pack-sc2map 打包解包目录为 .SC2Map 再加载。"
+}

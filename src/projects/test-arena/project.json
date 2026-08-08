@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "test-arena",
+  "goal": "以斗蛐蛐调试地图为专属测试地图，承载运行时 VM、通用函数库、AI 盟友、ML 训练的集成与验证",
+  "sources": [
+    {
+      "sourceId": "debug-arena-map-download",
+      "path": "packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map",
+      "role": "owned-test-map",
+      "origin": "C:\\Users\\22448\\Downloads\\地图调试和斗蛐蛐工具（完整功能版).SC2Map"
+    }
+  ],
+  "target": {
+    "map": "地图调试和斗蛐蛐工具（完整功能版)",
+    "series": "test-arena"
+  },
+  "currentStage": "01-kernel-inject",
+  "writeScope": [
+    "src/projects/test-arena/**",
+    "tools/galaxy-vibe/consumers/test-arena/**",
+    "tools/launchers/launch-test-arena.ps1",
+    "tools/launchers/lib/test-arena-overlay.ps1",
+    "artifacts/projects/test-arena/**"
+  ],
+  "acceptance": [
+    "斗蛐蛐地图已注入 LibVibeKernel 并能被 vibe_host 连接，Bank 出现 kernel_initialized 标记",
+    "运行时 VM 与通用函数库在测试地图上可调用（tier0 传输层验证通过）",
+    "AI 盟友与 ML 训练可在测试地图上承载（后续阶段逐步落地）"
+  ]
+}

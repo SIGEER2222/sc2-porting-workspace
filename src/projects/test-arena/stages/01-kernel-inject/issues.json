@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "01-kernel-inject",
+  "issues": [
+    {
+      "id": "ARENA-001",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "pack-sc2map.ps1 workspaceRoot 路径计算错误",
+      "description": "pack-sc2map.ps1 上溯 4 级到 SC2VibeTools 而非 3 级到 sc2-porting-workspace，导致找不到 StormLib.dll",
+      "resolution": "launch-test-arena.ps1 绕过 pack-sc2map.ps1，直接调用 pack_stormlib.py 并传正确路径",
+      "evidence_type": "static"
+    },
+    {
+      "id": "ARENA-002",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "pack_stormlib.py 未过滤 MPQ 内部元数据文件",
+      "description": "解包产生的 (attributes)/(listfile) 被 pack_stormlib.py 当普通文件添加，SFileAddFileEx 拒绝（Win32 error 10003）",
+      "resolution": "pack_stormlib.py 增加 not path.name.startswith('(') 过滤条件",
+      "evidence_type": "static"
+    },
+    {
+      "id": "ARENA-003",
+      "severity": "low",
+      "status": "open",
+      "title": "test_kernel.py protobuf 版本冲突",
+      "description": "s2clientprotocol generated code 需 protoc >= 3.19，当前 TRAE Python 环境 protobuf 版本过新",
+      "resolution": null,
+      "note": "环境兼容性问题，与地图注入无关。运行时验证使用 launch-test-arena.ps1 自带 Python 环境，不受影响。",
+      "evidence_type": "static"
+    },
+    {
+      "id": "ARENA-004",
+      "severity": "high",
+      "status": "open",
+      "title": "运行时验证待执行",
+      "description": "需启动地图 → vibe_host 连接 → Bank kernel_initialized 标记 → GameLogs ScriptError 复核",
+      "resolution": null,
+      "note": "静态验证已通过，运行时验证需用户确认后执行",
+      "evidence_type": "runtime"
+    }
+  ]
+}

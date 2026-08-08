@@ -32,7 +32,9 @@ def main() -> None:
     if not args.stormlib.is_file():
         raise SystemExit(f"StormLib DLL not found: {args.stormlib}")
 
-    files = [path for path in args.input_dir.rglob("*") if path.is_file()]
+    # Skip MPQ-internal metadata files: (attributes), (listfile), (signature)
+    # StormLib manages these automatically; adding them manually causes SFileAddFileEx to fail.
+    files = [path for path in args.input_dir.rglob("*") if path.is_file() and not path.name.startswith("(")]
     if not files:
         raise SystemExit("Input directory contains no files")
 

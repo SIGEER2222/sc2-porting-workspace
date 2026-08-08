@@ -1,0 +1,159 @@
+include "TriggerLibs/NativeLib"
+
+// === LibVibeKernel: SC2 Vibe 框架的运行时 Kernel ===
+// 职责：
+//   1. 接收 Host 下发的 RPC 请求（Bank 轮询或聊天前缀 "!vibe"）
+//   2. 解析 protocol_version/session_id/request_id/sequence/operation/args/checksum
+//   3. 在白名单注册表中查找操作 handler
+//   4. 校验参数、执行幂等检查
+//   5. 调用对应 Galaxy 函数（spawn/kill/set_vital/set_resource/query/visual）
+//   6. 将 ack/result/error 写入 GalaxyVibe.SC2Bank 供 Host 读取
+//
+// 设计原则（依据 sc2-vibe完整实施计划.md）：
+//   - 不提供任意 call FuncName 能力（白名单 100% 拒绝未知操作）
+//   - function.invoke 只允许 function-registry.json 中的显式 function_id
+//   - 重复 request_id 返回原结果不重复执行（幂等）
+//   - 过期 session/乱序/越界参数显式拒绝
+//   - 状态版本号每次副作用递增
+
+// ---- 全局状态 ----
+bool   libVibeKernel_gv_initialized = false;
+int    libVibeKernel_gv_stateVersion = 0;
+string libVibeKernel_gv_currentSession = "";
+int    libVibeKernel_gv_lastSequence = -1;
+string libVibeKernel_gv_lastRequestId = "";
+string libVibeKernel_gv_lastResponseJson = "";
+int    libVibeKernel_gv_requestCount = 0;
+int    libVibeKernel_gv_rejectedCount = 0;
+
+// ---- unit tag 查找缓存 ----
+// FindUnitByTag 原本是 O(15 玩家 × 全图单位) 全扫描。在刷兵潮地图（亡者之夜）
+// 夜间单位量暴涨时，单次扫描会把触发线程顶到 Galaxy 操作上限而被静默 halt——
+// 该请求于是永远不会写回响应，Host 侧表现为 TIMEOUT。
+// 实测同一批 RPC 里 unit.spawn / handle.drop / vibe.unit.set_vital /
+// vibe.visual.model_swap 间歇性挂死，白天秒回、夜里超时，就是这个原因。
+// 这里加正/负双向记忆：连续对同一个 tag 的调用（query.unit → query.unit_attrs →
+// set_vital → tint → scale → opacity 是典型序列）降为 O(1)；
+// 对不存在的 tag 也记住，避免每次都白扫 15 个玩家。
+int    libVibeKernel_gv_tagCacheTag = 0;
+unit   libVibeKernel_gv_tagCacheUnit = null;
+bool   libVibeKernel_gv_tagCacheMiss = false;
+int    libVibeKernel_gv_tagCacheVersion = -1;
+
+// ---- 触发器句柄 ----
+trigger libVibeKernel_gt_ChatCommand = null;
+trigger libVibeKernel_gt_AllyCommand = null;
+trigger libVibeKernel_gt_BankPoll = null;
+trigger libVibeKernel_gt_UnitWake = null;
+trigger libVibeKernel_gt_PollLoop = null;
+string libVibeKernel_gv_lastPolledRequestId = "";
+string libVibeKernel_gv_lastAllyCommand = "";
+
+// ---- 诊断计数器 ----
+int libVibeKernel_gv_bankPollCount = 0;
+int libVibeKernel_gv_mapCommandCount = 0;
+bool libVibeKernel_gv_pollLoopRunning = false;
+
+// ---- 看门狗（VIBE-KERNEL-001）----
+// Galaxy 运行时错误会中止整条触发器线程；PollLoop 的 while(true) 一旦被中止，
+// Kernel 在本局余下时间彻底失联。Watchdog 自身从不调用 Dispatch，因此不会被
+// handler 的错误波及，可以安全地把 PollLoop 重新拉起来。
+
+// ---- Bank 名称 ----
+const string libVibeKernel_gv_BankName = "GalaxyVibe";
+const int    libVibeKernel_gv_BankPlayer = 1;
+const string libVibeKernel_gv_BankSection = "rpc";
+
+// ---- Bank handle ----
+// 读取 Host 外部写入时必须先 BankRemove，再 BankLoad 重新加载磁盘内容。
+// 写入路径不能每个 key 都 reload，否则连续写入会丢失同一响应里的其他 key。
+bank   libVibeKernel_gv_bankHandle = null;
+
+// ---- 操作白名单（P1 完整版） ----
+// 每个 operation 对应一个 handler 函数，签名固定：
+//   string libVibeKernel_gf_Handle_<op>(string argsJson)
+// 返回 JSON 字符串：{"error_code": "...", "payload": {...}}
+// 若 error_code == "OK" 则表示成功
+
+string libVibeKernel_gf_HandleSystemPing(string argsJson);
+string libVibeKernel_gf_HandleFunctionInvoke(string argsJson);
+string libVibeKernel_gf_HandleScenarioReset(string argsJson);
+string libVibeKernel_gf_HandleUnitSpawn(string argsJson);
+string libVibeKernel_gf_HandleUnitKill(string argsJson);
+string libVibeKernel_gf_HandleUnitSetVital(string argsJson);
+string libVibeKernel_gf_HandlePlayerSetResource(string argsJson);
+string libVibeKernel_gf_HandleQueryUnits(string argsJson);
+string libVibeKernel_gf_HandleQueryUnit(string argsJson);
+string libVibeKernel_gf_HandleQueryMission(string argsJson);
+string libVibeKernel_gf_HandleVisualActorTint(string argsJson);
+string libVibeKernel_gf_HandleVisualActorScale(string argsJson);
+string libVibeKernel_gf_HandleVisualActorOpacity(string argsJson);
+// Stage 1 新增：动态诊断
+string libVibeKernel_gf_HandleUpgradeSetLevel(string argsJson);
+string libVibeKernel_gf_HandleTechTreeCheck(string argsJson);
+string libVibeKernel_gf_HandleQueryUnitTags(string argsJson);
+string libVibeKernel_gf_HandleQueryUnitAttrs(string argsJson);
+string libVibeKernel_gf_FunctionVibeTestPing(string argsJson);
+string libVibeKernel_gf_FunctionPlayerSetResource(string argsJson);
+string libVibeKernel_gf_FunctionUnitSpawn(string argsJson);
+string libVibeKernel_gf_FunctionUnitSpawnGroup(string argsJson);
+string libVibeKernel_gf_FunctionUnitAddBehavior(string argsJson);
+string libVibeKernel_gf_FunctionUnitAddAbility(string argsJson);
+string libVibeKernel_gf_FunctionUnitQueryAbility(string argsJson);
+string libVibeKernel_gf_FunctionUnitQueryBehavior(string argsJson);
+string libVibeKernel_gf_FunctionUnitSetVital(string argsJson);
+string libVibeKernel_gf_FunctionUnitQueryAttrs(string argsJson);
+string libVibeKernel_gf_FunctionCatalogGet(string argsJson);
+string libVibeKernel_gf_FunctionCatalogSet(string argsJson);
+string libVibeKernel_gf_FunctionVisualModelSwap(string argsJson);
+string libVibeKernel_gf_FunctionVisualSetScale(string argsJson);
+string libVibeKernel_gf_FunctionVisualSetTint(string argsJson);
+string libVibeKernel_gf_FunctionVisualSetOpacity(string argsJson);
+string libVibeKernel_gf_FunctionQueryUnits(string argsJson);
+string libVibeKernel_gf_FunctionUnitKill(string argsJson);
+string libVibeKernel_gf_FunctionUnitAttack(string argsJson);
+string libVibeKernel_gf_FunctionQueryStructures(string argsJson);
+bool   libVibeKernel_gf_ProcessAllyCommand(string chat);
+bool   libVibeKernel_gf_ProcessModelAllyCommand(string chat);
+void   libVibeKernel_gf_WriteModelP2Snapshot();
+bool   libVibeKernel_gf_ApplyModelP2Intent(string economy, string production);
+
+// ---- 工具函数 ----
+void   libVibeKernel_gf_ReloadBank();
+void   libVibeKernel_gf_EnsureBankLoaded();
+void   libVibeKernel_gf_Init();
+void   libVibeKernel_InitLib();
+void   libVibeKernel_gf_RegisterEntryPoints();
+bool   libVibeKernel_gf_CheckSession(string sessionId);
+bool   libVibeKernel_gf_CheckIdempotency(string requestId);
+string libVibeKernel_gf_MakeResponse(string kind, string sessionId, string requestId, int sequence, string operation, string errorCode, string payloadJson);
+void   libVibeKernel_gf_WriteResponseToBank(string requestId, string responseJson);
+void   libVibeKernel_gf_EchoChat(string message);
+
+// ---- Chat / Bank 轮询 / UnitWake / PollLoop 入口 ----
+bool   libVibeKernel_gt_ChatCommand_Func(bool testConds, bool runActions);
+bool   libVibeKernel_gt_AllyCommand_Func(bool testConds, bool runActions);
+bool   libVibeKernel_gt_BankPoll_Func(bool testConds, bool runActions);
+bool   libVibeKernel_gt_UnitWake_Func(bool testConds, bool runActions);
+bool   libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions);
+
+// ---- 主分发器 ----
+string libVibeKernel_gf_Dispatch(string requestJson);
+
+// ==== BEGIN STAGE26_FULL_INVOKE PROTOTYPES ====
+// Stage 26: prototypes needed by generated invoke adapters.
+string libVibeKernel_gf_ArgsGet(string args, string key);
+int libVibeKernel_gf_ArgsGetInt(string args, string key);
+fixed libVibeKernel_gf_ArgsGetFixed(string args, string key);
+string libVibeKernel_gf_Trim(string s);
+unit libVibeKernel_gf_FindUnitByTag(int unitTag);
+string libVibeInvoke_gf_Dispatch(int functionId, string argsJson);
+// ==== END STAGE26_FULL_INVOKE PROTOTYPES ====
+
+// ==== BEGIN STAGE26_FULL_INVOKE KERNEL001_DECLS ====
+// VIBE-KERNEL-001: watchdog state (see generate_invoke_adapters.py).
+trigger libVibeKernel_gt_Watchdog = null;
+int libVibeKernel_gv_watchdogLastSeen = -1;
+int libVibeKernel_gv_watchdogRestarts = 0;
+bool   libVibeKernel_gt_Watchdog_Func(bool testConds, bool runActions);
+// ==== END STAGE26_FULL_INVOKE KERNEL001_DECLS ====
