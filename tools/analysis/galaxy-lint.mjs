@@ -16,14 +16,16 @@ let targetPath = null;
 let format = "json";
 let outPath = null;
 let typeCheck = true;
+let suppress = true;
 
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === "--format") { format = args[++i]; continue; }
   if (a === "--out") { outPath = args[++i]; continue; }
   if (a === "--no-type-check") { typeCheck = false; continue; }
+  if (a === "--no-suppress") { suppress = false; continue; }
   if (a === "--help" || a === "-h") {
-    console.error("用法: node tools/analysis/galaxy-lint.mjs <path-or-glob> [--format json|text] [--out <file>] [--no-type-check]");
+    console.error("用法: node tools/analysis/galaxy-lint.mjs <path-or-glob> [--format json|text] [--out <file>] [--no-type-check] [--no-suppress]");
     process.exit(0);
   }
   if (!a.startsWith("--")) targetPath = a;
@@ -76,22 +78,22 @@ async function findNativesFiles(repoRootPath) {
     if (entry) {
       const resolvedPath = entry.path ? resolve(repoRootPath, entry.path) : local.bindings?.["official-data"];
       if (resolvedPath && existsSync(resolvedPath)) {
-        const triggerLibs = join(resolvedPath, "mods", "core.sc2mod", "base.sc2data", "TriggerLibs");
-        if (existsSync(triggerLibs)) {
-          const dir = await opendir(triggerLibs);
-          for await (const entry of dir) {
-            if (entry.isFile() && extname(entry.name).toLowerCase() === ".galaxy") {
-              candidates.push(join(triggerLibs, entry.name));
+          const triggerLibs = join(resolvedPath, "mods", "core.sc2mod", "base.sc2data", "TriggerLibs");
+          if (existsSync(triggerLibs)) {
+            const dir = await opendir(triggerLibs);
+            for await (const entry of dir) {
+              if (entry.isFile() && extname(entry.name).toLowerCase() === ".galaxy") {
+                candidates.push(join(triggerLibs, entry.name));
+              }
+            }
+            // 引擎常量（c_targetFilter*、c_playerTypeUser 等）定义在 GameData/Game.galaxy，
+            // 不在 TriggerLibs 根目录，需要单独加载，否则项目文件引用这些常量会误报 "Undeclared symbol"。
+            const gameDataDir = join(triggerLibs, "GameData");
+            if (existsSync(gameDataDir)) {
+              const gameFile = join(gameDataDir, "Game.galaxy");
+              if (existsSync(gameFile)) candidates.push(gameFile);
             }
           }
-          // 引擎常量（c_targetFilter*、c_playerTypeUser 等）定义在 GameData/Game.galaxy，
-          // 不在 TriggerLibs 根目录，需要单独加载，否则项目文件引用这些常量会误报 "Undeclared symbol"。
-          const gameDataDir = join(triggerLibs, "GameData");
-          if (existsSync(gameDataDir)) {
-            const gameFile = join(gameDataDir, "Game.galaxy");
-            if (existsSync(gameFile)) candidates.push(gameFile);
-          }
-        }
       }
     }
   } catch { /* 忽略配置读取失败，返回空列表 */ }
@@ -249,6 +251,19 @@ async function lintFiles(files, repoRootPath) {
       }
       qualifiedDocuments.get(base).set(fileName, sourceFile);
     }
+    // 注册项目文件的「后缀路径」key，使模组内带目录的 include（如
+    // `include "scripts/cmlib/cmlib_core_h"`，其中 scripts/ 相对于 Base.SC2Data）
+    // 能被 checker 解析。仅按 base 名注册时这类 include 一律报
+    // "Given filename couldn't be matched"，并连锁产生大量假的 Undeclared symbol。
+    // 逐级截取路径后缀注册（a/b/c、b/c、c），命中最长匹配即可。
+    for (const [fileName, sourceFile] of documents) {
+      const parts = fileName.toLowerCase().replace(/\.galaxy$/, "").split("/");
+      for (let i = 1; i < parts.length; i++) {
+        const key = parts.slice(i).join("/");
+        if (!qualifiedDocuments.has(key)) qualifiedDocuments.set(key, new Map());
+        if (!qualifiedDocuments.get(key).has(fileName)) qualifiedDocuments.get(key).set(fileName, sourceFile);
+      }
+    }
     // 注册 `triggerlibs/<base>` 形式的 key，使 `include "TriggerLibs/natives"` 这类带目录的
     // include 语句能被 checker 解析（checker 用完整 include 路径作为 qualifiedDocuments 的 key）。
     for (const absFile of nativesFiles) {
@@ -393,6 +408,50 @@ function formatAsText(result) {
   return lines.join("\n");
 }
 
+// ---------- 已知良性诊断抑制（R3 专项） ----------
+// 规则来自同目录 galaxy-lint-suppressions.json。仅抑制 error 严重度；
+// warning / suggestion 保留可见，以不丢失任何非门禁信号。
+function buildMatcher(rule) {
+  switch (rule.match) {
+    case "messageStartsWith": return (m) => m.startsWith(rule.pattern);
+    case "messageContains":   return (m) => m.includes(rule.pattern);
+    case "messageRegex":      return (m) => new RegExp(rule.pattern).test(m);
+    default:                  return null;
+  }
+}
+
+async function loadSuppressions(scriptDirPath) {
+  const path = join(scriptDirPath, "galaxy-lint-suppressions.json");
+  if (!existsSync(path)) return [];
+  try {
+    const cfg = JSON.parse(await readFile(path, "utf8"));
+    return (cfg.rules || []).filter((r) => r && r.id && r.pattern && buildMatcher(r));
+  } catch (e) {
+    if (process.env.GALAXY_LINT_DEBUG) console.error("加载抑制规则失败: " + e.message);
+    return [];
+  }
+}
+
+function applySuppressions(diagnostics, rules, enabled) {
+  if (!enabled || rules.length === 0) {
+    return { filtered: diagnostics, suppressedByRule: {}, suppressed: 0 };
+  }
+  const matchers = rules.map((r) => ({ id: r.id, fn: buildMatcher(r) }));
+  const suppressedByRule = {};
+  const filtered = [];
+  for (const d of diagnostics) {
+    if (d.severity !== "error") { filtered.push(d); continue; }
+    const msg = d.message || "";
+    let matched = false;
+    for (const m of matchers) {
+      if (m.fn(msg)) { suppressedByRule[m.id] = (suppressedByRule[m.id] || 0) + 1; matched = true; break; }
+    }
+    if (!matched) filtered.push(d);
+  }
+  const suppressed = diagnostics.length - filtered.length;
+  return { filtered, suppressedByRule, suppressed };
+}
+
 // ---------- 入口 ----------
 
 try {
@@ -410,7 +469,17 @@ try {
   } catch { /* 忽略版本读取失败 */ }
 
   const diagnostics = await lintFiles(files, repoRoot);
-  const result = buildOutput(diagnostics, files.length, analyzerVersion);
+
+  // R3：抑制已知良性诊断（隔离 lint 下的全局命名空间 / checker 限制误报）
+  const suppressions = await loadSuppressions(scriptDir);
+  const { filtered, suppressedByRule, suppressed } = applySuppressions(diagnostics, suppressions, suppress);
+  if (suppressed > 0) {
+    console.error(`[galaxy-lint] 抑制已知良性诊断 ${suppressed} 条（--no-suppress 可关闭以核对）:`);
+    for (const [id, n] of Object.entries(suppressedByRule).sort((a, b) => b[1] - a[1])) {
+      console.error(`  - ${id}: ${n}`);
+    }
+  }
+  const result = buildOutput(filtered, files.length, analyzerVersion);
 
   if (outPath) {
     const absOut = resolve(outPath);
