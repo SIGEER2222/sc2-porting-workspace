@@ -1378,6 +1378,15 @@ string libVibeKernel_gf_Dispatch(string requestJson) {
         return libVibeKernel_gv_lastResponseJson;
     }
 
+// ==== BEGIN STAGE26_FULL_INVOKE KERNEL001_PESSIMISTIC ====
+    // VIBE-KERNEL-001: land a pessimistic response before the handler runs.
+    // If the handler aborts the trigger thread, the Host still sees a terminal
+    // HANDLER_ABORTED instead of blocking until its own timeout.
+    libVibeKernel_gf_WriteBankKey("response", requestId,
+        libVibeKernel_gf_MakeResponse("error", sessionId, requestId, sequence, operation,
+            "HANDLER_ABORTED", "{\"reason\":\"handler_did_not_complete\"}"));
+    libVibeKernel_gf_WriteBankKey("index", "last_dispatch_started", requestId + "|" + operation);
+// ==== END STAGE26_FULL_INVOKE KERNEL001_PESSIMISTIC ====
     // 3. 白名单分发
     if (operation == "system.ping") {
         result = libVibeKernel_gf_HandleSystemPing(args);
@@ -1460,8 +1469,9 @@ bool libVibeKernel_gt_BankPoll_Func(bool testConds, bool runActions) {
     if (requestJson == "") { return true; }
 
     // 分发处理
-    response = libVibeKernel_gf_Dispatch(requestJson);
+    // VIBE-KERNEL-001: consume before dispatch so a poison request is never replayed.
     libVibeKernel_gv_lastPolledRequestId = pendingId;
+    response = libVibeKernel_gf_Dispatch(requestJson);
 
     // 简短回声（完整响应已写入 Bank）
     opName = libVibeKernel_gf_ArgsGet(requestJson, "operation");
@@ -1915,8 +1925,9 @@ bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
             requestJson = libVibeKernel_gf_ReadBankKey("request", pendingId);
             if (requestJson != "") {
                 // 分发处理
-                response = libVibeKernel_gf_Dispatch(requestJson);
+                // VIBE-KERNEL-001: consume before dispatch (poison-request guard).
                 libVibeKernel_gv_lastPolledRequestId = pendingId;
+                response = libVibeKernel_gf_Dispatch(requestJson);
                 opName = libVibeKernel_gf_ArgsGet(requestJson, "operation");
                 libVibeKernel_gf_EchoChat("[Vibe] " + opName + " done (id=" + pendingId + ")");
             }
@@ -1954,13 +1965,29 @@ void libVibeKernel_gf_RegisterEntryPoints() {
     libVibeKernel_gt_UnitWake = TriggerCreate("libVibeKernel_gt_UnitWake_Func");
     TriggerAddEventUnitCreated(libVibeKernel_gt_UnitWake, null, "", "");
 
+    // ！！！死代码铁律（2026-08-08 真机取证）！！！
+    // TriggerExecute(t, ?, waitUntilDone=true) 对一个内部是 while(true)+Wait 的 trigger
+    // 会永久阻塞调用方——该调用之后的所有语句都是死代码，永不执行。
+    // 历史事故：此处原为 (false, true)，导致下面的 Watchdog 注册和
+    // register_entrypoints_done 标记从未执行（真机 bank 里这两个 key 始终缺失，
+    // 而 register_entrypoints_chat_done 存在，正好卡在本行）。
+    // 凡是启动 while(true) 循环体的 trigger，waitUntilDone 一律必须为 false。
+
+// ==== BEGIN STAGE26_FULL_INVOKE KERNEL001_WATCHDOG_REGISTER ====
+    // VIBE-KERNEL-001: watchdog keeps the transport alive across handler aborts.
+    // 先注册 watchdog 再启动 PollLoop：watchdog 是传输层的自愈兜底，
+    // 必须保证它在任何情况下都已就位。
+    libVibeKernel_gt_Watchdog = TriggerCreate("libVibeKernel_gt_Watchdog_Func");
+    TriggerExecute(libVibeKernel_gt_Watchdog, false, false);   // 异步——见上方死代码铁律
+    libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_watchdog_done", 1);
+// ==== END STAGE26_FULL_INVOKE KERNEL001_WATCHDOG_REGISTER ====
+
     // PollLoop 入口（API 模式主传输路径，Wait-based 持续轮询）
     // 使用 TimeElapsed 0.0 启动一次，进入 while(true)+Wait 循环
     libVibeKernel_gt_PollLoop = TriggerCreate("libVibeKernel_gt_PollLoop_Func");
     TriggerAddEventTimeElapsed(libVibeKernel_gt_PollLoop, 0.0, c_timeGame);
     // 双保险：立即执行一次（API 模式下 TimeElapsed 0.0 可能不触发）
-    TriggerExecute(libVibeKernel_gt_PollLoop, false, true);
-
+    TriggerExecute(libVibeKernel_gt_PollLoop, false, false);   // 异步——见上方死代码铁律
     // 写入注册完成标记（供 Host 端验证触发器已注册）
     libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_done", 1);
 
@@ -2207,3 +2234,40 @@ string libVibeKernel_gf_HandleHandleClear(string argsJson) {
     return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "handle.clear", "INVALID_ARGS", "{\"reason\":\"unknown_handle_type\"}");
 }
 // ==== END STAGE26_FULL_INVOKE HANDLE_OPS ====
+
+// ==== BEGIN STAGE26_FULL_INVOKE KERNEL001_WATCHDOG ====
+// ---- VIBE-KERNEL-001 watchdog ----
+// Never calls Dispatch, so a faulting handler can never take this thread down.
+// Observes the PollLoop heartbeat (gv_bankPollCount); if it stops advancing for
+// ~4 seconds the PollLoop thread is presumed dead and gets restarted.
+bool libVibeKernel_gt_Watchdog_Func(bool testConds, bool runActions) {
+    int stalled;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+
+    stalled = 0;
+    while (true) {
+        Wait(2.0, c_timeGame);
+        if (libVibeKernel_gv_bankPollCount == libVibeKernel_gv_watchdogLastSeen) {
+            stalled += 1;
+        } else {
+            stalled = 0;
+            libVibeKernel_gv_watchdogLastSeen = libVibeKernel_gv_bankPollCount;
+        }
+        libVibeKernel_gf_WriteBankInt("index", "watchdog_last_seen_poll", libVibeKernel_gv_watchdogLastSeen);
+        if (stalled >= 2) {
+            stalled = 0;
+            libVibeKernel_gv_watchdogRestarts += 1;
+            libVibeKernel_gv_pollLoopRunning = false;
+            libVibeKernel_gf_WriteBankInt("index", "kernel_restart_count", libVibeKernel_gv_watchdogRestarts);
+            if (libVibeKernel_gt_PollLoop != null) {
+                // 必须异步：同步调用会让 watchdog 自身被 PollLoop 的 while(true) 永久吞掉，
+                // 重启一次之后 watchdog 就再也不工作了（自废）。
+                TriggerExecute(libVibeKernel_gt_PollLoop, false, false);
+            }
+        }
+    }
+
+    return true;
+}
+// ==== END STAGE26_FULL_INVOKE KERNEL001_WATCHDOG ====

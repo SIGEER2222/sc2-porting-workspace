@@ -319,6 +319,9 @@ class SimulatorTransport:
                 "function_id": function_id,
                 **s.query_structures(args["owner_player"], args["unit_type"]),
             }
+        if function_id.startswith("gen."):
+            # 生成的 adapter 只存在于 Galaxy 运行时；离线侧确认路由，不伪造副作用。
+            return invoke_registered_function(function_id, args)
         raise KernelError(int(protocol.ErrorCode.FUNCTION_NOT_FOUND), str(function_id))
 
 

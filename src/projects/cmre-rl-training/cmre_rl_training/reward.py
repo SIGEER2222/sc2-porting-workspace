@@ -12,19 +12,29 @@ from typing import Any, Mapping
 
 _BASE_TYPES = frozenset({"CommandCenter", "OrbitalCommand", "PlanetaryFortress"})
 _WORKER_TYPES = frozenset({"SCV", "Probe", "Drone"})
+_NON_COMBAT_TYPES = (
+    _WORKER_TYPES
+    | _BASE_TYPES
+    | {
+        "Barracks", "Factory", "Starport", "EngineeringBay", "Armory",
+        "GhostAcademy", "FusionCore", "BarracksTechLab", "FactoryTechLab",
+        "StarportTechLab", "Medivac", "Bunker", "SupplyDepot", "Refinery",
+    }
+)
 _VICTORY_REASONS = frozenset({
     "victory", "all_objectives_success", "survive_loops", "max_loops_reached",
 })
 
 # Reward weights (tunable)
 W_BASE_HP_DELTA = 0.01
-W_BASE_HP_ALIVE = 0.0001
 W_SUPPLY_DELTA = 0.05
 W_ENEMY_HP_DELTA = 0.002
 W_ENEMY_KILLED = 0.1
 W_PROGRESS = 5.0
 W_NIGHT_SURVIVAL = 0.01
 W_WORKER_DELTA = 0.02
+W_ENEMY_PRESENCE = -0.10
+W_ARMY_PRESENCE = 0.05
 W_TERMINAL_VICTORY = 10.0
 W_TERMINAL_DEFEAT = -10.0
 
@@ -65,7 +75,9 @@ class RewardTracker:
 
         bases = [u for u in own_units if str(u.get("unit_type_id", "")) in _BASE_TYPES]
         workers = [u for u in own_units if str(u.get("unit_type_id", "")) in _WORKER_TYPES]
+        army = [u for u in own_units if str(u.get("unit_type_id", "")) not in _NON_COMBAT_TYPES]
         base_hp = sum(float(u.get("health", 0)) for u in bases)
+        army_count = len(army)
         supply_used = int(resources.get("supply_used", 0))
         enemy_count = len(enemies)
         enemy_hp = sum(float(u.get("health", 0)) for u in enemies)
@@ -89,10 +101,14 @@ class RewardTracker:
 
         reward = 0.0
 
-        # Base survival: penalize HP loss, small bonus for keeping base alive
+        # Base survival: penalize HP loss *only* via its delta. A constant
+        # "alive" bonus would be identical for every action (base HP barely
+        # moves within an episode) and therefore carry no learning signal, so
+        # it is intentionally omitted. Using the RAW fixed-point HP value for
+        # such a term also produced a ~153.0 constant per step (raw HP ~1.5M *
+        # 1e-4), which zeroed the policy gradient entirely.
         base_hp_delta = base_hp - self._prev_base_hp
         reward += base_hp_delta * W_BASE_HP_DELTA
-        reward += base_hp * W_BASE_HP_ALIVE
 
         # Economic growth: reward supply increase
         supply_delta = supply_used - self._prev_supply_used
@@ -116,6 +132,15 @@ class RewardTracker:
         # Worker growth
         worker_delta = len(workers) - self._prev_worker_count
         reward += worker_delta * W_WORKER_DELTA
+
+        # Dense state shaping (policy-controllable, not a constant bonus): a
+        # larger own army and fewer visible enemies are continuously rewarded,
+        # pulling the policy toward "build and keep a fighting force". Unlike a
+        # constant base-alive bonus, these terms *change* with the policy's own
+        # production choices (army grows when it builds units), so they carry a
+        # real, dense gradient instead of a zero-signal constant.
+        reward += W_ENEMY_PRESENCE * enemy_count
+        reward += W_ARMY_PRESENCE * army_count
 
         # Terminal reward
         if terminated:

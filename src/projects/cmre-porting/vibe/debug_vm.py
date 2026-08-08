@@ -346,3 +346,99 @@ class DebugVm:
             "last": self._last,
             "trace": self._trace,
         }
+
+
+# ---------------------------------------------------------------------------
+# Offline session bridge (VIBE-VM-001)
+# ---------------------------------------------------------------------------
+
+DEBUG_VM_SCENARIO: dict[str, Any] = {
+    "schema_version": "m7.v1",
+    "name": "vibe-debug-vm-coverage",
+    "description": (
+        "Offline coverage bed for the debug VM: player 1 owns a terran base, "
+        "player 2 is hostile so attack orders have a legal target."
+    ),
+    "players": [
+        {"id": 1, "name": "Terran", "race": "terran", "allies": [], "is_ai": True},
+        {"id": 2, "name": "Hostile", "race": "terran", "allies": [], "is_ai": True},
+    ],
+    "spawns": [
+        {"unit_type_id": "CommandCenter", "owner_player_id": 1, "x": 0.0, "y": 0.0},
+        {"unit_type_id": "SupplyDepot", "owner_player_id": 1, "x": 2.0, "y": 0.0},
+        {"unit_type_id": "SCV", "owner_player_id": 1, "x": 0.0, "y": 0.0},
+    ],
+    "commands": [],
+    "max_loops": 2000,
+    "seed": 42,
+    "strict": True,
+    "win_condition": "annihilation",
+    "initial_minerals": 250,
+    "initial_vespene": 0,
+}
+
+
+class SimulatorSessionDebugVmBridge:
+    """Offline peer of the live Host bridge, backed by a real SimulatorSession.
+
+    Unlike a stub, every ``vibe.*`` call lands on ``SimulatorTransport`` and
+    mutates a genuine simulated world, so debug programs can be proven against
+    real side effects without a live SC2. ``gen.*`` stays a routing marker on
+    purpose: the generated adapters only exist inside Galaxy, and fabricating
+    fake effects for them offline would be a lie the runtime cannot honour.
+    """
+
+    def __init__(
+        self,
+        *,
+        scenario: dict[str, Any] | None = None,
+        catalog: str = "m7",
+        session_id: str = "vm-debug",
+    ) -> None:
+        from .simulator_transport import SimulatorTransport
+
+        self._transport = SimulatorTransport()
+        self._session_id = session_id
+        self._sequence = 0
+        self._transport.open_session(session_id)
+        self._send(
+            "scenario.load",
+            {"scenario_dict": scenario or DEBUG_VM_SCENARIO, "catalog": catalog},
+            raise_on_error=True,
+        )
+        self._send("scenario.reset", {}, raise_on_error=True)
+
+    @property
+    def transport(self):
+        """The backing transport (useful for assertions on executed counts)."""
+        return self._transport
+
+    @property
+    def session(self):
+        """The live SimulatorSession, for direct world inspection in tests."""
+        return self._transport.session
+
+    def _send(self, operation: str, args: dict[str, Any], *, raise_on_error: bool = False):
+        from . import protocol
+
+        self._sequence += 1
+        request = protocol.make_request(
+            self._session_id,
+            f"{operation}-{self._sequence}",
+            self._sequence,
+            operation,
+            args,
+        )
+        response = self._transport.send(request)
+        if raise_on_error and response.kind == "error":
+            raise DebugVmError(
+                f"{operation} failed: {response.error_code}: {response.payload}"
+            )
+        return response
+
+    def call(self, function_id: str, args: dict[str, Any]) -> Any:
+        # Errors are returned, not raised: DebugVm owns allow_error semantics.
+        return self._send("function.invoke", {"function_id": function_id, "args": args})
+
+    def step(self, loops: int = 1) -> Any:
+        return self._send("scenario.step", {"loops": int(loops)})

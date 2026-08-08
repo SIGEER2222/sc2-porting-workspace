@@ -24,11 +24,30 @@ class FunctionRegistryError(ValueError):
         super().__init__(f"{code}: {detail}")
 
 
+# 注册表现在是 7MB+ / 11910 条，而它曾经在每次 validate_invocation 里被重新读盘+解析。
+# 一次 function.invoke 会解析两遍（normalize_request_args + wire_function_args），
+# 跑一轮全量校验能打出 80GB 量级的磁盘 I/O，并且在高频读下偶发读到空内容。
+# 这里按 (mtime_ns, size) 做缓存：文件一改就自然失效，既保住「改注册表立刻生效」的
+# 开发体验，又不再重复解析。
+_REGISTRY_CACHE: dict[Path, tuple[tuple[int, int], dict[str, dict[str, Any]]]] = {}
+
+
 def load_function_registry(path: Path = REGISTRY_PATH) -> dict[str, dict[str, Any]]:
+    try:
+        st = path.stat()
+        stamp: tuple[int, int] | None = (st.st_mtime_ns, st.st_size)
+    except OSError:
+        stamp = None
+    if stamp is not None:
+        cached = _REGISTRY_CACHE.get(path)
+        if cached is not None and cached[0] == stamp:
+            return cached[1]
     data = json.loads(path.read_text(encoding="utf-8"))
     functions = data.get("functions")
     if not isinstance(functions, dict) or not functions:
         raise FunctionRegistryError("INVALID_REGISTRY", "functions must be a non-empty object")
+    if stamp is not None:
+        _REGISTRY_CACHE[path] = (stamp, functions)
     return functions
 
 
@@ -143,13 +162,36 @@ def wire_function_args(function_id: Any, args: Any) -> dict[str, Any]:
     return wire
 
 
-def invoke_registered_function(function_id: Any, args: Any) -> dict[str, Any]:
-    normalized = validate_invocation(function_id, args)
-    # Explicit implementation map. Do not replace this with getattr/eval.
-    if function_id == "vibe.test.ping":
+def invoke_registered_function(
+    function_id: Any,
+    args: Any,
+    *,
+    registry: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Canonical offline dispatcher covering every registered internal function.
+
+    Routing is an explicit family map, never reflection:
+
+    * ``vibe.test.ping`` — diagnostic, answered right here.
+    * other ``vibe.*``   — owned by ``SimulatorTransport._dispatch_function``
+      (real simulated side effects); this layer confirms the route.
+    * ``gen.*``          — owned by the generated Galaxy adapters, which only
+      exist inside the SC2 runtime; offline we confirm the route only and
+      deliberately do NOT fabricate side effects.
+
+    ``registry`` lets callers sweep a preloaded registry without re-reading the
+    7MB JSON once per function.
+    """
+    canonical = normalize_function_id(function_id)
+    normalized = validate_invocation(canonical, args, registry=registry)
+    if canonical == "vibe.test.ping":
         return {
-            "function_id": function_id,
+            "function_id": canonical,
             "message": "pong",
             "nonce": normalized.get("nonce", ""),
         }
+    if canonical.startswith("vibe."):
+        return {"function_id": canonical, "routed": "simulator", "args": normalized}
+    if canonical.startswith("gen."):
+        return {"function_id": canonical, "routed": "runtime", "args": normalized}
     raise FunctionRegistryError("FUNCTION_NOT_FOUND", str(function_id))

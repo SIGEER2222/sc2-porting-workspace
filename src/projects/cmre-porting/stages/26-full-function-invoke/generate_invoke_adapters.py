@@ -25,6 +25,8 @@ from pathlib import Path
 STAGE_DIR = Path(__file__).resolve().parent
 ROOT = STAGE_DIR.parents[4]
 CATALOG_PATH = ROOT / "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json"
+# Catalog paths are relative to this root (function-catalog.json -> sources[0].root).
+SOURCE_ROOT = ROOT / "src/projects/cmre-porting/packages"
 ART_DIR = ROOT / "artifacts/projects/cmre-porting/stage26-full-function-invoke"
 KERNEL = ROOT / "tools/galaxy-vibe/kernel"
 REGISTRY_PATH = KERNEL / "function-registry.json"
@@ -115,16 +117,108 @@ def arg_registry_type(ttype: str) -> str:
 # Invoke plan
 # ---------------------------------------------------------------------------
 
+# GEN-SELF-001: the vibe kernel injects its own .galaxy files into the packages
+# it instruments, so a re-scanned function catalog feeds the kernel's own symbols
+# straight back into the callable plan. That is not just noise:
+#   * `libVibeInvoke_gf_Dispatch` as a gen.<id> adapter makes dispatch reentrant;
+#   * `libVibeKernel_gf_WriteBankKey` would let the Host rewrite the RPC bank and
+#     forge responses, bypassing the whitelist entirely.
+# The kernel's surface is the RPC contract, never a generated adapter target.
+VIBE_OWN_BASENAMES = {
+    "LibVibeKernel.galaxy",
+    "LibVibeKernel_h.galaxy",
+    "LibVibeHandles.galaxy",
+    "LibVibeHandles_h.galaxy",
+}
+VIBE_OWN_PREFIXES = ("LibVibeInvoke",)
+
+
+def is_vibe_own_file(path: str) -> bool:
+    normalized = path.replace("\\", "/")
+    if "/generated/" in normalized:
+        return True
+    base = normalized.rsplit("/", 1)[-1]
+    return base in VIBE_OWN_BASENAMES or base.startswith(VIBE_OWN_PREFIXES)
+
+
 def load_owned_entries() -> list[dict]:
     data = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
-    return [e for e in data["functions"] if e.get("source_id") == "cmre-owned-project"]
+    return [
+        e for e in data["functions"]
+        if e.get("source_id") == "cmre-owned-project" and not is_vibe_own_file(e["path"])
+    ]
+
+
+def package_of(path: str) -> str:
+    """Return the owning `.SC2Mod` / `.SC2Map` package prefix of a catalog path.
+
+    `Mods/CMRE/CMRE_Core_Base.SC2Mod/Base.SC2Data/x.galaxy` -> `Mods/CMRE/CMRE_Core_Base.SC2Mod`
+    `Mods/kit_mutations.SC2Mod/Base.SC2Data/x.galaxy`       -> `Mods/kit_mutations.SC2Mod`
+    `Maps/亡者之夜.SC2Map/MapScript.galaxy`                  -> `Maps/亡者之夜.SC2Map`
+
+    The old fixed "first three segments" rule mis-bucketed single-level mods
+    (it returned `Mods/kit_mutations.SC2Mod/Base.SC2Data`), which made the
+    dependency scoping below impossible to express. Anchoring on the package
+    suffix is both correct and depth-independent.
+    """
+    parts = path.replace("\\", "/").split("/")
+    for index, segment in enumerate(parts):
+        if segment.endswith(".SC2Mod") or segment.endswith(".SC2Map"):
+            return "/".join(parts[: index + 1])
+    return parts[0]
 
 
 def top_dir(path: str) -> str:
-    parts = path.replace("\\", "/").split("/")
-    if parts[0] == "Mods" and len(parts) > 2:
-        return "/".join(parts[:3])
-    return parts[0]
+    return package_of(path)
+
+
+DEP_FILE_RE = re.compile(r"file:([^<,\"]+)")
+
+
+def read_document_info_deps(package_rel: str) -> list[str]:
+    """Direct `file:` dependencies declared in a package's DocumentInfo (XML)."""
+    info = SOURCE_ROOT / package_rel / "DocumentInfo"
+    if not info.is_file():
+        return []
+    raw = info.read_bytes()
+    text = ""
+    for encoding in ("utf-8", "utf-16", "latin-1"):
+        try:
+            text = raw.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    block = re.search(r"<Dependencies>(.*?)</Dependencies>", text, re.S)
+    if not block:
+        return []
+    return [dep.strip().replace("\\", "/") for dep in DEP_FILE_RE.findall(block.group(1))]
+
+
+def dependency_closure(package_rel: str) -> set[str]:
+    """Transitive `file:` dependency closure of a package, restricted to vendored packages.
+
+    GEN-SCOPE-001: adapters used to be generated from the *whole* catalog for
+    *every* map, so e.g. 亡者之夜 got `XMChallenge_*` funcref candidates out of
+    `Mods/Commanders/CoreRuntime.SC2Mod`, which it does not depend on. Those
+    symbols do not exist in that map's compile unit; Galaxy has no cross
+    compile-unit linking, so a single undefined symbol makes SC2 drop the whole
+    MapScript silently. Scope must come from the real DocumentInfo closure.
+
+    External deps (bnet-only, e.g. `Mods/StarCoop/StarCoop.SC2Mod`) are not
+    vendored here and therefore contribute no catalog symbols — skipping them
+    is fail-closed, not a loss.
+    """
+    seen: set[str] = set()
+    stack = [package_rel]
+    while stack:
+        current = stack.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        for dep in read_document_info_deps(current):
+            if dep not in seen and (SOURCE_ROOT / dep).is_dir():
+                stack.append(dep)
+    return seen
 
 
 def map_of(path: str) -> str:
@@ -190,10 +284,23 @@ def build_plan(entries: list[dict]) -> dict:
     })
 
     maps = sorted({map_of(e["path"]) for e in entries if e["path"].startswith("Maps/")})
+
+    # GEN-SCOPE-001: each map may only see symbols from its own DocumentInfo
+    # dependency closure. Anything else is not in that map's compile unit.
+    map_scopes: dict[str, list[str]] = {}
+    funcref_by_map: dict[str, list[str]] = {}
     bundles = {}
     for m in maps:
-        ids = [f for f in functions if any(d.startswith("Mods/") or d == m for d in f["available_in"])]
+        scope = dependency_closure(f"Maps/{m}")
+        map_scopes[m] = sorted(scope)
+        ids = [f for f in functions if any(d in scope for d in f["available_in"])]
         bundles[m] = {"function_count": len(ids), "shards": (len(ids) + SHARD_SIZE - 1) // SHARD_SIZE}
+        funcref_by_map[m] = sorted({
+            e["name"] for e in entries
+            if e["return_type"] == "void"
+            and [p["type"] for p in e["parameters"]] == ["int"]
+            and package_of(e["path"]) in scope
+        })
 
     return {
         "generated_by": "generate_invoke_adapters.py",
@@ -220,6 +327,9 @@ def build_plan(entries: list[dict]) -> dict:
         "functions": functions,
         "excluded": excluded,
         "funcref_candidates": funcref_candidates,
+        # GEN-SCOPE-001 evidence: the exact package set each map is allowed to see.
+        "map_scopes": map_scopes,
+        "funcref_candidates_by_map": funcref_by_map,
     }
 
 
@@ -520,19 +630,46 @@ def emit_shard_dispatch(shard_fns: list[dict], idx: int) -> str:
     return "\n".join(lines)
 
 
+# Galaxy 原生 StringReplace 的签名是
+#     string StringReplace(string s, string replaceWith, int start, int end)
+# —— 按 1-based 下标区间替换，**不是** JS 风格的 find/replace。
+# Stage 26 早期生成的 `StringReplace(s, "\\", "\\\\", true)` 是 4 参 find/replace 写法，
+# 类型和语义都不对，会让整个 LibVibeInvokeCommon.galaxy 编译失败，进而拖垮
+# 整个 MapScript 编译单元（Galaxy 单编译单元、无跨单元链接）。
+# 这里改为逐字符扫描：语义明确、可编译、无原生签名依赖。
+JSON_ESCAPE_GALAXY = r'''string libVibeInvoke_gf_JsonEscape(string s) {
+    string res;
+    string ch;
+    int i;
+    int n;
+    res = "";
+    n = StringLength(s);
+    for (i = 1; i <= n; i += 1) {
+        ch = StringSub(s, i, i);
+        if (ch == "\\") {
+            res = res + "\\\\";
+        } else if (ch == "\"") {
+            res = res + "\\\"";
+        } else if (ch == "\n") {
+            res = res + "\\n";
+        } else if (ch == "\r") {
+            res = res + "\\r";
+        } else if (ch == "\t") {
+            res = res + "\\t";
+        } else {
+            res = res + ch;
+        }
+    }
+    return res;
+}'''
+
+
 def emit_common(map_name: str, funcref_candidates: list[str]) -> str:
     lines = [
         "// LibVibeInvokeCommon.galaxy — generated by Stage 26 (do not edit)",
         f"// Map bundle: {map_name}; shared adapter helpers",
         "",
-        "string libVibeInvoke_gf_JsonEscape(string s) {",
-        '    s = StringReplace(s, "\\\\", "\\\\\\\\", true);',
-        '    s = StringReplace(s, "\\"", "\\\\\\"", true);',
-        '    s = StringReplace(s, "\\n", "\\\\n", true);',
-        '    s = StringReplace(s, "\\r", "\\\\r", true);',
-        '    s = StringReplace(s, "\\t", "\\\\t", true);',
-        "    return s;",
-        "}",
+        *JSON_ESCAPE_GALAXY.splitlines(),
         "",
         "string libVibeInvoke_gf_Error(string code, string detail) {",
         '    return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", code, "{\\"reason\\":\\"" + code + "\\",\\"detail\\":\\"" + libVibeInvoke_gf_JsonEscape(detail) + "\\"}");',
@@ -767,6 +904,153 @@ HANDLE_OPS_BRANCH = """\
         result = libVibeKernel_gf_HandleHandleQuery(args);
 """
 
+# ---------------------------------------------------------------------------
+# VIBE-KERNEL-001: handler-abort resilience
+#
+# Galaxy has no try/catch. A runtime fault inside any handler (invalid catalog
+# entry, null handle deref, ...) aborts the *whole trigger thread*. That means:
+#   * step 4 `WriteResponseToBank` never runs -> the Host blocks until timeout;
+#   * the `while (true)` PollLoop thread dies with it -> the kernel is deaf for
+#     the rest of the game.
+# Three cooperating fixes, all marker-guarded so re-running this generator
+# re-applies them even after someone re-syncs an unpatched kernel mirror:
+#   1. pessimistic response  - write HANDLER_ABORTED to response/<id> *before*
+#      dispatching, overwrite with the real result on normal return;
+#   2. consume-before-dispatch - mark the request id as polled before calling
+#      Dispatch so a poison request is never replayed;
+#   3. watchdog - an independent Wait loop that never calls Dispatch, watches
+#      the poll heartbeat and restarts PollLoop when it stalls.
+# ---------------------------------------------------------------------------
+
+KERNEL001_PESSIMISTIC = """\
+    // VIBE-KERNEL-001: land a pessimistic response before the handler runs.
+    // If the handler aborts the trigger thread, the Host still sees a terminal
+    // HANDLER_ABORTED instead of blocking until its own timeout.
+    libVibeKernel_gf_WriteBankKey("response", requestId,
+        libVibeKernel_gf_MakeResponse("error", sessionId, requestId, sequence, operation,
+            "HANDLER_ABORTED", "{\\"reason\\":\\"handler_did_not_complete\\"}"));
+    libVibeKernel_gf_WriteBankKey("index", "last_dispatch_started", requestId + "|" + operation);
+
+"""
+
+KERNEL001_WATCHDOG_REGISTER = """\
+    // VIBE-KERNEL-001: watchdog keeps the transport alive across handler aborts.
+    libVibeKernel_gt_Watchdog = TriggerCreate("libVibeKernel_gt_Watchdog_Func");
+    TriggerExecute(libVibeKernel_gt_Watchdog, false, true);
+    libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_watchdog_done", 1);
+
+"""
+
+KERNEL001_WATCHDOG_FUNC = """\
+// ---- VIBE-KERNEL-001 watchdog ----
+// Never calls Dispatch, so a faulting handler can never take this thread down.
+// Observes the PollLoop heartbeat (gv_bankPollCount); if it stops advancing for
+// ~4 seconds the PollLoop thread is presumed dead and gets restarted.
+bool libVibeKernel_gt_Watchdog_Func(bool testConds, bool runActions) {
+    int stalled;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+
+    stalled = 0;
+    while (true) {
+        Wait(2.0, c_timeGame);
+        if (libVibeKernel_gv_bankPollCount == libVibeKernel_gv_watchdogLastSeen) {
+            stalled += 1;
+        } else {
+            stalled = 0;
+            libVibeKernel_gv_watchdogLastSeen = libVibeKernel_gv_bankPollCount;
+        }
+        libVibeKernel_gf_WriteBankInt("index", "watchdog_last_seen_poll", libVibeKernel_gv_watchdogLastSeen);
+        if (stalled >= 2) {
+            stalled = 0;
+            libVibeKernel_gv_watchdogRestarts += 1;
+            libVibeKernel_gv_pollLoopRunning = false;
+            libVibeKernel_gf_WriteBankInt("index", "kernel_restart_count", libVibeKernel_gv_watchdogRestarts);
+            if (libVibeKernel_gt_PollLoop != null) {
+                TriggerExecute(libVibeKernel_gt_PollLoop, false, true);
+            }
+        }
+    }
+
+    return true;
+}
+"""
+
+# (source, patched) pairs -- consume the request id *before* dispatching it.
+KERNEL001_CONSUME_FIRST: list[tuple[str, str]] = [
+    (
+        "    response = libVibeKernel_gf_Dispatch(requestJson);\n"
+        "    libVibeKernel_gv_lastPolledRequestId = pendingId;\n",
+        "    // VIBE-KERNEL-001: consume before dispatch so a poison request is never replayed.\n"
+        "    libVibeKernel_gv_lastPolledRequestId = pendingId;\n"
+        "    response = libVibeKernel_gf_Dispatch(requestJson);\n",
+    ),
+    (
+        "                response = libVibeKernel_gf_Dispatch(requestJson);\n"
+        "                libVibeKernel_gv_lastPolledRequestId = pendingId;\n",
+        "                // VIBE-KERNEL-001: consume before dispatch (poison-request guard).\n"
+        "                libVibeKernel_gv_lastPolledRequestId = pendingId;\n"
+        "                response = libVibeKernel_gf_Dispatch(requestJson);\n",
+    ),
+]
+
+KERNEL001_HEADER_DECLS = "\n".join([
+    "// VIBE-KERNEL-001: watchdog state (see generate_invoke_adapters.py).",
+    "trigger libVibeKernel_gt_Watchdog = null;",
+    "int libVibeKernel_gv_watchdogLastSeen = -1;",
+    "int libVibeKernel_gv_watchdogRestarts = 0;",
+    "bool   libVibeKernel_gt_Watchdog_Func(bool testConds, bool runActions);",
+])
+
+
+def apply_kernel001(text: str) -> str:
+    """Apply the three VIBE-KERNEL-001 fixes to the kernel source (idempotent)."""
+    text = strip_marker_block(text, "KERNEL001_PESSIMISTIC")
+    text = strip_marker_block(text, "KERNEL001_WATCHDOG_REGISTER")
+    text = strip_marker_block(text, "KERNEL001_WATCHDOG")
+
+    text = insert_before_anchor(
+        text,
+        '    // 3. \u767d\u540d\u5355\u5206\u53d1\n    if (operation == "system.ping") {',
+        marker_block("KERNEL001_PESSIMISTIC", KERNEL001_PESSIMISTIC.rstrip("\n")),
+    )
+    text = insert_before_anchor(
+        text,
+        "    // \u5199\u5165\u6ce8\u518c\u5b8c\u6210\u6807\u8bb0\uff08\u4f9b Host \u7aef\u9a8c\u8bc1\u89e6\u53d1\u5668\u5df2\u6ce8\u518c\uff09",
+        marker_block("KERNEL001_WATCHDOG_REGISTER", KERNEL001_WATCHDOG_REGISTER.rstrip("\n")),
+    )
+
+    for source, patched in KERNEL001_CONSUME_FIRST:
+        if patched in text:
+            continue
+        if text.count(source) != 1:
+            raise RuntimeError(
+                "VIBE-KERNEL-001 consume-before-dispatch anchor is ambiguous or missing: "
+                f"{source.strip()[:60]!r} (count={text.count(source)})"
+            )
+        text = text.replace(source, patched)
+
+    return text.rstrip("\n") + "\n\n" + marker_block("KERNEL001_WATCHDOG", KERNEL001_WATCHDOG_FUNC.rstrip("\n"))
+
+
+def apply_kernel001_header(text: str) -> str:
+    """Declare the watchdog globals/prototype exactly once, under a marker."""
+    text = strip_marker_block(text, "KERNEL001_DECLS")
+    # An earlier hand-applied patch may have inserted the same declarations
+    # without markers; drop those so the marker block stays the single source.
+    keep: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("trigger libVibeKernel_gt_Watchdog") \
+                or stripped.startswith("int libVibeKernel_gv_watchdogLastSeen") \
+                or stripped.startswith("int libVibeKernel_gv_watchdogRestarts") \
+                or stripped.replace(" ", "").startswith("boollibVibeKernel_gt_Watchdog_Func"):
+            continue
+        keep.append(line)
+    text = "\n".join(keep)
+    return text.rstrip("\n") + "\n\n" + marker_block("KERNEL001_DECLS", KERNEL001_HEADER_DECLS)
+
+
 def _mr(kind: str, op: str, code: str, payload: str) -> str:
     """Compose a Galaxy MakeResponse call expression."""
     return (
@@ -879,6 +1163,7 @@ def patch_kernel_files() -> None:
     )
     handlers = emit_handle_op_handlers()
     text = text.rstrip("\n") + "\n\n" + marker_block("HANDLE_OPS", handlers.rstrip("\n"))
+    text = apply_kernel001(text)
     kernel_path.write_text(text, encoding="utf-8")
 
     header_path = KERNEL / "LibVibeKernel_h.galaxy"
@@ -894,6 +1179,7 @@ def patch_kernel_files() -> None:
         "string libVibeInvoke_gf_Dispatch(int functionId, string argsJson);",
     ])
     htext = htext.rstrip("\n") + "\n\n" + marker_block("PROTOTYPES", proto)
+    htext = apply_kernel001_header(htext)
     header_path.write_text(htext, encoding="utf-8")
 
 
@@ -986,9 +1272,12 @@ def update_whitelist(plan: dict) -> None:
 def emit_map_bundle(plan: dict, map_name: str, funcref_candidates: list[str]) -> dict:
     bundle_dir = KERNEL / "generated" / map_name
     bundle_dir.mkdir(parents=True, exist_ok=True)
+    # GEN-SCOPE-001: only symbols inside this map's DocumentInfo dependency
+    # closure may be emitted; anything else is undefined in its compile unit.
+    scope = set(plan["map_scopes"][map_name])
     available = [
         fn for fn in plan["functions"]
-        if any(d.startswith("Mods/") or d == map_name for d in fn["available_in"])
+        if any(d in scope for d in fn["available_in"])
     ]
     written = []
 
@@ -1078,7 +1367,10 @@ def main() -> None:
     gen_root.mkdir(parents=True)
     bundle_stats = []
     for map_name in sorted(plan["bundles"]):
-        bundle_stats.append(emit_map_bundle(plan, map_name, plan["funcref_candidates"]))
+        bundle_stats.append(emit_map_bundle(
+            plan, map_name,
+            plan["funcref_candidates_by_map"].get(map_name, plan["funcref_candidates"]),
+        ))
     plan["bundles"] = {b["map"]: b for b in bundle_stats}
     (ART_DIR / "invoke-plan.json").write_text(
         json.dumps(plan, ensure_ascii=False, indent=1), encoding="utf-8")

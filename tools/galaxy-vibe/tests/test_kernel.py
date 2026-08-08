@@ -940,7 +940,17 @@ class TestKernelMirrorConsistency(unittest.TestCase):
         registry = json.loads((self.KERNEL / "function-registry.json").read_text(encoding="utf-8"))
         functions = registry["functions"]
         generated = [k for k in functions if k.startswith("gen.")]
-        self.assertEqual(len(generated), 11890)
+        # 不硬编码绝对数量：registry 由 generate_invoke_adapters.rewrite_registry
+        # 依据 invoke-plan 重建，gen.* 数必须等于规范 invoke-plan 的 callable_functions，
+        # 且自洽于 registry 自身的 generated.count 元数据。这样无论生成管线把调用面
+        # 扩张/收缩到多少，本测试都校验“registry 与 invoke-plan 一致”这一不变量，
+        # 不会被一次合法的 invoke 面重建（handle_acquire 等）误判为回归。
+        plan_path = REPO_ROOT / "artifacts" / "projects" / "cmre-porting" / "stage26-full-function-invoke" / "invoke-plan.json"
+        if plan_path.is_file():
+            plan = json.loads(plan_path.read_text(encoding="utf-8"))
+            self.assertEqual(len(generated), plan["summary"]["callable_functions"])
+            self.assertEqual(len(generated), len(plan["functions"]))
+        self.assertEqual(len(generated), registry.get("generated", {}).get("count"))
         for key in generated:
             self.assertTrue(functions[key]["debug_only"])
             self.assertTrue(functions[key]["generated"])
