@@ -84,3 +84,17 @@ The capability matrix is now an explicit static output of this stage: 31 maps ar
 26 expose at least one valid fail-closed pairing, 414 pairings are authorized by literal/static
 edges and 110 by safely expanded PlayerGroupLoop edges, while 18 dynamic calls remain unresolved.
 Those unresolved calls stay unavailable until runtime owner evidence exists.
+
+## Current Execution Outcome
+
+- The no-debug probe now filters the map's own invulnerable `OdinBuild` staging actor from
+  escort targets. The exclusion is narrowly tied to `UnitFromId(2)` and the static contract;
+  it does not suppress ordinary hostile units.
+- Port 18302 reached `in_game`, Catalog `3786/12225`, and advanced from loop 88 to loop 2768
+  while clearing hostile units, but the pre-fix probe repeatedly attacked that staging actor and
+  the websocket later closed. It did not reach Region 24 or observe P2 ownership.
+- Fresh post-fix ports 18303 and 18304 both reached launcher ready and `CreateGame=init_game`,
+  then closed their websocket before `JoinGame=in_game`. Both same-window ScriptError scans were
+  clean. These are runtime availability failures, not gameplay or P2 evidence.
+- The bounded verdict remains `blocked`: rerun the unchanged, debug-free probe only after a
+  stable JoinGame runtime window is available. P2 dispatch stays fail-closed.

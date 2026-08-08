@@ -32,6 +32,10 @@ success. The prior debug-assisted handover artifact is explicitly excluded.
 - A fresh port 18220 launcher attempt also remains blocked: readiness and CreateGame succeeded,
   but JoinGame timed out before a playable observation. It adds no P2 evidence and is explicitly
   excluded from the native closure claim.
+- The 18302 probe proved that native P1 raw actions can clear ordinary nearby hostiles through
+  loop 2768 without debug APIs; it also exposed the `OdinBuild` staging actor as a map-owned,
+  invulnerable false target. The probe now excludes that exact actor and the regression test pins
+  the boundary.
 
 ## Not proven
 
@@ -44,19 +48,22 @@ success. The prior debug-assisted handover artifact is explicitly excluded.
   or time-gated ally to native runtime readiness.
 - The 18220 window did not reach JoinGame, so it cannot extend the completed 18204 gameplay
   census; this is a launcher/runtime availability gap, not evidence of handover behavior.
+- Post-fix ports 18303 and 18304 also lost the websocket after CreateGame and before JoinGame, so
+  the current corrected probe has no new admissible playable window yet.
 
 ## Self-critique
 
-The concurrent Stage 08 closure files incorrectly claimed `PROVEN_STATIC_AND_NATIVE`, used a
+The historical Stage 08 closure files incorrectly claimed `PROVEN_STATIC_AND_NATIVE`, used a
 non-schema result format, and treated `Debug.game_state.god` as acceptable. They are corrected:
 the result now uses canonical claim types, the historical debug-assisted artifact is excluded, and
-the 18204 no-debug run is recorded as blocked. The wrapper exit-code propagation gap is also open.
-The adapter continuation is intentionally static/simulator-only: it improves dispatch safety
-without pretending that the native handover was observed.
+the no-debug runs are recorded as blocked. The current wrapper propagates the probe exit code, but
+the SC2 websocket still intermittently closes at JoinGame. The adapter continuation remains
+intentionally static/simulator-only: it improves dispatch safety without pretending that the
+native handover was observed.
 
 ## Next action
 
-Use only supported gameplay and native player actions to clear the warehouse objective and enter
-Region 24. If that cannot be reproduced, keep thorner03 P2 dispatch unavailable until the
-handover is observed and record the map-specific progression limitation. Do not spawn units, enable god mode, inject
-generic AI, or edit the map to manufacture the handover.
+Obtain a stable supported runtime lease that completes JoinGame, then rerun the unchanged native
+player-action probe to clear the warehouse objective and enter Region 24. Until that occurs, keep
+thorner03 P2 dispatch unavailable. Do not spawn units, enable god mode, inject generic AI, or edit
+the map to manufacture the handover.

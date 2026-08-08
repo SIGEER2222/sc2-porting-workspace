@@ -21,6 +21,15 @@
     },
     {
       "type": "static",
+      "claim": "The native escort probe excludes only OdinBuild from hostile focus-fire because the map exposes UnitFromId(2) as an invulnerable hostile staging actor before its Region 24 rescue; ordinary visible hostile units remain targetable.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/packages/Maps/thorner03.SC2Map/MapScript.galaxy",
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/p2_handover_probe.py",
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/test_p2_ally_contract.py"
+      ]
+    },
+    {
+      "type": "static",
       "claim": "The RO AI ally adapter now exposes map-owned activation metadata: thorner03 is time-gated by TychusCommando entering Region 24 and its P1-to-P2 dispatch remains fail-closed until a native census observes P2 ownership.",
       "evidence": [
         "src/projects/revolution-overdrive-porting/vibe/ai_ally.py",
@@ -57,6 +66,25 @@
       "claim": "A fresh no-debug native probe with the corrected Stage 08 probe reached CreateGame=init_game, JoinGame=in_game, Catalog=3786/12225, and non-empty observations. The probe recorded debug_apis_used=[], map_edits=false, adapter_created_p2_units=false, generic_melee_ai_injected=false, but Tychus died before Region 24 and no P2 handover occurred.",
       "evidence": [
         "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18204/p2-handover-probe.json"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "Port 18302 reached launcher ready, CreateGame=init_game, JoinGame=in_game, Catalog=3786/12225, and observations through loop 2768 with debug_apis_used=[] and zero same-window ScriptErrors. Before the OdinBuild guard was added, the probe repeatedly targeted that invulnerable map staging actor and the websocket closed before Region 24; it records no P2 ownership claim.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18302/p2-handover-probe.json",
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18302/launcher-runtime.json",
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18302/script-error-verdict-18302.json"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "Independent post-fix ports 18303 and 18304 reached launcher ready and CreateGame=init_game, but each websocket closed before JoinGame=in_game and before any gameplay observation. Their same-window ScriptError scans are clean; neither artifact proves P2 behavior.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18303/p2-handover-probe.json",
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18303/script-error-verdict-18303.json",
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18304/p2-handover-probe.json",
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18304/script-error-verdict-18304.json"
       ]
     },
     {
@@ -101,7 +129,13 @@
     "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ally_capability_matrix.py",
     "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/p2-contract-trace.json",
     "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-evidence-index.json",
-    "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18204/p2-handover-probe.json"
+    "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18204/p2-handover-probe.json",
+    "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18302/p2-handover-probe.json",
+    "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18302/script-error-verdict-18302.json",
+    "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18303/p2-handover-probe.json",
+    "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18303/script-error-verdict-18303.json",
+    "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18304/p2-handover-probe.json",
+    "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18304/script-error-verdict-18304.json"
   ],
   "validation": [
     {
@@ -117,7 +151,7 @@
     {
       "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/test_p2_ally_contract.py -v",
       "exitCode": 0,
-      "summary": "12 tests passed, including static contract, no-debug probe guard, and phase-aware adapter gating."
+      "summary": "13 tests passed, including static contract, no-debug probe guard, OdinBuild staging-actor protection, and phase-aware adapter gating."
     },
     {
       "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ai_ally_adapter.py -v",
@@ -195,10 +229,20 @@
       "summary": "Launcher ready=true and CreateGame=init_game, but JoinGame timed out after 120 seconds; structured probe verdict=error and no gameplay assertion was recorded."
     },
     {
+      "command": "approved launcher port 18302 + direct p2_handover_probe.py with same-window ScriptError verdict",
+      "exitCode": 1,
+      "summary": "CreateGame/JoinGame/Catalog/observations passed and ScriptError count=0, but the pre-fix probe targeted invulnerable OdinBuild until websocket closure; no P2 assertion is recorded."
+    },
+    {
+      "command": "approved launcher ports 18303 and 18304 + corrected direct p2_handover_probe.py",
+      "exitCode": 1,
+      "summary": "Each launcher reached ready=true and CreateGame=init_game with ScriptError count=0, but websocket closure occurred before JoinGame and gameplay observations; correctly retained as blocked runtime availability evidence."
+    },
+    {
       "command": "git diff --check",
       "exitCode": 0,
       "summary": "No whitespace errors."
     }
   ],
-  "nextStage": null
+  "nextStage": "09-ai-ally-runtime-retry"
 }

@@ -18,14 +18,17 @@
       "id": "RO-AI-003",
       "severity": "high",
       "status": "blocked",
-      "summary": "thorner03 P2 is statically a time-gated scripted ally, but the latest admissible debug-free native run lost Tychus before Region 24 and never reached the map-owned RescueUnit handover.",
+      "summary": "thorner03 P2 is statically a time-gated scripted ally, but no post-fix debug-free runtime window has completed the map-owned RescueUnit handover: the prior playable probe stalled on the invulnerable OdinBuild staging actor, and two corrected probes closed before JoinGame.",
       "evidence": [
         "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/p2-contract-trace.json",
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-target-clean-v3/target-clean-census-18165.json",
-        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18204/p2-handover-probe.json"
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18204/p2-handover-probe.json",
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18302/p2-handover-probe.json",
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18303/p2-handover-probe.json",
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18304/p2-handover-probe.json"
       ],
       "impact": "P2-owned units, P1-visible allied units, and an acknowledged native P2 command are not authorized for the adapter in the absence of the handover window.",
-      "nextAction": "Reach Region 24 through supported mission gameplay, or keep the map-specific P2 command contract unavailable."
+      "nextAction": "Obtain a stable supported runtime lease that completes JoinGame, then rerun the no-debug probe through Region 24; otherwise keep the map-specific P2 command contract unavailable."
     },
     {
       "id": "RO-AI-004",
@@ -55,26 +58,29 @@
     {
       "id": "RO-RUN-008",
       "severity": "low",
-      "status": "open",
-      "summary": "The outer PowerShell command used for the 18204 runtime probe did not propagate the probe's expected nonzero blocked exit code, although the structured artifact was written and validated.",
+      "status": "resolved",
+      "summary": "The original 18204 wrapper did not propagate the probe's expected nonzero blocked exit code. The 18302-18304 wrapper now writes the structured artifact, captures same-window ScriptErrors, and exits with the probe exit code.",
       "evidence": [
         "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18204/p2-handover-probe.json",
-        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/log.md"
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/log.md",
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18304/script-error-verdict-18304.json"
       ],
-      "impact": "A wrapper exit code alone could be misread as success or failure; the artifact verdict must remain authoritative until the wrapper is corrected.",
-      "nextAction": "Invoke the probe directly or explicitly propagate `$LASTEXITCODE` in the runtime wrapper on the next probe."
+      "impact": "The structured artifact remains the evidence source, while shell status now truthfully distinguishes pass, blocked, and error.",
+      "nextAction": "Keep propagating the probe exit code for all future runtime windows."
     },
     {
       "id": "RO-RUN-009",
       "severity": "high",
       "status": "blocked",
-      "summary": "A fresh approved-launcher run on port 18220 reached ready and CreateGame=init_game, but JoinGame timed out after 120 seconds before any playable observation.",
+      "summary": "Approved-launcher runtime availability remains intermittent: port 18220 timed out at JoinGame and corrected ports 18303 and 18304 received a websocket close after CreateGame but before any playable observation.",
       "evidence": [
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json",
-        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18220/p2-handover-probe.json"
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18220/p2-handover-probe.json",
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18303/p2-handover-probe.json",
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18304/p2-handover-probe.json"
       ],
       "impact": "This window cannot prove gameplay progression, P2 ownership, or a ScriptError-free in-game handover; it is not promoted to a native AI ally pass.",
-      "nextAction": "Retry with a fresh runtime lease when JoinGame completes; retain the prior 18204 debug-free blocked gameplay evidence as the latest completed native census."
+      "nextAction": "Retry only after a fresh runtime lease completes JoinGame; retain the prior 18204/18302 blocked gameplay evidence and do not promote the pre-JoinGame errors to AI evidence."
     },
     {
       "id": "RO-AI-005",

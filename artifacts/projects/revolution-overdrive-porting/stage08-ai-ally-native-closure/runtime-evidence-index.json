@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "classification": "blocked",
+  "stage": "08-ai-ally-native-closure",
+  "generatedAtUtc": "2026-08-08T06:04:00Z",
+  "inputs": {
+    "source": "local-binding/revolution-overdrive-download",
+    "ownedPackage": "src/projects/revolution-overdrive-porting/packages",
+    "representativeMap": "thorner03.SC2Map"
+  },
+  "static": [
+    "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/p2-contract-trace.json",
+    "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/test_p2_ally_contract.py"
+  ],
+  "runtime": [
+    {
+      "port": 18165,
+      "evidence": "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-target-clean-v3/target-clean-census-18165.json",
+      "scriptErrorEvidence": "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-target-clean-v3/script-error-verdict.json",
+      "verdict": "ai-ally-blocked",
+      "admissible": true,
+      "summary": "Debug-free strict native probe reached in_game and advanced observations, but Tychus died before Region 24; P2-owned=0, P1-visible P2-allied=0, and P2 command acknowledgement=false."
+    },
+    {
+      "port": 18166,
+      "evidence": "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-target-clean-v3/target-clean-census-18166.json",
+      "launcherEvidence": "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-target-clean-v3/launcher-runtime-18166.json",
+      "scriptErrorEvidence": "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-target-clean-v3/script-error-verdict-18166.json",
+      "verdict": "blocked_probe_error",
+      "admissible": true,
+      "summary": "Patched launcher reached stable ready=true and ScriptError count=0, but the raw websocket closed before gameplay probe completion."
+    },
+    {
+      "port": 18204,
+      "evidence": "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18204/p2-handover-probe.json",
+      "verdict": "blocked_precondition_not_reached",
+      "admissible": true,
+      "summary": "Fresh no-debug native probe reached init_game/in_game and Catalog 3786/12225; debug_apis_used=[], gate_reached=false, handover_observed=false, and P2-owned=0. Tychus died before Region 24. The probe has no independent same-window launcher ScriptError scan."
+    },
+    {
+      "port": 18201,
+      "evidence": "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-p2-handover/p2-handover-probe.json",
+      "verdict": "excluded_debug_assisted",
+      "admissible": false,
+      "summary": "Historical probe observed owner 16 -> 2, but used Debug.game_state.god; retained for audit only and excluded from closure."
+    },
+    {
+      "port": 18302,
+      "evidence": "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18302/p2-handover-probe.json",
+      "launcherEvidence": "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18302/launcher-runtime.json",
+      "scriptErrorEvidence": "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18302/script-error-verdict-18302.json",
+      "verdict": "blocked_probe_error_pre_fix",
+      "admissible": true,
+      "summary": "No-debug probe reached init_game/in_game, Catalog 3786/12225, and loop 2768 while clearing ordinary hostile units. It repeatedly targeted the map's invulnerable OdinBuild staging actor and its websocket closed before Region 24; no P2 assertion is made. Same-window ScriptError count=0."
+    },
+    {
+      "port": 18303,
+      "evidence": "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18303/p2-handover-probe.json",
+      "launcherEvidence": "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18303/launcher-runtime.json",
+      "scriptErrorEvidence": "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18303/script-error-verdict-18303.json",
+      "verdict": "blocked_join_game_websocket_closed",
+      "admissible": true,
+      "summary": "Post-fix launcher reached ready and CreateGame=init_game, then the websocket closed before JoinGame and gameplay observations. Same-window ScriptError count=0."
+    },
+    {
+      "port": 18304,
+      "evidence": "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18304/p2-handover-probe.json",
+      "launcherEvidence": "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18304/launcher-runtime.json",
+      "scriptErrorEvidence": "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18304/script-error-verdict-18304.json",
+      "verdict": "blocked_join_game_websocket_closed",
+      "admissible": true,
+      "summary": "Independent post-fix retry reproduced the CreateGame-to-JoinGame websocket close without gameplay observations. Same-window ScriptError count=0."
+    }
+  ],
+  "assertions": {
+    "staticP2Contract": true,
+    "debugFreeNativeLifecycle": true,
+    "debugFreeNativeP2Handover": false,
+    "p2OwnedRoster": false,
+    "p1VisibleP2Allied": false,
+    "p2CommandAcknowledgement": false,
+    "nativeAiAllyRoster": false
+  },
+  "combinedVerdict": "blocked",
+  "nextAction": "After a stable runtime lease completes JoinGame, use the unchanged non-debug player-action probe to reach Region 24; otherwise keep thorner03 P2 unavailable and do not generalize to dynamic-owner maps."
+}

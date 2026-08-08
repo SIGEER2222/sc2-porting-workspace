@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "stage": "08-ai-ally-native-closure",
+  "source": "src/projects/revolution-overdrive-porting/packages/Maps/thorner03.SC2Map/MapScript.galaxy",
+  "trace": {
+    "map_name": "thorner03.SC2Map",
+    "map_script_sha256": "fd533b2d02ca46837499e4d36676404d7e9c7d9e179be53c255a68b19e80fb74",
+    "map_script_lines": 5802,
+    "leader_player_id": 1,
+    "ally_player_id": 2,
+    "leader_symbol": "gv_p01_USER",
+    "ally_symbol": "gv_p02_TYCHUS",
+    "alliance_setup": [
+      {
+        "line": 503,
+        "text": "libNtve_gf_SetAlliance(gv_p01_USER, gv_p02_TYCHUS, libNtve_ge_AllianceSetting_AllyWithSharedVision);"
+      }
+    ],
+    "ally_enemy_setup": [
+      {
+        "line": 513,
+        "text": "libNtve_gf_SetAlliance(gv_p02_TYCHUS, gv_p03_DOMINION_WAREHOUSE, libNtve_ge_AllianceSetting_Enemy);"
+      },
+      {
+        "line": 514,
+        "text": "libNtve_gf_SetAlliance(gv_p02_TYCHUS, gv_p04_ELITEGUARD, libNtve_ge_AllianceSetting_Enemy);"
+      },
+      {
+        "line": 515,
+        "text": "libNtve_gf_SetAlliance(gv_p02_TYCHUS, gv_p05_ALPHASQUADRON, libNtve_ge_AllianceSetting_Enemy);"
+      },
+      {
+        "line": 516,
+        "text": "libNtve_gf_SetAlliance(gv_p02_TYCHUS, gv_p06_HELLRIDERS, libNtve_ge_AllianceSetting_Enemy);"
+      },
+      {
+        "line": 517,
+        "text": "libNtve_gf_SetAlliance(gv_p02_TYCHUS, gv_p07_SHADOWOPS, libNtve_ge_AllianceSetting_Enemy);"
+      },
+      {
+        "line": 518,
+        "text": "libNtve_gf_SetAlliance(gv_p02_TYCHUS, gv_p08_INFANTRY, libNtve_ge_AllianceSetting_Enemy);"
+      },
+      {
+        "line": 519,
+        "text": "libNtve_gf_SetAlliance(gv_p02_TYCHUS, gv_p10_DOMINION_LOKI, libNtve_ge_AllianceSetting_Enemy);"
+      },
+      {
+        "line": 5375,
+        "text": "libNtve_gf_SetAlliance(gv_p02_TYCHUS, gv_p04_ELITEGUARD, libNtve_ge_AllianceSetting_Enemy);"
+      }
+    ],
+    "unit_handover": [
+      {
+        "line": 5389,
+        "text": "libNtve_gf_RescueUnit(UnitFromId(2), gv_p02_TYCHUS, true);"
+      }
+    ],
+    "handover_trigger_chain": [
+      {
+        "line": 1169,
+        "text": "TriggerExecute(gt_MidQ, true, false);"
+      },
+      {
+        "line": 5182,
+        "text": "TriggerExecute(gt_MidCleanup, true, true);"
+      }
+    ],
+    "gate_event": [
+      {
+        "line": 1177,
+        "text": "TriggerAddEventUnitRegion(gt_VictoryWarehouseDudesKilled, null, RegionFromId(24), true);"
+      }
+    ],
+    "gate_condition": [
+      {
+        "line": 1153,
+        "text": "if (!((UnitGetType(EventUnit()) == \"TychusCommando\"))) {"
+      }
+    ],
+    "ai_wave_control": [
+      {
+        "line": 1983,
+        "text": "AIAttackWaveSetGatherPoint(gv_p02_TYCHUS, UnitGetPosition(UnitFromId(2)));"
+      },
+      {
+        "line": 1984,
+        "text": "AIAttackWaveSetTargetPlayer(gv_p02_TYCHUS, PlayerGroupSingle(gv_odinAIPlayerTarget));"
+      },
+      {
+        "line": 1985,
+        "text": "AIAttackWaveUseUnit(gv_p02_TYCHUS, UnitFromId(2));"
+      },
+      {
+        "line": 1986,
+        "text": "AIAttackWaveSend(gv_p02_TYCHUS, 1, false);"
+      }
+    ],
+    "generic_ai_start": [],
+    "handover_unit_binding": [
+      {
+        "line": 616,
+        "text": "gv_odin = UnitFromId(2);"
+      }
+    ],
+    "handover_unit_hidden": [
+      {
+        "line": 620,
+        "text": "libNtve_gf_ShowHideUnit(gv_odin, false);"
+      },
+      {
+        "line": 4800,
+        "text": "libNtve_gf_ShowHideUnit(UnitFromId(2), false);"
+      }
+    ],
+    "handover_unit_revealed": [
+      {
+        "line": 5047,
+        "text": "libNtve_gf_ShowHideUnit(gv_odin, true);"
+      },
+      {
+        "line": 5258,
+        "text": "libNtve_gf_ShowHideUnit(gv_odin, true);"
+      },
+      {
+        "line": 5388,
+        "text": "libNtve_gf_ShowHideUnit(gv_odin, true);"
+      }
+    ],
+    "ai_script_control": [],
+    "derived": {
+      "ownsUnitsAtStart": false,
+      "isTimeGatedAlly": true,
+      "isScriptDrivenAi": true,
+      "usesGenericMeleeAi": false,
+      "gateRegionId": 24,
+      "gateUnitType": "TychusCommando",
+      "handoverUnitRef": "UnitFromId(2)",
+      "handoverUnitAlias": "gv_odin",
+      "hiddenBeforeHandover": true,
+      "aiScriptControlReleased": false
+    }
+  }
+}

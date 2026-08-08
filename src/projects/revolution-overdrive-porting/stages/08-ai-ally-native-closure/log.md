@@ -101,3 +101,40 @@ Keep the commander and map bootstrap accepted for their proven P1/runtime surfac
 P2 command selection unavailable until supported, non-debug gameplay reaches Region 24 and proves
 P2 ownership, P1-visible alliance, and an acknowledged native P2 command in one window. Do not
 generalize this map contract to the 24 dynamic-owner maps.
+
+## Runtime Follow-Up: Ports 18302-18304
+
+- `static`: the new target-unit escort regression proved that the probe only sends raw focus-fire
+  orders to visible hostile units and stops Tychus while nearby hostiles are cleared. The Stage 08
+  contract suite is now 13/13. The probe additionally excludes exactly `OdinBuild`, which is the
+  map's invulnerable pre-handover `UnitFromId(2)` staging actor; its exclusion is grounded in
+  `MapScript.galaxy` initialization rather than a generic enemy exception.
+- `runtime`: port 18302 reached `ready=true`, `CreateGame=init_game`, `JoinGame=in_game`, Catalog
+  `3786/12225`, baseline loop 88, and advanced observations through loop 2768. It issued native
+  raw focus-fire against ordinary hostile Marines, Firebats, Marauders, and turrets. It repeatedly
+  targeted the invulnerable `OdinBuild` at the warehouse, then the API websocket closed before
+  Region 24. `debug_apis_used=[]`, and the same-window ScriptError scan is clean. This is a
+  pre-fix probe-control diagnostic, not a P2 handover observation.
+- `runtime/blocked`: fresh post-fix ports 18303 and 18304 each reached launcher ready and
+  `CreateGame=init_game` but received a websocket close while waiting for `JoinGame`. Neither
+  artifact contains a playable observation, so neither is used for gameplay, ownership, alliance,
+  or command claims. Each has a clean same-window ScriptError scan.
+- `static`: current-session regression baseline passed: workspace validate `ok=true` with only
+  registered-path warnings; adapter 5/5; dynamic resolver 6/6; matrix 8/8; Stage 08 contract
+  13/13; WebUI 2/2; Galaxy lint 74 files with 0 diagnostics; Catalog 36 XML/4,135 entries/0 parse
+  errors; approved launcher `-NoLaunch` staging passed.
+
+## Blocked Verdict
+
+The stage's P2 runtime closure remains `blocked`, not failed or passed. The exact unmet
+precondition is a stable no-debug `JoinGame=in_game` window **after** the `OdinBuild` escort guard,
+followed by the map-owned Region 24 handover. P2 dispatch remains unavailable until that window
+records P2 ownership, P1-visible alliance, and a native P2 command acknowledgement.
+
+## Stage Transition
+
+- `static`: the Stage 08 result schema, issues JSON, runtime evidence index JSON, and 13-test
+  contract suite were revalidated after recording ports 18302-18304.
+- `inference`: the repeated pre-JoinGame websocket closures are runtime-lease instability, not a
+  map or P2 behavior claim; Stage 09 is therefore limited to obtaining one stable window and
+  rerunning the same no-debug probe without changing the map-owned contract.
