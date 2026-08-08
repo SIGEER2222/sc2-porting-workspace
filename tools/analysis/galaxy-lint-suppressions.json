@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "description": "galaxy-lint 已知良性诊断抑制规则（R3 专项）。这些诊断在「脱离 SC2 编辑器的隔离 lint」下必然出现，因为 sc2-galaxy-lang checker 只经 include 语句解析全局符号，而真实 SC2 同一 map/mod 的所有库共享全局命名空间、无需显式 include。它们不代表代码缺陷，故抑制，使门禁反映真实信号（parse 错误、已知类型间真实不匹配、真正缺失的文件仍会报出）。每条带 id / match / pattern / reason 供审计。用 galaxy-lint.mjs --no-suppress 可临时关闭以核对。",
+  "applyToSeverity": ["error"],
+  "rules": [
+    {
+      "id": "R3-idx-access",
+      "match": "messageStartsWith",
+      "pattern": "Index access on non-array type",
+      "reason": "checker 固有限制：Galaxy 允许对部分类型做下标/字段访问，sc2-galaxy-lang 未建模。非代码缺陷。"
+    },
+    {
+      "id": "R3-undeclared",
+      "match": "messageContains",
+      "pattern": "Undeclared symbol:",
+      "reason": "隔离 lint 下未 include 的引擎常量(c_*)/AI 库函数(AI*)/CMRE 模组常量(CMUIX_*)。真实 SC2 全局命名空间已提供。非代码缺陷。"
+    },
+    {
+      "id": "R3-unknown-type",
+      "match": "messageContains",
+      "pattern": "UnknownType",
+      "reason": "所有含 UnknownType 的运算错误（'<<'/'!'/'-' 等）都是上方 Undeclared symbol 的级联产物（操作数类型未解析）。抑制根因即消除级联。"
+    },
+    {
+      "id": "R3-ref-fn-cmre-lib",
+      "match": "messageRegex",
+      "pattern": "Referenced function '(lib|CMPE|CMVO|CMUI|CMRE|CMCO|CMMU|COOC|COTF|COMU|COUI|MapModBridge|Kit)[^']*' hasn't been defined",
+      "reason": "CMRE/RO 内部库函数（libXXXXXX_gf_*、CMPE_*、CMVO_*、Kit_* 等），在完整 SC2 构建中由同名库提供。隔离 lint 无法跨全局命名空间解析。只匹配已知库命名空间前缀，不匹配 camelCase 本地函数，故不会掩盖本地拼写错误。"
+    },
+    {
+      "id": "R3-include-miss",
+      "match": "messageContains",
+      "pattern": "Given filename couldn",
+      "reason": "include 路径在隔离 lint 下未匹配（qualifiedDocuments 未覆盖的目录形态）。真实 SC2 中该文件存在于 Base.SC2Data。非代码缺陷。"
+    },
+    {
+      "id": "R3-array-idx",
+      "match": "messageStartsWith",
+      "pattern": "Array index require an integer value",
+      "reason": "通常为 UnknownType 下标（来自 Undeclared symbol 级联）导致的类型误报。隔离 lint 下非代码缺陷。"
+    },
+    {
+      "id": "R3-fixed-literal",
+      "match": "messageRegex",
+      "pattern": "not comparable to type '.*\\[fixed\\]'",
+      "reason": "fixed 字面量（如 '120.0 [fixed]'）与 fixed 变量比较时，checker 把字面量当成独立字面量类型而报错，属 checker 字面量类型建模限制。非代码缺陷。"
+    }
+  ]
+}

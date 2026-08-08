@@ -32,6 +32,7 @@ trigger libVibeKernel_gt_AllyCommand = null;
 trigger libVibeKernel_gt_BankPoll = null;
 trigger libVibeKernel_gt_UnitWake = null;
 trigger libVibeKernel_gt_PollLoop = null;
+trigger libVibeKernel_gt_Watchdog = null;
 string libVibeKernel_gv_lastPolledRequestId = "";
 string libVibeKernel_gv_lastAllyCommand = "";
 
@@ -39,6 +40,13 @@ string libVibeKernel_gv_lastAllyCommand = "";
 int libVibeKernel_gv_bankPollCount = 0;
 int libVibeKernel_gv_mapCommandCount = 0;
 bool libVibeKernel_gv_pollLoopRunning = false;
+
+// ---- 看门狗（VIBE-KERNEL-001）----
+// Galaxy 运行时错误会中止整条触发器线程；PollLoop 的 while(true) 一旦被中止，
+// Kernel 在本局余下时间彻底失联。Watchdog 自身从不调用 Dispatch，因此不会被
+// handler 的错误波及，可以安全地把 PollLoop 重新拉起来。
+int libVibeKernel_gv_watchdogLastSeen = -1;
+int libVibeKernel_gv_watchdogRestarts = 0;
 
 // ---- Bank 名称 ----
 const string libVibeKernel_gv_BankName = "GalaxyVibe";
@@ -94,6 +102,10 @@ string libVibeKernel_gf_FunctionQueryUnits(string argsJson);
 string libVibeKernel_gf_FunctionUnitKill(string argsJson);
 string libVibeKernel_gf_FunctionUnitAttack(string argsJson);
 string libVibeKernel_gf_FunctionQueryStructures(string argsJson);
+bool   libVibeKernel_gf_ProcessAllyCommand(string chat);
+bool   libVibeKernel_gf_ProcessModelAllyCommand(string chat);
+void   libVibeKernel_gf_WriteModelP2Snapshot();
+bool   libVibeKernel_gf_ApplyModelP2Intent(string economy, string production);
 
 // ---- 工具函数 ----
 void   libVibeKernel_gf_ReloadBank();
@@ -113,6 +125,7 @@ bool   libVibeKernel_gt_AllyCommand_Func(bool testConds, bool runActions);
 bool   libVibeKernel_gt_BankPoll_Func(bool testConds, bool runActions);
 bool   libVibeKernel_gt_UnitWake_Func(bool testConds, bool runActions);
 bool   libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions);
+bool   libVibeKernel_gt_Watchdog_Func(bool testConds, bool runActions);
 
 // ---- 主分发器 ----
 string libVibeKernel_gf_Dispatch(string requestJson);
