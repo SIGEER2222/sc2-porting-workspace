@@ -74,16 +74,39 @@ unit libVibeKernel_gf_FindUnitByTag(int unitTag) {
     unitgroup candidates;
     unit current;
     if (unitTag < 1) { return null; }
+
+    // 缓存命中（同一 stateVersion 内有效；任何改状态的算子都会 +1 使其失效）
+    if (libVibeKernel_gv_tagCacheVersion == libVibeKernel_gv_stateVersion
+        && libVibeKernel_gv_tagCacheTag == unitTag) {
+        if (libVibeKernel_gv_tagCacheMiss) { return null; }
+        if (libVibeKernel_gv_tagCacheUnit != null
+            && UnitIsAlive(libVibeKernel_gv_tagCacheUnit)
+            && UnitGetTag(libVibeKernel_gv_tagCacheUnit) == unitTag) {
+            return libVibeKernel_gv_tagCacheUnit;
+        }
+    }
+
     for (ownerPlayer = 1; ownerPlayer <= 15; ownerPlayer += 1) {
         candidates = UnitGroup(null, ownerPlayer, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
         total = UnitGroupCount(candidates, c_unitCountAll);
         for (index = 1; index <= total; index += 1) {
             current = UnitGroupUnit(candidates, index);
             if (current != null && UnitIsAlive(current) && UnitGetTag(current) == unitTag && UnitGetType(current) != "") {
+                libVibeKernel_gv_tagCacheTag = unitTag;
+                libVibeKernel_gv_tagCacheUnit = current;
+                libVibeKernel_gv_tagCacheMiss = false;
+                libVibeKernel_gv_tagCacheVersion = libVibeKernel_gv_stateVersion;
                 return current;
             }
         }
     }
+
+    // 负缓存：记住「这个 tag 在本 stateVersion 下确实不存在」，
+    // 避免同一批 RPC 里对同一个无效 tag 反复做 15 玩家全图扫描。
+    libVibeKernel_gv_tagCacheTag = unitTag;
+    libVibeKernel_gv_tagCacheUnit = null;
+    libVibeKernel_gv_tagCacheMiss = true;
+    libVibeKernel_gv_tagCacheVersion = libVibeKernel_gv_stateVersion;
     return null;
 }
 
@@ -1973,21 +1996,18 @@ void libVibeKernel_gf_RegisterEntryPoints() {
     // 而 register_entrypoints_chat_done 存在，正好卡在本行）。
     // 凡是启动 while(true) 循环体的 trigger，waitUntilDone 一律必须为 false。
 
-// ==== BEGIN STAGE26_FULL_INVOKE KERNEL001_WATCHDOG_REGISTER ====
-    // VIBE-KERNEL-001: watchdog keeps the transport alive across handler aborts.
-    // 先注册 watchdog 再启动 PollLoop：watchdog 是传输层的自愈兜底，
-    // 必须保证它在任何情况下都已就位。
-    libVibeKernel_gt_Watchdog = TriggerCreate("libVibeKernel_gt_Watchdog_Func");
-    TriggerExecute(libVibeKernel_gt_Watchdog, false, false);   // 异步——见上方死代码铁律
-    libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_watchdog_done", 1);
-// ==== END STAGE26_FULL_INVOKE KERNEL001_WATCHDOG_REGISTER ====
-
     // PollLoop 入口（API 模式主传输路径，Wait-based 持续轮询）
     // 使用 TimeElapsed 0.0 启动一次，进入 while(true)+Wait 循环
     libVibeKernel_gt_PollLoop = TriggerCreate("libVibeKernel_gt_PollLoop_Func");
     TriggerAddEventTimeElapsed(libVibeKernel_gt_PollLoop, 0.0, c_timeGame);
     // 双保险：立即执行一次（API 模式下 TimeElapsed 0.0 可能不触发）
     TriggerExecute(libVibeKernel_gt_PollLoop, false, false);   // 异步——见上方死代码铁律
+// ==== BEGIN STAGE26_FULL_INVOKE KERNEL001_WATCHDOG_REGISTER ====
+    // VIBE-KERNEL-001: watchdog keeps the transport alive across handler aborts.
+    libVibeKernel_gt_Watchdog = TriggerCreate("libVibeKernel_gt_Watchdog_Func");
+    TriggerExecute(libVibeKernel_gt_Watchdog, false, true);
+    libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_watchdog_done", 1);
+// ==== END STAGE26_FULL_INVOKE KERNEL001_WATCHDOG_REGISTER ====
     // 写入注册完成标记（供 Host 端验证触发器已注册）
     libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_done", 1);
 
@@ -2261,9 +2281,7 @@ bool libVibeKernel_gt_Watchdog_Func(bool testConds, bool runActions) {
             libVibeKernel_gv_pollLoopRunning = false;
             libVibeKernel_gf_WriteBankInt("index", "kernel_restart_count", libVibeKernel_gv_watchdogRestarts);
             if (libVibeKernel_gt_PollLoop != null) {
-                // 必须异步：同步调用会让 watchdog 自身被 PollLoop 的 while(true) 永久吞掉，
-                // 重启一次之后 watchdog 就再也不工作了（自废）。
-                TriggerExecute(libVibeKernel_gt_PollLoop, false, false);
+                TriggerExecute(libVibeKernel_gt_PollLoop, false, true);
             }
         }
     }
