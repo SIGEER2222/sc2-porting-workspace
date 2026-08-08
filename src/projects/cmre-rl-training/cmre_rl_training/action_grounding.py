@@ -13,6 +13,28 @@ class ActionGroundingError(ValueError):
     """Raised when an action has no legal actor or target in the observation."""
 
 
+#: Which producer structure can actually train a given unit type.
+#: ``produce_unit`` must pick a *matching* producer, not merely the first one
+#: in observation order (a CommandCenter cannot train a Marine).
+PRODUCER_FOR_UNIT: dict[str, tuple[str, ...]] = {
+    "SCV": ("CommandCenter", "OrbitalCommand", "PlanetaryFortress"),
+    "Marine": ("Barracks",),
+    "Marauder": ("Barracks",),
+    "Reaper": ("Barracks",),
+    "Ghost": ("Barracks",),
+    "Hellion": ("Factory",),
+    "SiegeTank": ("Factory",),
+    "Thor": ("Factory",),
+    "Medivac": ("Starport",),
+    "Viking": ("Starport",),
+    "Banshee": ("Starport",),
+}
+
+#: Default unit each producer can train, used when the policy asks to produce
+#: but no specific unit type is pinned by the caller.
+DEFAULT_PRODUCT = "Marine"
+
+
 class ActionGrounder:
     """Resolve policy actions without embedding transport-specific IDs."""
 
@@ -46,7 +68,13 @@ class ActionGrounder:
             args["target_entity_id"] = _target_id(obs.get("visible_enemies", ()), "no_visible_enemy")
         elif action_id == "gather_resources":
             args["target_entity_id"] = _target_id(obs.get("mineral_fields", ()), "no_resource_target")
-        elif action_id in {"repair_units", "cast_unit_ability"}:
+        elif action_id == "repair_units":
+            args["target_entity_id"] = _target_id(obs.get("own_units", ()), "no_unit_target")
+        elif action_id == "cast_unit_ability":
+            # NOTE: this branch must stay ahead of any broader membership test,
+            # otherwise ``ability_id`` is never set and dispatch rejects the
+            # command with "missing required argument 'ability_id'".
+            args["ability_id"] = "Repair"
             args["target_entity_id"] = _target_id(obs.get("own_units", ()), "no_unit_target")
         elif action_id == "load_units":
             cargo = [
@@ -57,7 +85,13 @@ class ActionGrounder:
             ]
             args["target_entity_id"] = _target_id(cargo, "no_cargo_target")
         elif action_id == "produce_unit":
-            args["unit_type_id"] = "Marine"
+            # Pick a producer that can actually train the product. Falling back
+            # to ``producers[0]`` picks a CommandCenter and the simulator then
+            # rejects the order with "需要 Barracks".
+            product, producer = _match_producer(own)
+            args["unit_type_id"] = product
+            if producer is not None:
+                args["entity_ids"] = [int(_entity_id(producer))]
         elif action_id == "research_upgrade":
             args["upgrade_id"] = "TerranInfantryWeaponsLevel1"
         elif action_id in {"cast_point_ability", "cast_no_target_ability"}:
@@ -72,6 +106,31 @@ class ActionGrounder:
         elif action_id == "morph_unit":
             args["unit_type_id"] = "SiegeTankSieged"
         return args
+
+
+def _match_producer(
+    own: list[Mapping[str, Any]],
+) -> tuple[str, Mapping[str, Any] | None]:
+    """Return ``(unit_type_id, producer)`` for a viable production order.
+
+    Prefers the default product when a matching producer exists; otherwise
+    falls back to any owned producer and the unit it can actually train.
+    """
+
+    by_type: dict[str, Mapping[str, Any]] = {}
+    for unit in own:
+        by_type.setdefault(_unit_type(unit), unit)
+
+    for structure in PRODUCER_FOR_UNIT.get(DEFAULT_PRODUCT, ()):
+        if structure in by_type:
+            return DEFAULT_PRODUCT, by_type[structure]
+
+    for product, structures in PRODUCER_FOR_UNIT.items():
+        for structure in structures:
+            if structure in by_type:
+                return product, by_type[structure]
+
+    return DEFAULT_PRODUCT, None
 
 
 def _actors(action_id: str, own: list[Mapping[str, Any]]) -> list[Mapping[str, Any]]:

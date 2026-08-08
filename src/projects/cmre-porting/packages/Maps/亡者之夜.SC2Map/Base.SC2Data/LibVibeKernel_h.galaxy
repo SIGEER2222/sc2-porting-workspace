@@ -26,6 +26,20 @@ string libVibeKernel_gv_lastResponseJson = "";
 int    libVibeKernel_gv_requestCount = 0;
 int    libVibeKernel_gv_rejectedCount = 0;
 
+// ---- unit tag 查找缓存 ----
+// FindUnitByTag 原本是 O(15 玩家 × 全图单位) 全扫描。在刷兵潮地图（亡者之夜）
+// 夜间单位量暴涨时，单次扫描会把触发线程顶到 Galaxy 操作上限而被静默 halt——
+// 该请求于是永远不会写回响应，Host 侧表现为 TIMEOUT。
+// 实测同一批 RPC 里 unit.spawn / handle.drop / vibe.unit.set_vital /
+// vibe.visual.model_swap 间歇性挂死，白天秒回、夜里超时，就是这个原因。
+// 这里加正/负双向记忆：连续对同一个 tag 的调用（query.unit → query.unit_attrs →
+// set_vital → tint → scale → opacity 是典型序列）降为 O(1)；
+// 对不存在的 tag 也记住，避免每次都白扫 15 个玩家。
+int    libVibeKernel_gv_tagCacheTag = 0;
+unit   libVibeKernel_gv_tagCacheUnit = null;
+bool   libVibeKernel_gv_tagCacheMiss = false;
+int    libVibeKernel_gv_tagCacheVersion = -1;
+
 // ---- 触发器句柄 ----
 trigger libVibeKernel_gt_ChatCommand = null;
 trigger libVibeKernel_gt_AllyCommand = null;

@@ -481,13 +481,23 @@ function Assert-CmreCommanderSelectionRemoved {
         (Join-Path $baseData "LibCOOC.galaxy"),
         (Join-Path $MapPath "MapScript.galaxy")
     ) | Where-Object { Test-Path -LiteralPath $_ }
+    $blockedTokens = @(
+        'CommanderSelectionScreen',
+        'libCMFE_gf_CMUIX_StartupApplySavedConfiguration'
+    )
     $matches = @(
-        $paths |
-            Select-String -Pattern 'CommanderSelectionScreen' -SimpleMatch
+        foreach ($token in $blockedTokens) {
+            $paths | Select-String -Pattern $token -SimpleMatch
+        }
     )
     if ($matches.Count -gt 0) {
         $matchPaths = ($matches | ForEach-Object { $_.Path }) -join ", "
         throw "CMRE commander-selection code remains in staged map: $matchPaths"
+    }
+    $libPath = Join-Path $baseData "LibCOOC.galaxy"
+    if (-not (Test-Path -LiteralPath $libPath) -or
+        -not (Select-String -Path $libPath -Pattern 'CMRE_ON_DEMAND_FIXED_EMPIRE_STARTUP' -SimpleMatch -Quiet)) {
+        throw "CMRE fixed Empire startup marker missing from staged map: $libPath"
     }
 }
 
@@ -624,16 +634,14 @@ $escapedScript
     Write-Host "CMRE trigger custom-script overlay applied: $path"
 }
 
-function Install-CmreSavedProfileStartupOverlay {
+function Install-CmreFixedCommanderStartupOverlay {
     param(
         [Parameter(Mandatory = $true)][string]$MapPath,
-        [Parameter(Mandatory = $true)][string]$Commander,
         [switch]$SkipCountdown,
         [switch]$ApiMinimal,
         [switch]$SkipPause,
         [switch]$KeepPlayer1Vanilla
     )
-    Assert-CmreGalaxyToken -Value $Commander -Name "Commander"
     $path = Join-Path $MapPath "Base.SC2Data\LibCOOC.galaxy"
     $content = Read-CmreUtf8 -Path $path
     if ($ApiMinimal) {
@@ -641,18 +649,9 @@ function Install-CmreSavedProfileStartupOverlay {
     }
 
     $startupRoot = Join-Path (Get-CmreOverlayRoot) "startup"
-    $playerTemplate = Join-Path $startupRoot "player-commander.galaxy.tpl"
-    $p1 = if ($KeepPlayer1Vanilla) { "" } else { Expand-CmreTemplate -TemplatePath $playerTemplate -Values @{ PLAYER = "1"; COMMANDER = $Commander } }
-    $p2 = Expand-CmreTemplate -TemplatePath $playerTemplate -Values @{ PLAYER = "2"; COMMANDER = $Commander }
-    # Commander selection is permanently removed from the CMRE startup path.
-    # Keep the staged map on the headless tail for every launch mode so no
-    # caller can accidentally restore the selection trigger.
-    $tail = Read-CmreUtf8 -Path (Join-Path $startupRoot "tail.headless.galaxy")
-    $replacement = Expand-CmreTemplate -TemplatePath (Join-Path $startupRoot "saved-profile-body.galaxy.tpl") -Values @{
-        P1_COMMANDER_SETUP = $p1.TrimEnd()
-        P2_COMMANDER_SETUP = $p2.TrimEnd()
-        MODE_TAIL = $tail.TrimEnd()
-    }
+    # The map owns a fixed Empire startup. No profile bank, commander argument,
+    # or selection trigger is consulted on this path.
+    $replacement = Read-CmreUtf8 -Path (Join-Path $startupRoot "fixed-empire-startup.galaxy")
 
     if ($SkipPause) {
         $customPattern = '(?m)(void libCOOC_gf_CC_CustomStartupBegin \(\) \{[\s\S]*?    // Implementation\r?\n)    GameSetMissionTimePaused\(true\);\r?\n    AITimePause\(true\);\r?\n    UnitPauseAll\(true\);'
@@ -665,8 +664,12 @@ function Install-CmreSavedProfileStartupOverlay {
 
     $startupPattern = '(?m)^    if \(\(libCMFE_gf_CMUIX_StartupApplySavedConfiguration\(\) == true\)\) \{\r?\n        Wait\(1\.0, c_timeReal\);\r?\n        CMUIX_ReadyBeginCountdown\(\);\r?\n        return ;\r?\n    \}'
     $startupFallbackPattern = '(?m)^    if \(\(libCMFE_gf_CMUIX_StartupApplySavedConfiguration\(\) == true\)\) \{\r?\n        TriggerSendEvent\("CU_CommChoiceEventClosed"\);\r?\n        return ;\r?\n    \}'
-    if ($content.Contains("CMRE_ON_DEMAND_SAVED_PROFILE_STARTUP")) {
-        Write-Host "CMRE startup overlay already present"
+    $existingStartupPattern = '(?ms)^    // CMRE_ON_DEMAND_SAVED_PROFILE_STARTUP.*?^    return ;'
+    $fixedStartupPattern = '(?ms)^    // CMRE_ON_DEMAND_FIXED_EMPIRE_STARTUP.*?^    return ;'
+    if ([regex]::IsMatch($content, $fixedStartupPattern)) {
+        Write-Host "CMRE fixed Empire startup overlay already present"
+    } elseif ([regex]::IsMatch($content, $existingStartupPattern)) {
+        $content = [regex]::Replace($content, $existingStartupPattern, $replacement.TrimEnd(), 1)
     } elseif ([regex]::IsMatch($content, $startupPattern)) {
         $content = [regex]::Replace($content, $startupPattern, $replacement, 1)
     } elseif ([regex]::IsMatch($content, $startupFallbackPattern)) {
@@ -687,7 +690,7 @@ function Install-CmreSavedProfileStartupOverlay {
     }
     Write-CmreUtf8NoBom -Path $path -Content $content
     Assert-CmreCommanderSelectionRemoved -MapPath $MapPath
-    Write-Host "CMRE saved-profile startup overlay applied from versioned assets"
+    Write-Host "CMRE fixed Empire startup overlay applied from versioned assets"
 }
 
 function Install-CmreRebornCampaignIntroSkipOverlay {

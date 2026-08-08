@@ -250,16 +250,25 @@ def write_bank_request(bank_name: str, request_id: str, request: RpcRequest, pla
     pv = ET.SubElement(pk, "Value")
     pv.set("string", request_id)
 
+    # 原子写：先落临时文件，再 os.replace 覆盖（同盘 rename 是原子操作）。
+    # 直接 tree.write(bank_path) 是"就地截断再写"，而 Kernel 的 PollLoop 每 0.5 秒
+    # BankReload 一次；一旦撞上截断窗口，SC2 会解析到半截 XML 得到空 Bank，
+    # 紧接着 Kernel 自己的 BankSave 就把内存态刷回磁盘，把刚写进去的 request 抹掉。
+    # 这不是理论风险：VibeT2 那跑最终 Bank 只剩 4 个 ally 键、request/index 全没了。
+    tmp_path = bank_path.with_suffix(bank_path.suffix + f".tmp-{os.getpid()}")
     for attempt in range(BANK_WRITE_RETRIES):
         try:
-            tree.write(bank_path, encoding="utf-8", xml_declaration=True)
+            tree.write(tmp_path, encoding="utf-8", xml_declaration=True)
+            os.replace(tmp_path, bank_path)
             return True
         except (PermissionError, OSError):
             if attempt + 1 >= BANK_WRITE_RETRIES:
+                tmp_path.unlink(missing_ok=True)
                 raise
             # SC2 may hold the Bank while its own BankSave completes. Retry
             # the same prepared document without rebuilding request state.
             time.sleep(BANK_WRITE_RETRY_DELAY_SEC)
+    tmp_path.unlink(missing_ok=True)
     return False
 
 

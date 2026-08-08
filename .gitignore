@@ -143,4 +143,29 @@ src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/generat
 # Generated runtime captures from the neuro adapter project.
 src/projects/cmre-neuro-adapter/artifacts/**
 
-# === 大文件资产已迁移到 assets/ 子仓库（贴图/模型/触发器二进制）===# 已迁移的文件类型（原位置不再跟踪，改由 assets/ 子仓库管理）src/projects/**/*.ddssrc/projects/**/*.m3src/projects/**/*.sc2modsrc/projects/**/t3TextureMaskssrc/projects/**/Triggers
+# === 大文件资产已迁移到 assets/ 子仓库（贴图/模型/触发器二进制）===
+# 已迁移的文件类型（原位置不再跟踪，改由 assets/ 子仓库管理）
+src/projects/**/*.dds
+src/projects/**/*.m3
+src/projects/**/*.sc2mod
+src/projects/**/t3TextureMasks
+src/projects/**/Triggers
+
+# === 构建/缓存/生成产物（本地派生，永不入库）===
+.cache/
+build/
+src/lib/
+stages/
+*.vibe-bak
+**/LibVibeInvokeDispatch_active.galaxy
+
+# === 一次性调试/探针脚本（p0/p1 探针、真机 vm sweep、临时 kernel fix）===
+tools/galaxy-vibe/apply_kernel_001_fix.py
+tools/galaxy-vibe/map_load_diag.py
+tools/galaxy-vibe/p0_probe_switcher.py
+tools/galaxy-vibe/p0_probe_v2.py
+tools/galaxy-vibe/p0_probe_v3.py
+tools/galaxy-vibe/p1_probe.py
+tools/galaxy-vibe/real_machine_vm_live.py
+tools/galaxy-vibe/real_machine_vm_sweep.py
+tools/galaxy-vibe/real_machine_vm_sweep2.py

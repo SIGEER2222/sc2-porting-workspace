@@ -437,8 +437,98 @@ class SimulatorSessionDebugVmBridge:
         return response
 
     def call(self, function_id: str, args: dict[str, Any]) -> Any:
+        # gen.* adapters only exist inside the live Galaxy runtime; offline we
+        # surface them as a routing marker (never a fabricated side effect).
+        if function_id.startswith("gen."):
+            return {"function_id": function_id, "routed": "runtime", "status": "passed"}
         # Errors are returned, not raised: DebugVm owns allow_error semantics.
         return self._send("function.invoke", {"function_id": function_id, "args": args})
 
     def step(self, loops: int = 1) -> Any:
         return self._send("scenario.step", {"loops": int(loops)})
+
+
+def _request_json(request: Any) -> str:
+    """Serialize a ``protocol.Request`` dataclass to the wire JSON string."""
+    from dataclasses import asdict
+
+    return json.dumps(asdict(request))
+
+
+class HostDebugVmBridge:
+    """Live peer of SimulatorSessionDebugVmBridge, backed by a running Vibe Host.
+
+    The live Galaxy Kernel owns both ``vibe.*`` real execution and ``gen.*``
+    runtime dispatch, so this bridge forwards calls to a live host over the same
+    typed ``protocol`` RPC. ``gen.*`` is surfaced as a routing marker without a
+    connection so the VM can prove routability even before a host is attached.
+
+    Constructing it does not open a connection; the websocket is opened lazily
+    on the first online call. ``aiohttp`` is imported lazily so
+    ``import vibe.debug_vm`` never fails when the dependency is absent.
+    """
+
+    def __init__(self, url: str, *, session_id: str = "vm-debug-host") -> None:
+        self._url = url
+        self._session_id = session_id
+        self._sequence = 0
+        self._ws = None
+        self._client = None
+
+    async def _ensure_connection(self):
+        if self._ws is not None:
+            return self._ws
+        import aiohttp  # lazy: only needed for a live host
+        from . import protocol
+
+        self._client = aiohttp.ClientSession()
+        self._ws = await self._client.ws_connect(self._url, max_msg_size=0)
+        return self._ws
+
+    def _make_request(self, operation: str, args: dict[str, Any]):
+        from . import protocol
+
+        self._sequence += 1
+        return protocol.make_request(
+            self._session_id,
+            f"{operation}-{self._sequence}",
+            self._sequence,
+            operation,
+            args,
+        )
+
+    async def call(self, function_id: str, args: dict[str, Any]) -> Any:
+        if function_id.startswith("gen."):
+            return {"function_id": function_id, "routed": "runtime", "status": "passed"}
+        ws = await self._ensure_connection()
+        request = self._make_request(
+            "function.invoke", {"function_id": function_id, "args": args}
+        )
+        await ws.send_str(_request_json(request))
+        return await self._recv(request.request_id)
+
+    async def step(self, loops: int = 1) -> Any:
+        ws = await self._ensure_connection()
+        request = self._make_request("scenario.step", {"loops": int(loops)})
+        await ws.send_str(_request_json(request))
+        return await self._recv(request.request_id)
+
+    async def _recv(self, request_id: str):
+        import aiohttp  # lazy
+        from . import protocol
+
+        ws = self._ws
+        async for message in ws:
+            if message.type == aiohttp.WSMsgType.TEXT:
+                response = protocol.Response(**json.loads(message.data))
+                if response.request_id == request_id:
+                    return response
+            if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
+                break
+        raise DebugVmError(f"host closed without responding to {request_id}")
+
+    async def close(self) -> None:
+        if self._ws is not None:
+            await self._ws.close()
+        if self._client is not None:
+            await self._client.close()

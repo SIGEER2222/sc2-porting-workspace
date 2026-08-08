@@ -121,6 +121,7 @@ class SimulatorRlBackend:
         # SimulatorSessionBackend.observe returns:
         # {loop, player_id, own_units, visible_enemies, resources, mission}
         # Add fields the encoder expects with defaults
+        minerals, geysers = self._neutral_resources()
         return {
             "loop": raw.get("loop", 0),
             "player_id": raw.get("player_id", self._player_id),
@@ -129,10 +130,35 @@ class SimulatorRlBackend:
             "visible_allies": [],
             "resources": dict(raw.get("resources", {})),
             "mission": dict(raw.get("mission", {})),
-            "mineral_fields": [],
-            "vespene_geysers": [],
+            "mineral_fields": minerals,
+            "vespene_geysers": geysers,
             "tech": {"completed_upgrades": [], "researching": []},
         }
+
+    def _neutral_resources(self) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Expose neutral resource nodes so ``gather_resources`` can ground.
+
+        These were previously hardcoded to empty lists, which made every
+        ``gather_resources`` action fail with ``no_resource_target``.
+        """
+
+        query = getattr(self._session, "query_units", None)
+        if query is None:
+            return [], []
+        try:
+            payload = query(0)
+        except Exception:  # noqa: BLE001 - observation must never break the env
+            return [], []
+
+        minerals: list[dict[str, Any]] = []
+        geysers: list[dict[str, Any]] = []
+        for unit in payload.get("units", []) or []:
+            unit_type = str(unit.get("unit_type_id", ""))
+            if "Mineral" in unit_type:
+                minerals.append(dict(unit))
+            elif "Vespene" in unit_type or "Geyser" in unit_type:
+                geysers.append(dict(unit))
+        return minerals, geysers
 
 
 __all__ = ["SimulatorRlBackend"]
