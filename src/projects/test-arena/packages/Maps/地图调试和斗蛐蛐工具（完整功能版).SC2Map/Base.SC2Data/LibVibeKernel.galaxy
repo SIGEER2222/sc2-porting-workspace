@@ -2006,18 +2006,20 @@ void libVibeKernel_gf_RegisterEntryPoints() {
     libVibeKernel_gt_UnitWake = TriggerCreate("libVibeKernel_gt_UnitWake_Func");
     TriggerAddEventUnitCreated(libVibeKernel_gt_UnitWake, null, "", "");
 
-    // ！！！死代码铁律（2026-08-08 真机取证）！！！
-    // TriggerExecute(t, ?, waitUntilDone=true) 对一个内部是 while(true)+Wait 的 trigger
-    // 会永久阻塞调用方——该调用之后的所有语句都是死代码，永不执行。
-    // 历史事故：此处原为 (false, true)，导致下面的 Watchdog 注册和
-    // register_entrypoints_done 标记从未执行（真机 bank 里这两个 key 始终缺失，
-    // 而 register_entrypoints_chat_done 存在，正好卡在本行）。
-    // 凡是启动 while(true) 循环体的 trigger，waitUntilDone 一律必须为 false。
+    // ！！！死代码铁律补充（2026-08-08 真机二次取证）！！！
+    // TriggerAddEventTimeElapsed(t, 0.0, c_timeGame) 在 SC2 中会**同步触发**
+    // 事件一次。如果被绑定 trigger 的 body 是 while(true)+Wait 的循环体
+    // （PollLoop / Watchdog 这种），就会永久卡在 TriggerAddEventTimeElapsed
+    // 本行，之后所有语句变死代码——表现为 "watchdog_done / done 永远不写
+    // 但 chat_done 存在"。因此所有循环体 trigger 一律**不绑定 0.0 立即事件**，
+    // 全部通过 TriggerExecute(t, false, false) 异步派发（显式 fire-and-forget）。
 
     // PollLoop 入口（API 模式主传输路径，Wait-based 持续轮询）
-    // 使用 TimeElapsed 0.0 启动一次，进入 while(true)+Wait 循环
+    // 仅创建 trigger；启动通过文末 TriggerExecute 显式异步 fire，
+    // 避免 0.0 事件同步触发 while(true) 把后续注册/写 marker 卡死。
     libVibeKernel_gt_PollLoop = TriggerCreate("libVibeKernel_gt_PollLoop_Func");
-    TriggerAddEventTimeElapsed(libVibeKernel_gt_PollLoop, 0.0, c_timeGame);
+    // 注意：此处不再 TriggerAddEventTimeElapsed(0.0) —— 详见上方铁律补充。
+    libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_pollloop_trigger_created", 1);
 // ==== BEGIN VIBE_KERNEL_001_WATCHDOG_REGISTER ====
     // 传输层自愈兜底。先于 PollLoop 派发注册，保证任何情况下 watchdog 都已就位。
     // watchdog 体内是 while(true)+Wait，waitUntilDone 必须为 false，
@@ -2030,8 +2032,10 @@ void libVibeKernel_gf_RegisterEntryPoints() {
     // 注册完成标记必须写在 PollLoop 派发之前（PollLoop 进入后不再返回）。
     libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_done", 1);
 
-    // 双保险：立即执行一次（API 模式下 TimeElapsed 0.0 可能不触发）
+    // 以显式异步 TriggerExecute 启动 PollLoop while(true) 循环；
+    // 不依赖游戏时钟推进，也避免 TriggerAddEventTimeElapsed(0.0) 同步触发死代码。
     TriggerExecute(libVibeKernel_gt_PollLoop, false, false);   // 异步——见死代码铁律
+    libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_pollloop_fired", 1);
 
 }
 
@@ -2089,11 +2093,14 @@ void libVibeKernel_InitLib() {
     // 写入银行标记，证明 InitLib 被调用（供 Host 端验证）
     libVibeKernel_gf_WriteBankInt("index", "initlib_entered", 1);
     libVibeKernel_gf_Init();
-    // 自注册入口点：延迟到游戏时钟 0.0（即 InitTriggers 之后）再调用 RegisterEntryPoints，
-    // 避免触发器在库/触发器系统完全就绪前创建导致事件不触发。
-    // 由地图 MapScript 的 InitLibs() 调用本函数；TimeElapsed(0.0) 在完整 init 之后触发。
+    // 自注册入口点：
+    // ① TimeElapsed 0.0 兜底（依赖游戏时钟推进）
+    // ② 同步调用 RegisterEntryPoints() — 斗蛐蛐等 Sandbox 地图的 MapScript Init 阶段
+    //    游戏时钟尚未推进，TimeElapsed 0.0 可能不触发；同步调用保证 PollLoop 和
+    //    Watchdog 触发器在 InitLib 返回时已就位，不依赖游戏时钟的第一次 TimeElapsed。
     t = TriggerCreate("libVibeKernel_gf_RegisterEntryPoints_Func");
     TriggerAddEventTimeElapsed(t, 0.0, c_timeGame);
+    libVibeKernel_gf_RegisterEntryPoints();
 }
 
 // ==== BEGIN STAGE26_FULL_INVOKE HANDLE_OPS ====

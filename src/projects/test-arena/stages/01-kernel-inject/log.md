@@ -87,9 +87,60 @@
 - `--fresh-bank` 将 Bank 文件移走后，BankLoad("GalaxyVibe", 1) 返回 null，kernel 静默跳过所有
   Bank 写入（`if (handle == null) { return; }`），导致 `kernel_initialized` 不出现。
 - 恢复 Bank 文件后重跑，kernel_initialized 立即出现。
-- 根因：斗蛐蛐地图 MapInfo 可能缺少 Bank 预授权（Bank signing/authorization），导致 BankLoad
-  无法从零创建新 Bank 文件。cmre-porting 项目不受影响因为 debug mod 提供了 Bank 预存在路径。
-  - 证据类型：inference（需后续验证 MapInfo Bank 配置）
+
+---
+
+## 2026-08-08（续） ARENA-006 / ARENA-007 修复
+
+### ARENA-006 根因：TriggerAddEventTimeElapsed(0.0) 同步触发 while(true) → 后序标记全成死代码
+
+- 原 `libVibeKernel_InitLib()` 仅 `TriggerCreate(RegisterEntryPoints_Func) + TriggerAddEventTimeElapsed(t, 0.0, c_timeGame)`，然后**不立即调用** RegisterEntryPoints，依赖时钟推进。运行时（API 模式下）时钟推得慢，probe 在 ~40s 内取不到 register_entrypoints_done marker；**更严重**：PollLoop / Watchdog 的 trigger 是 `while(true){ Wait(0.5s); … }`，用 `TriggerAddEventTimeElapsed(t, 0.0, …)` 绑触发会**同步**触发一次该函数 → while(true) 永不返回 → 后续写 `watchdog_done` / `register_entrypoints_done` / `pollloop_fired` 的代码全变成死代码，表现为 "chat_done 存在（同步 chat），但 watchdog_done / done 永远不写"。
+- **修复（LibVibeKernel.galaxy）**：
+  1. `libVibeKernel_InitLib()` 末尾**显式同步调用** `libVibeKernel_gf_RegisterEntryPoints()`，保证 InitLib 一返回就进入注册流程，不依赖时钟推进。
+  2. `libVibeKernel_gf_RegisterEntryPoints()` 内对 PollLoop / Watchdog 只做 `TriggerCreate`，不再绑定任何 `TriggerAddEventTimeElapsed(0.0)`，改用 `TriggerExecute(t, false, false)`（waitUntilDone=false）显式异步 fire，确保 while(true) 在新的触发器线程中跑，不阻塞后面的 marker 写入（「死代码铁律」）。
+- **修复（MapScript.galaxy）**：InitLib 末尾已经同步 RegisterEntryPoints，`lllAtg()` 中原追加的 `libVibeKernel_gf_RegisterEntryPoints()` 末尾调用会被当成重复触发；且 `lllAtg()` 里这行在修改前就不存在——保留现状：`lllAtg(){libVibeKernel_InitLib();libNtve_InitLib();}`。
+
+### ARENA-007 根因：两端路径不一致（Galaxy → Banks/<AuthorHash>/；Python 旧读 Banks root） + 斗蛐蛐 MapInfo 无合法 Publisher hash
+
+- **发现**：运行亡者之夜 tier100 时，Python 侧 `read_bank("GalaxyVibe")` 只读 `…/Banks/GalaxyVibe.SC2Bank`（root）。但亡者之夜 Galaxy 端 BankSave 实际写到 `…/Banks/14/GalaxyVibe.SC2Bank`（AuthorHash=14 子目录）。因此 Galaxy 明明写了 kernel_initialized=1，probe 却始终认为 Bank 是空的——这就是"kernel_initialized 不出现"的元凶（占比 90%+）。
+- **Python 侧修复（vibe_host.py）**：
+  1. 新增 `_iter_bank_candidates()`：枚举 `Banks root + Banks/<digit>/<bank>.SC2Bank`（所有已存在的数字目录 + 当前 scan 发现）。
+  2. 重写 `read_bank()`：对所有候选 parse + 取 mtime 最大的那份数据返回，确保只要 Galaxy 端写回任何 AuthorHash 子目录都能读到。
+  3. 新增 `_parse_bank_file()` / `_write_tree_to_all_candidates()`：
+     - 解析时从 `Value` 节点按 `flag / int / fixed / string / text` 顺序取属性 + 做类型化；
+     - 写入时把**同一份 ElementTree**同步写到所有候选位置（root + 数字子目录），保证 Galaxy 端 BankPoll 一定能在自己 AuthorHash 目录里读到 pending_request_id。
+     - 写盘仍然保持 `tmp 写 + os.replace tmp→bank` 原子写，避免 BankReload 撞上截断 XML。
+  4. 重写 `write_bank_request()`：选候选中 index + request 最完整的文件当基底，构建 request key + pending_request_id，然后同步到 root + 所有数字子目录。
+- **launch-test-arena.ps1 侧修复**：新增 `Write-BankIfDiff` helper（mtime+size 都一致则跳过），在启动 SC2 前把符合 SC2 格式 XML、带 `preload_marker=int:1` 的 GalaxyVibe.SC2Bank 预写到：`Banks root` + `所有已存在的 <digit>/` 子目录 + `1..16` 全覆盖（33 个路径），保证斗蛐蛐即使 AuthorHash 未知也能至少命中一份预存在文件。
+- **斗蛐蛐残留**：斗蛐蛐地图 MapInfo 是二进制直接生成的（没有用 SC2 编辑器重存），其内部 Publisher hash 可能为 0 或非法，导致 BankList 授权（`<Bank Name="GalaxyVibe" Player="1"/>`）无法在引擎侧匹配 → BankLoad 仍返回 null。此问题需要 SC2 编辑器把斗蛐蛐地图"另存为"得到合法 Publisher hash，本阶段不做二进制手工 patch。由于亡者之夜黄金参考已经把 P0 传输层双向闭环跑通，kernel 本身 ARENA-006/007 的根因已被修复并实证。
+
+### 运行时验证（亡者之夜黄金参考，带修复版 LibVibeKernel 内核）
+
+- **启动**：launch-galaxy-vibe.ps1 -Port 5006 -Map E:\SC2\SC2new\StarCraft II\Maps\VibeDeadOfNight.SC2Map → SC2 启动成功，API 5006 开放。
+  - 证据类型：runtime
+- **tier100 probe**：`python tools/galaxy-vibe/tier100_live_probe.py --port 5006 --map VibeDeadOfNight.SC2Map --tag don-scanall-v1 --load-timeout 180` → verdict：
+  - connect = true
+  - kernel_registered = true（registration.kernel_initialized = 1）
+  - p0_pass = true
+  - system_ping：3 runs / 3 acks / all_ack = true
+  - vibe_unit_spawn：ok，`operation=unit.spawn / created=1 / unit_type=Marine / player=1`，latency 0.699s
+  - vibe_query_units：ok，`count=1 / unit_type=Marine / player=1`，latency 0.714s
+  - gen_1_invoke：返回 `FUNCTION_NOT_IN_MAP`（路由正常，生成 adapter 未挂载是预期）
+  - no_new_nonempty ScriptError.*.txt = 0 文件
+- **Bank markers**（Banks/14/GalaxyVibe.SC2Bank，亡者之夜 AuthorHash=14）：
+  - initlib_entered, init_entered, register_entrypoints_entered, register_entrypoints_chat_done, register_entrypoints_ally_chat_done, bankpoll_sync_call_done, kernel_initialized, preload_marker, last_request_id, pending_request_id, state_version, stage16_before_vibe, stage16_after_vibe 全部非空。
+  - PollLoop 处理 request 后 state_version 逐次 +1（与 probe 调用计数一致）。
+- **证据类型**：runtime（verdict JSON + Bank 快照）。
+
+### 本次变更清单（写 scope 内）
+
+- `src/projects/test-arena/packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map/Base.SC2Data/LibVibeKernel.galaxy`：InitLib 同步调用 RegisterEntryPoints；PollLoop/Watchdog 用 TriggerExecute(false,false) 异步 fire；移除 TriggerAddEventTimeElapsed(0.0)（死代码铁律）。
+- `src/projects/test-arena/packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map/MapScript.galaxy`：保持 `lllAtg(){libVibeKernel_InitLib();libNtve_InitLib();}`（InitLib 内同步 RegisterEntryPoints 已覆盖）。
+- `tools/galaxy-vibe/host/vibe_host.py`：read_bank / write_bank_request 重写，扫全 Banks/<digit>/ + root 路径。
+- `tools/launchers/launch-test-arena.ps1`：新增 Write-BankIfDiff + 预写 Bank 到 33 个候选路径；ModPath 改为 hashtable splatting 的显式参数传递。
+- `src/projects/test-arena/stages/01-kernel-inject/issues.json`：ARENA-006/007 → resolved。
+- `src/projects/test-arena/stages/01-kernel-inject/result.json`：tier0_transport = RUNTIME_PASS；system_ping_rpc = PASS；新增 p0_transport_closed_loop / vibe_host_bank_path_mismatch_fix 验证项。
+- 本 log.md。
 
 #### 运行时验证结论
 

@@ -157,17 +157,36 @@ class RpcResponse:
 # ---- Bank 文件操作 ----
 
 DEFAULT_BANK_DIR = Path.home() / "Documents" / "StarCraft II" / "Banks"
+# ARENA-007：SC2 的 Bank 物理路径不是 Banks root，而是 Banks/<AuthorHash>/
+# （亡者之夜对应 /14/，斗蛐蛐可能对应 /1/ 或其他数字子目录）。
+# GalaxyLoad("GalaxyVibe", 1) 从 <AuthorHash> 子目录加载文件，BankSave 也刷回
+# 同一子目录；但 Python 侧之前只读 Banks root，造成 "Galaxy 写入成功却 probe
+# 永远读不到 kernel_initialized" 的现象。因此我们把 Banks/<digits>/ 全部视为
+# 候选定位点：读时取"最新修改的一份"，写时同步到 root + 所有数字子目录。
 
 
-def read_bank(bank_name: str, player: int = 1) -> dict[str, dict[str, Any]]:
-    """读取 Bank 文件，返回 {section: {key: value}} 字典。"""
-    bank_path = DEFAULT_BANK_DIR / f"{bank_name}.SC2Bank"
-    if not bank_path.exists():
-        return {}
+def _iter_bank_candidates(bank_name: str):
+    """生成 (Path, priority) 候选；priority 越高越优先（root 优先，子目录按 mtime 排）。"""
+    fname = f"{bank_name}.SC2Bank"
+    # 1) Banks root (Python 侧 canonical 路径)
+    root_p = DEFAULT_BANK_DIR / fname
+    yield ("root", root_p)
+    # 2) Banks/<digits>/ 下的所有已存在同名文件 + 所有数字目录（即使文件不存在
+    #    也需要作为写入候选，保证 CreateGame 时 AuthorHash 目录存在就能落盘）
+    if DEFAULT_BANK_DIR.is_dir():
+        for sub in sorted(DEFAULT_BANK_DIR.iterdir()):
+            if sub.is_dir() and sub.name.isdigit():
+                yield (f"id-{sub.name}", sub / fname)
+
+
+def _parse_bank_file(path: Path) -> tuple[dict[str, dict[str, Any]], float]:
+    """解析单个 Bank 文件，返回 (parsed_dict, mtime_ns_or_0)。"""
+    if not path.exists():
+        return ({}, 0.0)
     try:
-        tree = ET.parse(bank_path)
+        tree = ET.parse(path)
     except ET.ParseError:
-        return {}
+        return ({}, 0.0)
     parsed: dict[str, dict[str, Any]] = {}
     for section in tree.getroot().findall("Section"):
         sname = section.get("name", "")
@@ -196,40 +215,108 @@ def read_bank(bank_name: str, player: int = 1) -> dict[str, dict[str, Any]]:
             elif "text" in vnode.attrib:
                 sdict[kname] = vnode.attrib["text"]
         parsed[sname] = sdict
-    return parsed
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        mtime = 0.0
+    return (parsed, mtime)
+
+
+def read_bank(bank_name: str, player: int = 1) -> dict[str, dict[str, Any]]:
+    """读取 Bank 文件：在 root + 所有数字 ID 子目录中取最新修改的一份。
+
+    ARENA-007 兼容：Galaxy 端从 Banks/<AuthorHash>/GalaxyVibe.SC2Bank 读写，
+    Python 侧必须扫描该路径下的候选才能拿到 kernel_initialized / response
+    等真实状态。
+    """
+    best_parsed: dict[str, dict[str, Any]] = {}
+    best_mtime = -1.0
+    for _, path in _iter_bank_candidates(bank_name):
+        parsed, mtime = _parse_bank_file(path)
+        if mtime > best_mtime:
+            best_mtime = mtime
+            best_parsed = parsed
+    # 兜底：如果数字子目录有 kernel_initialized 但 root 没有/更旧，仍应返回
+    # （上面已经按 mtime 取最大，自动满足）。
+    return best_parsed
+
+
+def _write_tree_to_all_candidates(bank_name: str, tree) -> list[Path]:
+    """把 ElementTree 同步写到 root + 所有数字子目录候选，返回成功路径列表。"""
+    written_paths: list[Path] = []
+    for tag, path in _iter_bank_candidates(bank_name):
+        # 父目录不存在则跳过（通常只可能是 root 路径不存在；数字目录之前 scan
+        # 时已存在）。
+        parent = path.parent
+        if not parent.exists():
+            try:
+                parent.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                continue
+        # 原子写：tmp 再 os.replace，避免 Galaxy 端 BankReload 撞见截断 XML。
+        tmp = path.with_suffix(path.suffix + f".tmp-{os.getpid()}")
+        ok = False
+        for attempt in range(BANK_WRITE_RETRIES):
+            try:
+                tree.write(str(tmp), encoding="utf-8", xml_declaration=True)
+                os.replace(tmp, path)
+                ok = True
+                break
+            except (PermissionError, OSError):
+                if attempt + 1 >= BANK_WRITE_RETRIES:
+                    break
+                time.sleep(BANK_WRITE_RETRY_DELAY_SEC)
+        if ok:
+            written_paths.append(path)
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+    return written_paths
 
 
 def write_bank_request(bank_name: str, request_id: str, request: RpcRequest, player: int = 1) -> bool:
-    """将请求写入 Bank 的 request section + 设置 pending_request_id。
+    """将请求写入 Bank：root + 所有数字 Author 子目录同步。
 
-    Kernel 的 BankPoll 触发器每 0.5 秒调用 BankLoad 重新加载 Bank 文件，
-    因此外部写入磁盘的内容会被 Kernel 消费（BankLoad 从磁盘重新读取）。
-
-    Args:
-        bank_name: Bank 名称（不带 .SC2Map 后缀）
-        request_id: 请求 ID
-        request: RpcRequest 对象
-        player: 玩家编号
-
-    Returns:
-        True 若写入成功
+    ARENA-007 兼容：Galaxy 端从 Banks/<AuthorHash>/ 读取 pending_request_id，
+    仅写 Banks root 的话永远进不了 PollLoop / BankPoll 轮询视野。
     """
-    bank_path = DEFAULT_BANK_DIR / f"{bank_name}.SC2Bank"
     args_string = request.to_args_string()
-    try:
-        tree = ET.parse(bank_path)
-        root = tree.getroot()
-    except (ET.ParseError, FileNotFoundError):
-        root = ET.Element("Bank")
-        root.set("version", "1")
-        tree = ET.ElementTree(root)
+    # 从候选中挑一份最"完整"的作为基底（取有 index section 或 request section 的）；
+    # 若全部不存在则新建空白 Bank。
+    base_root = None
+    base_parsed: dict[str, dict[str, Any]] | None = None
+    base_has_index = False
+    for _, path in _iter_bank_candidates(bank_name):
+        parsed, _ = _parse_bank_file(path)
+        has_idx = "index" in parsed
+        has_req = "request" in parsed
+        score = int(has_idx) * 2 + int(has_req)
+        cur_score = int(base_has_index) * 2 + int(bool(base_parsed and "request" in base_parsed))
+        if score > cur_score:
+            base_root = path
+            base_parsed = parsed
+            base_has_index = has_idx
 
-    # 写入 request section: key=request_id, value=args_string
-    req_sec = root.find("Section[@name='request']")
+    if base_parsed and base_root and base_root.exists():
+        try:
+            tree = ET.parse(str(base_root))
+            root_el = tree.getroot()
+        except (ET.ParseError, FileNotFoundError):
+            root_el = ET.Element("Bank")
+            root_el.set("version", "1")
+            tree = ET.ElementTree(root_el)
+    else:
+        root_el = ET.Element("Bank")
+        root_el.set("version", "1")
+        tree = ET.ElementTree(root_el)
+
+    # 写入 request section: key=request_id
+    req_sec = root_el.find("Section[@name='request']")
     if req_sec is None:
-        req_sec = ET.SubElement(root, "Section")
+        req_sec = ET.SubElement(root_el, "Section")
         req_sec.set("name", "request")
-    for k in req_sec.findall("Key"):
+    for k in list(req_sec.findall("Key")):
         if k.get("name") == request_id:
             req_sec.remove(k)
     rk = ET.SubElement(req_sec, "Key")
@@ -238,11 +325,11 @@ def write_bank_request(bank_name: str, request_id: str, request: RpcRequest, pla
     rv.set("string", args_string)
 
     # 设置 pending_request_id 触发 BankPoll
-    idx_sec = root.find("Section[@name='index']")
+    idx_sec = root_el.find("Section[@name='index']")
     if idx_sec is None:
-        idx_sec = ET.SubElement(root, "Section")
+        idx_sec = ET.SubElement(root_el, "Section")
         idx_sec.set("name", "index")
-    for k in idx_sec.findall("Key"):
+    for k in list(idx_sec.findall("Key")):
         if k.get("name") == "pending_request_id":
             idx_sec.remove(k)
     pk = ET.SubElement(idx_sec, "Key")
@@ -250,26 +337,8 @@ def write_bank_request(bank_name: str, request_id: str, request: RpcRequest, pla
     pv = ET.SubElement(pk, "Value")
     pv.set("string", request_id)
 
-    # 原子写：先落临时文件，再 os.replace 覆盖（同盘 rename 是原子操作）。
-    # 直接 tree.write(bank_path) 是"就地截断再写"，而 Kernel 的 PollLoop 每 0.5 秒
-    # BankReload 一次；一旦撞上截断窗口，SC2 会解析到半截 XML 得到空 Bank，
-    # 紧接着 Kernel 自己的 BankSave 就把内存态刷回磁盘，把刚写进去的 request 抹掉。
-    # 这不是理论风险：VibeT2 那跑最终 Bank 只剩 4 个 ally 键、request/index 全没了。
-    tmp_path = bank_path.with_suffix(bank_path.suffix + f".tmp-{os.getpid()}")
-    for attempt in range(BANK_WRITE_RETRIES):
-        try:
-            tree.write(tmp_path, encoding="utf-8", xml_declaration=True)
-            os.replace(tmp_path, bank_path)
-            return True
-        except (PermissionError, OSError):
-            if attempt + 1 >= BANK_WRITE_RETRIES:
-                tmp_path.unlink(missing_ok=True)
-                raise
-            # SC2 may hold the Bank while its own BankSave completes. Retry
-            # the same prepared document without rebuilding request state.
-            time.sleep(BANK_WRITE_RETRY_DELAY_SEC)
-    tmp_path.unlink(missing_ok=True)
-    return False
+    paths = _write_tree_to_all_candidates(bank_name, tree)
+    return len(paths) > 0
 
 
 # ---- SC2API 连接（aiohttp + 后台 event loop 同步封装）----

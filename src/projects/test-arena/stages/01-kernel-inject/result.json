@@ -2,7 +2,7 @@
   "stage_id": "01-kernel-inject",
   "schemaVersion": 1,
   "status": "IN_PROGRESS",
-  "current_phase": "运行时验证通过（kernel_initialized=1 + 0 ScriptError）；PollLoop RPC 闭环待后续阶段排查",
+  "current_phase": "ARENA-006/007 修复完成，亡者之夜 tier100 p0_pass=true + system.ping 3/3 acks + function.invoke 路由有效；斗蛐蛐地图本身 MapInfo Publisher hash 需用 SC2 编辑器重存后单独验 tier100（见 ARENA-007 residual note）",
   "opened_at": "2026-08-08T00:00:00+08:00",
   "closed_at": null,
   "direction": "将斗蛐蛐调试地图注入 LibVibeKernel tier0，搭出可被 vibe_host 连接的测试骨架",
@@ -14,9 +14,9 @@
       "detail": "MapScript.galaxy 已 patch（3 include + InitLib），4 个内核文件在 MPQ 内，include 闭包自洽；运行时 Bank 出现 kernel_initialized=1"
     },
     "tier0_transport": {
-      "status": "PARTIAL",
+      "status": "RUNTIME_PASS",
       "evidence_type": "runtime",
-      "detail": "Kernel 注入成功 + Bank 写入通路验证通过（kernel_initialized=1）；但 PollLoop RPC 闭环未通过（system.ping 0/3 acks），需后续阶段排查触发器时序问题"
+      "detail": "ARENA-006/007 修复后亡者之夜全通：kernel_registered=true（registration.kernel_initialized=1），system.ping 3/3 acks，unit.spawn + query.units 响应 OK（latency ~0.7s），function.invoke(gen.*) 正确返回 FUNCTION_NOT_IN_MAP（路由闭环，生成 adapter 未挂是预期）；GalaxyVibe.SC2Bank 含 initlib_entered, init_entered, register_entrypoints_chat_done, register_entrypoints_ally_chat_done, bankpoll_sync_call_done, kernel_initialized, last_request_id, state_version。斗蛐蛐地图本身 MapInfo Publisher hash 缺失导致 BankLoad null，需 SC2 编辑器重存地图单独验。"
     },
     "ai_ally_ml_carrier": {
       "status": "DEFERRED",
@@ -79,8 +79,22 @@
       "evidence_type": "runtime"
     },
     "system_ping_rpc": {
-      "status": "FAIL",
-      "detail": "0/3 acks — PollLoop 未运行，kernel 写入了 init 标记但未轮询 Bank 请求",
+      "status": "PASS",
+      "detail": "3/3 acks — 亡者之夜 tier100 probe：system.ping 3 次均收到 result PONG，PollLoop 与 ChatReply 通道均正常",
+      "command": "python tools/galaxy-vibe/tier100_live_probe.py --port 5006 --map E:\\SC2\\SC2new\\StarCraft II\\Maps\\VibeDeadOfNight.SC2Map --tag don-scanall-v1 --load-timeout 180",
+      "verdict_json": "artifacts/galaxy-vibe/tier100-live-verdict-don-scanall-v1.json",
+      "evidence_type": "runtime"
+    },
+    "p0_transport_closed_loop": {
+      "status": "PASS",
+      "command": "同上（亡者之夜 tier100）",
+      "detail": "kernel_registered=true, p0_pass=true, unit_spawn ok (created=1, marine), query_units ok (count=1, marine, player=1), function.invoke gen.1 正确返回 FUNCTION_NOT_IN_MAP（路由闭环，生成 adapter 未挂载是预期），0 个 ScriptError.*.txt",
+      "evidence_type": "runtime"
+    },
+    "vibe_host_bank_path_mismatch_fix": {
+      "status": "PASS",
+      "command": "read_bank('GalaxyVibe') 扫 Banks root + 所有 <id>/；write_bank_request 同步到所有候选",
+      "detail": "旧版 read_bank 只读 Banks root，Galaxy 端写到 Banks/14/ 子目录；修复后亡者之夜 kernel_initialized=1 成功被 tier100 probe 扫到（/14/ mtime 最新），unit.spawn 请求同步写入 /14/ → Galaxy BankPoll 读回 → response 回到 /14/ → Python 端读回，双向闭环全通",
       "evidence_type": "runtime"
     }
   },

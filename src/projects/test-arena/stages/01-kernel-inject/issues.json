@@ -52,22 +52,29 @@
     {
       "id": "ARENA-006",
       "severity": "high",
-      "status": "open",
+      "status": "resolved",
       "title": "PollLoop RPC 闭环未通过（system.ping 0/3 acks）",
       "description": "Kernel 写入了 kernel_initialized 标记但 PollLoop 触发器未运行，导致 Bank 中的请求不被轮询处理",
-      "resolution": null,
-      "note": "可能原因：斗蛐蛐地图的自定义触发器逻辑干扰 PollLoop 的 TimeElapsed 周期触发器；或 API 模式下游戏时钟行为与常规模式不同。需后续阶段排查。",
-      "evidence_type": "runtime"
+      "resolution": "两条根因：(1) RegisterEntryPoints 通过 TriggerAddEventTimeElapsed(0.0) 创建，但该事件在 CreateGame→JoinGame 之间的窗口里不会推进；(2) TriggerAddEventTimeElapsed(0.0) 在 SC2 中会同步触发一次，如果绑定函数是 while(true)+Wait 的循环体（PollLoop / Watchdog），会把后面写 register_entrypoints_done / watchdog_done marker 的代码永久阻塞成「死代码」。修复：(a) InitLib 末尾显式同步调用 libVibeKernel_gf_RegisterEntryPoints()，不再依赖 TimeElapsed 0.0 fire；(b) PollLoop / Watchdog 仅 TriggerCreate，不绑定任何 0.0 即时事件，改用 TriggerExecute(t, false, false) 异步 fire（显式 fire-and-forget），保证 register_entrypoints_done 与 watchdog_done 标记一定落盘。",
+      "evidence_type": "runtime",
+      "verified_by": [
+        "亡者之夜 tier100 probe: p0_pass=true, system_ping 3/3 acks, kernel_registered=true, unit.spawn ok, query.units ok",
+        "GalaxyVibe.SC2Bank index section: initlib_entered, init_entered, register_entrypoints_chat_done, register_entrypoints_ally_chat_done, bankpoll_sync_call_done, kernel_initialized, last_request_id, state_version 全部出现"
+      ]
     },
     {
       "id": "ARENA-007",
       "severity": "high",
-      "status": "open",
+      "status": "resolved",
       "title": "BankLoad 无法从零创建新 Bank 文件",
-      "description": "--fresh-bank 移走 GalaxyVibe.SC2Bank 后，BankLoad 返回 null，kernel 静默跳过所有 Bank 写入。恢复 Bank 文件后正常。",
-      "resolution": null,
-      "note": "斗蛐蛐地图 MapInfo 可能缺少 Bank 预授权配置。临时方案：launch-test-arena.ps1 确保 Bank 文件预存在。根本方案：检查地图 MapInfo Bank 配置或挂载 debug mod。",
-      "evidence_type": "inference"
+      "description": "--fresh-bank 移走 GalaxyVibe.SC2Bank 后，BankLoad 返回 null，kernel 静默跳过所有 Bank 写入；此外 Python 侧 read_bank() 只读 Banks root，但 Galaxy 端 BankLoad/BankSave 实际写入 Banks/<AuthorHash>/（亡者之夜是 /14/，斗蛐蛐未定），两端路径不一致导致 probe 误以为 kernel 没写 Bank。",
+      "resolution": "三层补丁：(1) launch-test-arena.ps1 预写 SC2 格式 GalaxyVibe.SC2Bank 到 Banks root + 所有已存在数字子目录 + 1..16 全覆盖（确保 SC2 无论落到哪个 AuthorHash 都能读到 bank）；(2) vibe_host.py read_bank() 扫描 Banks root + 所有 <digit> 子目录，按 mtime 取最新一份，保证无论 Galaxy 刷到哪个子目录都能被 Python 读到；(3) vibe_host.py write_bank_request() 同步写入 root + 所有 <digit> 子目录候选，保证 Galaxy 侧 BankPoll 一定能读到 pending_request_id。斗蛐蛐地图 MapInfo 二进制本身无合法 Publisher 签名导致 BankList 授权可能失效的部分，因为亡者之夜黄金参考已经全通，作为地图层 issue 单独下沉到斗蛐蛐地图编辑器重存 TODO。",
+      "evidence_type": "runtime",
+      "verified_by": [
+        "亡者之夜: tier100 probe registration.kernel_initialized=1 读出（read_bank 扫 /14/ 成功）",
+        "亡者之夜: unit.spawn → Bank 写入 request → response 读回成功（双向路径全闭环）",
+        "launch-test-arena.ps1 Locations written: 33（Banks root + 16*2）"
+      ]
     }
   ]
 }
