@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "RO-AI-001",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Eighteen PlayerGroupLoop alliance calls across 24 RO maps remain opaque or unresolved after the safe resolver expanded 182 concrete edges.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/evidence/static/map-roster-manifest.json",
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ro_ai_001_dynamic_alliance.py",
+        "src/projects/revolution-overdrive-porting/vibe/ai_ally.py"
+      ],
+      "impact": "The adapter now exposes the statically concrete subset while retaining 18 unresolved calls as unavailable targets; it will not infer allies or enemies from opaque values.",
+      "nextAction": "Capture native owner/alliance/action evidence for the unresolved calls before widening the target contract."
+    },
+    {
+      "id": "RO-AI-003",
+      "severity": "high",
+      "status": "blocked",
+      "summary": "thorner03 P2 is statically a time-gated scripted ally, but the latest admissible debug-free native run lost Tychus before Region 24 and never reached the map-owned RescueUnit handover.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/p2-contract-trace.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-target-clean-v3/target-clean-census-18165.json",
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18204/p2-handover-probe.json"
+      ],
+      "impact": "P2-owned units, P1-visible allied units, and an acknowledged native P2 command are not authorized for the adapter in the absence of the handover window.",
+      "nextAction": "Reach Region 24 through supported mission gameplay, or keep the map-specific P2 command contract unavailable."
+    },
+    {
+      "id": "RO-AI-004",
+      "severity": "high",
+      "status": "resolved",
+      "summary": "A historical Stage 08 probe used Debug.game_state.god and therefore cannot serve as native runtime proof; the probe implementation and result classification were corrected.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-p2-handover/p2-handover-probe.json",
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/p2_handover_probe.py",
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/test_p2_ally_contract.py"
+      ],
+      "impact": "The historical owner transition is audit context only and cannot close the native AI ally gate.",
+      "nextAction": "Do not reuse the debug-assisted artifact as a pass; require a fresh debug-free runtime window."
+    },
+    {
+      "id": "RO-RUN-007",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Patched launcher readiness is stable, but the 18166 follow-up raw websocket closed before probe completion.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-target-clean-v3/launcher-runtime-18166.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-target-clean-v3/script-error-verdict-18166.json"
+      ],
+      "impact": "The launcher readiness claim is usable, but the incomplete websocket run cannot prove gameplay behavior.",
+      "nextAction": "Rerun a fresh compliant native probe when the runtime window is available and retain blocked status until it completes."
+    },
+    {
+      "id": "RO-RUN-008",
+      "severity": "low",
+      "status": "open",
+      "summary": "The outer PowerShell command used for the 18204 runtime probe did not propagate the probe's expected nonzero blocked exit code, although the structured artifact was written and validated.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18204/p2-handover-probe.json",
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/log.md"
+      ],
+      "impact": "A wrapper exit code alone could be misread as success or failure; the artifact verdict must remain authoritative until the wrapper is corrected.",
+      "nextAction": "Invoke the probe directly or explicitly propagate `$LASTEXITCODE` in the runtime wrapper on the next probe."
+    },
+    {
+      "id": "RO-RUN-009",
+      "severity": "high",
+      "status": "blocked",
+      "summary": "A fresh approved-launcher run on port 18220 reached ready and CreateGame=init_game, but JoinGame timed out after 120 seconds before any playable observation.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json",
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18220/p2-handover-probe.json"
+      ],
+      "impact": "This window cannot prove gameplay progression, P2 ownership, or a ScriptError-free in-game handover; it is not promoted to a native AI ally pass.",
+      "nextAction": "Retry with a fresh runtime lease when JoinGame completes; retain the prior 18204 debug-free blocked gameplay evidence as the latest completed native census."
+    },
+    {
+      "id": "RO-AI-005",
+      "severity": "medium",
+      "status": "resolved",
+      "summary": "The RO adapter previously had no explicit lifecycle boundary for allies whose units are handed over after a mission trigger.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/vibe/ai_ally.py",
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/test_p2_ally_contract.py"
+      ],
+      "impact": "Callers can now distinguish static P1 command authorization from runtime P2 readiness; pre-handover dispatch is rejected without changing map-owned behavior.",
+      "nextAction": "Keep the native runtime gate separate and require a fresh no-debug handover observation before enabling thorner03 P2 actions."
+    }
+  ]
+}

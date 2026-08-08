@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "stage": "08-ai-ally-native-closure",
+  "status": "blocked",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "thorner03 P2 (gv_p02_TYCHUS) is a time-gated scripted AI ally: it is allied to P1 with shared vision, owns no unit at map start, receives UnitFromId(2) through one RescueUnit call after a TychusCommando enters Region 24, and is driven after handover by map-owned AIAttackWave* calls without generic melee AI.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/p2-contract-trace.json",
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/test_p2_ally_contract.py"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The deterministic contract test guards the source hash, alliance setup, single handover, hidden/revealed Odin lifecycle, Region 24 trigger chain, map-owned AI waves, and the no-debug probe path.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/test_p2_ally_contract.py",
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/p2_contract_trace.py"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The RO AI ally adapter now exposes map-owned activation metadata: thorner03 is time-gated by TychusCommando entering Region 24 and its P1-to-P2 dispatch remains fail-closed until a native census observes P2 ownership.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/vibe/ai_ally.py",
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/test_p2_ally_contract.py"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The dynamic-owner adapter safely resolves 182 of 200 PlayerGroupLoop alliance calls across 24 maps into concrete edges; 18 opaque or unresolved calls remain visible and fail-closed.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/vibe/ai_ally.py",
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ro_ai_001_dynamic_alliance.py"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The full RO ally capability matrix covers all 31 owned maps: 26 expose at least one valid fail-closed pairing, with 414 pairings from literal/static edges and 110 from safely expanded PlayerGroupLoop edges; 18 unresolved dynamic calls remain unavailable.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/vibe/ally_matrix.py",
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ally_capability_matrix.py",
+        "artifacts/projects/revolution-overdrive-porting/ro-ai-001-generalization/ally-capability-matrix.json"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The latest admissible debug-free native probe reached CreateGame=init_game and JoinGame=in_game with a non-empty Catalog, advanced observations, accepted native actions, and had zero same-window ScriptErrors, but Tychus died before Region 24; P2-owned units, P1-visible P2-allied units, and P2 command acknowledgement remained absent.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-target-clean-v3/target-clean-census-18165.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-target-clean-v3/script-error-verdict.json"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "A fresh no-debug native probe with the corrected Stage 08 probe reached CreateGame=init_game, JoinGame=in_game, Catalog=3786/12225, and non-empty observations. The probe recorded debug_apis_used=[], map_edits=false, adapter_created_p2_units=false, generic_melee_ai_injected=false, but Tychus died before Region 24 and no P2 handover occurred.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18204/p2-handover-probe.json"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The patched launcher follow-up on port 18166 reached stable readiness and a clean same-window ScriptError scan, but its raw websocket closed before probe completion; no gameplay pass is claimed from that run.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-target-clean-v3/launcher-runtime-18166.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-target-clean-v3/script-error-verdict-18166.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-target-clean-v3/target-clean-census-18166.json"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "A fresh approved-launcher attempt on port 18220 reached launcher ready and CreateGame=init_game with a clean launcher ScriptError scan, but JoinGame timed out before a playable observation; no native AI ally assertion is claimed from this window.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json",
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18220/p2-handover-probe.json",
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/issues.json"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "A historical Stage 08 artifact observed an owner 16 -> 2 handover only while using Debug.game_state.god; it is explicitly excluded from the native closure verdict.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-p2-handover/p2-handover-probe.json",
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/issues.json"
+      ]
+    }
+  ],
+  "outputs": [
+    "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/plan.md",
+    "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/log.md",
+    "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/result.json",
+    "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/issues.json",
+    "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/self-assessment.md",
+    "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/test_p2_ally_contract.py",
+    "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/p2_contract_trace.py",
+    "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/p2_handover_probe.py",
+    "src/projects/revolution-overdrive-porting/vibe/ai_ally.py",
+    "src/projects/revolution-overdrive-porting/vibe/ally_matrix.py",
+    "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ro_ai_001_dynamic_alliance.py",
+    "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ally_capability_matrix.py",
+    "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/p2-contract-trace.json",
+    "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-evidence-index.json",
+    "artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/runtime-20260808-native-no-debug-18204/p2-handover-probe.json"
+  ],
+  "validation": [
+    {
+      "command": "node tools/analysis/validate-schema.mjs src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/result.json docs/schemas/stage-result.schema.json",
+      "exitCode": 0,
+      "summary": "Stage result uses only canonical claim types and passes schema validation."
+    },
+    {
+      "command": "node tools/utils/workspace.mjs validate",
+      "exitCode": 0,
+      "summary": "ok=true; only pre-existing registered-path warnings."
+    },
+    {
+      "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/test_p2_ally_contract.py -v",
+      "exitCode": 0,
+      "summary": "12 tests passed, including static contract, no-debug probe guard, and phase-aware adapter gating."
+    },
+    {
+      "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ai_ally_adapter.py -v",
+      "exitCode": 0,
+      "summary": "5 fail-closed AI ally adapter tests passed."
+    },
+    {
+      "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ro_ai_001_dynamic_alliance.py -v",
+      "exitCode": 0,
+      "summary": "6 dynamic-owner tests passed: 24 maps, 182 resolved edges, and 18 unresolved edges retained fail-closed."
+    },
+    {
+      "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ally_capability_matrix.py -v",
+      "exitCode": 0,
+      "summary": "8 capability-matrix tests passed: 31 maps covered, 26 supported, 414 static pairings, 110 dynamic pairings, and 18 unresolved calls retained fail-closed."
+    },
+    {
+      "command": "python -m unittest tools/cmre-webui/test_revolution_overdrive.py -v",
+      "exitCode": 0,
+      "summary": "2 WebUI map/faction selection tests passed."
+    },
+    {
+      "command": "python -m py_compile src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/p2_handover_probe.py src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/p2_contract_trace.py",
+      "exitCode": 0,
+      "summary": "Stage 08 Python probe and trace compile."
+    },
+    {
+      "command": "python -m py_compile src/projects/revolution-overdrive-porting/vibe/ai_ally.py src/projects/revolution-overdrive-porting/vibe/__init__.py",
+      "exitCode": 0,
+      "summary": "Phase-aware RO AI ally adapter compiles successfully."
+    },
+    {
+      "command": "python adapter MVP assertion for thorner03 pre/post handover dispatch",
+      "exitCode": 0,
+      "summary": "P2=0 rejects dispatch; one observed P2-owned unit allows P1 dispatch; non-P1 source remains rejected."
+    },
+    {
+      "command": "node tools/utils/workspace.mjs lint src/projects/revolution-overdrive-porting/packages --format json --no-type-check",
+      "exitCode": 0,
+      "summary": "74 Galaxy files, 0 diagnostics."
+    },
+    {
+      "command": "node tools/analysis/analyze-catalog.mjs revolution-overdrive-owned-package Commander/Mods/RevolutionOverdrive.SC2Mod '.*' artifacts/projects/revolution-overdrive-porting/stage08-ai-ally-native-closure/owned-main-catalog.json",
+      "exitCode": 0,
+      "summary": "36 XML files, 4,135 entries, 0 parse errors."
+    },
+    {
+      "command": "PowerShell parser on tools/launchers/launch-revolution-overdrive.ps1",
+      "exitCode": 0,
+      "summary": "No parser errors."
+    },
+    {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-revolution-overdrive.ps1 -MapName thorner03.SC2Map -Faction Iron -ListenPort 18202 -NoLaunch",
+      "exitCode": 0,
+      "summary": "Approved launcher stages the real map input; source/staged file count 55/55."
+    },
+    {
+      "command": "python -c strict validation of target-clean-census-18165.json and script-error-verdict.json",
+      "exitCode": 0,
+      "summary": "Strict lifecycle and blocked ally fields match the recorded debug-free runtime evidence; ScriptError count=0."
+    },
+    {
+      "command": "python -c strict validation of runtime-20260808-native-no-debug-18204/p2-handover-probe.json",
+      "exitCode": 0,
+      "summary": "Fresh no-debug probe artifact has init_game/in_game, Catalog=3786/12225, debug_apis_used=[], gate_reached=false, handover_observed=false, and P2-owned=0."
+    },
+    {
+      "command": "approved launcher port 18166 + raw probe",
+      "exitCode": 1,
+      "summary": "Stable launcher ready and ScriptError count=0, but raw websocket closed before completion; correctly retained as blocked_probe_error."
+    },
+    {
+      "command": "approved launcher port 18220 + direct p2_handover_probe.py with probe exit-code propagation",
+      "exitCode": 1,
+      "summary": "Launcher ready=true and CreateGame=init_game, but JoinGame timed out after 120 seconds; structured probe verdict=error and no gameplay assertion was recorded."
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0,
+      "summary": "No whitespace errors."
+    }
+  ],
+  "nextStage": null
+}
