@@ -30,7 +30,7 @@ def test_launcher_delegates_on_demand_overlay_work():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
     assert r"lib\cmre-on-demand-overlay.ps1" in source
 
-    startup_body = _function_body(source, "Enable-CmreFixedCommanderStartup")
+    startup_body = _function_body(source, "Enable-CmrePreselectedCommanderStartup")
     observer_body = _function_body(source, "Install-CmreDynamicObserver")
     core_body = _function_body(source, "Patch-CmreCoreRuntimeErrors")
 
@@ -42,7 +42,8 @@ def test_launcher_delegates_on_demand_overlay_work():
         assert 'TriggerSendEvent("CU_CommChoiceEventClosed")' not in body
         assert "GameSetMissionTimePaused(true)" not in body
 
-    assert "Install-CmreFixedCommanderStartupOverlay" in startup_body
+    assert "Install-CmrePreselectedCommanderStartupOverlay" in startup_body
+    assert "-Commander $Commander" in startup_body
     assert "Install-CmreObserverOverlay" in observer_body
     assert "Install-CmreCoreRuntimeErrorOverlay" in core_body
 
@@ -324,7 +325,7 @@ def test_reborn_loading_patch_runs_after_campaign_library_is_staged():
 def test_overlay_assets_hold_galaxy_fragments_outside_launcher():
     overlay = OVERLAY.read_text(encoding="utf-8-sig")
     core_overlay = CORE_OVERLAY.read_text(encoding="utf-8-sig")
-    assert "Install-CmreFixedCommanderStartupOverlay" in overlay
+    assert "Install-CmrePreselectedCommanderStartupOverlay" in overlay
     assert "Install-CmreObserverOverlay" in overlay
     assert "Install-CmreCoreRuntimeErrorOverlay" in core_overlay
     assert "deterministic offsets inside the uniquely named trigger function" in core_overlay
@@ -332,7 +333,8 @@ def test_overlay_assets_hold_galaxy_fragments_outside_launcher():
     assert "$functionIndex10 = $comi.IndexOf($comiFunction10" in core_overlay
 
     required_assets = [
-        ASSETS / "startup" / "fixed-empire-startup.galaxy",
+        ASSETS / "startup" / "player-commander.galaxy.tpl",
+        ASSETS / "startup" / "preselected-commander-startup.galaxy.tpl",
         ASSETS / "startup" / "tail.default.galaxy",
         ASSETS / "startup" / "tail.skip-pause.galaxy",
         ASSETS / "startup" / "tail.skip-countdown.galaxy",
@@ -344,15 +346,19 @@ def test_overlay_assets_hold_galaxy_fragments_outside_launcher():
     for path in required_assets:
         assert path.exists(), path
 
-    fixed_startup = (ASSETS / "startup" / "fixed-empire-startup.galaxy").read_text(encoding="utf-8-sig")
+    preselected_startup = (ASSETS / "startup" / "preselected-commander-startup.galaxy.tpl").read_text(encoding="utf-8-sig")
+    player_commander = (ASSETS / "startup" / "player-commander.galaxy.tpl").read_text(encoding="utf-8-sig")
     map_glue = (ASSETS / "map-glue.dead-of-night.galaxy").read_text(encoding="utf-8-sig")
     default_tail = (ASSETS / "startup" / "tail.default.galaxy").read_text(encoding="utf-8-sig")
     headless_tail = (ASSETS / "startup" / "tail.headless.galaxy").read_text(encoding="utf-8-sig")
 
-    assert "CMRE_ON_DEMAND_FIXED_EMPIRE_STARTUP" in fixed_startup
-    assert fixed_startup.count('"Empire"') == 6
-    assert "CMUIX_StartupApplySavedConfiguration" not in fixed_startup
-    assert "CommanderSelectionScreen" not in fixed_startup
+    assert "CMRE_ON_DEMAND_PRESELECTED_COMMANDER_STARTUP" in preselected_startup
+    assert "CMUIX_StartupApplySavedConfiguration" not in preselected_startup
+    assert "CommanderSelectionScreen" not in preselected_startup
+    assert "{{P1_COMMANDER_SETUP}}" in preselected_startup
+    assert "{{P2_COMMANDER_SETUP}}" in preselected_startup
+    assert "{{PLAYER}}" in player_commander
+    assert "{{COMMANDER}}" in player_commander
     assert "CMRE_ON_DEMAND_HEADLESS_STARTUP" in headless_tail
     assert "libCOOC_gf_CC_DevStartupFinish();" in headless_tail
     assert "CommanderSelectionScreen" not in headless_tail
@@ -370,27 +376,31 @@ def test_overlay_assets_hold_galaxy_fragments_outside_launcher():
     assert 'TriggerSendEvent("CU_CommChoiceEventClosed")' not in default_tail
 
 
-def test_headless_startup_is_the_default_non_selection_path():
+def test_webui_preselected_startup_is_the_default_non_selection_path():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
     overlay = OVERLAY.read_text(encoding="utf-8-sig")
     map_lib = (ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "亡者之夜.SC2Map" / "Base.SC2Data" / "LibCOOC.galaxy").read_text(encoding="utf-8-sig")
 
     assert "ShowSelectionUI" not in source
     top_level_params = source.splitlines()[1]
-    assert "[Parameter(Mandatory = $true)][string]$Commander" not in top_level_params
-    assert "$EnableReborn" not in top_level_params
-    assert "$RebornCommander" not in top_level_params
-    assert '$Commander = "Empire"' in source
+    assert "[Parameter(Mandatory = $true)][string]$Commander" in top_level_params
+    assert "[switch]$EnableReborn" in top_level_params
+    assert "[string]$RebornCommander" in top_level_params
+    assert '$Commander = "Empire"' not in source
     assert "CMRE Alenger selection:" not in source
-    assert "CMRE fixed startup:" in source
+    assert "CMRE preselected startup:" in source
+    assert "Enable-CmrePreselectedCommanderStartup" in source
+    assert "Enable-CmrePreselectedCommanderStartup -MapPath $liveMap -Commander $Commander" in source
     assert "Enable-CmreSavedProfileStartup" not in source
+    assert "Install-CmrePreselectedCommanderStartupOverlay" in overlay
     assert "Install-CmreSavedProfileStartupOverlay" not in overlay
     assert "ShowSelectionUI" not in overlay
     assert "CommanderSelectionScreen" not in map_lib
     assert "libCMFE_gf_CMUIX_StartupApplySavedConfiguration" not in map_lib
-    assert "CMRE_ON_DEMAND_FIXED_EMPIRE_STARTUP" in map_lib
-    assert 'libCOOC_gf_CC_PlayerCommanderSet(1, "Empire");' in map_lib
-    assert 'libCOOC_gf_CC_PlayerCommanderSet(2, "Empire");' in map_lib
+    assert "CMRE_ON_DEMAND_PRESELECTED_COMMANDER_STARTUP" in map_lib
+    assert 'libCOOC_gf_CC_PlayerCommanderSet(1, "TerranAlenger3");' in map_lib
+    assert 'libCOOC_gf_CC_PlayerCommanderSet(2, "TerranAlenger3");' in map_lib
+    assert "CMRE_ON_DEMAND_FIXED_EMPIRE_STARTUP" not in map_lib
     assert "CMRE_ON_DEMAND_NO_COMMANDER_SELECTION" in overlay
     assert "CommanderSelectionScreen" in overlay
     assert "Assert-CmreCommanderSelectionRemoved" in overlay

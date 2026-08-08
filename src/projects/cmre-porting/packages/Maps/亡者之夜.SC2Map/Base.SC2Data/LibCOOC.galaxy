@@ -4797,18 +4797,18 @@ void libCOOC_gf_CC_DevStartupBegin () {
 
         libCOOC_gf_ShowHideWorldCover(true, 0.0, lv_indexPlayer);
     }
-    // CMRE_ON_DEMAND_FIXED_EMPIRE_STARTUP
-    libCOTF_gv_sELECTED_Commander[1] = "Empire";
+    // CMRE_ON_DEMAND_PRESELECTED_COMMANDER_STARTUP
+    libCOTF_gv_sELECTED_Commander[1] = "TerranAlenger3";
     libCOTF_gv_sELECTED_Commander_Random[1] = false;
-    libCOOC_gf_CC_PlayerCommanderSet(1, "Empire");
-    libCOUI_gv_cU_CommanderSelection[1] = "Empire";
+    libCOOC_gf_CC_PlayerCommanderSet(1, "TerranAlenger3");
+    libCOUI_gv_cU_CommanderSelection[1] = "TerranAlenger3";
     libCOUI_gv_cU_CommanderSelect_PlayerReady[1] = true;
     libCOUI_gf_CU_CommanderFinalizeStates(1);
 
-    libCOTF_gv_sELECTED_Commander[2] = "Empire";
+    libCOTF_gv_sELECTED_Commander[2] = "TerranAlenger3";
     libCOTF_gv_sELECTED_Commander_Random[2] = false;
-    libCOOC_gf_CC_PlayerCommanderSet(2, "Empire");
-    libCOUI_gv_cU_CommanderSelection[2] = "Empire";
+    libCOOC_gf_CC_PlayerCommanderSet(2, "TerranAlenger3");
+    libCOUI_gv_cU_CommanderSelection[2] = "TerranAlenger3";
     libCOUI_gv_cU_CommanderSelect_PlayerReady[2] = true;
     libCOUI_gf_CU_CommanderFinalizeStates(2);
 
@@ -4822,7 +4822,7 @@ void libCOOC_gf_CC_DevStartupBegin () {
     libNtve_gf_HideGameUI(true, PlayerGroupAll());
     BankLoad("CMRERebornDebug", 1);
     if (BankLastCreated() != null) {
-        BankValueSetFromInt(BankLastCreated(), "debug", "fixed_commander_startup", 1);
+        BankValueSetFromInt(BankLastCreated(), "debug", "preselected_commander_startup", 1);
         BankSave(BankLastCreated());
     }
     libCOOC_gf_CC_DevStartupFinish();

@@ -1,19 +1,12 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [string]$MapSourceOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$DirectMapApi, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "", [int]$InvokeTier = 0)
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [string]$MapSourceOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$DirectMapApi, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "", [int]$InvokeTier = 0)
 # -MapCopySuffix: 可选的地图副本后缀，用于避免多会话同时操作同一 live 地图导致 DocumentInfo 冲突。
 # 例如 -MapCopySuffix "reborn" 会使用 Maps\亡者之夜.SC2Map.reborn\ 作为 live 地图。
 # 不指定时使用原始路径（向后兼容）。
 # -InvokeTier: Stage 26 全函数 invoke 分档放量开关（0=全量，100/1000=仅挂载 id≤tier 的分片）。
 $ErrorActionPreference = "Stop"
-# This launcher has one canonical CMRE commander. The map-side startup is
-# patched to the same value, so no caller can route into commander selection.
-$Commander = "Empire"
-# Reborn selection uses a separate commander picker and is intentionally not
-# exposed by this fixed-profile entry point.
-$EnableReborn = $false
-$RebornCommander = ""
-$RebornDifficulty = 5
-$RebornSpeed = 5
+# The caller selects the commander. The map-side overlay writes that explicit
+# selection to CMRE's startup state and bypasses the in-game selection screen.
 # 模式校验：PlayerMode 和 DebugMode 互斥；DebugMode 自动启用 ApiMinimal 并要求 ListenPort
 if ($PlayerMode -and $DebugMode) { throw "-PlayerMode 和 -DebugMode 互斥，不能同时使用" }
 if ($DebugMode) {
@@ -335,7 +328,7 @@ $dependencies = Merge-CmreMapDependencies -BaseDependencies $dependencies -Sourc
 if ($sourceMapDependencies.Count -gt 0) {
     Write-Host "Preserved source map dependencies: $($sourceMapDependencies -join ', ')"
 }
-Write-Host "CMRE fixed startup: $MapName x $Commander"
+Write-Host "CMRE preselected startup: $MapName x $Commander"
 Write-Host "On-demand packages: $($selectedMods -join ', ')"
 if ($DryRun) { $dependencies | ForEach-Object { Write-Host "  $_" }; exit 0 }
 
@@ -438,15 +431,16 @@ function Ensure-CmreRebornCampaignDependencies {
     }
 }
 
-function Enable-CmreFixedCommanderStartup {
+function Enable-CmrePreselectedCommanderStartup {
     param(
         [Parameter(Mandatory = $true)][string]$MapPath,
+        [Parameter(Mandatory = $true)][string]$Commander,
         [switch]$SkipCountdown,
         [switch]$ApiMinimal,
         [switch]$SkipPause,
         [switch]$KeepPlayer1Vanilla
     )
-    Install-CmreFixedCommanderStartupOverlay -MapPath $MapPath -SkipCountdown:$SkipCountdown -ApiMinimal:$ApiMinimal -SkipPause:$SkipPause -KeepPlayer1Vanilla:$KeepPlayer1Vanilla
+    Install-CmrePreselectedCommanderStartupOverlay -MapPath $MapPath -Commander $Commander -SkipCountdown:$SkipCountdown -ApiMinimal:$ApiMinimal -SkipPause:$SkipPause -KeepPlayer1Vanilla:$KeepPlayer1Vanilla
 }
 function Patch-RebornK5KerriganSpawn {
     <#
@@ -2303,15 +2297,13 @@ try {
     if ($ApiMinimal) {
         # ApiMinimal: API 客户端负责 CreateGame+JoinGame，但 staged map 仍强制使用
         # 预设 commander 并移除 selection fallback，避免进入地图后回到选择界面。
-        Enable-CmreFixedCommanderStartup -MapPath $liveMap -ApiMinimal
+        Enable-CmrePreselectedCommanderStartup -MapPath $liveMap -Commander $Commander -ApiMinimal
     } elseif ($SkipCountdown) {
         # 显式 SkipCountdown：客户端用 CreateGame+JoinGame 推进状态；仍走 headless startup。
-        Enable-CmreFixedCommanderStartup -MapPath $liveMap -SkipCountdown
+        Enable-CmrePreselectedCommanderStartup -MapPath $liveMap -Commander $Commander -SkipCountdown
     } else {
-        # 默认模式：注入 commander 设置并直接调用 CMUIX_ReadyBeginCountdown，
-        # 让启动直接进入地图；指挥官选择界面已从 CMRE 启动路径移除。
-        # 之前把 -ListenPort > 0 合并到 SkipCountdown 分支是错误的：ReadyBeginCountdown 被跳过
-        # 导致 SC2 永远卡在 Launched，GameInfo/Step 全部报 "Not in a game"。
+        # 默认模式：写入显式 commander 选择并完成 CMRE startup，直接进入地图；
+        # 指挥官选择界面与 saved-profile startup 均不参与这个路径。
         # 2026-07-25 修复：API 模式（-ListenPort > 0）加 -SkipPause，跳过
         # DevStartupBegin 开头的 GameSetMissionTimePaused/AITimePause/UnitPauseAll，
         # 这三个调用会把游戏暂停，但不会影响 API 状态（状态由 CreateGame/JoinGame 控制）。
@@ -2321,9 +2313,9 @@ try {
             # API 以 P1 身份加入，操作 P1 的指挥官单位（type_4390/4386 CC / type_4382 SCV）。
             # 这才是 CMRE 的"玩家队友"角色——有指挥官的单位，而非 vanilla 单位。
             # ability ID 使用 CMRE 自定义值（17428/17514 训练 SCV，16/17/18 建造建筑）。
-            Enable-CmreFixedCommanderStartup -MapPath $liveMap -SkipPause
+            Enable-CmrePreselectedCommanderStartup -MapPath $liveMap -Commander $Commander -SkipPause
         } else {
-            Enable-CmreFixedCommanderStartup -MapPath $liveMap
+            Enable-CmrePreselectedCommanderStartup -MapPath $liveMap -Commander $Commander
         }
     }
     # Install-CmreDynamicObserver 必须始终调用：

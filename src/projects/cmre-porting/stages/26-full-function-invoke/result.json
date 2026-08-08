@@ -3,7 +3,7 @@
   "stage": "26-full-function-invoke",
   "status": "PARTIAL",
   "evidence_type": "mixed",
-  "summary": "全函数 function.invoke 扩展的静态部分全部达成：11,890 个唯一签名通过编译期生成的类型化 adapter 可调用（gen.<int> 整数分派，非反射），22 种句柄类型走 LibVibeHandles 登记表强行全覆盖，funcref 静态查值表 667 候选、structref 仅登记表引用，未知值结构化拒绝。注册表 11,910 条（11,890 gen + 20 手写）、whitelist 新增 handle.* 三操作、宿主侧整数 id 优先归一化、strategy 模式 debug_only 拒绝不变、策略审计新增 invoke.generated 族。798 个生成/kernel Galaxy 文件 0 解析错误，run-all-validation 52/52，Stage 19/20/22/23/25 回归全绿，三副本 hash 一致。自审修复一处严重路由缺陷（位置分片与区间路由错位，6,108 函数会错片）。运行时实测取得实质进展：本机 SC2 已确认安装（E:\\SC2\\SC2new\\StarCraft II），经 API 模式拉起获得 live 窗口；tier100 自定义探针证明 Kernel 自注册（kernel_initialized+register_entrypoints_done）、system.ping 闭环、vibe.unit.spawn 真机原生执行（SC2 原始观测独立确认 +1 Marine）、vibe.query.units 自查一致、function.invoke 路由到达 Kernel 并返回结构化响应、同窗口 ScriptError 零新增。gen.* 真机原生执行仍 build-blocked：需同时含有效 Kernel 与生成 adapter 包的『打包后 .SC2Map 文件』，当前有效地图缺包、含包目录地图经 API 加载报 InvalidMap，待 MPQ 打包闭环。",
+  "summary": "全函数 function.invoke 扩展的静态部分全部达成：11,890 个唯一签名通过编译期生成的类型化 adapter 可调用（gen.<int> 整数分派，非反射），22 种句柄类型走 LibVibeHandles 登记表强行全覆盖，funcref 静态查值表 667 候选、structref 仅登记表引用，未知值结构化拒绝。注册表 11,910 条（11,890 gen + 20 手写）、whitelist 新增 handle.* 三操作、宿主侧整数 id 优先归一化、strategy 模式 debug_only 拒绝不变、策略审计新增 invoke.generated 族。798 个生成/kernel Galaxy 文件 0 解析错误，run-all-validation 52/52，Stage 19/20/22/23/25 回归全绿，三副本 hash 一致。自审修复一处严重路由缺陷（位置分片与区间路由错位，6,108 函数会错片）。运行时实测取得实质进展：本机 SC2 已确认安装（E:\\SC2\\SC2new\\StarCraft II），经 API 模式拉起获得 live 窗口；tier100 自定义探针证明 Kernel 自注册（kernel_initialized+register_entrypoints_done）、system.ping 闭环、vibe.unit.spawn 真机原生执行（SC2 原始观测独立确认 +1 Marine）、vibe.query.units 自查一致、function.invoke 路由到达 Kernel 并返回结构化响应、同窗口 ScriptError 零新增。gen.* 真机原生执行仍 build-blocked：需同时含有效 Kernel 与生成 adapter 包的『打包后 .SC2Map 文件』，当前有效地图缺包、含包目录地图经 API 加载报 InvalidMap，待 MPQ 打包闭环。WebUI 指挥官/地图选择已恢复为 launcher 输入，启动覆盖层按所选 runtime commander 预写 P1/P2 并删除 CMRE 选择入口；实际 ZergAlenger6 副本覆盖验证通过，真实 SC2 staging/live UI 因现有 SC2 进程锁定 CM_ArtPack 文件而阻塞。",
   "changed_paths": [
     "src/projects/cmre-porting/project.json",
     "src/projects/cmre-porting/stages/26-full-function-invoke/plan.md",
@@ -38,11 +38,11 @@
     "tools/launchers/lib/cmre-on-demand-overlay.ps1",
     "tools/launchers/tests/test_launch_cmre_alenger_static.py",
     "tools/launchers/README.md",
-    "tools/launchers/overlays/cmre-alenger/startup/fixed-empire-startup.galaxy",
-    "tools/launchers/overlays/cmre-alenger/startup/saved-profile-body.galaxy.tpl",
     "tools/launchers/overlays/cmre-alenger/startup/player-commander.galaxy.tpl",
+    "tools/launchers/overlays/cmre-alenger/startup/preselected-commander-startup.galaxy.tpl",
     "src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/LibCOOC.galaxy",
-    "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/fixed-empire-startup-validation-20260808.json"
+    "tools/cmre-webui/test_launch_async_contract.py",
+    "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/preselected-commander-overlay-20260808.json"
   ],
   "verification": [
     {
@@ -81,7 +81,7 @@
       "name": "overlay-and-launcher-static-tests",
       "command": "python -m pytest -q tools/launchers/tests",
       "status": "PASS",
-      "detail": "59 passed，含 fixed Empire startup/commander-selection removal 回归测试；PS1 AST 语法校验通过"
+      "detail": "59 passed，含 WebUI 预选启动/commander-selection removal 回归测试；PS1 AST 语法校验通过"
     },
     {
       "name": "runtime-staged-rollout",
@@ -112,18 +112,24 @@
       "evidence": "artifacts/galaxy-vibe/tier100-live-verdict.json"
     },
     {
-      "name": "fixed-empire-launcher-staging",
-      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -NoLaunch -MapCopySuffix 'fixed-empire-20260808-final'",
+      "name": "webui-preselected-commander-overlay",
+      "command": "Install-CmrePreselectedCommanderStartupOverlay -MapPath artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/preselected-commander-overlay-20260808 -Commander ZergAlenger6",
       "status": "PASS",
-      "detail": "最终 launcher 参数面无 Commander/Reborn 选择输入；实际 staged LibCOOC 含固定 Empire 启动标记与 P1/P2 设置，不含 CommanderSelectionScreen 或 saved-profile 入口。旧 -Commander 参数由 PowerShell 参数绑定拒绝。",
-      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/fixed-empire-startup-validation-20260808.json"
+      "detail": "对真实 CMRE LibCOOC.galaxy 副本执行覆盖函数后，P1/P2 均写入 ZergAlenger6；CMRE_ON_DEMAND_PRESELECTED_COMMANDER_STARTUP 存在，CommanderSelectionScreen 与 libCMFE_gf_CMUIX_StartupApplySavedConfiguration 均不存在。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/preselected-commander-overlay-20260808.json"
     },
     {
-      "name": "fixed-empire-live-ui-and-script-error-gate",
-      "command": "launch-cmre-alenger.ps1 (non-isolated live launch)",
+      "name": "webui-preselected-commander-live-staging",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -Commander 'ZergAlenger6' -NoLaunch -MapCopySuffix 'webui-preselected-20260808'",
       "status": "BLOCKED",
-      "detail": "既有 SC2_x64 进程持有当前 GameLogs；为不干扰外部运行中会话，未启动第二个实例或终止该进程，因此没有本次改动的 listener/UI/ScriptError runtime 证据。",
-      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/fixed-empire-startup-validation-20260808.json"
+      "detail": "launcher 已解析 WebUI 形式的 ZergAlenger6 -> Abathur，但既有 SC2_x64 进程锁定 E:\\SC2\\SC2new\\StarCraft II\\Mods\\CM_ArtPack\\CM_ArtPack_Base.SC2Mod，未执行真实地图 staging；未终止外部会话，因此没有新的 live UI/listener/ScriptError 证据。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/preselected-commander-overlay-20260808.json"
+    },
+    {
+      "name": "webui-map-commander-argument-contract",
+      "command": "python -m pytest -q tools/launchers/tests tools/cmre-webui/test_launch_async_contract.py",
+      "status": "PASS",
+      "detail": "63 passed；WebUI 构造的 -MapName 亡者之夜.SC2Map 与 -Commander ZergAlenger6 原样传入 launcher。"
     }
   ],
   "numbers": {

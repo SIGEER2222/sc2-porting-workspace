@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "evidence_type": "mixed",
+  "stage": "26-full-function-invoke",
+  "claim": "WebUI-selected commander is written to both CMRE commander slots without entering commander selection UI",
+  "source": "src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/LibCOOC.galaxy",
+  "target": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/preselected-commander-overlay-20260808/Base.SC2Data/LibCOOC.galaxy",
+  "selected_commander": "ZergAlenger6",
+  "static_checks": {
+    "marker": true,
+    "player_1_commander": true,
+    "player_2_commander": true,
+    "commander_selection_screen_removed": true,
+    "saved_profile_startup_removed": true
+  },
+  "commands": [
+    "Install-CmrePreselectedCommanderStartupOverlay -MapPath artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/preselected-commander-overlay-20260808 -Commander ZergAlenger6",
+    "python -m pytest -q tools/launchers/tests tools/cmre-webui/test_launch_async_contract.py"
+  ],
+  "launcher_dry_run": {
+    "status": "PASS",
+    "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -Commander 'ZergAlenger6' -DryRun",
+    "resolved_package_profile": "Abathur"
+  },
+  "live_launcher_staging": {
+    "status": "BLOCKED",
+    "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -Commander 'ZergAlenger6' -NoLaunch -MapCopySuffix 'webui-preselected-20260808'",
+    "reason": "Existing SC2_x64 process locked E:/SC2/SC2new/StarCraft II/Mods/CM_ArtPack/CM_ArtPack_Base.SC2Mod; external session was preserved."
+  }
+}

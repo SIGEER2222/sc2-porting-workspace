@@ -157,3 +157,24 @@
   外部运行中的游戏，本次未停止、复用或覆盖该进程，故没有新 live UI/listener/
   ScriptError 证据。详情见
   `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/fixed-empire-startup-validation-20260808.json`。
+
+### 2026-08-08 WebUI 预选指挥官修正
+- 用户澄清 WebUI 仍必须选择地图和指挥官；此前固定 Empire 的实现不符合该契约，作为错误前向提交被本次修正取代。
+- 恢复 `launch-cmre-alenger.ps1` 的强制 `-Commander`、`-EnableReborn`、
+  `-RebornCommander`、`-RebornDifficulty`、`-RebornSpeed` 参数。WebUI 的
+  `-MapName/-Commander` 组合继续原样传入 launcher。
+- 删除固定 Empire 启动资产，新增 `player-commander.galaxy.tpl` 与
+  `preselected-commander-startup.galaxy.tpl`。覆盖器每次根据 `$Commander`
+  重写已有预选块、旧 saved-profile 块或原始 CMUIX startup 分支；随后直接设置
+  P1/P2、完成 `libCOOC_gf_CC_DevStartupFinish`，不调用
+  `CommanderSelectionScreen` 或 `libCMFE_gf_CMUIX_StartupApplySavedConfiguration`。
+- `static`: `python -m pytest -q tools/launchers/tests tools/cmre-webui/test_launch_async_contract.py`
+  -> 63 passed；两个 PowerShell 文件 AST 解析通过；launcher `-DryRun` 接受
+  `ZergAlenger6` 并解析为 Abathur。
+- `static/MVP`: 对真实 CMRE `LibCOOC.galaxy` 副本执行
+  `Install-CmrePreselectedCommanderStartupOverlay -Commander ZergAlenger6`，
+  检查 P1/P2 均为 `ZergAlenger6`，且两个选择入口均不存在。证据：
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/preselected-commander-overlay-20260808.json`。
+- `blocked`: 真实 launcher `-NoLaunch` staging 在同步 `CM_ArtPack_Base.SC2Mod`
+  时被已有 `SC2_x64` 进程占用；没有终止该外部会话，故 live UI、listener、
+  同窗口 ScriptError 仍待空闲 SC2 会话补验。

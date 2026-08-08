@@ -26,6 +26,26 @@ def test_launcher_falls_back_to_windows_powershell(monkeypatch):
     assert server._resolve_powershell_executable().endswith("powershell.exe")
 
 
+def test_cmre_launch_args_preserve_webui_map_and_commander(monkeypatch):
+    monkeypatch.setattr(server, "_resolve_powershell_executable", lambda: "powershell.exe")
+    handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)
+
+    context = handler._build_launch_args(
+        {
+            "mapName": "亡者之夜.SC2Map",
+            "commander": "ZergAlenger6",
+            "mode": 1,
+            "difficultyBase": 0,
+            "difficultyPlus": 0,
+        }
+    )
+
+    args = context["args"]
+    assert args[args.index("-MapName") + 1] == "亡者之夜.SC2Map"
+    assert args[args.index("-Commander") + 1] == "ZergAlenger6"
+    assert context["commander"] == "ZergAlenger6"
+
+
 class _FinishedProcess:
     def wait(self):
         return 4294967295
