@@ -1966,6 +1966,14 @@ void libVibeKernel_gf_RegisterEntryPoints() {
 
 }
 
+// ---- 自注册包装器（供 InitLib 延迟调用）----
+bool libVibeKernel_gf_RegisterEntryPoints_Func(bool testConds, bool runActions) {
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    libVibeKernel_gf_RegisterEntryPoints();
+    return true;
+}
+
 // ---- 初始化 ----
 void libVibeKernel_gf_Init() {
     if (libVibeKernel_gv_initialized) { return; }
@@ -2008,9 +2016,15 @@ bool libVibeKernel_gt_AutoInit_Func(bool testConds, bool runActions) {
 trigger libVibeKernel_gt_AutoInit = null;
 
 void libVibeKernel_InitLib() {
+    trigger t;
     // 写入银行标记，证明 InitLib 被调用（供 Host 端验证）
     libVibeKernel_gf_WriteBankInt("index", "initlib_entered", 1);
     libVibeKernel_gf_Init();
+    // 自注册入口点：延迟到游戏时钟 0.0（即 InitTriggers 之后）再调用 RegisterEntryPoints，
+    // 避免触发器在库/触发器系统完全就绪前创建导致事件不触发。
+    // 由地图 MapScript 的 InitLibs() 调用本函数；TimeElapsed(0.0) 在完整 init 之后触发。
+    t = TriggerCreate("libVibeKernel_gf_RegisterEntryPoints_Func");
+    TriggerAddEventTimeElapsed(t, 0.0, c_timeGame);
 }
 
 // ==== BEGIN STAGE26_FULL_INVOKE HANDLE_OPS ====
