@@ -33,12 +33,41 @@
     {
       "id": "ARENA-004",
       "severity": "high",
-      "status": "open",
+      "status": "resolved",
       "title": "运行时验证待执行",
       "description": "需启动地图 → vibe_host 连接 → Bank kernel_initialized 标记 → GameLogs ScriptError 复核",
-      "resolution": null,
-      "note": "静态验证已通过，运行时验证需用户确认后执行",
+      "resolution": "运行时验证已执行：SC2 启动成功 + 0 ScriptError + CreateGame/JoinGame 成功 + kernel_initialized=1 确认",
+      "note": "验收标准 1（kernel_initialized）RUNTIME_PASS；验收标准 2（tier0 传输层）PARTIAL（PollLoop RPC 未闭环）",
       "evidence_type": "runtime"
+    },
+    {
+      "id": "ARENA-005",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "launch-test-arena.ps1 PowerShell 数组 splatting 参数错位",
+      "description": "@largs 数组 splatting 导致 -Map 被绑定到 launch-galaxy-vibe.ps1 的第一个位置参数 [int]$Port",
+      "resolution": "改用 hashtable splatting @lparams 命名传递参数",
+      "evidence_type": "static"
+    },
+    {
+      "id": "ARENA-006",
+      "severity": "high",
+      "status": "open",
+      "title": "PollLoop RPC 闭环未通过（system.ping 0/3 acks）",
+      "description": "Kernel 写入了 kernel_initialized 标记但 PollLoop 触发器未运行，导致 Bank 中的请求不被轮询处理",
+      "resolution": null,
+      "note": "可能原因：斗蛐蛐地图的自定义触发器逻辑干扰 PollLoop 的 TimeElapsed 周期触发器；或 API 模式下游戏时钟行为与常规模式不同。需后续阶段排查。",
+      "evidence_type": "runtime"
+    },
+    {
+      "id": "ARENA-007",
+      "severity": "high",
+      "status": "open",
+      "title": "BankLoad 无法从零创建新 Bank 文件",
+      "description": "--fresh-bank 移走 GalaxyVibe.SC2Bank 后，BankLoad 返回 null，kernel 静默跳过所有 Bank 写入。恢复 Bank 文件后正常。",
+      "resolution": null,
+      "note": "斗蛐蛐地图 MapInfo 可能缺少 Bank 预授权配置。临时方案：launch-test-arena.ps1 确保 Bank 文件预存在。根本方案：检查地图 MapInfo Bank 配置或挂载 debug mod。",
+      "evidence_type": "inference"
     }
   ]
 }

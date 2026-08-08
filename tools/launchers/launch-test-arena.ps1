@@ -77,9 +77,17 @@ if ($NoLaunch) {
 Write-Host "[2/2] Launching SC2 via launch-galaxy-vibe.ps1 (no mod) ..."
 $launcher = Join-Path $repo "tools\galaxy-vibe\launch-galaxy-vibe.ps1"
 if (-not (Test-Path $launcher)) { Write-Error "launch-galaxy-vibe.ps1 not found: $launcher" }
-$largs = @("-Map", $outMap, "-ModPath", "", "-Port", "$Port", "-Python", $Python)
-if ($AutoProbe) { $largs += "-AutoProbe" }
-if ($Repl) { $largs += "-Repl" }
-if ($Verify) { $largs += @("-Verify", $Verify) }
-& $launcher @largs
+# Use named hashtable splatting to avoid positional-argument confusion
+# (launch-galaxy-vibe.ps1's first param is [int]$Port, so array splatting would bind -Map to $Port).
+# -ModPath with empty string explicitly = no mod (launch-galaxy-vibe.ps1 line 74 checks $PSBoundParameters.ContainsKey).
+$lparams = @{
+    Port     = $Port
+    Map      = $outMap
+    ModPath  = ""
+    Python   = $Python
+}
+if ($AutoProbe) { $lparams["AutoProbe"] = $true }
+if ($Repl)     { $lparams["Repl"]     = $true }
+if ($Verify)   { $lparams["Verify"]   = $Verify }
+& $launcher @lparams
 exit $LASTEXITCODE

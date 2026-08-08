@@ -52,8 +52,49 @@
 - **test_kernel.py**：因 protobuf 版本冲突（generated code 需 protoc ≥ 3.19，当前环境 protobuf 过新）未能运行，与地图注入无关，不影响静态验证结论。
   - 证据类型：static（阻断原因为环境兼容性，非地图问题）
 
-### 待办（运行时验证）
+### 运行时验证
 
-- 启动地图（`launch-test-arena.ps1 -AutoProbe`）→ vibe_host 连接 → Bank 出现 `kernel_initialized` 标记。
-- 复核 GameLogs 是否有本次启动新增的 `ScriptError.*.txt`。
-- 运行时验证需用户确认后执行。
+#### Bug 修复（运行时阻断）
+
+- `tools/launchers/launch-test-arena.ps1`：PowerShell 数组 splatting `@largs` 导致位置参数错位
+  （launch-galaxy-vibe.ps1 第 1 参数是 `[int]$Port`，`-Map` 被绑定到 `$Port`）。改用 hashtable
+  splatting `@lparams` 命名传递，彻底消除位置绑定歧义。
+  - 证据类型：static（代码审查）+ runtime（修复后 SC2 成功启动）
+
+#### 运行时验证执行
+
+- **SC2 启动**：`launch-test-arena.ps1`（无 -AutoProbe）→ SC2 Switcher 启动 → API 端口 5000 开放。
+  - 命令：`powershell -File tools/launchers/launch-test-arena.ps1`
+  - 证据类型：runtime（进程 PID + API 端口连通）
+- **ScriptError 复核**：本次启动后 GameLogs 新增 0 个 `ScriptError.*.txt`。
+  - 命令：`python %TEMP%/check_scripterrors2.py`（对比 launch marker 时间戳）
+  - 证据类型：runtime
+- **CreateGame + JoinGame**：tier100_live_probe.py 自动 CreateGame（player_setup type=1 Terran）
+  + JoinGame（player_id=1），均成功无错误。
+  - 命令：`python tools/galaxy-vibe/tier100_live_probe.py --port 5000 --map artifacts/projects/test-arena/stage01/test-arena.SC2Map --tag test-arena-tier0-v2 --load-timeout 120`
+  - 证据类型：runtime（SC2 API Response 无 error）
+- **kernel_initialized**：Bank `GalaxyVibe.SC2Bank` section `index` key `kernel_initialized = 1`。
+  - verdict JSON：`artifacts/galaxy-vibe/tier100-live-verdict-test-arena-tier0-v2.json`
+  - `registration: {"kernel_initialized": 1}`
+  - 证据类型：runtime（Bank 文件内容）
+- **system.ping RPC**：0/3 acks — PollLoop 未运行。Kernel 写入了 init 标记但未轮询 Bank 请求。
+  - 证据类型：runtime
+- **ScriptError 二次复核**：CreateGame+JoinGame 后再次检查 GameLogs，仍 0 新增 ScriptError。
+  - 证据类型：runtime
+
+#### 关键发现：Bank 预存在性
+
+- `--fresh-bank` 将 Bank 文件移走后，BankLoad("GalaxyVibe", 1) 返回 null，kernel 静默跳过所有
+  Bank 写入（`if (handle == null) { return; }`），导致 `kernel_initialized` 不出现。
+- 恢复 Bank 文件后重跑，kernel_initialized 立即出现。
+- 根因：斗蛐蛐地图 MapInfo 可能缺少 Bank 预授权（Bank signing/authorization），导致 BankLoad
+  无法从零创建新 Bank 文件。cmre-porting 项目不受影响因为 debug mod 提供了 Bank 预存在路径。
+  - 证据类型：inference（需后续验证 MapInfo Bank 配置）
+
+#### 运行时验证结论
+
+- ✅ 验收标准 1（kernel_initialized）：**RUNTIME_PASS** — Bank 出现 `kernel_initialized = 1`
+- ⚠️ 验收标准 2（tier0 传输层）：**PARTIAL** — Kernel 注入成功 + Bank 写入通路验证通过；
+  但 PollLoop RPC 闭环未通过（system.ping 0/3 acks），需后续阶段排查触发器时序问题
+- ✅ 0 ScriptError（编译 + 运行时均无错误）
+- ✅ CreateGame + JoinGame 成功

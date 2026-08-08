@@ -2,21 +2,21 @@
   "stage_id": "01-kernel-inject",
   "schemaVersion": 1,
   "status": "IN_PROGRESS",
-  "current_phase": "静态验证通过（MPQ 打包 + include 闭包完整）；运行时验证待执行",
+  "current_phase": "运行时验证通过（kernel_initialized=1 + 0 ScriptError）；PollLoop RPC 闭环待后续阶段排查",
   "opened_at": "2026-08-08T00:00:00+08:00",
   "closed_at": null,
   "direction": "将斗蛐蛐调试地图注入 LibVibeKernel tier0，搭出可被 vibe_host 连接的测试骨架",
   "plan": "src/projects/test-arena/stages/01-kernel-inject/plan.md",
   "acceptance_criteria": {
     "kernel_injected": {
-      "status": "STATIC_PASS",
-      "evidence_type": "static",
-      "detail": "MapScript.galaxy 已 patch（3 include + InitLib），4 个内核文件在 MPQ 内，include 闭包自洽"
+      "status": "RUNTIME_PASS",
+      "evidence_type": "runtime",
+      "detail": "MapScript.galaxy 已 patch（3 include + InitLib），4 个内核文件在 MPQ 内，include 闭包自洽；运行时 Bank 出现 kernel_initialized=1"
     },
     "tier0_transport": {
-      "status": "PENDING",
+      "status": "PARTIAL",
       "evidence_type": "runtime",
-      "detail": "需启动地图后由 vibe_host P0 探针验证 Bank 出现 kernel_initialized 标记"
+      "detail": "Kernel 注入成功 + Bank 写入通路验证通过（kernel_initialized=1）；但 PollLoop RPC 闭环未通过（system.ping 0/3 acks），需后续阶段排查触发器时序问题"
     },
     "ai_ally_ml_carrier": {
       "status": "DEFERRED",
@@ -52,6 +52,36 @@
       "status": "BLOCKED",
       "reason": "protobuf version conflict in Python environment (generated code needs protoc >= 3.19)",
       "evidence_type": "static"
+    },
+    "sc2_launch": {
+      "status": "PASS",
+      "command": "powershell -File tools/launchers/launch-test-arena.ps1",
+      "detail": "SC2 Switcher 启动，API 端口 5000 开放，SC2_x64 PID 出现",
+      "evidence_type": "runtime"
+    },
+    "script_error_check": {
+      "status": "PASS",
+      "command": "python %TEMP%/check_scripterrors2.py",
+      "detail": "本次启动后 GameLogs 新增 0 个 ScriptError.*.txt",
+      "evidence_type": "runtime"
+    },
+    "create_game_join": {
+      "status": "PASS",
+      "command": "python tools/galaxy-vibe/tier100_live_probe.py --port 5000 --map artifacts/projects/test-arena/stage01/test-arena.SC2Map --tag test-arena-tier0-v2",
+      "detail": "CreateGame 无 error，JoinGame player_id=1 无 error",
+      "evidence_type": "runtime"
+    },
+    "kernel_initialized_bank": {
+      "status": "PASS",
+      "command": "tier100_live_probe registration poll",
+      "detail": "GalaxyVibe.SC2Bank section[index] key[kernel_initialized]=1",
+      "verdict_json": "artifacts/galaxy-vibe/tier100-live-verdict-test-arena-tier0-v2.json",
+      "evidence_type": "runtime"
+    },
+    "system_ping_rpc": {
+      "status": "FAIL",
+      "detail": "0/3 acks — PollLoop 未运行，kernel 写入了 init 标记但未轮询 Bank 请求",
+      "evidence_type": "runtime"
     }
   },
   "outputs": [
@@ -69,5 +99,5 @@
     "tools/launchers/launch-test-arena.ps1",
     "artifacts/projects/test-arena/stage01/test-arena.SC2Map"
   ],
-  "note": "静态验证全部通过。运行时验证（vibe_host P0 探针 + kernel_initialized Bank 标记）待用户确认后执行。"
+  "note": "运行时验证：kernel_initialized=1 已确认（Bank 写入通路通过），0 ScriptError。PollLoop RPC 闭环（system.ping）未通过，需后续阶段排查触发器时序问题。"
 }
