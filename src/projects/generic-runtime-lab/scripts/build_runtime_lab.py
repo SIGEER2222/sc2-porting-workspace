@@ -58,9 +58,8 @@ include "scripts/cmlib/cmlib_selftest"
 
 void InitMap() {
     libVibeKernel_InitLib();
-    RuntimeLab_Init();
     CMLib_SelfTest();
-    libVibeKernel_gf_RegisterEntryPoints();
+    RuntimeLab_Init();
 }
 """
 

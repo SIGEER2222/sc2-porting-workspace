@@ -30,7 +30,11 @@ def test_runtime_lab_build_wires_the_three_suites():
     assert "Campaigns/Void.SC2Campaign" in module.DOCUMENT_INFO
     assert "libVibeKernel_InitLib();" in module.MAPSCRIPT
     assert "CMLib_SelfTest();" in module.MAPSCRIPT
-    assert "libVibeKernel_gf_RegisterEntryPoints();" in module.MAPSCRIPT
+    assert "RuntimeLab_Init();" in module.MAPSCRIPT
+    assert "libVibeKernel_gf_RegisterEntryPoints();" not in module.MAPSCRIPT
+    assert module.MAPSCRIPT.index("CMLib_SelfTest();") < module.MAPSCRIPT.index(
+        "RuntimeLab_Init();"
+    )
 
 
 def test_cmlib_control_stays_isolated_from_runtime_lab():
@@ -66,6 +70,10 @@ def test_runtime_lab_tactical_fixture_is_observable():
     assert "CMLib_ResSet" in text
     assert "CMLib_UGHasUnit" in text
     assert "UnitGroupIssueOrder" in text
+
+    init_body = text.split("void RuntimeLab_Init()", 1)[1].split("\n}", 1)[0]
+    assert "RuntimeLab_ConfigurePlayers();" not in init_body
+    assert "RuntimeLab_CreateControlPanel();" not in init_body
 
 
 def test_runtime_lab_control_panel_has_deterministic_actions():

@@ -360,6 +360,8 @@ bool RuntimeLab_StartTacticalArena(bool testConds, bool runActions) {
         return true;
     }
 
+    RuntimeLab_ConfigurePlayers();
+    RuntimeLab_CreateControlPanel();
     if (RuntimeLab_gv_ArenaInitialized == false) {
         RuntimeLab_ResetArena();
     }
@@ -368,8 +370,6 @@ bool RuntimeLab_StartTacticalArena(bool testConds, bool runActions) {
 
 void RuntimeLab_Init() {
     RuntimeLab_EnsureGroups();
-    RuntimeLab_ConfigurePlayers();
-    RuntimeLab_CreateControlPanel();
     RuntimeLab_WriteStatus("map_init", 1);
     RuntimeLab_WriteStatus("runtime_vm_initialized",
         RuntimeLab_BoolToInt(libVibeKernel_gv_initialized));
