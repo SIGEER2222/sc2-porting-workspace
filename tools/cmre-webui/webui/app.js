@@ -63,7 +63,7 @@ const state = {
     mutators: [],
     voicePack: "",
     extraMods: [],
-    apiMode: true,
+    apiMode: false,
     listenPort: 5000,
     // Buff 补丁：仅对原版 18 指挥官生效。
     // - enabled: 是否启用补丁
@@ -1287,7 +1287,7 @@ function resetSelection() {
     commanderCachedImage: c0.cachedImage || "",
     mode: 1, difficultyBase: 0, difficultyPlus: 0, enemy: "",
     mutators: [], voicePack: "", extraMods: [],
-    apiMode: true, listenPort: 5000,
+    apiMode: false, listenPort: 5000,
     buffPatch: { enabled: false, buffs: [], masteries: {}, extras: { P1: new Set(), P2: new Set(), P3: new Set() }, _lastCommander: "" },
   };
   syncUI();

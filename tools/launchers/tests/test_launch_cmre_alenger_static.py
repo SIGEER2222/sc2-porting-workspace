@@ -274,9 +274,12 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
 def test_player_mode_launches_direct_map_from_gamelog_signal():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
     core_overlay = CORE_OVERLAY.read_text(encoding="utf-8-sig")
+    map_load_body = _function_body(source, "Wait-CmreGameLogMapLoadSignal")
     assert 'SC2 direct-map mode: launching SC2Switcher_x64.exe' in source
     assert 'Wait-CmreGameLogMapLoadSignal' in source
     assert '*Alert*.txt' in source
+    assert 'new ScriptError detected' in map_load_body
+    assert 'return "ScriptError"' not in map_load_body
     assert 'Direct SC2 map launch must use Maps\\\\$MapName' in source
     assert 'guard empty hero structure unit type' in core_overlay
     assert '-loadmap `"$liveMap`"' not in source
@@ -426,6 +429,7 @@ def test_webui_preselected_startup_is_the_default_non_selection_path():
     assert "CMRE_ON_DEMAND_NO_COMMANDER_SELECTION" in overlay
     assert "CommanderSelectionScreen" in overlay
     assert "Assert-CmreCommanderSelectionRemoved" in overlay
+    assert "directOnlyStartupPattern" in overlay
     assert "Join-Path $baseData \"LibCOOC.galaxy\"" in overlay
     assert "Join-Path $MapPath \"MapScript.galaxy\"" in overlay
     assert 'Join-Path $WorkspaceRoot "src\\projects\\cmre-porting\\packages\\Maps\\$MapName\\Base.SC2Data"' in overlay
@@ -522,6 +526,26 @@ def test_reborn_library_keeps_native_map_init_and_swarm_setup_path():
     assert "TriggerAddEventTimeElapsed(lib48DF4533_gt_Initialization, 0.0, c_timeGame);" not in source
     assert "TriggerAddEventMapInit(lib48DF4533_gt_Initialization);" in source
     assert "TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);" in source
+
+
+def test_reborn_library_init_matches_crlf_swarm_setup_tail():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "$swarmSetupEndPattern" in source
+    assert r"\r?\n" in source
+    assert "[regex]::Matches($content, $swarmSetupEndPattern)" in source
+    assert "expected exactly one SwarmSetup_Func end marker" in source
+    assert "Contains($swarmSetupEndMarker)" not in source
+
+
+def test_staged_invoke_bundle_disables_the_optional_funcref_table():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    body = _function_body(source, "Repair-CmreStagedInvokeBundle")
+
+    assert "CMRE_VIBE_FUNCREF_TABLE_DISABLED" in body
+    assert "$funcrefResolverPattern" in body
+    assert "expected exactly one ResolveFuncref table" in body
+    assert "return null;" in body
 
 
 def test_reborn_staged_map_guards_invalid_achievement_owner_ids():
@@ -738,4 +762,12 @@ def test_launcher_top_level_passes_invoke_tier_to_observer_overlay():
     # Stage 26 分档放量：顶层参数声明 + 透传给 Install-CmreObserverOverlay
     assert "[int]$InvokeTier = 0)" in source
     assert "-VibeKernelOverride $VibeKernelOverride -InvokeTier $InvokeTier" in source
+
+
+def test_launcher_repairs_generated_invoke_bundle_against_staged_closure():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "Repair-CmreStagedInvokeBundle -MapPath $MapPath" in source
+    assert '"tools\\galaxy-vibe\\mpq\\staged_map_doctor.py"' in source
+    assert "& $python $doctor $MapPath --fix" in source
 

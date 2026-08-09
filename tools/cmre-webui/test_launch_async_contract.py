@@ -4,8 +4,12 @@
 from collections import deque
 import io
 import threading
+from pathlib import Path
 
 import server
+
+
+WEBUI_APP = Path(__file__).parent / "webui" / "app.js"
 
 
 def test_launcher_prefers_powershell_core(monkeypatch):
@@ -44,6 +48,36 @@ def test_cmre_launch_args_preserve_webui_map_and_commander(monkeypatch):
     assert args[args.index("-MapName") + 1] == "亡者之夜.SC2Map"
     assert args[args.index("-Commander") + 1] == "ZergAlenger6"
     assert context["commander"] == "ZergAlenger6"
+
+
+def test_webui_defaults_to_player_map_launch(monkeypatch):
+    monkeypatch.setattr(server, "_resolve_powershell_executable", lambda: "powershell.exe")
+    handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)
+
+    context = handler._build_launch_args({})
+
+    command = " ".join(context["args"])
+    assert "-PlayerMode" in command
+    assert "-ListenPort" not in command
+    assert WEBUI_APP.read_text(encoding="utf-8").count("apiMode: false") == 2
+
+
+def test_force_stop_leaves_untracked_sc2_sessions_alone(monkeypatch):
+    previous_launcher = server._launcher_process
+    calls = []
+    monkeypatch.setattr(server, "_list_game_processes", lambda: [(321, "SC2_x64.exe")])
+    monkeypatch.setattr(
+        server,
+        "_force_kill_process_tree",
+        lambda pid: calls.append(pid) or True,
+    )
+    try:
+        server._launcher_process = None
+
+        assert server._force_stop_current_game() == []
+        assert calls == []
+    finally:
+        server._launcher_process = previous_launcher
 
 
 class _FinishedProcess:
