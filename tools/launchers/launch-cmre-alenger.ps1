@@ -2253,7 +2253,33 @@ try {
     if (-not $NoLaunch -and -not $SecondaryClient) {
         $existing = @(Get-Sc2RuntimeProcesses)
         if ($existing.Count -gt 0) {
-            throw (Format-Sc2RuntimeBusyMessage -Processes $existing -Lease (Get-Sc2RuntimeLease))
+            $currentLease = Get-Sc2RuntimeLease
+            # PlayerMode/DebugMode 下：如果没有 lease 文件（owner_session=unknown），
+            # 说明检测到的 SC2 进程是前一次启动失败后残留的孤儿进程，而非玩家正在进行的游戏。
+            # 自动清理这些孤儿进程，而不是直接报错退出。
+            if ($null -eq $currentLease -or [string]::IsNullOrWhiteSpace($currentLease.ownerSessionId)) {
+                Write-Host "[cleanup] 检测到无 lease 的残留 SC2 进程，视为孤儿进程自动清理:"
+                foreach ($p in $existing) {
+                    $parent = "unknown"
+                    try {
+                        $ci = Get-CimInstance Win32_Process -Filter "ProcessId=$($p.Id)" -ErrorAction SilentlyContinue
+                        if ($ci) { $parent = [int]$ci.ParentProcessId }
+                    } catch { }
+                    Write-Host "[cleanup]   终止 PID=$($p.Id) Name=$($p.ProcessName) ParentPID=$parent"
+                    try { Stop-Process -Id $p.Id -Force -ErrorAction Stop } catch { }
+                }
+                # 等待进程退出
+                Start-Sleep -Seconds 2
+                # 再次检查是否还有残留
+                $remaining = @(Get-Sc2RuntimeProcesses)
+                if ($remaining.Count -gt 0) {
+                    Write-Host "[cleanup] 仍有 $($remaining.Count) 个 SC2 进程无法终止，报错退出"
+                    throw (Format-Sc2RuntimeBusyMessage -Processes $remaining -Lease $currentLease)
+                }
+                Write-Host "[cleanup] 孤儿 SC2 进程已全部清理，继续启动流程"
+            } else {
+                throw (Format-Sc2RuntimeBusyMessage -Processes $existing -Lease $currentLease)
+            }
         }
     }
     $sc2RuntimeLeaseSession = if ($lock) { [string]$lock.session_id } elseif ($SecondaryClient) { "secondary-$PID-$ListenPort" } else { "reuse-primary-$PID-$ListenPort" }
