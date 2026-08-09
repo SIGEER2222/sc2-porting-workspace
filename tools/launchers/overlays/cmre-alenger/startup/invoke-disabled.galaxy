@@ -1,0 +1,7 @@
+// CMRE_ON_DEMAND_INVOKE_DISABLED
+// The stable player launch path intentionally does not load Stage 26's
+// generated adapter shards. Keep the kernel's generated-dispatch prototype
+// linkable and fail generated requests explicitly.
+string libVibeInvoke_gf_Dispatch(int functionId, string argsJson) {
+    return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "FUNCTION_NOT_IN_MAP", "{\"reason\":\"generated_invoke_disabled\"}");
+}

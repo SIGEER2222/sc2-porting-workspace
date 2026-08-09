@@ -662,6 +662,24 @@ def test_observer_overlay_mounts_invoke_bundle_with_rollout_tiers():
     assert "if ($InvokeTier -gt 0 -and ((([int]$Matches[1] - 1) * 400) + 1) -gt $InvokeTier) { continue }" in body
 
 
+def test_observer_overlay_keeps_stage26_bundle_out_of_default_webui_launches():
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+    body = _function_body(overlay, "Install-CmreObserverOverlay")
+
+    assert "generated invoke bundle disabled (InvokeTier=0)" in body
+    assert '"startup\\invoke-disabled.galaxy"' in body
+    assert '"LibVibeInvokeDisabled.galaxy"' in body
+    assert 'include "LibVibeInvokeDisabled"' in body
+    assert 'Get-ChildItem -LiteralPath $baseData -Filter "LibVibeInvoke*.galaxy"' in body
+    assert "if ($InvokeTier -gt 0 -and (Test-Path -LiteralPath $vibeInvokeBundle))" in body
+    assert "if ($InvokeTier -gt 0 -and (Test-Path -LiteralPath $vibeInvokeBundleDir))" in body
+
+    stub = (ASSETS / "startup" / "invoke-disabled.galaxy").read_text(encoding="utf-8-sig")
+    assert "CMRE_ON_DEMAND_INVOKE_DISABLED" in stub
+    assert "string libVibeInvoke_gf_Dispatch(int functionId, string argsJson)" in stub
+    assert '"FUNCTION_NOT_IN_MAP"' in stub
+
+
 def test_launcher_top_level_passes_invoke_tier_to_observer_overlay():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
 
