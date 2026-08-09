@@ -744,10 +744,13 @@ function Install-CmrePreselectedCommanderStartupOverlay {
     $startupPattern = '(?m)^    if \(\(libCMFE_gf_CMUIX_StartupApplySavedConfiguration\(\) == true\)\) \{\r?\n        Wait\(1\.0, c_timeReal\);\r?\n        CMUIX_ReadyBeginCountdown\(\);\r?\n        return ;\r?\n    \}'
     $startupFallbackPattern = '(?m)^    if \(\(libCMFE_gf_CMUIX_StartupApplySavedConfiguration\(\) == true\)\) \{\r?\n        TriggerSendEvent\("CU_CommChoiceEventClosed"\);\r?\n        return ;\r?\n    \}'
     $preselectedStartupPattern = '(?ms)^    // CMRE_ON_DEMAND_PRESELECTED_COMMANDER_STARTUP.*?^    return ;'
+    $directOnlyStartupPattern = '(?ms)^    // CMRE_DIRECT_MAP_STARTUP_ONLY.*?^    return ;'
     $existingStartupPattern = '(?ms)^    // CMRE_ON_DEMAND_SAVED_PROFILE_STARTUP.*?^    return ;'
     $fixedStartupPattern = '(?ms)^    // CMRE_ON_DEMAND_FIXED_EMPIRE_STARTUP.*?^    return ;'
     if ([regex]::IsMatch($content, $preselectedStartupPattern)) {
         $content = [regex]::Replace($content, $preselectedStartupPattern, $replacement.TrimEnd(), 1)
+    } elseif ([regex]::IsMatch($content, $directOnlyStartupPattern)) {
+        $content = [regex]::Replace($content, $directOnlyStartupPattern, $replacement.TrimEnd(), 1)
     } elseif ([regex]::IsMatch($content, $fixedStartupPattern)) {
         $content = [regex]::Replace($content, $fixedStartupPattern, $replacement.TrimEnd(), 1)
     } elseif ([regex]::IsMatch($content, $existingStartupPattern)) {

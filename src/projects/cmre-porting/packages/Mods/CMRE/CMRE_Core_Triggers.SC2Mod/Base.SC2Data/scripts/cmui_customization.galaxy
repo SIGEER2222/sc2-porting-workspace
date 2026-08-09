@@ -6645,9 +6645,9 @@ bool libCMUI_gt_ScreenCoopInitial_Func(bool testConds, bool runActions) {
         return true;
     }
 
-    CMUIX_Init();
-    CMUIX_StartupInitializeData();
-    CMUIX_StartupRefreshControls();
+    // CMRE_COMMANDER_SELECTION_UI_DISABLED
+    // Startup must never open commander selection. Runtime launchers provide
+    // explicit commander state and then enter the map directly.
     return true;
 }
 
@@ -13427,7 +13427,9 @@ bool CMUIX_StartupApplySavedConfiguration() {
             CMUIX_StartupPathState = CMUIX_STARTUP_PATH_DIRECT;
         }
 
-        libCOTF_gf_RunTriggerByNameEasy(UserDataGetString("GlobalOptions", "CommanderSelectionScreen", "TriggerString", 1), false, false);
+        // CMRE_DIRECT_MAP_NO_COMMANDER_SELECTION_UI
+        // Direct-map startup cannot fall back to the commander-selection UI.
+        // Launcher profiles or staging overlays must provide commander state.
         return false;
     }
 
@@ -27366,12 +27368,9 @@ bool CMUIX_RebuildLauncherUIForPlayer(int lp_player) {
         return false;
     }
 
-    CMUIX_DestroyLauncherUI();
-    CMUIX_ResetLauncherHookStateForRebuild();
-    CMUIX_Init();
-    CMUIX_StartupRefreshControls();
-    CMUIX_ConsoleHookupEntryButton();
-    return CMUIX_IsControlValid(libCMUI_gv_screenCoopCommanderSelectionPanel);
+    // CMRE_COMMANDER_SELECTION_UI_DISABLED
+    // Console/profile rebuilds must not recreate the commander-selection UI.
+    return false;
 }
 
 void CMUIX_Shutdown() {

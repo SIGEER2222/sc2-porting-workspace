@@ -4797,14 +4797,12 @@ void libCOOC_gf_CC_DevStartupBegin () {
 
         libCOOC_gf_ShowHideWorldCover(true, 0.0, lv_indexPlayer);
     }
-    if ((libCMFE_gf_CMUIX_StartupApplySavedConfiguration() == true)) {
-        TriggerSendEvent("CU_CommChoiceEventClosed");
-        return ;
-    }
-
-    if ((libCOOC_gf_CC_MapIsLauncher(libCOOC_gf_CC_CurrentMap()) == true)) {
-        libCOTF_gf_RunTriggerByNameEasy(UserDataGetString("GlobalOptions", "CommanderSelectionScreen", "TriggerString", 1), false, false);
-    }
+    // CMRE_DIRECT_MAP_STARTUP_ONLY
+    // Do not open the commander-selection UI from runtime maps. Launcher
+    // staging owns commander choice and may replace this block with explicit
+    // preselected commander state; otherwise continue directly into the map.
+    libCOOC_gf_CC_DevStartupFinish();
+    return ;
 
 }
 

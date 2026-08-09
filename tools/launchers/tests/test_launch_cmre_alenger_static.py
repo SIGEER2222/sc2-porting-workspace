@@ -27,6 +27,25 @@ def _function_body(source: str, name: str) -> str:
     raise AssertionError(f"{name} closing brace not found")
 
 
+def _galaxy_function_body(source: str, name: str) -> str:
+    definition = re.search(
+        rf"(?m)^(?:bool|void|int|string|fixed|text)\s+{re.escape(name)}\s*\([^;\n]*\)\s*\{{",
+        source,
+    )
+    assert definition is not None, f"{name} definition not found"
+    brace = source.find("{", definition.start())
+    depth = 0
+    for idx in range(brace, len(source)):
+        ch = source[idx]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return source[brace + 1 : idx]
+    raise AssertionError(f"{name} closing brace not found")
+
+
 def test_launcher_delegates_on_demand_overlay_work():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
     assert r"lib\cmre-on-demand-overlay.ps1" in source
@@ -415,6 +434,39 @@ def test_webui_preselected_startup_is_the_default_non_selection_path():
     assert "declarations but no implementations" in overlay
     assert "'CommanderSelectionScreen'," in overlay
     assert "libCMFE_gf_CMUIX_StartupApplySavedConfiguration" in overlay
+
+
+def test_cmre_runtime_has_no_remaining_commander_selection_entrypoint():
+    core_lib = (ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Mods" / "CMRE" / "CMRE_Core_Triggers.SC2Mod" / "Base.SC2Data" / "LibCOOC.galaxy").read_text(encoding="utf-8-sig")
+    cmui_customization = (ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Mods" / "CMRE" / "CMRE_Core_Triggers.SC2Mod" / "Base.SC2Data" / "scripts" / "cmui_customization.galaxy").read_text(encoding="utf-8-sig")
+
+    direct_start = core_lib.index("// CMRE_DIRECT_MAP_STARTUP_ONLY")
+    direct_end = core_lib.index("    return ;", direct_start)
+    direct_startup = core_lib[direct_start:direct_end]
+    assert "libCOOC_gf_CC_DevStartupFinish();" in direct_startup
+    for forbidden in [
+        "CommanderSelectionScreen",
+        "CMUIX_StartupApplySavedConfiguration",
+        "CMUIX_ReadyBeginCountdown",
+        'TriggerSendEvent("CU_CommChoiceEventClosed")',
+    ]:
+        assert forbidden not in direct_startup
+
+    startup_trigger = _galaxy_function_body(
+        cmui_customization, "libCMUI_gt_ScreenCoopInitial_Func"
+    )
+    rebuild = _galaxy_function_body(cmui_customization, "CMUIX_RebuildLauncherUIForPlayer")
+    for body in [startup_trigger, rebuild]:
+        assert "CMRE_COMMANDER_SELECTION_UI_DISABLED" in body
+        for forbidden in [
+            "CommanderSelectionScreen",
+            "CMUIX_SetCommanderSelectionUIActive",
+            "CMUIX_StartupApplySavedConfiguration",
+            "CMUIX_ReadyBeginCountdown",
+        ]:
+            assert forbidden not in body
+    assert "return true;" in startup_trigger
+    assert "return false;" in rebuild
 
 
 def test_map_script_overlay_uses_available_cmre_library_anchors():
