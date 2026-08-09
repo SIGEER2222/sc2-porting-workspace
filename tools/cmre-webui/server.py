@@ -14,6 +14,7 @@ import csv
 import json
 import os
 import queue
+import re
 import shutil
 import subprocess
 import sys
@@ -1128,8 +1129,19 @@ _GAME_PROCESS_NAMES = {
 }
 
 
+_ansi_re = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
+
+
+def _strip_ansi(text):
+    """去掉 ANSI 颜色转义序列（如 \x1b[31;1m \x1b[0m），避免日志被污染。"""
+    if not text:
+        return text
+    return _ansi_re.sub("", text)
+
+
 def _append_log(line):
     """添加日志行并推送给所有 SSE 订阅者。"""
+    line = _strip_ansi(line)
     with _log_lock:
         _log_lines.append(line)
         if len(_log_lines) > 2000:
@@ -1203,12 +1215,15 @@ def _wait_for_process(proc, reader_threads=None, output_tail=None, tail_lock=Non
         stderr_errors = _pick_error_lines(stderr_tail)
 
         if stderr_tail:
-            _append_log("[webui] launcher stderr summary: " + " | ".join(stderr_tail))
+            stderr_tail_clean = [_strip_ansi(ln) for ln in stderr_tail]
+            _append_log("[webui] launcher stderr summary: " + " | ".join(stderr_tail_clean))
         if stdout_tail:
+            stdout_tail_clean = [_strip_ansi(ln) for ln in stdout_tail]
             # 如果有显式错误行，单独列出来，避免用户在 summary 长串中遗漏。
             if stdout_errors and not stderr_errors:
-                _append_log("[webui] launcher stdout 中的错误行: " + " | ".join(stdout_errors[-20:]))
-            _append_log("[webui] launcher stdout summary: " + " | ".join(stdout_tail))
+                stdout_errors_clean = [_strip_ansi(ln) for ln in stdout_errors]
+                _append_log("[webui] launcher stdout 中的错误行: " + " | ".join(stdout_errors_clean[-20:]))
+            _append_log("[webui] launcher stdout summary: " + " | ".join(stdout_tail_clean))
         # stderr 为空时给出提示，避免被误认为"没有错误"。
         if not stderr_tail and not stdout_errors:
             _append_log("[webui] 未从 launcher stderr 捕获到可读错误信息（可能是 PowerShell 编码异常），请检查 stdout summary 末尾与 GameLogs。")

@@ -2254,11 +2254,37 @@ try {
         $existing = @(Get-Sc2RuntimeProcesses)
         if ($existing.Count -gt 0) {
             $currentLease = Get-Sc2RuntimeLease
-            # PlayerMode/DebugMode 下：如果没有 lease 文件（owner_session=unknown），
-            # 说明检测到的 SC2 进程是前一次启动失败后残留的孤儿进程，而非玩家正在进行的游戏。
-            # 自动清理这些孤儿进程，而不是直接报错退出。
-            if ($null -eq $currentLease -or [string]::IsNullOrWhiteSpace($currentLease.ownerSessionId)) {
-                Write-Host "[cleanup] 检测到无 lease 的残留 SC2 进程，视为孤儿进程自动清理:"
+            # 判断 lease 是否"仍然活着"：
+            # 1. 无 lease 文件 → 孤儿进程，可清理
+            # 2. 有 lease 但 ownerPid（前一个 launcher 的 PID）已退出 → 前一次 launcher 崩溃了，可清理
+            # 3. 有 lease 且 runtimePid>0 但该进程已退出 → SC2 已崩溃，可清理
+            # 4. 有 lease 且 ownerPid 和 runtimePid 都还活着 → 可能是玩家/另一个会话在跑，报错退出
+            $leaseOwnerAlive = $false
+            $leaseRuntimeAlive = $false
+            if ($null -ne $currentLease -and -not [string]::IsNullOrWhiteSpace($currentLease.ownerSessionId)) {
+                if ([int]$currentLease.ownerPid -gt 0) {
+                    try {
+                        $ownerProc = Get-Process -Id ([int]$currentLease.ownerPid) -ErrorAction Stop
+                        $leaseOwnerAlive = $null -ne $ownerProc
+                    } catch { $leaseOwnerAlive = $false }
+                }
+                if ([int]$currentLease.runtimePid -gt 0) {
+                    try {
+                        $rtProc = Get-Process -Id ([int]$currentLease.runtimePid) -ErrorAction Stop
+                        $leaseRuntimeAlive = $null -ne $rtProc
+                    } catch { $leaseRuntimeAlive = $false }
+                }
+            }
+            $leaseLooksAlive = ($null -ne $currentLease -and
+                               -not [string]::IsNullOrWhiteSpace($currentLease.ownerSessionId) -and
+                               ($leaseOwnerAlive -or $leaseRuntimeAlive))
+
+            if (-not $leaseLooksAlive) {
+                if ($null -ne $currentLease) {
+                    Write-Host "[cleanup] 发现过期 lease (ownerSession=$($currentLease.ownerSessionId), ownerPid=$($currentLease.ownerPid) alive=$leaseOwnerAlive, runtimePid=$($currentLease.runtimePid) alive=$leaseRuntimeAlive)，视为孤儿清理:"
+                } else {
+                    Write-Host "[cleanup] 检测到无 lease 的残留 SC2 进程，视为孤儿进程自动清理:"
+                }
                 foreach ($p in $existing) {
                     $parent = "unknown"
                     try {
@@ -2268,13 +2294,18 @@ try {
                     Write-Host "[cleanup]   终止 PID=$($p.Id) Name=$($p.ProcessName) ParentPID=$parent"
                     try { Stop-Process -Id $p.Id -Force -ErrorAction Stop } catch { }
                 }
+                # 清理过期 lease 文件，避免下一次启动被卡住
+                if ($null -ne $currentLease) {
+                    try { [System.IO.File]::Delete($script:Sc2RuntimeLeasePath) } catch { }
+                    Write-Host "[cleanup]   已删除过期 lease 文件: $($script:Sc2RuntimeLeasePath)"
+                }
                 # 等待进程退出
                 Start-Sleep -Seconds 2
                 # 再次检查是否还有残留
                 $remaining = @(Get-Sc2RuntimeProcesses)
                 if ($remaining.Count -gt 0) {
                     Write-Host "[cleanup] 仍有 $($remaining.Count) 个 SC2 进程无法终止，报错退出"
-                    throw (Format-Sc2RuntimeBusyMessage -Processes $remaining -Lease $currentLease)
+                    throw (Format-Sc2RuntimeBusyMessage -Processes $remaining -Lease $null)
                 }
                 Write-Host "[cleanup] 孤儿 SC2 进程已全部清理，继续启动流程"
             } else {
