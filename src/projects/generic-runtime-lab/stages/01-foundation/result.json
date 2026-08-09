@@ -66,7 +66,7 @@
     {
       "command": "python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py",
       "exitCode": 0,
-      "summary": "Generated the 92-file packed RuntimeLab.SC2Map with SHA-256 041097a1c7e896518bc5ae4c7ce3c09e9c816638b786196a3205f8feb6d6f39a."
+      "summary": "Generated the 92-file packed RuntimeLab.SC2Map with SHA-256 912e34c6a95abb00373b7d13c283cf337f77216368c7dd4b0302eaae434cb3ad."
     },
     {
       "command": "python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py --cmlib-control",
@@ -87,6 +87,21 @@
       "command": "Get-CimInstance Win32_Process -Filter \"Name='SC2_x64.exe'\"; Get-NetTCPConnection -State Listen | Where-Object LocalPort -eq 5000",
       "exitCode": 0,
       "summary": "Blocked runtime check: an unrelated SC2 API process continuously owns port 5000. No current-package runtime probe was run against it."
+    },
+    {
+      "command": "python -m pytest -q src/projects/generic-runtime-lab/tests; python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py; node tools/analysis/galaxy-lint.mjs artifacts/projects/generic-runtime-lab/stage01-foundation/build/RuntimeLab.SC2Map/MapScript.galaxy --format text; python src/lib/check_cmlib.py; python src/lib/check_g1001.py artifacts/projects/generic-runtime-lab/stage01-foundation/build/RuntimeLab.SC2Map/MapScript.galaxy",
+      "exitCode": 0,
+      "summary": "Post-fix static validation passed: 6 tests, 0 Galaxy lint diagnostics, 0 CMLib errors/warnings, and 0 G1001 violations."
+    },
+    {
+      "command": "python tools/galaxy-vibe/map_load_diag.py --map artifacts/projects/generic-runtime-lab/stage01-foundation/maps/RuntimeLab.SC2Map --wait 18 --out artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/runtime-lab-map-load-fixed-20260809.json",
+      "exitCode": 1,
+      "summary": "Blocked before CreateGame because the prior API disappeared and the process guard found an external human SC2 session; no RuntimeLab runtime evidence was produced."
+    },
+    {
+      "command": "python tools/galaxy-vibe/script_error_check.py --since 1786287290 --out artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/runtime-lab-map-load-fixed-script-error-verdict.json",
+      "exitCode": 0,
+      "summary": "Real user GameLogs scan found zero new ScriptError files for the blocked attempt; this is informational because the map never reached CreateGame."
     }
   ],
   "nextStage": null
