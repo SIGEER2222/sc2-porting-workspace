@@ -1187,15 +1187,31 @@ def _wait_for_process(proc, reader_threads=None, output_tail=None, tail_lock=Non
     if code != 0 and output_tail is not None:
         if tail_lock is None:
             stderr_tail = list(output_tail.get("stderr", []))[-40:]
-            stdout_tail = list(output_tail.get("stdout", []))[-40:]
+            stdout_tail = list(output_tail.get("stdout", []))[-60:]
         else:
             with tail_lock:
                 stderr_tail = list(output_tail.get("stderr", []))[-40:]
-                stdout_tail = list(output_tail.get("stdout", []))[-40:]
+                stdout_tail = list(output_tail.get("stdout", []))[-60:]
+        # 标记错误行：stdout 中可能包含我们通过全局 trap 写入的 LAUNCHER ERROR
+        # 或其他明显的警告/失败行，优先抽取并展示。
+        error_markers = ("LAUNCHER ERROR", "[trap]", "启动器执行失败", "位置:", " 代码:",
+                         "failed", "Exception", "throw", "无法", "失败")
+        def _pick_error_lines(lines):
+            hits = [ln for ln in lines if any(m.lower() in ln.lower() for m in error_markers)]
+            return hits
+        stdout_errors = _pick_error_lines(stdout_tail)
+        stderr_errors = _pick_error_lines(stderr_tail)
+
         if stderr_tail:
             _append_log("[webui] launcher stderr summary: " + " | ".join(stderr_tail))
         if stdout_tail:
+            # 如果有显式错误行，单独列出来，避免用户在 summary 长串中遗漏。
+            if stdout_errors and not stderr_errors:
+                _append_log("[webui] launcher stdout 中的错误行: " + " | ".join(stdout_errors[-20:]))
             _append_log("[webui] launcher stdout summary: " + " | ".join(stdout_tail))
+        # stderr 为空时给出提示，避免被误认为"没有错误"。
+        if not stderr_tail and not stdout_errors:
+            _append_log("[webui] 未从 launcher stderr 捕获到可读错误信息（可能是 PowerShell 编码异常），请检查 stdout summary 末尾与 GameLogs。")
     _append_log(f"[webui] launcher 进程结束, exit={_format_launcher_exit_code(code)}")
     with _launcher_lock:
         if _launcher_process is proc:
@@ -1257,7 +1273,7 @@ def _force_kill_process_tree(pid):
 
 
 def _force_stop_current_game():
-    """终止当前 WebUI launcher 及所有残留 SC2 进程。"""
+    """终止当前 WebUI 跟踪的 launcher，而不影响外部 SC2 会话。"""
     global _launcher_process
 
     with _launcher_lock:
@@ -1279,14 +1295,10 @@ def _force_stop_current_game():
         except (OSError, subprocess.TimeoutExpired):
             pass
 
-    for pid, name in _list_game_processes():
-        if _force_kill_process_tree(pid):
-            killed.append(f"{name}:{pid}")
-
     if killed:
         _append_log(f"[webui] 强制重启: 已结束旧进程 {', '.join(killed)}")
     else:
-        _append_log("[webui] 强制重启: 未发现旧 launcher/SC2 进程")
+        _append_log("[webui] 强制重启: 未发现由 WebUI 跟踪的 launcher")
     return killed
 
 
@@ -1552,22 +1564,36 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             return None
 
         listen_port = int(body.get("listenPort", 0) or 0)
+        ps_exe = _resolve_powershell_executable()
         args = [
-            _resolve_powershell_executable(),
+            ps_exe,
             "-NoProfile",
             "-ExecutionPolicy",
             "Bypass",
-            "-File",
-            str(REVOLUTION_LAUNCH_SCRIPT),
-            "-MapName",
-            map_name,
-            "-Faction",
-            faction,
+        ]
+        # PowerShell 5.x 输出默认使用系统区域编码（简体中文为 GBK），
+        # 强制设置 [Console]::OutputEncoding 为 UTF-8 以便 Python 端用 UTF-8 解码。
+        # 对 PowerShell Core (pwsh) 这一步是多余的但无害。
+        script_args = [
+            "-MapName", map_name,
+            "-Faction", faction,
         ]
         if listen_port > 0:
-            args.extend(["-ListenPort", str(listen_port)])
+            script_args.extend(["-ListenPort", str(listen_port)])
         if os.environ.get("CMRE_WEBUI_DRY_RUN"):
-            args.append("-NoLaunch")
+            script_args.append("-NoLaunch")
+        escaped_script = str(REVOLUTION_LAUNCH_SCRIPT).replace("'", "''")
+        escaped_args = " ".join(
+            ("'" + str(a).replace("'", "''") + "'") if " " in str(a) or "'" in str(a) else str(a)
+            for a in script_args
+        )
+        wrapper_cmd = (
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;"
+            + "$OutputEncoding = [System.Text.Encoding]::UTF8;"
+            + f" & '{escaped_script}' {escaped_args};"
+            + " exit $LASTEXITCODE"
+        )
+        args.extend(["-Command", wrapper_cmd])
         return {
             "kind": "revolution-overdrive",
             "args": args,
@@ -1694,66 +1720,84 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         )
         chaos_mutator_str = ",".join(m["id"] for m in mutators) if mode == 3 else ""
 
+        ps_exe = _resolve_powershell_executable()
         args = [
-            _resolve_powershell_executable(),
+            ps_exe,
             "-NoProfile",
             "-ExecutionPolicy",
             "Bypass",
-            "-File",
-            str(LAUNCH_SCRIPT),
-            "-MapName",
-            map_name,
-            "-Commander",
-            commander,
-            "-LegacyRootOverride",
-            LEGACY_ROOT,
-            "-Mode",
-            str(mode),
-            "-DifficultyBase",
-            str(difficulty_base),
-            "-DifficultyPlus",
-            str(difficulty_plus),
+        ]
+
+        # launcher 参数数组（先写入 script_args，最后包装为 UTF-8 wrapper）
+        script_args = [
+            "-File", str(LAUNCH_SCRIPT),
+            "-MapName", map_name,
+            "-Commander", commander,
+            "-LegacyRootOverride", LEGACY_ROOT,
+            "-Mode", str(mode),
+            "-DifficultyBase", str(difficulty_base),
+            "-DifficultyPlus", str(difficulty_plus),
         ]
         if enemy:
-            args.extend(["-Enemy", enemy])
+            script_args.extend(["-Enemy", enemy])
         if mutator_str and mode != 3:
-            args.extend(["-Mutators", mutator_str])
+            script_args.extend(["-Mutators", mutator_str])
         if chaos_mutator_str:
-            args.extend(["-ChaosMutators", chaos_mutator_str])
+            script_args.extend(["-ChaosMutators", chaos_mutator_str])
         if voice_pack:
-            args.extend(["-VoicePack", voice_pack])
+            script_args.extend(["-VoicePack", voice_pack])
         if extra_mods:
             extra_str = ",".join(m for m in extra_mods if m)
             if extra_str:
-                args.extend(["-ExtraMods", extra_str])
+                script_args.extend(["-ExtraMods", extra_str])
         if listen_port > 0:
-            args.extend(["-ListenPort", str(listen_port)])
+            script_args.extend(["-ListenPort", str(listen_port)])
         if api_minimal:
-            args.append("-ApiMinimal")
+            script_args.append("-ApiMinimal")
         # 重生虫心参数透传：launcher 据此加载 5 个 Reborn mod 包并应用 K5Kerrigan 替换逻辑。
         # reborn_commander 必须是 reborn-commanders.json 中的 id（如 "Abathur"）。
         if enable_reborn and reborn_commander:
-            args.append("-EnableReborn")
-            args.extend(["-RebornCommander", reborn_commander])
+            script_args.append("-EnableReborn")
+            script_args.extend(["-RebornCommander", reborn_commander])
         # Buff 补丁参数透传：launcher 据此写 bank 字段，galaxy 端读取后应用。
         if enable_buff_patch:
-            args.append("-EnableBuffPatch")
-            args.extend(["-Buffs", ",".join(buffs)])
+            script_args.append("-EnableBuffPatch")
+            script_args.extend(["-Buffs", ",".join(buffs)])
             if masteries:
-                args.extend(["-Masteries", ",".join(str(v) for v in masteries)])
+                script_args.extend(["-Masteries", ",".join(str(v) for v in masteries)])
             # Extra 子选项：三个 P 槽位各一个 bitmask（逗号分隔：P1mask,P2mask,P3mask）
             extras_str = f"{extra_masks['P1']},{extra_masks['P2']},{extra_masks['P3']}"
-            args.extend(["-BuffExtras", extras_str])
+            script_args.extend(["-BuffExtras", extras_str])
 
         # WebUI 启动 = 玩家模式：launcher 不会清理已有 SC2 进程，
         # 若 SC2 已在运行则报错退出，避免误杀玩家正在进行的游戏。
         # AI 调试脚本（run-cmre-sc2api.ps1）应使用 -DebugMode 而非 WebUI。
-        args.append("-PlayerMode")
+        script_args.append("-PlayerMode")
 
         # 测试/CI 用：设置 CMRE_WEBUI_DRY_RUN 时追加 -NoLaunch，
         # 只暂存地图 + 写银行、不启动 SC2。正常启动不受影响。
         if os.environ.get("CMRE_WEBUI_DRY_RUN"):
-            args.append("-NoLaunch")
+            script_args.append("-NoLaunch")
+
+        # PowerShell 5.x 输出默认使用系统区域编码（简体中文为 GBK），
+        # 强制设置 [Console]::OutputEncoding 为 UTF-8 以便 Python 端用 UTF-8 解码。
+        # 对 PowerShell Core (pwsh) 这一步是多余的但无害。
+        # script_args[1] 是 LAUNCH_SCRIPT 路径，script_args[2:] 是其参数。
+        launch_script = script_args[1]
+        real_script_args = script_args[2:]
+        escaped_script = launch_script.replace("'", "''")
+        escaped_args = " ".join(
+            ("'" + str(a).replace("'", "''") + "'") if (" " in str(a) or "'" in str(a)) else str(a)
+            for a in real_script_args
+        )
+        wrapper_cmd = (
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;"
+            + "$OutputEncoding = [System.Text.Encoding]::UTF8;"
+            + "$ErrorActionPreference = 'Continue';"
+            + f" & '{escaped_script}' {escaped_args};"
+            + " exit $LASTEXITCODE"
+        )
+        args.extend(["-Command", wrapper_cmd])
 
         return {
             "kind": "cmre",

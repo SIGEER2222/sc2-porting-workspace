@@ -1,10 +1,36 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [string]$MapSourceOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$DirectMapApi, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "", [int]$InvokeTier = 0)
 # -MapCopySuffix: 可选的地图副本后缀，用于避免多会话同时操作同一 live 地图导致 DocumentInfo 冲突。
 # 例如 -MapCopySuffix "reborn" 会使用 Maps\亡者之夜.SC2Map.reborn\ 作为 live 地图。
 # 不指定时使用原始路径（向后兼容）。
-# -InvokeTier: Stage 26 全函数 invoke 分档放量开关（0=全量，100/1000=仅挂载 id≤tier 的分片）。
+# -InvokeTier: Stage 26 全函数 invoke 分档放量开关（0=禁用，100/1000=挂载对应低 id 分片）。
 $ErrorActionPreference = "Stop"
+
+# 全局异常 trap：确保任何未被 try/catch 捕获的终止错误都会通过
+# Write-Host 写入 stdout（作为 stderr 编码异常时的备份通道），
+# 避免 WebUI 用户只看到 exit=1 而看不到具体错误消息。
+trap {
+    $exc = $_
+    $msg = if ($null -ne $exc.Exception) { $exc.Exception.Message } else { "$exc" }
+    Write-Host ""
+    Write-Host "================================[ LAUNCHER ERROR ]================================"
+    Write-Host "[trap] 启动器执行失败: $msg"
+    if ($null -ne $exc.InvocationInfo) {
+        $info = $exc.InvocationInfo
+        Write-Host "[trap] 位置: 行 $($info.ScriptLineNumber), 列 $($info.OffsetInLine)"
+        if (-not [string]::IsNullOrWhiteSpace($info.Line)) {
+            Write-Host "[trap] 代码: $($info.Line.TrimEnd())"
+        }
+    }
+    Write-Host "================================[ LAUNCHER ERROR ]================================"
+    # 同时把错误信息显式写入 stderr（Python 若能正常解码也能看到）
+    Write-Error "Launcher failed: $msg" -ErrorAction Continue
+    # 保持原退出码行为：以非零退出
+    if ($null -ne $global:LastExitCode -and [int]$global:LastExitCode -ne 0) {
+        exit [int]$global:LastExitCode
+    }
+    exit 1
+}
 # The caller selects the commander. The map-side overlay writes that explicit
 # selection to CMRE's startup state and bypasses the in-game selection screen.
 # 模式校验：PlayerMode 和 DebugMode 互斥；DebugMode 自动启用 ApiMinimal 并要求 ListenPort
@@ -775,10 +801,12 @@ function Patch-RebornLibraryInit {
         # === 3c. 在 SwarmSetup_Func 末尾（return true 之前）注入深度调试代码 ===
         # SwarmSetup 现在从可推进的游戏时间事件进入；调试标记仍写在其
         # 原生逻辑之后，避免把 MapInit 的异步调用误报为完成。
-        $swarmSetupEndMarker = '    TriggerExecute(lib48DF4533_gt_AllySettings, true, false);
-    return true;'
-        if (-not $content.Contains($swarmSetupEndMarker)) {
-            throw "Patch-RebornLibraryInit: SwarmSetup_Func end marker not found"
+        # Reborn's source is CRLF while this launcher may be LF. Match the two
+        # adjacent tail statements without normalizing the copied source.
+        $swarmSetupEndPattern = '(?m)^([ \t]*TriggerExecute\(lib48DF4533_gt_AllySettings, true, false\);\r?\n)[ \t]*return true;[ \t]*(\r?\n|$)'
+        $swarmSetupEndMatches = [regex]::Matches($content, $swarmSetupEndPattern)
+        if ($swarmSetupEndMatches.Count -ne 1) {
+            throw "Patch-RebornLibraryInit: expected exactly one SwarmSetup_Func end marker; found $($swarmSetupEndMatches.Count)"
         }
         $deepDebugBlock = @"
     // CMRE_PATCH_SWARMSETUP_DEEP_DEBUG
@@ -884,7 +912,9 @@ function Patch-RebornLibraryInit {
     BankSave(BankLastCreated());
     return true;
 "@
-        $content = $content.Replace($swarmSetupEndMarker, $deepDebugBlock)
+        $swarmSetupNewline = if ($swarmSetupEndMatches[0].Groups[1].Value.EndsWith("`r`n")) { "`r`n" } else { "`n" }
+        $deepDebugBlock = $deepDebugBlock -replace '\r?\n', $swarmSetupNewline
+        $content = [regex]::Replace($content, $swarmSetupEndPattern, '$1' + $deepDebugBlock + '$2')
         Write-Host "Patch-RebornLibraryInit: injected deep debug code at end of SwarmSetup_Func"
 
         # 只替换最后一次出现的 initLibMarker（即 InitLib 函数中的那个，不是 InitTriggers 函数定义）
@@ -1220,6 +1250,46 @@ function Install-CmreDynamicObserver {
     param([Parameter(Mandatory = $true)][string]$MapPath)
 
     Install-CmreObserverOverlay -WorkspaceRoot $WorkspaceRoot -MapPath $MapPath -MapName $MapName -IsAlengerCommander $isAlengerCommander -AdapterLibPrefix $adapterLibPrefix -AdapterFiles $adapterFiles -EnableReborn $EnableReborn -RebornCommander $RebornCommander -VibeKernelOverride $VibeKernelOverride -InvokeTier $InvokeTier
+    Repair-CmreStagedInvokeBundle -MapPath $MapPath
+}
+
+function Repair-CmreStagedInvokeBundle {
+    param([Parameter(Mandatory = $true)][string]$MapPath)
+
+    $common = Join-Path $MapPath "Base.SC2Data\LibVibeInvokeCommon.galaxy"
+    if (-not (Test-Path -LiteralPath $common -PathType Leaf)) { return }
+
+    $doctor = Join-Path $WorkspaceRoot "tools\galaxy-vibe\mpq\staged_map_doctor.py"
+    if (-not (Test-Path -LiteralPath $doctor -PathType Leaf)) {
+        throw "Stage 26 staged-map doctor is missing: $doctor"
+    }
+    $python = (Get-Command python -ErrorAction Stop).Source
+    Write-Host "Stage 26 generated invoke bundle: checking and repairing staged compile closure"
+    & $python $doctor $MapPath --fix
+    if ($LASTEXITCODE -ne 0) {
+        throw "Stage 26 staged-map doctor failed with exit code $LASTEXITCODE"
+    }
+
+    # ResolveFuncref is not used by the generated dispatch shards. Its mixed
+    # static table can still make the whole map fail to compile when a library
+    # function pointer is rejected by the Galaxy compiler. Keep the generated
+    # source immutable and disable only this optional staged lookup table.
+    $commonText = [System.IO.File]::ReadAllText($common, [System.Text.Encoding]::UTF8)
+    $funcrefResolverPattern = '(?ms)^libVibeInvoke_gt_VoidIntFunc libVibeInvoke_gf_ResolveFuncref\(string name\) \{\r?\n.*?^\}\r?\n'
+    $funcrefResolverMatches = [regex]::Matches($commonText, $funcrefResolverPattern)
+    if ($funcrefResolverMatches.Count -ne 1) {
+        throw "Stage 26 generated invoke bundle: expected exactly one ResolveFuncref table; found $($funcrefResolverMatches.Count)"
+    }
+    $commonNewline = if ($funcrefResolverMatches[0].Value.Contains("`r`n")) { "`r`n" } else { "`n" }
+    $funcrefResolverReplacement = @(
+        '// CMRE_VIBE_FUNCREF_TABLE_DISABLED',
+        'libVibeInvoke_gt_VoidIntFunc libVibeInvoke_gf_ResolveFuncref(string name) {',
+        '    return null;',
+        '}'
+    ) -join $commonNewline
+    $commonText = [regex]::Replace($commonText, $funcrefResolverPattern, $funcrefResolverReplacement + $commonNewline)
+    [System.IO.File]::WriteAllText($common, $commonText, [System.Text.UTF8Encoding]::new($false))
+    Write-Host "Stage 26 generated invoke bundle: disabled optional ResolveFuncref table in staged map"
 }
 function Patch-CmreCoreRuntimeErrors {
     param([Parameter(Mandatory = $true)][string]$MapPath)
@@ -1850,6 +1920,35 @@ function Get-Sc2GameProcesses {
     return @(Get-Sc2RuntimeProcesses | Where-Object { $_.ProcessName -notmatch "Switcher" })
 }
 
+function Get-Sc2ChildPid {
+    param([int]$ParentPid)
+    # 解析 SC2Switcher 直接派生的 SC2_x64 子进程 PID（用于区分"我们的"与"外来的"SC2 实例）。
+    try {
+        $child = Get-CimInstance -ClassName Win32_Process -Filter "Name='SC2_x64.exe' AND ParentProcessId=$ParentPid" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($null -ne $child) { return [int]$child.ProcessId }
+    } catch { }
+    return $null
+}
+
+function Test-ForeignSc2Running {
+    param([int]$OurSc2Pid, [int]$SwitcherPid)
+    # 只要存在一个既不是我们派生的 SC2_x64 子进程、也不是我们已记录的 PID 的 SC2_x64，
+    # 就判定为"外来"实例（玩家游戏或其它 AI 会话），它会占用 SC2 单实例锁导致 API 端口无法绑定。
+    $all = @(Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue)
+    if ($all.Count -eq 0) { return $false }
+    foreach ($p in $all) {
+        if ($null -ne $OurSc2Pid -and $p.Id -eq $OurSc2Pid) { continue }
+        $parent = $null
+        try {
+            $c = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId=$($p.Id)" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($null -ne $c) { $parent = [int]$c.ParentProcessId }
+        } catch { }
+        if ($null -ne $parent -and $parent -eq $SwitcherPid) { continue }  # 我们自己的子进程，忽略
+        return $true
+    }
+    return $false
+}
+
 function Send-CmreRebornLoadingConfirm {
     param(
         [Parameter(Mandatory = $true)][int]$ProcessId
@@ -2392,17 +2491,34 @@ try {
             $argList = @("`"$liveMap`"", "-listen", "127.0.0.1", "-port", "$ListenPort", "-debug")
             Write-Host "SC2 direct-map + API mode: launching SC2Switcher_x64.exe $($argList -join ' ')"
             $launchStartedAt = Get-Date
-            Start-Process -FilePath $switcher -ArgumentList $argList -WorkingDirectory (Split-Path -Parent $switcher)
+            $switcherProc = Start-Process -FilePath $switcher -ArgumentList $argList -WorkingDirectory (Split-Path -Parent $switcher) -PassThru
+            $switcherPid = [int]$switcherProc.Id
+            $ourSc2Pid = $null
             Wait-CmreGameLogMapLoadSignal -Since $launchStartedAt -TimeoutSeconds 180 | Out-Null
             Assert-CmreNoNewScriptErrors -Since $launchStartedAt
             Write-Host "SC2 direct-map + API mode: polling TCP 127.0.0.1:$ListenPort until listening (max 120s)..."
             $deadline = (Get-Date).AddSeconds(120)
+            $foreignDeadline = (Get-Date).AddSeconds(20)
             $listening = $false
             while ((Get-Date) -lt $deadline) {
+                if ($null -eq $ourSc2Pid) {
+                    $ourSc2Pid = Get-Sc2ChildPid -ParentPid $switcherPid
+                }
                 $sc2Processes = @(Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue)
                 if ($sc2Processes.Count -eq 0) {
+                    if ($null -ne $ourSc2Pid) {
+                        $stillOurs = Get-Process -Id $ourSc2Pid -ErrorAction SilentlyContinue
+                        if ($null -eq $stillOurs) {
+                            throw "SC2 direct-map + API mode: 我们启动的 SC2_x64 (PID=$ourSc2Pid) 在 API 端口 $ListenPort 打开前已退出（崩溃）。"
+                        }
+                    }
                     Start-Sleep -Seconds 2
                     continue
+                }
+                if ((Get-Date) -gt $foreignDeadline -and (Test-ForeignSc2Running -OurSc2Pid $ourSc2Pid -SwitcherPid $switcherPid)) {
+                    throw ("SC2 API 端口 $ListenPort 无法绑定：检测到另一个 StarCraft II 实例正在运行" +
+                           "(疑似玩家游戏或其它 AI 会话，已占用 SC2 单实例锁)。" +
+                           "请先在任务管理器关闭其它 StarCraft II / SC2Switcher 进程，再重新启动。本启动器不会自动结束玩家的游戏进程。")
                 }
                 try {
                     $tcp = New-Object System.Net.Sockets.TcpClient
@@ -2415,7 +2531,17 @@ try {
                         break
                     }
                     $tcp.Close()
-                } catch { }
+                } catch {
+                    $exType = $_.Exception.GetType().FullName
+                    $socketRelated = $_.Exception -is [System.Net.Sockets.SocketException] -or
+                                     $_.Exception -is [System.ObjectDisposedException] -or
+                                     $_.Exception -is [System.InvalidOperationException]
+                    if (-not $socketRelated) {
+                        $msg = $_.Exception.Message
+                        Write-Host "[warn] SC2 direct-map polling 出现非预期异常: [$exType] $msg（将继续轮询）"
+                    }
+                    try { if ($tcp) { $tcp.Close() } } catch { }
+                }
                 Start-Sleep -Seconds 2
             }
             if (-not $listening) {
@@ -2498,16 +2624,39 @@ try {
         Write-Host "SC2 runtime data directory: $sc2DataDir"
         Write-Host "SC2 runtime temp directory: $runtimeTempDir"
         $launchStartedAt = Get-Date
-        Start-Process -FilePath $switcher -ArgumentList $argList -WorkingDirectory $Sc2Root
+        $switcherProc = Start-Process -FilePath $switcher -ArgumentList $argList -WorkingDirectory $Sc2Root -PassThru
+        $switcherPid = [int]$switcherProc.Id
+        $ourSc2Pid = $null
         # API 模式下轮询 TCP 端口，直到 SC2 API 监听就绪（最多等 120s）。
         Write-Host "SC2 API mode: polling TCP 127.0.0.1:$ListenPort until listening (max 120s)..."
         $deadline = (Get-Date).AddSeconds(120)
+        # 快速失败窗口：启动后 20s 内若检测到"外来"SC2（玩家游戏/其它 AI 会话）占用单实例锁，
+        # 立即报错，避免无谓等待 120s 后才抛出含糊信息。
+        $foreignDeadline = (Get-Date).AddSeconds(20)
         $listening = $false
         while ((Get-Date) -lt $deadline) {
+            if ($null -eq $ourSc2Pid) {
+                $ourSc2Pid = Get-Sc2ChildPid -ParentPid $switcherPid
+            }
             $sc2Processes = @(Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue)
             if ($sc2Processes.Count -eq 0) {
+                # 没有任何 SC2 进程（含我们自己的子进程）——可能尚未派生或已崩溃
+                if ($null -ne $ourSc2Pid) {
+                    $stillOurs = Get-Process -Id $ourSc2Pid -ErrorAction SilentlyContinue
+                    if ($null -eq $stillOurs) {
+                        throw "SC2 API mode: 我们启动的 SC2_x64 (PID=$ourSc2Pid) 在 API 端口 $ListenPort 打开前已退出（崩溃或认证 broker 缺失）。请检查 My Documents\StarCraft II\GameLogs 中的 SIGEER/ScriptError。"
+                    }
+                }
                 Start-Sleep -Seconds 2
                 continue
+            }
+            # 外来 SC2 检测：玩家游戏或其它 AI 会话会与本启动器争用 SC2 单实例锁，
+            # 导致 SC2Switcher 无法为本次启动打开 API 端口。
+            if ((Get-Date) -gt $foreignDeadline -and (Test-ForeignSc2Running -OurSc2Pid $ourSc2Pid -SwitcherPid $switcherPid)) {
+                throw ("SC2 API 端口 $ListenPort 无法绑定：检测到另一个 StarCraft II 实例正在运行" +
+                       "(疑似玩家游戏或其它 AI 会话，已占用 SC2 单实例锁)。" +
+                       "请先在任务管理器关闭其它 StarCraft II / SC2Switcher 进程，再重新点击启动；" +
+                       "WebUI 启动前也会做此项检查。注意：本启动器不会自动结束玩家的游戏进程。")
             }
             try {
                 $tcp = New-Object System.Net.Sockets.TcpClient
@@ -2532,7 +2681,21 @@ try {
                     break
                 }
                 $tcp.Close()
-            } catch { }
+            } catch {
+                # 仅忽略"正常"的连接未就绪异常（SocketException 连接拒绝/超时），
+                # 其他异常（如权限不足导致 Get-NetTCPConnection 失败、格式转换异常）
+                # 也要写入 stdout，避免无提示卡死轮询。
+                $exType = $_.Exception.GetType().FullName
+                $socketRelated = $_.Exception -is [System.Net.Sockets.SocketException] -or
+                                 $_.Exception -is [System.ObjectDisposedException] -or
+                                 $_.Exception -is [System.InvalidOperationException]
+                if (-not $socketRelated) {
+                    $msg = $_.Exception.Message
+                    Write-Host "[warn] SC2 API polling 出现非预期异常: [$exType] $msg（将继续轮询）"
+                }
+                # 无论何种情况，只要还没超过 deadline 就继续轮询
+                try { if ($tcp) { $tcp.Close() } } catch { }
+            }
             Start-Sleep -Seconds 2
         }
         if (-not $listening) {
@@ -2540,7 +2703,7 @@ try {
             if ($null -eq $stillRunning) {
                 throw "SC2 API mode: SC2_x64.exe exited before API port $ListenPort opened (crash or auth broker missing). Check GameLogs."
             } else {
-                throw "SC2 API mode: SC2_x64.exe is running but API port $ListenPort did not open within 120s."
+                throw "SC2 API mode: SC2_x64.exe is running but API port $ListenPort did not open within 120s (地图加载卡死或 -debug 未生效)."
             }
         }
         Write-Host "SC2 API mode: API listening on 127.0.0.1:$ListenPort (SC2_x64 PID=$($proc.Id))"
