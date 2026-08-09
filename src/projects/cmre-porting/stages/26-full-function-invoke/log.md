@@ -235,3 +235,39 @@
   `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-launch-runtime-20260809.json`。
   Stage 26 仍保持 PARTIAL，因为全量 generated-adapter 三档探针和 commander-specific
   起始状态断言仍是独立未完成项。
+
+### 2026-08-09 晚间运行时证据对账与分档产物审计
+
+- `runtime`：重新读取 `artifacts/galaxy-vibe/tier100-live-verdict-1829.json`
+  （2026-08-09T10:33:05Z）与 `tier100-live-verdict-1924.json`
+  （2026-08-09T11:32:32Z）。两份均为打包的完整生成图
+  `C:/tmp/VibeDeadOfNight-Gen.SC2Map`（5,493,770B）通过：CreateGame/JoinGame，
+  `kernel_initialized=1`、`register_entrypoints_done=1`，`system.ping` 3/3，
+  `vibe.unit.spawn` 的 SC2 raw observation Marine `+1`，`query.units` 一致，
+  `gen.1` 返回 fixed 0、`gen.202` 返回 int 2，并且同窗口没有新增非空 ScriptError。
+  这是 full-map 的连续 2/2 真机通过；先前 08:0x 的 SC2 引擎崩溃保留为环境历史，
+  不能再表述为“当前不可复现”。
+- `static`：最新 `artifacts/galaxy-vibe/static-validation-report.json`
+  （2026-08-09T20:19:26+08:00）为 52/52 passed、0 failed、0 warnings。
+- `static`：审计 `C:/tmp/VibeDeadOfNight-Gen-T100.SC2Map` 与
+  `C:/tmp/VibeDeadOfNight-Gen-T1000.SC2Map`：均为 5,496,293B，SHA-256 均为
+  `15CD6E3150AB50ABDEC741E7136F34BFEAD0E4EA736F5C079B1EA9D273421EEA`。
+  `tools/galaxy-vibe/mpq/mpq_build_gen_map.py` 没有 tier CLI 参数，且固定构建
+  full dispatch bundle；因此这两个按文件名区分的副本不是有效的 100/1000 分档证据。
+- `runtime`：端口 5000 当时由 API 模式 `SC2_x64.exe`（PID 22720，父 PID 24796
+  已不存在）监听，无法追溯为本阶段 approved launcher 所启动。按 SC2 launch 规则，
+  未连接、未复用、未停止该外部会话；待可归属的 launcher 窗口再执行分档和 census。
+- 阶段结论保持 `PARTIAL`：full-map 运行时闭环与静态门均通过；正式
+  `-InvokeTier 100 -> 1000 -> 0` 的 staged/package/probe 以及
+  `runtime_invoke_probe.py --sample/--census` 尚未获得合规运行时证据。
+
+### 2026-08-09 阶段记录后续静态回归
+
+- `static`：`python -m pytest -q
+  src/projects/cmre-porting/stages/26-full-function-invoke/test_generate_invoke_adapters.py
+  tools/galaxy-vibe/tests/test_kernel.py` -> **92 passed**（Stage 26 生成器 33，
+  kernel 59）。
+- `static`：`node src/projects/cmre-porting/stages/26-full-function-invoke/parse_generated.mjs`
+  -> `{"files":862,"parseErrors":0,"failures":0}`。
+- `runtime`：复核端口 5000，仍归 PID 22720 的 API 模式 `SC2_x64.exe` 监听，
+  无可存活父 launcher 进程可归属；不连接或操作该会话，阶段运行时动作维持待办。

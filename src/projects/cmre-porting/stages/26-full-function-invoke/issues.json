@@ -19,11 +19,22 @@
       "severity": "medium",
       "status": "open",
       "title": "Full generated-adapter runtime validation remains incomplete",
-      "detail": "含生成包的打包 .SC2Map 已就位（C:/tmp/VibeDeadOfNight-Gen.SC2Map，5.49MB，61 generated galaxy），build-blocked 已解除；2026-08-09 06:2x 在该图取得 tier100_pass=true 2/2（证据见 result.json runtime-tier100-custom-probe），standalone 对照无崩溃。但 2026-08-09 08:0x 起当前 SC2 实例在 spawn+仿真阶段对 gen 图与 standalone 图均硬崩溃（post-spawn observation 处 ClientConnectionResetError，无 ScriptError，进程重启），gen.* 真机执行当前实例不可复现。崩溃与地图无关（standalone 无生成包亦崩），属 SC2 实例仿真不稳定性（环境），非本工程逻辑/地图回归。",
-      "evidence_type": "blocked",
-      "evidence": "artifacts/galaxy-vibe/tier100-live-verdict.json",
-      "owner": "environment",
-      "nextAction": "等待稳定的 live SC2 实例（当前实例 08:0x 起 spawn+仿真即硬崩溃）；恢复后重跑 tier100_live_probe 三档放量（-InvokeTier 100/1000/0）与 runtime_invoke_probe --sample/--census。06:2x 2/2 闭环为有效历史证据，可在稳定实例复跑后晋升为稳定闭环。"
+      "detail": "含生成包的打包 .SC2Map 已就位（C:/tmp/VibeDeadOfNight-Gen.SC2Map，5.49MB，61 generated galaxy）；2026-08-09 18:33 与 19:32 的独立真机 API 会话均取得 tier100_pass=true，包含 Kernel 注册、ping、raw observation 的 Marine spawn、gen.1/gen.202 原生调用和零新增 ScriptError。早先 08:0x 的引擎崩溃是历史环境异常，后续成功已解除“当前不可复现”的判断。未完成项是正式 launcher 的 100/1000/0 分档、类型族 sample/census，以及 commander-specific 起始状态断言。",
+      "evidence_type": "mixed",
+      "evidence": "artifacts/galaxy-vibe/tier100-live-verdict-1829.json, artifacts/galaxy-vibe/tier100-live-verdict-1924.json",
+      "owner": "stage26",
+      "nextAction": "取得可归属的 approved-launcher 窗口后，逐档 stage/package/probe 100、1000、0，并执行 runtime_invoke_probe.py --sample 与 --census；每次均复核同窗口非空 ScriptError。"
+    },
+    {
+      "id": "TIER-ROLLOUT-ARTIFACT-INTEGRITY",
+      "severity": "medium",
+      "status": "open",
+      "title": "Renamed T100 and T1000 maps are not independent rollout artifacts",
+      "detail": "C:/tmp/VibeDeadOfNight-Gen-T100.SC2Map 与 C:/tmp/VibeDeadOfNight-Gen-T1000.SC2Map 均为 5,496,293B，SHA-256 均为 15CD6E3150AB50ABDEC741E7136F34BFEAD0E4EA736F5C079B1EA9D273421EEA。tools/galaxy-vibe/mpq/mpq_build_gen_map.py 无 tier CLI 输入且固定构建 full dispatch bundle，因此文件名不足以证明它们按 100 或 1000 tier 生成。",
+      "evidence_type": "static",
+      "evidence": "Get-FileHash output and mpq_build_gen_map.py inspection recorded in stages/26-full-function-invoke/log.md",
+      "owner": "stage26",
+      "nextAction": "使用 launch-cmre-alenger.ps1 -InvokeTier 100/1000/0 生成实际 staged 输入；打包后检查挂载的 dispatch/shards、哈希、包体积，再进行各档 runtime probe。"
     },
     {
       "id": "PRESELECTED-COMMANDER-LIVE-VALIDATION-BLOCKED",
