@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 
@@ -126,7 +127,8 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
     assert "initialization_complete" in wait_body
     assert "initialization_building_ready_p1" in wait_body
     assert "initialization_units_ready_p1" in wait_body
-    assert "Wait-CmreRuntimeListener -TimeoutSeconds 120" in source
+    listener_calls = re.findall(r"Wait-CmreRuntimeListener -TimeoutSeconds (\d+)", source)
+    assert listener_calls and max(map(int, listener_calls)) >= 120
     assert "CMRERebornDebug" in overlay
     assert "sourceMapDependencies" in source
     assert "Merge-CmreMapDependencies" in source
@@ -273,9 +275,10 @@ def test_direct_map_api_mode_attaches_before_runtime_listener_gate():
     assert "DirectMapApi cannot be combined with -DebugMode or -ApiMinimal" in source
     assert "SC2 direct-map + API mode" in source
     assert "Wait-CmreGameLogMapLoadSignal -Since $launchStartedAt" in source
-    assert "Wait-CmreRuntimeListener -TimeoutSeconds 120" in source
+    listener_calls = re.findall(r"Wait-CmreRuntimeListener -TimeoutSeconds (\d+)", source)
+    assert listener_calls and max(map(int, listener_calls)) >= 120
     assert "--join-existing topology" in direct_map_body
-    assert "Wait-CmreRuntimeListener -TimeoutSeconds 120" not in direct_map_body
+    assert "Wait-CmreRuntimeListener" not in direct_map_body
     assert "Host must attach with --join-existing" in source
     assert "--join-existing" in source
     assert '"-listen", "127.0.0.1", "-port", "$ListenPort", "-debug"' in source

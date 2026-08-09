@@ -16,6 +16,7 @@ int libMapModBridge_gv_preventDefeatEnsuredP1;
 int libMapModBridge_gv_preventDefeatEnsuredP2;
 int libMapModBridge_gv_heartbeat;           // 心跳计数器（每 2s 递增）
 trigger libMapModBridge_gt_Heartbeat;       // 心跳触发器
+bank libMapModBridge_gv_debugBankHandle;    // 缓存的 CMRERebornDebug bank handle（VIBE_KERNEL_003 缓存语义）
 
 // API 声明
 void libMapModBridge_InitLib();
@@ -36,6 +37,9 @@ int libMapModBridge_gf_RemoveAllUnitsOfType(int player, string unitType);
 
 // 写入调试银行（CMRERebornDebug）
 void libMapModBridge_gf_WriteDebugBank(string key, int value);
+
+// 确保 CMRERebornDebug bank handle 已加载（VIBE_KERNEL_003 缓存语义）
+void libMapModBridge_gf_EnsureDebugBankLoaded();
 
 // 启动心跳触发器（用于 launcher 检测游戏是否黑屏/卡住）
 // 心跳使用 c_timeReal，即使游戏暂停也会递增；launcher 读取心跳值判断脚本是否运行

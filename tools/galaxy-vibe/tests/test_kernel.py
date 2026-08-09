@@ -888,6 +888,81 @@ class TestGalaxyStaticCheck(unittest.TestCase):
         self.assertIn("libVibeKernel_gt_AllyCommand_Func", content)
 
 
+# ---- VIBE_GEN_007 / N1: Bank 通道分库契约守卫 ----
+
+class TestBankChannelSplit(unittest.TestCase):
+    """守卫「RPC 通道库」与「p2_* 模型库」必须分离。
+
+    背景（VIBE_GEN_007）：Bank 是「双写单文件、全量覆盖、无锁」的有损通道。
+    内核任何一次 BankSave 都会把整个内存态刷回该 bank 文件，于是 Host 在
+    ReloadBank 之后落盘的 RPC 请求会被整份抹掉；PollLoop 每轮都调用的
+    WriteModelP2Snapshot 是最高频写入方，把覆盖窗口从 ~0ms 拉宽到整个 handler
+    时长。治本方案是按通道分库：模型快照写独立的 GalaxyVibeModel 库。
+
+    这几条断言是**静态契约**——真机上把它改回单库不会报任何错，只会让 RPC
+    重发率悄悄回升，所以必须在这里钉死。
+    """
+
+    KERNEL_DIR = REPO_ROOT / "tools" / "galaxy-vibe" / "kernel"
+
+    def _kernel(self) -> str:
+        return (self.KERNEL_DIR / "LibVibeKernel.galaxy").read_text(encoding="utf-8")
+
+    def _header(self) -> str:
+        return (self.KERNEL_DIR / "LibVibeKernel_h.galaxy").read_text(encoding="utf-8")
+
+    @staticmethod
+    def _function_body(content: str, signature: str) -> str:
+        """截取以 signature 开头的函数体（到第一个顶格 '}' 为止）。"""
+        start = content.index(signature)
+        end = content.index("\n}", start)
+        return content[start:end]
+
+    def test_header_declares_independent_model_bank(self):
+        header = self._header()
+        self.assertIn('libVibeKernel_gv_ModelBankName = "GalaxyVibeModel"', header,
+                      "模型库名常量缺失：分库被改回单库了？")
+        self.assertIn("bank   libVibeKernel_gv_modelBankHandle = null;", header,
+                      "模型库 handle 必须与 RPC handle 各自独立")
+
+    def test_kernel_defines_model_bank_write_path(self):
+        kernel = self._kernel()
+        self.assertIn("void libVibeKernel_gf_EnsureModelBankLoaded()", kernel)
+        self.assertIn("void libVibeKernel_gf_WriteModelBankInt(", kernel)
+
+    def test_model_snapshot_never_touches_rpc_bank(self):
+        """最关键一条：p2_* 快照绝不能再写 RPC 库。"""
+        body = self._function_body(
+            self._kernel(), "void libVibeKernel_gf_WriteModelP2Snapshot()")
+        self.assertIn("libVibeKernel_gf_WriteModelBankInt(", body)
+        self.assertNotIn("libVibeKernel_gf_WriteBankInt(", body,
+                         "WriteModelP2Snapshot 写回了 RPC 库 —— 覆盖窗口会重新拉宽")
+        self.assertNotIn("libVibeKernel_gf_WriteBankKey(", body)
+
+    def test_model_write_path_only_saves_model_handle(self):
+        body = self._function_body(
+            self._kernel(), "void libVibeKernel_gf_WriteModelBankInt(")
+        self.assertIn("BankSave(libVibeKernel_gv_modelBankHandle)", body)
+        self.assertNotIn("BankSave(libVibeKernel_gv_bankHandle)", body,
+                         "模型写入路径不得 BankSave RPC 库")
+
+    def test_model_bank_respects_handle_cache_rule(self):
+        """VIBE_KERNEL_003：绝不无条件覆盖已有 handle（否则 InitMap 阶段写入全丢）。"""
+        body = self._function_body(
+            self._kernel(), "void libVibeKernel_gf_EnsureModelBankLoaded()")
+        self.assertIn("if (libVibeKernel_gv_modelBankHandle == null)", body,
+                      "模型库加载必须走 null 守卫的缓存语义")
+
+    def test_host_reader_merges_split_banks(self):
+        """Host 侧必须同时读两个库，否则分库后 p2_* 直接读不到。"""
+        runner = (REPO_ROOT / "src" / "projects" / "cmre-porting" / "vibe"
+                  / "run_dead_of_night_live.py").read_text(encoding="utf-8")
+        self.assertIn("def _read_p2_model_bank_state()", runner)
+        self.assertIn('_read_runtime_bank_section("GalaxyVibeModel", "ally")', runner)
+        # 向后兼容：旧内核仍把 p2_* 写在 GalaxyVibe/ally。
+        self.assertIn('_read_runtime_bank_section("GalaxyVibe", "ally")', runner)
+
+
 # ---- Stage 26: kernel 三副本 hash 一致性 ----
 
 class TestKernelMirrorConsistency(unittest.TestCase):

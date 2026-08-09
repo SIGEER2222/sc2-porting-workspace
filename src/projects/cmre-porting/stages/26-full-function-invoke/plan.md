@@ -15,9 +15,13 @@ handle registry. No runtime reflection is introduced.
 - `arbitrary_reflection: false` remains true. Dispatch is a statically
   generated integer dispatch table; function IDs are assigned by the generator
   and recorded in `invoke-plan.json`.
-- Full CMRE source binding (historical 35,404 scan) stays an open issue; this
-  stage covers only the reproducible 23,019 declarations / 11,904 unique
-  signatures.
+- Historical declaration parity remains an open reconciliation item: the current
+  clean scan contains 35,314 declarations (22,780 owned-package declarations
+  plus 12,534 CMRE-dev declarations) versus the historical 35,404 baseline.
+  CMRE-dev contributes zero unique signatures beyond the owned source. Stage 26
+  therefore consumes the reproducible 22,780 owned declarations and emits
+  11,676 callable adapters with 155 explicit exclusions; 603 funcref candidates
+  remain after excluding uncallable and MapScript-local targets.
 
 ## Scope
 
@@ -54,6 +58,7 @@ handle registry. No runtime reflection is introduced.
 ## Verification commands
 
 ```text
+node src/projects/cmre-porting/stages/25-ai-ally-capability-completion/discover_function_catalog.mjs --out artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json --source cmre-owned-project=src/projects/cmre-porting/packages --source vibe-kernel=tools/galaxy-vibe/kernel
 python -m pytest -q src/projects/cmre-porting/stages/26-full-function-invoke/test_generate_invoke_adapters.py
 python -m pytest -q src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_debug_vm.py tools/galaxy-vibe/tests/test_kernel.py
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1

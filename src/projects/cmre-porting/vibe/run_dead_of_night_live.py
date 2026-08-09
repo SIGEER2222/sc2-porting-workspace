@@ -1616,6 +1616,28 @@ def _read_runtime_bank_section(
     return result
 
 
+def _read_p2_model_bank_state() -> dict:
+    """Read the P2 economy snapshot across the split Bank channels.
+
+    VIBE_GEN_007 / N1 (2026-08-09): the kernel used to publish ``p2_*`` into the
+    same ``GalaxyVibe`` bank that carries the RPC channel, so every snapshot
+    ``BankSave`` flushed the whole kernel memory state over the host-written
+    request. The kernel now writes those counters to a dedicated
+    ``GalaxyVibeModel`` bank instead.
+
+    This reader stays backward compatible on purpose: it starts from the legacy
+    ``GalaxyVibe/ally`` section (older kernels, replayed evidence bundles) and
+    overlays ``GalaxyVibeModel/ally`` when present, so a map running either
+    kernel generation resolves the same keys.
+    """
+
+    state = _read_runtime_bank_section("GalaxyVibe", "ally")
+    model_state = _read_runtime_bank_section("GalaxyVibeModel", "ally")
+    if model_state:
+        state.update(model_state)
+    return state
+
+
 def _reset_runtime_ally_bridge(
     bank_name: str = "GalaxyVibe",
     bank_path: Optional[Path] = None,
@@ -3062,7 +3084,9 @@ async def run_live(
                 ):
                     last_mode_model_decide_loop = current_loop
                     p2_view = build_p2_policy_observation(obs)
-                    p2_bank_state = _read_runtime_bank_section()
+                    # VIBE_GEN_007 分库：p2_* 现由内核写入独立的 GalaxyVibeModel
+                    # 库，此处合并读取（旧内核的 GalaxyVibe/ally 仍兼容）。
+                    p2_bank_state = _read_p2_model_bank_state()
                     _apply_p2_bank_resources(p2_view, p2_bank_state)
                     p2_base = next(
                         (

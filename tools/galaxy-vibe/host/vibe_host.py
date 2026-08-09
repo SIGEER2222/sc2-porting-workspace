@@ -282,21 +282,28 @@ def write_bank_request(bank_name: str, request_id: str, request: RpcRequest, pla
     仅写 Banks root 的话永远进不了 PollLoop / BankPoll 轮询视野。
     """
     args_string = request.to_args_string()
-    # 从候选中挑一份最"完整"的作为基底（取有 index section 或 request section 的）；
-    # 若全部不存在则新建空白 Bank。
+    # 从候选中挑一份最"完整"且**最新**的作为基底；若全部不存在则新建空白 Bank。
+    #
+    # ！！！铁律 VIBE_GEN_007（2026-08-09 真机取证）！！！
+    # 旧实现用 `score > cur_score`（严格大于）遍历候选，而 root 是第一个候选，
+    # 于是只要 root 有 index+request 就永远当选基底 —— 完全忽略 mtime。
+    # 但 root 只有 Host 会写，Galaxy 端实际读写的是 Banks/<AuthorHash>/。
+    # 结果：Host 每次发请求都把内核刚落盘的 response/index 回滚成"自己上一次的
+    # 快照"，等于让内核状态时间倒流，并可能连带抹掉尚未被读走的旧请求。
+    # 修法：基底按 (完整度, mtime) 取最优，保证 Host 的写入是在内核最新状态之上
+    # 做增量，而不是覆盖式回滚。
     base_root = None
     base_parsed: dict[str, dict[str, Any]] | None = None
-    base_has_index = False
+    best_key: tuple[int, float] = (-1, -1.0)
     for _, path in _iter_bank_candidates(bank_name):
-        parsed, _ = _parse_bank_file(path)
-        has_idx = "index" in parsed
-        has_req = "request" in parsed
-        score = int(has_idx) * 2 + int(has_req)
-        cur_score = int(base_has_index) * 2 + int(bool(base_parsed and "request" in base_parsed))
-        if score > cur_score:
+        parsed, mtime = _parse_bank_file(path)
+        if not parsed:
+            continue
+        score = int("index" in parsed) * 2 + int("request" in parsed)
+        if (score, mtime) > best_key:
+            best_key = (score, mtime)
             base_root = path
             base_parsed = parsed
-            base_has_index = has_idx
 
     if base_parsed and base_root and base_root.exists():
         try:
@@ -339,6 +346,42 @@ def write_bank_request(bank_name: str, request_id: str, request: RpcRequest, pla
 
     paths = _write_tree_to_all_candidates(bank_name, tree)
     return len(paths) > 0
+
+
+def bank_request_landed(bank_name: str, request_id: str) -> bool:
+    """校验请求是否仍然存在于**所有**候选 Bank 文件上（Galaxy 端能读到）。
+
+    ！！！铁律 VIBE_GEN_007！！！
+    Bank 是"双写单文件"通道：Host 与 Galaxy 都以**全量覆盖**语义写同一个文件，
+    没有任何锁。两类丢失都真机复现过：
+
+      (a) 内核在 `ReloadBank()` 之后、下一次 `BankSave()` 之前的窗口内，
+          Host 写盘的 request/<id> 会被内核内存态全量覆盖抹掉。
+          请求分发（Dispatch）耗时越长，这个窗口越宽 —— 这正是 gen 图上
+          `vibe.query.units`（紧跟重量级 unit.spawn 之后发出）稳定丢失、
+          而 standalone 图不丢的原因。
+      (b) 写 Banks/<digits>/ 子目录时若撞上 SC2 正在 BankSave 持有句柄，
+          `os.replace` 抛 PermissionError；重试耗尽后该子目录保持陈旧，
+          而 root 写成功 → `write_bank_request` 仍返回 True，Host 以为发出去了。
+
+    两种情况下请求都不会进 Dispatch，表现完全一致：没有 response、
+    没有 HANDLER_ABORTED 兜底、state_version 也不 bump（因为内核压根没看见）。
+    因此"写完即认为送达"是错的，必须回读校验 + 重发。
+
+    这里要求**每一个已存在的候选文件**都带有该请求：只要有一份陈旧/被抹除，
+    就可能正好是 Galaxy 端在读的那一份。
+    """
+    seen_any = False
+    for _, path in _iter_bank_candidates(bank_name):
+        parsed, _ = _parse_bank_file(path)
+        if not parsed:
+            continue
+        seen_any = True
+        has_req = request_id in parsed.get("request", {})
+        pending = str(parsed.get("index", {}).get("pending_request_id", ""))
+        if not has_req or pending != request_id:
+            return False
+    return seen_any
 
 
 # ---- SC2API 连接（aiohttp + 后台 event loop 同步封装）----

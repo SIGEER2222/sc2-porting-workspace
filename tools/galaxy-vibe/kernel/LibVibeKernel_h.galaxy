@@ -53,6 +53,10 @@ string libVibeKernel_gv_lastAllyCommand = "";
 int libVibeKernel_gv_bankPollCount = 0;
 int libVibeKernel_gv_mapCommandCount = 0;
 bool libVibeKernel_gv_pollLoopRunning = false;
+// VIBE_KERNEL_005：PollLoop 首帧是否已补过一次 BankSave（把 init 阶段缓冲在
+// 内存里的标记逼着落盘）。必须夹在 ReloadBank 与首次 ReadBankKey 之间，
+// 否则连续两次 BankReload 会用空磁盘覆盖内存态、抹掉全部 init 标记。
+bool libVibeKernel_gv_pollLoopFirstFlushed = false;
 
 // ---- 看门狗（VIBE-KERNEL-001）----
 // Galaxy 运行时错误会中止整条触发器线程；PollLoop 的 while(true) 一旦被中止，
@@ -64,10 +68,29 @@ const string libVibeKernel_gv_BankName = "GalaxyVibe";
 const int    libVibeKernel_gv_BankPlayer = 1;
 const string libVibeKernel_gv_BankSection = "rpc";
 
+// ==== BEGIN VIBE_GEN_007_BANK_CHANNEL_SPLIT ====
+// N1 架构级治本（2026-08-09）：Bank RPC 是「双写单文件、全量覆盖、无锁」的有损通道。
+// 内核每次 BankSave 都会把**整个内存态**刷回同一个 GalaxyVibe.SC2Bank，
+// 于是 Host 在 ReloadBank 之后、下次 BankSave 之前落盘的请求会被整份抹掉。
+// 真机 A/B 已证：单点补 ReloadBank 无效（重发是通道固有竞态方差，已 ABANDONED 回退）。
+//
+// 真正治本 = **按通道分库**：把与 RPC 无关的高频模型快照（p2_* 经济计数）
+// 挪到独立的 GalaxyVibeModel.SC2Bank，使 WriteModelP2Snapshot 的 BankSave
+// 只写模型库、**绝不再覆盖** Host 写入 GalaxyVibe 的 RPC 请求/响应。
+// 这样 RPC 库的 BankSave 只剩「写 response / index」这一类必需写入，
+// 覆盖窗口从「整个 handler 时长」收敛到「仅响应落盘瞬间」。
+//
+// 先例佐证：本代码库早已并存两个 bank 名（GalaxyVibe / CMRERebornDebug），
+// BankLoad 对未存在的 bank 会直接新建，无需在地图里预声明。
+const string libVibeKernel_gv_ModelBankName = "GalaxyVibeModel";
+// ==== END VIBE_GEN_007_BANK_CHANNEL_SPLIT ====
+
 // ---- Bank handle ----
 // 读取 Host 外部写入时必须先 BankRemove，再 BankLoad 重新加载磁盘内容。
 // 写入路径不能每个 key 都 reload，否则连续写入会丢失同一响应里的其他 key。
 bank   libVibeKernel_gv_bankHandle = null;
+// 模型库 handle（与 RPC handle 完全独立，遵循同一套 VIBE_KERNEL_003 缓存语义）。
+bank   libVibeKernel_gv_modelBankHandle = null;
 
 // ---- 操作白名单（P1 完整版） ----
 // 每个 operation 对应一个 handler 函数，签名固定：
@@ -121,6 +144,9 @@ bool   libVibeKernel_gf_ApplyModelP2Intent(string economy, string production);
 // ---- 工具函数 ----
 void   libVibeKernel_gf_ReloadBank();
 void   libVibeKernel_gf_EnsureBankLoaded();
+// VIBE_GEN_007 分库：模型库专用写入路径（不触碰 RPC 库）。
+void   libVibeKernel_gf_EnsureModelBankLoaded();
+void   libVibeKernel_gf_WriteModelBankInt(string section, string key, int value);
 void   libVibeKernel_gf_Init();
 void   libVibeKernel_InitLib();
 void   libVibeKernel_gf_RegisterEntryPoints();

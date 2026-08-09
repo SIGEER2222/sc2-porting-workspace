@@ -131,12 +131,45 @@ def write_evidence(name: str, payload: dict) -> Path:
     return path
 
 
-def run_live(entries: list[dict], timeout: float) -> dict:
+def open_host(map_path: str | None):
+    """打开 VibeHost。给了 map_path 就由探针自己 CreateGame+JoinGame 把地图装进去。
+
+    背景（2026-08-09 补齐）：探针原本只走 Bank RPC，默认「地图已被 launcher 装好」。
+    但 launcher 的 API 模式（-DebugMode/-ApiMinimal）刻意停在 CreateGame 之前
+    （见 launch-cmre-alenger.ps1 "Host must CreateGame + JoinGame"），
+    于是 SC2 停在主菜单、gen.* 永远 FUNCTION_NOT_IN_MAP。补 --map 后探针自足。
+    """
     from host.vibe_host import VibeHost  # noqa: E402
 
     host = VibeHost()
     host.start_session()
+    if map_path:
+        if not host.connect_sc2(map_path=map_path):
+            host.close()
+            raise RuntimeError(f"connect_sc2 失败（地图未装载）: {map_path}")
+    return host
+
+
+def run_live(entries: list[dict], timeout: float, host=None, guard=None) -> dict:
+    """执行一批调用，全程由环境哨兵看着。
+
+    2026-08-09 教训：上一轮 tier100 抽样跑出 `ok=0/53` 全超时，被当成「gen bundle
+    把 MapScript 搞挂了」查了一整轮编译闭包 —— 真相是运行到第 1 个调用时真人局
+    启动、把 API 实例挤掉了，53 条记录全是对着空气发的。证据本身是噪声，却长得
+    和真故障一模一样。所以：**一旦哨兵报警就立刻停**，剩下的调用不再执行，
+    并在证据里如实标记 `usable_for_acceptance=false`，绝不让噪声混进验收。
+    """
+    owns_host = host is None
+    if owns_host:
+        host = open_host(None)
+    owns_guard = guard is None
+    if owns_guard:
+        from env_guard import EnvGuard  # noqa: E402
+
+        guard = EnvGuard()
+        guard.baseline()
     results = []
+    aborted = None
     try:
         for entry in entries:
             started = time.perf_counter()
@@ -148,8 +181,15 @@ def run_live(entries: list[dict], timeout: float) -> dict:
                 "elapsed_ms": round((time.perf_counter() - started) * 1000.0, 1),
                 "payload": response.payload if response.is_ok else {},
             })
+            # 只在失败后查哨兵：成功本身就是环境健在的最强证据，没必要付枚举开销
+            if not response.is_ok:
+                tripped = guard.check()
+                if tripped is not None:
+                    aborted = {**tripped, "aborted_after": len(results), "planned": len(entries)}
+                    break
     finally:
-        host.close()
+        if owns_host:
+            host.close()
     summary = {
         "total": len(results),
         "ok": sum(1 for r in results if r["ok"]),
@@ -158,7 +198,10 @@ def run_live(entries: list[dict], timeout: float) -> dict:
     for result in results:
         if not result["ok"]:
             summary["by_error_code"][result["error_code"]] = summary["by_error_code"].get(result["error_code"], 0) + 1
-    return {"summary": summary, "results": results}
+    env_verdict = guard.verdict(any_ok=summary["ok"] > 0)
+    if aborted is not None:
+        env_verdict = {**env_verdict, **aborted, "usable_for_acceptance": False}
+    return {"summary": summary, "results": results, "env": env_verdict}
 
 
 def main() -> None:
@@ -168,6 +211,11 @@ def main() -> None:
     parser.add_argument("--plan-only", action="store_true", help="仅产出选择清单（无 SC2）")
     parser.add_argument("--budget", type=int, default=200, help="普查预算上限")
     parser.add_argument("--timeout", type=float, default=3.0, help="单次调用超时（秒）")
+    parser.add_argument("--map", dest="map_path", default="",
+                        help="staged live 地图路径；给了就由探针 CreateGame+JoinGame 装图")
+    parser.add_argument("--tier", type=int, default=-1,
+                        help="本次 run 对应的 -InvokeTier 档位（仅写入证据用于对账）")
+    parser.add_argument("--suffix", default="", help="证据文件名后缀，用于分档留档不覆盖")
     options = parser.parse_args()
 
     plan = load_plan()
@@ -188,14 +236,59 @@ def main() -> None:
         print(f"type-family samples: {len(samples)}; census candidates: {len(census)}")
         return
 
-    if options.sample:
-        outcome = run_live(samples, options.timeout)
-        path = write_evidence("type-family-sampling.json", outcome)
-        print(f"type-family sampling: {path} ok={outcome['summary']['ok']}/{outcome['summary']['total']}")
-    if options.census:
-        outcome = run_live(census, options.timeout)
-        path = write_evidence("readonly-census.json", outcome)
-        print(f"readonly census: {path} ok={outcome['summary']['ok']}/{outcome['summary']['total']}")
+    suffix = f"-{options.suffix}" if options.suffix else ""
+    run_meta = {
+        "invoke_tier": options.tier,
+        "map_path": options.map_path or None,
+        "map_loaded_by_probe": bool(options.map_path),
+        "timeout_s": options.timeout,
+    }
+
+    from env_guard import EnvGuard  # noqa: E402
+
+    host = open_host(options.map_path or None)
+    # 基线必须在装图之后取：CreateGame 期间 SC2 可能重启渲染子进程，
+    # 装图前取基线会把正常的进程变动误判成 env_preempted。
+    guard = EnvGuard()
+    run_meta["env_baseline"] = guard.baseline()
+    exit_code = 0
+    try:
+        if options.sample:
+            outcome = run_live(samples, options.timeout, host=host, guard=guard)
+            outcome["run"] = run_meta
+            path = write_evidence(f"type-family-sampling{suffix}.json", outcome)
+            exit_code |= _report("type-family sampling", path, outcome)
+        if options.census:
+            outcome = run_live(census, options.timeout, host=host, guard=guard)
+            outcome["run"] = run_meta
+            path = write_evidence(f"readonly-census{suffix}.json", outcome)
+            exit_code |= _report("readonly census", path, outcome)
+    finally:
+        host.close()
+    if exit_code:
+        raise SystemExit(exit_code)
+
+
+def _report(label: str, path: Path, outcome: dict) -> int:
+    """打印结果并把「环境噪声」和「真失败」在退出码上分开。
+
+    退出码 0=通过，1=真失败（代码问题，值得查），2=环境不可用（结果作废，重跑即可）。
+    分开是为了让上层调度脚本能自动决定「重排档期」还是「叫人来看代码」，
+    而不是一律当成失败去改代码 —— 那正是上一轮浪费掉的路。
+    """
+    summary = outcome["summary"]
+    env = outcome.get("env", {})
+    verdict = env.get("verdict", "unknown")
+    usable = env.get("usable_for_acceptance", True)
+    print(f"{label}: {path} ok={summary['ok']}/{summary['total']} env={verdict}")
+    if not usable:
+        print(f"  [ENV] {env.get('reason', '')} :: {env.get('hint', '')}")
+        if "aborted_after" in env:
+            print(f"  [ENV] 已在第 {env['aborted_after']}/{env['planned']} 项中止，"
+                  f"剩余未执行（避免刷入噪声证据）")
+        print("  [ENV] 本轮结果不可用于验收")
+        return 2
+    return 0 if summary["ok"] == summary["total"] else 1
 
 
 if __name__ == "__main__":

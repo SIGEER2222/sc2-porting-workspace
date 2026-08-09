@@ -11,7 +11,12 @@ import json
 from pathlib import Path
 from typing import Any, Protocol
 
-from .function_registry import FunctionRegistryError, normalize_function_id, validate_invocation
+from .function_registry import (
+    FunctionRegistryError,
+    invoke_registered_function,
+    normalize_function_id,
+    validate_invocation,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -438,9 +443,22 @@ class SimulatorSessionDebugVmBridge:
 
     def call(self, function_id: str, args: dict[str, Any]) -> Any:
         # gen.* adapters only exist inside the live Galaxy runtime; offline we
-        # surface them as a routing marker (never a fabricated side effect).
+        # surface them as a routing marker. We still enforce the SAME argument
+        # contract as every other path (via the canonical offline dispatcher):
+        # valid args -> routed marker with normalized args; invalid -> an
+        # error-shaped response the VM recognises (so the runtime contract is
+        # uniform across all 11676 gen.* internal functions, not just vibe.*).
         if function_id.startswith("gen."):
-            return {"function_id": function_id, "routed": "runtime", "status": "passed"}
+            try:
+                routed = invoke_registered_function(function_id, args)
+            except FunctionRegistryError as exc:
+                return {
+                    "function_id": function_id,
+                    "routed": "runtime",
+                    "error_code": exc.code,
+                    "payload": {"reason": exc.code, "detail": exc.detail},
+                }
+            return routed
         # Errors are returned, not raised: DebugVm owns allow_error semantics.
         return self._send("function.invoke", {"function_id": function_id, "args": args})
 
@@ -499,7 +517,18 @@ class HostDebugVmBridge:
 
     async def call(self, function_id: str, args: dict[str, Any]) -> Any:
         if function_id.startswith("gen."):
-            return {"function_id": function_id, "routed": "runtime", "status": "passed"}
+            # Offline we still enforce the argument contract so the VM can prove
+            # routability honestly; the live host would validate the same way.
+            try:
+                routed = invoke_registered_function(function_id, args)
+            except FunctionRegistryError as exc:
+                return {
+                    "function_id": function_id,
+                    "routed": "runtime",
+                    "error_code": exc.code,
+                    "payload": {"reason": exc.code, "detail": exc.detail},
+                }
+            return routed
         ws = await self._ensure_connection()
         request = self._make_request(
             "function.invoke", {"function_id": function_id, "args": args}

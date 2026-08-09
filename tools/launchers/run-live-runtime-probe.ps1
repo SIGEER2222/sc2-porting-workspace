@@ -63,9 +63,31 @@ if (-not (Test-Path $Map))     { Write-Error "Map not found: $Map" }
 if (-not (Test-Path $observer)){ Write-Error "Observer not found: $observer" }
 if (-not (Test-Path $scenario)){ Write-Error "Scenario not found: $scenario" }
 
-Write-Host "[1/4] Killing any running SC2 ..."
-Get-Process -Name "SC2_x64","SC2Switcher_x64" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
+# Runtime-verification (API) mode must NEVER kill or assume ownership of an
+# externally-owned (or lingering) SC2 instance. If SC2 is already running here,
+# we cannot prove it is ours, so we fail-closed: record the external owner
+# evidence and exit nonzero instead of disrupting the user's session.
+# (Plan risk rule: 不终止或接管外部 owner；保持 blocked 并等待独立窗口. Module 7.5.)
+Write-Host "[1/4] Checking for an existing SC2 instance ..."
+$existingSc2 = @(Get-Process -Name "SC2_x64","SC2Switcher_x64" -ErrorAction SilentlyContinue)
+if ($existingSc2.Count -gt 0) {
+    $runtimeEvidenceRoot = Join-Path $repo "artifacts/runtime"
+    if (-not (Test-Path -LiteralPath $runtimeEvidenceRoot)) {
+        New-Item -ItemType Directory -Path $runtimeEvidenceRoot -Force | Out-Null
+    }
+    $blockedEvidence = [ordered]@{
+        classification = "blocked"
+        reason         = "external_sc2_owner_detected"
+        detector       = "run-live-runtime-probe.ps1"
+        pids           = @($existingSc2 | ForEach-Object { $_.Id })
+        port           = $Port
+        detail         = "Refusing to kill an externally-owned (or lingering) SC2 instance before the live runtime-unit probe. Free the runtime slot (close the external owner) and re-run for an independent window."
+        recordedAt     = (Get-Date -Format "o")
+    }
+    $blockedEvidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $runtimeEvidenceRoot "launcher-runtime-blocked.json") -Encoding UTF8
+    throw ("External SC2 owner detected (pids: $($existingSc2.Id -join ',')) before live runtime-unit probe; refusing to kill it. Free the runtime slot and re-run for an independent window.")
+}
+# No SC2 running -> safe to launch our own isolated instance for the probe.
 
 Write-Host "[2/4] Launching SC2 (Switcher) with map + API on port $Port ..."
 $args = @($Map, "-listenPort", "$Port", "-displayMode", "0", "-windowWidth", "800", "-windowHeight", "600", "-novid")

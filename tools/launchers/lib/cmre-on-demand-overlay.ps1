@@ -52,6 +52,79 @@ function Add-CmreLinesAfter {
     return $Content.Replace($Anchor, ($Anchor + [Environment]::NewLine + ($missing -join [Environment]::NewLine)))
 }
 
+function Add-CmreForwardProtos {
+    <#
+    .SYNOPSIS
+        形态E / VIBE_GEN_009：在 invoke 层挂载点之前补齐 MapScript 本体函数的前置原型。
+
+    .DESCRIPTION
+        Galaxy 与 C 一样「先声明后使用」，include 是纯文本展开。overlay 把 invoke 层
+        （LibVibeInvokeCommon 的 funcref 静态表 + LibVibeInvoke_NN 的 Call 适配器）挂在
+        `include "LibVibeKernel"` 之后，也就是文件头部；而地图本体的函数原型区排在
+        200+ 行、定义排在 500+ 行，全在挂载点**之后**。于是 invoke 层引用地图本体的
+        gf_* / gt_*_Func / auto_gf_*_TriggerFunc 时符号尚未声明：
+
+          - 取址 `return gf_Foo;`  => "解析返回时出错，可能在行尾缺失分号：';'"（VIBE_GEN_008）
+          - 调用 `gf_Foo(a, b);`   => "参数无效，可能有不正确的变量名"（VIBE_GEN_009）
+
+        两者都是编译错误 => SC2 **静默丢弃整个 MapScript** => runtime listener 永不就绪。
+        2026-08-09 真机取证：亡者之夜 `LibVibeInvoke_08.galaxy (14)` 卡死在
+        `auto_gf_AIBigTextMessage_TriggerFunc`，就是本函数缺席导致的。
+
+        注意判据是「**挂载点之前**有没有原型」，不是「整个文件里有没有原型」——
+        地图自带原型区也在挂载点之后，对 invoke 层一样太晚。重复原型（前插一份 +
+        本体原型区一份）在 Galaxy 里合法，2026-08-08 真机 proto_test P0-A/P0-B 双 PASS。
+
+        【勿改成「把 include 后移」】2026-08-08 真机二分实测 Galaxy include 存在位置
+        硬阈值：line 76 PASS / 212 PASS / 2128 PASS / 3089 FAIL / 7802 FAIL，失败形态是
+        join_game 阶段直接崩溃（4/4 复现）。include 位置必须保持在头部。
+    #>
+    param(
+        [Parameter(Mandatory = $true)][string]$Content,
+        [Parameter(Mandatory = $true)][string]$Anchor
+    )
+    $marker = "VIBE_FORWARD_PROTOS"
+    if ($Content.Contains("BEGIN $marker")) { return $Content }
+    if (-not $Content.Contains($Anchor)) { throw "Anchor not found: $Anchor" }
+
+    $nl = [Environment]::NewLine
+    $mountOffset = $Content.IndexOf($Anchor)
+    $head = $Content.Substring(0, $mountOffset)
+
+    # MapScript 顶层（列 0 起）的原型 / 定义。Galaxy 生成的 MapScript 参数恒为单行。
+    $protoRe = [regex]'(?m)^([A-Za-z_]\w*)[ \t]+(\w+)[ \t]*\(([^;{)]*)\)[ \t]*;'
+    $defRe = [regex]'(?m)^([A-Za-z_]\w*)[ \t]+(\w+)[ \t]*\(([^){]*)\)[ \t]*\{'
+
+    $have = New-Object 'System.Collections.Generic.HashSet[string]'
+    foreach ($m in $protoRe.Matches($head)) { [void]$have.Add($m.Groups[2].Value) }
+
+    # 生命周期入口永不前置声明；控制流关键字会被列 0 的 `if (...) {` 误吞，必须排除。
+    $skip = @('InitMap', 'InitLibs', 'InitGlobals', 'InitTriggers')
+    $keywords = @('if', 'while', 'for', 'switch', 'else', 'do', 'return')
+    $seen = New-Object 'System.Collections.Generic.HashSet[string]'
+    $generated = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($m in $defRe.Matches($Content)) {
+        $typeName = $m.Groups[1].Value
+        $funcName = $m.Groups[2].Value
+        $params = $m.Groups[3].Value.Trim()
+        if ($keywords -contains $typeName) { continue }
+        if ($skip -contains $funcName) { continue }
+        if ($have.Contains($funcName)) { continue }
+        if (-not $seen.Add($funcName)) { continue }
+        $generated.Add("$typeName $funcName ($params);")
+    }
+    if ($generated.Count -eq 0) { return $Content }
+
+    $block = @(
+        "// ==== BEGIN $marker ====",
+        "// 形态E / VIBE_GEN_009：invoke 层（Common funcref 表 + shard 适配器）引用地图本体",
+        "// gf_*/gt_*_Func/auto_*_TriggerFunc，Galaxy 先声明后使用，必须在挂载点之前补原型。",
+        "// 地图自带原型区排在挂载点之后、对 invoke 层太晚。重复原型合法（真机 proto_test 取证）。",
+        "// 由 Add-CmreForwardProtos 生成，**勿手删**：删掉 = SC2 静默丢弃整个 MapScript。"
+    ) + $generated.ToArray() + @("// ==== END $marker ====", "")
+    return $Content.Replace($Anchor, (($block -join $nl) + $nl + $Anchor))
+}
+
 function Select-CmreExistingAnchor {
     param(
         [Parameter(Mandatory = $true)][string]$Content,
@@ -761,18 +834,26 @@ function Install-CmreRebornCampaignFrontendGuardOverlay {
     # mission's local initialization triggers, but skip the two campaign-only
     # calls that invoke CampaignMode/CampaignProgress UI services and crash
     # the standalone map after the loading screen is dismissed.
-    $loadCampaign = '    libSwaC_gf_ULoadCampaignData("ZChar1");'
-    $purchaseTech = '    libSwaC_gf_PurchaseStorymodeTech();'
-    if (-not $content.Contains($loadCampaign) -or -not $content.Contains($purchaseTech)) {
-        throw "Reborn campaign frontend guard anchors not found in MapScript: $path"
+    # The library prefix differs between the swarmstory campaign (libSwaC)
+    # and CMRE co-op maps (libCOOC), so neutralise whichever variant the map
+    # actually uses. If none of the candidate calls are present the map has no
+    # campaign front-end dependency and the guard can be skipped safely
+    # (mirrors Install-CmreRebornCampaignIntroSkipOverlay's "not present" path).
+    $candidates = @(
+        '    libSwaC_gf_ULoadCampaignData("ZChar1");',
+        '    libSwaC_gf_PurchaseStorymodeTech();',
+        '    libCOOC_gf_PurchaseStorymodeTech();'
+    )
+    $neutralized = 0
+    foreach ($anchor in $candidates) {
+        if ($content.Contains($anchor)) {
+            $content = $content.Replace($anchor, "    // ${marker}: campaign/co-op story-mode tech/data call isolated for standalone/API sessions")
+            $neutralized++
+        }
     }
-    $replacement = @"
-    // $marker
-    // Campaign data/UI services require the campaign front-end and are not
-    // available in direct-map/API sessions.
-"@
-    $content = $content.Replace($loadCampaign, $replacement.TrimEnd())
-    $content = $content.Replace($purchaseTech, "    // ${marker}: story-mode tech is supplied by the staged map/mod catalog.")
+    if ($neutralized -eq 0) {
+        Write-Host "Reborn campaign frontend guard anchors not present in MapScript; no frontend guard required: $path"
+    }
     Write-CmreUtf8NoBom -Path $path -Content $content
     Write-Host "Reborn campaign frontend calls isolated in staged MapScript: $path"
 }
@@ -1007,7 +1088,19 @@ bool gv_CmreOnDemandInitMapEntered = false;
     gv_CmreOnDemandInitMapEntered = true;
 '@
     $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $initMapFunctionAnchor -Lines @('    libMapModBridge_gf_WriteDebugBank("stage16_before_vibe", 1);', '    libVibeKernel_gf_WriteBankInt("index", "stage16_before_vibe", 160801);')
-    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    InitTriggers();' -Lines @('    libVibeKernel_gf_WriteBankInt("index", "stage16_after_vibe", 160801);', '    libVibeKernel_gf_RegisterEntryPoints();', '    libMapModBridge_gf_WriteDebugBank("stage16_after_vibe", 1);', '    libDeadOfNightObserver_InitLib();', '    gt_CmreOnDemandRuntimeListener_Init();', '    gt_CmreOnDemandDeadOfNightPoll_Init();', '    gt_CmreOnDemandCommanderStartingUnits_Init();', '    gt_CmreOnDemandAllyChat_Init();', '    gt_CmreOnDemandComputerAllyReady_Init();', '    gt_CmreOnDemandInitializationGate_Init();')
+    # CMRE_ON_DEMAND_MAP_INIT_ENTERED_REASSERT（2026-08-09 真机取证）：
+    # InitMap 首行的 map_init_entered 写入经常**静默丢失**——此时
+    # BankLoad("CMRERebornDebug", 1) 仍返回 null（bank 异步加载未完成），
+    # libMapModBridge_gf_WriteDebugBank 会 early-return 而不写任何东西。
+    # 证据：SC2 自存的 CMRERebornDebug.SC2Bank 里有 stage16_before_vibe /
+    # stage16_after_vibe = 1，唯独没有 map_init_entered（首行那次被丢）。
+    # 后果致命：gf_CmreOnDemandInitializationReady() 第一句就是
+    #   if (gf_CmreOnDemandDebugInt("map_init_entered") == 0) { return false; }
+    # → initialization_complete 永远为 0 → Wait-CmreRuntimeListener 必然超时。
+    # 修复：InitTriggers() 之后 bank 已就绪，无条件补写一次。
+    # 注意：Add-CmreLinesAfter 以整行文本判重，故此行必须与首行那句**文本不同**
+    #（保留尾部 // CMRE_REASSERT 注释），否则会被当成已存在而被过滤掉。
+    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    InitTriggers();' -Lines @('    libVibeKernel_gf_WriteBankInt("index", "stage16_after_vibe", 160801);', '    libVibeKernel_gf_RegisterEntryPoints();', '    libMapModBridge_gf_WriteDebugBank("stage16_after_vibe", 1);', '    libMapModBridge_gf_WriteDebugBank("map_init_entered", 1); // CMRE_REASSERT', '    libDeadOfNightObserver_InitLib();', '    gt_CmreOnDemandRuntimeListener_Init();', '    gt_CmreOnDemandDeadOfNightPoll_Init();', '    gt_CmreOnDemandCommanderStartingUnits_Init();', '    gt_CmreOnDemandAllyChat_Init();', '    gt_CmreOnDemandComputerAllyReady_Init();', '    gt_CmreOnDemandInitializationGate_Init();')
     if ($isRebornZChar01) {
         $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    gt_CmreOnDemandComputerAllyReady_Init();' -Lines @('    gt_CmreRebornZChar01AllyGuard_Init();')
         $zcharTargetMarker = "CMRE_REBORN_ZCHAR01_SCRIPTED_TARGET_PATCH_V1"
@@ -1051,7 +1144,35 @@ bool gv_CmreOnDemandInitMapEntered = false;
         '    libVibeKernel_gf_RegisterEntryPoints();',
         '    libMapModBridge_gf_WriteDebugBank("map_init_entered", 1);'
     )
+    # 形态E / VIBE_GEN_009：必须排在**所有** include / glue 注入之后、写盘之前。
+    # invoke 层挂在文件头部，而地图本体的原型区和定义都在其后，不补前置原型 =>
+    # 编译错误 => SC2 静默丢弃整个 MapScript（真机 2026-08-09 亡者之夜取证）。
+    $mapScript = Add-CmreForwardProtos -Content $mapScript -Anchor 'include "LibVibeKernel"'
     Write-CmreUtf8NoBom -Path $mapScriptPath -Content $mapScript
+
+    # 形态 M / VIBE_GEN_010：生成闭包 != 挂载闭包。
+    #
+    # Stage 26 的 LibVibeInvokeCommon.galaxy 里 libVibeInvoke_gf_ResolveFuncref 是一张
+    # 400+ 行静态表（`if (name == "X") { return X; }`），按**生成时那份地图包**的符号集
+    # 产出；而实际挂载闭包由本 overlay 按指挥官/依赖动态决定。两者不一致时表里就会留下
+    # 指向闭包外的符号（真机取证：官方指挥官局既不拷 adapter 文件也不 include，表里却仍有
+    # `return libA3ADAPTER_gf_UnlockAllAbilities;`）=> 未定义标识符 => SC2 **静默丢弃整个
+    # MapScript** => 门禁全绿但 Kernel 永不注册、每个 RPC 都 INTERNAL_ERROR。
+    # 2026-08-09 N2 tier100 的 53/53 INTERNAL_ERROR 即此（离线双向对照：原包 BROKEN /
+    # 未定义标识符 1，仅删该行转 CLEAN，差集恰为该行）。
+    #
+    # 【为什么净化不放在这里 —— 实测负结论，勿重蹈】
+    # 曾在此处用 PS 实现「符号 libP_* 的前缀 P 必须能在 MapScript 的 include 里找到 LibP...」
+    # 的行级剔除。实测在 404 行表上摘掉 28 行，**其中 27 行是误伤**：LibCOTF / LibCMFE /
+    # LibCOMU 等是被别的 lib **间接 include** 的，只扫 MapScript 顶层 include 根本看不见；
+    # 且 `TriggerLibs/LibertyLib` 还会被 Substring(3) 切成 `ertyLib` 这种垃圾前缀。
+    # 结论：判定符号可用性需要**完整递归 include 闭包 + 依赖 mod 符号表**，那正是
+    # compile_unit.resolve() 的活，在 PS 里重写必然出错。
+    #
+    # 正确做法：净化交给离线门禁（python，吃完整符号表，零误伤）——
+    #     python tools/galaxy-vibe/mpq/staged_map_doctor.py "<暂存 .SC2Map 目录>" --fix
+    # 放量取证前必跑。日常真人局不挂 Stage 26 gen bundle，不受此形态影响，
+    # 因此这里不做任何净化，避免为低频路径给每次启动增加 pack+resolve 的十几秒开销。
 
     Install-CmreStartupDebugMarkersOverlay -MapPath $MapPath
 

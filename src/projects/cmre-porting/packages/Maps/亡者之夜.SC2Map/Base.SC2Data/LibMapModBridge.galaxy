@@ -5,10 +5,27 @@ include "LibMapModBridge_h"
 // 通用 API 实现，不依赖任何特定 mod 库
 // 各 mod adapter 在合适时机调用这些 API
 
+// ==== BEGIN VIBE_KERNEL_003_HANDLE_CACHE (mirror of LibVibeKernel) ====
+// InitMap 同步阶段 BankLoad 可能返回 null；若每次无条件 BankLoad 会把已拿到的
+// 有效 handle 覆盖成 null，并且 BankLastCreated() 会回退到最近一次成功加载的
+// bank（常是内核的 GalaxyVibe），导致 CMRERebornDebug 标记静默丢失/误写别处。
+// 改用专属缓存 handle + BankWait，与 LibVibeKernel 完全一致。缓存语义自带重试：
+// handle 为 null 时每次调用都会再 BankLoad，所以早期拿不到≠永远拿不到。
+void libMapModBridge_gf_EnsureDebugBankLoaded() {
+    if (libMapModBridge_gv_debugBankHandle == null) {
+        libMapModBridge_gv_debugBankHandle = BankLoad("CMRERebornDebug", 1);
+        if (libMapModBridge_gv_debugBankHandle != null) {
+            BankWait(libMapModBridge_gv_debugBankHandle);
+        }
+    }
+}
+// ==== END VIBE_KERNEL_003_HANDLE_CACHE ====
+
 void libMapModBridge_gf_WriteDebugBank(string key, int value) {
-    BankLoad("CMRERebornDebug", 1);
-    BankValueSetFromInt(BankLastCreated(), "debug", key, value);
-    BankSave(BankLastCreated());
+    libMapModBridge_gf_EnsureDebugBankLoaded();
+    if (libMapModBridge_gv_debugBankHandle == null) { return; }
+    BankValueSetFromInt(libMapModBridge_gv_debugBankHandle, "debug", key, value);
+    BankSave(libMapModBridge_gv_debugBankHandle);
 }
 
 void libMapModBridge_gf_CreateStartingUnits(int player, string structureType, string workerType, int workerCount) {

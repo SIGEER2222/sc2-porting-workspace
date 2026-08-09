@@ -24,7 +24,7 @@ class FunctionRegistryError(ValueError):
         super().__init__(f"{code}: {detail}")
 
 
-# 注册表现在是 7MB+ / 11910 条，而它曾经在每次 validate_invocation 里被重新读盘+解析。
+# 注册表现在是 7MB+ / 11696 条（20 vibe.* + 11676 gen.*），而它曾经在每次 validate_invocation 里被重新读盘+解析。
 # 一次 function.invoke 会解析两遍（normalize_request_args + wire_function_args），
 # 跑一轮全量校验能打出 80GB 量级的磁盘 I/O，并且在高频读下偶发读到空内容。
 # 这里按 (mtime_ns, size) 做缓存：文件一改就自然失效，既保住「改注册表立刻生效」的

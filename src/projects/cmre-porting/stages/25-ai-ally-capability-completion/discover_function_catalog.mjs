@@ -37,20 +37,38 @@ function sourceArguments(args) {
   return sources;
 }
 
-async function listGalaxyFiles(root) {
+async function listGalaxyFiles(root, sourceId) {
   const files = [];
   async function walk(directory) {
     const handle = await opendir(directory);
     for await (const entry of handle) {
       const child = resolve(directory, entry.name);
       if (entry.isDirectory()) await walk(child);
-      else if (entry.isFile() && extname(entry.name).toLowerCase() === ".galaxy") {
+      else if (
+        entry.isFile() &&
+        extname(entry.name).toLowerCase() === ".galaxy" &&
+        !isVibeGeneratedFile(relativePath(root, child), sourceId)
+      ) {
         files.push(child);
       }
     }
   }
   await walk(root);
   return files.sort((a, b) => a.localeCompare(b));
+}
+
+function isVibeGeneratedFile(filePath, sourceId) {
+  const normalized = filePath.replaceAll("\\", "/");
+  const base = normalized.slice(normalized.lastIndexOf("/") + 1);
+  const isGenerated = normalized.startsWith("generated/") || normalized.includes("/generated/") ||
+    base.startsWith("LibVibeInvoke");
+  const isKernelMirror = [
+      "LibVibeKernel.galaxy",
+      "LibVibeKernel_h.galaxy",
+      "LibVibeHandles.galaxy",
+      "LibVibeHandles_h.galaxy",
+    ].includes(base);
+  return isGenerated || (sourceId !== "vibe-kernel" && isKernelMirror);
 }
 
 function relativePath(root, path) {
@@ -135,7 +153,7 @@ async function main() {
   const summaries = [];
 
   for (const source of sources) {
-    const files = await listGalaxyFiles(source.root);
+    const files = await listGalaxyFiles(source.root, source.id);
     let parseErrors = 0;
     for (const absoluteFile of files) {
       const sourceText = await readFile(absoluteFile, "utf8");

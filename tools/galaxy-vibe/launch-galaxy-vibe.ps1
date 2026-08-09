@@ -94,10 +94,12 @@ Start-Sleep -Seconds 2
 
 Write-Host "[2/4] Launching SC2 (Switcher) with debug mod + API on port $Port ..."
 # 正确参数格式：-listen <host> -port <port> -debug（SC2 静默忽略 -listenPort）
-# 去掉 -displayMode 0 -novid（在某些环境下导致黑屏且无 ScriptError）
+# 窗口化启动（-displayMode 0 + 窗口尺寸）是首帧崩溃(SIGEER B97563 / ACCESS_VIOLATION 0x40)的根本修复：
+# 全屏 SC2 会抢独占 D3D9 设备，与已运行实例/显示器冲突导致 "Lost D3D9 device" → 重置失败 → 读空指针崩溃。
+# 窗口化使用非独占设备，稳定。之前为"修黑屏"误删 -displayMode 0 是回归，现已恢复。
 # API 模式下不传 map 作为位置参数（Switcher 不会自动加载地图到 in_game 状态），
 # 让客户端用 CreateGame + JoinGame 推进到 in_game（与 launch-cmre-alenger.ps1 设计一致）
-$args = @("-listen", "127.0.0.1", "-port", "$Port", "-debug")
+$args = @("-listen", "127.0.0.1", "-port", "$Port", "-debug", "-displayMode", "0", "-windowwidth", "1280", "-windowheight", "720")
 # 只有 ModPath 非空时才挂载 mod（避免 mod 冲突导致 SC2 退出）
 if ($ModPath) { $args += @("-mod", "$ModPath") }
 Write-Host "      $switcher $($args -join ' ')"

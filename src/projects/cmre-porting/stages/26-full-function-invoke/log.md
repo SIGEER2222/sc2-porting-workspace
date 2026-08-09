@@ -178,3 +178,60 @@
 - `blocked`: 真实 launcher `-NoLaunch` staging 在同步 `CM_ArtPack_Base.SC2Mod`
   时被已有 `SC2_x64` 进程占用；没有终止该外部会话，故 live UI、listener、
   同窗口 ScriptError 仍待空闲 SC2 会话补验。
+
+### 2026-08-09 source catalog hygiene and regeneration
+
+- `src/config/local.sources.json` 已确认存在且可解析；不再把“缺少 local source binding”
+  作为当前事实。
+- 修正 `discover_function_catalog.mjs`：owned package 扫描排除
+  `Base.SC2Data/generated/**`、`LibVibe*` 镜像和 `LibVibeInvoke*` 生成文件；canonical
+  kernel 通过独立 `vibe-kernel` source 扫描，保留 20 条手写 RPC handler 的来源证明。
+- 清洁 catalog：`function-catalog.json` 共 **23,022** 条声明，其中 owned source
+  **22,780**、canonical kernel **242**，各 source `parse_errors=0`。
+- 清洁 full-source 对账：`function-catalog-full-clean.json` 共 **35,314** 条声明，
+  owned **22,780** + cmre-dev **12,534**；按 `(name, return_type, parameter types)`
+  去重后 cmre-dev 新增唯一签名 **0**。历史 `35,404` 基线仍差 **90**，保留为 open
+  reconciliation issue，不把声明数量差异误判为 adapter 缺失。
+- Stage 26 重新生成：**11,676** callable、**155** explicit exclusions、603 funcref
+  candidates；亡者之夜 bundle **6,671** functions / **28** shards。
+- 新鲜验证：Stage 25 debug VM/catalog **13 passed**；Stage 26 generator **33 passed**；
+  Kernel **59 passed**；generated parser **862 files / 0 errors**；Vibe static **52/52**。
+- runtime 仍为 blocked/PARTIAL：不得把静态生成成功提升为 gen.* 原生执行成功；继续等待
+  含 generated bundle 的有效打包 `.SC2Map` 与同窗口 launcher/API/ScriptError 证据。
+
+### 2026-08-09 08:0x live runtime 复跑（tier100 探针 + standalone 对照）
+
+- 环境：当前 live SC2 实例 PID 3556（02:28 拉起，API 模式端口 5000）在 08:07 崩溃重启为
+  25904，再重启为 8284（同 cmdline `-listen 127.0.0.1 -port 5000 -debug`）。无 ScriptError.txt
+  写出 → 引擎级硬崩溃，非 Galaxy script error。
+- 复跑 `tier100_live_probe.py --map C:/tmp/VibeDeadOfNight-Gen.SC2Map --fresh-bank`：加载成功、
+  Kernel 自注册、ping 3/3、spawn 经 bank 返回 ok，但在『post-spawn observation』
+  （`owned_counts`，脚本 line 360）处 SC2 连接被重置（`ClientConnectionResetError`），
+  进程重启（3556→25904）。verdict 未落盘（崩溃早于写盘）。
+- **standalone 对照** `tier100_live_probe.py --fresh-bank`（默认 VibeDeadOfNight.SC2Map，无生成包）：
+  同样在 line 360 post-spawn observation 处硬崩溃（25904→8284）。
+- 关键判定：standalone 图无生成包仍崩溃 → 崩溃与 gen.* adapter 无关，纯属 SC2 实例在
+  『spawn 单位 + 推进仿真』时硬崩溃。与 06:2x（同 PID 3556）standalone 对照 5/5 通、gen 图
+  2/2 全绿形成对照——同一地图、同一安装，仅 SC2 实例状态不同，结论从 PASS 退化为崩溃。
+- 结论：当前实例仿真不稳定，gen.* 真机执行**当前不可复现**；06:2x 2/2 闭环为有效历史证据
+  （result.json `runtime-tier100-custom-probe=PASS`，证据 `tier100-live-verdict-gen007-fix-v1/v2`
+  + `gen007-standalone-ctl`）。Stage 26 保持 PARTIAL，不据当前崩溃或历史证据单方面晋升/降级。
+- 处置：不反复重跑崩溃探针（浪费且加剧实例不稳定）。同步更新 result.json summary/verification
+  （新增 `runtime-reproducibility-blocked`）、issues.json `RUNTIME-LIVE-VALIDATION-BLOCKED`
+  （build-blocked 已解除 → 实例仿真阻塞）、MEMORY.md 修正“已闭环”为“06:2x 全绿、当前不可复现”。
+  待稳定实例复跑三档放量（-InvokeTier 100/1000/0）。
+
+### 2026-08-09 WebUI 真实启动回归
+- runtime：先通过 `POST http://127.0.0.1:8767/api/stop` 清理遗留 `SC2_x64`，再以
+  `POST http://127.0.0.1:8767/api/launch-async` 提交 `TerranAlenger3 + 亡者之夜.SC2Map`。
+  WebUI 返回 `success=true`、launcher PID `18200`；轮询 `/api/status` 直到
+  `launcherRunning=false`，无固定时间盲等。
+- runtime：本次窗口新增 `Alerts.txt`，没有新增非空 `*ScriptError*.txt`；
+  `Documents/StarCraft II/Banks/CMRERebornDebug.SC2Bank` 写入
+  `runtime_listener_started=1`、`runtime_listener_ready=1`、`bridge_heartbeat=135`、
+  `initialization_complete=1`，P1/P2 building/unit readiness 均为 `1`。
+- 结论：WebUI → launcher → SC2 地图加载 → runtime listener/heartbeat → 初始化 Bank
+  闭环 PASS。证据：
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-launch-runtime-20260809.json`。
+  Stage 26 仍保持 PARTIAL，因为全量 generated-adapter 三档探针和 commander-specific
+  起始状态断言仍是独立未完成项。

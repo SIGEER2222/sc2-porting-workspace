@@ -41,6 +41,13 @@ int    libVibeKernel_gv_tagCacheTag = 0;
 unit   libVibeKernel_gv_tagCacheUnit = null;
 bool   libVibeKernel_gv_tagCacheMiss = false;
 int    libVibeKernel_gv_tagCacheVersion = -1;
+
+// ---- VIBE_GEN_007 模型库分库（随 VIBE_KERNEL 合并版一并注入）----
+// RPC 通道(GalaxyVibe) 与模型快照库(GalaxyVibeModel) 拆开，模型写入不再挤占 RPC 库，
+// 这是 VIBE_GEN_007「Bank RPC 有损通道」的治本项。body 引用这两个全局，2026-08-09 之前
+// 打包的老地图 header 里没有；不补就是「未解析符号」→ SC2 静默丢整个 MapScript。
+const string libVibeKernel_gv_ModelBankName = "GalaxyVibeModel";
+bank   libVibeKernel_gv_modelBankHandle = null;
 """
 
 DECL_NAMES = [
@@ -48,6 +55,8 @@ DECL_NAMES = [
     "libVibeKernel_gv_tagCacheUnit",
     "libVibeKernel_gv_tagCacheMiss",
     "libVibeKernel_gv_tagCacheVersion",
+    "libVibeKernel_gv_ModelBankName",
+    "libVibeKernel_gv_modelBankHandle",
 ]
 
 GALAXY_IN_MPQ = [
@@ -57,6 +66,19 @@ GALAXY_IN_MPQ = [
     "Base.SC2Data\\LibMapModBridge.galaxy",
     "MapScript.galaxy",
 ]
+
+
+def _count_code(text: str, token: str) -> int:
+    """统计 token 在**非注释**代码中的出现次数。
+
+    Galaxy 只有 `//` 行注释。这里按行剥掉 `//` 之后的部分再计数，避免文档/示例
+    注释污染门禁断言（曾把 `// gv_bankHandle = BankLoad(...)` 数进 BankLoad 处数）。
+    """
+    total = 0
+    for line in text.split("\n"):
+        code = line.split("//", 1)[0]
+        total += code.count(token)
+    return total
 
 
 def defined_symbols(text: str) -> set[str]:
@@ -97,7 +119,12 @@ def main() -> int:
         raise SystemExit(f"[FAIL] open {dst}: {ctypes.get_last_error()}")
     try:
         header = mpq_read(dll, h, HEADER).decode("utf-8-sig").replace(CRLF, LF)
-        missing = [n for n in DECL_NAMES if not re.search(rf"^\s*\w+\s+{n}\s*=", header, re.M)]
+        # 【勿去掉 (?:const\s+)?】ModelBankName 是 `const string X = ...`，两个类型词。
+        # 老正则只吃一个词，会把已存在的声明误判成 missing，反复重复追加。
+        missing = [
+            n for n in DECL_NAMES
+            if not re.search(rf"^\s*(?:const\s+)?\w+\s+{n}\s*=", header, re.M)
+        ]
         if missing:
             anchor = "// ---- 看门狗"
             if anchor in header:
@@ -107,9 +134,9 @@ def main() -> int:
             hp = WORK / "LibVibeKernel_h.t5.galaxy"
             hp.write_bytes(header.replace(LF, CRLF).encode("utf-8"))
             mpq_replace(dll, h, HEADER, hp)
-            print(f"[patch] header 追加 {len(missing)} 个 tagCache 声明: {missing}")
+            print(f"[patch] header 追加 {len(missing)} 个缺失全局声明: {missing}")
         else:
-            print("[skip ] header 已含 tagCache 声明")
+            print("[skip ] header 已含全部所需全局声明")
 
         bp = WORK / "LibVibeKernel.t5.galaxy"
         bp.write_bytes(body.replace(LF, CRLF).encode("utf-8"))
@@ -166,8 +193,14 @@ def main() -> int:
             b.index("libVibeKernel_gv_lastPolledRequestId = pendingId;")
             < b.index("response = libVibeKernel_gf_Dispatch(requestJson);"),
         "构建指纹 merged_fix=5": '"merged_fix", 5' in b,
-        "tagCache 声明在 header": all(n in hdr for n in DECL_NAMES),
-        "全文件只剩 2 处 BankLoad": b.count("BankLoad(") == 2,
+        "所需全局声明在 header": all(n in hdr for n in DECL_NAMES),
+        # VIBE_KERNEL_003：RPC 库 handle 绝不跨帧缓存，每次无条件 BankLoad（2 处）。
+        # VIBE_GEN_007 分库后模型库自带 1 处 BankLoad（内核私有、单向写，不走 RPC 语义），
+        # 故合并版是 3 处。老断言硬写 ==2，分库后必然误报。
+        # 【必须剥注释再数】内核里有一行 `// gv_bankHandle = BankLoad(name, player);`
+        # 讲解用示例，直接 count 会数成 4。凡是对源码做计数的断言都要先去掉注释，
+        # 否则以后任何人加一句带该 token 的注释都会把门禁弄红，然后被随手改阈值糊弄过去。
+        "BankLoad 代码处数=3（RPC 2 + 模型库 1）": _count_code(b, "BankLoad(") == 3,
         "无未解析 libVibe 符号": not unresolved,
         "TriggerCreate 目标函数均存在": not trig_missing,
         "无函数重定义": not dups,

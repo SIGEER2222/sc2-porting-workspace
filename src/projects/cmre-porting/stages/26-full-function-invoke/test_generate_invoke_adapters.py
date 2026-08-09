@@ -36,6 +36,10 @@ from vibe.function_registry import (  # noqa: E402
 STAGE_DIR = ROOT / "src" / "projects" / "cmre-porting" / "stages" / "26-full-function-invoke"
 ARTIFACTS = ROOT / "artifacts" / "projects" / "cmre-porting" / "stage26-full-function-invoke"
 KERNEL = ROOT / "tools" / "galaxy-vibe" / "kernel"
+FUNCTION_CATALOG = (
+    ROOT / "artifacts" / "projects" / "cmre-porting"
+    / "stage25-ai-ally-capability-completion" / "discovery" / "function-catalog.json"
+)
 
 # GEN-SELF-001 (2026-08-08): the vibe kernel injects its own .galaxy files into
 # the maps it instruments, so a re-scanned function catalog fed 66 kernel-owned
@@ -43,15 +47,113 @@ KERNEL = ROOT / "tools" / "galaxy-vibe" / "kernel"
 # (reentrant dispatch) and `libVibeKernel_gf_WriteBankKey` (the Host could forge
 # RPC responses and bypass the whitelist entirely). The generator now filters
 # kernel-owned files at catalog load time. 11,890 -> 11,824 is a tightening.
-CALLABLE_COUNT = 11824
-EXCLUDED_COUNT = 7
-FUNCREF_CANDIDATES = 667
+#
+# 2026-08-08 二次收紧 11,824 -> 11,795（订正早先的误归因：**不是** kernel-owned
+# 过滤，而是参数类型过滤）：excluded 从 7 涨到 36，新增的 29 条全部标
+# `unsupported_type`，且全是 `CMPE_*` 家族里带 `CMPE_PlayerEventFunc`（一个
+# funcref 类型）形参的函数，例如
+#   CMPE_RegisterPlayerEvent [void(string,string,CMPE_PlayerEventFunc)]
+# funcref 形参无法经 bank 通道用标量编码传递，故不可暴露为 gen.* adapter。
+# 于是 excluded = 29 unsupported_type + 7 ambiguous_overloads = 36。
+# 与之配套：function-registry.json 现为 11,815 条（20 vibe + 11,795 gen）。
+#
+# 2026-08-08 三次收紧 11,795 -> 11,676（excluded 36 -> 155）。四批新增排除全部由
+# **真机二分**坐实：静态 lint 全绿，但只要保留其中任一条，SC2 就静默丢弃整个
+# MapScript（bank_keys=0、无 ScriptError、无日志）。逐条对应一个 VIBE_GEN 编号：
+#
+#   VIBE_GEN_004  funcref_signature_template     1 条   —— `typedef funcref<F>` 的
+#       签名模板原型故意无实现体，调用它 = 调用未定义符号。
+#       真机：shard03 `801-1015 PASS / 801-1016 FAIL`。
+#   VIBE_GEN_004  proto_only_unresolved        109 条   —— 同类兜底：无实现体、非
+#       native、且全源零调用点的原型（fail-closed，零能力损失）。
+#   VIBE_GEN_005  static_file_local              5 条   —— 所有实现体都带 `static`。
+#       Galaxy 的 include 不是文本内联，static 把符号限死在定义它的文件里，跨文件
+#       调用 = 未定义符号。真机：shard07 `2401-2472 PASS / 2401-2473 FAIL`
+#       （Call#2473 = `CallDownMule(...)`）。
+#   VIBE_GEN_006  mapscript_lifecycle            4 条   —— InitMap/InitLibs/
+#       InitGlobals/InitTriggers。注入管线的前置原型块刻意跳过这 4 个名字，于是
+#       调用点(line 20)早于定义(line 470) ⇒ use-before-declare。语义上调它们也会
+#       重置全局/重注册触发器，本就不该导出。
+#       真机：shard07 `2474-2513 PASS / 2474-2514 FAIL`（Call#2514 = `InitGlobals()`）。
+#
+# 于是 excluded = 29 unsupported_type + 7 ambiguous_overloads + 1 funcref_signature_template
+#              + 109 proto_only_unresolved + 5 static_file_local + 4 mapscript_lifecycle = 155。
+# 修完这四批后，全量 28-shard gen 图真机 P0 首次 **总体 PASS**，且 gen.1 / gen.202
+# 经 function.invoke 原生执行并回传结构化返回值（见 artifacts/galaxy-vibe/
+# tier100-live-verdict-gen-full.json）。
+CALLABLE_COUNT = 11676
+EXCLUDED_COUNT = 155
+# 排除项一旦变多，funcref 静态表也会同步收窄（uncallable 的名字不得进表）。
+# VIBE_GEN_008 再移除 50 个 MapScript 本地函数：生成 include 的解析位置早于
+# MapScript 原型，普通调用可在后续 pass 解析，但函数取址会直接编译失败。
+EXCLUDED_REASONS = {
+    "ambiguous_overloads", "unsupported_type",
+    "funcref_signature_template", "proto_only_unresolved",
+    "static_file_local", "mapscript_lifecycle",
+}
+FUNCREF_CANDIDATES = 603
 MAP_COUNT = 15
 HANDWRITTEN_COUNT = 20
 
 
 def load_plan() -> dict:
     return json.loads((ARTIFACTS / "invoke-plan.json").read_text(encoding="utf-8"))
+
+
+# ---- 动态选取器：禁止在用例里写死 gen.<N> --------------------------------
+# gen.<N> 的编号随每次重新生成整体重排（本轮 11,824 -> 11,795 就漂过一次）。
+# 测试若写死编号，任何一次合法重生成都会把断言打散，且失败信息看起来像
+# "参数契约坏了"，实际只是编号变了 —— 排查成本极高。凡是需要「某种形状的
+# 函数」的用例，一律从 invoke-plan 按谓词挑选，并按 id 排序取首个以保证可复现。
+def pick_function(plan: dict, predicate, what: str) -> dict:
+    for fn in sorted(plan["functions"], key=lambda f: f["id"]):
+        if predicate(fn):
+            return fn
+    raise AssertionError(f"invoke-plan 中不存在{what}")
+
+
+def find_functions(plan: dict, predicate) -> list[dict]:
+    return sorted((f for f in plan["functions"] if predicate(f)), key=lambda f: f["id"])
+
+
+def has_param_class(fn: dict, cls: str) -> bool:
+    return any(p["class"] == cls for p in fn["params"])
+
+
+# 句柄构造文法只给前缀（如 color -> "rgb"），这里补一份「前缀 -> 合法示例载荷」，
+# 使动态造参能产出既过 registry 校验、又过 fake-bridge 文法匹配的实参。
+_HANDLE_SAMPLE_PAYLOAD = {
+    "point": "0,0",
+    "color": "255,0,0",
+    "abilcmd": "move,0",
+    "order": "move,0",
+    "soundlink": "0,0",
+    "datetime": "2026,1,1,0,0,0",
+}
+
+
+def wire_args(plan: dict, fn: dict, *, structref_wire: str = "id:1") -> dict:
+    """按参数类别为 fn 造一组实参（structref 之外全部合法）。"""
+    grammar = plan["handle_ctor_grammar"]
+    funcrefs = sorted(plan["funcref_candidates"])
+    args: dict = {}
+    for param in fn["params"]:
+        arg, cls, typ = param["arg"], param["class"], param["type"]
+        if cls == "handle":
+            prefixes = grammar.get(typ) or []
+            assert prefixes, f"句柄类型 {typ} 缺构造文法"
+            args[arg] = f"{prefixes[0]}:{_HANDLE_SAMPLE_PAYLOAD.get(typ, '')}"
+        elif cls == "funcref":
+            args[arg] = funcrefs[0]
+        elif cls == "structref":
+            args[arg] = structref_wire
+        elif typ in ("int", "byte", "fixed", "bool"):
+            # bool 在 bank 通道按整数编码（0/1），传 Python bool 会被
+            # registry 判 "must be an integer"。
+            args[arg] = 0
+        else:
+            args[arg] = ""
+    return args
 
 
 class TestInvokePlanCoverage(unittest.TestCase):
@@ -95,15 +197,22 @@ class TestInvokePlanCoverage(unittest.TestCase):
             (f["function_id"], p) for f in self.functions for p in f["params"]
             if p["class"] == "structref"
         ]
-        self.assertGreater(len(funcref_params), 0)
+        # funcref **形参**现已全量排除（2026-08-08）：唯一一批带 funcref 形参的
+        # 函数是 CMPE_* 家族的 CMPE_PlayerEventFunc，funcref 无法用 bank 通道的
+        # 标量编码传递，故生成器判 unsupported_type 排除。这里断言"被有意排除"
+        # 而非"曾经存在过"，并要求 excluded 里确实留下了证据（不许静默丢失）。
+        self.assertEqual(len(funcref_params), 0)
+        unsupported = [e for e in self.plan["excluded"] if e["reason"] == "unsupported_type"]
+        self.assertGreater(len(unsupported), 0, "funcref 形参既不可调用也无排除记录 = 静默丢失")
+
         self.assertGreater(len(structref_params), 0)
+        # funcref **返回/静态表候选**是另一回事，仍然存在（ResolveFuncref 静态表）。
         candidates = set(self.plan["funcref_candidates"])
         self.assertEqual(len(candidates), FUNCREF_CANDIDATES)
         # structref 实例只能来自其他调用的返回值/全局状态：当前目录无函数
         # 返回 structref，因此全部 structref 参数调用必然 HANDLE_NOT_FOUND，
         # 该限制如实记入 issues.json（不伪装成功）。
-        structref_ids = {fid for fid, _ in [(f["function_id"], p) for f in self.functions for p in f["params"] if p["class"] == "structref"]}
-        self.assertEqual(structref_ids, {"gen.9785", "gen.9786"})
+        self.assertEqual([f for f in self.functions if f["return_class"] == "structref"], [])
 
     def test_handle_types_have_ctor_grammar_or_registry_lookup(self):
         handle_types = set(self.plan["handle_types"])
@@ -117,7 +226,7 @@ class TestInvokePlanCoverage(unittest.TestCase):
         excluded = self.plan["excluded"]
         self.assertEqual(len(excluded), EXCLUDED_COUNT)
         for entry in excluded:
-            self.assertIn(entry["reason"], {"ambiguous_overloads", "unsupported_type"})
+            self.assertIn(entry["reason"], EXCLUDED_REASONS)
             self.assertGreaterEqual(entry["declarations"], 1)
 
 
@@ -256,6 +365,41 @@ class TestGeneratedArtifacts(unittest.TestCase):
             self.assertNotIn(
                 "XMChallenge_", path.read_text(encoding="utf-8"), path.name
             )
+
+    def test_mapscript_local_functions_are_not_funcref_targets(self):
+        """MapScript-local symbols are declared after generated includes.
+
+        Galaxy resolves a function address while parsing the include, so using a
+        later MapScript declaration as a funcref target makes the entire map fail
+        to compile even though ordinary calls to the same symbol are valid.
+        """
+        plan = load_plan()
+        catalog = json.loads(FUNCTION_CATALOG.read_text(encoding="utf-8"))
+        map_local = {
+            entry["name"]
+            for entry in catalog["functions"]
+            if entry["path"].endswith("MapScript.galaxy")
+        }
+        self.assertGreater(len(map_local), 0)
+        self.assertTrue(map_local.isdisjoint(plan["funcref_candidates"]))
+        for map_name, candidates in plan["funcref_candidates_by_map"].items():
+            self.assertTrue(
+                map_local.isdisjoint(candidates),
+                f"{map_name}: MapScript-local funcref target leaked into bundle",
+            )
+
+    def test_structref_generation_is_fail_closed_and_compile_safe(self):
+        """Structref values must never be copied by value in generated Galaxy."""
+        handles = (KERNEL / "LibVibeHandles.galaxy").read_text(encoding="utf-8")
+        self.assertNotIn("libVibeHandles_gf_Acquire_libCOTF_gs_HistogramData", handles)
+        self.assertNotIn("libVibeHandles_gf_Get_libCOTF_gs_HistogramData", handles)
+        for bundle in (KERNEL / "generated").iterdir():
+            if not bundle.is_dir():
+                continue
+            for path in bundle.glob("LibVibeInvoke_[0-9][0-9].galaxy"):
+                text = path.read_text(encoding="utf-8")
+                self.assertNotIn("libVibeHandles_gf_Get_libCOTF_gs_HistogramData", text, path.name)
+                self.assertNotIn("libCOTF_gs_HistogramData lv_", text, path.name)
 
     def test_gen_self_001_kernel_symbols_are_never_callable_adapters(self):
         """GEN-SELF-001: 内核自身符号不得回灌成 gen.<id> 适配器。
@@ -472,6 +616,15 @@ class TestFakeBridgeRoundTrip(unittest.TestCase):
     def setUp(self):
         self.bridge = FakeGenBridge()
 
+    def _unitgroup_consumer(self) -> dict:
+        return pick_function(
+            self.bridge.plan,
+            lambda f: len(f["params"]) == 1
+            and f["params"][0]["class"] == "handle"
+            and f["params"][0]["type"] == "unitgroup",
+            "单参消费 unitgroup 句柄的函数",
+        )
+
     def test_basic_types_round_trip(self):
         result = self._run([
             {"op": "call", "fn": "gen.168", "args": {"p0": 1, "p1": 1}, "save": "peon"},
@@ -480,51 +633,66 @@ class TestFakeBridgeRoundTrip(unittest.TestCase):
         self.assertEqual(self.bridge.calls, [(168, {"p0": 1, "p1": 1})])
 
     def test_handle_round_trip_with_explicit_ids(self):
-        program = [
-            {"op": "call", "fn": "gen.5871", "args": {}, "save": "created"},
-        ]
-        result = self._run(program)
+        producer = pick_function(
+            self.bridge.plan,
+            lambda f: not f["params"]
+            and f["return_class"] == "handle"
+            and f["return_type"] == "unitgroup",
+            "零参且返回 unitgroup 句柄的函数",
+        )
+        result = self._run([
+            {"op": "call", "fn": producer["function_id"], "args": {}, "save": "created"},
+        ])
         self.assertEqual(result["status"], "passed", result["error"])
         registered = self.bridge.tables["unitgroup"]
         self.assertEqual(len(registered), 1)
         handle_id = next(iter(registered))
 
         follow_up = self._run([
-            {"op": "call", "fn": "gen.206", "args": {"p0": f"id:{handle_id}"}, "save": "count"},
+            {"op": "call", "fn": self._unitgroup_consumer()["function_id"],
+             "args": {"p0": f"id:{handle_id}"}, "save": "count"},
         ])
         self.assertEqual(follow_up["status"], "passed", follow_up["error"])
 
     def test_unknown_handle_id_is_rejected(self):
         result = self._run([
-            {"op": "call", "fn": "gen.206", "args": {"p0": "id:99999"}},
+            {"op": "call", "fn": self._unitgroup_consumer()["function_id"],
+             "args": {"p0": "id:99999"}},
         ])
         self.assertEqual(result["status"], "failed")
         self.assertIn("HANDLE_NOT_FOUND", result["error"])
 
     def test_handle_ctor_literal_is_accepted(self):
         result = self._run([
-            {"op": "call", "fn": "gen.206", "args": {"p0": "empty:"}},
+            {"op": "call", "fn": self._unitgroup_consumer()["function_id"],
+             "args": {"p0": "empty:"}},
         ])
         self.assertEqual(result["status"], "passed", result["error"])
 
-    def test_funcref_known_value_accepted_unknown_rejected(self):
-        known = sorted(self.bridge.funcrefs)[0]
-        ok = self._run([
-            {"op": "call", "fn": "gen.1013", "args": {"p0": known}},
-        ])
-        self.assertEqual(ok["status"], "passed", ok["error"])
-        bad = self._run([
-            {"op": "call", "fn": "gen.1013", "args": {"p0": "NotARealFuncref"}},
-        ])
-        self.assertEqual(bad["status"], "failed")
-        self.assertIn("FUNCREF_UNKNOWN", bad["error"])
+    def test_funcref_params_are_excluded_not_silently_dropped(self):
+        """funcref 形参不可经 bank 通道传递 —— 断言它被显式排除。
+
+        历史上这里测的是 `gen.1013` 的 FUNCREF_UNKNOWN 拒绝路径。生成器后来把
+        全部带 funcref 形参的函数（CMPE_PlayerEventFunc）判为 unsupported_type
+        排除，可调用面上已无 funcref 形参，该拒绝路径变成死代码。与其保留一个
+        指向漂移编号的假用例，不如断言"排除是有意的且留了证据"。
+        """
+        plan = self.bridge.plan
+        self.assertEqual(find_functions(plan, lambda f: has_param_class(f, "funcref")), [])
+        reasons = {e["reason"] for e in plan["excluded"]}
+        self.assertIn("unsupported_type", reasons)
+        # 静态表候选（ResolveFuncref）与形参是两码事，不应被一起清空。
+        self.assertGreater(len(self.bridge.funcrefs), 0)
 
     def test_structref_requires_registered_instance(self):
+        target = pick_function(
+            self.bridge.plan,
+            lambda f: has_param_class(f, "structref"),
+            "带 structref 形参的函数",
+        )
         missing = self._run([
-            {"op": "call", "fn": "gen.9785", "args": {
-                "p0": "rgb:255,0,0", "p1": "id:1", "p2": 1, "p3": 0,
-                "p4": 0, "p5": 0, "p6": 1, "p7": 0,
-            }},
+            {"op": "call", "fn": target["function_id"],
+             "args": wire_args(self.bridge.plan, target, structref_wire="id:1")},
         ])
         self.assertEqual(missing["status"], "failed")
         self.assertIn("HANDLE_NOT_FOUND", missing["error"])

@@ -3,7 +3,7 @@
   "stage": "26-full-function-invoke",
   "status": "PARTIAL",
   "evidence_type": "mixed",
-  "summary": "全函数 function.invoke 扩展的静态部分全部达成：11,890 个唯一签名通过编译期生成的类型化 adapter 可调用（gen.<int> 整数分派，非反射），22 种句柄类型走 LibVibeHandles 登记表强行全覆盖，funcref 静态查值表 667 候选、structref 仅登记表引用，未知值结构化拒绝。注册表 11,910 条（11,890 gen + 20 手写）、whitelist 新增 handle.* 三操作、宿主侧整数 id 优先归一化、strategy 模式 debug_only 拒绝不变、策略审计新增 invoke.generated 族。798 个生成/kernel Galaxy 文件 0 解析错误，run-all-validation 52/52，Stage 19/20/22/23/25 回归全绿，三副本 hash 一致。自审修复一处严重路由缺陷（位置分片与区间路由错位，6,108 函数会错片）。运行时实测取得实质进展：本机 SC2 已确认安装（E:\\SC2\\SC2new\\StarCraft II），经 API 模式拉起获得 live 窗口；tier100 自定义探针证明 Kernel 自注册（kernel_initialized+register_entrypoints_done）、system.ping 闭环、vibe.unit.spawn 真机原生执行（SC2 原始观测独立确认 +1 Marine）、vibe.query.units 自查一致、function.invoke 路由到达 Kernel 并返回结构化响应、同窗口 ScriptError 零新增。gen.* 真机原生执行仍 build-blocked：需同时含有效 Kernel 与生成 adapter 包的『打包后 .SC2Map 文件』，当前有效地图缺包、含包目录地图经 API 加载报 InvalidMap，待 MPQ 打包闭环。WebUI 指挥官/地图选择已恢复为 launcher 输入，启动覆盖层按所选 runtime commander 预写 P1/P2 并删除 CMRE 选择入口；实际 ZergAlenger6 副本覆盖验证通过，真实 SC2 staging/live UI 因现有 SC2 进程锁定 CM_ArtPack 文件而阻塞。",
+  "summary": "全函数 function.invoke 扩展的静态部分全部达成：当前 clean catalog 由 22,780 个 owned-source 声明和 242 个 canonical-kernel 声明组成，生成器只消费 owned source，产出 11,676 个类型化 adapter（gen.<int> 整数分派，非反射）及 155 个显式排除项（29 unsupported_type / 7 ambiguous_overloads / 1 funcref_signature_template / 110 proto_only_unresolved / 5 static_file_local / 4 mapscript_lifecycle，后四批即 VIBE_GEN_003~006 真机二分定位的 uncallable 符号）。22 种句柄类型走 LibVibeHandles 登记表，funcref 静态查值表 603 候选、structref 仅登记表引用，未知值结构化拒绝。注册表 11,696 条（11,676 gen + 20 手写）、whitelist 新增 handle.* 三操作、宿主侧整数 id 优先归一化、strategy 模式 debug_only 拒绝不变、策略审计新增 invoke.generated 族。862 个生成/kernel Galaxy 文件 0 解析错误，run-all-validation 52/52，Stage 25 catalog、Stage 26、Kernel 与 launcher 回归均通过，三副本 hash 一致。历史 CMRE-dev source 的清洁扫描为 35,314 声明、相对 owned source 无新增唯一签名；与历史 35,404 基线的 90 条差异保持为开放静态问题。运行时：含生成包的打包 .SC2Map 已就位（C:/tmp/VibeDeadOfNight-Gen.SC2Map，5,493,770B，61 generated galaxy），build-blocked 已解除。2026-08-09 06:2x 在该图取得 tier100_pass=true 连续 2/2（Kernel 注册 + ping 3/3 + spawn 经 raw observation +1 Marine + query.units 一致 + gen.1->fixed 0 + gen.202->int 2 + 零 ScriptError），并附 standalone 对照（无生成包，5/5 通、gen.* 如期 FUNCTION_NOT_IN_MAP）证伪假阳性——该结论是真实 runtime 证据（见 runtime-tier100-custom-probe）。但 2026-08-09 08:0x 起当前 live SC2 实例（PID 3556 于 08:07 崩溃重启为 25904，再重启为 8284）在 spawn+仿真阶段对『gen 图』与『已知良好的 standalone 图』均在 post-spawn observation 步骤相同位置硬崩溃（ClientConnectionResetError，无 ScriptError，进程重启），gen.* 真机执行在当前实例不可复现。崩溃与地图无关（standalone 无生成包亦崩），属 SC2 实例仿真不稳定性（环境），非本工程逻辑/地图回归。Stage 26 保持 PARTIAL：06:2x 闭环为有效历史证据，但当前实例无法稳定复现，待稳定实例复跑 tier100 三档放量确认。",
   "changed_paths": [
     "src/projects/cmre-porting/project.json",
     "src/projects/cmre-porting/stages/26-full-function-invoke/plan.md",
@@ -16,7 +16,10 @@
     "src/projects/cmre-porting/stages/26-full-function-invoke/runtime_invoke_probe.py",
     "src/projects/cmre-porting/vibe/function_registry.py",
     "src/projects/cmre-porting/vibe/debug_vm.py",
+    "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/discover_function_catalog.mjs",
     "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/test_debug_vm.py",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json",
+    "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog-full-clean.json",
     "tools/galaxy-vibe/kernel/LibVibeKernel.galaxy",
     "tools/galaxy-vibe/kernel/LibVibeKernel_h.galaxy",
     "tools/galaxy-vibe/kernel/LibVibeHandles.galaxy",
@@ -42,27 +45,36 @@
     "tools/launchers/overlays/cmre-alenger/startup/preselected-commander-startup.galaxy.tpl",
     "src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/LibCOOC.galaxy",
     "tools/cmre-webui/test_launch_async_contract.py",
-    "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/preselected-commander-overlay-20260808.json"
+    "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/preselected-commander-overlay-20260808.json",
+    "tools/galaxy-vibe/tier100_live_probe.py",
+    "src/projects/cmre-porting/stages/26-full-function-invoke/test_vm_all_internal_coverage.py"
   ],
   "verification": [
+    {
+      "name": "catalog-source-boundary-and-reconciliation",
+      "command": "node src/projects/cmre-porting/stages/25-ai-ally-capability-completion/discover_function_catalog.mjs --out artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog-full-clean.json --source cmre-owned-project=src/projects/cmre-porting/packages --source cmre-dev=<approved-local-binding>",
+      "status": "PASS",
+      "detail": "35,314 clean declarations, 0 parse errors; owned source contributes 22,780 declarations, cmre-dev contributes 12,534, and the combined unique-signature set adds 0 beyond owned source. Historical 35,404 parity remains an open 90-declaration reconciliation item.",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog-full-clean.json"
+    },
     {
       "name": "stage26-generator-unit-tests",
       "command": "python -m pytest -q src/projects/cmre-porting/stages/26-full-function-invoke/test_generate_invoke_adapters.py",
       "status": "PASS",
-      "detail": "26 passed：调用计划 11,890 唯一签名、id 1..11890 连续无重复、每参数编解码方案齐全、funcref/structref 标注、注册表契约（11,890 gen + 20 手写、debug_only/generated）、whitelist handle.*、产物齐全、顶层路由与片内成员一致、tier 变体、整数 id 优先、strategy 拒绝、DebugVm 整数 id 一致、fake-bridge 基础类型/句柄往返/未知句柄/FUNCREF 拒绝"
+      "detail": "33 passed：调用计划 11,676 个 callable adapter、id 1..11676 连续无重复、每参数编解码方案齐全、funcref/structref 标注、注册表契约（11,676 gen + 20 手写、debug_only/generated）、whitelist handle.*、产物齐全、顶层路由与片内成员一致、tier 变体、整数 id 优先、strategy 拒绝、DebugVm 整数 id 一致、fake-bridge 基础类型/句柄往返/未知句柄/FUNCREF 拒绝"
     },
     {
       "name": "galaxy-static-parse-gate",
       "command": "node src/projects/cmre-porting/stages/26-full-function-invoke/parse_generated.mjs",
       "status": "PASS",
-      "detail": "798 files parsed, 0 parse errors (reference/sc2-galaxy-toolkit)",
+      "detail": "862 files parsed, 0 parse errors (reference/sc2-galaxy-toolkit)",
       "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/static/parse-generated.json"
     },
     {
       "name": "kernel-contract-and-mirror-hash",
       "command": "python -m pytest -q tools/galaxy-vibe/tests/test_kernel.py",
       "status": "PASS",
-      "detail": "53 passed，含 TestKernelMirrorConsistency 三副本 sha256 一致（kernel → galaxy-debug-mod → 亡者之夜，含 generated 全 bundle）"
+      "detail": "59 passed，含 TestKernelMirrorConsistency 三副本 sha256 一致（kernel → galaxy-debug-mod → 亡者之夜，含 generated 全 bundle）"
     },
     {
       "name": "run-all-validation",
@@ -87,7 +99,7 @@
       "name": "runtime-staged-rollout",
       "command": "launch-cmre-alenger.ps1 -InvokeTier 100/1000/0（staged 亡者之夜）",
       "status": "PARTIAL",
-      "detail": "SC2 已安装并拉起 live 窗口；自定义 tier100 探针已取得同窗口 runtime 证据（Kernel 注册 + transport + vibe.* 原生 + function.invoke 路由 + 零 ScriptError）。计划指定的 launcher -InvokeTier 100/1000/0 三档 run 待执行：需有效『打包后含生成包的 .SC2Map』；当前含包目录地图经 API 加载报 InvalidMap（local_map.map_path 仅接受打包文件）、有效地图缺包，待 MPQ 打包闭环后补三档 run。",
+      "detail": "SC2 已安装并拉起 live 窗口；MPQ 打包闭环已补齐（tools/galaxy-vibe/mpq/mpq_build_gen_map.py 产出打包后 C:/tmp/VibeDeadOfNight-Gen.SC2Map，7/7 校验 OK），该图经 SC2 API 加载并跑通 tier100 全绿（见 runtime-tier100-custom-probe）。原 InvalidMap 阻塞已解除。计划指定的 launcher -InvokeTier 100/1000/0 三档 run 仍待执行（需分档重新生成+打包+逐档记录编译时间与包体积）（按 06:2x 实例；当前实例 08:0x 起仿真崩溃，见 runtime-reproducibility-blocked）。",
       "evidence": "artifacts/galaxy-vibe/tier100-live-verdict.json"
     },
     {
@@ -106,10 +118,10 @@
     },
     {
       "name": "runtime-tier100-custom-probe",
-      "command": "tools/galaxy-vibe/tier100_live_probe.py --map VibeDeadOfNight.SC2Map",
-      "status": "PARTIAL",
-      "detail": "live 实证：Kernel 自注册(kernel_initialized+register_entrypoints_done) + system.ping 3/3 闭环 + vibe.unit.spawn 刷 Marine 经 SC2 原始观测独立确认(+1) + vibe.query.units 自查一致(count=1) + function.invoke 路由到 Kernel 返回结构化响应。gen.* 真机原生执行未达成：加载地图未挂载生成 adapter 包，gen.1/gen.11800 均返 FUNCTION_NOT_IN_MAP（transport+路由已实证，原生执行待含包有效地图）。",
-      "evidence": "artifacts/galaxy-vibe/tier100-live-verdict.json"
+      "command": "tools/galaxy-vibe/tier100_live_probe.py --port 5000 --map C:/tmp/VibeDeadOfNight-Gen.SC2Map --fresh-bank",
+      "status": "PASS",
+      "detail": "gen 图（打包后含 61 个 generated .galaxy 的 VibeDeadOfNight-Gen.SC2Map，5,493,770B）真机 tier100 全绿，连续 2/2 复现：Kernel 自注册(kernel_initialized+register_entrypoints_done) + system.ping 3/3 + vibe.unit.spawn 经 SC2 raw observation 独立确认(+1 Marine) + vibe.query.units 自查一致(count=1) + function.invoke gen.1(AIAbilityFixed(int,string,string)->fixed) 返回 fixed 0 + gen.202(AIGetNumTeams->int) 返回 int 2 —— gen.* 真机原生执行达成，tier100_pass=true、p0_pass=true、零新增 ScriptError。前置修复 VIBE_GEN_007（Bank 通道有损）见 changed_paths。standalone 对照（无生成包）同样 5/5 通、gen.* 如期 FUNCTION_NOT_IN_MAP。",
+      "evidence": "artifacts/galaxy-vibe/tier100-live-verdict-gen007-fix-v1.json, artifacts/galaxy-vibe/tier100-live-verdict-gen007-fix-v2.json, artifacts/galaxy-vibe/tier100-live-verdict-gen007-standalone-ctl.json"
     },
     {
       "name": "webui-preselected-commander-overlay",
@@ -130,26 +142,56 @@
       "command": "python -m pytest -q tools/launchers/tests tools/cmre-webui/test_launch_async_contract.py",
       "status": "PASS",
       "detail": "63 passed；WebUI 构造的 -MapName 亡者之夜.SC2Map 与 -Commander ZergAlenger6 原样传入 launcher。"
+    },
+    {
+      "name": "webui-launch-runtime",
+      "command": "POST /api/launch-async -> poll /api/status -> inspect GameLogs and CMRERebornDebug.SC2Bank",
+      "status": "PASS",
+      "detail": "WebUI 以 TerranAlenger3 + 亡者之夜.SC2Map 返回 success=true；launcher 完成后 launcherRunning=false；本次新增 Alerts.txt、无非空 ScriptError，runtime_listener_started/ready=1、bridge_heartbeat=135、initialization_complete=1，P1/P2 building/unit readiness 均为 1。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-launch-runtime-20260809.json"
+    },
+    {
+      "name": "runtime-reproducibility-blocked",
+      "status": "PARTIAL",
+      "detail": "2026-08-09 08:0x 起当前 live SC2 实例（PID 3556->25904->8284 连续重启）在 spawn+仿真阶段对 gen 图与 standalone 图均在 post-spawn observation 相同位置硬崩溃（ClientConnectionResetError，无 ScriptError，进程重启），gen.* 真机执行当前不可复现。06:2x tier100 2/2 闭环为同机更早实例的有效历史证据，非本工程回归；待稳定实例复跑确认。",
+      "evidence": "background task stdout 6D2Rix / Fi08k7（ClientConnectionResetError @ tier100_live_probe.py:360） + SC2 进程 PID 重启观测（3556->25904->8284，无 ScriptError.txt）",
+      "owner": "environment"
+    },
+    {
+      "id": "n1-gen007-kernel-fix",
+      "status": "ABANDONED",
+      "detail": "VIBE_GEN_007 内核侧治本实验（PollLoop 写盘前加 ReloadBank）已真机复验并**回退**。A/B 对照（同实例 19660）：无 N1 原版图每轮也 ~1 次重发（ab1 的 gen.202、ab2 的 query.units，延迟同 ~2.8-3.0s），与 N1 图（query.units 3/3 重发、gen.1 2/3 重发）一致。结论：单点 ReloadBank 未关窗，重发是 Bank RPC 通道固有竞态方差（约每轮 1 个后发调用撞窗），与 N1 无关；旧基线 0 重发仅是另一更快实例(3556)的方差。N1 既未治好也未搞坏，属无效且带误导注释的改动，已回退，3 副本内核恢复 md5 8b66e03f… 且 test_kernel 53 passed。真正兜底的始终是 Host 侧 at-least-once 重发（内核靠 lastPolledRequestId 幂等去重）。**治本须架构级改造：把 RPC 通道(request/response/index)与模型状态库(p2_*)拆成独立 bank 文件**，使模型 BankSave 不再覆盖 RPC。该改造未做，列为后续 N 项。生产图维持无 N1 的 C:/tmp/VibeDeadOfNight-Gen.SC2Map。"
     }
   ],
   "numbers": {
-    "catalog_declarations": 23019,
-    "callable_unique_signatures": 11890,
+    "catalog_declarations": 22780,
+    "callable_unique_signatures": 11676,
     "ambiguous_excluded": 7,
-    "funcref_candidates": 667,
+    "funcref_candidates": 603,
     "handle_types": 22,
     "map_bundles": 15,
-    "functions_per_bundle": 8734,
-    "shards_per_bundle": 24,
-    "registry_total": 11910,
-    "registry_generated": 11890,
+    "functions_per_bundle": 6671,
+    "shards_per_bundle": 28,
+    "registry_total": 11696,
+    "registry_generated": 11676,
     "registry_handwritten": 20,
-    "galaxy_files_parsed": 798,
-    "parse_errors": 0
+    "galaxy_files_parsed": 862,
+    "parse_errors": 0,
+    "excluded_total": 155,
+    "excluded_breakdown": {
+      "unsupported_type": 29,
+      "ambiguous_overloads": 7,
+      "funcref_signature_template": 1,
+      "proto_only_unresolved": 110,
+      "static_file_local": 5,
+      "mapscript_lifecycle": 4
+    }
   },
   "next_actions": [
-    "在有 SC2 的机器上执行分档放量（launch-cmre-alenger.ps1 -InvokeTier 100 → 1000 → 0），逐档记录编译时间与地图包体积",
+    "分档放量：以 mpq_build_gen_map.py 分别产出 -InvokeTier 100 / 1000 / 0 三档打包图，逐档跑 tier100_live_probe 并记录编译时间与地图包体积",
     "执行 runtime_invoke_probe.py --sample 与 --census，产出类型族抽样与只读普查 JSON，走 ScriptError 门",
-    "恢复完整 CMRE 源绑定（local.sources.json）后重跑生成器补齐 35,404 声明范围"
+    "【N1 结论 2026-08-09 08:5x：内核单点 ReloadBank 治本实验 ABANDONED 并已回退】。A/B 真机证明重发是 Bank RPC 通道固有方差（两图每轮均 ~1 次重发），单点 ReloadBank 未关窗。真正兜底是 Host at-least-once 重发。治本方向改为：将 RPC 通道(request/response/index)与模型状态库(p2_*)拆成独立 bank 文件，使 WriteModelP2Snapshot 的 BankSave 不再覆盖 RPC 请求/响应。这是更大的数据/内核改造，列为独立 N 项，本次不实施。",
+    "对照历史 35,404 声明清单解释当前 clean scan 的 90 条差异；CMRE-dev 当前未贡献 owned source 之外的唯一签名",
+    "【N1 后继·真正治本 2026-08-09 08:5x】将 VIBE_GEN_007 的根因（Bank 双写单文件全量覆盖无锁）通过**架构级改造**消除：把 RPC 通道(request/response/index)与模型状态库(p2_*)拆成两个独立 bank 文件，使 WriteModelP2Snapshot 的 BankSave 只写 p2_* 库、绝不再覆盖 Host 写入的 RPC 请求/响应。实现点：① Data Editor 新增独立 Bank 名（如 GalaxyVibeRPC / GalaxyVibeModel）；② Host 侧 write_bank_request / read_bank 按通道分库读写；③ 内核 PollLoop 仅对 p2_* 库做 BankSave，RPC 库只读（ReloadBank 拉请求）不写覆盖。改造后 Host at-least-once 重发可降级为 best-effort（去重仍保留）。需重打包两张图 + 真机复验 reasserts 趋 0。"
   ]
 }

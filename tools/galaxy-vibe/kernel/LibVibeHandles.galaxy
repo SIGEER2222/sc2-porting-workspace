@@ -641,24 +641,8 @@ int libVibeHandles_gf_Count_wavetarget() {
     return n;
 }
 
-// ---- libCOTF_gs_HistogramData (structref) ----
-libCOTF_gs_HistogramData[513] libVibeHandles_gv_histogram_table;
+// ---- libCOTF_gs_HistogramData (structref liveness only) ----
 bool[513] libVibeHandles_gv_histogram_used;
-int libVibeHandles_gv_histogram_cursor = 0;
-int libVibeHandles_gf_Acquire_libCOTF_gs_HistogramData(libCOTF_gs_HistogramData h) {
-    int i;
-    for (i = 1; i <= 512; i += 1) {
-        if (!libVibeHandles_gv_histogram_used[i]) { libVibeHandles_gv_histogram_used[i] = true; libVibeHandles_gv_histogram_table[i] = h; return i; }
-    }
-    libVibeHandles_gv_histogram_cursor += 1;
-    if (libVibeHandles_gv_histogram_cursor > 512) { libVibeHandles_gv_histogram_cursor = 1; }
-    libVibeHandles_gv_histogram_table[libVibeHandles_gv_histogram_cursor] = h;
-    libVibeHandles_gv_histogram_used[libVibeHandles_gv_histogram_cursor] = true;
-    return libVibeHandles_gv_histogram_cursor;
-}
-libCOTF_gs_HistogramData libVibeHandles_gf_Get_libCOTF_gs_HistogramData(int id) {
-    return libVibeHandles_gv_histogram_table[id];
-}
 bool libVibeHandles_gf_Has_libCOTF_gs_HistogramData(int id) {
     if (id < 1 || id > 512) { return false; }
     return libVibeHandles_gv_histogram_used[id];

@@ -150,7 +150,13 @@ async function mergeDependencyGraphs(outDir) {
 }
 
 async function main() {
-  const args = process.argv.slice(2);
+  // Strip V8/node runtime flags that leaked into argv because they were passed
+  // AFTER the script path (node only consumes flags before the script file).
+  // Without this, e.g. `--max-old-space-size=8192` becomes a positional arg and
+  // gets mistaken for the stage dir, dumping a duplicate evidence/ tree into a
+  // directory literally named `--max-old-space-size=8192/`.
+  const V8_FLAG_RE = /^--(max-old-space-size|stack-size|max-semi-space-size|initial-old-space-size|stack-trace-limit)=/;
+  const args = process.argv.slice(2).filter((a) => !V8_FLAG_RE.test(a));
 
   if (args[0] === "--request") {
     const requestPath = args[1];

@@ -1,4 +1,4 @@
-# pack-sc2map.ps1 - 将目录打包为 SC2Map/SC2Mod 文件
+﻿# pack-sc2map.ps1 - 将目录打包为 SC2Map/SC2Mod 文件
 # 用法: .\pack-sc2map.ps1 <input_dir> <output_map_path>
 # 示例: .\pack-sc2map.ps1 "extracted_dir" "new_map.SC2Map"
 
@@ -23,15 +23,21 @@ if (-not (Test-Path $packPy)) {
 
 # 查找 StormLib.dll（优先 x64）
 # $scriptDir = .../sc2-porting-workspace/tools/mpq/scripts
-# artifacts 在 SC2VibeTools 根目录下，需要上溯 4 级
-$workspaceRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptDir)))
-$stormlibDll = Join-Path $workspaceRoot "artifacts\stormlib-v9.40\x64\StormLib.dll"
-if (-not (Test-Path $stormlibDll)) {
-    # 回退到 Win32
-    $stormlibDll = Join-Path $workspaceRoot "artifacts\stormlib-v9.40\Win32\StormLib.dll"
+# 2026-08-09 修复：原写死"上溯 4 级到 SC2VibeTools 根"，但 artifacts/ 实际位于
+# sc2-porting-workspace 内（上溯 3 级）→ 一律 MISS，打包整链不可用。
+# 改为按候选根依次探测，两种布局都能工作。
+$repoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptDir))   # sc2-porting-workspace
+$outerRoot = Split-Path -Parent $repoRoot                                            # SC2VibeTools
+$stormlibDll = $null
+foreach ($root in @($repoRoot, $outerRoot)) {
+    foreach ($arch in @("x64", "Win32")) {
+        $candidate = Join-Path $root "artifacts\stormlib-v9.40\$arch\StormLib.dll"
+        if (Test-Path $candidate) { $stormlibDll = $candidate; break }
+    }
+    if ($stormlibDll) { break }
 }
-if (-not (Test-Path $stormlibDll)) {
-    Write-Error "StormLib.dll not found in artifacts\stormlib-v9.40\"
+if (-not $stormlibDll) {
+    Write-Error "StormLib.dll not found under artifacts\stormlib-v9.40\ (searched: $repoRoot, $outerRoot)"
     exit 1
 }
 

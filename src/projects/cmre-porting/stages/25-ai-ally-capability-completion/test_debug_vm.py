@@ -193,6 +193,31 @@ class DebugVmTests(unittest.TestCase):
             for entry in catalog["functions"]
         ))
 
+    def test_catalog_excludes_vibe_generated_sources(self):
+        catalog_path = ROOT / "artifacts" / "projects" / "cmre-porting" / "stage25-ai-ally-capability-completion" / "discovery" / "function-catalog.json"
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+
+        def is_vibe_generated(path):
+            normalized = path.replace("\\", "/")
+            base = normalized.rsplit("/", 1)[-1]
+            return (
+                "/Base.SC2Data/generated/" in normalized
+                or base in {
+                    "LibVibeKernel.galaxy",
+                    "LibVibeKernel_h.galaxy",
+                    "LibVibeHandles.galaxy",
+                    "LibVibeHandles_h.galaxy",
+                }
+                or base.startswith("LibVibeInvoke")
+            )
+
+        offenders = [
+            entry["path"]
+            for entry in catalog["functions"]
+            if entry["source_id"] == "cmre-owned-project" and is_vibe_generated(entry["path"])
+        ]
+        self.assertEqual(offenders, [])
+
     def test_instruction_budget_fails_closed(self):
         vm = DebugVm(FakeBridge(), function_metadata={"vibe.test.ping": {}} , max_instructions=2)
         result = asyncio.run(vm.run({

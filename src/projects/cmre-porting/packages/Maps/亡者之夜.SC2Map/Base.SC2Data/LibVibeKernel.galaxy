@@ -1,5 +1,10 @@
 include "TriggerLibs/NativeLib"
 include "LibVibeKernel_h"
+// Stage26: LibVibeHandles provides the handle registry used by the HANDLE_OPS
+// dispatch below. It depends only on libVibeKernel_gf_FindUnitByTag, so declare
+// that before including it to satisfy Galaxy's prior-declaration rule.
+unit libVibeKernel_gf_FindUnitByTag(int unitTag);
+include "LibVibeHandles"
 
 // === LibVibeKernel: SC2 Vibe 框架运行时 Kernel 实现 ===
 // 依据 sc2-vibe完整实施计划.md 的 RPC 契约与 MVP 操作集
@@ -114,31 +119,74 @@ unit libVibeKernel_gf_FindUnitByTag(int unitTag) {
 // SC2 会缓存已加载的 Bank。Host 从进程外改写 SC2Bank 文件后，
 // game-side 读取路径必须先卸载旧 handle 再 BankLoad，才能看到新 pending_request_id。
 // 写入路径只 EnsureBankLoaded，避免连续写 response/index key 时 reload 丢失内存中尚未保存的键。
-// ==== BEGIN VIBE_KERNEL_003_NO_HANDLE_CACHE ====
-// 铁律：Bank handle 绝不跨帧缓存。
-// 真机取证 2026-08-08：InitMap() 第 2 条指令就会触发首次 BankLoad，
-// 那一刻拿到的 handle 若不可用，`if (handle == null)` 此后恒为假，
-// 整局所有 Bank 写入静默 no-op（不报错、不进日志、静态 lint 也查不出）。
-// 同帧内 LibMapModBridge 每次都重新 BankLoad，写入就正常 —— 差别只在缓不缓存。
+// ==== BEGIN VIBE_KERNEL_003_HANDLE_CACHE ====
+// 【2026-08-09 真机 L1/L2/L2a 三点对照推翻旧「绝不缓存」铁律，勿再改回无条件 BankLoad】
 //
-// BankLoad 对已加载的 bank 返回引擎侧同一对象、不重读磁盘，
-// 因此"连续写多个 key 会丢内存中未 Save 的键"这个顾虑不成立。
-// 真正强制重读磁盘的是 BankReload，只放在下行读取路径里。
+// 旧写法（VIBE_KERNEL_003_NO_HANDLE_CACHE）在每次读写前无条件执行
+//     gv_bankHandle = BankLoad(name, player);
+// 真机后果：InitMap 同步阶段（InitLib / Init / RegisterEntryPoints）BankLoad 返回 null，
+// 这一行会把**上一次已经拿到的有效 handle 覆盖成 null**，紧接着的
+// `if (handle == null) { return; }` 直接吞掉写入 —— 整个初始化阶段的 Bank 键全部静默丢失。
+// 而 Wait 之后的异步线程（PollLoop / Watchdog / AllySnapshot）BankLoad 能拿到 handle，
+// 所以表现极具迷惑性：watchdog_last_seen_poll 每 2 秒正常递增，
+// init_entered / initlib_entered / kernel_initialized / register_entrypoints_* 一个都没有，
+// 看起来像「MapScript 被静默丢弃」，其实内核跑得好好的。
+//
+// 真机三点对照（同一 SC2 会话 PID 3556，API 模式，channels=bank）：
+//   L1  地图自带内核（缓存语义）+ Common + 空 active + 299 前置原型 → P0 PASS（6/6 标记命中）
+//   L2  工作区内核（无条件 BankLoad + UIDisplayMessage 诊断）        → P0 FAIL（bank_keys=5，只有 watchdog/ally）
+//   L2a 工作区内核（无条件 BankLoad，删掉 UIDisplayMessage）         → P0 FAIL（同上）
+//   ⇒ UIDisplayMessage 无关；唯一自变量 = handle 是否被无条件覆盖。
+//
+// 缓存语义本身自带重试：handle 为 null 时每次都会再 BankLoad，
+// 所以「早期拿不到就永远拿不到」的担心不成立（真机 L1 已证）。
+// 真正强制重读磁盘的是 BankReload，只放在下行读取路径 ReloadBank 里。
 void libVibeKernel_gf_ReloadBank() {
-    libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
-    if (libVibeKernel_gv_bankHandle != null) {
+    if (libVibeKernel_gv_bankHandle == null) {
+        libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
+    } else {
         BankReload(libVibeKernel_gv_bankHandle);
+    }
+    if (libVibeKernel_gv_bankHandle != null) {
         BankWait(libVibeKernel_gv_bankHandle);
     }
 }
 
 void libVibeKernel_gf_EnsureBankLoaded() {
-    libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
-    if (libVibeKernel_gv_bankHandle != null) {
-        BankWait(libVibeKernel_gv_bankHandle);
+    if (libVibeKernel_gv_bankHandle == null) {
+        libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
+        if (libVibeKernel_gv_bankHandle != null) {
+            BankWait(libVibeKernel_gv_bankHandle);
+        }
     }
 }
-// ==== END VIBE_KERNEL_003_NO_HANDLE_CACHE ====
+// ==== END VIBE_KERNEL_003_HANDLE_CACHE ====
+
+// ==== BEGIN VIBE_GEN_007_BANK_CHANNEL_SPLIT ====
+// 模型库（GalaxyVibeModel）专用加载/写入路径。与 RPC 库 handle 完全独立，
+// 因此 WriteModelP2Snapshot 的 BankSave 只刷模型库的内存态到 GalaxyVibeModel.SC2Bank，
+// **不会**把内核内存态整份刷回 GalaxyVibe.SC2Bank、抹掉 Host 刚落盘的 RPC 请求。
+//
+// 缓存语义与 VIBE_KERNEL_003 完全一致：handle 为 null 时才 BankLoad（自带重试），
+// 绝不无条件覆盖已有 handle（否则 InitMap 同步阶段会把有效 handle 打成 null）。
+// 模型库是纯上行（内核写、Host 读），没有下行读取需求，故不提供 Reload 路径。
+void libVibeKernel_gf_EnsureModelBankLoaded() {
+    if (libVibeKernel_gv_modelBankHandle == null) {
+        libVibeKernel_gv_modelBankHandle =
+            BankLoad(libVibeKernel_gv_ModelBankName, libVibeKernel_gv_BankPlayer);
+        if (libVibeKernel_gv_modelBankHandle != null) {
+            BankWait(libVibeKernel_gv_modelBankHandle);
+        }
+    }
+}
+
+void libVibeKernel_gf_WriteModelBankInt(string section, string key, int value) {
+    libVibeKernel_gf_EnsureModelBankLoaded();
+    if (libVibeKernel_gv_modelBankHandle == null) { return; }
+    BankValueSetFromInt(libVibeKernel_gv_modelBankHandle, section, key, value);
+    BankSave(libVibeKernel_gv_modelBankHandle);
+}
+// ==== END VIBE_GEN_007_BANK_CHANNEL_SPLIT ====
 
 void libVibeKernel_gf_WriteBankKey(string section, string key, string value) {
     libVibeKernel_gf_EnsureBankLoaded();
@@ -1373,6 +1421,14 @@ string libVibeKernel_gf_HandleQueryUnitAttrs(string argsJson) {
     return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "query.unit_attrs", "OK", payload);
 }
 
+// ==== STAGE26_FULL_INVOKE HANDLE_OPS PROTOTYPES ====
+// Galaxy requires prior declaration: the Handle* ops are defined later in this
+// file but are dispatched from libVibeKernel_gf_Dispatch above, so declare prototypes
+// here to satisfy the forward-reference constraint.
+string libVibeKernel_gf_HandleHandleQuery(string argsJson);
+string libVibeKernel_gf_HandleHandleDrop(string argsJson);
+string libVibeKernel_gf_HandleHandleClear(string argsJson);
+
 // ---- 主分发器 ----
 string libVibeKernel_gf_Dispatch(string requestJson) {
     string sessionId;
@@ -1636,14 +1692,18 @@ bool libVibeKernel_gf_ProcessAllyCommand(string chat) {
 
 // Publish only P2-owned economy counters. The API client is P1, so its
 // player_common observation cannot be reused as the ally's resource state.
+// VIBE_GEN_007 分库（N1 治本）：这是 PollLoop 每轮都会调用的**最高频写入方**，
+// 原先每轮 4 次 BankSave 都把内核内存态整份刷回 GalaxyVibe.SC2Bank，
+// 正是把「Host 请求被覆盖」的窗口从 ~0ms 拉宽到整个 handler 时长的元凶。
+// 改走独立的 GalaxyVibeModel 库后，模型快照与 RPC 通道彻底解耦。
 void libVibeKernel_gf_WriteModelP2Snapshot() {
-    libVibeKernel_gf_WriteBankInt("ally", "p2_minerals",
+    libVibeKernel_gf_WriteModelBankInt("ally", "p2_minerals",
         PlayerGetPropertyInt(2, c_playerPropMinerals));
-    libVibeKernel_gf_WriteBankInt("ally", "p2_vespene",
+    libVibeKernel_gf_WriteModelBankInt("ally", "p2_vespene",
         PlayerGetPropertyInt(2, c_playerPropVespene));
-    libVibeKernel_gf_WriteBankInt("ally", "p2_supply_used",
+    libVibeKernel_gf_WriteModelBankInt("ally", "p2_supply_used",
         PlayerGetPropertyInt(2, c_playerPropSuppliesUsed));
-    libVibeKernel_gf_WriteBankInt("ally", "p2_supply_cap",
+    libVibeKernel_gf_WriteModelBankInt("ally", "p2_supply_cap",
         PlayerGetPropertyInt(2, c_playerPropSuppliesMade));
 }
 
@@ -1926,6 +1986,34 @@ bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
         libVibeKernel_gf_ReloadBank();
         // 诊断计数（纯内存自增，不落盘）
         libVibeKernel_gv_bankPollCount += 1;
+// ==== BEGIN VIBE_KERNEL_005_FIRST_PASS_FLUSH ====
+        // ！！！铁律 VIBE_KERNEL_005（2026-08-09 真机 L3/L4/L5/L6 四点二分取证）！！！
+        //
+        // 现象：整局 Bank 里 init 类标记（initlib_entered / init_entered /
+        //       kernel_initialized / state_version / register_entrypoints_* /
+        //       diag/pollloop_started）**一个都不落盘**，只有 Wait 之后异步线程写的键
+        //       （watchdog_last_seen_poll、ally/p2_*）正常。伪装成「MapScript 被静默
+        //       丢弃」，但内核其实一直在跑，误诊成本极高。
+        //
+        // 机理：map-init 阶段的 BankSave 只写内存，磁盘 flush 统一发生在游戏真正开跑
+        //       （真机实测 t≈19s）。而 ReadBankKey() 内部会调 ReloadBank() →
+        //       BankReload()，用**当时还是空的磁盘内容**覆盖内存态。
+        //       若 ReloadBank 与首次 ReadBankKey 之间没有任何 BankSave，
+        //       连续两次 reload 之间无脏数据可 flush，内存里的 init 标记直接蒸发。
+        //
+        //       基准(standalone)内核之所以正常，纯属巧合：它把 WriteModelP2Snapshot()
+        //       放在循环开头（ReloadBank 之后、首次 ReadBankKey 之前），
+        //       那次 BankSave 顺带把 init 标记逼着落了盘。
+        //       VIBE_KERNEL_002 把所有写入挪到读之后，恰好抽掉了这次救命的 flush。
+        //
+        // 修法：只在**首帧**、且**夹在 ReloadBank 与首次 ReadBankKey 之间**补一次
+        //       BankSave。稳态循环仍严格保持 VIBE_KERNEL_002 的读优先语义，
+        //       不会覆盖 Host 请求；首帧时 Host 尚未发出任何请求，无覆盖风险。
+        if (!libVibeKernel_gv_pollLoopFirstFlushed) {
+            libVibeKernel_gv_pollLoopFirstFlushed = true;
+            libVibeKernel_gf_WriteBankInt("diag", "pollloop_first_flush", 1);
+        }
+// ==== END VIBE_KERNEL_005_FIRST_PASS_FLUSH ====
         // 先把 pending 请求抢读进局部变量，之后任何写入都伤不到它。
         pendingId = libVibeKernel_gf_ReadBankKey("index", "pending_request_id");
         requestJson = "";
@@ -2093,11 +2181,35 @@ void libVibeKernel_InitLib() {
     // 写入银行标记，证明 InitLib 被调用（供 Host 端验证）
     libVibeKernel_gf_WriteBankInt("index", "initlib_entered", 1);
     libVibeKernel_gf_Init();
-    // 自注册入口点：延迟到游戏时钟 0.0（即 InitTriggers 之后）再调用 RegisterEntryPoints，
-    // 避免触发器在库/触发器系统完全就绪前创建导致事件不触发。
-    // 由地图 MapScript 的 InitLibs() 调用本函数；TimeElapsed(0.0) 在完整 init 之后触发。
+// ==== BEGIN VIBE_KERNEL_004_NO_SYNC_REGISTER ====
+    // ！！！铁律 VIBE_KERNEL_004（2026-08-09 真机 L1/L2/L2a/L2b/L3 五点对照取证）！！！
+    //
+    // 绝对禁止在 InitLib()（map-init 同步阶段）里同步调用 RegisterEntryPoints()。
+    //
+    // 现象：整局 Bank 里 init 类标记（initlib_entered / init_entered /
+    //       kernel_initialized / state_version / register_entrypoints_*）**一个都不落盘**，
+    //       只有 Wait 之后由异步线程写的键（watchdog_last_seen_poll、ally/p2_*）正常，
+    //       表现极像"MapScript 被静默丢弃"，但其实内核一直在跑，误诊成本极高。
+    //
+    // 机理：map-init 阶段的 BankSave 是**缓冲**的，尚未 flush 到磁盘。
+    //       RegisterEntryPoints() 会创建并派发 PollLoop / Watchdog，
+    //       PollLoop 体内首个动作 ReloadBank()（BankRemove + BankLoad）
+    //       会把**未落盘的内存态 Bank 整个清空并从磁盘重读**（此时磁盘还是空的），
+    //       于是此前所有 init 标记灰飞烟灭。
+    //       基准内核 gf_Init() 里"不在此处同步调用 BankPoll_Func"那段注释
+    //       警告的就是同一个坑，只是这次从 RegisterEntryPoints 这条路又踩了一遍。
+    //
+    // 正确做法：只创建 TimeElapsed(0.0) 延迟触发器，让 RegisterEntryPoints 在
+    //       完整 init 之后（InitTriggers 之后）异步执行。此时 Bank 已就绪，
+    //       ReloadBank 不会吞掉任何东西。真机 L1（基准内核，同一路径）已证明
+    //       TimeElapsed(0.0) 在 API 模式下可靠触发，6/6 init 标记全落盘。
+    //
+    // 反向对照：L2/L2a/L2b（保留同步调用，分别改 UIDisplayMessage / handle 缓存语义）
+    //       全部 FAIL —— 证明这两个变量都不是根因，唯一自变量就是这一行同步调用。
     t = TriggerCreate("libVibeKernel_gf_RegisterEntryPoints_Func");
     TriggerAddEventTimeElapsed(t, 0.0, c_timeGame);
+    // 严禁在此处追加 libVibeKernel_gf_RegisterEntryPoints(); —— 见上方铁律。
+// ==== END VIBE_KERNEL_004_NO_SYNC_REGISTER ====
 }
 
 // ==== BEGIN STAGE26_FULL_INVOKE HANDLE_OPS ====

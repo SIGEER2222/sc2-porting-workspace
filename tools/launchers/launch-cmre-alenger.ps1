@@ -2623,7 +2623,10 @@ try {
                 Send-CmreRebornLoadingConfirm -ProcessId $runtimePid | Out-Null
             }
         }
-        Wait-CmreRuntimeListener -TimeoutSeconds 120
+        # 2026-08-09 真机实测：带 Stage26 生成 invoke bundle 的亡者之夜，SC2 从进程
+        # 启动到 InitMap 跑完（bank 出现 stage16_after_vibe）耗时约 294s，远超原来的
+        # 120s。120s 会在地图还在加载/编译时就误判失败。放宽到 420s。
+        Wait-CmreRuntimeListener -TimeoutSeconds 420
         Assert-CmreNoNewScriptErrors -Since $launchStartedAt
         $runtimeReady = $true
         if ($runtimeProcess.Count -gt 0) {

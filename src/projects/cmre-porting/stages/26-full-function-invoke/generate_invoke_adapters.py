@@ -38,7 +38,18 @@ SHARD_SIZE = 400
 # 分档放量（计划风险节）：每档生成一个只挂载低区间分片的 dispatch 变体。
 ROLLOUT_TIERS = (100, 1000)
 MARKER = "STAGE26_FULL_INVOKE"
-FUNCREF_TYPE = "CMPE_PlayerEventFunc"
+# funcref 类型名。**必须用 Stage 26 自有前缀**：早期版本借用了 `CMPE_PlayerEventFunc`，
+# 但那个名字在 CMRE 源里只有同前缀的**函数**（CMPE_RunHeroEventForPlayer 等
+# TriggerStrings 条目），**从来没有任何类型声明**。对照实验已坐实：
+#   libCOTF_gs_HistogramData → LibCOTF_h.galaxy:52 有 `struct ... {`  ✅ 找得到
+#   CMPE_PlayerEventFunc     → 全部源文件零声明                        ❌ 找不到
+# 未声明类型 → Galaxy 编译失败 → SC2 **静默丢弃整个 MapScript**（不报错、
+# 不写 ScriptError.txt、InitMap 根本不被调用），而 galaxy-lint 只做语法/符号
+# 检查、看不到跨文件类型闭包，所以照样报 0 error。
+# 自有前缀同时杜绝与源 mod 符号重定义（重定义同样是静默丢弃）。
+# 门禁：tools/galaxy-vibe/check_undeclared_types.py
+FUNCREF_TYPE = "libVibeInvoke_gt_VoidIntFunc"
+FUNCREF_PROTO = "libVibeInvoke_gp_VoidIntProto"
 STRUCTREF_TYPE = "structref<libCOTF_gs_HistogramData>"
 STRUCT_CTYPE = "libCOTF_gs_HistogramData"
 
@@ -59,13 +70,19 @@ HANDLE_CTOR = {
     "region": {"entire_map": "RegionEntireMap()"},
     "playergroup": {"empty": "PlayerGroupEmpty()", "all": "PlayerGroupAll()"},
     "timer": {"create": "TimerCreate()"},
-    "revealer": {"create": "RevealerCreate({a0}, RegionEntireMap())"},
+    # 【2026-08-08 真机根因，勿改回】曾写成臆造的 `RevealerCreate(...)`。Galaxy 里
+    # 根本没有这个 native（真名 `VisRevealerCreate(int player, region area)`）。
+    # 未定义 native 调用 = 编译失败 = SC2 静默丢弃整个 MapScript。
+    "revealer": {"create": "VisRevealerCreate({a0}, RegionEntireMap())"},
     "unitfilter": {"zero": "UnitFilter(0, 0, 0, 0)"},
     "color": {"rgb": "Color({a0}, {a1}, {a2})"},
     "abilcmd": {"cmd": "AbilityCommand({a0}, {a1})"},
     "order": {"abilcmd": "Order(AbilityCommand({a0}, {a1}))", "cmd": "Order(AbilityCommand({a0}, 0))"},
     "soundlink": {"link": "SoundLink({a0}, {a1})"},
-    "datetime": {"ymdhms": "DateTime({a0}, {a1}, {a2}, {a3}, {a4}, {a5})"},
+    # 【2026-08-08 真机根因，勿改回】曾写成臆造的 `DateTime(y,m,d,h,mi,s)`。Galaxy
+    # 没有 y/m/d 构造器，只有 `IntToDateTime(int epoch)`（配套读取器是
+    # GetDateTimeYear/Month/... 与 DateTimeToInt）。改用 epoch 语法：`epoch:<int>`。
+    "datetime": {"epoch": "IntToDateTime({a0})"},
 }
 HANDLE_ERRORS = {"HANDLE_NOT_FOUND", "HANDLE_INVALID", "HANDLE_TABLE_FULL"}
 
@@ -172,6 +189,140 @@ def top_dir(path: str) -> str:
     return package_of(path)
 
 
+# ---------------------------------------------------------------------------
+# VIBE_GEN_004 — 不可调用符号过滤（2026-08-08 真机二分坐实）
+# ---------------------------------------------------------------------------
+# 真机证据链：
+#   shard 二分  1..2 PASS / 1..3 FAIL           -> 首个坏 shard = 03
+#   adapter 二分 801-1015 PASS / 801-1016 FAIL  -> 首个坏 adapter = Call#1016
+#   Call#1016 = `CMPE_PlayerEvent_Proto(lv_p0);`
+#   目标声明   = cm_pointer_events_h.galaxy:3 `void CMPE_PlayerEvent_Proto(int);`
+#                cm_pointer_events_h.galaxy:4 `typedef funcref<CMPE_PlayerEvent_Proto> ...`
+# 这是 Galaxy 的 **funcref 签名模板**惯例：原型故意没有实现体，只用来给
+# `typedef funcref<>` 提供签名。**调用它 = 编译失败 = SC2 静默丢弃整个 MapScript**。
+#
+# 反面教训（别把判据写成"catalog 里没有 has_body"）：
+#   `AIChooseNextLateGameBuild` / `AINeedsDefending` / `AttackStateName` 等
+#   MeleeAI.galaxy 里的前置声明同样 has_body=False，但它们在**同文件内被调用**，
+#   实现体来自未 vendored 的暴雪基础库 —— 真机 shard01（含 gen.75 / gen.286 /
+#   gen.681）已 PASS，证明"只有原型"本身并不致命。
+#
+# 因此判据是两级的：
+#   1) 硬排除：名字出现在 `typedef funcref<NAME>` 里 -> 签名模板，永不可调用。
+#   2) 兜底排除（fail-closed）：无实现体、非 native、且**全源零调用点** ->
+#      没有任何证据表明该符号能在编译单元里解析，宁可不生成。
+# 影响面（2026-08-08 实测）：全局排除 110 个，亡者之夜 bundle 只掉 1 个
+# （正是 Call#1016），零可用能力损失。
+# 静态门禁对应体检项：closure_doctor.py 形态 K（_check_protoonly_calls）。
+
+RE_FUNCREF_TYPEDEF = re.compile(r"typedef\s+funcref\s*<\s*(\w+)\s*>")
+
+
+def _source_galaxy_texts() -> dict[str, str]:
+    """All vendored `.galaxy` sources, excluding our own generated adapters."""
+    texts: dict[str, str] = {}
+    for path in SOURCE_ROOT.rglob("*.galaxy"):
+        rel = path.relative_to(SOURCE_ROOT).as_posix()
+        if "/generated/" in rel:
+            continue
+        texts[rel] = path.read_text(encoding="utf-8", errors="replace")
+    return texts
+
+
+def detect_uncallable(entries: list[dict]) -> tuple[set[str], set[str]]:
+    """Return (funcref_signature_templates, proto_only_unresolved) name sets."""
+    by_name: dict[str, list[dict]] = defaultdict(list)
+    for e in entries:
+        by_name[e["name"]].append(e)
+
+    texts = _source_galaxy_texts()
+    line_cache: dict[str, list[str]] = {}
+
+    def decl_line(path: str, line: int) -> str:
+        if path not in line_cache:
+            line_cache[path] = texts.get(path, "").splitlines()
+        lines = line_cache[path]
+        return lines[line - 1] if 0 < line <= len(lines) else ""
+
+    templates: set[str] = set()
+    for text in texts.values():
+        templates.update(RE_FUNCREF_TYPEDEF.findall(text))
+
+    unresolved: set[str] = set()
+    for name, group in by_name.items():
+        if any(e["has_body"] for e in group):
+            continue
+        if any(decl_line(e["path"], e["line"]).lstrip().startswith("native") for e in group):
+            continue  # engine native: no body by design, always callable
+        declared_at = {(e["path"], e["line"]) for e in group}
+        pattern = re.compile(r"(?<!\w)" + re.escape(name) + r"\s*\(")
+        called = False
+        for path, text in texts.items():
+            for match in pattern.finditer(text):
+                if (path, text.count("\n", 0, match.start()) + 1) in declared_at:
+                    continue  # the declaration itself, not a call
+                called = True
+                break
+            if called:
+                break
+        if not called:
+            unresolved.add(name)
+    return templates, unresolved
+
+
+# ---------------------------------------------------------------------------
+# VIBE_GEN_005 — static（文件局部）函数不可跨文件调用（2026-08-08 真机二分坐实）
+# ---------------------------------------------------------------------------
+# 真机证据链（修掉 VIBE_GEN_004 之后的第二个坑）：
+#   shard 二分   1..6 PASS / 1..7 FAIL          -> 首个坏 shard = 07
+#   adapter 二分 2401-2472 PASS / 2401-2473 FAIL -> 首个坏 adapter = Call#2473
+#   Call#2473 = `CallDownMule(lv_p0, lv_p1);`
+#   目标声明  = tactterrai.galaxy:971 `static bool CallDownMule (int, unit) {`
+#
+# Galaxy 的 `include` **不是** C 式文本内联：每个 .galaxy 是独立编译单元，
+# 普通符号跨文件可见，但 `static` 把符号限死在**定义它的那个文件里**。
+# 我们生成的 adapter 住在 LibVibeInvoke_NN.galaxy，调用别的文件的 static 函数
+# = 未定义符号 = 编译失败 = SC2 静默丢弃整个 MapScript。
+#
+# catalog 早就有 `static` 字段，只是生成器一直没用（本次补上）。
+# 影响面（2026-08-08 实测）：全库 5 个，亡者之夜 bundle 4 个，最小 id 正是 2473 —
+# 与真机二分阈值逐位吻合。
+# 静态门禁对应体检项：closure_doctor.py 形态 L（_check_cross_file_static_calls）。
+
+
+def detect_static_only(entries: list[dict]) -> set[str]:
+    """Names whose *every* implementation is `static` ⇒ not callable cross-file."""
+    by_name: dict[str, list[dict]] = defaultdict(list)
+    for e in entries:
+        by_name[e["name"]].append(e)
+    result: set[str] = set()
+    for name, group in by_name.items():
+        bodies = [e for e in group if e["has_body"]]
+        if bodies and all(e.get("static") for e in bodies):
+            result.add(name)
+    return result
+
+
+# --- VIBE_GEN_006 -----------------------------------------------------------
+# MapScript 生命周期入口：**永不导出**。两条独立理由，任一条都足以否决。
+#
+# 1) 编译期（这才是致命的那条）。注入管线在 `MapScript.galaxy:20` 挂载 invoke 层，
+#    并在挂载点之前补一块前置原型（mpq_build_gen_map.prepend_forward_protos）。
+#    那块原型**刻意跳过**这 4 个名字（`skip = {...}`，见该函数）—— 于是
+#    `InitGlobals()` 的定义在第 470 行、调用点在第 20 行 ⇒ use-before-declare
+#    ⇒ 编译错误 ⇒ SC2 **静默丢弃整个 MapScript**。
+#    真机二分：shard07 `2474-2513 PASS / 2474-2514 FAIL`，Call#2514 恰是
+#    `InitGlobals();`；同 shard 另有 InitLibs/InitMap/InitTriggers 三个同类。
+#
+# 2) 语义。就算能编译，运行期 RPC 调 `InitGlobals()` 会把全部全局变量重置回初值、
+#    `InitTriggers()` 会把所有触发器再注册一遍 —— 这是拿整局存档换一次调用，
+#    没有任何合理用例。fail-closed 排除，零能力损失。
+#
+# 一般化教训：**导出清单与前置原型清单必须同源**。任何被原型块跳过、却仍被导出的
+# MapScript 本体函数，都是一颗静默丢弃的定时炸弹。
+# 静态门禁对应体检项：closure_doctor.py 形态 E+（_check_late_decls 的调用点分支）。
+MAPSCRIPT_LIFECYCLE = {"InitMap", "InitLibs", "InitGlobals", "InitTriggers"}
+
 DEP_FILE_RE = re.compile(r"file:([^<,\"]+)")
 
 
@@ -235,6 +386,11 @@ def build_plan(entries: list[dict]) -> dict:
     for e in entries:
         by_name[e["name"]].append(e)
 
+    # VIBE_GEN_004: never emit an adapter that calls a symbol with no body.
+    funcref_templates, proto_unresolved = detect_uncallable(entries)
+    # VIBE_GEN_005: never emit an adapter that calls a file-local `static` symbol.
+    static_only = detect_static_only(entries)
+
     functions: list[dict] = []
     excluded: list[dict] = []
     fid = 0
@@ -244,6 +400,30 @@ def build_plan(entries: list[dict]) -> dict:
         if len(sigs) > 1:
             excluded.append({
                 "name": name, "reason": "ambiguous_overloads",
+                "signatures": sorted(sigs), "declarations": len(group),
+            })
+            continue
+        if name in funcref_templates:
+            excluded.append({
+                "name": name, "reason": "funcref_signature_template",
+                "signatures": sorted(sigs), "declarations": len(group),
+            })
+            continue
+        if name in proto_unresolved:
+            excluded.append({
+                "name": name, "reason": "proto_only_unresolved",
+                "signatures": sorted(sigs), "declarations": len(group),
+            })
+            continue
+        if name in static_only:
+            excluded.append({
+                "name": name, "reason": "static_file_local",
+                "signatures": sorted(sigs), "declarations": len(group),
+            })
+            continue
+        if name in MAPSCRIPT_LIFECYCLE:
+            excluded.append({
+                "name": name, "reason": "mapscript_lifecycle",
                 "signatures": sorted(sigs), "declarations": len(group),
             })
             continue
@@ -278,9 +458,30 @@ def build_plan(entries: list[dict]) -> dict:
         })
 
     # funcref static table candidates: every void(int) function known to the catalog.
+    # VIBE_GEN_004: a bodyless symbol is useless as a funcref target too — resolving
+    # to it would jump into nothing at runtime. Compile-wise `return Proto;` is
+    # benign (真机 shard01 PASS 时表里就有 CMPE_PlayerEvent_Proto)，删掉只会更安全。
+    uncallable = (funcref_templates | proto_unresolved | static_only
+                  | MAPSCRIPT_LIFECYCLE)
+    # VIBE_GEN_008（2026-08-09 真机取证，勿删）：**MapScript.galaxy 本地函数不能进
+    # funcref 静态表**。地图脚本的结构是「include 块（第 1..N 行）→ 地图自有函数原型
+    # （N+K 行）」，而 LibVibeInvokeCommon 是被 include 的库，解析时地图本地 `gf_*/gt_*`
+    # 原型**尚未出现**。
+    #   - 调用 `gf_Foo(x);` 没问题：符号在后续 pass 里解析（全图 287 处这样用，真机通过）。
+    #   - 取址 `return gf_Foo;` 会炸：funcref 必须在**解析期**拿到原型去比对
+    #     `typedef funcref<...>` 的签名，拿不到就报
+    #     "解析返回时出错，可能在行尾缺失分号：';'" ⇒ 脚本读取失败 ⇒ 整图丢弃。
+    # 坑点：编译器把错误行号报成**下一行**，极易误判成下一条条目有问题（2026-08-09
+    # 就因此误删了两条完全合法的 lib 条目）。定位时一律看报错行的**上一行**。
+    map_local_symbols = {
+        e["name"] for e in entries
+        if e["path"].endswith("MapScript.galaxy")
+    }
+    uncallable_funcref = uncallable | map_local_symbols
     funcref_candidates = sorted({
         e["name"] for e in entries
         if e["return_type"] == "void" and [p["type"] for p in e["parameters"]] == ["int"]
+        and e["name"] not in uncallable_funcref
     })
 
     maps = sorted({map_of(e["path"]) for e in entries if e["path"].startswith("Maps/")})
@@ -300,6 +501,7 @@ def build_plan(entries: list[dict]) -> dict:
             if e["return_type"] == "void"
             and [p["type"] for p in e["parameters"]] == ["int"]
             and package_of(e["path"]) in scope
+            and e["name"] not in uncallable_funcref  # VIBE_GEN_004 / VIBE_GEN_008
         })
 
     return {
@@ -320,6 +522,12 @@ def build_plan(entries: list[dict]) -> dict:
             "catalog_declarations": len(entries),
             "callable_functions": len(functions),
             "excluded": len(excluded),
+            "excluded_funcref_signature_template": len(funcref_templates),
+            "excluded_proto_only_unresolved": len(proto_unresolved),
+            "excluded_static_file_local": len(static_only),
+            "excluded_mapscript_lifecycle": len(MAPSCRIPT_LIFECYCLE),
+            # VIBE_GEN_008: map-local symbols stay callable, just never funcref-able.
+            "excluded_funcref_map_local": len(map_local_symbols),
             "funcref_candidates": len(funcref_candidates),
             "maps": len(maps),
         },
@@ -432,8 +640,36 @@ def emit_handle_resolve(ttype: str, arg: str) -> list[str]:
     return lines
 
 
+# 【VIBE_GEN_003 — 2026-08-09 真机二分坐实，勿改回启发式】
+# 每个 ctor 槽位的目标类型必须**逐条对齐 native 真实签名**，不能靠"除了 X 都是 int"
+# 这类启发式。以下签名全部取自 core.sc2mod/.../TriggerLibs/natives.galaxy：
+#     native point     Point            (fixed x, fixed y);                    L2842
+#     native color     Color            (fixed r, fixed g, fixed b);           L943
+#     native abilcmd   AbilityCommand   (string inAbil, int inCmdIndex);       L2212
+#     native order     Order            (abilcmd inAbilCmd);                   L2224
+#     native soundlink SoundLink        (string soundId, int soundIndex);      L3174
+#     native datetime  IntToDateTime    (int epoch);                           L1376
+#     native revealer  VisRevealerCreate(int player, region area);             L5219
+#     native unitfilter UnitFilter      (int, int, int, int);                  L4586
+# 事故复盘：旧实现只给 soundlink 槽 0 开了 string 例外，abilcmd/order 的槽 0
+# （技能链接名，string）被兜底成 `StringToInt(...)` → 类型不匹配 → 编译错误 →
+# SC2 **静默丢弃整个 MapScript**（无 ScriptError、无日志）。因为 Call#66 是第一个
+# 带 `order` 参数的 adapter，真机二分呈现为「1-65 PASS / 1-66 FAIL」这一干净边界，
+# 极易被误读成"嵌套深度上限"。closure(A~I)/arity/type 三层体检**全部漏报**：
+# 它们只核对 adapter 直接调用的目标函数，看不进 ctor 模板内层的 native 实参。
+CTOR_SLOT_KIND: dict[tuple[str, int], str] = {
+    ("point", 0): "fixed", ("point", 1): "fixed",
+    ("color", 0): "fixed", ("color", 1): "fixed", ("color", 2): "fixed",
+    ("abilcmd", 0): "string", ("abilcmd", 1): "int",
+    ("order", 0): "string", ("order", 1): "int",
+    ("soundlink", 0): "string", ("soundlink", 1): "int",
+    ("datetime", 0): "int",
+    ("revealer", 0): "int",
+}
+
+
 def ctor_expr_typed(ttype: str, form: str, tmpl: str, s: str) -> str:
-    """Wrap ctor part extracts with per-type conversions."""
+    """Wrap ctor part extracts with per-slot conversions (see CTOR_SLOT_KIND)."""
     argc = tmpl.count("{a")
     start = len(form) + 2
     expr = tmpl
@@ -446,10 +682,11 @@ def ctor_expr_typed(ttype: str, form: str, tmpl: str, s: str) -> str:
             raw = f"libVibeInvoke_gf_Part3({s}, {start}, {i})"
         else:
             raw = f"libVibeInvoke_gf_Part6({s}, {start}, {i})"
-        if ttype in ("color", "point"):
+        kind = CTOR_SLOT_KIND.get((ttype, i), "int")
+        if kind == "fixed":
             wrapped = f"StringToFixed({raw})"
-        elif ttype == "soundlink" and i == 0:
-            wrapped = raw  # soundlink name stays a string
+        elif kind == "string":
+            wrapped = raw          # 已是 string，再转就是类型错误
         else:
             wrapped = f"StringToInt({raw})"
         expr = expr.replace("{a%d}" % i, wrapped)
@@ -477,7 +714,15 @@ def emit_return(fn: dict, call_args: list[str]) -> tuple[list[str], str]:
             lines.append('    if (lv_ret) { lv_rets = "true"; }')
             lines.append('    return libVibeInvoke_gf_Ok("bool", lv_rets);')
         elif rtype == "fixed":
-            lines.append('    return libVibeInvoke_gf_Ok("fixed", FixedToString(lv_ret));')
+            # 【VIBE_GEN_001 · 勿改回单参】Galaxy 原生签名是
+            #     string FixedToString(fixed f, int precision);
+            # 单参调用 = 元数不匹配 = 编译错误 ⇒ SC2 **静默丢弃整个 MapScript**
+            # （无 ScriptError、无日志，表现为内核从未注册 / bank_keys=0）。
+            # 2026-08-09 真机二分取证：shard=none PASS、shard=01 FAIL；
+            # arity_doctor 定位到本行产出的 99 处单参调用（横跨 14 个 shard）。
+            # c_fixedPrecisionAny = 按需精度，与暴雪官方战役 MapScript 用法一致。
+            lines.append('    return libVibeInvoke_gf_Ok("fixed", '
+                         'FixedToString(lv_ret, c_fixedPrecisionAny));')
         elif rtype == "string":
             lines.append('    return libVibeInvoke_gf_Ok("string", libVibeInvoke_gf_JsonEscape(lv_ret));')
         else:  # text
@@ -516,6 +761,23 @@ def emit_return(fn: dict, call_args: list[str]) -> tuple[list[str], str]:
 
 
 def emit_adapter(fn: dict) -> list[str]:
+    # Struct values are opaque to the Bank transport and cannot be copied by
+    # value in Galaxy. Preserve the catalog entry for truthful accounting, but
+    # emit a fail-closed adapter instead of source that SC2 cannot compile.
+    struct_param = any(p["class"] == "structref" for p in fn["params"])
+    if struct_param or fn["return_class"] == "structref":
+        expected = ",".join(p["arg"] for p in fn["params"])
+        detail = "structref_parameter" if struct_param else "structref_return"
+        out = [
+            f"// gen.{fn['id']} {fn['name']} ({fn['kind']}) @ {fn['declared_at']['path']}:{fn['declared_at']['line']}",
+            f"// Stage 26: structref adapter intentionally neutralized ({detail}).",
+            f"string libVibeInvoke_gf_Call{fn['id']}(string argsJson) {{",
+        ]
+        if fn["params"]:
+            out.append(f"    if (libVibeKernel_gf_ArgsGet(argsJson, \"arg_names\") != \"{expected}\") {{ return libVibeInvoke_gf_Error(\"INVALID_ARGS\", \"arg_names\"); }}")
+        out.append(f"    return libVibeInvoke_gf_Error(\"SYMBOL_NOT_IN_MAP\", \"{detail}\");")
+        out.append("}")
+        return out
     decls, decodes, call_args = emit_arg_decode(fn)
     ret_lines, ret_decls = emit_return(fn, call_args)
     expected = ",".join(p["arg"] for p in fn["params"])
@@ -591,16 +853,13 @@ def emit_dispatch(shard_ranges: list[tuple[int, int, int]], map_name: str, fn_co
     ]
     if tier is not None:
         lines.append(f'    if (functionId > {tier}) {{ return libVibeInvoke_gf_Error("FUNCTION_NOT_IN_MAP", IntToString(functionId)); }}')
-    first = True
+    # 同 VIBE_GEN_002：一律扁平 early-return。顶层目前只有 ~30 个 shard 分支、
+    # 尚未触及 65 层上限，但分片数随导出规模增长，留着 else-if 链等于埋雷。
     for idx, lo, hi in active:
-        kw = "if" if first else "} else if"
-        first = False
-        lines.append(f"    {kw} (functionId >= {lo} && functionId <= {hi}) {{")
+        lines.append(f"    if (functionId >= {lo} && functionId <= {hi}) {{")
         lines.append(f"        return libVibeInvoke_gf_DispatchShard{idx:02d}(functionId, argsJson);")
-    if first:
-        lines.append("    if (false) {")
+        lines.append("    }")
     lines += [
-        "    }",
         f'    return libVibeInvoke_gf_Error("FUNCTION_NOT_IN_MAP", IntToString(functionId));',
         "}",
         "",
@@ -613,17 +872,22 @@ def emit_shard_dispatch(shard_fns: list[dict], idx: int) -> str:
     hi = shard_fns[-1]["id"]
     # Append the shard dispatch into the shard body file instead of a separate
     # file to halve the include count; the prototype lives in the _h header.
+    #
+    # 【VIBE_GEN_002 — 防御性扁平化。注意：嵌套深度上限是**未证实的假说**】
+    # 起因：真机二分得「1-65 分支 PASS / 1-66 分支 FAIL」，当时按
+    # `} else if (c) {` == `else { if (c) {...} }`（N 分支 = N 层嵌套）解释为
+    # 「Galaxy 嵌套硬上限 65」。改扁平后 1-66 **仍 FAIL** → 该解释被证伪，
+    # 真因是 VIBE_GEN_003（Call#66 是第一个带 order 参数的 adapter，
+    # ctor 槽位类型错配），两者恰好预测同一边界，属巧合共解释。
+    # 扁平 early-return 仍然保留：嵌套深度恒为 1、与分支数无关，代价为零，
+    # 且把「深度」这一变量从后续二分中彻底消掉，避免再次混淆归因。
     lines = [
         "",
         f"string libVibeInvoke_gf_DispatchShard{idx:02d}(int functionId, string argsJson) {{",
     ]
-    first = True
     for fn in shard_fns:
-        kw = "if" if first else "} else if"
-        first = False
-        lines.append(f"    {kw} (functionId == {fn['id']}) {{ return libVibeInvoke_gf_Call{fn['id']}(argsJson);")
+        lines.append(f"    if (functionId == {fn['id']}) {{ return libVibeInvoke_gf_Call{fn['id']}(argsJson); }}")
     lines += [
-        "    }",
         f'    return libVibeInvoke_gf_Error("FUNCTION_NOT_IN_MAP", IntToString(functionId));',
         "}",
     ]
@@ -730,6 +994,20 @@ def emit_common(map_name: str, funcref_candidates: list[str]) -> str:
         "    return StringSub(s, segStart, StringLength(s));",
         "}",
         "",
+        "// funcref 原型 + typedef —— Galaxy 要求 funcref 类型必须「先声明原型函数，",
+        "// 再 typedef funcref<原型>」。缺这两行 = 使用未声明类型 = 整个 MapScript",
+        "// 编译失败并被 SC2 静默丢弃（无 ScriptError、InitMap 不执行）。",
+        "// 该模式与 CMLib 的 CMLib_PlayerVisitor 同构，已真机验证。",
+        f"void {FUNCREF_PROTO} (int lp_p0);",
+        f"typedef funcref<{FUNCREF_PROTO}> {FUNCREF_TYPE};",
+        "",
+        "// 【2026-08-08 真机根因，勿删】原型必须配一个实现。Galaxy 里「有声明无实现」",
+        "// 是编译期错误 ⇒ SC2 静默丢弃整个 MapScript（无 ScriptError、InitMap 不执行、",
+        "// Kernel 永不注册）。旧版只发原型不发实现，导致 gen 图 P0 全灭且难以定位。",
+        "// CMLib 的 CMLib_PlayerVisitor_Proto 同样是「_h 声明 + .galaxy 空实现」。",
+        f"void {FUNCREF_PROTO} (int lp_p0) {{",
+        "}",
+        "",
         f"// funcref static table: {len(funcref_candidates)} void(int) candidates",
         f"{FUNCREF_TYPE} libVibeInvoke_gf_ResolveFuncref(string name) {{",
     ]
@@ -817,26 +1095,12 @@ def emit_handles() -> str:
             "}",
             "",
         ]
-    # structref registry: instances are opaque struct values, no null compare.
+    # structref registry: Galaxy cannot pass/assign struct values by value. Keep
+    # only liveness bits so handle.query/drop/clear remain explicit and the
+    # generated source never emits an illegal Acquire/Get implementation.
     lines += [
-        f"// ---- {STRUCT_CTYPE} (structref) ----",
-        f"{STRUCT_CTYPE}[{HANDLE_CAPACITY + 1}] libVibeHandles_gv_histogram_table;",
+        f"// ---- {STRUCT_CTYPE} (structref liveness only) ----",
         f"bool[{HANDLE_CAPACITY + 1}] libVibeHandles_gv_histogram_used;",
-        "int libVibeHandles_gv_histogram_cursor = 0;",
-        f"int libVibeHandles_gf_Acquire_{STRUCT_CTYPE}({STRUCT_CTYPE} h) {{",
-        "    int i;",
-        f"    for (i = 1; i <= {HANDLE_CAPACITY}; i += 1) {{",
-        f"        if (!libVibeHandles_gv_histogram_used[i]) {{ libVibeHandles_gv_histogram_used[i] = true; libVibeHandles_gv_histogram_table[i] = h; return i; }}",
-        "    }",
-        "    libVibeHandles_gv_histogram_cursor += 1;",
-        f"    if (libVibeHandles_gv_histogram_cursor > {HANDLE_CAPACITY}) {{ libVibeHandles_gv_histogram_cursor = 1; }}",
-        "    libVibeHandles_gv_histogram_table[libVibeHandles_gv_histogram_cursor] = h;",
-        "    libVibeHandles_gv_histogram_used[libVibeHandles_gv_histogram_cursor] = true;",
-        "    return libVibeHandles_gv_histogram_cursor;",
-        "}",
-        f"{STRUCT_CTYPE} libVibeHandles_gf_Get_{STRUCT_CTYPE}(int id) {{",
-        f"    return libVibeHandles_gv_histogram_table[id];",
-        "}",
         f"bool libVibeHandles_gf_Has_{STRUCT_CTYPE}(int id) {{",
         f"    if (id < 1 || id > {HANDLE_CAPACITY}) {{ return false; }}",
         "    return libVibeHandles_gv_histogram_used[id];",
@@ -967,7 +1231,9 @@ bool libVibeKernel_gt_Watchdog_Func(bool testConds, bool runActions) {
             libVibeKernel_gv_pollLoopRunning = false;
             libVibeKernel_gf_WriteBankInt("index", "kernel_restart_count", libVibeKernel_gv_watchdogRestarts);
             if (libVibeKernel_gt_PollLoop != null) {
-                TriggerExecute(libVibeKernel_gt_PollLoop, false, true);
+                // 必须异步：同步调用会让 watchdog 自身被 PollLoop 的 while(true) 永久吞掉，
+                // 重启一次之后 watchdog 就再也不工作了（自废）。
+                TriggerExecute(libVibeKernel_gt_PollLoop, false, false);
             }
         }
     }
@@ -1003,6 +1269,43 @@ KERNEL001_HEADER_DECLS = "\n".join([
 ])
 
 
+# 注册完成标记之前的锚点。内核在真机修复轮次里被改写过一次，两种写法都要认：
+# 新（当前内核）在前，旧（Stage 26 原始）在后。
+REGISTER_DONE_ANCHORS = (
+    "    // \u6ce8\u518c\u5b8c\u6210\u6807\u8bb0\u5fc5\u987b\u5199\u5728 PollLoop "
+    "\u6d3e\u53d1\u4e4b\u524d\uff08PollLoop \u8fdb\u5165\u540e\u4e0d\u518d\u8fd4\u56de\uff09\u3002",
+    "    // \u5199\u5165\u6ce8\u518c\u5b8c\u6210\u6807\u8bb0\uff08\u4f9b Host \u7aef\u9a8c\u8bc1\u89e6\u53d1\u5668\u5df2\u6ce8\u518c\uff09",
+)
+
+
+def _consume_first_invariant_holds(text: str) -> bool:
+    """True iff, at every ``Dispatch(requestJson)`` call site, the
+    ``lastPolledRequestId`` assignment immediately precedes it (ignoring any
+    comment / blank lines in between). That ordering *is* the VIBE-KERNEL-001
+    consume-before-dispatch invariant.
+
+    Checking the ordering instead of the exact anchor string makes the
+    generator tolerant of hand-merges that re-indent or reword the marker
+    comment at the PollLoop site. The PollLoop site uses 8-space indentation
+    while this generator's ``KERNEL001_CONSUME_FIRST`` anchors assumed 16, so
+    the exact-string match previously returned count==0 and aborted the whole
+    Stage 26 regen. With this check the already-merged kernel is recognised as
+    fixed and the loop is skipped.
+    """
+    lines = text.splitlines()
+    for i, ln in enumerate(lines):
+        if "libVibeKernel_gf_Dispatch(requestJson)" not in ln:
+            continue
+        j = i - 1
+        while j >= 0 and (lines[j].strip().startswith("//") or lines[j].strip() == ""):
+            j -= 1
+        if j < 0:
+            return False
+        if "libVibeKernel_gv_lastPolledRequestId = pendingId" not in lines[j]:
+            return False
+    return True
+
+
 def apply_kernel001(text: str) -> str:
     """Apply the three VIBE-KERNEL-001 fixes to the kernel source (idempotent)."""
     text = strip_marker_block(text, "KERNEL001_PESSIMISTIC")
@@ -1014,21 +1317,42 @@ def apply_kernel001(text: str) -> str:
         '    // 3. \u767d\u540d\u5355\u5206\u53d1\n    if (operation == "system.ping") {',
         marker_block("KERNEL001_PESSIMISTIC", KERNEL001_PESSIMISTIC.rstrip("\n")),
     )
-    text = insert_before_anchor(
-        text,
-        "    // \u5199\u5165\u6ce8\u518c\u5b8c\u6210\u6807\u8bb0\uff08\u4f9b Host \u7aef\u9a8c\u8bc1\u89e6\u53d1\u5668\u5df2\u6ce8\u518c\uff09",
-        marker_block("KERNEL001_WATCHDOG_REGISTER", KERNEL001_WATCHDOG_REGISTER.rstrip("\n")),
-    )
-
-    for source, patched in KERNEL001_CONSUME_FIRST:
-        if patched in text:
-            continue
-        if text.count(source) != 1:
+    # watchdog 注册块可能已被真机修复轮次**手工合并**进内核源：那边的 marker 名是
+    # `VIBE_KERNEL_001_WATCHDOG_REGISTER`，与本生成器的 `STAGE26_FULL_INVOKE
+    # KERNEL001_*` 不同名，上面的 strip_marker_block 剥不掉；同时锚点注释也被改写过。
+    # 已合并时**绝不能重复注入**——重复的 TriggerCreate/TriggerExecute 与函数重定义
+    # 一样会让 SC2 静默丢弃整个 MapScript（无 ScriptError、InitMap 不执行）。
+    # 判据用运行时可观测的 bank key，比 marker 名更稳（marker 会改名，key 不会）。
+    if "register_entrypoints_watchdog_done" not in text:
+        anchor = next((a for a in REGISTER_DONE_ANCHORS if a in text), None)
+        if anchor is None:
             raise RuntimeError(
-                "VIBE-KERNEL-001 consume-before-dispatch anchor is ambiguous or missing: "
-                f"{source.strip()[:60]!r} (count={text.count(source)})"
+                "Stage 26: register-done anchor not found and watchdog block not "
+                "already merged — kernel drifted beyond both known anchors. "
+                f"tried={[a.strip()[:40] for a in REGISTER_DONE_ANCHORS]!r}"
             )
-        text = text.replace(source, patched)
+        text = insert_before_anchor(
+            text,
+            anchor,
+            marker_block("KERNEL001_WATCHDOG_REGISTER", KERNEL001_WATCHDOG_REGISTER.rstrip("\n")),
+        )
+
+    # VIBE-KERNEL-001 (consume-before-dispatch). The kernel may already carry
+    # this fix hand-merged with different indentation / comments than our anchors
+    # (the PollLoop site uses 8-space indent while the anchors assumed 16). Match
+    # the *invariant* (consume assignment immediately precedes Dispatch) and skip
+    # when it holds; otherwise fall back to the exact anchor replacement for a
+    # pristine kernel.
+    if not _consume_first_invariant_holds(text):
+        for source, patched in KERNEL001_CONSUME_FIRST:
+            if patched in text:
+                continue
+            if text.count(source) != 1:
+                raise RuntimeError(
+                    "VIBE-KERNEL-001 consume-before-dispatch anchor is ambiguous or missing: "
+                    f"{source.strip()[:60]!r} (count={text.count(source)})"
+                )
+            text = text.replace(source, patched)
 
     return text.rstrip("\n") + "\n\n" + marker_block("KERNEL001_WATCHDOG", KERNEL001_WATCHDOG_FUNC.rstrip("\n"))
 
