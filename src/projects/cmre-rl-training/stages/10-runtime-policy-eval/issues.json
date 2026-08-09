@@ -66,7 +66,23 @@
         "artifacts/stage-10-runtime-policy-eval/current-map-victory-headless-6001/launcher.log",
         "artifacts/stage-10-runtime-policy-eval/current-map-victory-headless-6001/live-rl-report.json"
       ]
+    },
+    {
+      "id": "EVAL-006",
+      "severity": "medium",
+      "title": "Entropy floor did not create anti-collapse gradient",
+      "description": "The Stage 10 PPO WIP exposed ent_floor as an exploration control, but its loss expression cancelled the entropy gradient below the floor. Low-entropy policies therefore received no actual push back toward exploration.",
+      "impact": "Offline training could still collapse to a narrow action mode even when the user requested an entropy floor.",
+      "status": "resolved",
+      "nextAction": "Keep the entropy-loss gradient tests and report/checkpoint metadata coverage in place before running longer simulator or live policy evaluations.",
+      "evidence": [
+        "cmre_rl_training/ppo.py",
+        "tests/test_ppo.py",
+        "cmre_rl_training/training_cli.py",
+        "tests/test_training_cli.py",
+        "artifacts/stage-10-runtime-policy-eval/entropy-floor-smoke-20260809/training-report.json"
+      ]
     }
   ],
-  "total": 5
+  "total": 6
 }

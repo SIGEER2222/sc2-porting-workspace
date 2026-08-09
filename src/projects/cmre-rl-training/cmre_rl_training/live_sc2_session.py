@@ -652,6 +652,8 @@ class LiveRawSc2Session:
             _raise_response_error(create_response, "CreateGame")
             self.runtime_stats["create_game"] = True
 
+        # tier100 参照实现：create_game 后等 init_game 完成再 join，避免 ws 竞态。
+        time.sleep(3.0)
         join = self._sc_pb.Request(
             join_game=self._sc_pb.RequestJoinGame(
                 race=RACE_TERRAN,
@@ -676,6 +678,12 @@ class LiveRawSc2Session:
                 break
             except LiveSc2Error as exc:
                 last_join_error = exc
+                # create_game 带 participant 时 SC2 可能已自动把 host 加入对局，
+                # 再发 join_game 会报 "Already in a game" —— 视为已成功加入。
+                if "already in a game" in str(exc).lower():
+                    self._joined = True
+                    self.runtime_stats["join_game"] = True
+                    return self.observe()
                 time.sleep(min(0.5, max(0.0, join_deadline - time.monotonic())))
         else:
             raise LiveSc2Error(f"JoinGame_timeout:{last_join_error}") from last_join_error

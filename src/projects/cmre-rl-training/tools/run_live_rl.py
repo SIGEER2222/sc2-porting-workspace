@@ -120,9 +120,13 @@ def launch_approved_launcher(args: argparse.Namespace, output_dir: Path) -> tupl
         args.commander,
         "-ListenPort",
         str(args.port),
-        "-DirectMapApi",
-        # DirectMapApi makes SC2Switcher load the staged map with -e first;
-        # the API client attaches with JoinGame instead of booting the menu.
+        # Plain API mode (no -DirectMapApi): the launcher brings SC2 to the main
+        # menu, and LiveRawSc2Session.reset() loads the *packed* RL map via
+        # CreateGame(local_map=map_data). This guarantees the runtime map equals
+        # the policy's packed map (N5b map-path mismatch fix): previously
+        # -DirectMapApi made SC2Switcher load the *source* 亡者之夜.SC2Map while
+        # the session held the packed map with join_existing=True, so the runtime
+        # map never matched the policy -> CreateGame ScriptError / silent mismatch.
         "-KeepAlive",
     ]
     stdout = launcher_log.open("wb")
@@ -268,8 +272,8 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
             "variant": str(args.variant),
         },
         "launcher_started": False,
-        "direct_map_api": True,
-        "map_entry": "direct_map_api",
+        "direct_map_api": False,
+        "map_entry": "create_game",
         "api_ready": False,
         "create_game": False,
         "join_game": False,
@@ -307,7 +311,9 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
             port=args.port,
             protocol_root=resolve_repo_path(args.protocol_root),
             progress_loop_limit=max(args.max_steps * args.step_mul, 1),
-            join_existing=True,
+            # create_game loads the *packed* map bytes passed via map_path, so the
+            # runtime map always matches the policy's packed map (N5b fix).
+            join_existing=False,
         )
         backend = RawSc2Backend(session, map_name=args.map_name, player_id=1, step_mul=args.step_mul)
         base_env = CmreRLEnv(backend, normalize_reward=False)

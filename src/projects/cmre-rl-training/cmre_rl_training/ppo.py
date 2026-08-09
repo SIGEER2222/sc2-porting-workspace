@@ -98,6 +98,7 @@ class RolloutBuffer:
         gamma: float = 0.99,
         lam: float = 0.95,
         normalize: bool = True,
+        normalize_returns: bool = True,
         last_value: float = 0.0,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Compute GAE-λ advantages and discounted returns.
@@ -110,7 +111,18 @@ class RolloutBuffer:
             GAE lambda (0 = TD, 1 = Monte-Carlo).
         normalize
             If ``True`` (default), returns advantages with zero mean and
-            unit variance. Returns are NOT normalized.
+            unit variance.
+        normalize_returns
+            If ``True`` (default), the value targets (returns) are whitened to
+            zero mean / unit variance before the value loss. This keeps the
+            critic stable when per-step rewards are large (the action-driven
+            reward can reach ~14/step * hundreds of steps => returns in the
+            thousands), which otherwise makes ``value_loss`` explode to ~1e5-1e6
+            and destroys the critic signal. Advantages stay on the GAE scale and
+            are controlled separately by ``normalize`` above.
+            This is the return-normalization that was previously removed during
+            the constant-reward regression; it is safe again now that the reward
+            is non-constant.
         last_value
             Bootstrap value V(s_T) for the truncated final step. Defaults to
             0.0, which is correct when the last step is terminal.
@@ -137,6 +149,12 @@ class RolloutBuffer:
             last_gae = delta + gamma * lam * (1.0 - dones[t]) * last_gae
             advantages[t] = last_gae
         returns = advantages + values
+
+        if normalize_returns and n > 1:
+            ret_mean = float(returns.mean())
+            ret_std = float(returns.std())
+            if ret_std > 1e-8:
+                returns = (returns - ret_mean) / ret_std
 
         if normalize and n > 1:
             adv_mean = float(advantages.mean())
@@ -193,6 +211,8 @@ class PPOTrainer:
         vf_coef: float = 0.5,
         max_grad_norm: float = 0.5,
         normalize_advantages: bool = True,
+        normalize_returns: bool = True,
+        ent_floor: float = 0.0,
     ) -> None:
         self.policy = policy
         self.lr = float(lr)
@@ -205,6 +225,13 @@ class PPOTrainer:
         self.vf_coef = float(vf_coef)
         self.max_grad_norm = float(max_grad_norm)
         self.normalize_advantages = bool(normalize_advantages)
+        self.normalize_returns = bool(normalize_returns)
+        # Entropy floor: when > 0, an extra penalty pushes the policy to keep
+        # per-decision entropy at or above ``ent_floor``. This prevents the
+        # premature mode collapse seen under a small fixed ``ent_coef`` (PPO
+        # locked a suboptimal non-producing action at entropy ~ 0.002 while a
+        # random baseline that keeps exploring produced a far larger army).
+        self.ent_floor = float(ent_floor)
         self._optimizer = torch.optim.Adam(policy.parameters(), lr=self.lr)
 
     def train(self, buffer: RolloutBuffer) -> dict[str, float]:
@@ -221,6 +248,7 @@ class PPOTrainer:
             gamma=self.gamma,
             lam=self.lam,
             normalize=self.normalize_advantages,
+            normalize_returns=self.normalize_returns,
         )
         try:
             policy_device = next(self.policy.parameters()).device
@@ -273,7 +301,7 @@ class PPOTrainer:
                 total_loss = (
                     policy_loss
                     + self.vf_coef * value_loss
-                    - self.ent_coef * entropy
+                    + self._entropy_loss(entropy)
                 )
 
                 self._optimizer.zero_grad()
@@ -290,6 +318,17 @@ class PPOTrainer:
                     "entropy": float(entropy.item()),
                 }
         return last_metrics
+
+    def _entropy_loss(self, entropy: "Tensor") -> "Tensor":
+        """Return the differentiable entropy contribution to the PPO loss."""
+
+        loss = -self.ent_coef * entropy
+        if self.ent_floor > 0.0:
+            floor = torch.as_tensor(
+                self.ent_floor, dtype=entropy.dtype, device=entropy.device
+            )
+            loss = loss + self.ent_coef * torch.relu(floor - entropy)
+        return loss
 
 
 __all__ = ["RolloutBuffer", "PPOTrainer"]

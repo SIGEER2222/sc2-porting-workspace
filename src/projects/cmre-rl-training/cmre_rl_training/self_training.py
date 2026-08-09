@@ -42,6 +42,8 @@ class MultiMapTrainingConfig:
     learning_rate: float = 3e-4
     ppo_epochs: int = 4
     batch_size: int = 64
+    ent_coef: float = 0.01
+    ent_floor: float = 0.0
     device: str = "cpu"
     deterministic_rollout: bool = False
     checkpoint_path: str | Path | None = None
@@ -120,6 +122,8 @@ class MultiMapSelfTrainer:
             lr=self.config.learning_rate,
             epochs=self.config.ppo_epochs,
             batch_size=self.config.batch_size,
+            ent_coef=self.config.ent_coef,
+            ent_floor=self.config.ent_floor,
         )
         map_metrics: dict[str, dict[str, Any]] = {
             name: {
@@ -192,6 +196,8 @@ class MultiMapSelfTrainer:
                     "context_schema_hash": report["context_schema_hash"],
                     "map_order": list(self.map_names),
                     "total_steps": total_steps,
+                    "ent_coef": self.config.ent_coef,
+                    "ent_floor": self.config.ent_floor,
                 },
             )
             report["checkpoint_path"] = str(checkpoint)

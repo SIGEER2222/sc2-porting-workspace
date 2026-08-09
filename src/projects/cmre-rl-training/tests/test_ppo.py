@@ -63,7 +63,9 @@ class RolloutBufferGAETests(unittest.TestCase):
             done=True,
             mask=np.ones(NUM_ACTIONS, dtype=bool),
         )
-        advantages, returns = buf.compute_gae(gamma=1.0, lam=1.0, normalize=False)
+        advantages, returns = buf.compute_gae(
+            gamma=1.0, lam=1.0, normalize=False, normalize_returns=False
+        )
         self.assertEqual(advantages.shape, (5,))
         self.assertEqual(returns.shape, (5,))
         # A_0 = 5, A_1 = 4, ..., A_4 = 1
@@ -86,7 +88,9 @@ class RolloutBufferGAETests(unittest.TestCase):
                 done=(i == 2),
                 mask=np.ones(NUM_ACTIONS, dtype=bool),
             )
-        advantages, returns = buf.compute_gae(gamma=0.99, lam=0.0, normalize=False)
+        advantages, returns = buf.compute_gae(
+            gamma=0.99, lam=0.0, normalize=False, normalize_returns=False
+        )
         # A_2 = r_2 - V_2 = 3 - 2 = 1
         # A_1 = r_1 + 0.99 * V_2 - V_1 = 2 + 0.99*2 - 1 = 2.98
         # A_0 = r_0 + 0.99 * V_1 - V_0 = 1 + 0.99*1 - 0.5 = 1.49
@@ -275,6 +279,30 @@ class PPOTrainerConvergenceTests(unittest.TestCase):
         self.assertGreaterEqual(total_steps, 100)
         # All losses must be finite
         self.assertTrue(all(np.isfinite(loss_history)))
+
+    def test_entropy_floor_adds_gradient_below_floor(self) -> None:
+        from cmre_rl_training.ppo import PPOTrainer
+
+        policy = torch.nn.Linear(1, NUM_ACTIONS)
+        trainer = PPOTrainer(policy, ent_coef=0.1, ent_floor=0.5)
+        entropy = torch.tensor(0.1, dtype=torch.float32, requires_grad=True)
+
+        loss = trainer._entropy_loss(entropy)
+        loss.backward()
+
+        self.assertLess(float(entropy.grad.item()), 0.0)
+
+    def test_entropy_floor_keeps_standard_bonus_above_floor(self) -> None:
+        from cmre_rl_training.ppo import PPOTrainer
+
+        policy = torch.nn.Linear(1, NUM_ACTIONS)
+        trainer = PPOTrainer(policy, ent_coef=0.1, ent_floor=0.5)
+        entropy = torch.tensor(0.8, dtype=torch.float32, requires_grad=True)
+
+        loss = trainer._entropy_loss(entropy)
+        loss.backward()
+
+        self.assertAlmostEqual(float(entropy.grad.item()), -0.1, places=6)
 
     def test_ppo_learns_to_prefer_action_a_over_b(self) -> None:
         from cmre_rl_training.network import P2AllyAC

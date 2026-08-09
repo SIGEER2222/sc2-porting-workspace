@@ -42,6 +42,21 @@ _VICTORY_REASONS = frozenset({
 # All weights below are ACTION-DEPENDENT: they respond to production (supply /
 # worker / army deltas), combat (enemy damage / kills / threat), base defense,
 # or terminal outcome. None of them is a function of elapsed time.
+#
+# N5 experiment (2026-08-09), RESULT = reward lever EXHAUSTED offline:
+# A hard-scenario verdict (dead-of-night-hard, start_minerals=150, 5Z2H@dist7,
+# 40 iters, ent_floor 0.5) was run with W_ENEMY_KILLED raised 1.0->1.5 and
+# W_ENEMY_HP_DELTA 0.02->0.05 to make *engaging+killing* dominate the gradient
+# (a constant W_WORKER_PRESENCE term was tried first but REJECTED by
+# test_reward.py's time-driven regression guards). Outcome: trained-stochastic
+# army 1.9 / raw 7529 vs random army 2.5 / raw 8964 -> STILL below random;
+# trained-greedy collapsed to army 0.0 (argmax locks a degenerate action).
+# Conclusion: the offline simulator's fidelity (passive mining does NOT
+# accumulate, terminal victory/defeat credit is dead because end_reason is
+# always '') is the hard ceiling, NOT the reward shape. The kill-weight raise
+# was reverted to baseline below (it did not help and slightly hurt). REMAINING
+# path = N5b live sim2real (stage08-10 real MissionEngine issues win/lose
+# terminals). These weights stay at the verified-stable baseline.
 W_BASE_HP_DELTA = 0.004      # defend the base: reward recovered/kept HP
 W_SUPPLY_DELTA = 0.10        # economy: bigger army cap / more units produced
 W_ARMY_DELTA = 0.50          # actually training a combat unit (clear build signal)

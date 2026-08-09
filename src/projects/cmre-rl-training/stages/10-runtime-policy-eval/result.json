@@ -74,16 +74,34 @@
         "artifacts/stage-10-runtime-policy-eval/direct-map-entry-retry-6004/live-rl-report.json",
         "artifacts/stage-10-runtime-policy-eval/direct-map-entry-retry-6004/launcher.err.log"
       ]
+    },
+    {
+      "type": "simulator",
+      "claim": "PPO exploration stabilization now applies ent_floor as a differentiable low-entropy penalty; a 96-step dead-of-night simulator smoke run with ent_coef=0.05 and ent_floor=0.5 completed with finite losses, stable entropy, and reproducible report/checkpoint metadata.",
+      "evidence": [
+        "cmre_rl_training/ppo.py",
+        "cmre_rl_training/self_training.py",
+        "cmre_rl_training/training_cli.py",
+        "tests/test_ppo.py",
+        "tests/test_training_cli.py",
+        "artifacts/stage-10-runtime-policy-eval/entropy-floor-smoke-20260809/training-report.json",
+        "artifacts/stage-10-runtime-policy-eval/entropy-floor-smoke-20260809/map-aware-policy.pt"
+      ]
     }
   ],
   "outputs": [
     "tools/evaluate_live_policy.py",
     "cmre_rl_training/live_sc2_session.py",
+    "cmre_rl_training/ppo.py",
     "cmre_rl_training/rollout.py",
+    "cmre_rl_training/self_training.py",
+    "cmre_rl_training/training_cli.py",
     "tools/run_live_rl.py",
     "tests/test_live_policy_eval.py",
     "tests/test_live_sc2_session.py",
+    "tests/test_ppo.py",
     "tests/test_rollout.py",
+    "tests/test_training_cli.py",
     "README.md",
     "stages/10-runtime-policy-eval/plan.md",
     "stages/10-runtime-policy-eval/log.md",
@@ -155,6 +173,21 @@
       "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py ... --port 6004 --max-steps 64 --step-mul 8 --stop-on-terminal --save-replay --variant direct-map-entry-retry-6004",
       "exitCode": 1,
       "summary": "truthful blocked result: approved launcher rejected external owner_pid=44508 before API readiness"
+    },
+    {
+      "command": "PYTHONPATH=src/projects/cmre-rl-training;src/projects/cmre-neuro-adapter;src/projects/cmre-porting python -m unittest src.projects.cmre-rl-training.tests.test_ppo src.projects.cmre-rl-training.tests.test_training_cli src.projects.cmre-rl-training.tests.test_self_training -v",
+      "exitCode": 0,
+      "summary": "15 focused PPO/training tests passed, including entropy-floor gradient and report-parameter regressions"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/train_multi_map.py --backend simulator --maps dead-of-night --iterations 3 --rollout-steps 32 --max-episode-steps 64 --ppo-epochs 2 --batch-size 16 --ent-coef 0.05 --ent-floor 0.5 --step-loops 16 --output-dir src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/entropy-floor-smoke-20260809",
+      "exitCode": 0,
+      "summary": "simulator smoke passed: 96 steps, finite PPO losses, entropy 2.37-2.43, report/checkpoint include ent_coef=0.05 and ent_floor=0.5"
+    },
+    {
+      "command": "PYTHONPATH=src/projects/cmre-rl-training;src/projects/cmre-neuro-adapter;src/projects/cmre-porting python -m unittest discover -s src/projects/cmre-rl-training/tests -v",
+      "exitCode": 0,
+      "summary": "176 tests passed with 14 expected BC-checkpoint skips"
     }
   ],
   "nextStage": null

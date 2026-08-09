@@ -130,3 +130,28 @@ The direct-entry implementation and attach contract are in place, but current
 runtime evidence is blocked by an external SC2 process. The previous
 ApiMinimal/CreateGame runs remain historical bridge evidence only; they do not
 validate the new DirectMapApi path. No mission victory or win rate is claimed.
+
+## G8: PPO Exploration Stabilization
+
+- **Static implementation**: `PPOTrainer` now applies `ent_floor` as a true
+  differentiable entropy penalty. The previous form cancelled the entropy
+  gradient below the floor, so it recorded an anti-collapse parameter without
+  actually pushing low-entropy policies back toward exploration. The GAE docs
+  were also corrected to distinguish normalized value targets from advantage
+  normalization.
+- **Reproducibility**: `train_multi_map.py` reports `ent_coef` and `ent_floor`
+  in `training-report.json`, and the checkpoint training metadata records the
+  same values. This makes simulator smoke runs reproducible from their report
+  and checkpoint alone.
+- **Focused validation**: PPO/training/self-training focused tests passed with
+  15 tests, including new regression coverage for below-floor entropy gradient,
+  above-floor standard entropy bonus behavior, and CLI report propagation of
+  the exploration parameters.
+- **Simulator evidence**: command
+  `python src/projects/cmre-rl-training/tools/train_multi_map.py --backend simulator --maps dead-of-night --iterations 3 --rollout-steps 32 --max-episode-steps 64 --ppo-epochs 2 --batch-size 16 --ent-coef 0.05 --ent-floor 0.5 --step-loops 16 --output-dir src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/entropy-floor-smoke-20260809`
+  completed 96 simulator steps and emitted a passed report plus checkpoint.
+  PPO losses were finite and entropy stayed in the 2.37-2.43 range.
+- **Full validation**: `PYTHONPATH=src/projects/cmre-rl-training;src/projects/cmre-neuro-adapter;src/projects/cmre-porting python -m unittest discover -s src/projects/cmre-rl-training/tests -v`
+  passed 176 tests with 14 expected BC-checkpoint skips.
+- **Boundary**: this is offline/simulator training evidence only. No live
+  `player_result`, mission victory, or win rate is claimed from this pass.

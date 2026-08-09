@@ -28,12 +28,16 @@ class TrainingCliTests(unittest.TestCase):
                 "--hidden-dim", "8",
                 "--ppo-epochs", "1",
                 "--batch-size", "2",
+                "--ent-coef", "0.05",
+                "--ent-floor", "0.5",
                 "--output-dir", str(output),
             ])
             self.assertEqual(status, 0)
             report = json.loads((output / "training-report.json").read_text(encoding="utf-8"))
             self.assertEqual(report["status"], "passed")
             self.assertEqual(report["total_steps"], 4)
+            self.assertEqual(report["config"]["ent_coef"], 0.05)
+            self.assertEqual(report["config"]["ent_floor"], 0.5)
             self.assertTrue((output / "map-aware-policy.pt").exists())
 
     def test_simulator_backend_runs_actual_session_path(self) -> None:

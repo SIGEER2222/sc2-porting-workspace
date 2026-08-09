@@ -270,6 +270,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ppo-epochs", type=int, default=4)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
+    parser.add_argument(
+        "--ent-coef",
+        type=float,
+        default=0.01,
+        help="Entropy bonus weight. Raise (e.g. 0.05) to keep exploration "
+             "alive and avoid premature mode collapse onto a suboptimal action.",
+    )
+    parser.add_argument(
+        "--ent-floor",
+        type=float,
+        default=0.0,
+        help="Minimum per-decision entropy the policy is pushed to keep "
+             "(anti-collapse pressure). 0 disables; ~0.5 prevents locking a "
+             "single action before army-building is discovered.",
+    )
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--device", default="auto", help="cpu, cuda, or auto")
     parser.add_argument(
@@ -382,6 +397,8 @@ def run_training(args: argparse.Namespace) -> dict[str, Any]:
         learning_rate=args.learning_rate,
         ppo_epochs=args.ppo_epochs,
         batch_size=args.batch_size,
+        ent_coef=getattr(args, "ent_coef", 0.01),
+        ent_floor=getattr(args, "ent_floor", 0.0),
         device=device,
         checkpoint_path=checkpoint_path,
         bc_checkpoint_path=(
@@ -407,6 +424,8 @@ def run_training(args: argparse.Namespace) -> dict[str, Any]:
             "ppo_epochs": args.ppo_epochs,
             "batch_size": args.batch_size,
             "learning_rate": args.learning_rate,
+            "ent_coef": getattr(args, "ent_coef", 0.01),
+            "ent_floor": getattr(args, "ent_floor", 0.0),
             "seed": args.seed,
             "resumed_from": str(resolve_repo_path(args.resume).resolve()) if args.resume else None,
             "bc_checkpoint": str(resolve_repo_path(args.bc_checkpoint).resolve()) if args.bc_checkpoint else None,
