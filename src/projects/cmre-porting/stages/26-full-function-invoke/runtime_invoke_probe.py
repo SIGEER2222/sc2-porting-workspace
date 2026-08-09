@@ -141,7 +141,11 @@ def open_host(map_path: str | None):
     """
     from host.vibe_host import VibeHost  # noqa: E402
 
-    host = VibeHost()
+    # fresh-bank：与 tier100 真机探针一致的铁律——create_game 前归档旧 Bank，
+    # 消除 kernel_initialized 跨加载残留假阳性 + 清空 stale request/pending，
+    # 避免 VIBE_GEN_007 有损通道覆盖本次请求（2026-08-09 实测：不加则
+    # system.ping 在 realtime 下被内核 BankSave 覆盖 pending_request_id，全量超时）。
+    host = VibeHost(fresh_bank=True)
     host.start_session()
     if map_path:
         if not host.connect_sc2(map_path=map_path):
@@ -264,6 +268,11 @@ def main() -> None:
             path = write_evidence(f"readonly-census{suffix}.json", outcome)
             exit_code |= _report("readonly census", path, outcome)
     finally:
+        # 善后：退出当前对局回到主菜单，避免留孤儿 in-game 态（与 tier100_live_probe 一致的铁律）
+        try:
+            host.leave_game()
+        except Exception as exc:  # noqa: BLE001
+            print(f"[probe] leave_game 异常（忽略）: {exc}", file=sys.stderr)
         host.close()
     if exit_code:
         raise SystemExit(exit_code)

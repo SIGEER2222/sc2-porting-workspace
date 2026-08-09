@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-09T14:52:02Z",
+  "evidenceType": "mixed",
+  "stage": "26-full-function-invoke",
+  "tier": 100,
+  "launcher": {
+    "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -Commander 'TerranAlenger3' -ListenPort 5010 -InvokeTier 100 -MapCopySuffix 'stage26-tier100-20260809'",
+    "exitCode": 0,
+    "stagedPath": "E:\\SC2\\SC2new\\StarCraft II\\Maps\\stage26-tier100-20260809\\亡者之夜.SC2Map",
+    "apiReady": {
+      "observed": true,
+      "address": "127.0.0.1",
+      "port": 5010,
+      "sc2PidAtReady": 2724
+    },
+    "scriptErrorGate": {
+      "status": "PASS",
+      "newNonEmptyScriptErrors": 0
+    },
+    "doctor": {
+      "status": "warning-only",
+      "generatedClosureRepairs": {
+        "LibVibeInvoke_01.galaxy": 10,
+        "LibVibeInvokeCommon.galaxy_funcref_entries_removed": 135
+      },
+      "remainingDiagnostics": "CMRE/official external dependency diagnostics not visible to map-only doctor"
+    }
+  },
+  "tierContent": {
+    "generatedFiles": [
+      "LibVibeInvoke_01.galaxy",
+      "LibVibeInvoke_01_h.galaxy",
+      "LibVibeInvokeCommon.galaxy",
+      "LibVibeInvokeDispatch.galaxy",
+      "LibVibeInvokeDispatch_h.galaxy",
+      "LibVibeHandles.galaxy"
+    ],
+    "tierFilesMounted": 5
+  },
+  "package": {
+    "path": "C:\\tmp\\CMREStage26-Tier100-20260809.SC2Map",
+    "bytes": 3401650,
+    "sha256": "E5196594DF6A6CC9289FD67221001B6C330ABAF613D68D06D869FCBD0A91598C",
+    "stormlibRoundTrip": {
+      "status": "PASS",
+      "filesExtracted": 86,
+      "filesExpected": 86
+    },
+    "mpyqVerify": {
+      "status": "BLOCKED",
+      "detail": "verify_mpq.py reports Encryption is not supported yet; StormLib extraction is the authoritative round-trip check."
+    }
+  },
+  "liveProbe": {
+    "command": "python tools/galaxy-vibe/tier100_live_probe.py --port 5010 --map C:\\tmp\\CMREStage26-Tier100-20260809.SC2Map --fresh-bank --runs 1 --tag stage26-tier100-20260809",
+    "status": "BLOCKED",
+    "connection": "ws_connect refused because port 5010 was no longer listening before the probe",
+    "verdictPath": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/tier100-live-verdict-stage26-tier100-20260809.json"
+  },
+  "claim": "Tier100 staging and package integrity are evidenced; approved-launcher live execution remains unverified because the launcher/API window exited before probe connection."
+}

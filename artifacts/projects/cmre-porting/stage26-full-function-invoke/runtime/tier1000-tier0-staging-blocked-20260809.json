@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-09T15:58:00Z",
+  "evidenceType": "runtime",
+  "stage": "26-full-function-invoke",
+  "attempts": [
+    {
+      "tier": 1000,
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -Commander 'TerranAlenger3' -NoLaunch -InvokeTier 1000 -MapCopySuffix 'stage26-tier1000-20260809'",
+      "exitCode": 1,
+      "status": "BLOCKED"
+    },
+    {
+      "tier": 0,
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -Commander 'TerranAlenger3' -NoLaunch -InvokeTier 0 -MapCopySuffix 'stage26-tier0-20260809'",
+      "exitCode": 1,
+      "status": "BLOCKED"
+    }
+  ],
+  "failure": {
+    "kind": "external_file_lock",
+    "path": "E:\\SC2\\SC2new\\StarCraft II\\Mods\\CM_ArtPack\\CM_ArtPack_Base.SC2Mod",
+    "detail": "The process cannot access the file because it is being used by another process",
+    "launcherPhase": "dependency sync before staged map creation"
+  },
+  "externalSession": {
+    "port": 5000,
+    "note": "An unrelated direct SC2_x64 API session repeatedly restarted on port 5000; it was not connected, reused, or terminated."
+  },
+  "claim": "Tier1000 and tier0 cannot be staged or packaged until the external SC2 file lock is released; no runtime verdict is claimed."
+}

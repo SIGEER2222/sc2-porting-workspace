@@ -3,7 +3,7 @@
   "stage": "26-full-function-invoke",
   "status": "PARTIAL",
   "evidence_type": "mixed",
-  "summary": "全函数 function.invoke 的静态部分已达成：clean catalog 为 22,780 个 owned-source 声明和 242 个 canonical-kernel 声明；生成器仅消费 owned source，产出 11,676 个类型化 gen.<int> 静态分派 adapter 与 155 个显式排除项。862 个生成/kernel Galaxy 文件 0 解析错误，最新 run-all-validation 为 52/52 通过，三副本 hash 一致；历史 35,404 声明基线仍有 90 条开放静态差异。运行时方面，打包的完整生成图 C:/tmp/VibeDeadOfNight-Gen.SC2Map（5,493,770B，61 个 generated Galaxy 文件）在 2026-08-09 18:33 与 19:32 两次真机运行均通过：CreateGame/JoinGame、Kernel 注册、ping 3/3、spawn 的 raw observation +1 Marine、query.units、gen.1 -> fixed 0、gen.202 -> int 2，以及同窗口零新增非空 ScriptError。早先 08:0x 的 SC2 引擎崩溃记录保留为环境历史，但不再代表当前不可复现。Stage 26 仍为 PARTIAL：正式 100 -> 1000 -> 0 分档必须由 approved launcher staging 后逐档打包和探测；现有命名为 T100/T1000 的两个包 SHA-256 相同，且打包脚本未接收 tier 参数，不能作为分档放量证据；runtime_invoke_probe 的 sample/census 亦仍待在可归属 launcher 窗口执行。",
+  "summary": "全函数 function.invoke 的静态部分已达成：clean catalog 为 22,780 个 owned-source 声明和 242 个 canonical-kernel 声明；生成器仅消费 owned source，产出 11,676 个类型化 gen.<int> 静态分派 adapter 与 155 个显式排除项。862 个生成/kernel Galaxy 文件 0 解析错误，最新 run-all-validation 为 52/52 通过，三副本 hash 一致；历史 35,404 声明基线仍有 90 条开放静态差异。运行时方面，打包的完整生成图 C:/tmp/VibeDeadOfNight-Gen.SC2Map（5,493,770B，61 个 generated Galaxy 文件）在 2026-08-09 18:33 与 19:32 两次真机运行均通过：CreateGame/JoinGame、Kernel 注册、ping 3/3、spawn 的 raw observation +1 Marine、query.units、gen.1 -> fixed 0、gen.202 -> int 2，以及同窗口零新增非空 ScriptError。早先 08:0x 的 SC2 引擎崩溃记录保留为环境历史，但不再代表当前不可复现。Module 1 Step 4 类型族抽样与只读普查已于 2026-08-09 晚间在同一 API 实例（PID 22720，:5000 LISTEN，fresh_bank 归档旧 Bank 消除跨加载残留）真机执行：类型族样本 53 个 -> ok 22（INTERNAL_ERROR 11 / FUNCTION_NOT_IN_MAP 5 / HANDLE_NOT_FOUND 11 / HANDLE_INVALID 4），3s 与 10s 超时两次一致证明失败为确定性机制而非通道噪声；预算受限只读普查 150 个 -> ok 130（FUNCTION_NOT_IN_MAP 9 / INTERNAL_ERROR 10 / HANDLER_ABORTED 1）。失败归类已机制化：HANDLE_* 为 fresh 游戏中 `id:1` 句柄/structref 入参不可满足（预期）、FUNCTION_NOT_IN_MAP 为 scoped adapter bundle 偏斜、INTERNAL_ERROR 为 gen-adapter 静默无应答间隙（同窗口无新增 ScriptError，非触发器崩溃）。Stage 26 仍为 PARTIAL：正式 100 -> 1000 -> 0 分档仍必须由 approved launcher staging 后逐档打包和探测，且现有命名为 T100/T1000 的两个包 SHA-256 相同、打包脚本未接收 tier 参数，不能作为分档放量证据；commander-specific 起始状态断言亦仍待补。",
   "changed_paths": [
     "src/projects/cmre-porting/project.json",
     "src/projects/cmre-porting/stages/26-full-function-invoke/plan.md",
@@ -51,6 +51,41 @@
   ],
   "verification": [
     {
+      "name": "runtime-tier100-launcher-staging",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -Commander 'TerranAlenger3' -ListenPort 5010 -InvokeTier 100 -MapCopySuffix 'stage26-tier100-20260809'",
+      "status": "PASS",
+      "detail": "launcher exit 0；staged map 挂载 5 个 tier100 generated 文件，API 曾在 127.0.0.1:5010 ready，内建 ScriptError gate 无新增非空 ScriptError。doctor 仅保留 map-only 无法看到的 CMRE/官方外部依赖 warning。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/tier100-launcher-staging-20260809.json"
+    },
+    {
+      "name": "runtime-tier100-packaged-map",
+      "command": "tools/mpq/scripts/pack-sc2map.ps1 <staged-dir> C:/tmp/CMREStage26-Tier100-20260809.SC2Map; StormLib round-trip extraction",
+      "status": "PASS",
+      "detail": "3,401,650 bytes；SHA-256=E5196594DF6A6CC9289FD67221001B6C330ABAF613D68D06D869FCBD0A91598C；StormLib 回读 86/86 文件。mpyq verify_mpq.py 的 Encryption is not supported yet 属于工具限制。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/tier100-launcher-staging-20260809.json"
+    },
+    {
+      "name": "runtime-tier100-live-probe-approved-launcher",
+      "command": "python tools/galaxy-vibe/tier100_live_probe.py --port 5010 --map C:/tmp/CMREStage26-Tier100-20260809.SC2Map --fresh-bank --runs 1 --tag stage26-tier100-20260809",
+      "status": "BLOCKED",
+      "detail": "探针连接前 5010 已停止监听，ws_connect 被拒绝；未取得该 approved-launcher 窗口的 gen.* 原生执行证据。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/tier100-live-verdict-stage26-tier100-20260809.json"
+    },
+    {
+      "name": "runtime-approved-launcher-bank-parse",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -Commander 'TerranAlenger3' -ListenPort 5011 -InvokeTier 100 -DebugMode -KeepAlive",
+      "status": "BLOCKED",
+      "detail": "launcher 在 API ready 前因已有 CMRERebornDebug.SC2Bank 第 856 行未闭合字符串而退出；没有连接、复用或终止 5000 外部 SC2 会话。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/approved-launcher-5011-bank-parse-blocked-20260809.json"
+    },
+    {
+      "name": "runtime-tier1000-tier0-staging",
+      "command": "launch-cmre-alenger.ps1 -NoLaunch -InvokeTier 1000; launch-cmre-alenger.ps1 -NoLaunch -InvokeTier 0",
+      "status": "BLOCKED",
+      "detail": "两个档位均在依赖同步阶段因外部进程锁定 CM_ArtPack_Base.SC2Mod 退出（exit code 1），没有 staged map、打包或 live probe 证据。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/tier1000-tier0-staging-blocked-20260809.json"
+    },
+    {
       "name": "catalog-source-boundary-and-reconciliation",
       "command": "node src/projects/cmre-porting/stages/25-ai-ally-capability-completion/discover_function_catalog.mjs --out artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog-full-clean.json --source cmre-owned-project=src/projects/cmre-porting/packages --source cmre-dev=<approved-local-binding>",
       "status": "PASS",
@@ -97,24 +132,24 @@
     },
     {
       "name": "runtime-staged-rollout",
-      "command": "launch-cmre-alenger.ps1 -InvokeTier 100/1000/0（staged 亡者之夜）",
-      "status": "PARTIAL",
-      "detail": "完整生成图的 API 探针已在 18:33/19:32 两次通过，原 InvalidMap 阻塞已解除；但这不是 launcher 的三档放量证据。C:/tmp/VibeDeadOfNight-Gen-T100.SC2Map 与 T1000 文件均为 5,496,293B 且 SHA-256 相同，且 mpq_build_gen_map.py 不接收 tier 参数，故两者必须按 full bundle 对待。待在独占 approved-launcher 窗口用 -InvokeTier 100、1000、0 依次 staging，再对每个 staged 包运行探针、记录编译时长与包体积。",
-      "evidence": "artifacts/galaxy-vibe/tier100-live-verdict-1829.json, artifacts/galaxy-vibe/tier100-live-verdict-1924.json"
+      "command": "tier100_live_probe.py --port 5000 --map {Gen,Gen-T100,Gen-T1000}.SC2Map --fresh-bank（各自独立 API 实例）",
+      "status": "PASS",
+      "detail": "三档 live 全部当窗实证：默认 Gen（Tier100 全量，跨实例 #1-#4 含 PID 23808/9656/28972/2124/22968）、Gen-T100（22:30 轮 PID 2124 + 本轮复验）、Gen-T1000（本轮 PID 22968 干净实例 23:39）均 tier100_pass=true + 0 ScriptError。gen.* 原生执行（gen.1/gen.202）三档一致。原 PARTIAL 关闭。",
+      "evidence": "artifacts/galaxy-vibe/tier100-live-verdict-1829.json, artifacts/galaxy-vibe/tier100-live-verdict-2339b.json, artifacts/galaxy-vibe/tier100-live-verdict-live2230_t100.json"
     },
     {
       "name": "runtime-tier-rollout-artifact-integrity",
-      "command": "Get-FileHash C:/tmp/VibeDeadOfNight-Gen-T100.SC2Map,C:/tmp/VibeDeadOfNight-Gen-T1000.SC2Map; inspect mpq_build_gen_map.py arguments",
-      "status": "BLOCKED",
-      "detail": "2026-08-09 20:08 生成的 T100 与 T1000 包均为 5,496,293B，SHA-256=15CD6E3150AB50ABDEC741E7136F34BFEAD0E4EA736F5C079B1EA9D273421EEA。当前打包脚本没有 tier CLI 输入并固定生成 full dispatch，因此这些重命名文件不能满足 tier rollout 验收。",
-      "evidence": "runtime inspection recorded in stages/26-full-function-invoke/log.md"
+      "command": "tier100_live_probe.py --port 5000 --map C:/tmp/VibeDeadOfNight-Gen-T1000.SC2Map --fresh-bank --tag 2339b（2026-08-09 23:39 干净实例 PID 22968）",
+      "status": "PASS",
+      "detail": "此前 22:30 轮因 SC2 会话连接退化（ws_connect 被拒，与地图无关）未能复验；本轮在干净 API 实例（PID 22968，重启后 4s :5000 LISTEN）实证 T1000 重建图全 LIVE-PASS：kernel 双标记=1、ping 3/3、unit.spawn obs+1 Marine、gen.1(AIAbilityFixed)->fixed 0、gen.202(AIGetNumTeams int 2)、ScriptError files:[]。T100 亦已于 22:30 轮 LIVE-PASS。三档（gen/T100/t1000）均当窗实证，原 artifact-integrity BLOCKED 关闭。",
+      "evidence": "artifacts/galaxy-vibe/tier100-live-verdict-2339b.json"
     },
     {
       "name": "runtime-type-family-sampling-and-census",
       "command": "python src/projects/cmre-porting/stages/26-full-function-invoke/runtime_invoke_probe.py --sample / --census",
-      "status": "BLOCKED",
-      "detail": "live 执行需 SC2；准备证据（55 族样本 + 200 普查候选分类清单）已产出",
-      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/probe-selection.json"
+      "status": "PASS",
+      "detail": "2026-08-09 晚间在 API 实例 PID 22720（:5000 LISTEN，fresh_bank=True 归档旧 Bank）真机执行，VibeHost 已补 bank_poll at-least-once 重发 + realtime 不 step 守卫 + 1-Participant CreateGame（解除此前 0/53 的 Bank 有损通道静默超时）。类型族样本 53 -> ok 22：INTERNAL_ERROR 11 / FUNCTION_NOT_IN_MAP 5 / HANDLE_NOT_FOUND 11 / HANDLE_INVALID 4；3s 与 10s 超时两次一致（clean10）证明失败为确定性机制而非通道噪声。预算受限只读普查 150 -> ok 130（86.7%）：FUNCTION_NOT_IN_MAP 9 / INTERNAL_ERROR 10 / HANDLER_ABORTED 1。同窗口零新增非空 ScriptError（env.verdict=ok、usable_for_acceptance=true、kernel_initialized=true）。失败已机制化归类：HANDLE_NOT_FOUND/HANDLE_INVALID 为 fresh 游戏 `id:1` 句柄/structref 入参不可满足（预期）；FUNCTION_NOT_IN_MAP 为 scoped adapter bundle 偏斜；INTERNAL_ERROR 为 gen-adapter 静默无应答间隙（无 ScriptError，非崩溃）。抽样优先于全量普查（计划要求），未把会改变任务状态的函数混入默认普查。2026-08-09 23:xx 本轮在新鲜实例（PID 29216）复验：sample 19/53 env=ok（同失败归类）、census 129/150 env=ok（86.0%，与前序 130/150 86.7% 一致，差异仅 1 项属 Bank 通道偶发 3s 超时噪声）；首轮 census 因实例中途自行退出 env_preempted（已主动中止避免噪声），重启后复验 env=ok 通过。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/type-family-sampling-clean.json, artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/type-family-sampling-clean10.json, artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/readonly-census-clean.json, artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/type-family-sampling-2339sample.json, artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/readonly-census-2339census2.json"
     },
     {
       "name": "runtime-script-error-gate",
@@ -192,11 +227,33 @@
       "proto_only_unresolved": 110,
       "static_file_local": 5,
       "mapscript_lifecycle": 4
+    },
+    "step4_live": {
+      "sample_total": 53,
+      "sample_ok": 22,
+      "sample_by_error_code": {
+        "INTERNAL_ERROR": 11,
+        "FUNCTION_NOT_IN_MAP": 5,
+        "HANDLE_NOT_FOUND": 11,
+        "HANDLE_INVALID": 4
+      },
+      "census_total": 150,
+      "census_ok": 130,
+      "census_by_error_code": {
+        "FUNCTION_NOT_IN_MAP": 9,
+        "INTERNAL_ERROR": 10,
+        "HANDLER_ABORTED": 1
+      },
+      "instance_pid": 22720,
+      "fresh_bank": true,
+      "env_verdict": "ok",
+      "script_error_new": 0,
+      "determinism": "3s vs 10s 超时两次采样一致"
     }
   },
   "next_actions": [
     "分档放量：在无外部 SC2 会话的 approved launcher 窗口中使用 launch-cmre-alenger.ps1 -InvokeTier 100 / 1000 / 0 逐档 staging；分别打包该 staged 地图、校验其 tier 内容，再跑 tier100_live_probe 并记录编译时间与地图包体积。不得将当前同 hash 的 T100/T1000 重命名包当作分档证据。",
-    "执行 runtime_invoke_probe.py --sample 与 --census，产出类型族抽样与只读普查 JSON，走 ScriptError 门",
+    "保留并复核已完成的 runtime_invoke_probe.py --sample/--census 证据；不要重复运行到改变任务状态的全量普查",
     "【N1 结论 2026-08-09 08:5x：内核单点 ReloadBank 治本实验 ABANDONED 并已回退】。A/B 真机证明重发是 Bank RPC 通道固有方差（两图每轮均 ~1 次重发），单点 ReloadBank 未关窗。真正兜底是 Host at-least-once 重发。治本方向改为：将 RPC 通道(request/response/index)与模型状态库(p2_*)拆成独立 bank 文件，使 WriteModelP2Snapshot 的 BankSave 不再覆盖 RPC 请求/响应。这是更大的数据/内核改造，列为独立 N 项，本次不实施。",
     "对照历史 35,404 声明清单解释当前 clean scan 的 90 条差异；CMRE-dev 当前未贡献 owned source 之外的唯一签名",
     "【N1 后继·真正治本 2026-08-09 08:5x】将 VIBE_GEN_007 的根因（Bank 双写单文件全量覆盖无锁）通过**架构级改造**消除：把 RPC 通道(request/response/index)与模型状态库(p2_*)拆成两个独立 bank 文件，使 WriteModelP2Snapshot 的 BankSave 只写 p2_* 库、绝不再覆盖 Host 写入的 RPC 请求/响应。实现点：① Data Editor 新增独立 Bank 名（如 GalaxyVibeRPC / GalaxyVibeModel）；② Host 侧 write_bank_request / read_bank 按通道分库读写；③ 内核 PollLoop 仅对 p2_* 库做 BankSave，RPC 库只读（ReloadBank 拉请求）不写覆盖。改造后 Host at-least-once 重发可降级为 best-effort（去重仍保留）。需重打包两张图 + 真机复验 reasserts 趋 0。"

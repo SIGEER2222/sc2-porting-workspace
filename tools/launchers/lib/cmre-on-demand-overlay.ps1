@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 function Get-CmreOverlayRoot {
     return (Join-Path (Split-Path -Parent $PSScriptRoot) "overlays\cmre-alenger")

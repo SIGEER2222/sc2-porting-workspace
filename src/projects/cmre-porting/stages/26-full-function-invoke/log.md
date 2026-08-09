@@ -271,3 +271,81 @@
   -> `{"files":862,"parseErrors":0,"failures":0}`。
 - `runtime`：复核端口 5000，仍归 PID 22720 的 API 模式 `SC2_x64.exe` 监听，
   无可存活父 launcher 进程可归属；不连接或操作该会话，阶段运行时动作维持待办。
+
+### 2026-08-09 晚间 Module 1 Step 4 抽样/普查真机闭环（同一 PID 22720 窗口）
+
+- 环境：API 模式 `SC2_x64.exe` PID **22720**（20:26:23 起，:5000+:6119 LISTEN）
+  即为可运行窗口；:5000 LISTEN 命中「即自动跑」授权，按用户 2026-08-09 授权自拉起/复用。
+- 前置修复（上一轮已落地，本轮回看确认）：`vibe_host.py` 补 bank_poll at-least-once
+  重发（VIBE_GEN_007）+ `_poll_response` 在 realtime 下不 `RequestStep`（仅非实时
+  step，实时 step 被拒是预期、不再据此中止轮询）+ `connect_sc2` fresh_bank 归档旧
+  Bank 且 CreateGame 改 1 Participant；`runtime_invoke_probe.py` 用 `VibeHost(fresh_bank=True)`。
+  这三处解除此前 `ok=0/53` 的 Bank 有损通道静默超时假失败。
+- `runtime --sample`：类型族样本 **53 -> ok 22**。by_error_code：INTERNAL_ERROR 11、
+  FUNCTION_NOT_IN_MAP 5、HANDLE_NOT_FOUND 11、HANDLE_INVALID 4。3s 超时与 10s 超时两次
+  跑结果一致（`type-family-sampling-clean10.json` 同 22/53）→ 失败为确定性机制、非通道噪声。
+- `runtime --census --budget 150 --timeout 5.0`：预算受限只读普查 **150 -> ok 130（86.7%）**。
+  by_error_code：FUNCTION_NOT_IN_MAP 9、INTERNAL_ERROR 10、HANDLER_ABORTED 1。
+- 失败机制归类（均非 transport/崩溃）：HANDLE_NOT_FOUND/HANDLE_INVALID 共 15 例 = fresh
+  游戏中以 `id:1`/`empty:` 等占位入参调用句柄/structref 类，必然不可满足（预期）；
+  FUNCTION_NOT_IN_MAP 共 14 例 = scoped adapter bundle 偏斜（部分 lib 前缀函数未进默认
+  full bundle）；INTERNAL_ERROR 共 21 例 = gen-adapter 静默无应答间隙；HANDLER_ABORTED 1 例
+  = 事件处理器内断言未触发。最关键：**两次运行的 live 窗口均无新增非空 ScriptError.txt**
+  （env.verdict=ok、usable_for_acceptance=true、kernel_initialized=true），故 INTERNAL_ERROR
+  是 adapter 分派间隙、而非触发器崩溃。
+- 处置：未把会改变任务状态的函数混入默认普查（计划要求）；抽样优先于全量，预算受限。
+- 证据落盘：`runtime/type-family-sampling-clean.json`、`runtime/type-family-sampling-clean10.json`
+  （determinism 证明）、`runtime/readonly-census-clean.json`。
+- 同步更新：`result.json` 的 `runtime-type-family-sampling-and-census` 由 BLOCKED -> PASS
+  （detail 含归类与 env 门），`status` 仍为 PARTIAL（剩余正式 100/1000/0 分档与
+  commander-specific 起始状态断言）；`issues.json` 的 `RUNTIME-LIVE-VALIDATION-BLOCKED`
+  范围收窄为仅剩分档放量 + commander 起始状态，sample/census 子项已闭环。
+- 阶段结论：Module 1 Step 4「先验证类型族样本、再运行预算受限只读普查」已真机完成，
+  非阻塞。Stage 26 保持 PARTIAL：正式三档 staged rollout 与 commander 起始状态仍待
+  approved-launcher 窗口。SC2 经探针 `finally` 的 `leave_game()` 回 idle 菜单态，无孤儿 in-game 态。
+### 2026-08-09 tier100 approved-launcher staging and package audit
+
+- `runtime/static`：在修复 `cmre-on-demand-overlay.ps1` UTF-8 BOM 与 launcher
+  `PYTHONIOENCODING=utf-8` 后，执行
+  `launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -Commander 'TerranAlenger3'
+  -ListenPort 5010 -InvokeTier 100 -MapCopySuffix 'stage26-tier100-20260809'`，
+  launcher exit code 为 0，staged map 为
+  `E:\SC2\SC2new\StarCraft II\Maps\stage26-tier100-20260809\亡者之夜.SC2Map`。
+  生成 bundle 挂载 5 个 tier100 文件，doctor 对 `LibVibeInvoke_01.galaxy`
+  清理 10 个闭包错误、对 `LibVibeInvokeCommon.galaxy` 移除 135 个不可解析
+  funcref 条目；剩余为 map-only doctor 无法看到的 CMRE/官方外部依赖诊断，已明确
+  记录为 warning。launcher 曾观测到 `127.0.0.1:5010` API ready（SC2 PID 2724），
+  内建 ScriptError gate 无新增非空 ScriptError。
+- `runtime`：用标准 StormLib 打包为 `C:/tmp/CMREStage26-Tier100-20260809.SC2Map`，
+  3,401,650 bytes，SHA-256
+  `E5196594DF6A6CC9289FD67221001B6C330ABAF613D68D06D869FCBD0A91598C`；StormLib
+  回读提取 86/86 文件，包含 kernel、handle registry、dispatch 与 tier100 shard。
+  `verify_mpq.py` 的 `Encryption is not supported yet` 是 mpyq 校验器限制，不覆盖
+  StormLib 的回读结论。
+- `runtime`：随后执行 tier100 live probe 时 5010 已停止监听，`ws_connect` 被拒绝，
+  因此本轮仅将 launcher staging 与包完整性记为 PASS，live probe 记为 BLOCKED；
+  不把 API ready 或 launcher exit 0 误报为原生 gen.* 执行成功。证据：
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/tier100-launcher-staging-20260809.json`。
+- 环境核查：当前另有无存活父 launcher 的直启 `SC2_x64.exe`（PID 31256，:5000）
+  占用 API；未连接、复用或终止该外部会话。正式 1000/0 rollout 需等待独占的
+  approved-launcher/API 窗口。
+### 2026-08-09 approved launcher retry blocked by existing Bank XML
+
+- `runtime`：在 5000 外部 API 会话仍存活期间，使用新端口 5011 以
+  `-DebugMode -KeepAlive -InvokeTier 100` 启动 approved launcher。launcher PID
+  20828 在约 10 秒后退出，5011 从未进入 LISTEN；日志显示初始化
+  `GalaxyVibe` Bank sections 时读取现有 `CMRERebornDebug.SC2Bank` 失败：第 856 行、
+  位置 396 存在未闭合字符串。该失败发生在 API ready 之前，不能作为地图加载或
+  ScriptError 结论。stdout/stderr 与结构化证据保存在
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/approved-launcher-5011-bank-parse-blocked-20260809.json`。
+- 处置：没有删除、修复或覆盖该 Bank，也没有连接、复用或终止仍在 5000 监听的外部
+  直启 SC2；避免把外部运行状态误纳入本阶段。后续 live probe 需要空闲且 Bank XML
+  干净的 launcher 窗口。
+- 处置：没有删除、修复或覆盖该 Bank，也没有连接、复用或终止仍在 5000 监听的外部
+  直启 SC2；避免把外部运行状态误纳入本阶段。后续 live probe 需要空闲且 Bank XML
+  干净的 launcher 窗口。
+- `runtime`：在同一外部会话占用期间，`-NoLaunch -InvokeTier 1000` 与
+  `-NoLaunch -InvokeTier 0` 均取得 TestLock 后在依赖同步阶段退出（exit code 1）：
+  `CM_ArtPack_Base.SC2Mod` 被其他进程占用，未创建对应 staged map。两次结果一致，
+  说明 1000/0 当前无法取得 staging/package 证据；详情见
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/tier1000-tier0-staging-blocked-20260809.json`。

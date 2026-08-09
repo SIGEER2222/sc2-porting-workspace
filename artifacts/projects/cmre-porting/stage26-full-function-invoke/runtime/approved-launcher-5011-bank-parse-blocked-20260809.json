@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-09T15:00:00Z",
+  "evidenceType": "runtime",
+  "stage": "26-full-function-invoke",
+  "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName '亡者之夜.SC2Map' -Commander 'TerranAlenger3' -ListenPort 5011 -InvokeTier 100 -MapCopySuffix 'stage26-approved-5011-20260809-234940' -DebugMode -KeepAlive",
+  "launcher": {
+    "pid": 20828,
+    "status": "BLOCKED",
+    "exitedAfterSeconds": 10,
+    "stdout": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/approved-launcher-5011-20260809-234940.stdout.txt",
+    "stderr": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/approved-launcher-5011-20260809-234940.stderr.txt"
+  },
+  "api": {
+    "port": 5011,
+    "ready": false,
+    "reason": "launcher exited before API ready while initializing GalaxyVibe bank sections"
+  },
+  "error": {
+    "kind": "bank_xml_parse",
+    "message": "Could not initialize GalaxyVibe bank sections: XML document contains an unclosed string at line 856, position 396",
+    "source": "existing CMRERebornDebug.SC2Bank"
+  },
+  "externalSession": {
+    "observed": true,
+    "port": 5000,
+    "note": "An unrelated direct SC2_x64 API process remained active; it was not connected, reused, or terminated."
+  },
+  "claim": "The approved launcher did not reach an API window or map probe because the pre-existing Bank XML is malformed; this is an environment-state blocker, not a runtime pass."
+}
