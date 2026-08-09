@@ -24,6 +24,25 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# 强制 PowerShell 输出编码为 UTF-8，确保 Python 端能正确解码中文消息
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
+# 全局异常 trap：将未捕获的终止错误通过 Write-Host 写入 stdout
+trap {
+    $exc = $_
+    $msg = if ($null -ne $exc.Exception) { $exc.Exception.Message } else { "$exc" }
+    Write-Host ""
+    Write-Host "================================[ LAUNCHER ERROR ]================================"
+    Write-Host "[trap] 启动器执行失败: $msg"
+    if ($null -ne $exc.InvocationInfo) {
+        $info = $exc.InvocationInfo
+        Write-Host "[trap] 位置: 行 $($info.ScriptLineNumber), 列 $($info.OffsetInLine)"
+    }
+    Write-Host "================================[ LAUNCHER ERROR ]================================"
+    Write-Error "Launcher failed: $msg" -ErrorAction Continue
+    exit 1
+}
 $workspace = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $packageRoot = Join-Path $workspace "src\projects\revolution-overdrive-porting\packages"
 $modRoot = Join-Path $packageRoot "Commander\Mods"
@@ -299,6 +318,36 @@ New-Item -ItemType Directory -Force -Path $runtimeEvidenceRoot | Out-Null
 $packedMapName = ([System.IO.Path]::GetFileNameWithoutExtension($mapStem) + ".stage07.packed.SC2Map")
 $packedMap = Pack-OwnedMap -Source $liveMap -Destination (Join-Path $runtimeEvidenceRoot $packedMapName)
 $evidence['packedMap'] = $packedMap
+
+# Runtime-verification mode (API / -ListenPort set) must NEVER kill or assume ownership of an
+# externally-owned SC2 instance. If SC2 is already running here, we cannot prove it is ours, so we
+# fail-closed: record the external owner evidence and exit nonzero instead of disrupting the user's
+# session. (Plan risk rule: 不终止或接管外部 owner；保持 blocked 并等待独立窗口.)
+# Non-API play mode (default, -run packedMap) keeps the prior relaunch-kill behavior, because the
+# user has explicitly asked to (re)launch the map and expects the previous instance to be replaced.
+if ($ListenPort -gt 0) {
+    $existingSc2 = @(Get-Process -Name "SC2_x64", "SC2Switcher_x64" -ErrorAction SilentlyContinue)
+    if ($existingSc2.Count -gt 0) {
+        $ownerInfo = $existingSc2 | ForEach-Object {
+            [ordered]@{ pid = $_.Id; name = $_.Name; startTimeUtc = $_.StartTime.ToUniversalTime().ToString("o") }
+        }
+        New-Item -ItemType Directory -Force -Path $runtimeEvidenceRoot | Out-Null
+        $blockedEvidence = [ordered]@{
+            schemaVersion  = 1
+            classification = "blocked"
+            package        = "revolution-overdrive"
+            map            = $mapStem
+            reason         = "external_sc2_owner_detected"
+            detail         = "Refusing to kill an externally-owned SC2 instance before API-mode launch. Free the runtime slot (close the external owner) and re-run for an independent window."
+            existingProcesses = $ownerInfo
+            detectedAtUtc  = (Get-Date).ToUniversalTime().ToString("o")
+        }
+        $blockedEvidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $runtimeEvidenceRoot "launcher-runtime-blocked.json") -Encoding UTF8
+        $evidence['runtimeWrapper'] = $blockedEvidence
+        throw ("External SC2 owner detected (pids: $($existingSc2.Id -join ',')) before API-mode launch; refusing to kill it. " +
+               "Free the slot and re-run for an independent window.")
+    }
+}
 
 Get-Process -Name "SC2_x64", "SC2Switcher_x64" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2

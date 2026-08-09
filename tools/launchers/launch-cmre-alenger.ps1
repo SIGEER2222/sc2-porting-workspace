@@ -1,10 +1,17 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [string]$MapSourceOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$DirectMapApi, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "", [int]$InvokeTier = 0)
 # -MapCopySuffix: 可选的地图副本后缀，用于避免多会话同时操作同一 live 地图导致 DocumentInfo 冲突。
 # 例如 -MapCopySuffix "reborn" 会使用 Maps\亡者之夜.SC2Map.reborn\ 作为 live 地图。
 # 不指定时使用原始路径（向后兼容）。
 # -InvokeTier: Stage 26 全函数 invoke 分档放量开关（0=禁用，100/1000=挂载对应低 id 分片）。
 $ErrorActionPreference = "Stop"
+
+# 强制 PowerShell 输出编码为 UTF-8，确保 Python 端（subprocess.Popen encoding="utf-8"）
+# 能正确解码 Write-Host / Write-Error 中的中文消息。
+# PowerShell 5.x 默认使用系统区域编码（简体中文为 GBK/CP936），
+# 导致 WebUI 用户看到 exit=1 但无法读取中文错误消息。
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 
 # 全局异常 trap：确保任何未被 try/catch 捕获的终止错误都会通过
 # Write-Host 写入 stdout（作为 stderr 编码异常时的备份通道），
@@ -1788,8 +1795,11 @@ function Wait-CmreGameLogMapLoadSignal {
         }
         $scriptErrors = @(Get-CmreNewScriptErrorFiles -Since $Since)
         if ($scriptErrors.Count -gt 0) {
-            Write-Host "GameLogs map-load gate: ScriptError file created: $($scriptErrors[0].FullName)"
-            return "ScriptError"
+            $first = $scriptErrors[0]
+            $preview = ""
+            try { $preview = (Get-Content -LiteralPath $first.FullName -Raw -ErrorAction Stop).Trim() } catch { }
+            if ($preview.Length -gt 800) { $preview = $preview.Substring(0, 800) + "..." }
+            throw ("GameLogs map-load gate: new ScriptError detected: " + $first.FullName + [Environment]::NewLine + $preview)
         }
         Start-Sleep -Seconds 1
     }
