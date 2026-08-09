@@ -32,7 +32,7 @@ BANK_LIST = """<?xml version="1.0" encoding="utf-8"?>
 """
 
 MAPSCRIPT = """// Generated Runtime Lab entry point. Build from current VM and CMLib sources.
-include \"TriggerLibs/NativeLib\"
+include \"TriggerLibs/natives\"
 include \"LibVibeKernel_h\"
 include \"LibVibeHandles\"
 include \"scripts/cmlib/cmlib\"

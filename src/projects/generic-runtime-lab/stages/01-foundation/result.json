@@ -14,6 +14,16 @@
     },
     {
       "type": "static",
+      "claim": "The generated map entry uses TriggerLibs/natives, matching the known-working minimal CMLib test maps; the rebuilt packed map SHA-256 is 752a64905a3b3aaaa50c3336cc88900f7e0f71d59cee7efb82362e1090de871f.",
+      "evidence": [
+        "src/projects/generic-runtime-lab/scripts/build_runtime_lab.py",
+        "src/lib/_testmap_src/MapScript.galaxy",
+        "artifacts/projects/generic-runtime-lab/stage01-foundation/build/RuntimeLab.SC2Map/MapScript.galaxy",
+        "artifacts/projects/generic-runtime-lab/stage01-foundation/maps/build-report.json"
+      ]
+    },
+    {
+      "type": "static",
       "claim": "The generated map has a map-local dispatch fixture, a P1/P2 GalaxyVibe BankList, and a deterministic Marine-versus-Zergling tactical fixture.",
       "evidence": [
         "src/projects/generic-runtime-lab/runtime/galaxy/LibVibeInvokeDispatch.galaxy",
@@ -30,7 +40,7 @@
     },
     {
       "type": "blocked",
-      "claim": "The final runtime gates require an exclusive SC2 API and GalaxyVibe Bank lease. A concurrent CMRE runtime job restarted the debug API on changing ports and wrote to the shared Bank, so corrected-map probe results are not attributable to RuntimeLab.",
+      "claim": "The final runtime gates require an exclusive SC2 API and GalaxyVibe Bank lease. A concurrent SC2 instance is loading a different map without an API listener and all 17 GalaxyVibe Bank candidates contain shared task state, so corrected-map probe results are not attributable to RuntimeLab.",
       "evidence": [
         "artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/runtime-blocked-20260809.json",
         "src/projects/generic-runtime-lab/stages/01-foundation/issues.json"
@@ -55,7 +65,12 @@
     {
       "command": "python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py",
       "exitCode": 0,
-      "summary": "Generated the 86-file packed RuntimeLab.SC2Map with SHA-256 12a7dbd3cbc373a7097c5094ad2bfecfea2d1eabcb7c68877f1782c01bc1d499."
+      "summary": "Generated the 86-file packed RuntimeLab.SC2Map with SHA-256 752a64905a3b3aaaa50c3336cc88900f7e0f71d59cee7efb82362e1090de871f."
+    },
+    {
+      "command": "Get-Process -Name SC2_x64; Get-ChildItem $env:USERPROFILE/Documents/'StarCraft II'/Banks -Recurse -Filter GalaxyVibe.SC2Bank",
+      "exitCode": 0,
+      "summary": "Blocked runtime check: a different-map SC2 instance remains active and 17 GalaxyVibe Bank candidates contain shared state; no launcher or runtime probe was run."
     },
     {
       "command": "node tools/analysis/galaxy-lint.mjs artifacts/projects/generic-runtime-lab/stage01-foundation/build/RuntimeLab.SC2Map/MapScript.galaxy --format text",

@@ -18,6 +18,7 @@ def test_runtime_lab_build_wires_the_three_suites():
     assert spec.loader is not None
     spec.loader.exec_module(module)
     assert 'include "LibVibeKernel"' in module.MAPSCRIPT
+    assert 'include "TriggerLibs/natives"' in module.MAPSCRIPT
     assert 'include "scripts/cmlib/cmlib"' in module.MAPSCRIPT
     assert 'include "scripts/runtime_lab/runtime_lab"' in module.MAPSCRIPT
     assert "LibVibeInvokeDispatch.galaxy" in module.ROOT_RUNTIME_FILES
