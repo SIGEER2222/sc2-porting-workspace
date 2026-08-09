@@ -17,6 +17,12 @@ BUILD_DIR = REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage01-f
 OUTPUT_DIR = REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage01-foundation" / "maps"
 OUTPUT_MAP = OUTPUT_DIR / "RuntimeLab.SC2Map"
 REPORT = OUTPUT_DIR / "build-report.json"
+CMLIB_CONTROL_BUILD_DIR = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage01-foundation"
+    / "build" / "CMLibControl.SC2Map"
+)
+CMLIB_CONTROL_MAP = OUTPUT_DIR / "CMLibControl.SC2Map"
+CMLIB_CONTROL_REPORT = OUTPUT_DIR / "cmlib-control-build-report.json"
 CMLIB = REPO / "src" / "lib" / "scripts" / "cmlib"
 SELFTEST = REPO / "src" / "lib" / "selftest" / "cmlib_selftest.galaxy"
 KERNEL = REPO / "tools" / "galaxy-vibe" / "kernel"
@@ -31,21 +37,40 @@ BANK_LIST = """<?xml version="1.0" encoding="utf-8"?>
 </BankList>
 """
 
+DOCUMENT_INFO = """<?xml version="1.0" encoding="utf-8"?>
+<DocInfo>
+    <ModType>
+        <Value>Interface</Value>
+    </ModType>
+    <Dependencies>
+        <Value>bnet:Void (Campaign)/0.0/999,file:Campaigns/Void.SC2Campaign</Value>
+    </Dependencies>
+</DocInfo>
+"""
+
 MAPSCRIPT = """// Generated Runtime Lab entry point. Build from current VM and CMLib sources.
-include \"TriggerLibs/natives\"
-include \"LibVibeKernel_h\"
-include \"LibVibeHandles\"
-include \"scripts/cmlib/cmlib\"
-include \"LibVibeInvokeDispatch\"
-include \"LibVibeKernel\"
-include \"scripts/runtime_lab/runtime_lab\"
-include \"scripts/cmlib/cmlib_selftest\"
+include "TriggerLibs/natives"
+include "scripts/cmlib/cmlib"
+include "LibVibeKernel"
+include "LibVibeInvokeDispatch"
+include "scripts/runtime_lab/runtime_lab"
+include "scripts/cmlib/cmlib_selftest"
 
 void InitMap() {
     libVibeKernel_InitLib();
     RuntimeLab_Init();
     CMLib_SelfTest();
     libVibeKernel_gf_RegisterEntryPoints();
+}
+"""
+
+CMLIB_CONTROL_MAPSCRIPT = """// Generated CMLib control. It excludes VM and tactical fixtures.
+include "TriggerLibs/natives"
+include "scripts/cmlib/cmlib"
+include "scripts/cmlib/cmlib_selftest"
+
+void InitMap() {
+    CMLib_SelfTest();
 }
 """
 
@@ -61,6 +86,53 @@ def copy_required(source: Path, destination: Path) -> None:
     shutil.copy2(source, destination)
 
 
+def copy_cmlib_sources(build_dir: Path) -> Path:
+    cmlib_out = build_dir / "Base.SC2Data" / "scripts" / "cmlib"
+    for source in sorted(CMLIB.glob("*.galaxy")):
+        copy_required(source, cmlib_out / source.name)
+    copy_required(SELFTEST, cmlib_out / SELFTEST.name)
+    return cmlib_out
+
+
+def pack_map(build_dir: Path, output_map: Path) -> str:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    if output_map.exists():
+        output_map.unlink()
+    command = [sys.executable, str(PACKER), str(build_dir), str(output_map), "--stormlib", str(STORMLIB)]
+    completed = subprocess.run(command, text=True, capture_output=True, encoding="utf-8", errors="replace")
+    if completed.returncode != 0:
+        raise RuntimeError(completed.stderr or completed.stdout)
+    return completed.stdout.strip()
+
+
+def build_cmlib_control() -> int:
+    if CMLIB_CONTROL_BUILD_DIR.exists():
+        shutil.rmtree(CMLIB_CONTROL_BUILD_DIR)
+    shutil.copytree(BASE_MAP, CMLIB_CONTROL_BUILD_DIR)
+    cmlib_out = copy_cmlib_sources(CMLIB_CONTROL_BUILD_DIR)
+    (CMLIB_CONTROL_BUILD_DIR / "MapScript.galaxy").write_text(
+        CMLIB_CONTROL_MAPSCRIPT, encoding="utf-8", newline="\n")
+    (CMLIB_CONTROL_BUILD_DIR / "DocumentInfo").write_text(
+        DOCUMENT_INFO, encoding="utf-8", newline="\n")
+    packer_output = pack_map(CMLIB_CONTROL_BUILD_DIR, CMLIB_CONTROL_MAP)
+
+    report = {
+        "schemaVersion": 1,
+        "classification": "static",
+        "kind": "cmlib-control",
+        "map": CMLIB_CONTROL_MAP.relative_to(REPO).as_posix(),
+        "sha256": sha256(CMLIB_CONTROL_MAP),
+        "cmlibFiles": len(list(cmlib_out.glob("*.galaxy"))) - 1,
+        "kernelFiles": [],
+        "runtimeLabFiles": [],
+        "dependencies": ["Campaigns/Void.SC2Campaign"],
+        "packerOutput": packer_output,
+    }
+    CMLIB_CONTROL_REPORT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(report, indent=2))
+    return 0
+
+
 def main() -> int:
     for required in (BASE_MAP, CMLIB, SELFTEST, KERNEL, PACKER, STORMLIB):
         if not required.exists():
@@ -70,10 +142,7 @@ def main() -> int:
         shutil.rmtree(BUILD_DIR)
     shutil.copytree(BASE_MAP, BUILD_DIR)
 
-    cmlib_out = BUILD_DIR / "Base.SC2Data" / "scripts" / "cmlib"
-    for source in sorted(CMLIB.glob("*.galaxy")):
-        copy_required(source, cmlib_out / source.name)
-    copy_required(SELFTEST, cmlib_out / SELFTEST.name)
+    cmlib_out = copy_cmlib_sources(BUILD_DIR)
 
     runtime_out = BUILD_DIR / "Base.SC2Data" / "scripts" / "runtime_lab"
     runtime_sources = sorted((PROJECT / "runtime" / "galaxy").glob("*.galaxy"))
@@ -89,13 +158,8 @@ def main() -> int:
 
     (BUILD_DIR / "MapScript.galaxy").write_text(MAPSCRIPT, encoding="utf-8", newline="\n")
     (BUILD_DIR / "BankList.xml").write_text(BANK_LIST, encoding="utf-8", newline="\n")
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    if OUTPUT_MAP.exists():
-        OUTPUT_MAP.unlink()
-    command = [sys.executable, str(PACKER), str(BUILD_DIR), str(OUTPUT_MAP), "--stormlib", str(STORMLIB)]
-    completed = subprocess.run(command, text=True, capture_output=True, encoding="utf-8", errors="replace")
-    if completed.returncode != 0:
-        raise RuntimeError(completed.stderr or completed.stdout)
+    (BUILD_DIR / "DocumentInfo").write_text(DOCUMENT_INFO, encoding="utf-8", newline="\n")
+    packer_output = pack_map(BUILD_DIR, OUTPUT_MAP)
 
     report = {
         "schemaVersion": 1,
@@ -105,7 +169,8 @@ def main() -> int:
         "cmlibFiles": len(list(cmlib_out.glob("*.galaxy"))) - 1,
         "kernelFiles": ["LibVibeKernel_h.galaxy", "LibVibeKernel.galaxy", "LibVibeHandles.galaxy"],
         "runtimeLabFiles": [source.name for source in runtime_sources],
-        "packerOutput": completed.stdout.strip(),
+        "dependencies": ["Campaigns/Void.SC2Campaign"],
+        "packerOutput": packer_output,
     }
     REPORT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=2))
@@ -113,4 +178,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if sys.argv[1:] == ["--cmlib-control"]:
+        raise SystemExit(build_cmlib_control())
+    if len(sys.argv) > 1:
+        raise SystemExit("Usage: build_runtime_lab.py [--cmlib-control]")
     raise SystemExit(main())

@@ -1,7 +1,29 @@
 // Map-owned fixture. It has no mission or commander dependency.
 trigger RuntimeLab_gt_StartTacticalArena = null;
-unit RuntimeLab_gv_TacticalPlayerOne = null;
-unit RuntimeLab_gv_TacticalPlayerTwo = null;
+trigger RuntimeLab_gt_ControlPanel = null;
+trigger RuntimeLab_gt_ManagedUnitDied = null;
+
+unitgroup RuntimeLab_gv_ArenaUnits = null;
+unitgroup RuntimeLab_gv_PlayerOneUnits = null;
+unitgroup RuntimeLab_gv_PlayerTwoUnits = null;
+
+int RuntimeLab_gv_ControlDialog = c_invalidDialogId;
+int RuntimeLab_gv_TitleLabel = c_invalidDialogControlId;
+int RuntimeLab_gv_StatusLabel = c_invalidDialogControlId;
+int RuntimeLab_gv_ResetButton = c_invalidDialogControlId;
+int RuntimeLab_gv_FightButton = c_invalidDialogControlId;
+int RuntimeLab_gv_ClearButton = c_invalidDialogControlId;
+int RuntimeLab_gv_AddMarineButton = c_invalidDialogControlId;
+int RuntimeLab_gv_AddMarauderButton = c_invalidDialogControlId;
+int RuntimeLab_gv_AddZerglingButton = c_invalidDialogControlId;
+int RuntimeLab_gv_RefreshButton = c_invalidDialogControlId;
+
+int RuntimeLab_gv_PlayerOneDeaths = 0;
+int RuntimeLab_gv_PlayerTwoDeaths = 0;
+int RuntimeLab_gv_ResetCount = 0;
+int RuntimeLab_gv_FightCount = 0;
+bool RuntimeLab_gv_ArenaInitialized = false;
+bool RuntimeLab_gv_FightStarted = false;
 
 void RuntimeLab_WriteStatus(string key, int value) {
     libVibeKernel_gf_WriteBankInt("runtime_lab", key, value);
@@ -14,6 +36,18 @@ int RuntimeLab_BoolToInt(bool value) {
     return 0;
 }
 
+void RuntimeLab_EnsureGroups() {
+    if (RuntimeLab_gv_ArenaUnits == null) {
+        RuntimeLab_gv_ArenaUnits = UnitGroupEmpty();
+    }
+    if (RuntimeLab_gv_PlayerOneUnits == null) {
+        RuntimeLab_gv_PlayerOneUnits = UnitGroupEmpty();
+    }
+    if (RuntimeLab_gv_PlayerTwoUnits == null) {
+        RuntimeLab_gv_PlayerTwoUnits = UnitGroupEmpty();
+    }
+}
+
 point RuntimeLab_ArenaCenter() {
     point center;
 
@@ -24,8 +58,244 @@ point RuntimeLab_ArenaCenter() {
     return center;
 }
 
-bool RuntimeLab_StartTacticalArena(bool testConds, bool runActions) {
+void RuntimeLab_ConfigurePlayers() {
+    CMLib_AllyMakeEnemies(1, 2);
+    CMLib_AllyGiveVision(1, 2, true);
+    CMLib_AllyGiveVision(2, 1, true);
+    CMLib_ResSet(1, c_playerPropMinerals, 10000);
+    CMLib_ResSet(1, c_playerPropVespene, 10000);
+    CMLib_ResSet(2, c_playerPropMinerals, 10000);
+    CMLib_ResSet(2, c_playerPropVespene, 10000);
+}
+
+unit RuntimeLab_SpawnManaged(string unitType, int player, point position, fixed facing) {
+    unit created;
+
+    RuntimeLab_EnsureGroups();
+    created = CMLib_SpawnForced(unitType, player, position, facing);
+    if (CMLib_UnitOk(created) == false) {
+        return null;
+    }
+
+    CMLib_UGAdd(RuntimeLab_gv_ArenaUnits, created);
+    if (player == 1) {
+        CMLib_UGAdd(RuntimeLab_gv_PlayerOneUnits, created);
+    } else if (player == 2) {
+        CMLib_UGAdd(RuntimeLab_gv_PlayerTwoUnits, created);
+    }
+    return created;
+}
+
+void RuntimeLab_SpawnGrid(string unitType, int player, int count, point origin,
+                           fixed facing, int perRow, fixed spacingX, fixed spacingY) {
+    int column;
+    int index;
+    point position;
+    int row;
+
+    if (count < 1 || origin == null) {
+        return;
+    }
+    if (perRow < 1) {
+        perRow = 1;
+    }
+
+    index = 0;
+    while (index < count) {
+        row = index / perRow;
+        column = index - (row * perRow);
+        position = PointWithOffset(
+            origin,
+            IntToFixed(column) * spacingX,
+            IntToFixed(row) * spacingY);
+        RuntimeLab_SpawnManaged(unitType, player, position, facing);
+        index += 1;
+    }
+}
+
+void RuntimeLab_RefreshStatus() {
+    int playerOneAlive;
+    int playerTwoAlive;
+    string status;
+
+    playerOneAlive = CMLib_UGSizeAlive(RuntimeLab_gv_PlayerOneUnits);
+    playerTwoAlive = CMLib_UGSizeAlive(RuntimeLab_gv_PlayerTwoUnits);
+
+    RuntimeLab_WriteStatus("arena_player_one_count", playerOneAlive);
+    RuntimeLab_WriteStatus("arena_player_two_count", playerTwoAlive);
+    RuntimeLab_WriteStatus("arena_managed_units_count",
+        CMLib_UGSizeAlive(RuntimeLab_gv_ArenaUnits));
+    RuntimeLab_WriteStatus("arena_p1_deaths", RuntimeLab_gv_PlayerOneDeaths);
+    RuntimeLab_WriteStatus("arena_p2_deaths", RuntimeLab_gv_PlayerTwoDeaths);
+    RuntimeLab_WriteStatus("arena_reset_count", RuntimeLab_gv_ResetCount);
+    RuntimeLab_WriteStatus("arena_fight_count", RuntimeLab_gv_FightCount);
+    RuntimeLab_WriteStatus("arena_fight_started",
+        RuntimeLab_BoolToInt(RuntimeLab_gv_FightStarted));
+    RuntimeLab_WriteStatus("tactical_player_one_ready",
+        RuntimeLab_BoolToInt(playerOneAlive > 0));
+    RuntimeLab_WriteStatus("tactical_player_two_ready",
+        RuntimeLab_BoolToInt(playerTwoAlive > 0));
+    RuntimeLab_WriteStatus("tactical_arena_ready",
+        RuntimeLab_BoolToInt(playerOneAlive > 0 && playerTwoAlive > 0));
+    RuntimeLab_WriteStatus("control_panel_ready",
+        RuntimeLab_BoolToInt(RuntimeLab_gv_ControlDialog != c_invalidDialogId));
+
+    status = "P1 " + IntToString(playerOneAlive) + " alive, "
+        + "P2 " + IntToString(playerTwoAlive) + " alive, "
+        + "resets " + IntToString(RuntimeLab_gv_ResetCount) + ", "
+        + "fights " + IntToString(RuntimeLab_gv_FightCount);
+    CMLib_UISetText(RuntimeLab_gv_StatusLabel, PlayerGroupAll(), StringToText(status));
+}
+
+void RuntimeLab_ClearArena() {
+    int removed;
+
+    RuntimeLab_EnsureGroups();
+    removed = CMLib_UGRemoveAll(RuntimeLab_gv_ArenaUnits);
+    CMLib_UGClear(RuntimeLab_gv_ArenaUnits);
+    CMLib_UGClear(RuntimeLab_gv_PlayerOneUnits);
+    CMLib_UGClear(RuntimeLab_gv_PlayerTwoUnits);
+    RuntimeLab_gv_FightStarted = false;
+    RuntimeLab_WriteStatus("arena_last_removed_count", removed);
+    RuntimeLab_RefreshStatus();
+}
+
+void RuntimeLab_ResetArena() {
     point center;
+    point playerOneMarines;
+    point playerOneMarauders;
+    point playerTwoZerglings;
+
+    RuntimeLab_ClearArena();
+    RuntimeLab_ConfigurePlayers();
+    center = RuntimeLab_ArenaCenter();
+    playerOneMarines = PointWithOffset(center, -13.0, -3.0);
+    playerOneMarauders = PointWithOffset(center, -13.0, 3.0);
+    playerTwoZerglings = PointWithOffset(center, 8.0, -5.0);
+
+    RuntimeLab_SpawnGrid("Marine", 1, 6, playerOneMarines, 0.0, 3, 2.0, 2.0);
+    RuntimeLab_SpawnGrid("Marauder", 1, 2, playerOneMarauders, 0.0, 2, 2.0, 2.0);
+    RuntimeLab_SpawnGrid("Zergling", 2, 12, playerTwoZerglings, 180.0, 4, 1.4, 1.4);
+
+    RuntimeLab_gv_PlayerOneDeaths = 0;
+    RuntimeLab_gv_PlayerTwoDeaths = 0;
+    RuntimeLab_gv_ResetCount += 1;
+    RuntimeLab_gv_ArenaInitialized = true;
+    RuntimeLab_WriteStatus("arena_profile_id", 612);
+    RuntimeLab_RefreshStatus();
+}
+
+void RuntimeLab_AddPreset(string unitType, int player, int count) {
+    point center;
+    point origin;
+    fixed facing;
+
+    center = RuntimeLab_ArenaCenter();
+    if (player == 1) {
+        origin = PointWithOffset(center, -10.0, 8.0);
+        facing = 0.0;
+    } else {
+        origin = PointWithOffset(center, 8.0, 7.0);
+        facing = 180.0;
+    }
+    RuntimeLab_SpawnGrid(unitType, player, count, origin, facing, 4, 1.5, 1.5);
+    RuntimeLab_WriteStatus("arena_last_add_count", count);
+    RuntimeLab_RefreshStatus();
+}
+
+void RuntimeLab_StartFight() {
+    bool playerOneIssued;
+    bool playerTwoIssued;
+    point playerOneTarget;
+    point playerTwoTarget;
+
+    playerOneIssued = false;
+    playerTwoIssued = false;
+    playerOneTarget = PointWithOffset(RuntimeLab_ArenaCenter(), 9.0, 0.0);
+    playerTwoTarget = PointWithOffset(RuntimeLab_ArenaCenter(), -9.0, 0.0);
+
+    if (CMLib_UGSizeAlive(RuntimeLab_gv_PlayerOneUnits) > 0) {
+        playerOneIssued = UnitGroupIssueOrder(
+            RuntimeLab_gv_PlayerOneUnits,
+            OrderTargetingPoint(AbilityCommand("attack", 0), playerOneTarget),
+            c_orderQueueReplace);
+    }
+    if (CMLib_UGSizeAlive(RuntimeLab_gv_PlayerTwoUnits) > 0) {
+        playerTwoIssued = UnitGroupIssueOrder(
+            RuntimeLab_gv_PlayerTwoUnits,
+            OrderTargetingPoint(AbilityCommand("attack", 0), playerTwoTarget),
+            c_orderQueueReplace);
+    }
+
+    if (playerOneIssued || playerTwoIssued) {
+        RuntimeLab_gv_FightCount += 1;
+        RuntimeLab_gv_FightStarted = true;
+    }
+    RuntimeLab_WriteStatus("arena_p1_attack_ordered", RuntimeLab_BoolToInt(playerOneIssued));
+    RuntimeLab_WriteStatus("arena_p2_attack_ordered", RuntimeLab_BoolToInt(playerTwoIssued));
+    RuntimeLab_RefreshStatus();
+}
+
+int RuntimeLab_CreateButton(string label, int row, int column) {
+    int button;
+    int offsetX;
+    int offsetY;
+
+    button = CMLib_DlgCtrlCreate(RuntimeLab_gv_ControlDialog, c_triggerControlTypeButton);
+    offsetX = 18 + (column * 154);
+    offsetY = 68 + (row * 42);
+    CMLib_UISetPosition(button, PlayerGroupAll(), c_anchorTopLeft, offsetX, offsetY);
+    CMLib_UISetSize(button, PlayerGroupAll(), 146, 34);
+    CMLib_UISetText(button, PlayerGroupAll(), StringToText(label));
+    CMLib_UISetTooltip(button, PlayerGroupAll(), StringToText(label));
+    return button;
+}
+
+void RuntimeLab_CreateControlPanel() {
+    trigger clickTrigger;
+
+    if (RuntimeLab_gv_ControlDialog != c_invalidDialogId) {
+        return;
+    }
+
+    RuntimeLab_gv_ControlDialog = DialogCreate(
+        500, 280, c_anchorTopLeft, 20, 20, false);
+    RuntimeLab_gv_TitleLabel = CMLib_DlgCtrlCreate(
+        RuntimeLab_gv_ControlDialog, c_triggerControlTypeLabel);
+    CMLib_UISetPosition(RuntimeLab_gv_TitleLabel, PlayerGroupAll(),
+        c_anchorTopLeft, 18, 18);
+    CMLib_UISetSize(RuntimeLab_gv_TitleLabel, PlayerGroupAll(), 460, 34);
+    CMLib_UISetText(RuntimeLab_gv_TitleLabel, PlayerGroupAll(),
+        StringToText("RuntimeLab Tactical Fixture"));
+
+    RuntimeLab_gv_ResetButton = RuntimeLab_CreateButton("Reset 6v12", 0, 0);
+    RuntimeLab_gv_FightButton = RuntimeLab_CreateButton("Fight", 0, 1);
+    RuntimeLab_gv_ClearButton = RuntimeLab_CreateButton("Clear Lab Units", 0, 2);
+    RuntimeLab_gv_AddMarineButton = RuntimeLab_CreateButton("P1 Marine +4", 1, 0);
+    RuntimeLab_gv_AddMarauderButton = RuntimeLab_CreateButton("P1 Marauder +2", 1, 1);
+    RuntimeLab_gv_AddZerglingButton = RuntimeLab_CreateButton("P2 Zergling +8", 1, 2);
+    RuntimeLab_gv_RefreshButton = RuntimeLab_CreateButton("Refresh Status", 2, 0);
+
+    RuntimeLab_gv_StatusLabel = CMLib_DlgCtrlCreate(
+        RuntimeLab_gv_ControlDialog, c_triggerControlTypeLabel);
+    CMLib_UISetPosition(RuntimeLab_gv_StatusLabel, PlayerGroupAll(),
+        c_anchorTopLeft, 18, 202);
+    CMLib_UISetSize(RuntimeLab_gv_StatusLabel, PlayerGroupAll(), 460, 54);
+    DialogSetVisible(RuntimeLab_gv_ControlDialog, PlayerGroupAll(), true);
+
+    clickTrigger = TriggerCreate("RuntimeLab_ControlPanelClicked");
+    RuntimeLab_gt_ControlPanel = clickTrigger;
+    CMLib_TrigOnButtonClick(clickTrigger, RuntimeLab_gv_ResetButton);
+    CMLib_TrigOnButtonClick(clickTrigger, RuntimeLab_gv_FightButton);
+    CMLib_TrigOnButtonClick(clickTrigger, RuntimeLab_gv_ClearButton);
+    CMLib_TrigOnButtonClick(clickTrigger, RuntimeLab_gv_AddMarineButton);
+    CMLib_TrigOnButtonClick(clickTrigger, RuntimeLab_gv_AddMarauderButton);
+    CMLib_TrigOnButtonClick(clickTrigger, RuntimeLab_gv_AddZerglingButton);
+    CMLib_TrigOnButtonClick(clickTrigger, RuntimeLab_gv_RefreshButton);
+}
+
+bool RuntimeLab_ControlPanelClicked(bool testConds, bool runActions) {
+    int control;
 
     if (testConds) {
         return true;
@@ -34,27 +304,82 @@ bool RuntimeLab_StartTacticalArena(bool testConds, bool runActions) {
         return true;
     }
 
-    center = RuntimeLab_ArenaCenter();
-    RuntimeLab_gv_TacticalPlayerOne = CMLib_SpawnForced(
-        "Marine", 1, PointWithOffset(center, -8.0, 0.0), 0.0);
-    RuntimeLab_gv_TacticalPlayerTwo = CMLib_SpawnForced(
-        "Zergling", 2, PointWithOffset(center, 8.0, 0.0), 180.0);
+    control = CMLib_EvtControl();
+    if (control == RuntimeLab_gv_ResetButton) {
+        RuntimeLab_ResetArena();
+    } else if (control == RuntimeLab_gv_FightButton) {
+        RuntimeLab_StartFight();
+    } else if (control == RuntimeLab_gv_ClearButton) {
+        RuntimeLab_ClearArena();
+    } else if (control == RuntimeLab_gv_AddMarineButton) {
+        RuntimeLab_AddPreset("Marine", 1, 4);
+    } else if (control == RuntimeLab_gv_AddMarauderButton) {
+        RuntimeLab_AddPreset("Marauder", 1, 2);
+    } else if (control == RuntimeLab_gv_AddZerglingButton) {
+        RuntimeLab_AddPreset("Zergling", 2, 8);
+    } else if (control == RuntimeLab_gv_RefreshButton) {
+        RuntimeLab_RefreshStatus();
+    }
+    return true;
+}
 
-    RuntimeLab_WriteStatus("tactical_player_one_ready",
-        RuntimeLab_BoolToInt(RuntimeLab_gv_TacticalPlayerOne != null));
-    RuntimeLab_WriteStatus("tactical_player_two_ready",
-        RuntimeLab_BoolToInt(RuntimeLab_gv_TacticalPlayerTwo != null));
-    RuntimeLab_WriteStatus("tactical_arena_ready",
-        RuntimeLab_BoolToInt(RuntimeLab_gv_TacticalPlayerOne != null && RuntimeLab_gv_TacticalPlayerTwo != null));
+bool RuntimeLab_ManagedUnitDied(bool testConds, bool runActions) {
+    unit dead;
+    int owner;
+
+    if (testConds) {
+        return true;
+    }
+    if (!runActions) {
+        return true;
+    }
+
+    dead = EventUnit();
+    if (CMLib_UGHasUnit(RuntimeLab_gv_ArenaUnits, dead) == false) {
+        return true;
+    }
+
+    owner = UnitGetOwner(dead);
+    if (owner == 1) {
+        RuntimeLab_gv_PlayerOneDeaths += 1;
+    } else if (owner == 2) {
+        RuntimeLab_gv_PlayerTwoDeaths += 1;
+    }
+    CMLib_UGRemove(RuntimeLab_gv_ArenaUnits, dead);
+    CMLib_UGRemove(RuntimeLab_gv_PlayerOneUnits, dead);
+    CMLib_UGRemove(RuntimeLab_gv_PlayerTwoUnits, dead);
+    RuntimeLab_RefreshStatus();
+    return true;
+}
+
+bool RuntimeLab_StartTacticalArena(bool testConds, bool runActions) {
+    if (testConds) {
+        return true;
+    }
+    if (!runActions) {
+        return true;
+    }
+
+    if (RuntimeLab_gv_ArenaInitialized == false) {
+        RuntimeLab_ResetArena();
+    }
     return true;
 }
 
 void RuntimeLab_Init() {
+    RuntimeLab_EnsureGroups();
+    RuntimeLab_ConfigurePlayers();
+    RuntimeLab_CreateControlPanel();
     RuntimeLab_WriteStatus("map_init", 1);
-    RuntimeLab_WriteStatus("runtime_vm_initialized", RuntimeLab_BoolToInt(libVibeKernel_gv_initialized));
-    RuntimeLab_WriteStatus("generic_library_loaded", RuntimeLab_BoolToInt(CMLib_ClampInt(101, 0, 100) == 100));
+    RuntimeLab_WriteStatus("runtime_vm_initialized",
+        RuntimeLab_BoolToInt(libVibeKernel_gv_initialized));
+    RuntimeLab_WriteStatus("generic_library_loaded",
+        RuntimeLab_BoolToInt(CMLib_ClampInt(101, 0, 100) == 100));
     RuntimeLab_WriteStatus("tactical_arena_scheduled", 1);
+    RuntimeLab_RefreshStatus();
 
     RuntimeLab_gt_StartTacticalArena = TriggerCreate("RuntimeLab_StartTacticalArena");
-    TriggerAddEventTimeElapsed(RuntimeLab_gt_StartTacticalArena, 8.0, c_timeGame);
+    TriggerAddEventTimeElapsed(RuntimeLab_gt_StartTacticalArena, 1.0, c_timeGame);
+    RuntimeLab_gt_ManagedUnitDied = TriggerCreate("RuntimeLab_ManagedUnitDied");
+    CMLib_TrigOnUnitDied(RuntimeLab_gt_ManagedUnitDied, null);
 }

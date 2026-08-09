@@ -12,6 +12,11 @@
 - 2026-08-09: Corrected the generated map entry include from `TriggerLibs/NativeLib` to the skeleton's engine-recognized `TriggerLibs/natives` spelling. This removes the most direct static explanation for a map that loads but silently omits `InitMap`.
 - Static evidence: `python -m pytest -q src/projects/generic-runtime-lab/tests` passed 4 tests; rebuilding emitted a 86-file map with SHA-256 `752a64905a3b3aaaa50c3336cc88900f7e0f71d59cee7efb82362e1090de871f`; Galaxy lint reported 0 diagnostics with 11 known resolver diagnostics suppressed.
 - Blocked evidence: a concurrently active `SC2_x64.exe` is loading `亡者之夜.SC2Map` without an API listener, while all 17 `GalaxyVibe` Bank candidates contain shared task state. The RuntimeLab launcher and CMLib harness would terminate or reuse that instance, so no runtime command was issued against it.
+- 2026-08-09: Added a generated `CMLibControl.SC2Map` to make the CMLib runtime dependency check repeatable. It uses the current 43 CMLib sources and the existing self-test, has no Kernel or RuntimeLab code, and only declares `Campaigns/Void.SC2Campaign`.
+- Static evidence: `python -m pytest -q src/projects/generic-runtime-lab/tests` passed 6 tests; both `RuntimeLab.SC2Map` and `CMLibControl.SC2Map` built successfully. Their SHA-256 values are respectively `041097a1c7e896518bc5ae4c7ce3c09e9c816638b786196a3205f8feb6d6f39a` and `c6ae6468f3f4479a3ca673ec3a3b3e235014187f2ffff21cc8be13ef4edeb046`.
+- Static evidence: Galaxy lint reported 0 diagnostics for both generated entry files; `check_cmlib.py` reported 0 errors and 0 warnings; `check_g1001.py` passed for both entry files.
+- Runtime evidence: an approved launcher created an attributable no-mod API instance for the earlier `RuntimeLab-CMLibClean.SC2Map.mpq` control. `CreateGame` and `JoinGame` succeeded and game loops reached 222, but every sample contained only the 12 skeleton units, not the immediate Ghost sentinel. The foreign automation then replaced that instance before the diagnostic completed, so the connection loss is not attributed to the control package. The same launch window had no new `ScriptError` files.
+- Blocked evidence: after that probe, another runtime workflow continuously owned port 5000 with a separate `SC2_x64.exe -listen 127.0.0.1 -port 5000 -debug` instance. Its known CMRE lease is detached and names `亡者之夜.SC2Map`; it is not attributable to RuntimeLab. No command that could reuse, stop, or replace that process was issued.
 
 ## Evidence
 
@@ -21,10 +26,14 @@
 - `static`: the generated `MapScript.galaxy` now contains `include "TriggerLibs/natives"`, matching both `src/lib/_testmap_src/MapScript.galaxy` and `src/lib/_testmap_build/MapScript.galaxy`. The packed map SHA-256 is `752a64905a3b3aaaa50c3336cc88900f7e0f71d59cee7efb82362e1090de871f`.
 - `runtime`: `tier100_live_probe.py` against the BankList-enabled build recorded API ping, `CreateGame`, `JoinGame`, and `kernel_initialized`; the verdict remained fail-closed because no entrypoint response was received. Evidence: `artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/tier100-live-verdict-runtime-lab-with-bank-list.json`.
 - `blocked`: corrected-map probes on ports 5002, 5003, and 5004 either lost the API before `CreateGame` or shared an active `GalaxyVibe` Bank with an unrelated CMRE job. Evidence: `artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/runtime-blocked-20260809.json` and the recorded tier100 verdicts.
+- `static`: `python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py --cmlib-control` generated an isolated CMLib control map from the same current source tree as RuntimeLab. Evidence: `artifacts/projects/generic-runtime-lab/stage01-foundation/maps/cmlib-control-build-report.json`.
+- `runtime`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/launch-galaxy-vibe.ps1 -Port 5000 -Map artifacts/projects/generic-runtime-lab/stage01-foundation/diagnostics/RuntimeLab-CMLibClean.SC2Map.mpq -ModPath ''` reached an API-ready instance; `python tools/galaxy-vibe/map_load_diag.py ... --wait 12` recorded loops 46 through 222 with only skeleton units. Evidence: `artifacts/projects/generic-runtime-lab/stage01-foundation/diagnostics/cmlib-clean-map-load-exclusive-20260809.json`.
+- `runtime`: `python tools/galaxy-vibe/script_error_check.py --out artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/cmlib-clean-exclusive-script-error-verdict.json` found zero new ScriptError files in that launch window.
+- `blocked`: current port ownership was observed with `Get-CimInstance Win32_Process -Filter "Name='SC2_x64.exe'"` and `Get-NetTCPConnection -State Listen`. The current process is not from this stage and no generic-map launcher supports a non-destructive concurrent session.
 
 ## Changes
 
-- Added the standalone project, map builder, map-owned dispatcher, map-owned tactical fixture, regression tests, and stage evidence files.
+- Added the standalone project, map builder, generated CMLib control, map-owned dispatcher, map-owned tactical fixture, regression tests, and stage evidence files.
 - The builder uses the minimal skeleton plus current Kernel/CMLib sources and emits `BankList.xml`; it does not modify CMRE maps, commander packages, or generic-library sources.
 
 ## Problems
@@ -32,7 +41,8 @@
 - The supplied `.doc` is locked by another process, so its content has not been used as evidence. The original file was not modified.
 - Runtime completion is blocked until an exclusive debug SC2 API and `GalaxyVibe` Bank lease are available. No CMLib runtime-self-test success, tactical-arena success, or VM RPC success is claimed for the current package.
 - The current external SC2 instance loads a different map and has no API listener. It must finish independently before the approved RuntimeLab launcher can create an attributable window; it was not stopped by this stage.
+- The fresh CMLib control and fresh RuntimeLab package require an exclusive API window for their acceptance tests. Existing old control observations do not prove behavior of the current packages.
 
 ## Handoff
 
-- Acquire an exclusive runtime lease, archive and pre-seed a no-history `GalaxyVibe` Bank using the existing arena-launcher format, then run the non-fresh tier100 probe and `cmlib_runtime_test.py` against the current map before creating Stage 02.
+- Wait for the foreign SC2 API process to exit, then use the approved launcher to run `CMLibControl.SC2Map` first and capture Ghost/Thor/Bank evidence plus the same-window ScriptError verdict. Only if that passes, launch current `RuntimeLab.SC2Map` without reusing another job's Bank, then verify VM ping, CMLib evidence, tactical readiness, and ScriptError in one attributable window before creating Stage 02.

@@ -21,9 +21,17 @@
       "id": "RUNTIME-LAB-SHARED-RUNTIME-LEASE",
       "status": "open",
       "classification": "blocked",
-      "summary": "An active SC2 instance is loading a different map, and all 17 GalaxyVibe Bank candidates contain shared task state.",
-      "impact": "The approved RuntimeLab launcher and CMLib harness could terminate or reuse that instance; corrected-map probes cannot attribute Bank markers, RPC responses, or ScriptError evidence to this map, so Stage 01 cannot pass its live gate.",
-      "nextAction": "Retry only with an exclusive SC2 API and GalaxyVibe Bank lease. Archive then pre-seed a no-history Bank using the existing launch-test-arena format, run tier100 without --fresh-bank and cmlib_runtime_test.py, then retain the same-window ScriptError verdict."
+      "summary": "Another workflow continuously owns the only observable SC2 API port, while the known CMRE runtime lease is detached from a different map.",
+      "impact": "The approved generic launcher would stop or reuse that process. CMLib control and RuntimeLab results could not be attributed to this stage, so Stage 01 cannot pass its live gate.",
+      "nextAction": "Retry only with an exclusive SC2 API and GalaxyVibe Bank lease. Run current CMLibControl.SC2Map first, then current RuntimeLab.SC2Map; retain raw observation, Bank, and same-window ScriptError evidence for each."
+    },
+    {
+      "id": "RUNTIME-LAB-CMLIB-CONTROL-RUNTIME",
+      "status": "open",
+      "classification": "blocked",
+      "summary": "The fresh CMLibControl.SC2Map has static evidence but no attributable live execution yet.",
+      "impact": "The stage cannot distinguish a generic CMLib dependency problem from RuntimeLab Kernel integration until the control has raw Ghost/Thor and Bank evidence in an exclusive launch window.",
+      "nextAction": "After the foreign API exits, launch the control through tools/galaxy-vibe/launch-galaxy-vibe.ps1, run cmlib_runtime_test.py against it, and record the ScriptError verdict before launching RuntimeLab."
     }
   ]
 }
