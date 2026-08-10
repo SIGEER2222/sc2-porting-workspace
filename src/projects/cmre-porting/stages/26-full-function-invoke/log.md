@@ -349,3 +349,38 @@
   `CM_ArtPack_Base.SC2Mod` 被其他进程占用，未创建对应 staged map。两次结果一致，
   说明 1000/0 当前无法取得 staging/package 证据；详情见
   `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/tier1000-tier0-staging-blocked-20260809.json`。
+
+### 2026-08-10 approved launcher full invoke rollout
+
+- `runtime`：在用户已授权的独占窗口中，按 `-InvokeTier 100`、`-InvokeTier 1000`、
+  `-InvokeFull` 顺序由 `tools/launchers/launch-cmre-alenger.ps1` 启动，分别使用
+  API 端口 5011、5012、5014。每轮均使用 `tier100_live_probe.py --fresh-bank --runs 1`
+  且探针完成 `CreateGame`、`JoinGame`、请求推进、动作和查询闭环。
+- `runtime`：Tier100 verdict 为 PASS：`gen.1` 返回 fixed 0；`gen.202` 因不在该
+  分档挂载范围内返回预期 `FUNCTION_NOT_IN_MAP`。Tier1000 与 Full verdict 均为 PASS：
+  `gen.1 -> fixed 0`、`gen.202 -> int 2`。三轮均有 `kernel_initialized=1`、
+  `register_entrypoints_done=1`、`system.ping` 成功、`vibe.unit.spawn` 后 SC2 raw
+  observation 的 Marine `+1`、`query.units=1`，以及同窗口 `ScriptError files=[]`。
+- `runtime/static`：三个实际 packed map 已独立校验，不再使用旧的同 SHA-256 重命名图：
+  - Tier100：`C:/tmp/CMREStage26-Approved-Tier100-20260810.SC2Map`，3,403,359B，
+    SHA-256 `EFAAC5D8E66F63C00FDE2328C7961B0429822E58D81F5BE3E9125FF005CFBB4F`。
+  - Tier1000：`C:/tmp/CMREStage26-Approved-Tier1000-20260810.SC2Map`，3,495,092B，
+    SHA-256 `D7DD3982300B20A1A4657E009A2F98FD64C0F6A302697BAD59BF48FB80237F34`。
+  - Full：`C:/tmp/CMREStage26-Approved-Full-20260810.SC2Map`，4,070,657B，
+    SHA-256 `7828FCE5067A29DDBEAAFE276A9D8BBF834D230910E0ADD6EFF581A74C0E7A66`。
+- `runtime`：Full 启动 stdout 记录 `CMRE preselected startup: 亡者之夜.SC2Map x
+  TerranAlenger3`、`CMRE commander-selection fallback already absent` 和预选 overlay
+  应用；随后 API 直接进入地图并完成上述 runtime MVP。结合静态回归中对
+  `CommanderSelectionScreen`、`CMUIX_StartupApplySavedConfiguration` 的移除断言，
+  指挥官选择界面入口已被禁用。
+- `runtime`：Full 验证完成后已按端口和命令行确认并结束本轮专属 `SC2_x64.exe` PID
+  10936（`-port 5014`），对应 launcher PID 38416 也已退出；未触碰其他外部会话。
+- `static`：`python -m pytest -q tools/launchers/tests/test_launch_cmre_alenger_static.py`
+  -> 40 passed；`python -m pytest -q tools/launchers/tests` -> 66 passed。
+  `launch-cmre-alenger.ps1` 与 `cmre-on-demand-overlay.ps1` PowerShell AST 均为 0
+  errors。`-InvokeFull` 与 `-InvokeTier > 0` 互斥，`-InvokeTier=0` 明确保持
+  generated bundle disabled 的稳定基线。
+- 阶段结论：approved-launcher 的 100 -> 1000 -> Full runtime rollout 已闭环，
+  `RUNTIME-LIVE-VALIDATION-BLOCKED`、`TIER-ROLLOUT-ARTIFACT-INTEGRITY` 和
+  `PRESELECTED-COMMANDER-LIVE-VALIDATION-BLOCKED` 已解决；历史 90 条声明对账差异、
+  structref 无 producer 等静态限制继续保留在 `issues.json`。
