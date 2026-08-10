@@ -872,7 +872,8 @@ function Install-CmreObserverOverlay {
         [bool]$EnableReborn = $false,
         [string]$RebornCommander = "",
         [string]$VibeKernelOverride = "",
-        [int]$InvokeTier = 0
+        [int]$InvokeTier = 0,
+        [switch]$InvokeFull
     )
     if ($AdapterLibPrefix -ne "") { Assert-CmreGalaxyToken -Value $AdapterLibPrefix -Name "AdapterLibPrefix" }
     $baseData = Join-Path $MapPath "Base.SC2Data"
@@ -937,6 +938,11 @@ function Install-CmreObserverOverlay {
     # InvokeTier is opt-in: zero keeps production/WebUI launches on the stable
     # kernel and observer path. 100/1000 mount only the low-id shard range plus
     # the matching tier dispatch variant, so experimental rollouts are bounded.
+    # InvokeFull deliberately uses the base dispatch plus every shard.
+    if ($InvokeFull -and $InvokeTier -gt 0) {
+        throw "-InvokeFull cannot be combined with -InvokeTier > 0"
+    }
+    $mountGeneratedInvokeBundle = $InvokeFull -or $InvokeTier -gt 0
     $vibeInvokeBundle = Join-Path $vibeKernelRoot "generated\$MapName"
     if (-not (Test-Path -LiteralPath $vibeInvokeBundle)) {
         $vibeInvokeBundle = Join-Path $WorkspaceRoot "tools\galaxy-vibe\kernel\generated\$MapName"
@@ -946,14 +952,14 @@ function Install-CmreObserverOverlay {
     # one implementation for libVibeInvoke_gf_Dispatch.
     Get-ChildItem -LiteralPath $baseData -Filter "LibVibeInvoke*.galaxy" -File -ErrorAction SilentlyContinue |
         Remove-Item -Force -ErrorAction Stop
-    if ($InvokeTier -gt 0 -and (Test-Path -LiteralPath $vibeInvokeBundle)) {
+    if ($mountGeneratedInvokeBundle -and (Test-Path -LiteralPath $vibeInvokeBundle)) {
         $bundleFiles = @()
         foreach ($bundleFile in Get-ChildItem -LiteralPath $vibeInvokeBundle -Filter "*.galaxy") {
             $sourceName = $bundleFile.Name
             if ($sourceName -match '^LibVibeInvoke_(\d{2})(_h)?\.galaxy$') {
-                if ($InvokeTier -gt 0 -and ((([int]$Matches[1] - 1) * 400) + 1) -gt $InvokeTier) { continue }
+                if (-not $InvokeFull -and ((([int]$Matches[1] - 1) * 400) + 1) -gt $InvokeTier) { continue }
             } elseif ($sourceName -eq "LibVibeInvokeDispatch.galaxy") {
-                if ($InvokeTier -gt 0) {
+                if (-not $InvokeFull) {
                     $tierSource = Join-Path $vibeInvokeBundle ("LibVibeInvokeDispatch_tier" + $InvokeTier + ".galaxy")
                     if (-not (Test-Path -LiteralPath $tierSource)) {
                         throw "Invoke tier $InvokeTier dispatch variant missing: $tierSource"
@@ -967,8 +973,9 @@ function Install-CmreObserverOverlay {
             $bundleFiles += @{ Source = $bundleFile.FullName; Name = $sourceName }
         }
         Copy-CmreOverlayFiles -Files $bundleFiles -DestinationRoot $baseData
-        Write-Host "Project Vibe kernel overlay: copied generated invoke bundle ($($bundleFiles.Count) files, tier $InvokeTier) for $MapName"
-    } elseif ($InvokeTier -gt 0) {
+        $bundleKind = if ($InvokeFull) { "full" } else { "tier $InvokeTier" }
+        Write-Host "Project Vibe kernel overlay: copied generated invoke bundle ($($bundleFiles.Count) files, $bundleKind) for $MapName"
+    } elseif ($mountGeneratedInvokeBundle) {
         Write-Host "Project Vibe kernel overlay: no generated invoke bundle for $MapName"
     } else {
         Copy-CmreOverlayFiles -Files @(
@@ -1027,7 +1034,7 @@ function Install-CmreObserverOverlay {
     # references to files removed by the cleanup above.
     $mapScript = [regex]::Replace($mapScript, '(?m)^[ \t]*include "LibVibe(?:Handles|Invoke(?:Common|_[^"]*|Dispatch|Disabled))"\r?\n', '')
     $vibeInvokeBundleDir = Join-Path $baseData "LibVibeInvokeDispatch.galaxy"
-    if ($InvokeTier -gt 0 -and (Test-Path -LiteralPath $vibeInvokeBundleDir)) {
+    if ($mountGeneratedInvokeBundle -and (Test-Path -LiteralPath $vibeInvokeBundleDir)) {
         $vibeInvokeIncludes = @('include "LibVibeHandles"', 'include "LibVibeInvokeCommon"')
         $vibeInvokeShards = Get-ChildItem -LiteralPath $baseData -Filter "LibVibeInvoke_*.galaxy" |
             Where-Object { $_.Name -notlike "*_h.galaxy" } |
@@ -1036,7 +1043,7 @@ function Install-CmreObserverOverlay {
         $vibeInvokeIncludes += $vibeInvokeShards
         $vibeInvokeIncludes += 'include "LibVibeInvokeDispatch"'
         $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor 'include "LibVibeKernel"' -Lines $vibeInvokeIncludes
-    } elseif ($InvokeTier -eq 0) {
+    } elseif (-not $mountGeneratedInvokeBundle) {
         $disabledInvokeStub = Join-Path $baseData "LibVibeInvokeDisabled.galaxy"
         if (-not (Test-Path -LiteralPath $disabledInvokeStub -PathType Leaf)) {
             throw "Stable invoke dispatch stub missing: $disabledInvokeStub"

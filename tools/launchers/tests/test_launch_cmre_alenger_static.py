@@ -733,9 +733,11 @@ def test_observer_overlay_mounts_invoke_bundle_with_rollout_tiers():
     assert 'Add-CmreLinesAfter -Content $mapScript -Anchor \'include "LibVibeKernel"\' -Lines $vibeInvokeIncludes' in overlay
     # 分档放量：InvokeTier 参数、tier dispatch 变体改名、超档分片跳过
     assert "[int]$InvokeTier = 0" in body
+    assert "[switch]$InvokeFull" in body
+    assert "$mountGeneratedInvokeBundle = $InvokeFull -or $InvokeTier -gt 0" in body
     assert "LibVibeInvokeDispatch_tier" in body
     assert "Invoke tier $InvokeTier dispatch variant missing" in body
-    assert "if ($InvokeTier -gt 0 -and ((([int]$Matches[1] - 1) * 400) + 1) -gt $InvokeTier) { continue }" in body
+    assert "if (-not $InvokeFull -and ((([int]$Matches[1] - 1) * 400) + 1) -gt $InvokeTier) { continue }" in body
 
 
 def test_observer_overlay_keeps_stage26_bundle_out_of_default_webui_launches():
@@ -747,8 +749,8 @@ def test_observer_overlay_keeps_stage26_bundle_out_of_default_webui_launches():
     assert '"LibVibeInvokeDisabled.galaxy"' in body
     assert 'include "LibVibeInvokeDisabled"' in body
     assert 'Get-ChildItem -LiteralPath $baseData -Filter "LibVibeInvoke*.galaxy"' in body
-    assert "if ($InvokeTier -gt 0 -and (Test-Path -LiteralPath $vibeInvokeBundle))" in body
-    assert "if ($InvokeTier -gt 0 -and (Test-Path -LiteralPath $vibeInvokeBundleDir))" in body
+    assert "if ($mountGeneratedInvokeBundle -and (Test-Path -LiteralPath $vibeInvokeBundle))" in body
+    assert "if ($mountGeneratedInvokeBundle -and (Test-Path -LiteralPath $vibeInvokeBundleDir))" in body
 
     stub = (ASSETS / "startup" / "invoke-disabled.galaxy").read_text(encoding="utf-8-sig")
     assert "CMRE_ON_DEMAND_INVOKE_DISABLED" in stub
@@ -760,8 +762,9 @@ def test_launcher_top_level_passes_invoke_tier_to_observer_overlay():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
 
     # Stage 26 分档放量：顶层参数声明 + 透传给 Install-CmreObserverOverlay
-    assert "[int]$InvokeTier = 0)" in source
-    assert "-VibeKernelOverride $VibeKernelOverride -InvokeTier $InvokeTier" in source
+    assert "[int]$InvokeTier = 0, [switch]$InvokeFull)" in source
+    assert "-VibeKernelOverride $VibeKernelOverride -InvokeTier $InvokeTier -InvokeFull:$InvokeFull" in source
+    assert "-InvokeFull cannot be combined with -InvokeTier > 0" in source
 
 
 def test_launcher_repairs_generated_invoke_bundle_against_staged_closure():
