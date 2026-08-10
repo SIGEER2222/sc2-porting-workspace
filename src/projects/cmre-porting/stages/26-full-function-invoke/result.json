@@ -200,6 +200,13 @@
       "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-launch-runtime-20260809.json"
     },
     {
+      "name": "webui-launch-runtime-map-requirements",
+      "command": "POST /api/launch-async -> poll /api/status/SSE -> inspect GameLogs, CMRERebornDebug.SC2Bank, and owned SC2 process",
+      "status": "PASS",
+      "detail": "亡者之夜只要求 P1 起始单位和 P1/P2 防败建筑。launcher 现按 map-requirements 评估 readiness，不再把 initialization_units_ready_p2=0 误判失败。WebUI 提交 TerranAlenger3 + 亡者之夜.SC2Map 后 success=true，launcher exit=0，新增 Alerts，heartbeat 4 -> 5，listener started/ready=1，initialization complete=1，P1/P2 building readiness=1、P1 units=1、P2 units=0，且无新增非空 ScriptError；SC2 保持在目标地图。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-launch-runtime-20260810-194607.json"
+    },
+    {
       "name": "runtime-full-map-reproducibility",
       "status": "PASS",
       "detail": "早先 08:0x 的 spawn+仿真引擎崩溃保留为环境历史；其后完整生成图在 18:33 与 19:32 的独立 SC2 API 会话中均通过全部 tier100_probe 断言，证明 full-map 的 gen.* 原生执行已再次可复现。此 PASS 不扩展为 launcher tier rollout 或 census 的 PASS。",

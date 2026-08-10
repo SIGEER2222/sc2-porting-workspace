@@ -286,6 +286,20 @@ def test_player_mode_launches_direct_map_from_gamelog_signal():
     assert '$args = @("`"$liveMap`"")' not in source
 
 
+def test_runtime_listener_gate_uses_map_requirements_for_optional_player_checks():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    wait_body = _function_body(source, "Wait-CmreRuntimeListener")
+
+    assert '$requireBuildingP1 = $mapPreventDefeatPlayers -contains 1' in wait_body
+    assert '$requireBuildingP2 = $mapPreventDefeatPlayers -contains 2' in wait_body
+    assert '$requireUnitsP1 = $mapStartingUnitsPlayers -contains 1' in wait_body
+    assert '$requireUnitsP2 = $mapStartingUnitsPlayers -contains 2' in wait_body
+    assert '$buildingReady = ((-not $requireBuildingP1) -or ($buildingReadyP1 -gt 0)) -and' in wait_body
+    assert '$unitsReady = ((-not $requireUnitsP1) -or ($unitsReadyP1 -gt 0)) -and' in wait_body
+    assert '($unitsReadyP1 -gt 0) -and ($unitsReadyP2 -gt 0)' not in wait_body
+    assert 'Last snapshot:' in wait_body
+
+
 def test_direct_map_api_mode_attaches_before_runtime_listener_gate():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
     direct_map_start = source.index("        if ($DirectMapApi) {")

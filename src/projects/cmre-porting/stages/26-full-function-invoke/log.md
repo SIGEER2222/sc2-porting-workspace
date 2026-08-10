@@ -384,3 +384,24 @@
   `RUNTIME-LIVE-VALIDATION-BLOCKED`、`TIER-ROLLOUT-ARTIFACT-INTEGRITY` 和
   `PRESELECTED-COMMANDER-LIVE-VALIDATION-BLOCKED` 已解决；历史 90 条声明对账差异、
   structref 无 producer 等静态限制继续保留在 `issues.json`。
+
+### 2026-08-10 WebUI player-launch gate regression fixed
+
+- `static`：定位到 `Wait-CmreRuntimeListener` 将四个 P1/P2 building/unit
+  readiness markers 无条件作为硬门。亡者之夜的 map-requirements 只要求 P1
+  起始单位、P1/P2 防败建筑；初始化 gate 如实写入
+  `initialization_units_ready_p2=0`，旧 launcher 因而在地图已成功进入后超时退出。
+- `static`：launcher 改为按本次 `mapPreventDefeatPlayers` /
+  `mapStartingUnitsPlayers` 选择必需 marker，并在超时时输出最后一份 Bank
+  快照。新增回归覆盖“P2 起始单位可选”；PowerShell AST=0 errors，
+  `python -m pytest -q tools/launchers/tests/test_launch_cmre_alenger_static.py`
+  为 **41 passed**，`python -m pytest -q tools/cmre-webui/test_launch_async_contract.py`
+  为 **6 passed**。
+- `runtime`：对 WebUI `POST /api/launch-async` 提交
+  `TerranAlenger3 + 亡者之夜.SC2Map`。请求返回 success、launcher `exit=0`，
+  本次新增 Alerts；Bank 的 heartbeat 由 4 增至 5，listener started/ready=1，
+  initialization complete=1，P1/P2 building readiness=1，P1 units readiness=1，
+  P2 units readiness=0（符合该地图声明）；同窗口没有新增非空 ScriptError。
+- `runtime`：运行后的 `SC2_x64.exe` 命令行仍指向亡者之夜，lease 归属本次
+  WebUI launcher。证据：
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-launch-runtime-20260810-194607.json`。

@@ -15,6 +15,18 @@
       "nextAction": "保留生成器回归测试；后续全量 adapter 三档探针仍按 Stage 26 计划执行。"
     },
     {
+      "id": "WEBUI-RUNTIME-GATE-MAP-REQUIREMENTS",
+      "severity": "high",
+      "status": "resolved",
+      "title": "WebUI direct-map launch treated an optional P2 unit marker as mandatory",
+      "detail": "初始化 gate 已正确按 CMCoopLaunchProfile 写入每项 readiness：亡者之夜要求 P1/P2 防败建筑和 P1 起始单位，不要求 P2 起始单位，因此 initialization_units_ready_p2=0 是预期。Wait-CmreRuntimeListener 旧实现仍无条件要求 P1/P2 building/unit 全部为 1，导致 WebUI 已进图、listener 已就绪且 heartbeat 递增后仍在 420 秒超时。现改为按 map-requirements 的 preventDefeat/startingUnits 玩家范围判定，并在失败时打印末次 Bank 快照。",
+      "evidence_type": "mixed",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-launch-runtime-20260810-194607.json",
+      "owner": "stage26",
+      "resolution": "tools/launchers/launch-cmre-alenger.ps1::Wait-CmreRuntimeListener",
+      "nextAction": "保留 map-specific marker regression；新增地图时同步维护 map-requirements.json。"
+    },
+    {
       "id": "RUNTIME-LIVE-VALIDATION-BLOCKED",
       "severity": "medium",
       "status": "resolved",

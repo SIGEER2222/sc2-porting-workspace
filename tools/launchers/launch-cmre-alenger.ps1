@@ -1861,6 +1861,11 @@ function Wait-CmreRuntimeListener {
     param([int]$TimeoutSeconds = 45)
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $firstHeartbeat = $null
+    $requireBuildingP1 = $mapPreventDefeatPlayers -contains 1
+    $requireBuildingP2 = $mapPreventDefeatPlayers -contains 2
+    $requireUnitsP1 = $mapStartingUnitsPlayers -contains 1
+    $requireUnitsP2 = $mapStartingUnitsPlayers -contains 2
+    $lastSnapshot = $null
     while ((Get-Date) -lt $deadline) {
         $started = Get-CmreRuntimeBankInt -Key "runtime_listener_started"
         $ready = Get-CmreRuntimeBankInt -Key "runtime_listener_ready"
@@ -1871,9 +1876,27 @@ function Wait-CmreRuntimeListener {
         $buildingReadyP2 = Get-CmreRuntimeBankInt -Key "initialization_building_ready_p2"
         $unitsReadyP1 = Get-CmreRuntimeBankInt -Key "initialization_units_ready_p1"
         $unitsReadyP2 = Get-CmreRuntimeBankInt -Key "initialization_units_ready_p2"
+        $buildingReady = ((-not $requireBuildingP1) -or ($buildingReadyP1 -gt 0)) -and
+            ((-not $requireBuildingP2) -or ($buildingReadyP2 -gt 0))
+        $unitsReady = ((-not $requireUnitsP1) -or ($unitsReadyP1 -gt 0)) -and
+            ((-not $requireUnitsP2) -or ($unitsReadyP2 -gt 0))
         $initializationReady = ($initializationComplete -gt 0) -and
-            ($buildingReadyP1 -gt 0) -and ($buildingReadyP2 -gt 0) -and
-            ($unitsReadyP1 -gt 0) -and ($unitsReadyP2 -gt 0)
+            $buildingReady -and $unitsReady
+        $lastSnapshot = [ordered]@{
+            started = $started
+            ready = $ready
+            heartbeat = $heartbeat
+            world_cover_dialog_visible_p1 = $worldCoverVisible
+            initialization_complete = $initializationComplete
+            initialization_building_ready_p1 = $buildingReadyP1
+            initialization_building_ready_p2 = $buildingReadyP2
+            initialization_units_ready_p1 = $unitsReadyP1
+            initialization_units_ready_p2 = $unitsReadyP2
+            require_building_p1 = [int]$requireBuildingP1
+            require_building_p2 = [int]$requireBuildingP2
+            require_units_p1 = [int]$requireUnitsP1
+            require_units_p2 = [int]$requireUnitsP2
+        }
         if (($started -gt 0) -and ($ready -gt 0) -and ($heartbeat -gt 0) -and $initializationReady) {
             if ($null -eq $firstHeartbeat) {
                 $firstHeartbeat = $heartbeat
@@ -1892,7 +1915,12 @@ function Wait-CmreRuntimeListener {
         }
         Start-Sleep -Seconds 1
     }
-    throw "Runtime listener gate failed: complete initialization marker/building/unit checks plus increasing bridge_heartbeat were not observed within $TimeoutSeconds seconds."
+    $snapshotText = if ($null -ne $lastSnapshot) {
+        ($lastSnapshot.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ", "
+    } else {
+        "no bank snapshot"
+    }
+    throw "Runtime listener gate failed: required initialization marker/building/unit checks plus increasing bridge_heartbeat were not observed within $TimeoutSeconds seconds. Last snapshot: $snapshotText"
 }
 
 $script:Sc2RuntimeLeasePath = [System.IO.Path]::GetFullPath($script:Sc2RuntimeLeasePath)
