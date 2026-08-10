@@ -23,6 +23,35 @@ CMLIB_CONTROL_BUILD_DIR = (
 )
 CMLIB_CONTROL_MAP = OUTPUT_DIR / "CMLibControl.SC2Map"
 CMLIB_CONTROL_REPORT = OUTPUT_DIR / "cmlib-control-build-report.json"
+KERNEL_CONTROL_BUILD_DIR = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage01-foundation"
+    / "build" / "KernelControl.SC2Map"
+)
+KERNEL_CONTROL_MAP = OUTPUT_DIR / "KernelControl.SC2Map"
+KERNEL_CONTROL_REPORT = OUTPUT_DIR / "kernel-control-build-report.json"
+KERNEL_CMLIB_CONTROL_BUILD_DIR = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage01-foundation"
+    / "build" / "KernelCMLibControl.SC2Map"
+)
+KERNEL_CMLIB_CONTROL_MAP = OUTPUT_DIR / "KernelCMLibControl.SC2Map"
+KERNEL_CMLIB_CONTROL_REPORT = OUTPUT_DIR / "kernel-cmlib-control-build-report.json"
+KERNEL_CONTROL_NO_TRIGGERS_BUILD_DIR = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage01-foundation"
+    / "build" / "KernelControlNoTriggers.SC2Map"
+)
+KERNEL_CONTROL_NO_TRIGGERS_MAP = OUTPUT_DIR / "KernelControlNoTriggers.SC2Map"
+KERNEL_CONTROL_NO_TRIGGERS_REPORT = OUTPUT_DIR / "kernel-control-no-triggers-build-report.json"
+ARENA_BASE_MAP = (
+    REPO / "src" / "projects" / "test-arena" / "packages" / "Maps"
+    / "地图调试和斗蛐蛐工具（完整功能版).SC2Map"
+)
+RUNTIME_BASE_MAP = ARENA_BASE_MAP
+ARENA_KERNEL_CONTROL_BUILD_DIR = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage01-foundation"
+    / "build" / "ArenaKernelControl.SC2Map"
+)
+ARENA_KERNEL_CONTROL_MAP = OUTPUT_DIR / "ArenaKernelControl.SC2Map"
+ARENA_KERNEL_CONTROL_REPORT = OUTPUT_DIR / "arena-kernel-control-build-report.json"
 CMLIB = REPO / "src" / "lib" / "scripts" / "cmlib"
 SELFTEST = REPO / "src" / "lib" / "selftest" / "cmlib_selftest.galaxy"
 KERNEL = REPO / "tools" / "galaxy-vibe" / "kernel"
@@ -49,7 +78,7 @@ DOCUMENT_INFO = """<?xml version="1.0" encoding="utf-8"?>
 """
 
 MAPSCRIPT = """// Generated Runtime Lab entry point. Build from current VM and CMLib sources.
-include "TriggerLibs/natives"
+include "TriggerLibs/NativeLib"
 include "scripts/cmlib/cmlib"
 include "LibVibeKernel"
 include "LibVibeInvokeDispatch"
@@ -58,6 +87,7 @@ include "scripts/cmlib/cmlib_selftest"
 
 void InitMap() {
     libVibeKernel_InitLib();
+    libNtve_InitLib();
     CMLib_SelfTest();
     RuntimeLab_Init();
 }
@@ -69,6 +99,66 @@ include "scripts/cmlib/cmlib"
 include "scripts/cmlib/cmlib_selftest"
 
 void InitMap() {
+    CMLib_SelfTest();
+}
+"""
+
+KERNEL_CONTROL_MAPSCRIPT = """// Generated Kernel control. It excludes CMLib and RuntimeLab.
+include "TriggerLibs/NativeLib"
+include "LibVibeKernel"
+include "KernelControlDispatch"
+
+void InitMap() {
+    libVibeKernel_InitLib();
+    libNtve_InitLib();
+    KernelControl_Init();
+}
+"""
+
+KERNEL_CONTROL_DISPATCH = """// Map-owned observability for the isolated Kernel controls.
+// This deliberately uses the same Bank channel as the Kernel after game time starts.
+bool KernelControl_DelayedProbe(bool testConds, bool runActions) {
+    bank controlBank;
+
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+
+    controlBank = BankLoad("GalaxyVibe", 1);
+    if (controlBank != null) {
+        BankWait(controlBank);
+        BankValueSetFromInt(controlBank, "index", "kernel_control_map_ready", 1);
+        BankSave(controlBank);
+    }
+    UnitCreate(1, "Ghost", c_unitCreateIgnorePlacement, 1, Point(10.0, 10.0), 270.0);
+    return true;
+}
+
+void KernelControl_Init() {
+    trigger delayedProbe;
+
+    UnitCreate(1, "Ghost", c_unitCreateIgnorePlacement, 1, Point(10.0, 10.0), 270.0);
+    delayedProbe = TriggerCreate("KernelControl_DelayedProbe");
+    TriggerEnable(delayedProbe, true);
+    TriggerAddEventTimeElapsed(delayedProbe, 1.0, c_timeGame);
+}
+
+// Minimal dispatch stub for the isolated Kernel control map.
+string libVibeInvoke_gf_Dispatch(int functionId, string argsJson) {
+    return "";
+}
+"""
+
+KERNEL_CMLIB_CONTROL_MAPSCRIPT = """// Generated Kernel+CMLib control. It excludes RuntimeLab fixtures.
+include "TriggerLibs/NativeLib"
+include "scripts/cmlib/cmlib"
+include "LibVibeKernel"
+include "KernelControlDispatch"
+include "scripts/cmlib/cmlib_selftest"
+
+void InitMap() {
+    libVibeKernel_InitLib();
+    libNtve_InitLib();
+    KernelControl_Init();
     CMLib_SelfTest();
 }
 """
@@ -104,6 +194,12 @@ def pack_map(build_dir: Path, output_map: Path) -> str:
     return completed.stdout.strip()
 
 
+def remove_triggers_payload(build_dir: Path) -> None:
+    triggers_path = build_dir / "Triggers"
+    if triggers_path.exists():
+        triggers_path.unlink()
+
+
 def build_cmlib_control() -> int:
     if CMLIB_CONTROL_BUILD_DIR.exists():
         shutil.rmtree(CMLIB_CONTROL_BUILD_DIR)
@@ -132,14 +228,151 @@ def build_cmlib_control() -> int:
     return 0
 
 
+def build_kernel_control() -> int:
+    if KERNEL_CONTROL_BUILD_DIR.exists():
+        shutil.rmtree(KERNEL_CONTROL_BUILD_DIR)
+    shutil.copytree(BASE_MAP, KERNEL_CONTROL_BUILD_DIR)
+    for filename in ("LibVibeKernel_h.galaxy", "LibVibeKernel.galaxy", "LibVibeHandles.galaxy"):
+        copy_required(KERNEL / filename, KERNEL_CONTROL_BUILD_DIR / "Base.SC2Data" / filename)
+    (KERNEL_CONTROL_BUILD_DIR / "Base.SC2Data" / "KernelControlDispatch.galaxy").write_text(
+        KERNEL_CONTROL_DISPATCH, encoding="utf-8", newline="\n")
+    (KERNEL_CONTROL_BUILD_DIR / "MapScript.galaxy").write_text(
+        KERNEL_CONTROL_MAPSCRIPT, encoding="utf-8", newline="\n")
+    (KERNEL_CONTROL_BUILD_DIR / "BankList.xml").write_text(
+        BANK_LIST, encoding="utf-8", newline="\n")
+    (KERNEL_CONTROL_BUILD_DIR / "DocumentInfo").write_text(
+        DOCUMENT_INFO, encoding="utf-8", newline="\n")
+    packer_output = pack_map(KERNEL_CONTROL_BUILD_DIR, KERNEL_CONTROL_MAP)
+
+    report = {
+        "schemaVersion": 1,
+        "classification": "static",
+        "kind": "kernel-control",
+        "map": KERNEL_CONTROL_MAP.relative_to(REPO).as_posix(),
+        "sha256": sha256(KERNEL_CONTROL_MAP),
+        "cmlibFiles": 0,
+        "kernelFiles": ["LibVibeKernel_h.galaxy", "LibVibeKernel.galaxy", "LibVibeHandles.galaxy"],
+        "runtimeLabFiles": ["KernelControlDispatch.galaxy"],
+        "dependencies": ["Campaigns/Void.SC2Campaign"],
+        "packerOutput": packer_output,
+    }
+    KERNEL_CONTROL_REPORT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(report, indent=2))
+    return 0
+
+
+def build_kernel_cmlib_control() -> int:
+    if KERNEL_CMLIB_CONTROL_BUILD_DIR.exists():
+        shutil.rmtree(KERNEL_CMLIB_CONTROL_BUILD_DIR)
+    shutil.copytree(BASE_MAP, KERNEL_CMLIB_CONTROL_BUILD_DIR)
+    cmlib_out = copy_cmlib_sources(KERNEL_CMLIB_CONTROL_BUILD_DIR)
+    for filename in ("LibVibeKernel_h.galaxy", "LibVibeKernel.galaxy", "LibVibeHandles.galaxy"):
+        copy_required(KERNEL / filename, KERNEL_CMLIB_CONTROL_BUILD_DIR / "Base.SC2Data" / filename)
+    (KERNEL_CMLIB_CONTROL_BUILD_DIR / "Base.SC2Data" / "KernelControlDispatch.galaxy").write_text(
+        KERNEL_CONTROL_DISPATCH, encoding="utf-8", newline="\n")
+    (KERNEL_CMLIB_CONTROL_BUILD_DIR / "MapScript.galaxy").write_text(
+        KERNEL_CMLIB_CONTROL_MAPSCRIPT, encoding="utf-8", newline="\n")
+    (KERNEL_CMLIB_CONTROL_BUILD_DIR / "BankList.xml").write_text(
+        BANK_LIST, encoding="utf-8", newline="\n")
+    (KERNEL_CMLIB_CONTROL_BUILD_DIR / "DocumentInfo").write_text(
+        DOCUMENT_INFO, encoding="utf-8", newline="\n")
+    packer_output = pack_map(KERNEL_CMLIB_CONTROL_BUILD_DIR, KERNEL_CMLIB_CONTROL_MAP)
+
+    report = {
+        "schemaVersion": 1,
+        "classification": "static",
+        "kind": "kernel-cmlib-control",
+        "map": KERNEL_CMLIB_CONTROL_MAP.relative_to(REPO).as_posix(),
+        "sha256": sha256(KERNEL_CMLIB_CONTROL_MAP),
+        "cmlibFiles": len(list(cmlib_out.glob("*.galaxy"))) - 1,
+        "kernelFiles": ["LibVibeKernel_h.galaxy", "LibVibeKernel.galaxy", "LibVibeHandles.galaxy"],
+        "runtimeLabFiles": ["KernelControlDispatch.galaxy"],
+        "dependencies": ["Campaigns/Void.SC2Campaign"],
+        "packerOutput": packer_output,
+    }
+    KERNEL_CMLIB_CONTROL_REPORT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(report, indent=2))
+    return 0
+
+
+def build_kernel_control_no_triggers() -> int:
+    if KERNEL_CONTROL_NO_TRIGGERS_BUILD_DIR.exists():
+        shutil.rmtree(KERNEL_CONTROL_NO_TRIGGERS_BUILD_DIR)
+    shutil.copytree(BASE_MAP, KERNEL_CONTROL_NO_TRIGGERS_BUILD_DIR)
+    remove_triggers_payload(KERNEL_CONTROL_NO_TRIGGERS_BUILD_DIR)
+    for filename in ("LibVibeKernel_h.galaxy", "LibVibeKernel.galaxy", "LibVibeHandles.galaxy"):
+        copy_required(KERNEL / filename, KERNEL_CONTROL_NO_TRIGGERS_BUILD_DIR / "Base.SC2Data" / filename)
+    (KERNEL_CONTROL_NO_TRIGGERS_BUILD_DIR / "Base.SC2Data" / "KernelControlDispatch.galaxy").write_text(
+        KERNEL_CONTROL_DISPATCH, encoding="utf-8", newline="\n")
+    (KERNEL_CONTROL_NO_TRIGGERS_BUILD_DIR / "MapScript.galaxy").write_text(
+        KERNEL_CONTROL_MAPSCRIPT, encoding="utf-8", newline="\n")
+    (KERNEL_CONTROL_NO_TRIGGERS_BUILD_DIR / "BankList.xml").write_text(
+        BANK_LIST, encoding="utf-8", newline="\n")
+    (KERNEL_CONTROL_NO_TRIGGERS_BUILD_DIR / "DocumentInfo").write_text(
+        DOCUMENT_INFO, encoding="utf-8", newline="\n")
+    packer_output = pack_map(KERNEL_CONTROL_NO_TRIGGERS_BUILD_DIR, KERNEL_CONTROL_NO_TRIGGERS_MAP)
+
+    report = {
+        "schemaVersion": 1,
+        "classification": "static",
+        "kind": "kernel-control-no-triggers",
+        "map": KERNEL_CONTROL_NO_TRIGGERS_MAP.relative_to(REPO).as_posix(),
+        "sha256": sha256(KERNEL_CONTROL_NO_TRIGGERS_MAP),
+        "cmlibFiles": 0,
+        "kernelFiles": ["LibVibeKernel_h.galaxy", "LibVibeKernel.galaxy", "LibVibeHandles.galaxy"],
+        "runtimeLabFiles": ["KernelControlDispatch.galaxy"],
+        "dependencies": ["Campaigns/Void.SC2Campaign"],
+        "removedFiles": ["Triggers"],
+        "packerOutput": packer_output,
+    }
+    KERNEL_CONTROL_NO_TRIGGERS_REPORT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(report, indent=2))
+    return 0
+
+
+def build_arena_kernel_control() -> int:
+    if ARENA_KERNEL_CONTROL_BUILD_DIR.exists():
+        shutil.rmtree(ARENA_KERNEL_CONTROL_BUILD_DIR)
+    shutil.copytree(ARENA_BASE_MAP, ARENA_KERNEL_CONTROL_BUILD_DIR)
+    for filename in ("LibVibeKernel_h.galaxy", "LibVibeKernel.galaxy", "LibVibeHandles.galaxy"):
+        copy_required(KERNEL / filename, ARENA_KERNEL_CONTROL_BUILD_DIR / "Base.SC2Data" / filename)
+    (ARENA_KERNEL_CONTROL_BUILD_DIR / "Base.SC2Data" / "KernelControlDispatch.galaxy").write_text(
+        KERNEL_CONTROL_DISPATCH, encoding="utf-8", newline="\n")
+    (ARENA_KERNEL_CONTROL_BUILD_DIR / "MapScript.galaxy").write_text(
+        KERNEL_CONTROL_MAPSCRIPT, encoding="utf-8", newline="\n")
+    (ARENA_KERNEL_CONTROL_BUILD_DIR / "BankList.xml").write_text(
+        BANK_LIST, encoding="utf-8", newline="\n")
+    (ARENA_KERNEL_CONTROL_BUILD_DIR / "DocumentInfo").write_text(
+        DOCUMENT_INFO, encoding="utf-8", newline="\n")
+    packer_output = pack_map(ARENA_KERNEL_CONTROL_BUILD_DIR, ARENA_KERNEL_CONTROL_MAP)
+
+    report = {
+        "schemaVersion": 1,
+        "classification": "static",
+        "kind": "arena-kernel-control",
+        "map": ARENA_KERNEL_CONTROL_MAP.relative_to(REPO).as_posix(),
+        "sha256": sha256(ARENA_KERNEL_CONTROL_MAP),
+        "baseMap": ARENA_BASE_MAP.relative_to(REPO).as_posix(),
+        "cmlibFiles": 0,
+        "kernelFiles": ["LibVibeKernel_h.galaxy", "LibVibeKernel.galaxy", "LibVibeHandles.galaxy"],
+        "runtimeLabFiles": ["KernelControlDispatch.galaxy"],
+        "dependencies": ["Campaigns/Void.SC2Campaign"],
+        "dependencyPolicy": "Removed the missing WarClassicSystem.SC2Mod dependency from the copied diagnostic build.",
+        "packerOutput": packer_output,
+    }
+    ARENA_KERNEL_CONTROL_REPORT.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(json.dumps(report, indent=2, ensure_ascii=False))
+    return 0
+
+
 def main() -> int:
-    for required in (BASE_MAP, CMLIB, SELFTEST, KERNEL, PACKER, STORMLIB):
+    for required in (RUNTIME_BASE_MAP, CMLIB, SELFTEST, KERNEL, PACKER, STORMLIB):
         if not required.exists():
             raise FileNotFoundError(required)
 
     if BUILD_DIR.exists():
         shutil.rmtree(BUILD_DIR)
-    shutil.copytree(BASE_MAP, BUILD_DIR)
+    shutil.copytree(RUNTIME_BASE_MAP, BUILD_DIR)
 
     cmlib_out = copy_cmlib_sources(BUILD_DIR)
 
@@ -165,6 +398,7 @@ def main() -> int:
         "classification": "static",
         "map": OUTPUT_MAP.relative_to(REPO).as_posix(),
         "sha256": sha256(OUTPUT_MAP),
+        "baseMap": RUNTIME_BASE_MAP.relative_to(REPO).as_posix(),
         "cmlibFiles": len(list(cmlib_out.glob("*.galaxy"))) - 1,
         "kernelFiles": ["LibVibeKernel_h.galaxy", "LibVibeKernel.galaxy", "LibVibeHandles.galaxy"],
         "runtimeLabFiles": [source.name for source in runtime_sources],
@@ -179,6 +413,16 @@ def main() -> int:
 if __name__ == "__main__":
     if sys.argv[1:] == ["--cmlib-control"]:
         raise SystemExit(build_cmlib_control())
+    if sys.argv[1:] == ["--kernel-control"]:
+        raise SystemExit(build_kernel_control())
+    if sys.argv[1:] == ["--kernel-cmlib-control"]:
+        raise SystemExit(build_kernel_cmlib_control())
+    if sys.argv[1:] == ["--kernel-control-no-triggers"]:
+        raise SystemExit(build_kernel_control_no_triggers())
+    if sys.argv[1:] == ["--arena-kernel-control"]:
+        raise SystemExit(build_arena_kernel_control())
     if len(sys.argv) > 1:
-        raise SystemExit("Usage: build_runtime_lab.py [--cmlib-control]")
+        raise SystemExit(
+            "Usage: build_runtime_lab.py [--cmlib-control|--kernel-control|--kernel-cmlib-control|--kernel-control-no-triggers|--arena-kernel-control]"
+        )
     raise SystemExit(main())

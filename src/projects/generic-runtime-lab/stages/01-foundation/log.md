@@ -50,4 +50,28 @@
 
 ## Handoff
 
+- 2026-08-10: Pivoted the runtime baseline to the supplied debug/battle map derivative because the minimal skeleton could load but did not execute map-owned Kernel sentinels in real SC2. The reference map remains read-only; the generated derivative removes its unavailable WarClassicSystem.SC2Mod dependency.
+- Static evidence: python -m pytest -q src/projects/generic-runtime-lab/tests passed 10 tests. python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py rebuilt the current RuntimeLab map from the arena base with SHA-256 de3df6320275c4b112653d90262f12366c2b43913913677a11a4212fa16c12bc.
+- Static evidence: current diagnostic builds are CMLibControl.SC2Map SHA-256 596de4cd9c0b8428dbf785ea4467e0a503c444021d785a580a04359c111e9125, ArenaKernelControl.SC2Map SHA-256 0a3bb61fbd8f48fb49cb35053fbe496c2aafb6aac0dd45386281144514b09d25, and KernelCMLibControl.SC2Map SHA-256 42422bed92eb08448d8fc646799b207abb4c77c01dc34151c98779e98210c3db.
+- Static evidence: Galaxy lint on the current RuntimeLab entry file returned 0 diagnostics; G1001 returned 0 violations; CMLib static validation returned 0 errors and 1 pre-existing comment-only warning for c_MK_Snipe.
+- Source fix: the map-local generated-dispatch adapter now reads Kernel's arg_value wire key, and the project test rejects the old value key. This is not yet promoted to runtime evidence.
+- Runtime evidence: the earlier arena-base Kernel control window reached CreateGame, JoinGame, observed a player-1 Ghost, and produced one passing assertion with zero same-window ScriptErrors. Evidence: runtime/launcher-arena-kernel-control-port5002.*, runtime/assert-results-arena-kernel-control-port5002.json, and runtime/script-error-verdict-arena-kernel-control-port5002.json.
+- Runtime evidence, pre-current-fix: the earlier arena-base RuntimeLab window observed Ghost=1, system.ping pong, kernel_initialized=1, register_entrypoints_done=1, and CMLib Bank magic 13371337, but CMLib reported 623/624 with ai.state.read failing; function.invoke still reported generated_invoke_disabled. These files are retained as historical pre-fix evidence only: runtime/cmlib-runtime-runtime-lab-arena-base*.stdout.txt and runtime/runtime-lab-bank-rpc-port5003.json.
+- Blocked evidence: the current live attempt on port 5004 was fail-closed by sc2_proc_guard; the latest observation is PID 33380, a responding SC2 window loading 亡者之夜.SC2Map without an API listener. Evidence: runtime/live-blocked-external-owner-20260810.json. No current de3df632 runtime claim is made.
+
+## Current Evidence
+
+- static: current sources and packed maps are under src/projects/generic-runtime-lab and artifacts/projects/generic-runtime-lab/stage01-foundation/maps.
+- runtime: arena-base Kernel control pass is limited to the exact historical map window named above; it proves the arena base can host Kernel, not the current RuntimeLab SHA.
+- runtime: pre-fix RuntimeLab evidence proves the old arena-base integration reached VM Bank transport and CMLib self-test, with the recorded one-test residual.
+- blocked: current map validation is blocked before launcher/CreateGame because an active external SC2 owner is present. This is a resource gate, not a pass/fail result for the current map.
+
+## Current Problems
+
+- The supplied .doc remains locked by another process and is not used as technical evidence.
+- The current RuntimeLab SHA has no attributable live evidence for system.ping, function.invoke gen.1, tactical readiness, or same-window ScriptError status. The external owner was replaced by PID 33380 during this session and remains active.
+- The arena-base CMLib run has a residual ai.state.read failure (623/624) that must be rechecked against the isolated CMLib control before it can be treated as a base-map limitation.
+
 - Wait for the foreign SC2 API process to exit, then use the approved launcher to run `CMLibControl.SC2Map` first and capture Ghost/Thor/Bank evidence plus the same-window ScriptError verdict. Only if that passes, launch current `RuntimeLab.SC2Map` without reusing another job's Bank, then verify VM ping, CMLib evidence, tactical readiness, and ScriptError in one attributable window before creating Stage 02.
+
+- Current handoff: do not create Stage 02 yet. Once PID 33380 and any other external SC2 owner exit, run the current CMLibControl control first, then current RuntimeLab through tools/galaxy-vibe/launch-galaxy-vibe.ps1 with a clean Bank lease. Verify system.ping, function.invoke gen.1 value=123 returning clamped 100, nonzero tactical readiness/count keys, raw unit assertions, and the same-window ScriptError verdict.

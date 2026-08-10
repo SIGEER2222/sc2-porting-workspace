@@ -15,7 +15,7 @@ string libVibeInvoke_gf_Dispatch(int functionId, string argsJson) {
             "{\"reason\":\"FUNCTION_NOT_IN_MAP\",\"detail\":\"" + IntToString(functionId) + "\",\"profile\":\"runtime-lab\"}");
     }
 
-    input = libVibeKernel_gf_ArgsGetInt(argsJson, "value");
+    input = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_value");
     result = CMLib_ClampInt(input, 0, 100);
     return libVibeKernel_gf_MakeResponse(
         "result",

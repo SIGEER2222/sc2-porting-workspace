@@ -5,11 +5,12 @@
   "claims": [
     {
       "type": "static",
-      "claim": "RuntimeLab builds from the minimal map skeleton with current Vibe Kernel and CMLib sources, without a CMRE map, mission, commander, or CMRE package dependency.",
+      "claim": "RuntimeLab builds from the read-only supplied debug/battle-map derivative with current Vibe Kernel and CMLib sources, without a CMRE map, mission, commander, or CMRE package dependency.",
       "evidence": [
         "src/projects/generic-runtime-lab/project.json",
         "src/projects/generic-runtime-lab/scripts/build_runtime_lab.py",
-        "artifacts/projects/generic-runtime-lab/stage01-foundation/maps/build-report.json"
+        "artifacts/projects/generic-runtime-lab/stage01-foundation/maps/build-report.json",
+        "src/projects/generic-runtime-lab/tests/test_runtime_lab.py"
       ]
     },
     {
@@ -22,7 +23,7 @@
     },
     {
       "type": "static",
-      "claim": "The generated RuntimeLab map has a map-local dispatch fixture, P1/P2 GalaxyVibe BankList, and deterministic Marine/Marauder-versus-Zergling tactical fixture.",
+      "claim": "The generated RuntimeLab map has a map-local dispatch fixture that consumes the Kernel arg_value wire key, P1/P2 GalaxyVibe BankList, and deterministic Marine/Marauder-versus-Zergling tactical fixture.",
       "evidence": [
         "src/projects/generic-runtime-lab/runtime/galaxy/LibVibeInvokeDispatch.galaxy",
         "src/projects/generic-runtime-lab/runtime/galaxy/runtime_lab.galaxy",
@@ -31,17 +32,26 @@
     },
     {
       "type": "runtime",
-      "claim": "An older no-mod CMLib control load reached CreateGame, JoinGame, and loops 46 through 222, but it showed only skeleton units rather than the Ghost self-test sentinel. The instance was then replaced by another workflow, so no current package pass or failure is claimed from that run.",
+      "claim": "An arena-base Kernel control window reached CreateGame and JoinGame, observed a player-1 Ghost, and passed its raw assertion with zero same-window ScriptErrors. It proves that the arena derivative can host the Kernel, but not the current RuntimeLab map SHA.",
       "evidence": [
-        "artifacts/projects/generic-runtime-lab/stage01-foundation/diagnostics/cmlib-clean-map-load-exclusive-20260809.json",
-        "artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/cmlib-clean-exclusive-script-error-verdict.json"
+        "artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/launcher-arena-kernel-control-port5002.json",
+        "artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/assert-results-arena-kernel-control-port5002.json",
+        "artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/script-error-verdict-arena-kernel-control-port5002.json"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "A pre-current-fix RuntimeLab window observed Ghost=1, a successful system.ping response, kernel_initialized=1, register_entrypoints_done=1, and CMLib Bank magic 13371337. The same window recorded CMLib 623/624 with ai.state.read failing and generated_invoke_disabled for function.invoke, so it is historical diagnostic evidence only.",
+      "evidence": [
+        "artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/cmlib-runtime-runtime-lab-arena-base.stdout.txt",
+        "artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/runtime-lab-bank-rpc-port5003.json"
       ]
     },
     {
       "type": "blocked",
-      "claim": "Current live gates require an exclusive SC2 API and GalaxyVibe Bank lease. Another workflow owns port 5000 with a separate API process and a detached CMRE runtime lease, so neither the current CMLib control nor RuntimeLab can be attributed safely.",
+      "claim": "The current RuntimeLab SHA has not reached an attributable launch window. sc2_proc_guard refused to stop the active responding SC2 session that loads 亡者之夜.SC2Map without an API listener.",
       "evidence": [
-        "artifacts/runtime/sc2-runtime-lease.json",
+        "artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/live-blocked-external-owner-20260810.json",
         "src/projects/generic-runtime-lab/stages/01-foundation/issues.json"
       ]
     }
@@ -55,33 +65,35 @@
     "artifacts/projects/generic-runtime-lab/stage01-foundation/maps/build-report.json",
     "artifacts/projects/generic-runtime-lab/stage01-foundation/maps/CMLibControl.SC2Map",
     "artifacts/projects/generic-runtime-lab/stage01-foundation/maps/cmlib-control-build-report.json",
-    "artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/runtime-blocked-20260809.json"
+    "artifacts/projects/generic-runtime-lab/stage01-foundation/maps/ArenaKernelControl.SC2Map",
+    "artifacts/projects/generic-runtime-lab/stage01-foundation/maps/KernelCMLibControl.SC2Map",
+    "artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/live-blocked-external-owner-20260810.json"
   ],
   "validation": [
     {
       "command": "python -m pytest -q src/projects/generic-runtime-lab/tests",
       "exitCode": 0,
-      "summary": "6 regression tests passed."
+      "summary": "10 regression tests passed."
     },
     {
       "command": "python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py",
       "exitCode": 0,
-      "summary": "Generated the 92-file packed RuntimeLab.SC2Map with SHA-256 912e34c6a95abb00373b7d13c283cf337f77216368c7dd4b0302eaae434cb3ad."
+      "summary": "Generated the 101-file packed RuntimeLab.SC2Map from the arena base with SHA-256 de3df6320275c4b112653d90262f12366c2b43913913677a11a4212fa16c12bc."
     },
     {
       "command": "python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py --cmlib-control",
       "exitCode": 0,
-      "summary": "Generated the 86-file isolated CMLibControl.SC2Map with SHA-256 c6ae6468f3f4479a3ca673ec3a3b3e235014187f2ffff21cc8be13ef4edeb046."
+      "summary": "Generated the 86-file isolated CMLibControl.SC2Map with SHA-256 596de4cd9c0b8428dbf785ea4467e0a503c444021d785a580a04359c111e9125."
     },
     {
       "command": "node tools/analysis/galaxy-lint.mjs artifacts/projects/generic-runtime-lab/stage01-foundation/build/RuntimeLab.SC2Map/MapScript.galaxy --format text",
       "exitCode": 0,
-      "summary": "0 diagnostics for RuntimeLab and CMLibControl; only known resolver diagnostics were suppressed."
+      "summary": "0 diagnostics for the current RuntimeLab entry file; 8 known resolver diagnostics were suppressed."
     },
     {
       "command": "python src/lib/check_cmlib.py; python src/lib/check_g1001.py artifacts/projects/generic-runtime-lab/stage01-foundation/build/RuntimeLab.SC2Map/MapScript.galaxy artifacts/projects/generic-runtime-lab/stage01-foundation/build/CMLibControl.SC2Map/MapScript.galaxy",
       "exitCode": 0,
-      "summary": "CMLib static self-check reported 0 errors and 0 warnings; G1001 checks passed for both generated entry files."
+      "summary": "CMLib static self-check reported 0 errors and 1 pre-existing comment-only warning; G1001 passed for the current RuntimeLab entry file."
     },
     {
       "command": "Get-CimInstance Win32_Process -Filter \"Name='SC2_x64.exe'\"; Get-NetTCPConnection -State Listen | Where-Object LocalPort -eq 5000",
@@ -91,17 +103,17 @@
     {
       "command": "python -m pytest -q src/projects/generic-runtime-lab/tests; python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py; node tools/analysis/galaxy-lint.mjs artifacts/projects/generic-runtime-lab/stage01-foundation/build/RuntimeLab.SC2Map/MapScript.galaxy --format text; python src/lib/check_cmlib.py; python src/lib/check_g1001.py artifacts/projects/generic-runtime-lab/stage01-foundation/build/RuntimeLab.SC2Map/MapScript.galaxy",
       "exitCode": 0,
-      "summary": "Post-fix static validation passed: 6 tests, 0 Galaxy lint diagnostics, 0 CMLib errors/warnings, and 0 G1001 violations."
+      "summary": "Current static validation passed: 10 tests, 0 Galaxy lint diagnostics, 0 CMLib errors, and 0 G1001 violations."
     },
     {
-      "command": "python tools/galaxy-vibe/map_load_diag.py --map artifacts/projects/generic-runtime-lab/stage01-foundation/maps/RuntimeLab.SC2Map --wait 18 --out artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/runtime-lab-map-load-fixed-20260809.json",
+      "command": "python -c \"import sys; sys.path.insert(0, 'src/lib'); from sc2_proc_guard import assert_no_human_game, kill_api_instances; assert_no_human_game('runtime-lab-port5004'); print(kill_api_instances(guard=True))\"",
       "exitCode": 1,
-      "summary": "Blocked before CreateGame because the prior API disappeared and the process guard found an external human SC2 session; no RuntimeLab runtime evidence was produced."
+      "summary": "Blocked before launcher/CreateGame because sc2_proc_guard found a responding external SC2 session loading 亡者之夜.SC2Map without an API listener; no current RuntimeLab runtime evidence was produced."
     },
     {
-      "command": "python tools/galaxy-vibe/script_error_check.py --since 1786287290 --out artifacts/projects/generic-runtime-lab/stage01-foundation/runtime/runtime-lab-map-load-fixed-script-error-verdict.json",
+      "command": "python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py --arena-kernel-control; python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py --kernel-cmlib-control",
       "exitCode": 0,
-      "summary": "Real user GameLogs scan found zero new ScriptError files for the blocked attempt; this is informational because the map never reached CreateGame."
+      "summary": "Rebuilt current arena Kernel and Kernel+CMLib diagnostic maps after the trigger-enable source change."
     }
   ],
   "nextStage": null

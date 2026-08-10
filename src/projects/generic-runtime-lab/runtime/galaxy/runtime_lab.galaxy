@@ -379,7 +379,9 @@ void RuntimeLab_Init() {
     RuntimeLab_RefreshStatus();
 
     RuntimeLab_gt_StartTacticalArena = TriggerCreate("RuntimeLab_StartTacticalArena");
+    TriggerEnable(RuntimeLab_gt_StartTacticalArena, true);
     TriggerAddEventTimeElapsed(RuntimeLab_gt_StartTacticalArena, 1.0, c_timeGame);
     RuntimeLab_gt_ManagedUnitDied = TriggerCreate("RuntimeLab_ManagedUnitDied");
+    TriggerEnable(RuntimeLab_gt_ManagedUnitDied, true);
     CMLib_TrigOnUnitDied(RuntimeLab_gt_ManagedUnitDied, null);
 }
