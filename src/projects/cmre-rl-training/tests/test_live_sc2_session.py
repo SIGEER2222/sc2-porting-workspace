@@ -94,6 +94,7 @@ class _FakeRequest:
 class _FakeScPb:
     Request = _FakeRequest
     RequestJoinGame = SimpleNamespace
+    RequestStep = SimpleNamespace
     InterfaceOptions = SimpleNamespace
 
 
@@ -220,6 +221,25 @@ class LiveActionSpecTests(unittest.TestCase):
         self.assertEqual([kind for kind, _ in client.requests], ["join_game", "join_game"])
         self.assertEqual(session.runtime_stats["join_attempts"], 2)
         self.assertTrue(session.runtime_stats["join_game"])
+
+    def test_initialization_step_advances_before_first_observation(self) -> None:
+        client = _RecordingSc2Client()
+        session = LiveRawSc2Session(
+            __file__,
+            port=6003,
+            join_existing=True,
+            initialization_step_loops=64,
+            client=client,
+        )
+        session._sc_pb = _FakeScPb
+        session._load_protocol = lambda: None
+        session.observe = lambda: {"loop": 64, "player_id": 1}
+
+        observation = session.reset("dead-of-night", 1)
+
+        self.assertEqual(observation["loop"], 64)
+        self.assertEqual([kind for kind, _ in client.requests], ["join_game", "step"])
+        self.assertEqual(session.runtime_stats["requested_step_loops"], 64)
 
     def test_player_result_becomes_terminal_mission_state(self) -> None:
         observation = parse_observation_response(

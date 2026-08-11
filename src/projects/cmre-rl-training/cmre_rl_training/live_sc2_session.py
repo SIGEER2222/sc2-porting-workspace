@@ -427,8 +427,12 @@ class Sc2ApiClient:
         self._websocket: Any = None
         self._next_request_id = 1
 
-    def connect(self) -> None:
-        self._submit(self._connect_with_retry(timeout=30.0), timeout=35.0)
+    def connect(self, *, timeout: float = 120.0) -> None:
+        # 30s was not enough for a cold SC2 start: the listening socket opens long
+        # before /sc2api answers, so every early ws_connect fails with
+        # ServerDisconnectedError. Keep a wide budget as a defence in depth even
+        # though callers should gate on a real handshake probe first.
+        self._submit(self._connect_with_retry(timeout=timeout), timeout=timeout + 5.0)
 
     def send(
         self,
@@ -574,6 +578,7 @@ class LiveRawSc2Session:
         computer_difficulty: int = DIFFICULTY_EASY,
         realtime: bool = False,
         progress_loop_limit: int = 100000,
+        initialization_step_loops: int = 0,
         join_existing: bool = False,
         client: Sc2ApiClient | None = None,
     ) -> None:
@@ -587,6 +592,7 @@ class LiveRawSc2Session:
         self.computer_difficulty = int(computer_difficulty)
         self.realtime = bool(realtime)
         self.progress_loop_limit = max(1, int(progress_loop_limit))
+        self.initialization_step_loops = max(0, int(initialization_step_loops))
         self.join_existing = bool(join_existing)
         self.client = client or Sc2ApiClient(self.port)
         self._sc_pb: Any = None
@@ -683,7 +689,7 @@ class LiveRawSc2Session:
                 if "already in a game" in str(exc).lower():
                     self._joined = True
                     self.runtime_stats["join_game"] = True
-                    return self.observe()
+                    return self._initial_observation_after_join()
                 time.sleep(min(0.5, max(0.0, join_deadline - time.monotonic())))
         else:
             raise LiveSc2Error(f"JoinGame_timeout:{last_join_error}") from last_join_error
@@ -692,6 +698,13 @@ class LiveRawSc2Session:
         self._player_id = int(join_response.join_game.player_id or player_id)
         self._joined = True
         self.runtime_stats["join_game"] = True
+        return self._initial_observation_after_join()
+
+    def _initial_observation_after_join(self) -> Mapping[str, Any]:
+        """Allow map-start triggers to create the controlled faction first."""
+
+        if self.initialization_step_loops:
+            self.step(self.initialization_step_loops)
         return self.observe()
 
     def observe(self) -> Mapping[str, Any]:

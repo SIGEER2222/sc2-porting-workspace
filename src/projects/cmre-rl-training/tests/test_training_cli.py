@@ -30,6 +30,9 @@ class TrainingCliTests(unittest.TestCase):
                 "--batch-size", "2",
                 "--ent-coef", "0.05",
                 "--ent-floor", "0.5",
+                "--step-loops", "16",
+                "--start-minerals", "200",
+                "--start-vespene", "25",
                 "--output-dir", str(output),
             ])
             self.assertEqual(status, 0)
@@ -38,7 +41,33 @@ class TrainingCliTests(unittest.TestCase):
             self.assertEqual(report["total_steps"], 4)
             self.assertEqual(report["config"]["ent_coef"], 0.05)
             self.assertEqual(report["config"]["ent_floor"], 0.5)
+            self.assertEqual(report["config"]["step_loops"], 16)
+            self.assertEqual(report["config"]["start_minerals"], 200)
+            self.assertEqual(report["config"]["start_vespene"], 25)
+            self.assertTrue(report["commander"]["commander_max_level_gate_passed"])
+            self.assertEqual(report["commander"]["commander_level"], 15)
+            self.assertEqual(report["commander"]["commander_mastery"], "full")
+            self.assertIn("action_metrics", report)
             self.assertTrue((output / "map-aware-policy.pt").exists())
+
+    def test_underleveled_commander_is_blocked_before_training(self) -> None:
+        with TemporaryDirectory() as tmp:
+            output = Path(tmp) / "blocked"
+            status = main([
+                "--backend", "fake",
+                "--maps", "dead-of-night",
+                "--iterations", "1",
+                "--rollout-steps", "2",
+                "--max-episode-steps", "2",
+                "--commander-level", "7",
+                "--output-dir", str(output),
+            ])
+            self.assertEqual(status, 1)
+            report = json.loads((output / "training-report.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["status"], "blocked")
+            self.assertEqual(report["total_steps"], 0)
+            self.assertFalse(report["commander"]["commander_max_level_gate_passed"])
+            self.assertFalse((output / "map-aware-policy.pt").exists())
 
     def test_simulator_backend_runs_actual_session_path(self) -> None:
         with TemporaryDirectory() as tmp:

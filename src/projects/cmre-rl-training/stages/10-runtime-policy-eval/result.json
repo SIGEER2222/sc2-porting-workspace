@@ -87,6 +87,386 @@
         "artifacts/stage-10-runtime-policy-eval/entropy-floor-smoke-20260809/training-report.json",
         "artifacts/stage-10-runtime-policy-eval/entropy-floor-smoke-20260809/map-aware-policy.pt"
       ]
+    },
+    {
+      "type": "static",
+      "claim": "SC2 API readiness is decided by a real /sc2api websocket handshake plus a protobuf Ping, never by a bare TCP connect; the report records api_ready_basis and the runner aborts if the launcher process exits while waiting.",
+      "evidence": [
+        "tools/run_live_rl.py",
+        "cmre_rl_training/live_sc2_session.py",
+        "tests/test_runtime_census.py"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "A blocked live run always names its cause: runtime_gate_failures lists the failed gates and blocked_reason is runtime_gate_failed:<causes>, so no run can be blocked with an empty reason.",
+      "evidence": [
+        "tools/run_live_rl.py",
+        "artifacts/stage-10-runtime-policy-eval/20260810-ab-newmap/live-rl-report.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The live default packed map is pinned to the known-good artifact by path, size and md5, and the pin is guarded by a test that was itself verified with a negative control (reverting the default to the broken repack fails the suite).",
+      "evidence": [
+        "tools/run_live_rl.py",
+        "tests/test_live_map_pin.py"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "A single-variable A/B over identical code, parameters and 128 steps proves the 20260809-23:33 repack of the packed dead-of-night map never hands the player a faction: 1 placeholder unit, 0 minerals, 0/128 successful actions, while the Jul-31 artifact yields 2 own units, 50 minerals, 27 visible enemies and 66/128 successful actions. api_ready, CreateGame, JoinGame and frame advancement are true on both arms, so this is a map-artifact regression, not a transport defect.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-ab-oldmap/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-ab-newmap/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-512b/live-rl-report.json"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The Stage 5 512-step rung passed on the known-good artifact with the commander max-level gate: 512 decisions through loop 4096, 213 successful actions, 8 distinct actions, action entropy 1.860 nats, illegal action rate 0.0, clean same-window ScriptError verdict and a saved native replay. No mission player_result was observed, so no victory is claimed.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-512-accept/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-512-accept/live-replay.SC2Replay",
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-512-accept/launcher.log"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The Stage 5 2048-step rung passed on the known-good artifact: 2048 decisions through loop 16384, 874 successful actions, 8 distinct actions, action entropy 1.868 nats, illegal action rate 0.0, clean ScriptError verdict and a saved native replay. No mission player_result was observed, so no victory is claimed.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-2048-accept/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-2048-accept/live-replay.SC2Replay",
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-2048-accept/launcher.log"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "No currently available packed artifact grants the player a commander economy: the census is flat from loop 1024 to loop 16384 at own_unit_count=2, minerals=50 and supply_cap=0, and build/produce/gather actions are chosen zero times. Stage 6 mission terminal evidence is therefore structurally unreachable today, and the census now reports terminal_evidence_reachable=false for this state instead of labelling it a started mission.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-2048-accept/live-rl-report.json",
+        "tools/run_live_rl.py",
+        "tests/test_runtime_census.py"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The commander max-level gate passed for Raynor at level 15 with full mastery on every accepted run, but commander_evidence_source is config and commander_runtime_proven is false; the profile is declared, not read back from the runtime.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-512-accept/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-2048-accept/live-rl-report.json"
+      ]
+    },
+    {
+      "id": "CLAIM-018",
+      "evidenceClass": "runtime",
+      "statement": "The map-aware checkpoint drives 8192 live decision steps (game loops 0 to 65536) on real SC2 through the approved launcher with 3298 successful action results, 8 distinct actions, action entropy 1.8735 nats, 0 illegal actions and 0 ScriptError, and the native replay is saved.",
+      "status": "verified",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/live-replay.SC2Replay",
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/launcher.log"
+      ],
+      "notes": "status=passed, runtime_gate=true, runtime_gate_failures=[]. Replay 68427 B. This closes the third and final rung of the Stage 5 ladder (512 / 2048 / 8192)."
+    },
+    {
+      "id": "CLAIM-019",
+      "evidenceClass": "runtime",
+      "statement": "The live bridge is horizon-stable: across 512, 2048 and 8192 steps the action success rate stays in a narrow band (41.6 percent, 42.7 percent, 40.3 percent) and reward_mean moves only from -1.1494 to -1.1499, so the Stage 5 evidence is not an artefact of short rollouts.",
+      "status": "verified",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-512-accept/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-2048-accept/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/live-rl-report.json"
+      ],
+      "notes": "Ladder table recorded in stages/10-runtime-policy-eval/log.md G12."
+    },
+    {
+      "id": "CLAIM-020",
+      "evidenceClass": "runtime",
+      "statement": "The commander economy is absent for the entire 65536-loop horizon, not merely early: the final census still reports own_unit_count=2 (placeholder 4051 plus one Marine), minerals=50, supply_cap=0, so verdict=partial_faction:units_without_commander_economy and terminal_evidence_reachable=false.",
+      "status": "verified",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/live-rl-report.json"
+      ],
+      "notes": "Rules out 'the base just had not spawned yet' as an explanation for EVAL-009. A 16x longer horizon changes nothing, so Stage 6 remains structurally unreachable on this artifact."
+    },
+    {
+      "id": "CLAIM-021",
+      "evidenceClass": "runtime",
+      "statement": "A mid-rollout SC2 websocket loss fails closed: the aborted attempt recorded status=failed, runtime_gate=false, runtime_gate_failures=['step_budget_not_met'], replay_saved=false and 18 of 8192 steps, so a partial run cannot be presented as Stage 5 evidence.",
+      "status": "verified",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/failed-attempt-5972.transcript.json",
+        "stages/10-runtime-policy-eval/log.md#g13"
+      ],
+      "notes": "Evidence is a transcript excerpt, not a runner artifact, because the retry reused the output directory (EVAL-012). Recorded at reduced strength for that reason."
+    },
+    {
+      "id": "CLAIM-022",
+      "evidenceClass": "runtime",
+      "statement": "The CMRE Reborn initialization trigger chain does not execute during a live API run: the launcher zeroes CMRERebornDebug.SC2Bank at launch and after 65536 game loops the bank is still entirely zero (159 keys, nonzero_ints=0, folders 1/2/14), with initialization_gate_started=0 and bridge_heartbeat_started=0.",
+      "status": "verified",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/CMRERebornDebug.postrun.SC2Bank",
+        "stages/10-runtime-policy-eval/log.md#g14"
+      ],
+      "notes": "Independent of the SC2 API. Converts EVAL-009 from 'the map does not grant an economy' into a single checkable acceptance signal: initialization_gate_started must become non-zero."
+    },
+    {
+      "type": "runtime",
+      "claim": "Packing the approved launcher's overlayed staging directory produces an artifact that finally brings the co-op commander economy online: a single-variable 256-step A/B reports commander_economy_online=true, supply 15/15, 15 SCV plus a CommandCenter, 535 minerals, illegal action rate 0.0 and reward_sum=+2577.95, against supply_cap=0 and reward_sum=-587.65 on the previous default. terminal_evidence_reachable flips false to true.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-overlay-ab-256/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-overlay-ab-256/live-replay.SC2Replay",
+        "artifacts/stage-10-runtime-policy-eval/20260810-overlay-ab-256/launcher.log",
+        "artifacts/live-maps/亡者之夜_live_packed_OVERLAY_20260810.SC2Map"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The live-run default map is repinned to the overlay artifact (md5 ccc74e2c6fff5b1914d196b5867705c5, 3328542 B) and the pin test now names four superseded artifacts as explicit negative arms. faction_initialised alone is no longer accepted as the pin criterion, because the previous default satisfied it while leaving supply_cap at 0 forever; the source comment is required to document commander_economy_online.",
+      "evidence": [
+        "tools/run_live_rl.py",
+        "tests/test_live_map_pin.py"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The CMRE debug bank is captured per-run instead of being read out of band. snapshot_initialization_banks() copies every CMRERebornDebug.SC2Bank under the SC2 Banks root into the run's own output directory before the launcher dies, and merges account-scoped copies with max so a zeroed account copy cannot mask a root write. Four unit tests cover the fired case, a zeroed negative control, the account-copy masking case, and a missing bank root.",
+      "evidence": [
+        "tools/run_live_rl.py",
+        "tests/test_initialization_bank_snapshot.py"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The first Stage 6 long-horizon attempt failed at JoinGame for a scheduling reason, not an artifact reason: the launcher log records the SC2 process it had just brought up on port 5972 (PID 29720) exiting between CreateGame and JoinGame while a concurrent galaxy-vibe transport probe was cycling SC2 on port 5000. The real-machine slot is a single global resource, so concurrent lines preempt each other.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal/launcher.log",
+        "out/stage6_guarded.py"
+      ]
+    },
+    {
+      "type": "blocked",
+      "claim": "No mission player_result has been observed yet, so Stage 6 and Stage 10 remain blocked. The blocker changed character: it is no longer structural (the commander economy is online and a terminal is reachable), it is simply not yet observed.",
+      "evidence": [
+        "stages/10-runtime-policy-eval/issues.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-overlay-ab-256/live-rl-report.json"
+      ]
+    },
+    {
+      "type": "verified",
+      "claim": "The overlay artifact runs a real mission end to end: the 04:55 Stage 6 attempt joined the game, advanced frames to loop 24112 (~18 minutes of mission time), landed 188 successful actions and produced zero ScriptErrors.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-2/live-rl-report.json"
+      ]
+    },
+    {
+      "type": "verified",
+      "claim": "That run was ended by external preemption, not by the map, the policy or the horizon: the runtime lease heartbeat stopped at 05:02:15 and a foreign SC2Switcher on port 5000 started at 05:02:18, three seconds later.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-2/live-rl-report.json",
+        "artifacts/runtime/sc2-runtime-lease.json",
+        "stages/10-runtime-policy-eval/issues.json#EVAL-014"
+      ]
+    },
+    {
+      "type": "verified",
+      "claim": "The per-run bank snapshot could be destroyed by an unrelated directory. Path.glob descended into the self-nested .runtime-lab-backup-* chain and raised WinError 3; iter_debug_banks() now prunes it and finds all 4 banks on the real Banks root.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-2/live-rl-report.json",
+        "tools/run_live_rl.py::iter_debug_banks",
+        "tests/test_initialization_bank_snapshot.py"
+      ]
+    },
+    {
+      "type": "verified",
+      "claim": "Stage 6 exposure was cut from ~32 min to ~12 min of wall clock by raising step_mul from 8 to 32. Measured throughput was ~8.4 policy steps/s regardless of loops per step, so 6000 steps x 32 covers ~143 minutes of mission time - far past a full match - inside the competing hourly session's gap.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-2/live-rl-report.json",
+        "out/stage6_guarded.py"
+      ]
+    },
+    {
+      "type": "verified",
+      "claim": "The long-horizon Stage 6 run completed uninterrupted: 6000 steps at step_mul 32 = 192,000 game loops (~143 minutes of mission time), join_game=true, frame_advancement=true, 0 ScriptErrors, replay saved (1.41 MB), bank snapshots captured. It was not preempted.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-replay.SC2Replay"
+      ]
+    },
+    {
+      "type": "verified",
+      "claim": "No player_result was produced. terminal_observed=false and terminal_results=[] after 192,000 loops, which falsifies the hypothesis that Stage 6 was blocked by an insufficient horizon.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-rl-report.json"
+      ]
+    },
+    {
+      "type": "verified",
+      "claim": "That cutoff was written out as status=passed with runtime_gate_failures=[], and the guard filed it as final_outcome='terminal'. Both checkers were green on the single question Stage 6 exists to answer.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-guard/attempts.json"
+      ]
+    },
+    {
+      "type": "verified",
+      "claim": "Both false greens are closed. --require-terminal makes a terminal-evidence run fail-closed and names its structural cause; the guard's classify() now keys only on terminal_observed. Replaying the real report through the new helper fails precisely on this criterion, and require_terminal=False leaves other stages untouched.",
+      "evidence": [
+        "src/projects/cmre-rl-training/tools/run_live_rl.py",
+        "out/stage6_guarded.py",
+        "src/projects/cmre-rl-training/tests/test_terminal_gate_fail_closed.py"
+      ]
+    },
+    {
+      "type": "verified",
+      "claim": "The engine rejected 5950 of 6000 orders (NotSupported 3485, Error 2450, Success 50 = 0.83%) while illegal_action_rate reported 0.0, because that metric measures mask compliance rather than engine acceptance. runtime_action_success_rate and runtime_action_result_distribution are now first-class report fields.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-rl-report.json"
+      ]
+    },
+    {
+      "type": "verified",
+      "claim": "The two-point census mislabelled the run 'partial_faction:units_without_commander_economy' - the broken-artifact verdict - although the same artifact records 'faction_initialised' on short runs. A supply-cap high-water mark now separates 'never came online' from 'came online and collapsed'.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-rl-report.json",
+        "src/projects/cmre-rl-training/tests/test_census_peak_tracker.py"
+      ]
+    },
+    {
+      "type": "verified",
+      "claim": "bridge_prevent_defeat_p1 does not suppress the defeat trigger",
+      "evidence": [
+        "static source: written at Base.SC2Data/LibMapModBridge.galaxy:109,123 as a debug readout; only reader is tools/launchers/overlays/cmre-alenger/startup/initialization-gate.galaxy:74; map defeat trigger at MapScript.galaxy:7149 does not consult it"
+      ],
+      "evidenceType": "static-source"
+    },
+    {
+      "type": "verified",
+      "claim": "The Galaxy initialization gate writes four 'ready' markers unconditionally from a single boolean",
+      "evidence": [
+        "tools/launchers/overlays/cmre-alenger/startup/initialization-gate.galaxy:111-115"
+      ],
+      "evidenceType": "static-source"
+    },
+    {
+      "type": "verified",
+      "claim": "That boolean skips all P1/P2 ownership checks because the RL harness never sets CreateStartingUnitsP1 / EnsurePreventDefeatP1",
+      "evidence": [
+        "tools/launchers/overlays/cmre-alenger/startup/initialization-gate.galaxy:63-92 plus grep over src/projects/cmre-rl-training"
+      ],
+      "evidenceType": "static-source"
+    },
+    {
+      "type": "verified",
+      "claim": "Stage 6 attempt 3 ran 192,000 loops with player_id 1 owning zero units and zero supply at step 0, while all init markers read 1",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-rl-report.json initialization_bank + runtime_census.initial"
+      ],
+      "evidenceType": "runtime"
+    },
+    {
+      "type": "verified",
+      "claim": "The empty start is not specific to the long run: the accepted 512-step run starts identically empty",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-512-accept/live-rl-report.json runtime_census.initial"
+      ],
+      "evidenceType": "runtime"
+    },
+    {
+      "type": "verified",
+      "claim": "A host-side precondition refuses the empty-faction rollout before it consumes the exclusive real-machine slot",
+      "evidence": [
+        "tools/run_live_rl.py faction_precondition_failures + --require-faction"
+      ],
+      "evidenceType": "unit-test"
+    },
+    {
+      "type": "static",
+      "claim": "The approved launcher now writes a max-level/full-mastery commander profile by default: CommanderLevel=15 is written for P1/P2, six-slot commanders get MasteryLevel=180 with all six mastery values at 30, and the ML runner blocks a declared-full run whose mastery layout is not actually full before starting SC2.",
+      "evidence": [
+        "tools/launchers/launch-cmre-alenger.ps1",
+        "src/projects/cmre-rl-training/tools/run_live_rl.py",
+        "tools/launchers/tests/test_launch_cmre_alenger_static.py::test_launch_profile_defaults_commanders_to_max_level_and_full_mastery",
+        "src/projects/cmre-rl-training/tests/test_commander_gate_fail_closed.py::test_partial_mastery_layout_is_blocked_before_launcher_start",
+        "artifacts/stage-10-runtime-policy-eval/20260810-commander-profile-preflight/live-rl-report.json"
+      ],
+      "evidenceType": "static-config"
+    },
+    {
+      "type": "static",
+      "claim": "The live runner now reads only a fresh CMCoopLaunchProfile bank from the current launch window: its player-1 CommanderLevel/mastery fields override the CLI declaration and set commander_runtime_proven only when the bank is current. A stale bank is copied for diagnosis but cannot make the commander gate pass. The runner also prefers pwsh over Windows PowerShell when pwsh is installed.",
+      "evidence": [
+        "src/projects/cmre-rl-training/cmre_rl_training/commander_profile.py::read_launch_profile_bank",
+        "src/projects/cmre-rl-training/tools/run_live_rl.py::snapshot_commander_launch_profile",
+        "src/projects/cmre-rl-training/tools/run_live_rl.py::resolve_powershell_executable",
+        "src/projects/cmre-rl-training/tests/test_commander_profile.py",
+        "src/projects/cmre-rl-training/tests/test_commander_gate_fail_closed.py",
+        "artifacts/stage-10-runtime-policy-eval/20260810-commander-bank-runtime/live-rl-report.json"
+      ],
+      "evidenceType": "unit-test"
+    },
+    {
+      "type": "verified",
+      "claim": "The post-fix approved-launcher smoke on port 6015 reached SC2 API readiness, CreateGame, JoinGame, frame advancement and action results with zero same-window ScriptErrors. Its fresh launch-profile bank proves player 1 is TerranRaynor at CommanderLevel=15 with MasteryLevel=180, MasteryCount=6 and six mastery values of 30; the report records commander_runtime_proven=true. This is commander configuration/runtime evidence only, not a mission victory claim.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-commander-bank-runtime-pwsh/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-commander-bank-runtime-pwsh/launcher.log",
+        "artifacts/stage-10-runtime-policy-eval/20260810-commander-bank-runtime-pwsh/banks/CMCoopLaunchProfile.SC2Bank"
+      ],
+      "evidenceType": "runtime"
+    },
+    {
+      "type": "static",
+      "claim": "The repeatable train/eval loop now passes an explicit simulator control interval and optional starting resources into the shared training CLI, persists those values in the training report, and refreshes the evaluation plan after training so the final checkpoint SHA-256 is materialised instead of remaining pending.",
+      "evidence": [
+        "src/projects/cmre-rl-training/tools/train_eval_loop.py",
+        "src/projects/cmre-rl-training/cmre_rl_training/training_cli.py",
+        "src/projects/cmre-rl-training/tests/test_train_eval_loop.py",
+        "src/projects/cmre-rl-training/tests/test_training_cli.py"
+      ],
+      "evidenceType": "unit-test"
+    },
+    {
+      "type": "blocked",
+      "claim": "A fresh terminal-intent run with --stop-on-terminal and --require-terminal was rejected by the approved launcher before API readiness because the external SC2 runtime lease was still owned by another detached session; it produced no CreateGame, JoinGame, action, or terminal evidence.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-terminal-bankproof-2048x32/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-terminal-bankproof-2048x32/launcher.log",
+        "artifacts/stage-10-runtime-policy-eval/20260810-terminal-bankproof-2048x32/launcher.err.log"
+      ],
+      "evidenceType": "blocked"
+    },
+    {
+      "type": "simulator",
+      "claim": "An end-to-end train-only cycle persisted train-eval-report.json with status=trained_only and a checkpoint hash matching the post-training evaluation plan hash; the report records 64 simulator steps at step_loops=64 with start_minerals=200.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-cycle-report-smoke/train-eval/train-eval-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-cycle-report-smoke/train-eval/train-eval-plan.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-cycle-report-smoke/training/training-report.json"
+      ],
+      "evidenceType": "simulator"
+    },
+    {
+      "type": "static",
+      "claim": "Commander validation now requires the observed bank commander identity to match the requested commander in addition to level 15 and full six-slot mastery; a maxed TerranAlenger3 bank is rejected for a TerranRaynor request.",
+      "evidence": [
+        "cmre_rl_training/commander_profile.py",
+        "tests/test_commander_profile.py::CommanderEvidenceTests.test_launch_profile_bank_rejects_a_different_maxed_commander"
+      ],
+      "evidenceType": "unit-test"
+    },
+    {
+      "type": "blocked",
+      "claim": "The 20260811 terminal-intent launcher reached a real API Ping on port 6018, but the controller did not produce a session report before that API disappeared; a later attached diagnostic timed out and has no game, action, or terminal evidence. Its globally written Alenger3 bank is not attributed to the interrupted Raynor launch.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-terminal-economy-curriculum-after-init-fix-2048x32/launcher.log",
+        "artifacts/stage-10-runtime-policy-eval/20260810-init-after-join-smoke/live-rl-report.json"
+      ],
+      "evidenceType": "blocked"
     }
   ],
   "outputs": [
@@ -106,7 +486,56 @@
     "stages/10-runtime-policy-eval/plan.md",
     "stages/10-runtime-policy-eval/log.md",
     "stages/10-runtime-policy-eval/result.json",
-    "stages/10-runtime-policy-eval/issues.json"
+    "stages/10-runtime-policy-eval/issues.json",
+    "tests/test_runtime_census.py",
+    "tests/test_live_map_pin.py",
+    "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/live-rl-report.json",
+    "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/live-replay.SC2Replay",
+    "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/failed-attempt-5972.transcript.json",
+    "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/CMRERebornDebug.postrun.SC2Bank",
+    "artifacts/stage-10-runtime-policy-eval/20260810-overlay-ab-256/live-rl-report.json",
+    "artifacts/stage-10-runtime-policy-eval/20260810-overlay-ab-256/live-replay.SC2Replay",
+    "artifacts/live-maps/亡者之夜_live_packed_OVERLAY_20260810.SC2Map",
+    "tests/test_initialization_bank_snapshot.py",
+    "out/stage6_guarded.py",
+    "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-rl-report.json",
+    "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-replay.SC2Replay",
+    "src/projects/cmre-rl-training/tests/test_terminal_gate_fail_closed.py",
+    "src/projects/cmre-rl-training/tests/test_census_peak_tracker.py",
+    "tools/run_live_rl.py: FactionPreconditionAbort, faction_precondition_failures, --require-faction",
+    "tests/test_faction_precondition.py (5 tests: refusal, positive control, off-control, units-without-supply, missing-observation)",
+    "out/stage6_guarded.py: classify() -> 'no_faction', retry loop terminates on it",
+    "out/update_ledger_round6.py",
+    "tools/launchers/launch-cmre-alenger.ps1: default CommanderLevel=15 and six-slot mastery profile",
+    "tools/launchers/tests/test_launch_cmre_alenger_static.py::test_launch_profile_defaults_commanders_to_max_level_and_full_mastery",
+    "src/projects/cmre-rl-training/tests/test_commander_gate_fail_closed.py: mastery layout fail-closed tests",
+    "artifacts/stage-10-runtime-policy-eval/20260810-commander-profile-dry-run/train-eval-plan.json",
+    "artifacts/stage-10-runtime-policy-eval/20260810-commander-profile-preflight/live-rl-report.json",
+    "cmre_rl_training/commander_profile.py: read_launch_profile_bank",
+    "tools/run_live_rl.py: snapshot_commander_launch_profile and resolve_powershell_executable",
+    "tests/test_commander_profile.py: SC2Bank level/mastery evidence cases",
+    "artifacts/stage-10-runtime-policy-eval/20260810-commander-bank-runtime/live-rl-report.json",
+    "artifacts/stage-10-runtime-policy-eval/20260810-commander-bank-runtime-pwsh/live-rl-report.json",
+    "artifacts/stage-10-runtime-policy-eval/20260810-commander-bank-runtime-pwsh/launcher.log",
+    "artifacts/stage-10-runtime-policy-eval/20260810-commander-bank-runtime-pwsh/banks/CMCoopLaunchProfile.SC2Bank",
+    "src/projects/cmre-rl-training/tools/train_eval_loop.py",
+    "src/projects/cmre-rl-training/cmre_rl_training/training_cli.py",
+    "src/projects/cmre-rl-training/tests/test_train_eval_loop.py",
+    "src/projects/cmre-rl-training/tests/test_training_cli.py",
+    "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-step8-curriculum/training/training-report.json",
+    "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-step8-curriculum/train-eval/train-eval-plan.json",
+    "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-step8-curriculum/map-aware-policy.pt",
+    "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-economy-curriculum/training/training-report.json",
+    "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-economy-curriculum/train-eval/train-eval-plan.json",
+    "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-economy-curriculum/map-aware-policy.pt",
+    "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-terminal-bankproof-2048x32/live-rl-report.json",
+    "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-cycle-report-smoke/train-eval/train-eval-report.json",
+    "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-cycle-report-smoke/train-eval/train-eval-plan.json",
+    "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-cycle-report-smoke/training/training-report.json",
+    "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-cycle-report-smoke/map-aware-policy.pt",
+    "cmre_rl_training/commander_profile.py: requested and observed commander identity validation",
+    "tests/test_commander_profile.py: mismatched maxed commander negative control",
+    "artifacts/stage-10-runtime-policy-eval/20260810-init-after-join-smoke/live-rl-report.json"
   ],
   "validation": [
     {
@@ -188,7 +617,234 @@
       "command": "PYTHONPATH=src/projects/cmre-rl-training;src/projects/cmre-neuro-adapter;src/projects/cmre-porting python -m unittest discover -s src/projects/cmre-rl-training/tests -v",
       "exitCode": 0,
       "summary": "176 tests passed with 14 expected BC-checkpoint skips"
+    },
+    {
+      "command": "PYTHONPATH=.;..\\cmre-neuro-adapter;..\\cmre-porting python -m unittest tests.test_runtime_census tests.test_live_map_pin",
+      "exitCode": 0,
+      "summary": "13 tests passed: three-state runtime census, terminal-reachability flag, API readiness probe, known-good map pin"
+    },
+    {
+      "command": "negative control: revert run_live_rl default --map-path to the broken repack, rerun tests.test_live_map_pin, restore source",
+      "exitCode": 1,
+      "summary": "guard fails as required (2 failures) and the source was restored byte-identical (md5 match)"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py ... --max-steps 512 --port 5964 --save-replay --commander-enforce",
+      "exitCode": 0,
+      "summary": "Stage 5 512-step rung passed: 213/512 successful actions, entropy 1.860, ScriptError 0, replay saved"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py ... --max-steps 2048 --port 5968 --save-replay --commander-enforce",
+      "exitCode": 0,
+      "summary": "Stage 5 2048-step rung passed: 874/2048 successful actions, entropy 1.868, ScriptError 0, replay saved"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py ... --map-path artifacts/live-maps/亡者之夜_live_packed.SC2Map --max-steps 128 --port 5966",
+      "exitCode": 1,
+      "summary": "A/B control arm blocked truthfully: runtime_gate_failed:zero_action_successes:player_faction_uninitialised"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py --port 5974 --max-steps 8192 --step-mul 8 --stop-on-terminal --save-replay --commander-enforce --variant checkpoint-8192-acceptance",
+      "exitCode": 0,
+      "summary": "Stage 5 rung 3 passed: steps_collected=8192 (loops 0-65536), action_successes=3298, distinct_actions_used=8, action_entropy_nats=1.8735, illegal_action_rate=0.0, script_errors=0, replay_saved=true (68427 B), runtime_gate=true, census verdict=partial_faction:units_without_commander_economy"
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py --port 5972 --max-steps 8192 --save-replay --commander-enforce",
+      "exitCode": 1,
+      "summary": "Transient failure, fails closed: sc2_api_websocket_closed:257 after 18/8192 steps; runtime_gate=false, runtime_gate_failures=['step_budget_not_met'], replay_saved=false. Retried once on a fresh port and passed (EVAL-011)."
+    },
+    {
+      "command": "diff <(sed 's/[0-9]+/N/g' 20260810-raynor-2048-accept/launcher.log) <(sed 's/[0-9]+/N/g' 20260810-raynor-8192-accept/launcher.log)",
+      "exitCode": 1,
+      "summary": "Launcher ruled out as a variable: the failing and passing launcher logs differ on exactly one line (lock session id) once digits are normalised."
+    },
+    {
+      "command": "python - <<parse CMRERebornDebug.SC2Bank after the 8192-step run>> (159 keys scanned for non-zero ints)",
+      "exitCode": 0,
+      "summary": "Post-run CMRE debug bank is entirely zero in folders 1, 2 and 14 - initialization_gate_started=0, initialization_complete=0, initialization_units_ready_p1=0, bridge_heartbeat_started=0, bridge_starting_units_created_p1=0, hatchery_p1_count=0."
+    },
+    {
+      "command": "python -m pytest src/projects/cmre-rl-training/tests/test_live_map_pin.py src/projects/cmre-rl-training/tests/test_initialization_bank_snapshot.py -q",
+      "exitCode": 0,
+      "summary": "9 tests passed: overlay map pin (5) + initialization bank snapshot (4)"
+    },
+    {
+      "command": "python -m pytest src/projects/cmre-rl-training/tests/test_initialization_bank_snapshot.py src/projects/cmre-rl-training/tests/test_live_map_pin.py -q",
+      "exitCode": 0,
+      "summary": "11 tests passed: bank snapshot incl. cursed-directory regression (6) + overlay map pin (5)"
+    },
+    {
+      "command": "python -m pytest src/projects/cmre-rl-training/tests -q",
+      "exitCode": 0,
+      "summary": "279 passed, 14 skipped, 23 subtests passed (up from 266): +9 terminal-gate and census-verdict tests, +4 census peak-tracker tests, each with a positive and a negative control"
+    },
+    {
+      "check": "cmre-rl-training pytest suite after the faction precondition",
+      "result": "284 passed, 14 skipped, 25 subtests",
+      "evidenceType": "unit-test"
+    },
+    {
+      "command": "python -m pytest tools/launchers/tests/test_launch_cmre_alenger_static.py -q",
+      "exitCode": 0,
+      "summary": "40 passed; launcher Bank profile statically pinned to CommanderLevel=15 before the optional BuffPatch branch and six-slot mastery defaults at 30/30/30/30/30/30."
+    },
+    {
+      "command": "PYTHONPATH=src/projects/cmre-rl-training;src/projects/cmre-neuro-adapter;src/projects/cmre-porting python -m unittest discover -s src/projects/cmre-rl-training/tests -p test_commander_gate_fail_closed.py -v",
+      "exitCode": 0,
+      "summary": "9 tests passed; partial or malformed mastery layout blocks before launcher_start and writes a static-config report."
+    },
+    {
+      "command": "PYTHONPATH=src/projects/cmre-rl-training;src/projects/cmre-neuro-adapter;src/projects/cmre-porting python -m pytest src/projects/cmre-rl-training/tests -q",
+      "exitCode": 0,
+      "summary": "291 passed, 14 skipped, 28 subtests passed after commander profile and mastery-layout gates."
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/train_eval_loop.py --dry-run --maps dead-of-night --checkpoint src/projects/cmre-rl-training/artifacts/current-map-victory-20260805/map-aware-policy.pt --report-root src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-commander-profile-dry-run",
+      "exitCode": 0,
+      "summary": "dry-run plan written with TerranRaynor commander_level=15, commander_mastery=full, --mastery-layout 30,30,30,30,30,30, stop-on-terminal and replay-save commands."
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py --mastery-layout 30,0,30,30,30,30 --output src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-commander-profile-preflight/live-rl-report.json",
+      "exitCode": 1,
+      "summary": "expected blocked preflight: launcher_started=false, blocked_reason=commander_max_level_gate_failed, runtime_gate_failures=['mastery layout is not full 30/30/30/30/30/30']."
+    },
+    {
+      "command": "PowerShell Parser::ParseFile tools/launchers/launch-cmre-alenger.ps1",
+      "exitCode": 0,
+      "summary": "approved launcher parses without PowerShell syntax errors."
+    },
+    {
+      "command": "PYTHONPATH=src/projects/cmre-rl-training;src/projects/cmre-neuro-adapter;src/projects/cmre-porting python -m unittest discover -s src/projects/cmre-rl-training/tests -p test_commander_profile.py -v; ... -p test_commander_gate_fail_closed.py -v",
+      "exitCode": 0,
+      "summary": "27 targeted tests passed: SC2Bank parsing, stale-bank rejection, bank-overrides-config, and pwsh resolution."
+    },
+    {
+      "command": "PYTHONPATH=src/projects/cmre-rl-training;src/projects/cmre-neuro-adapter;src/projects/cmre-porting python -m pytest src/projects/cmre-rl-training/tests -q",
+      "exitCode": 0,
+      "summary": "297 passed, 14 skipped, 28 subtests passed after fresh-bank evidence and pwsh launcher resolution."
+    },
+    {
+      "command": "PYTHONPATH=src/projects/cmre-rl-training;src/projects/cmre-neuro-adapter;src/projects/cmre-porting python src/projects/cmre-rl-training/tools/run_live_rl.py --port 6015 --max-steps 8 --step-mul 8 --variant commander-bank-runtime-pwsh-6015 --output src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-commander-bank-runtime-pwsh/live-rl-report.json",
+      "exitCode": 0,
+      "summary": "runtime smoke passed through approved pwsh launcher: api_ready/create_game/join_game/frame_advancement/action_results=true, commander_runtime_proven=true from fresh bank, ScriptError count=0, no terminal claim."
+    },
+    {
+      "command": "PYTHONPATH=src/projects/cmre-rl-training;src/projects/cmre-neuro-adapter;src/projects/cmre-porting python -m pytest src/projects/cmre-rl-training/tests/test_train_eval_loop.py src/projects/cmre-rl-training/tests/test_training_cli.py -q",
+      "exitCode": 0,
+      "summary": "14 tests passed, including configured simulator loop propagation and post-training checkpoint hash materialisation."
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/train_eval_loop.py --maps dead-of-night --train-iterations 24 --rollout-steps 128 --max-episode-steps 128 --train-step-loops 8 --skip-live --checkpoint src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-step8-curriculum/map-aware-policy.pt --report-root src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-step8-curriculum/train-eval",
+      "exitCode": 0,
+      "summary": "simulator-only curriculum passed: 3072 steps, reward=0.1008463542, entropy=2.3538448, 12 distinct actions, illegal_action_rate=0.0, final plan hash=75765e240bdc2c444812b35e83f3927fcd652b3208e0341ff29b069de0c90bb4."
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/train_eval_loop.py --maps dead-of-night --train-iterations 8 --rollout-steps 64 --max-episode-steps 64 --train-step-loops 64 --train-start-minerals 200 --skip-live --checkpoint src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-economy-curriculum/map-aware-policy.pt --report-root src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-economy-curriculum/train-eval",
+      "exitCode": 0,
+      "summary": "simulator-only economy curriculum passed: 512 steps, step_loops=64, start_minerals=200, reward=0.109375, entropy=2.4366235, 12 distinct actions, illegal_action_rate=0.0, final plan hash=45f8f1071548b1226e022f7e37420e9ee1f1027c29f0ed7ce57cd65eded8abeb."
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/train_eval_loop.py --maps dead-of-night --train-iterations 2 --rollout-steps 32 --max-episode-steps 32 --train-step-loops 64 --train-start-minerals 200 --skip-live --checkpoint src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-cycle-report-smoke/map-aware-policy.pt --report-root src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-cycle-report-smoke/train-eval",
+      "exitCode": 0,
+      "summary": "end-to-end cycle persistence smoke passed: 64 simulator steps, status=trained_only, train-eval-report.json written, and report plan_checkpoint_sha256 matches the final plan hash 1d8923319943e20249692fbae33a168abde9c798fdf5ca5d412d335a207eb0ab."
+    },
+    {
+      "command": "PYTHONPATH=src/projects/cmre-rl-training;src/projects/cmre-neuro-adapter;src/projects/cmre-porting python -m pytest src/projects/cmre-rl-training/tests/test_commander_profile.py src/projects/cmre-rl-training/tests/test_commander_gate_fail_closed.py -q",
+      "exitCode": 0,
+      "summary": "28 passed, 7 subtests passed; a maxed/full TerranAlenger3 bank fails a TerranRaynor identity gate."
+    },
+    {
+      "command": "PYTHONPATH=src/projects/cmre-rl-training;src/projects/cmre-neuro-adapter;src/projects/cmre-porting python -m pytest src/projects/cmre-rl-training/tests -q",
+      "exitCode": 0,
+      "summary": "302 passed, 14 skipped, 28 subtests passed after commander identity enforcement and JoinGame initialization-step coverage."
+    },
+    {
+      "command": "python src/projects/cmre-rl-training/tools/run_live_rl.py --port 6018 --max-steps 2048 --step-mul 32 --stop-on-terminal --require-terminal --commander TerranRaynor --commander-level 15 --commander-mastery full --mastery-layout 30,30,30,30,30,30",
+      "exitCode": 1,
+      "summary": "API Ping succeeded through the approved launcher, but no controller report was written before the API listener disappeared; later --skip-launch diagnostic truthfully failed api_not_ready with no game or terminal evidence."
+    },
+    {
+      "command": "PYTHONPATH=src/projects/cmre-rl-training python -c \"build_commander_profile('TerranRaynor', evidence_path=captured_alenger3_bank) -> validate_commander_profile\"",
+      "exitCode": 0,
+      "summary": "MVP negative validation against the captured real bank: requested=TerranRaynor, observed=TerranAlenger3, identity_ok=false, passed=false."
     }
   ],
-  "nextStage": null
+  "nextStage": null,
+  "stage5LiveLadder": {
+    "rungs": [
+      {
+        "steps": 512,
+        "loops": [
+          0,
+          4096
+        ],
+        "successes": 213,
+        "entropyNats": 1.86,
+        "status": "passed"
+      },
+      {
+        "steps": 2048,
+        "loops": [
+          0,
+          16384
+        ],
+        "successes": 874,
+        "entropyNats": 1.868,
+        "status": "passed"
+      },
+      {
+        "steps": 8192,
+        "loops": [
+          0,
+          65536
+        ],
+        "successes": 3298,
+        "entropyNats": 1.8735,
+        "status": "passed"
+      }
+    ],
+    "complete": true,
+    "terminalEvidenceReachable": true,
+    "note": "Stage 5 action-sanity ladder is complete. As of the 20260810 overlay artifact the commander economy does come online (supply 15/15, CommandCenter + 15 SCV) and terminal_evidence_reachable=true, so the Stage 6 blocker is no longer structural. Stage 6 nevertheless stays blocked until a --stop-on-terminal run records a real player_result; reachable is not observed. 2026-08-10 round5: this note's 'terminal_evidence_reachable=true' reading came from short runs. A 192,000-loop run on the same artifact ends with supply_cap=0 and no player_result, so the note must not be read as evidence that a terminal is reachable in a full match."
+  },
+  "totals": {
+    "claims": 51,
+    "validation": 46,
+    "outputs": 66
+  },
+  "stage6Blocker": {
+    "blocked": true,
+    "blockerClass": "terminal-not-observed-runtime-lease",
+    "previousBlockerClass": "empty-faction-at-rollout-start",
+    "acceptanceSignal": "a real player_result recorded by a --stop-on-terminal run",
+    "structuralPrerequisitesMet": {
+      "commander_profile_runtime_proven": "historical Raynor bank proof exists; the latest attached diagnostic observed Alenger3 and is intentionally rejected as identity-mismatched/unattributed evidence.",
+      "commander_economy_online": "not established for the terminal-intent checkpoint; the fresh 8-step runtime smoke proved the launch profile and action bridge only.",
+      "terminal_evidence_reachable": "not observed. The next free-lease run must re-read the initial/peak/final census before any terminal claim.",
+      "initialization_gate_started": "fresh 8-step commander-bank smoke recorded initialization_complete=1; terminal-intent run was blocked before API and has no new census.",
+      "mission_runs_for_18_minutes": true,
+      "script_errors": 0,
+      "mission_runs_for_143_minutes": true,
+      "horizon_sufficient": true,
+      "player_result_produced": false
+    },
+    "checkableWithoutLiveApi": false,
+    "issue": "EVAL-002",
+    "resolvedIssues": [
+      "EVAL-008",
+      "EVAL-009",
+      "EVAL-010",
+      "EVAL-021",
+      "EVAL-022",
+      "EVAL-023"
+    ],
+    "contendingResource": "EVAL-014: the real-machine slot is globally exclusive; runs must yield, not preempt",
+    "evidence": "Historical long run: 192,000 game loops, 0 ScriptErrors, replay saved, no player_result. Current terminal-intent retry: approved launcher rejected the run before API because an external SC2 lease was busy. Fresh commander bank proof is now available, but a new terminal result still has not been observed.",
+    "blockedBy": [
+      "EVAL-001",
+      "EVAL-018"
+    ],
+    "nextCheck": "When the external lease releases, run the terminal-intent command with a fresh output directory and the newest economy-curriculum checkpoint; require a fresh bank that names TerranRaynor at level 15 with full six-slot mastery, faction precondition, frame/action gates, clean ScriptError evidence, and a real player_result.",
+    "summary": "Stage 6 remains blocked because no fresh terminal-intent run has produced player_result. The previous empty-faction root cause is guarded fail-closed, while the commander gate now also rejects a mismatched observed identity; the remaining work is a lease-available long run plus honest census/action-result evidence."
+  }
 }

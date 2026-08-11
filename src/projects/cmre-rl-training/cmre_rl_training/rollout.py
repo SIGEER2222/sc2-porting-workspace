@@ -34,6 +34,7 @@ def collect_rollout(
     device: str = "cpu",
     action_builder: ActionBuilder | None = None,
     auto_reset_on_terminal: bool = True,
+    initial_observation: Any | None = None,
 ) -> RolloutBuffer:
     """Run ``n_steps`` of interaction and return a populated buffer.
 
@@ -64,6 +65,10 @@ def collect_rollout(
     auto_reset_on_terminal
         Keep the default training behavior, or stop a live evaluation at the
         first mission terminal event.
+    initial_observation
+        Observation returned by a caller-owned reset. Reusing it lets a live
+        runner perform startup/faction gates after CreateGame+JoinGame without
+        issuing a second reset that would create a different game.
     """
 
     if n_steps < 1:
@@ -80,7 +85,7 @@ def collect_rollout(
         mask_dim=mask_dim,
     )
 
-    obs = env.reset()
+    obs = env.reset() if initial_observation is None else initial_observation
     if isinstance(obs, np.ndarray) and obs.ndim == 1:
         obs_vec = obs
     else:

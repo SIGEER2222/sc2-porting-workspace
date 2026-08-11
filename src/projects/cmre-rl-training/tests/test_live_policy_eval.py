@@ -41,6 +41,9 @@ class LivePolicyEvalTests(unittest.TestCase):
         )
         self.assertIn("--stop-on-terminal", command)
         self.assertIn("--save-replay", command)
+        self.assertIn("--commander-enforce", command)
+        self.assertEqual(command[command.index("--commander-level") + 1], "15")
+        self.assertEqual(command[command.index("--commander-mastery") + 1], "full")
         self.assertIn("--deterministic", command)
         self.assertEqual(command[command.index("--variant") + 1], "deterministic-baseline")
 
@@ -54,6 +57,7 @@ class LivePolicyEvalTests(unittest.TestCase):
                     "runtime_gate": True,
                     "terminal_observed": False,
                     "script_error_verdict": {"has_new_errors": False},
+                    "commander": {"commander_max_level_gate_passed": True},
                 }],
                 checkpoint=checkpoint,
                 maps=[{"map_id": "dead-of-night"}],
@@ -74,6 +78,7 @@ class LivePolicyEvalTests(unittest.TestCase):
                     "terminal_observed": True,
                     "terminal_results": [{"player_id": 1, "result_name": "victory"}],
                     "script_error_verdict": {"has_new_errors": False},
+                    "commander": {"commander_max_level_gate_passed": True},
                 }],
                 checkpoint=checkpoint,
                 maps=[{"map_id": "dead-of-night"}],

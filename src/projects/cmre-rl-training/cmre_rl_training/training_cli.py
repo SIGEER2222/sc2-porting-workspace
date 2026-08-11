@@ -20,7 +20,13 @@ try:
 except ModuleNotFoundError as exc:  # pragma: no cover - dependency gate
     raise RuntimeError("PyTorch is required for multi-map training") from exc
 
+from .action_metrics import summarize_rollout_actions
 from .backends import FakeBackend
+from .commander_profile import (
+    build_commander_profile,
+    commander_report_fields,
+    validate_commander_profile,
+)
 from .env import CmreRLEnv
 from .map_aware import load_map_aware_checkpoint
 from .map_profiles import MapProfileRegistry
@@ -287,6 +293,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--device", default="auto", help="cpu, cuda, or auto")
+    parser.add_argument("--commander", default="TerranRaynor", help="Commander used for ML evidence")
+    parser.add_argument("--commander-level", type=int, default=15,
+                        help="Declared commander level (default: max level 15)")
+    parser.add_argument("--commander-mastery", default="full",
+                        help="Declared mastery allocation (default: full)")
+    parser.add_argument("--commander-evidence", default=None,
+                        help="Path to bank/JSON evidence proving in-game commander level/mastery")
     parser.add_argument(
         "--output-dir",
         default=str(DEFAULT_OUTPUT_DIR),
@@ -363,6 +376,44 @@ def run_training(args: argparse.Namespace) -> dict[str, Any]:
     )
     report_path = output_dir / "training-report.json"
 
+    # Validate the commander before constructing environments or collecting a
+    # single rollout. A low-level profile must never consume training steps and
+    # then get laundered into a successful simulator report.
+    commander_profile = build_commander_profile(
+        args.commander,
+        level=args.commander_level,
+        mastery=args.commander_mastery,
+        evidence_path=args.commander_evidence,
+    )
+    commander_validation = validate_commander_profile(commander_profile)
+    commander_fields = commander_report_fields(commander_profile, commander_validation)
+    if not commander_validation["passed"]:
+        blocked_report = {
+            "schema": "cmre-multi-map-training.v1",
+            "status": "blocked",
+            "evidence_class": "static-config",
+            "backend": args.backend,
+            "map_order": list(map_names),
+            "total_steps": 0,
+            "commander": commander_fields,
+            "config": {
+                "commander": args.commander,
+                "commander_level": args.commander_level,
+                "commander_mastery": args.commander_mastery,
+                "commander_evidence": args.commander_evidence,
+            },
+            "blocked_reason": "commander_max_level_gate_failed",
+            "report_path": str(report_path),
+        }
+        report_path.write_text(
+            json.dumps(blocked_report, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        raise RuntimeError(
+            "commander_max_level_gate_failed: "
+            + "; ".join(commander_validation["reasons"])
+        )
+
     if args.resume and args.bc_checkpoint:
         raise ValueError("--resume and --bc-checkpoint cannot be combined")
     scenario_path = resolve_repo_path(args.scenario).resolve() if args.scenario else None
@@ -377,6 +428,11 @@ def run_training(args: argparse.Namespace) -> dict[str, Any]:
         if args.resume
         else None
     )
+    step_loops = int(getattr(args, "step_loops", 1))
+    if step_loops < 1:
+        raise ValueError("--step-loops must be >= 1")
+    start_minerals = getattr(args, "start_minerals", None)
+    start_vespene = getattr(args, "start_vespene", None)
     factories = make_env_factories(
         map_names,
         backend_name=args.backend,
@@ -384,9 +440,9 @@ def run_training(args: argparse.Namespace) -> dict[str, Any]:
         max_episode_steps=args.max_episode_steps,
         scenario_path=scenario_path,
         scenario_overrides=scenario_overrides,
-        step_loops=int(getattr(args, "step_loops", 1) or 1),
-        start_minerals=getattr(args, "start_minerals", None),
-        start_vespene=getattr(args, "start_vespene", None),
+        step_loops=step_loops,
+        start_minerals=start_minerals,
+        start_vespene=start_vespene,
     )
     config = MultiMapTrainingConfig(
         map_names=map_names,
@@ -416,6 +472,7 @@ def run_training(args: argparse.Namespace) -> dict[str, Any]:
     report.update({
         "backend": args.backend,
         "device": device,
+        "commander": commander_fields,
         "config": {
             "iterations": args.iterations,
             "rollout_steps": args.rollout_steps,
@@ -427,6 +484,9 @@ def run_training(args: argparse.Namespace) -> dict[str, Any]:
             "ent_coef": getattr(args, "ent_coef", 0.01),
             "ent_floor": getattr(args, "ent_floor", 0.0),
             "seed": args.seed,
+            "step_loops": step_loops,
+            "start_minerals": start_minerals,
+            "start_vespene": start_vespene,
             "resumed_from": str(resolve_repo_path(args.resume).resolve()) if args.resume else None,
             "bc_checkpoint": str(resolve_repo_path(args.bc_checkpoint).resolve()) if args.bc_checkpoint else None,
             "scenario": str(scenario_path) if scenario_path else None,

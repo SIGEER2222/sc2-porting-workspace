@@ -16,21 +16,27 @@
         "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/evaluation-report.json",
         "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/dead-of-night-frozen-stochastic/launcher.err.log",
         "artifacts/stage-10-runtime-policy-eval/direct-map-entry-retry-6004/live-rl-report.json",
-        "artifacts/stage-10-runtime-policy-eval/direct-map-entry-retry-6004/launcher.err.log"
+        "artifacts/stage-10-runtime-policy-eval/direct-map-entry-retry-6004/launcher.err.log",
+        "artifacts/stage-10-runtime-policy-eval/20260810-terminal-bankproof-2048x32/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-terminal-bankproof-2048x32/launcher.err.log"
       ]
     },
     {
       "id": "EVAL-002",
       "severity": "high",
       "title": "No mission terminal result reached within bounded evidence",
-      "description": "The six matrix attempts and the current-map 2048-decision rollout contain no player_result; therefore no real victory, defeat, or win rate is reported. The current-map rollout did reach API/CreateGame/JoinGame and completed the bounded action loop, but that is not a mission terminal.",
+      "description": "The six matrix attempts and the current-map 2048-decision rollout contain no player_result; therefore no real victory, defeat, or win rate is reported. The current-map rollout did reach API/CreateGame/JoinGame and completed the bounded action loop, but that is not a mission terminal. 2026-08-10 update: the structural blocker behind this issue (EVAL-009, no commander economy) is resolved. The overlay artifact reports terminal_evidence_reachable=true, so a real player_result is now reachable in principle. It has still not been *observed*: this issue stays blocked until a long-horizon --stop-on-terminal run records an actual player_result. 2026-08-10 round5: the long-horizon run finally ran to completion without being preempted - 6000 steps x step_mul 32 = 192,000 game loops, roughly 143 minutes of mission time, 0 ScriptErrors, replay saved. terminal_observed is still false and terminal_results is still empty. The horizon hypothesis is therefore dead: the mission does not hand this player a player_result even when given more than four full matches worth of time. runtime_census.final shows why: supply_cap=0, own_unit_count=2, minerals=2472 - the player is sitting with no production while the mod's bridge_prevent_defeat_p1=1 keeps defeat from being declared. No win is reachable and no loss is permitted, so no terminal is structurally possible from that state.",
       "impact": "Cross-map tactical uplift is not established.",
       "status": "blocked",
-      "nextAction": "Continue the current-map run with a mission-appropriate long horizon until a real player_result is observed; do not treat the bounded cutoff as victory.",
+      "nextAction": "Do not schedule another blind long-horizon run. When the external lease is free, run one terminal-intent rollout with a fresh launcher profile and the newest checkpoint, inspect runtime_census.initial/peak/final plus action-result distribution, and stop on any truthful terminal or fail-closed precondition. EVAL-019 and EVAL-020 are resolved; the remaining gate is fresh runtime access plus a real player_result.",
       "evidence": [
         "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64/evaluation-report.json",
         "artifacts/stage-10-runtime-policy-eval/20260805-bounded-64-retry-2/evaluation-report.json",
-        "artifacts/stage-10-runtime-policy-eval/current-map-victory-20260805/live-rl-report.json"
+        "artifacts/stage-10-runtime-policy-eval/current-map-victory-20260805/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-overlay-ab-256/live-rl-report.json"
+      ],
+      "notes": [
+        "2026-08-10 05:02: a healthy 24112-loop run (18 min of mission time, 188 successful actions, 0 ScriptErrors) ended by external preemption rather than by any in-game condition. The remaining distance to a terminal is wall-clock, not correctness."
       ]
     },
     {
@@ -82,7 +88,288 @@
         "tests/test_training_cli.py",
         "artifacts/stage-10-runtime-policy-eval/entropy-floor-smoke-20260809/training-report.json"
       ]
+    },
+    {
+      "id": "EVAL-007",
+      "severity": "high",
+      "title": "API readiness was decided by a bare TCP connect, which cannot fail",
+      "description": "wait_for_api treated a successful TCP connect as SC2 API readiness. SC2 opens its listening socket well before the /sc2api websocket handler is installed, so the runner reported api_ready=true and then exhausted its 30s connect budget against a socket that closed every handshake, surfacing as sc2_api_connect_timeout:Server disconnected at CreateGame.",
+      "impact": "Every live run aborted before CreateGame while the report still claimed the API was ready, making the failure look like a protocol or launcher defect.",
+      "status": "resolved",
+      "nextAction": "None. probe_sc2_api performs a real ws_connect + protobuf Ping; wait_for_api gates on it and aborts if the launcher exits; Sc2ApiClient.connect timeout widened to 120s; reports record api_ready_basis.",
+      "evidence": [
+        "tools/run_live_rl.py",
+        "cmre_rl_training/live_sc2_session.py",
+        "tests/test_runtime_census.py",
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-512-accept/stdout.log"
+      ]
+    },
+    {
+      "id": "EVAL-008",
+      "severity": "high",
+      "title": "The 20260809 packed-map repack never hands the player a faction",
+      "description": "A single-variable A/B (identical code, parameters and 128 steps; only the packed map differs) shows 亡者之夜_live_packed.SC2Map (md5 5f122326, 20260809-23:33 repack) reaching api_ready/CreateGame/JoinGame/frame advancement while the player owns exactly one placeholder unit (type 4051), 0 minerals and 0 supply cap, producing 0/128 successful actions. The Jul-31 artifact (md5 fa20e497) under identical conditions yields 2 own units, 50 minerals, 27 visible enemies and 66/128 successful actions. This also falsifies the earlier attribution that the CMRE launcher/campaign trigger stack inherently prevents gameplay entry: the Jul-31 artifact carries the same stack and does enter. RESOLVED 2026-08-10: the defect was not the change set but the *source* of the repack. Both the 20260731 and 20260809 artifacts were packed from map trees that predate the 2026-08-09 observer/init-gate overlay. The approved launcher injects that overlay into its staging directory (E:\\SC2\\SC2new\\StarCraft II\\Maps\\亡者之夜.SC2Map) at launch time and it was never packed back. Packing the staging directory itself produces 亡者之夜_live_packed_OVERLAY_20260810.SC2Map (md5 ccc74e2c6fff5b1914d196b5867705c5, 3328542 B), which is now the default.",
+      "impact": "Live evaluation silently collapses to zero successful actions with no ScriptError and no API error, which is indistinguishable from a bad policy unless a runtime census is captured.",
+      "status": "resolved",
+      "nextAction": "None. The working repack recipe is: pack the approved launcher's staging directory with tools/mpq/scripts/pack_stormlib.py after a launch has applied the overlay. tests/test_live_map_pin.py pins the overlay artifact and lists every superseded artifact as a named negative arm.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-overlay-ab-256/live-rl-report.json",
+        "artifacts/live-maps/亡者之夜_live_packed_OVERLAY_20260810.SC2Map",
+        "tools/run_live_rl.py",
+        "tests/test_live_map_pin.py"
+      ]
+    },
+    {
+      "id": "EVAL-009",
+      "severity": "high",
+      "title": "CMRE Reborn initialization trigger chain never fires, so no commander economy and no reachable mission terminal",
+      "description": "No packed artifact yet produces supply_cap>0. Root cause identified 2026-08-10 from a non-API evidence channel: the launcher zeroes CMRERebornDebug.SC2Bank at every launch, and after the passing 8192-step run (65536 game loops) the bank is still entirely zero in all three account folders - initialization_gate_started=0, initialization_complete=0, initialization_units_ready_p1=0, bridge_heartbeat_started=0, bridge_starting_units_created_p1=0, hatchery_p1_count=0. The chain does not fail a condition; it never enters the gate. The single Marine and 50 minerals the API census sees come from the map's own start-up, which is a different code path from the co-op commander initialization that would place a Command Center and SCVs. RESOLVED 2026-08-10 by packing the launcher's overlayed staging directory. Under the resulting artifact the 256-step A/B census reports commander_economy_online=true, supply 15/15, 15 SCV plus a CommandCenter, 535 minerals and terminal_evidence_reachable=true, against supply_cap=0 and reward_sum=-587.65 on the previous default. Note on evidence durability: the matching root-bank read (initialization_gate_started=1, initialization_complete=1 in Documents/StarCraft II/Banks/CMRERebornDebug.SC2Bank, not the account-scoped copies which stay zeroed) was observed at 04:40 and then destroyed by the 04:42 relaunch, because the launcher resets that bank on every launch. The durable citation is therefore the API-side census; snapshot_initialization_banks() was added to run_live_rl.py so the bank reading is captured per-run from now on. 2026-08-10 round5 correction: the 'commander economy comes online' evidence came from short runs. On a 192,000-loop run the same artifact ends at supply_cap=0 with 2 units. Whether the economy never came online on this run or came online and was destroyed was not decidable from the two-point census - see EVAL-017. This issue stays resolved for what it claimed (the artifact can hand the player a faction) but must not be cited as evidence that the economy survives a full match.",
+      "impact": "Stage 6 is structurally unreachable: with no base there is no economy, no army and no mission terminal, so no real player_result can ever be produced on this artifact.",
+      "status": "resolved",
+      "nextAction": "None for the root cause. Carry the bank snapshot into the Stage 6 terminal run so initialization_gate_started lands in a per-run artifact rather than a transient file.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-overlay-ab-256/live-rl-report.json",
+        "tools/run_live_rl.py",
+        "tests/test_initialization_bank_snapshot.py",
+        "stages/10-runtime-policy-eval/log.md"
+      ]
+    },
+    {
+      "id": "EVAL-010",
+      "severity": "medium",
+      "title": "Commander max-level gate is config-declared, not runtime-proven",
+      "description": "Every passing run reports commander_max_level_gate_passed=true with commander_evidence_source=config and commander_runtime_proven=false. The declared Raynor level 15 / full mastery profile is taken from CLI configuration rather than read back from a bank or runtime observation. 2026-08-10: still config-declared. The overlay run does now prove at runtime that a *commander* faction is initialised (CommandCenter + 15 SCV + supply 15/15), which is strictly more than before, but it does not read back level or mastery. Later 2026-08-10: the launcher now writes CommanderLevel=15 and six-slot full mastery defaults to the launch-profile bank, and the runner blocks partial full-mastery declarations before starting SC2. That closes the known config-write gap, but this issue stays open until the game reads back the applied runtime values.",
+      "impact": "The plan's commander requirement is satisfied by declaration only; an underleveled runtime state would not be detected.",
+      "status": "resolved",
+      "resolution": "The 20260810 commander-bank-runtime-pwsh smoke ran through the approved pwsh launcher and captured a fresh CMCoopLaunchProfile.SC2Bank. The report promotes bank evidence to commander_runtime_proven=true with TerranRaynor level 15, MasteryLevel=180, MasteryCount=6, and six mastery values at 30. The evidence is a launch-profile bank readback rather than a screenshot of the UI, but it is the exact bank consumed by CMUIX_LaunchProfileApplyCommanderCustomization.",
+      "nextAction": "None for the max-level/full-mastery gate; keep the fresh-bank snapshot in every future run.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-2048-accept/live-rl-report.json",
+        "tools/run_live_rl.py",
+        "tools/launchers/launch-cmre-alenger.ps1",
+        "tools/launchers/tests/test_launch_cmre_alenger_static.py::test_launch_profile_defaults_commanders_to_max_level_and_full_mastery",
+        "src/projects/cmre-rl-training/tests/test_commander_gate_fail_closed.py",
+        "artifacts/stage-10-runtime-policy-eval/20260810-commander-profile-preflight/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-commander-bank-runtime/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-commander-bank-runtime-pwsh/live-rl-report.json"
+      ]
+    },
+    {
+      "id": "EVAL-011",
+      "severity": "low",
+      "title": "Transient sc2_api_websocket_closed aborts a live rollout mid-flight",
+      "description": "The port-5972 attempt of the 8192-step rung lost the SC2 websocket after 18 steps (loop 144) with error 'LiveSc2Error: sc2_api_websocket_closed:257:None' (257 is aiohttp.WSMsgType.CLOSED). The launcher log for that attempt was identical to the passing 2048-step run modulo lock session id, and an identical-parameter retry on port 5974 completed all 8192 steps, so this is a transient runtime disconnect and not a step-budget ceiling or a launcher defect.",
+      "impact": "A long live run can be lost at any point. The loss is fail-closed and self-labelling (status=failed, runtime_gate=false, runtime_gate_failures=['step_budget_not_met'], replay_saved=false), so it cannot be mistaken for evidence, but it costs a full run.",
+      "status": "accepted-transient",
+      "nextAction": "Retry once on a fresh port after a clean SC2 kill, using a NEW output directory. If a disconnect reproduces at a similar step count across attempts, reclassify as a defect and instrument the websocket close reason on the SC2 side.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/failed-attempt-5972.transcript.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/live-rl-report.json",
+        "stages/10-runtime-policy-eval/log.md#g13"
+      ]
+    },
+    {
+      "id": "EVAL-012",
+      "severity": "low",
+      "title": "Retry reused the output directory and destroyed the failing report",
+      "description": "The 8192-rung retry deleted live-rl-report.json in the shared output directory before relaunching, so the failing attempt-2 report no longer exists on disk. Only a console transcript survives, saved as failed-attempt-5972.transcript.json and explicitly marked as a transcript excerpt rather than a runner artifact.",
+      "impact": "One failure record is downgraded from artifact to transcript. Any future retry that reuses an output directory would silently overwrite the evidence it is supposed to explain.",
+      "status": "resolved-by-rule",
+      "nextAction": "Retries must write to a suffixed directory (-attempt2, -attempt3). Recorded as a rule in log.md G13 Trap 3.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/failed-attempt-5972.transcript.json",
+        "stages/10-runtime-policy-eval/log.md#g13"
+      ]
+    },
+    {
+      "id": "EVAL-013",
+      "severity": "medium",
+      "title": "Agent bash shell has no sleep binary; chained exit codes misattribute failures",
+      "description": "The first 8192 attempt was reported as EXIT=127. The launcher log was complete and healthy; the real cause is that this host's agent bash has no 'sleep' binary (/usr/bin/bash: line 1: sleep: command not found), and the 127 from that chain link was attributed to the Python run.",
+      "impact": "A healthy run can be recorded as a crash, and a real crash can be masked by a chain exit code. Wasted one full live run and nearly produced a fabricated defect entry.",
+      "status": "resolved-by-rule",
+      "nextAction": "Never use sleep in a bash chain on this host; use the shell tool's Start-Sleep. Always give the program its own stdout/stderr files and reconcile the exit code against the artifacts before drawing a conclusion.",
+      "evidence": [
+        "stages/10-runtime-policy-eval/log.md#g13",
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-8192-accept/launcher.log"
+      ]
+    },
+    {
+      "id": "EVAL-014",
+      "severity": "critical",
+      "title": "Concurrent real-machine sessions kill each other's game - at launch AND mid-run",
+      "description": "The 04:42 Stage 6 attempt failed with api_ready=true, create_game=true, join_game=false and error JoinGame_timeout / connection refused. The launcher log shows the SC2 process it had just brought up (PID 29720, listening on 5972) exiting on its own a minute later. Root cause is contention, not the map: the real-machine slot is a global exclusive resource (one ws port slot, one artifacts/runtime/sc2-runtime-lease.json, and launcher orphan-cleanup that terminates SC2 processes it judges stale - the same log shows it terminating PID 6508 and preempting a previous lock holder). A concurrent galaxy-vibe transport probe (tools/galaxy-vibe/transport/bank_probe.py --port 5000) was cycling SC2 at the same time, so the two lines preempted each other. ESCALATION (05:02): the follow-up run proved the contention is not confined to the launch window. The 04:55 attempt joined cleanly and ran healthily for 24112 game loops (3014 policy steps, 188 successful actions, zero ScriptErrors) and was then cut down by sc2_api_websocket_closed:257. Forensics pin the cause exactly: our runtime lease heartbeat last wrote at 05:02:15 and a foreign SC2Switcher_x64 '-listen 127.0.0.1 -port 5000 -debug' (parent already dead) started at 05:02:18. A launch-time yield check is structurally incapable of preventing this, so the fix has three parts: shrink the wall-clock exposure (step_mul 8 -> 32 gives ~4x game time per wall second because the per-step cost is observation + inference, not SC2 simulating loops), reclaim idle foreign runtimes that nobody is driving, and classify a preempted attempt as a scheduling fault so it is retried instead of being filed as a Stage 6 result.",
+      "impact": "A pure scheduling collision is reported as a map/JoinGame defect, which would send diagnosis at the artifact instead of at the slot. This is exactly the failure mode that makes a runtime gate look flaky.",
+      "status": "contained",
+      "nextAction": "Real-machine runs must yield rather than preempt. out/stage6_guarded.py polls until no foreign SC2_x64.exe and no bank_probe/matrix python process is in flight before launching, and records a 'yielded' status instead of a false failure if the slot never frees. Promote this into the runner if a second collision is observed.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal/launcher.log",
+        "out/stage6_guarded.py"
+      ],
+      "mitigation": "out/stage6_guarded.py v2 (yield + reclaim + preemption retry)"
+    },
+    {
+      "id": "EVAL-015",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Bank snapshot destroyed by an unrelated self-nested backup directory",
+      "description": "The Stage 6 run reported initialization_bank: {\"error\": \"FileNotFoundError: [WinError 3]\"} pointing at Documents/StarCraft II/Banks/.runtime-lab-backup-1786206967/ repeated seven times. snapshot_initialization_banks() scanned with Path.glob('**/CMRERebornDebug.SC2Bank'), which descends into that pathologically self-nested directory left by an older lab harness until the path overruns MAX_PATH. The acceptance signal for the CMRE init chain was therefore lost to a directory that has nothing to do with the run. This is the same class as the transient-evidence problem the snapshot was written to solve: a measurement that can be destroyed by its environment is not a measurement.",
+      "resolution": "Replaced the glob with iter_debug_banks(): a depth-bounded os.walk that prunes directory names starting with '.runtime-lab-backup'. Verified against the real Banks root (4 banks found, no exception). Regression test reproduces the cursed chain, plus a negative control asserting that an ordinary nested bank (Banks/14/) is still collected - otherwise 'prune the cursed directory' could silently degenerate into 'only ever read the root' and quietly drop the account-scoped copies the merge needs.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-2/live-rl-report.json",
+        "tools/run_live_rl.py::iter_debug_banks",
+        "tests/test_initialization_bank_snapshot.py::test_self_nested_backup_directory_cannot_break_the_snapshot",
+        "tests/test_initialization_bank_snapshot.py::test_pruning_is_by_prefix_not_by_being_nested"
+      ]
+    },
+    {
+      "id": "EVAL-016",
+      "severity": "critical",
+      "status": "resolved",
+      "title": "A step-budget cutoff was reported as status=passed on a terminal-evidence run",
+      "description": "The Stage 6 plan's hard rule is 'do not convert timeout/cutoff into victory'. The runtime gate implemented the opposite: it accepted steps_collected == max_steps OR (stop_on_terminal AND terminal_observed) as interchangeable. --stop-on-terminal only *permits* an early exit, so a run that merely exhausted 6000 steps with terminal_observed=false satisfied the first disjunct and was written out as status=passed, runtime_gate=true, runtime_gate_failures=[]. The guard script then compounded it: classify() treated status=='passed' as a proxy for a terminal and filed final_outcome='terminal' for a run whose own report said terminal_observed=false. Two independent checkers, both green, both wrong, on the one question Stage 6 exists to answer.",
+      "resolution": "Added an explicit --require-terminal intent flag plus a pure terminal_gate_failures() helper: when a run declares it exists for terminal evidence and does not produce it, the gate fails and names the structural cause (terminal_not_observed, terminal_not_observed:evidence_unreachable:<verdict>, or terminal_not_observed:commander_economy_collapsed). --stop-on-terminal keeps its permissive meaning so Stage 5 and train_eval_loop (which sets it by default) do not turn uniformly red. stage6_guarded.py now passes --require-terminal and classify() keys only on terminal_observed, returning a distinct 'no_terminal' outcome. Reverse control: replaying the real 20260810-stage6-terminal-3 report through the new helper fails precisely on this criterion (terminal_not_observed:evidence_unreachable:partial_faction:...) while require_terminal=False leaves it untouched.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-guard/attempts.json",
+        "src/projects/cmre-rl-training/tests/test_terminal_gate_fail_closed.py"
+      ],
+      "nextAction": "None. Regression-tested with a positive and a negative control."
+    },
+    {
+      "id": "EVAL-017",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Two-point census cannot distinguish 'economy never came online' from 'economy was destroyed'",
+      "description": "build_runtime_census() sampled exactly two observations: loop 0 and the final loop. Both 'the artifact never handed the player a faction' and 'the player had a base and lost it' end at supply_cap=0 with a couple of leftover units, so the census labelled the 192,000-loop run 'partial_faction:units_without_commander_economy' - the broken-artifact verdict - even though the same artifact is recorded in this repo as reporting 'faction_initialised' on short runs. The two states have opposite meanings: one says stop and fix the map, the other says the policy lost a real match. A measurement that cannot separate them sends every future round down the wrong branch.",
+      "resolution": "Added CensusPeakTracker, sampled from inside the action-grounding hook (the cheapest point that already receives the raw observation each step, so collect_rollout and ActionGrounder stay untouched). build_runtime_census() now reports commander_economy_ever_online, economy_collapsed, and a peak block with max_supply_cap and the loop at which it occurred, and emits a new verdict 'economy_lost:commander_economy_came_online_then_collapsed'. terminal_evidence_reachable now keys on 'ever online' - an artifact that never grants an economy is broken; one that granted and lost it was structurally capable of a player_result. The tracker degrades on malformed observations instead of aborting the rollout, since it reads data the run does not control.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-rl-report.json",
+        "src/projects/cmre-rl-training/tests/test_terminal_gate_fail_closed.py",
+        "src/projects/cmre-rl-training/tests/test_census_peak_tracker.py"
+      ],
+      "nextAction": "The next live run answers the open question retroactively: if peak.max_supply_cap > 0 the economy came online and collapsed; if it is 0 the artifact never delivered one."
+    },
+    {
+      "id": "EVAL-018",
+      "severity": "critical",
+      "status": "open",
+      "title": "illegal_action_rate reports 0.0 while the engine rejects 99.2% of orders",
+      "description": "The 192,000-loop run issued 6000 orders. The SC2 ActionResult distribution was NotSupported 3485 (58.1%), Error 2450 (40.8%), Success 50 (0.83%), plus 15 assorted Cant* codes. The report's illegal_action_rate was 0.0 and illegal_action_count was 0, because that metric measures action-mask compliance - whether the policy picked an action the mask allowed - not whether the game accepted the resulting order. So the one number that looks like 'is the agent doing legal things' is structurally incapable of noticing that the agent is doing nothing at all. The runtime gate's only related check, action_successes > 0, is the degenerate threshold: 50 successes out of 6000 passes it just as well as 6000 would. The action distribution confirms the agent is inert where it matters: build_structure 0, research_upgrade 0, produce_unit 2, gather_resources 21, against 5865 move/stop/hold/patrol/attack-move orders aimed at a handful of repeated unit tags. ROOT CAUSE FOUND (round 6): the rejection rate is not a grounder bug. P1 owned 0 units at rollout start (EVAL-020), so move/attack/patrol/hold were issued against a faction that does not exist - NotSupported 3485, Error 2450, Success 50. Fixing EVAL-020 is the precondition for re-measuring this.",
+      "evidence": [
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-replay.SC2Replay"
+      ],
+      "nextAction": "runtime_action_success_rate and runtime_action_result_distribution are now written into every report and surfaced in the stdout summary, so the number can no longer hide behind illegal_action_rate. 2026-08-10: EVAL-020 (the empty-faction root cause) is now resolved-by-rule, so the rejection rate can be re-measured against a genuinely initialised faction. Still to do: run one terminal-intent rollout on a profile that grants P1 an economy (EVAL-002 path), then decide whether the residual rejections are stale unit tags, ungroundable abilities, or a dead economy, and only then choose a defensible floor. Do not pick a threshold before the cause is known - a floor chosen to make the current run pass is not a criterion.",
+      "blockedBy": [
+        "EVAL-002"
+      ]
+    },
+    {
+      "id": "EVAL-019",
+      "severity": "high",
+      "status": "resolved",
+      "title": "bridge_prevent_defeat_p1=1 may make a terminal structurally unreachable",
+      "description": "The root debug bank written during the 192,000-loop run contains bridge_prevent_defeat_p1 = 1. If the mod suppresses defeat for the API player, then a player whose economy is gone can neither win nor lose, which is exactly the frozen state the run observed for over two hours of mission time. If that is what the key means, Stage 6 as written - 'run until real mission terminal result' - cannot be satisfied by waiting, no matter how long the horizon, and either the harness must clear the bridge or Stage 6's acceptance must move to Victory-only with an explicit no-defeat-possible caveat.",
+      "evidence": [
+        "C:/Users/22448/Documents/StarCraft II/Banks/CMRERebornDebug.SC2Bank",
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/banks/"
+      ],
+      "nextAction": "Read the CMRE Galaxy source for bridge_prevent_defeat_p1 and confirm whether it gates the defeat trigger for the API-controlled player. This is a static-source question and needs no live slot, so it should be answered before any further real-machine time is spent.",
+      "resolution": "Hypothesis falsified by static source read. bridge_prevent_defeat_p1 is written at Base.SC2Data/LibMapModBridge.galaxy:109 and :123 purely as a debug-bank readout meaning 'P1 already owns a PreventDefeat-tagged unit or its starting structure, so do not create a second one'. The map never reads the key; the sole reader is our own overlay at tools/launchers/overlays/cmre-alenger/startup/initialization-gate.galaxy:74. It suppresses no trigger. The map's defeat trigger (Maps/CMRE/亡者之夜.SC2Map/MapScript.galaxy:7149 -> 7167) fires when either user player's PreventDefeat unit group is dead. Defeat was unreachable not because a flag blocked it, but because P1 owned nothing that could die and nothing that could produce. Superseded by EVAL-020, which names the actual cause.",
+      "supersededBy": "EVAL-020"
+    },
+    {
+      "id": "EVAL-020",
+      "severity": "critical",
+      "status": "resolved-by-rule",
+      "title": "Galaxy initialization gate is tautological; Stage 6 ran on an empty faction",
+      "description": "tools/launchers/overlays/cmre-alenger/startup/initialization-gate.galaxy:111-115 writes initialization_building_ready_p1, initialization_building_ready_p2, initialization_units_ready_p1, initialization_units_ready_p2 and initialization_complete in one unconditional block the instant gf_CmreOnDemandInitializationReady() returns true. Those are not four observations, they are five restatements of one boolean. That boolean skips every P1/P2 ownership check when the launch profile omits CreateStartingUnitsP1 and EnsurePreventDefeatP1 (gate lines 63-92: the guarded branches are `if ((lv_ensureP1 != 0) && ...)` and `if (lv_createP1 != 0)`), and grep shows src/projects/cmre-rl-training sets neither key. Consequence, visible in artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-rl-report.json: all four markers = 1 while runtime_census.initial for player_id 1 reports own_unit_count 0, minerals 0, supply_cap 0. The 6000-step run then spent 192,000 loops commanding a faction that did not exist, which explains the 99.2% engine rejection (EVAL-018) and the absent player_result: no production means no victory, and no owned PreventDefeat unit to lose means no defeat.",
+      "evidence": [
+        "tools/launchers/overlays/cmre-alenger/startup/initialization-gate.galaxy:63-92 (checks skipped when profile ints are 0)",
+        "tools/launchers/overlays/cmre-alenger/startup/initialization-gate.galaxy:111-115 (five markers written unconditionally together)",
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-rl-report.json initialization_bank.keys (all markers 1)",
+        "artifacts/stage-10-runtime-policy-eval/20260810-stage6-terminal-3/live-rl-report.json runtime_census.initial (0 units, 0 supply)",
+        "artifacts/stage-10-runtime-policy-eval/20260810-raynor-512-accept/live-rl-report.json runtime_census.initial (same empty start)"
+      ],
+      "resolution": "Three independent defenses now close the tautology, and none of them relies on a Galaxy marker being trustworthy. (1) part (a): the launch profile writer tools/launchers/launch-cmre-alenger.ps1:1379-1384 sets CreateStartingUnitsP1/P2, EnsurePreventDefeatP1/P2, WorkerCount, StartingStructure and CommanderRace into the CmreOnDemandProfile data table the gate reads. (2) part (b): the gate no longer restates one boolean five times. tools/launchers/overlays/cmre-alenger/startup/initialization-gate.galaxy:68-112 writes one marker per check actually performed (1 only when the corresponding profile int is set, 0 when skipped) and adds explicit initialization_checks_skipped_p1/p2 witnesses that are 1 when the P1/P2 ownership checks were NOT run. Static test tools/launchers/tests/test_launch_cmre_alenger_static.py::test_initialization_gate_writes_honest_markers_not_a_tautology pins that the 'initialization_units_ready_p1',1 write lives inside the `if (lv_createP1 != 0)` guard, so a ready marker can no longer be emitted for a check that did not happen. (3) the host-side fail-closed precondition run_live_rl.faction_precondition_failures + --require-faction (implied by --require-terminal) refuses the rollout when the SC2 API observation reports 0 units / 0 supply at step 0, using the API as an independent witness instead of the markers. Net effect: a run can no longer silently spend 192,000 loops commanding a faction that does not exist - either the profile grants one, or the honest markers plus the host precondition surface the empty start and abort at step 0. Verified 2026-08-10: launcher static suite 39 passed, faction precondition suite 5 passed / 2 subtests.",
+      "nextAction": "None for the tautology itself. Producing an actual player_result on Stage 6 remains tracked by EVAL-002 (needs a real terminal) and EVAL-004 (P2 still native Computer). The honest gate + host precondition guarantee those will be measured on a genuinely initialised faction rather than on an empty one, and re-measuring the 99.2% rejection rate (EVAL-018) is now unblocked.",
+      "supersedesEmptyFactionRootCauseFor": [
+        "EVAL-018",
+        "EVAL-002"
+      ]
+    },
+    {
+      "id": "EVAL-021",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Launcher did not write the max-level commander profile it declared",
+      "description": "The ML runner declared TerranRaynor at commander_level=15 with full mastery, but the approved launcher did not write Player|N|CommanderLevel into CMCoopLaunchProfile.SC2Bank and only wrote mastery/customization values inside the optional EnableBuffPatch path. CMUIX_LaunchProfileApplyCommanderCustomization reads Player|N|CommanderLevel from the launch-profile bank and falls back to the saved profile value when the key is absent, which explains a visible Raynor level such as 7 despite the runner reporting level 15.",
+      "impact": "The run configuration and actual launch profile could diverge, invalidating commander-level assumptions before any learning or live evaluation result was interpreted.",
+      "resolution": "launch-cmre-alenger.ps1 now writes ProfileConfigLocked=1, CustomizationSaved=1, CommanderLevel=15 for P1/P2, and the six-slot full mastery profile by default before the optional buff patch branch. run_live_rl.py also fail-closes declared-full runs when the mastery layout is missing, malformed, or not 30/30/30/30/30/30, and writes launcher_started=false with blocked_reason=commander_max_level_gate_failed before SC2 is launched.",
+      "nextAction": "None. EVAL-010 is resolved by the fresh Raynor launch-profile bank readback; retain the fresh-bank snapshot in every future run.",
+      "evidence": [
+        "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Triggers.SC2Mod/Base.SC2Data/scripts/cmui_customization.galaxy:13142",
+        "tools/launchers/launch-cmre-alenger.ps1",
+        "src/projects/cmre-rl-training/tools/run_live_rl.py",
+        "tools/launchers/tests/test_launch_cmre_alenger_static.py::test_launch_profile_defaults_commanders_to_max_level_and_full_mastery",
+        "src/projects/cmre-rl-training/tests/test_commander_gate_fail_closed.py::test_partial_mastery_layout_is_blocked_before_launcher_start",
+        "artifacts/stage-10-runtime-policy-eval/20260810-commander-profile-dry-run/train-eval-plan.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-commander-profile-preflight/live-rl-report.json"
+      ]
+    },
+    {
+      "id": "EVAL-022",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Live runner invoked the approved launcher through the wrong PowerShell edition",
+      "description": "run_live_rl.py hard-coded powershell.exe (Windows PowerShell 5.1). The first commander-bank smoke on port 6012 exited before API readiness with approved_launcher_exited:4294967295 and produced no fresh CMCoopLaunchProfile bank. The same launcher script completes staging and writes the Raynor level-15/full-mastery profile when invoked through pwsh 7 on this host.",
+      "impact": "A valid launcher workflow could be recorded as an API startup failure before any ML action or commander bank evidence was collected.",
+      "resolution": "run_live_rl.resolve_powershell_executable now prefers pwsh, falling back to powershell only when pwsh is unavailable. The runner records only launch-profile bank copies modified after the current run started; stale profile banks are captured for diagnosis but cannot set commander_runtime_proven.",
+      "nextAction": "None for the current host; retain the pwsh preference regression tests and keep the Windows PowerShell fallback for hosts without pwsh.",
+      "evidence": [
+        "src/projects/cmre-rl-training/tools/run_live_rl.py::resolve_powershell_executable",
+        "src/projects/cmre-rl-training/tests/test_commander_gate_fail_closed.py::test_launcher_shell_prefers_pwsh",
+        "src/projects/cmre-rl-training/tests/test_commander_gate_fail_closed.py::test_launch_profile_snapshot_ignores_stale_bank",
+        "artifacts/stage-10-runtime-policy-eval/20260810-commander-bank-runtime/live-rl-report.json",
+        "artifacts/stage-10-runtime-policy-eval/20260810-commander-bank-runtime-pwsh/live-rl-report.json"
+      ]
+    },
+    {
+      "id": "EVAL-023",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Train/eval loop lost the final checkpoint hash and hard-coded a one-loop simulator interval",
+      "description": "The repeatable train/eval path wrote its evaluation plan before simulator training, so a newly produced checkpoint was recorded as checkpoint_sha256=pending. It also hard-coded step_loops=1 even though the simulator training CLI documents 8-32 game loops per decision for economy and production scenarios.",
+      "impact": "A resumed training cycle could not prove exactly which checkpoint it would evaluate, and simulator learning spent most decisions before economy state transitions were observable.",
+      "resolution": "TrainEvalConfig now exposes train_step_loops plus optional starting resources, training-report.json records those settings, the plan is rewritten after training with the final checkpoint hash, and train-eval-report.json persists the complete cycle status. Regression coverage verifies loop-interval propagation, post-training hash materialisation, and cycle-report persistence.",
+      "nextAction": "Use the explicit simulator curriculum settings for offline evidence, and keep simulator metrics separate from live terminal claims.",
+      "evidence": [
+        "src/projects/cmre-rl-training/tools/train_eval_loop.py",
+        "src/projects/cmre-rl-training/cmre_rl_training/training_cli.py",
+        "src/projects/cmre-rl-training/tests/test_train_eval_loop.py",
+        "src/projects/cmre-rl-training/tests/test_training_cli.py",
+        "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-step8-curriculum/train-eval/train-eval-plan.json",
+        "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-economy-curriculum/train-eval/train-eval-plan.json",
+        "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-cycle-report-smoke/train-eval/train-eval-report.json"
+      ]
+    },
+    {
+      "id": "EVAL-024",
+      "severity": "critical",
+      "status": "resolved-by-rule",
+      "title": "A maxed but different commander could pass the runtime commander gate",
+      "description": "build_commander_profile() previously replaced the requested commander ID with the ID read from a bank. validate_commander_profile() then compared level and mastery against the replacement ID. A request for TerranRaynor could therefore accept a fresh bank naming TerranAlenger3 when both had level 15 and full mastery. The 20260811 interrupted-session diagnostic exposed this exact unsafe shape, although that bank cannot be attributed to the interrupted run because another session may write the global bank.",
+      "impact": "A live rollout could be reported as max-level/full-mastery Raynor while an arbitrary different commander was actually selected, invalidating any policy or terminal interpretation.",
+      "resolution": "CommanderProfile now retains the requested commander_id and records observed_commander_id independently. Validation requires identity_ok in addition to max level and full mastery, and reports both IDs. The regression test writes a maxed/full TerranAlenger3 bank for a TerranRaynor request and proves the gate fails.",
+      "nextAction": "For the next terminal-intent run, use a new approved launcher session and accept its fresh bank only when it names TerranRaynor, level 15, MasteryLevel 180, and six 30-point slots. Do not use a later global bank write to prove a prior attached session.",
+      "evidence": [
+        "src/projects/cmre-rl-training/cmre_rl_training/commander_profile.py",
+        "src/projects/cmre-rl-training/tests/test_commander_profile.py::CommanderEvidenceTests.test_launch_profile_bank_rejects_a_different_maxed_commander",
+        "src/projects/cmre-rl-training/artifacts/stage-10-runtime-policy-eval/20260810-init-after-join-smoke/live-rl-report.json"
+      ]
     }
   ],
-  "total": 6
+  "total": 24
 }

@@ -30,6 +30,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-steps", type=int, default=64)
     parser.add_argument("--step-mul", type=int, default=8)
     parser.add_argument("--port-start", type=int, default=5960)
+    parser.add_argument("--commander", default="TerranRaynor")
+    parser.add_argument("--commander-level", type=int, default=15)
+    parser.add_argument("--commander-mastery", default="full")
+    parser.add_argument("--commander-evidence", default=None)
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument("--dry-run", action="store_true")
@@ -92,6 +96,10 @@ def build_run_command(
     output: Path,
     launcher_suffix: str,
     python_executable: str,
+    commander: str = "TerranRaynor",
+    commander_level: int = 15,
+    commander_mastery: str = "full",
+    commander_evidence: str | None = None,
 ) -> list[str]:
     command = [
         python_executable,
@@ -110,6 +118,15 @@ def build_run_command(
         str(max_steps),
         "--step-mul",
         str(step_mul),
+        "--commander",
+        commander,
+        "--commander-level",
+        str(commander_level),
+        "--commander-mastery",
+        commander_mastery,
+        "--commander-enforce",
+        "--mastery-layout",
+        "30,30,30,30,30,30",
         "--launcher-suffix",
         launcher_suffix,
         "--output",
@@ -119,6 +136,8 @@ def build_run_command(
         "--variant",
         variant,
     ]
+    if commander_evidence:
+        command += ["--commander-evidence", commander_evidence]
     return command + build_variant_args(variant)
 
 
@@ -142,6 +161,10 @@ def summarize_reports(
         for result in report.get("terminal_results", [])
         if int(result.get("player_id", 0)) == 1 and result.get("result_name") == "defeat"
     )
+    commander_gate_passed = all(
+        bool((report.get("commander") or {}).get("commander_max_level_gate_passed"))
+        for report in reports
+    )
     runtime_clean = all(
         report.get("runtime_gate")
         and report.get("status") == "passed"
@@ -149,7 +172,7 @@ def summarize_reports(
         for report in reports
     )
     all_terminal = len(reports) == len(terminal_reports) and bool(reports)
-    status = "passed" if runtime_clean and all_terminal else "blocked"
+    status = "passed" if runtime_clean and all_terminal and commander_gate_passed else "blocked"
     return {
         "schema": "cmre-live-policy-eval.v1",
         "status": status,
@@ -164,6 +187,7 @@ def summarize_reports(
         "defeat_count": defeats,
         "win_rate": (victories / len(terminal_reports)) if terminal_reports else None,
         "runtime_clean": runtime_clean,
+        "commander_gate_passed": commander_gate_passed,
         "all_runs_reached_terminal": all_terminal,
         "reports": reports,
         "boundary": "P2 remains native Computer; no P2 external ML claim",
@@ -205,6 +229,10 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
                 output=report_path,
                 launcher_suffix=f"stage10-{run_id}",
                 python_executable=str(args.python),
+                commander=args.commander,
+                commander_level=args.commander_level,
+                commander_mastery=args.commander_mastery,
+                commander_evidence=args.commander_evidence,
             )
             commands.append(command)
             if not args.dry_run:

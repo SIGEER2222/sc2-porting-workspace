@@ -28,6 +28,28 @@ class CollectRolloutTests(unittest.TestCase):
         buf = collect_rollout(self.env, self.policy, n_steps=5)
         self.assertEqual(len(buf), 5)
 
+    def test_collect_reuses_caller_reset_observation_without_second_reset(self) -> None:
+        from cmre_rl_training.rollout import collect_rollout
+
+        initial = self.env.reset()
+        original_reset = self.env.reset
+        calls = 0
+
+        def counted_reset():
+            nonlocal calls
+            calls += 1
+            return original_reset()
+
+        self.env.reset = counted_reset  # type: ignore[method-assign]
+        buf = collect_rollout(
+            self.env,
+            self.policy,
+            n_steps=3,
+            initial_observation=initial,
+        )
+        self.assertEqual(len(buf), 3)
+        self.assertEqual(calls, 0)
+
     def test_collect_handles_auto_reset_on_terminal(self) -> None:
         from cmre_rl_training.rollout import collect_rollout
 

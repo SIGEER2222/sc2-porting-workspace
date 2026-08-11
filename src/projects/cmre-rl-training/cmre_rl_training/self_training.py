@@ -15,6 +15,7 @@ from typing import Any, Callable, Mapping
 import numpy as np
 
 from .action_grounding import ActionGrounder
+from .action_metrics import aggregate_action_summaries, summarize_rollout_actions
 from .action_space import NUM_ACTIONS
 from .bc_pretrain import load_bc_checkpoint_into_ac
 from .map_aware import (
@@ -153,12 +154,14 @@ class MultiMapSelfTrainer:
                         float(step.reward)
                         for step in getattr(buffer, "_steps", ())
                     ]
+                    action_metrics = summarize_rollout_actions(buffer)
                     map_result = map_metrics[map_name]
                     map_result["iterations"].append({
                         "iteration": iteration,
                         "steps": len(buffer),
                         "mean_reward": float(np.mean(rewards)) if rewards else 0.0,
                         "ppo": dict(metrics),
+                        "action_metrics": action_metrics,
                     })
                     map_result["steps"] += len(buffer)
                     map_result["reward_sum"] += float(sum(rewards))
@@ -175,6 +178,11 @@ class MultiMapSelfTrainer:
                 if item["steps"]
                 else 0.0
             )
+            item["action_metrics"] = aggregate_action_summaries([
+                iteration["action_metrics"]
+                for iteration in item["iterations"]
+                if "action_metrics" in iteration
+            ])
             del item["reward_sum"]
 
         report: dict[str, Any] = {
@@ -186,6 +194,12 @@ class MultiMapSelfTrainer:
             "total_steps": total_steps,
             "total_mean_reward": total_reward / total_steps if total_steps else 0.0,
             "policy_config": self.policy.config(),
+            "action_metrics": aggregate_action_summaries([
+                iteration["action_metrics"]
+                for map_result in map_metrics.values()
+                for iteration in map_result["iterations"]
+                if "action_metrics" in iteration
+            ]),
         }
         if self.config.checkpoint_path is not None:
             checkpoint = save_map_aware_checkpoint(
