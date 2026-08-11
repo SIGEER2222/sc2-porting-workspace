@@ -1,0 +1,272 @@
+// =============================================================================
+// CMLib :: FX —— 视听反馈层（音效 / 音乐 / 镜头 / 淡入淡出 / Ping / 飘字 / Actor）
+//
+// 来源：各 mod 中约 16,000 次 Sound* / Camera* / Cinematic* / Ping* / TextTag* /
+//       Actor* 调用。这些原生 API 的共同问题是**参数极多且顺序易错**
+//       （SoundPlayAtPoint 有 6 个参数、CameraShakeStart 有 7 个），
+//       且几乎每次调用都在重复同一组默认值。本模块给出「语义化短形式」+
+//       「完整形式」两档接口。
+//
+// 音量约定：SC2 音量是 0.0 ~ 100.0 的 fixed（不是 0~1），本模块统一用
+//           CMLIB_FX_VOL_FULL 等常量，并对越界值钳制，避免爆音/静音事故。
+//
+// 依赖：cmlib_core_h
+//       TriggerLibs/NativeLib —— 【必须】SoundPlay / SoundPlayAtPoint /
+//       SoundPlayOnUnit 这三个音效封装不在 natives.galaxy 里，而是定义在
+//       core.sc2mod 的 TriggerLibs/NativeLib.galaxy。该库不会被引擎自动挂载，
+//       缺少这行 include 会导致整个 MapScript **静默编译失败**。
+// =============================================================================
+
+include "TriggerLibs/NativeLib"
+include "scripts/cmlib/cmlib_core_h"
+
+// ---- 音量 / 时长常量 ---------------------------------------------------------
+const fixed CMLIB_FX_VOL_FULL  = 100.0;
+const fixed CMLIB_FX_VOL_HALF  = 50.0;
+const fixed CMLIB_FX_VOL_MUTE  = 0.0;
+const fixed CMLIB_FX_NO_OFFSET = 0.0;
+// 常用镜头过渡时长。
+const fixed CMLIB_FX_CAM_SNAP  = 0.0;
+const fixed CMLIB_FX_CAM_FAST  = 0.5;
+const fixed CMLIB_FX_CAM_SMOOTH = 2.0;
+
+// =============================================================================
+// 音效
+// =============================================================================
+// soundlink 构造：lp_index 传 -1 表示 c_soundIndexAny（随机变体）。
+soundlink CMLib_SfxLink(string lp_soundId, int lp_index);
+// 无定位播放（UI 音、旁白）。
+void CMLib_SfxPlay(string lp_soundId, playergroup lp_players, fixed lp_volume);
+void CMLib_SfxPlayAll(string lp_soundId);
+// 定位播放。
+void CMLib_SfxPlayAt(string lp_soundId, playergroup lp_players, point lp_at, fixed lp_volume);
+void CMLib_SfxPlayOn(string lp_soundId, playergroup lp_players, unit lp_unit, fixed lp_volume);
+// 只给单个玩家放（成就提示、指挥官专属语音）。
+void CMLib_SfxPlayForPlayer(string lp_soundId, int lp_player, fixed lp_volume);
+// 音效时长（秒），用于「放完再继续」的时序编排。
+fixed CMLib_SfxLength(string lp_soundId);
+// 停止最近一次播放的音效。
+void CMLib_SfxStopLast(bool lp_fade);
+
+// =============================================================================
+// 音乐 / 声道
+// =============================================================================
+void CMLib_MusicPlay(playergroup lp_players, string lp_soundtrack, bool lp_makeDefault);
+void CMLib_MusicStop(playergroup lp_players, bool lp_fade);
+// 声道音量渐变（lp_channel 用 c_soundCategory* 常量）。
+void CMLib_ChannelVolume(playergroup lp_players, int lp_channel, fixed lp_volume, fixed lp_duration);
+// 一键压低/恢复所有战斗相关声道，常用于过场对白时让人听清台词。
+void CMLib_DuckCombatAudio(playergroup lp_players, fixed lp_volume, fixed lp_duration);
+
+// =============================================================================
+// 镜头
+// =============================================================================
+void CMLib_CamApply(int lp_player, camerainfo lp_info, fixed lp_duration);
+void CMLib_CamApplyGroup(playergroup lp_players, camerainfo lp_info, fixed lp_duration);
+void CMLib_CamPanTo(int lp_player, point lp_at, fixed lp_duration);
+void CMLib_CamPanToGroup(playergroup lp_players, point lp_at, fixed lp_duration);
+// 摇镜：只需给强度与时长，其余用经过验证的手感默认值。
+void CMLib_CamShake(int lp_player, fixed lp_amplitude, fixed lp_duration);
+void CMLib_CamShakeGroup(playergroup lp_players, fixed lp_amplitude, fixed lp_duration);
+void CMLib_CamShakeStop(int lp_player);
+// 镜头参数（距离 / 视场角 / 俯仰），走 c_cameraValue* 常量。
+void CMLib_CamSetValue(int lp_player, int lp_valueType, fixed lp_value, fixed lp_duration);
+void CMLib_CamSetDistance(int lp_player, fixed lp_distance, fixed lp_duration);
+// 锁定/解锁玩家的镜头输入（过场必备）。
+void CMLib_CamLock(playergroup lp_players, bool lp_locked);
+// 恢复默认镜头。
+void CMLib_CamReset(int lp_player, fixed lp_duration);
+
+// =============================================================================
+// 淡入淡出
+// =============================================================================
+// 淡到纯黑 / 从纯黑淡回。lp_wait 为 true 时阻塞到完成（触发器内可用）。
+void CMLib_FadeOut(fixed lp_duration, bool lp_wait);
+void CMLib_FadeIn(fixed lp_duration, bool lp_wait);
+// 淡到指定颜色（白闪、红闪等打击反馈）。
+void CMLib_FadeToColor(color lp_color, fixed lp_duration, bool lp_wait);
+
+// =============================================================================
+// Ping / 小地图标记
+// =============================================================================
+// 在点上打一个可自动过期的 ping，返回 ping id（0 表示失败）。
+int  CMLib_PingAt(playergroup lp_players, point lp_at, color lp_color, fixed lp_duration);
+// 绑定到单位、会跟着移动的 ping。
+int  CMLib_PingOnUnit(playergroup lp_players, unit lp_unit, color lp_color, fixed lp_duration);
+// 带缩放与悬浮提示的 ping（目标指示器常用组合）。
+int  CMLib_PingAtLabeled(playergroup lp_players, point lp_at, color lp_color, fixed lp_duration,
+                         fixed lp_scale, text lp_tooltip);
+void CMLib_PingKill(int lp_ping);
+// 纯小地图闪烁提示（不产生世界内图标）。
+void CMLib_MinimapAlert(playergroup lp_players, point lp_at, color lp_color, fixed lp_duration);
+
+// =============================================================================
+// 飘字（TextTag）
+// =============================================================================
+// 在点上飘一段文字并自动销毁，返回 tag id。
+int CMLib_FloatText(text lp_text, point lp_at, playergroup lp_players, int lp_fontSize, fixed lp_duration);
+// 挂在单位头顶的飘字（伤害数字 / 状态提示）。
+int CMLib_FloatTextOnUnit(text lp_text, unit lp_unit, playergroup lp_players, int lp_fontSize,
+                          fixed lp_heightOffset, fixed lp_duration);
+// 带上浮速度的飘字（经典伤害数字效果）。
+int CMLib_FloatTextRising(text lp_text, point lp_at, playergroup lp_players, int lp_fontSize,
+                          fixed lp_duration, fixed lp_speed);
+void CMLib_FloatTextKill(int lp_tag);
+
+// =============================================================================
+// Actor 消息 / 数据层特效
+// =============================================================================
+// 向单位的主 Actor 发消息（如 "SetTintColor 255,0,0"、"AnimPlay Stand"）。
+void CMLib_ActorMsg(unit lp_unit, string lp_message);
+// 向单位 Actor 作用域内的具名子 Actor 发消息。
+void CMLib_ActorMsgTo(unit lp_unit, string lp_refName, string lp_message);
+// 常用封装：染色 / 取消染色 / 缩放 / 播放动画。
+void CMLib_ActorTint(unit lp_unit, int lp_r255, int lp_g255, int lp_b255, fixed lp_duration);
+void CMLib_ActorTintClear(unit lp_unit, fixed lp_duration);
+void CMLib_ActorScale(unit lp_unit, fixed lp_scale, fixed lp_duration);
+void CMLib_ActorAnim(unit lp_unit, string lp_animName);
+// 在点/单位上放一个纯表现用的 Effect（数据层已配好的爆炸、光柱等）。
+void CMLib_FxAtPoint(int lp_player, string lp_effect, point lp_at);
+void CMLib_FxOnUnit(unit lp_source, string lp_effect, unit lp_target);
+
+// ---- round 13：镜头预设抖动 / 存档恢复 / 声道与带主控声音（真实缺口）------
+// 预设版镜头抖动：amplitude / frequency 传 Camera 数据表里的**预设名**（字符串），
+// 与参数版 CMLib_CamShake（走 CameraShakeStart，数值参数）互补，不是重复。
+// 任一预设名为空则安全返回。
+void  CMLib_CamShakePreset(int lp_player, string lp_amplitude, string lp_frequency,
+                           fixed lp_blendIn, fixed lp_blendOut, fixed lp_duration);
+// 玩家镜头当前注视点。
+point CMLib_CamTarget(int lp_player);
+// 保存 / 恢复玩家镜头（过场进出的标准配对）。
+void  CMLib_CamSave(int lp_player);
+void  CMLib_CamRestore(int lp_player, fixed lp_duration, fixed lp_velocity,
+                       fixed lp_decelerate);
+// 静音 / 取消静音某个声道（channel 为引擎声道序号，core 未导出常量故用裸 int）。
+void  CMLib_SfxChannelMute(playergroup lp_players, int lp_channel, bool lp_mute);
+// 带「主控玩家」的定点播放：区别于 CMLib_SfxPlayAt（走 SoundPlayAtPoint、无归属），
+// 归属玩家会参与音量 / 静音规则判定。
+void  CMLib_SfxPlayAtFor(string lp_soundId, int lp_owner, playergroup lp_players,
+                         point lp_at, fixed lp_volume);
+
+
+// ---- round 18：带归属玩家的全局音效（真实缺口）---------------------------------
+// `SoundPlayForPlayer` 在各 mod 里 1448 次调用（全库最高频未封装原生），
+// 库里此前只有 AtPoint / OnUnit 的 ForPlayer 变体。owner 决定这条音效算谁的
+// （影响音量分组与"只有自己听得到"的判定），players 传 null = 所有玩家。
+void CMLib_SfxPlayOwned(string lp_soundId, int lp_owner,
+                        playergroup lp_players, fixed lp_volume);
+
+// =============================================================================
+// CMLib :: Round19 —— Ping 属性 / 镜头信息 / 音乐 / 头像 / 录像 / 资源预载
+// =============================================================================
+
+// ---- Ping：本模块此前只有创建与销毁，缺全部属性设置 ----
+void CMLib_PingShow(int lp_ping, bool lp_visible);
+void CMLib_PingMove(int lp_ping, point lp_pos);
+void CMLib_PingTint(int lp_ping, color lp_color);
+void CMLib_PingRotate(int lp_ping, fixed lp_rotation);
+void CMLib_PingModel(int lp_ping, string lp_modelLink);
+void CMLib_PingLifetime(int lp_ping, fixed lp_duration);
+
+// ---- 镜头信息读取 / 边界 / 跟随 ----
+// type 取 c_cameraValue*（Distance / Pitch / FieldOfView ...）。
+fixed CMLib_CamInfoValue(camerainfo lp_cam, int lp_type);
+point CMLib_CamInfoTarget(camerainfo lp_cam);
+void  CMLib_CamBounds(playergroup lp_players, region lp_bounds, bool lp_includeMinimap);
+void  CMLib_CamFollowGroup(int lp_player, unitgroup lp_group, bool lp_follow, bool lp_isOffset);
+void  CMLib_CamApplyData(playergroup lp_players, string lp_cameraId);
+
+// ---- 音乐 / 环境音轨（category 取 c_soundtrackCategory*） ----
+void CMLib_MusicPause(playergroup lp_players, int lp_category, bool lp_pause, bool lp_fade);
+void CMLib_MusicDefault(playergroup lp_players, int lp_category, string lp_soundtrack,
+                        int lp_cue, int lp_index);
+
+// ---- 头像 / 录像 ----
+void CMLib_PortraitShow(int lp_portrait, playergroup lp_players, bool lp_visible,
+                        bool lp_force);
+void CMLib_MovieRecStart(string lp_name);
+void CMLib_MovieRecStop();
+
+// ---- 飘字标签可见性（创建/销毁本模块已有） ----
+void CMLib_TextTagShowFor(int lp_tag, playergroup lp_players, bool lp_show);
+
+// ---- 资源预载：切场景前预热，避免第一次出现时卡顿 ----
+// queue=true 走后台队列（不阻塞），false 立即同步加载。
+void CMLib_PreloadModel(string lp_path, bool lp_queue);
+void CMLib_PreloadMovie(string lp_path, bool lp_queue);
+void CMLib_PreloadAsset(string lp_key, bool lp_queue);
+void CMLib_PreloadImage(string lp_path, bool lp_queue);
+void CMLib_PreloadSound(string lp_path, bool lp_queue);
+// 批量：kind 取 "model"/"movie"/"asset"/"image"/"sound"，csv 为逗号分隔路径表。
+// 返回实际发起预载的条数。
+int  CMLib_PreloadCSV(string lp_kind, string lp_csv, bool lp_queue);
+
+// =============================================================================
+// CMLib :: Round20 —— Cutscene 播放控制与声音同步等待
+//
+// ⚠️ CMLib_SfxWait* 内部是 SoundWait，属于**阻塞式等待**：
+//    只能在允许 Wait 的线程里调（普通触发器 / TriggerExecute 出去的分支），
+//    放进条件判断、Actor 事件回调或 InitMap 主线里会把整条线程钉死。
+//    需要非阻塞的按时长排程，请改用 CMLib_SfxLength + Timer。
+// =============================================================================
+
+// 播放 Cutscene Editor 制作的场景（句柄由 CutsceneCreate 系列返回，<=0 视为无效）。
+void CMLib_CutscenePlay(int lp_cutscene);
+// 跳到场景内的命名书签，成功返回 true（句柄有效且书签名非空）。
+bool CMLib_CutsceneBookmark(int lp_cutscene, string lp_bookmark);
+// 等到声音播放到「距开头 lp_offset 秒」处。
+void CMLib_SfxWaitFrom(sound lp_sound, fixed lp_offset);
+// 等到声音播放到「距结尾 lp_offset 秒」处；lp_offset=0 即等到整段放完。
+void CMLib_SfxWaitEnd(sound lp_sound, fixed lp_offset);
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round22 —— Actor 层（单位视觉效果的直接操纵面）
+// -----------------------------------------------------------------------------
+// 按名字取全局 actor；名字为空返回 null。
+actor CMLib_ActorFrom(string lp_name);
+// 从单位取 actorscope —— 单位视觉操作的入口。单位无效返回 null。
+actorscope CMLib_ActorScopeOfUnit(unit lp_unit);
+// 在指定 scope 内创建 actor。scope/名字任一无效返回 null。
+actor CMLib_ActorCreate(actorscope lp_scope, string lp_actorName,
+                        string lp_c1, string lp_c2, string lp_c3);
+// 区域 actor（区域进出触发视觉/音效的载体）。
+actor CMLib_ActorRegionCreate(actorscope lp_scope, string lp_actorName, region lp_region);
+void  CMLib_ActorRegionSend(actor lp_actor, int lp_intersect, string lp_msg,
+                            string lp_filters, string lp_terms);
+// 给 actor 的引用目标发消息（如 "::Main" + "SetTintColor ..."）。
+void  CMLib_ActorSendTo(actor lp_actor, string lp_refName, string lp_msg);
+
+// ---- Round27：sound / camerainfo 生产端（此前库内自用、从不外露） ---------------
+// 最近一次由本地图播放的声音句柄；没有播放过返回 null。
+// 这是 CMLib_SfxWaitFrom / CMLib_SfxWaitEnd 的唯一合法喂料来源 —— 在本轮之前，
+// 那两个函数的形参调用方根本造不出来。
+sound      CMLib_SfxLastPlayed();
+// 默认镜头参数对象（引擎恒返回有效句柄）。CMLib_CamApply 族的默认喂料。
+camerainfo CMLib_CamInfoDefault();
+// 按地图内预设镜头对象 id 取参数；id <= 0 视为非法，回退到默认镜头而不是给 null，
+// 保证调用方拿到的句柄永远可用（避免把 null 一路带进 CameraApplyInfo）。
+camerainfo CMLib_CamInfoFromId(int lp_id);
+
+
+// =============================================================================
+// CMLib :: Round26 —— 过场模式 / 图像叠层 / 数据驱动过场
+//
+// fx 模块此前只封了 CinematicFade（CMLib_FadeIn / FadeOut / FadeToColor），
+// 缺「进入过场模式」这一整块 —— 而它才是战役 mod 每关开头必写的样板：
+// 隐藏 UI、屏蔽输入、切黑边。
+//
+// 边界（不过度承诺）：CMLib_CineDataRun 需要数据层预先配好 Cinematic 条目，
+// 空图里没有可用 id，本库只做**调用面覆盖 + 非法 id 守门**，不对播放效果
+// 做任何真机断言。
+// =============================================================================
+
+// 进/出过场模式；players 为 null 时作用于当前活跃玩家组，duration 负值按 0。
+void CMLib_CineMode(playergroup lp_players, bool lp_on, fixed lp_duration);
+// 图像叠层淡入/淡出；淡入时 imagePath 不可为空（空则空操作）。
+void CMLib_CineOverlay(bool lp_fadeIn, fixed lp_duration, string lp_imagePath,
+                       fixed lp_transparency, bool lp_waitUntilDone);
+// 播放数据层定义的过场；id < 0 直接空操作。
+void CMLib_CineDataRun(int lp_id, playergroup lp_players, bool lp_waitUntilDone);
+// 停止当前数据驱动过场。
+void CMLib_CineDataStop();

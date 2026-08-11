@@ -1,0 +1,441 @@
+// =============================================================================
+// CMLib :: Panel —— 实现
+// =============================================================================
+
+include "scripts/cmlib/cmlib_panel_h"
+
+// =============================================================================
+// Dialog 容器
+// =============================================================================
+int CMLib_PanelCreate(int lp_width, int lp_height, int lp_anchor, int lp_offsetX, int lp_offsetY, bool lp_modal) {
+    if ((lp_width <= 0) || (lp_height <= 0)) {
+        CMLib_LogWarn("PANEL", "PanelCreate: 宽高必须为正数。");
+        return 0;
+    }
+    DialogCreate(lp_width, lp_height, lp_anchor, lp_offsetX, lp_offsetY, lp_modal);
+    return DialogLastCreated();
+}
+
+int CMLib_PanelCreateCentered(int lp_width, int lp_height) {
+    return CMLib_PanelCreate(lp_width, lp_height, c_anchorCenter, 0, 0, false);
+}
+
+int CMLib_PanelCreateAnchored(int lp_width, int lp_height, int lp_anchor, int lp_margin) {
+    int lv_m = CMLib_MaxInt(lp_margin, 0);
+
+    return CMLib_PanelCreate(lp_width, lp_height, lp_anchor, lv_m, lv_m, false);
+}
+
+int CMLib_PanelCreateOverlay() {
+    int lv_panel = CMLib_PanelCreate(1, 1, c_anchorCenter, 0, 0, false);
+
+    if (lv_panel == 0) { return 0; }
+    DialogSetFullscreen(lv_panel, true);
+    DialogSetImageVisible(lv_panel, false);
+    return lv_panel;
+}
+
+bool CMLib_PanelValid(int lp_panel) {
+    return lp_panel != 0;
+}
+
+void CMLib_PanelShow(int lp_panel, playergroup lp_players, bool lp_visible) {
+    if (CMLib_PanelValid(lp_panel) == false) {
+        CMLib_LogWarn("PANEL", "PanelShow: 无效面板 id。");
+        return;
+    }
+    DialogSetVisible(lp_panel, lp_players, lp_visible);
+}
+
+void CMLib_PanelShowAll(int lp_panel, bool lp_visible) {
+    CMLib_PanelShow(lp_panel, PlayerGroupAll(), lp_visible);
+}
+
+void CMLib_PanelShowFor(int lp_panel, int lp_player, bool lp_visible) {
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return; }
+    CMLib_PanelShow(lp_panel, PlayerGroupSingle(lp_player), lp_visible);
+}
+
+bool CMLib_PanelIsVisibleFor(int lp_panel, int lp_player) {
+    if (CMLib_PanelValid(lp_panel) == false) { return false; }
+    return DialogIsVisible(lp_panel, lp_player);
+}
+
+void CMLib_PanelDestroy(int lp_panel) {
+    if (CMLib_PanelValid(lp_panel) == false) { return; }
+    DialogDestroy(lp_panel);
+}
+
+void CMLib_PanelSetBackdrop(int lp_panel, bool lp_visible) {
+    if (CMLib_PanelValid(lp_panel) == false) { return; }
+    DialogSetImageVisible(lp_panel, lp_visible);
+}
+
+void CMLib_PanelSetFullscreen(int lp_panel, bool lp_fullscreen) {
+    if (CMLib_PanelValid(lp_panel) == false) { return; }
+    DialogSetFullscreen(lp_panel, lp_fullscreen);
+}
+
+void CMLib_PanelSetTransparency(int lp_panel, fixed lp_transparency) {
+    if (CMLib_PanelValid(lp_panel) == false) { return; }
+    DialogSetTransparency(lp_panel, CMLib_ClampFixed(lp_transparency, 0.0, 100.0));
+}
+
+void CMLib_PanelSetRenderPriority(int lp_panel, int lp_priority) {
+    if (CMLib_PanelValid(lp_panel) == false) { return; }
+    DialogSetRenderPriority(lp_panel, lp_priority);
+}
+
+void CMLib_PanelResize(int lp_panel, int lp_width, int lp_height) {
+    if (CMLib_PanelValid(lp_panel) == false) { return; }
+    if ((lp_width <= 0) || (lp_height <= 0)) {
+        CMLib_LogWarn("PANEL", "PanelResize: 宽高必须为正数。");
+        return;
+    }
+    DialogSetSize(lp_panel, lp_width, lp_height);
+}
+
+void CMLib_PanelMove(int lp_panel, int lp_anchor, int lp_offsetX, int lp_offsetY) {
+    if (CMLib_PanelValid(lp_panel) == false) { return; }
+    DialogSetPosition(lp_panel, lp_anchor, lp_offsetX, lp_offsetY);
+}
+
+// =============================================================================
+// 计时器窗口
+//
+// 计时器本体（TimerOnce/TimerLoop/TimerLeft/TimerElapsed/TimerHold/TimerReset）
+// 已统一到 cmlib_trig —— 本模块原先的同名实现会造成函数重定义，
+// 真机表现为整个 MapScript 静默不编译。详见 cmlib_panel_h 的说明。
+// =============================================================================
+int CMLib_TimerPanelCreate(timer lp_timer, text lp_title, bool lp_showElapsed) {
+    if (lp_timer == null) {
+        CMLib_LogWarn("PANEL", "TimerPanelCreate: 计时器为空。");
+        return 0;
+    }
+    TimerWindowCreate(lp_timer, lp_title, false, lp_showElapsed);
+    return TimerWindowLastCreated();
+}
+
+int CMLib_TimerPanelStart(fixed lp_seconds, text lp_title, playergroup lp_players) {
+    timer lv_t = CMLib_TimerOnce(lp_seconds);
+    int lv_w = CMLib_TimerPanelCreate(lv_t, lp_title, false);
+
+    if (lv_w != 0) {
+        TimerWindowShow(lv_w, lp_players, true);
+    }
+    return lv_w;
+}
+
+void CMLib_TimerPanelShow(int lp_window, playergroup lp_players, bool lp_show) {
+    if (lp_window == 0) { return; }
+    TimerWindowShow(lp_window, lp_players, lp_show);
+}
+
+void CMLib_TimerPanelAnchor(int lp_window, int lp_anchor, int lp_offsetX, int lp_offsetY) {
+    if (lp_window == 0) { return; }
+    TimerWindowSetAnchor(lp_window, lp_anchor, lp_offsetX, lp_offsetY);
+}
+
+void CMLib_TimerPanelDestroy(int lp_window) {
+    if (lp_window == 0) { return; }
+    TimerWindowDestroy(lp_window);
+}
+
+// =============================================================================
+// 任务目标
+// =============================================================================
+int CMLib_ObjCreate(text lp_name, text lp_description, bool lp_primary) {
+    return ObjectiveCreate(lp_name, lp_description, CMLIB_OBJ_ACTIVE, lp_primary);
+}
+
+int CMLib_ObjCreateShown(text lp_name, text lp_description, bool lp_primary, playergroup lp_players) {
+    int lv_obj = CMLib_ObjCreate(lp_name, lp_description, lp_primary);
+
+    if (lv_obj != 0) {
+        ObjectiveShow(lv_obj, lp_players, true);
+    }
+    return lv_obj;
+}
+
+void CMLib_ObjSetState(int lp_objective, int lp_state) {
+    if (lp_objective == 0) {
+        CMLib_LogWarn("PANEL", "ObjSetState: 无效目标 id。");
+        return;
+    }
+    ObjectiveSetState(lp_objective, lp_state);
+}
+
+int CMLib_ObjGetState(int lp_objective) {
+    if (lp_objective == 0) { return CMLIB_OBJ_HIDDEN; }
+    return ObjectiveGetState(lp_objective);
+}
+
+void CMLib_ObjComplete(int lp_objective) {
+    CMLib_ObjSetState(lp_objective, CMLIB_OBJ_COMPLETED);
+}
+
+void CMLib_ObjFail(int lp_objective) {
+    CMLib_ObjSetState(lp_objective, CMLIB_OBJ_FAILED);
+}
+
+void CMLib_ObjActivate(int lp_objective) {
+    CMLib_ObjSetState(lp_objective, CMLIB_OBJ_ACTIVE);
+}
+
+void CMLib_ObjHide(int lp_objective) {
+    CMLib_ObjSetState(lp_objective, CMLIB_OBJ_HIDDEN);
+}
+
+bool CMLib_ObjIsResolved(int lp_objective) {
+    int lv_s = CMLib_ObjGetState(lp_objective);
+
+    return (lv_s == CMLIB_OBJ_COMPLETED) || (lv_s == CMLIB_OBJ_FAILED);
+}
+
+void CMLib_ObjShow(int lp_objective, playergroup lp_players, bool lp_show) {
+    if (lp_objective == 0) { return; }
+    ObjectiveShow(lp_objective, lp_players, lp_show);
+}
+
+void CMLib_ObjDestroy(int lp_objective) {
+    if (lp_objective == 0) { return; }
+    ObjectiveDestroy(lp_objective);
+}
+
+void CMLib_ObjRename(int lp_objective, text lp_name) {
+    if (lp_objective == 0) { return; }
+    ObjectiveSetName(lp_objective, lp_name);
+}
+
+// -----------------------------------------------------------------------------
+// round 17：任务目标补齐
+// -----------------------------------------------------------------------------
+
+int CMLib_ObjLast() {
+    return ObjectiveLastCreated();
+}
+
+void CMLib_ObjSetPriority(int lp_objective, int lp_priority) {
+    if ((lp_objective <= 0)) {
+        return;
+    }
+    ObjectiveSetPriority(lp_objective, lp_priority);
+}
+
+int CMLib_ObjPriority(int lp_objective) {
+    if ((lp_objective <= 0)) {
+        return 0;
+    }
+    return ObjectiveGetPriority(lp_objective);
+}
+
+void CMLib_ObjSetPrimary(int lp_objective, bool lp_primary) {
+    if ((lp_objective <= 0)) {
+        return;
+    }
+    ObjectiveSetPrimary(lp_objective, lp_primary);
+}
+
+bool CMLib_ObjIsPrimary(int lp_objective) {
+    if ((lp_objective <= 0)) {
+        return false;
+    }
+    return ObjectiveGetPrimary(lp_objective);
+}
+
+void CMLib_ObjSetPlayers(int lp_objective, playergroup lp_players) {
+    if ((lp_objective <= 0) || (lp_players == null)) {
+        return;
+    }
+    ObjectiveSetPlayerGroup(lp_objective, lp_players);
+}
+
+void CMLib_ObjSetDesc(int lp_objective, text lp_description) {
+    if ((lp_objective <= 0)) {
+        return;
+    }
+    ObjectiveSetDescription(lp_objective, lp_description);
+}
+
+text CMLib_ObjDesc(int lp_objective) {
+    if ((lp_objective <= 0)) {
+        return StringToText("");
+    }
+    return ObjectiveGetDescription(lp_objective);
+}
+
+text CMLib_ObjName(int lp_objective) {
+    if ((lp_objective <= 0)) {
+        return StringToText("");
+    }
+    return ObjectiveGetName(lp_objective);
+}
+
+bool CMLib_ObjVisibleFor(int lp_objective, int lp_player) {
+    if ((lp_objective <= 0)) {
+        return false;
+    }
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return false;
+    }
+    return ObjectiveVisible(lp_objective, lp_player);
+}
+
+void CMLib_ObjMoveFirst(int lp_objective) {
+    if ((lp_objective <= 0)) {
+        return;
+    }
+    ObjectiveSetFirst(lp_objective);
+}
+
+void CMLib_ObjMoveLast(int lp_objective) {
+    if ((lp_objective <= 0)) {
+        return;
+    }
+    ObjectiveSetLast(lp_objective);
+}
+
+void CMLib_ObjMoveAfter(int lp_objective, int lp_anchor) {
+    if ((lp_objective <= 0) || (lp_anchor <= 0) || (lp_objective == lp_anchor)) {
+        return;
+    }
+    ObjectiveSetAfter(lp_objective, lp_anchor);
+}
+
+void CMLib_ObjMoveBefore(int lp_objective, int lp_anchor) {
+    if ((lp_objective <= 0) || (lp_anchor <= 0) || (lp_objective == lp_anchor)) {
+        return;
+    }
+    ObjectiveSetBefore(lp_objective, lp_anchor);
+}
+
+void CMLib_ObjDestroyAll(playergroup lp_players) {
+    if ((lp_players == null)) {
+        return;
+    }
+    ObjectiveDestroyAll(lp_players);
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round22 —— 计时器窗口外观 + 任务目标补齐
+// -----------------------------------------------------------------------------
+
+void CMLib_TWColor(int lp_window, int lp_type, color lp_color, fixed lp_transparency) {
+    if (lp_window == 0) { return; }
+    // 透明度语义是 0=不透明、100=全透明，越界夹紧而不是传脏值。
+    if (lp_transparency < 0.0) { lp_transparency = 0.0; }
+    if (lp_transparency > 100.0) { lp_transparency = 100.0; }
+    TimerWindowSetColor(lp_window, lp_type, lp_color, lp_transparency);
+}
+
+void CMLib_TWFormat(int lp_window, text lp_format) {
+    if (lp_window == 0) { return; }
+    TimerWindowSetFormat(lp_window, lp_format);
+}
+
+void CMLib_TWImageType(int lp_window, int lp_image, int lp_type) {
+    if (lp_window == 0) { return; }
+    TimerWindowSetImageType(lp_window, lp_image, lp_type);
+}
+
+void CMLib_TWTitle(int lp_window, text lp_title) {
+    if (lp_window == 0) { return; }
+    TimerWindowSetTitle(lp_window, lp_title);
+}
+
+int CMLib_ObjCreateForPlayers(text lp_name, text lp_desc, int lp_state,
+                              bool lp_primary, playergroup lp_players) {
+    if (lp_players == null) { return c_invalidObjectiveId; }
+    if (lp_state < c_objectiveStateHidden) { lp_state = c_objectiveStateActive; }
+    if (lp_state > c_objectiveStateFailed) { lp_state = c_objectiveStateActive; }
+    return ObjectiveCreateForPlayers(lp_name, lp_desc, lp_state, lp_primary, lp_players);
+}
+
+playergroup CMLib_ObjPlayers(int lp_objective) {
+    playergroup lv_pg;
+
+    if (lp_objective == c_invalidObjectiveId) { return PlayerGroupEmpty(); }
+    lv_pg = ObjectiveGetPlayerGroup(lp_objective);
+    // 引擎在目标已销毁时可能返回 null；调用方随后 PlayerGroupCount(null) 会抛错。
+    if (lv_pg == null) { return PlayerGroupEmpty(); }
+    return lv_pg;
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round26 —— 计时器窗口外观补齐
+// -----------------------------------------------------------------------------
+
+void CMLib_TimerPanelBind(int lp_window, timer lp_timer) {
+    if (lp_window == c_timerWindowNone) { return; }
+    if (lp_timer == null) { return; }
+    TimerWindowSetTimer(lp_window, lp_timer);
+}
+
+void CMLib_TimerPanelStyle(int lp_window, int lp_style, bool lp_showElapsed) {
+    int lv_style;
+
+    if (lp_window == c_timerWindowNone) { return; }
+    lv_style = lp_style;
+    if (lv_style < c_timerWindowStyleHorizontalTitleTime) {
+        lv_style = c_timerWindowStyleHorizontalTitleTime;
+    }
+    if (lv_style > c_timerWindowStyleVerticalTimeTitle) {
+        lv_style = c_timerWindowStyleHorizontalTitleTime;
+    }
+    TimerWindowSetStyle(lp_window, lv_style, lp_showElapsed);
+}
+
+void CMLib_TimerPanelMove(int lp_window, int lp_x, int lp_y) {
+    if (lp_window == c_timerWindowNone) { return; }
+    TimerWindowSetPosition(lp_window, lp_x, lp_y);
+}
+
+void CMLib_TimerPanelReset(int lp_window) {
+    if (lp_window == c_timerWindowNone) { return; }
+    TimerWindowResetPosition(lp_window);
+}
+
+void CMLib_TimerPanelGap(int lp_window, int lp_width) {
+    int lv_w;
+
+    if (lp_window == c_timerWindowNone) { return; }
+    lv_w = lp_width;
+    if (lv_w < 0) { lv_w = 0; }
+    TimerWindowSetGapWidth(lp_window, lv_w);
+}
+
+void CMLib_TimerPanelHeight(int lp_window, int lp_height) {
+    int lv_h;
+
+    if (lp_window == c_timerWindowNone) { return; }
+    lv_h = lp_height;
+    if (lv_h < 0) { lv_h = 0; }
+    TimerWindowSetFixedHeight(lp_window, lv_h);
+}
+
+void CMLib_TimerPanelBorder(int lp_window, bool lp_show) {
+    if (lp_window == c_timerWindowNone) { return; }
+    TimerWindowShowBorder(lp_window, lp_show);
+}
+
+void CMLib_TimerPanelProgressBar(int lp_window, bool lp_show) {
+    if (lp_window == c_timerWindowNone) { return; }
+    TimerWindowShowProgressBar(lp_window, lp_show);
+}
+
+void CMLib_TimerPanelProgressColor(int lp_window, color lp_color, int lp_step) {
+    int lv_step;
+
+    if (lp_window == c_timerWindowNone) { return; }
+    lv_step = lp_step;
+    if (lv_step < 0) { lv_step = 0; }
+    // color 是值类型，不能和 null 比较，这里只能信任调用方给了合法 Color()。
+    TimerWindowSetProgressColor(lp_window, lp_color, lv_step);
+}
+
+bool CMLib_TimerPanelVisible(int lp_window, int lp_player) {
+    if (lp_window == c_timerWindowNone) { return false; }
+    return TimerWindowVisible(lp_window, lp_player);
+}

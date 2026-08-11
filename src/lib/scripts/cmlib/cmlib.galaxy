@@ -1,0 +1,72 @@
+// =============================================================================
+// CMLib —— SC2 通用 Galaxy 函数库（聚合入口）
+//
+// 用法：把 cmlib/ 整个目录拷到你的 mod 的
+//         <YourMod>.SC2Mod/Base.SC2Data/scripts/cmlib/
+//       然后在你自己的脚本里只写一行：
+//         include "scripts/cmlib/cmlib"
+//
+// 如果你只需要其中一两个模块，也可以单独 include 对应的 _h + 实现文件，
+// 但要保证顺序：先 core，再其它模块（其它模块都依赖 core 的日志与数值工具）。
+//
+// 依赖：core.sc2mod 提供的 natives + GameData 常量
+//       （natives.galaxy / GameData/Game.galaxy / GameData/Unit.galaxy /
+//         GameData/Upgrade.galaxy / GameData/GameData.galaxy）
+//       另外两个 **必须显式 include 的引擎库**（已在对应模块 header 内部引入，
+//       调用方无需重复写）：
+//         TriggerLibs/AI        <- cmlib_ai_h  （AIAttackWave* / AISetDifficulty）
+//         TriggerLibs/NativeLib <- cmlib_fx_h  （SoundPlay / SoundPlayAtPoint / …）
+//       这两个库不会被引擎自动挂载，漏掉会让整段 MapScript 静默编译失败。
+//       不依赖 libNtve_* 等编辑器生成的包装库，因此可安全用于纯 mod 工程。
+//
+// 模块清单（21 个）：
+//   core / ui / unit / catalog / player / ai / fx / panel / bank /
+//   geo / text / trig / game / conv / udata / stock / board / buff /
+//   path / env / stat
+// =============================================================================
+
+// ---- 声明（header）先全部引入，避免模块间的前向引用问题 ----------------------
+include "scripts/cmlib/cmlib_core_h"
+include "scripts/cmlib/cmlib_ui_h"
+include "scripts/cmlib/cmlib_unit_h"
+include "scripts/cmlib/cmlib_catalog_h"
+include "scripts/cmlib/cmlib_player_h"
+include "scripts/cmlib/cmlib_ai_h"
+include "scripts/cmlib/cmlib_fx_h"
+include "scripts/cmlib/cmlib_panel_h"
+include "scripts/cmlib/cmlib_bank_h"
+include "scripts/cmlib/cmlib_geo_h"
+include "scripts/cmlib/cmlib_text_h"
+include "scripts/cmlib/cmlib_trig_h"
+include "scripts/cmlib/cmlib_game_h"
+include "scripts/cmlib/cmlib_conv_h"
+include "scripts/cmlib/cmlib_udata_h"
+include "scripts/cmlib/cmlib_stock_h"
+include "scripts/cmlib/cmlib_board_h"
+include "scripts/cmlib/cmlib_buff_h"
+include "scripts/cmlib/cmlib_path_h"
+include "scripts/cmlib/cmlib_env_h"
+include "scripts/cmlib/cmlib_stat_h"
+
+// ---- 实现 --------------------------------------------------------------------
+include "scripts/cmlib/cmlib_core"
+include "scripts/cmlib/cmlib_ui"
+include "scripts/cmlib/cmlib_unit"
+include "scripts/cmlib/cmlib_catalog"
+include "scripts/cmlib/cmlib_player"
+include "scripts/cmlib/cmlib_ai"
+include "scripts/cmlib/cmlib_fx"
+include "scripts/cmlib/cmlib_panel"
+include "scripts/cmlib/cmlib_bank"
+include "scripts/cmlib/cmlib_geo"
+include "scripts/cmlib/cmlib_text"
+include "scripts/cmlib/cmlib_trig"
+include "scripts/cmlib/cmlib_game"
+include "scripts/cmlib/cmlib_conv"
+include "scripts/cmlib/cmlib_udata"
+include "scripts/cmlib/cmlib_stock"
+include "scripts/cmlib/cmlib_board"
+include "scripts/cmlib/cmlib_buff"
+include "scripts/cmlib/cmlib_path"
+include "scripts/cmlib/cmlib_env"
+include "scripts/cmlib/cmlib_stat"

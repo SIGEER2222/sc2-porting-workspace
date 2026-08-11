@@ -1,0 +1,474 @@
+// =============================================================================
+// CMLib :: Path —— 实现
+// 声明见 cmlib_path_h.galaxy
+// =============================================================================
+
+// =============================================================================
+// 创建 / 销毁
+// =============================================================================
+
+int CMLib_RouteForUnit(playergroup lp_players, unit lp_unit) {
+    if ((lp_players == null) || (CMLib_UnitOk(lp_unit) == false)) {
+        CMLib_LogWarn("path", "RouteForUnit: 玩家组或单位无效");
+        return CMLIB_ROUTE_NONE;
+    }
+    return PathCreateForUnit(lp_players, lp_unit);
+}
+
+int CMLib_RouteForUnitType(playergroup lp_players, string lp_type,
+                           int lp_player, point lp_source) {
+    if ((lp_players == null) || (lp_type == "") || (lp_source == null)) {
+        CMLib_LogWarn("path", "RouteForUnitType: 参数无效");
+        return CMLIB_ROUTE_NONE;
+    }
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return CMLIB_ROUTE_NONE;
+    }
+    return PathCreateForUnitType(lp_players, lp_type, lp_player, lp_source);
+}
+
+int CMLib_RouteLast() {
+    return PathLastCreated();
+}
+
+bool CMLib_RouteOk(int lp_route) {
+    return (lp_route != CMLIB_ROUTE_NONE);
+}
+
+void CMLib_RouteDestroy(int lp_route) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return;
+    }
+    PathDestroy(lp_route);
+}
+
+void CMLib_RouteDestroyAll(playergroup lp_players) {
+    if ((lp_players == null)) {
+        return;
+    }
+    PathDestroyAll(lp_players);
+}
+
+// =============================================================================
+// 起点 / 终点
+// =============================================================================
+
+void CMLib_RouteSetFromPoint(int lp_route, point lp_pos) {
+    if ((CMLib_RouteOk(lp_route) == false) || (lp_pos == null)) {
+        return;
+    }
+    PathSetSourcePoint(lp_route, lp_pos);
+}
+
+void CMLib_RouteSetFromUnit(int lp_route, unit lp_unit) {
+    if ((CMLib_RouteOk(lp_route) == false) || (CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    PathSetSourceUnit(lp_route, lp_unit);
+}
+
+void CMLib_RouteSetToPoint(int lp_route, point lp_pos) {
+    if ((CMLib_RouteOk(lp_route) == false) || (lp_pos == null)) {
+        return;
+    }
+    PathSetDestinationPoint(lp_route, lp_pos);
+}
+
+void CMLib_RouteSetToUnit(int lp_route, unit lp_unit) {
+    if ((CMLib_RouteOk(lp_route) == false) || (CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    PathSetDestinationUnit(lp_route, lp_unit);
+}
+
+point CMLib_RouteFromPoint(int lp_route) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return null;
+    }
+    return PathGetSourcePoint(lp_route);
+}
+
+point CMLib_RouteToPoint(int lp_route) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return null;
+    }
+    return PathGetDestinationPoint(lp_route);
+}
+
+unit CMLib_RouteFromUnit(int lp_route) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return null;
+    }
+    return PathGetSourceUnit(lp_route);
+}
+
+unit CMLib_RouteToUnit(int lp_route) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return null;
+    }
+    return PathGetDestinationUnit(lp_route);
+}
+
+unit CMLib_RouteUnit(int lp_route) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return null;
+    }
+    return PathGetUnit(lp_route);
+}
+
+string CMLib_RouteUnitType(int lp_route) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return "";
+    }
+    return PathGetUnitType(lp_route);
+}
+
+// =============================================================================
+// 航点
+// =============================================================================
+
+void CMLib_RouteAddWay(int lp_route, point lp_pos) {
+    if ((CMLib_RouteOk(lp_route) == false) || (lp_pos == null)) {
+        return;
+    }
+    PathAddWayPoint(lp_route, lp_pos);
+}
+
+void CMLib_RouteClearWays(int lp_route) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return;
+    }
+    PathClearWayPoints(lp_route);
+}
+
+int CMLib_RouteAddWayChain(int lp_route, point lp_from, point lp_to, int lp_steps) {
+    int   lv_n;
+    int   lv_i;
+    fixed lv_t;
+    fixed lv_x;
+    fixed lv_y;
+    fixed lv_x0;
+    fixed lv_y0;
+    fixed lv_dx;
+    fixed lv_dy;
+
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return 0;
+    }
+    if ((lp_from == null) || (lp_to == null)) {
+        return 0;
+    }
+    lv_n = CMLib_ClampInt(lp_steps, 0, CMLIB_ROUTE_MAX_CHAIN);
+    if ((lv_n <= 0)) {
+        return 0;
+    }
+    lv_x0 = PointGetX(lp_from);
+    lv_y0 = PointGetY(lp_from);
+    lv_dx = PointGetX(lp_to) - lv_x0;
+    lv_dy = PointGetY(lp_to) - lv_y0;
+    lv_i = 1;
+    while ((lv_i <= lv_n)) {
+        // 手写插值而不用 PointInterpolate：后者的 fraction 语义（0~1 还是 0~100）
+        // 在不同版本文档里说法不一，直接算最保险。
+        lv_t = IntToFixed(lv_i) / IntToFixed(lv_n + 1);
+        lv_x = lv_x0 + (lv_dx * lv_t);
+        lv_y = lv_y0 + (lv_dy * lv_t);
+        PathAddWayPoint(lp_route, Point(lv_x, lv_y));
+        lv_i = lv_i + 1;
+    }
+    return lv_n;
+}
+
+// =============================================================================
+// 外观
+// =============================================================================
+
+void CMLib_RouteShow(int lp_route, bool lp_show) {
+    CMLib_RouteShowAt(lp_route, CMLIB_ROUTE_ALL, lp_show);
+}
+
+void CMLib_RouteShowAt(int lp_route, int lp_loc, bool lp_show) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return;
+    }
+    PathSetVisible(lp_route, lp_loc, lp_show);
+}
+
+bool CMLib_RouteVisibleAt(int lp_route, int lp_loc) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return false;
+    }
+    return PathGetVisible(lp_route, lp_loc);
+}
+
+void CMLib_RouteColor(int lp_route, color lp_color) {
+    CMLib_RouteColorAt(lp_route, CMLIB_ROUTE_ALL, lp_color);
+}
+
+void CMLib_RouteColorAt(int lp_route, int lp_loc, color lp_color) {
+    // 不要写 `lp_color == null`：color 在 Galaxy 里是值类型，与 null 比较是
+    // **编译期错误**，而 SC2 对编译失败的反应是静默丢弃整个 MapScript
+    // （不报错、InitMap 根本不被调用）。同一坑 cmlib_text.galaxy:57 早有记载，
+    // 本模块 round16 又踩一遍，直到 round18 真机矩阵才捞出来。
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return;
+    }
+    PathSetColor(lp_route, lp_loc, lp_color);
+}
+
+color CMLib_RouteColorGet(int lp_route, int lp_loc) {
+    // 同上：color 不能是 null，失败态只能给一个约定的哨兵色。
+    // 取全透明黑（alpha=0）——正常路线色不会全透明，调用方可据此判失败。
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return ColorWithAlpha(0.0, 0.0, 0.0, 0.0);
+    }
+    return PathGetColor(lp_route, lp_loc);
+}
+
+void CMLib_RouteLineWidth(int lp_route, fixed lp_width) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return;
+    }
+    PathSetLineWidth(lp_route, CMLIB_ROUTE_ALL, lp_width);
+}
+
+fixed CMLib_RouteLineWidthGet(int lp_route, int lp_loc) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return 0.0;
+    }
+    return PathGetLineWidth(lp_route, lp_loc);
+}
+
+void CMLib_RouteLineTexture(int lp_route, string lp_texture) {
+    if ((CMLib_RouteOk(lp_route) == false) || (lp_texture == "")) {
+        return;
+    }
+    PathSetLineTexture(lp_route, CMLIB_ROUTE_ALL, lp_texture);
+}
+
+string CMLib_RouteLineTextureGet(int lp_route, int lp_loc) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return "";
+    }
+    return PathGetLineTexture(lp_route, lp_loc);
+}
+
+void CMLib_RouteLineTile(int lp_route, fixed lp_length) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return;
+    }
+    PathSetLineTileLength(lp_route, CMLIB_ROUTE_ALL, lp_length);
+}
+
+fixed CMLib_RouteLineTileGet(int lp_route, int lp_loc) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return 0.0;
+    }
+    return PathGetLineTileLength(lp_route, lp_loc);
+}
+
+void CMLib_RouteStepModel(int lp_route, string lp_model) {
+    if ((CMLib_RouteOk(lp_route) == false) || (lp_model == "")) {
+        return;
+    }
+    PathSetStepModel(lp_route, CMLIB_ROUTE_ALL, lp_model);
+}
+
+string CMLib_RouteStepModelGet(int lp_route, int lp_loc) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return "";
+    }
+    return PathGetStepModel(lp_route, lp_loc);
+}
+
+void CMLib_RouteStepScale(int lp_route, fixed lp_scale) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return;
+    }
+    PathSetStepModelScale(lp_route, CMLIB_ROUTE_ALL, lp_scale);
+}
+
+fixed CMLib_RouteStepScaleGet(int lp_route, int lp_loc) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return 0.0;
+    }
+    return PathGetStepModelScale(lp_route, lp_loc);
+}
+
+void CMLib_RouteStepMid(int lp_route, fixed lp_midpoint) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return;
+    }
+    PathSetStepMidpoint(lp_route, CMLIB_ROUTE_ALL, lp_midpoint);
+}
+
+fixed CMLib_RouteStepMidGet(int lp_route, int lp_loc) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return 0.0;
+    }
+    return PathGetStepMidpoint(lp_route, lp_loc);
+}
+
+// =============================================================================
+// 步进 / 距离约束
+// =============================================================================
+
+void CMLib_RouteMinSteps(int lp_route, int lp_count) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return;
+    }
+    PathSetMinimumStepCount(lp_route, CMLib_MaxInt(lp_count, 0));
+}
+
+int CMLib_RouteMinStepsGet(int lp_route) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return 0;
+    }
+    return PathGetMinimumStepCount(lp_route);
+}
+
+void CMLib_RouteMinLinear(int lp_route, fixed lp_distance) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return;
+    }
+    PathSetMinimumLinearDistance(lp_route, lp_distance);
+}
+
+fixed CMLib_RouteMinLinearGet(int lp_route) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return 0.0;
+    }
+    return PathGetMinimumLinearDistance(lp_route);
+}
+
+void CMLib_RouteMinTravel(int lp_route, fixed lp_distance) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return;
+    }
+    PathSetMinimumTravelDistance(lp_route, lp_distance);
+}
+
+fixed CMLib_RouteMinTravelGet(int lp_route) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return 0.0;
+    }
+    return PathGetMinimumTravelDistance(lp_route);
+}
+
+void CMLib_RouteAbilFilter(int lp_route, int lp_abilClass, int lp_filter) {
+    if ((CMLib_RouteOk(lp_route) == false)) {
+        return;
+    }
+    PathSetAbilClassFilter(lp_route, lp_abilClass, lp_filter);
+}
+
+// =============================================================================
+// 组合封装
+// =============================================================================
+
+int CMLib_RouteQuick(playergroup lp_players, unit lp_unit, point lp_to,
+                     color lp_color, fixed lp_width) {
+    int lv_route;
+
+    lv_route = CMLib_RouteForUnit(lp_players, lp_unit);
+    if ((CMLib_RouteOk(lv_route) == false)) {
+        return CMLIB_ROUTE_NONE;
+    }
+    CMLib_RouteSetToPoint(lv_route, lp_to);
+    CMLib_RouteColor(lv_route, lp_color);
+    if ((lp_width > 0.0)) {
+        CMLib_RouteLineWidth(lv_route, lp_width);
+    }
+    CMLib_RouteShow(lv_route, true);
+    return lv_route;
+}
+
+int CMLib_RouteQuickToUnit(playergroup lp_players, unit lp_unit, unit lp_target,
+                           color lp_color, fixed lp_width) {
+    int lv_route;
+
+    lv_route = CMLib_RouteForUnit(lp_players, lp_unit);
+    if ((CMLib_RouteOk(lv_route) == false)) {
+        return CMLIB_ROUTE_NONE;
+    }
+    CMLib_RouteSetToUnit(lv_route, lp_target);
+    CMLib_RouteColor(lv_route, lp_color);
+    if ((lp_width > 0.0)) {
+        CMLib_RouteLineWidth(lv_route, lp_width);
+    }
+    CMLib_RouteShow(lv_route, true);
+    return lv_route;
+}
+
+// =============================================================================
+// 禁飞区
+// =============================================================================
+
+void CMLib_RouteNoFlyAdd(point lp_center, fixed lp_inner, fixed lp_outer) {
+    fixed lv_inner;
+    fixed lv_outer;
+
+    if ((lp_center == null)) {
+        return;
+    }
+    lv_inner = lp_inner;
+    lv_outer = lp_outer;
+    if ((lv_inner < 0.0)) {
+        lv_inner = 0.0;
+    }
+    if ((lv_outer < lv_inner)) {
+        // 内外半径写反是这条 native 最常见的低级错误，直接换过来而不是报错。
+        lv_outer = lv_inner;
+    }
+    PathAddNoFlyZone(lp_center, lv_inner, lv_outer);
+}
+
+void CMLib_RouteNoFlyClear(region lp_area) {
+    if ((lp_area == null)) {
+        return;
+    }
+    PathRemoveNoFlyZonesInRegion(lp_area);
+}
+
+// =============================================================================
+// 地形寻路类型查询
+// =============================================================================
+
+int CMLib_PathingAt(point lp_pos) {
+    if ((lp_pos == null)) {
+        return c_pathingUnpathable;
+    }
+    return PathingType(lp_pos);
+}
+
+bool CMLib_PathingIsGround(point lp_pos) {
+    return (CMLib_PathingAt(lp_pos) == c_pathingGround);
+}
+
+bool CMLib_PathingIsBuilding(point lp_pos) {
+    return (CMLib_PathingAt(lp_pos) == c_pathingBuilding);
+}
+
+bool CMLib_PathingIsCliff(point lp_pos) {
+    return (CMLib_PathingAt(lp_pos) == c_pathingCliff);
+}
+
+bool CMLib_PathingIsBlocked(point lp_pos) {
+    int lv_type;
+
+    lv_type = CMLib_PathingAt(lp_pos);
+    return ((lv_type == c_pathingUnpathable) || (lv_type == c_pathingCliff));
+}
+
+string CMLib_PathingName(int lp_type) {
+    if ((lp_type == c_pathingGround)) {
+        return "Ground";
+    }
+    if ((lp_type == c_pathingBuilding)) {
+        return "Building";
+    }
+    if ((lp_type == c_pathingCliff)) {
+        return "Cliff";
+    }
+    return "Unpathable";
+}

@@ -1,0 +1,663 @@
+// =============================================================================
+// CMLib :: FX —— 实现
+// =============================================================================
+
+include "scripts/cmlib/cmlib_fx_h"
+
+// 内部：把任意输入音量钳到合法区间，防止爆音或负值。
+static fixed CMLib_FxVol(fixed lp_volume) {
+    return CMLib_ClampFixed(lp_volume, CMLIB_FX_VOL_MUTE, CMLIB_FX_VOL_FULL);
+}
+
+// =============================================================================
+// 音效
+// =============================================================================
+soundlink CMLib_SfxLink(string lp_soundId, int lp_index) {
+    if (lp_index < 0) {
+        return SoundLink(lp_soundId, c_soundIndexAny);
+    }
+    return SoundLink(lp_soundId, lp_index);
+}
+
+void CMLib_SfxPlay(string lp_soundId, playergroup lp_players, fixed lp_volume) {
+    if (lp_soundId == "") { return; }
+    SoundPlay(CMLib_SfxLink(lp_soundId, -1), lp_players, CMLib_FxVol(lp_volume), CMLIB_FX_NO_OFFSET);
+}
+
+void CMLib_SfxPlayAll(string lp_soundId) {
+    CMLib_SfxPlay(lp_soundId, PlayerGroupAll(), CMLIB_FX_VOL_FULL);
+}
+
+void CMLib_SfxPlayAt(string lp_soundId, playergroup lp_players, point lp_at, fixed lp_volume) {
+    if ((lp_soundId == "") || (lp_at == null)) { return; }
+    SoundPlayAtPoint(CMLib_SfxLink(lp_soundId, -1), lp_players, lp_at, 0.0,
+                     CMLib_FxVol(lp_volume), CMLIB_FX_NO_OFFSET);
+}
+
+void CMLib_SfxPlayOn(string lp_soundId, playergroup lp_players, unit lp_unit, fixed lp_volume) {
+    if ((lp_soundId == "") || (lp_unit == null)) { return; }
+    SoundPlayOnUnit(CMLib_SfxLink(lp_soundId, -1), lp_players, lp_unit, 0.0,
+                    CMLib_FxVol(lp_volume), CMLIB_FX_NO_OFFSET);
+}
+
+void CMLib_SfxPlayForPlayer(string lp_soundId, int lp_player, fixed lp_volume) {
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return; }
+    CMLib_SfxPlay(lp_soundId, PlayerGroupSingle(lp_player), lp_volume);
+}
+
+fixed CMLib_SfxLength(string lp_soundId) {
+    if (lp_soundId == "") { return 0.0; }
+    return SoundLengthSync(CMLib_SfxLink(lp_soundId, -1));
+}
+
+void CMLib_SfxStopLast(bool lp_fade) {
+    sound lv_s = SoundLastPlayed();
+
+    if (lv_s == null) { return; }
+    SoundStop(lv_s, lp_fade);
+}
+
+// =============================================================================
+// 音乐 / 声道
+// =============================================================================
+void CMLib_MusicPlay(playergroup lp_players, string lp_soundtrack, bool lp_makeDefault) {
+    if (lp_soundtrack == "") { return; }
+    SoundtrackPlay(lp_players, c_soundtrackCategoryMusic, lp_soundtrack,
+                   c_soundtrackCueAny, c_soundtrackIndexAny, lp_makeDefault);
+}
+
+void CMLib_MusicStop(playergroup lp_players, bool lp_fade) {
+    SoundtrackStop(lp_players, c_soundtrackCategoryMusic, lp_fade);
+}
+
+void CMLib_ChannelVolume(playergroup lp_players, int lp_channel, fixed lp_volume, fixed lp_duration) {
+    SoundChannelSetVolume(lp_players, lp_channel, CMLib_FxVol(lp_volume),
+                          CMLib_ClampFixed(lp_duration, 0.0, 600.0));
+}
+
+void CMLib_DuckCombatAudio(playergroup lp_players, fixed lp_volume, fixed lp_duration) {
+    fixed lv_v = CMLib_FxVol(lp_volume);
+    fixed lv_d = CMLib_ClampFixed(lp_duration, 0.0, 600.0);
+
+    SoundChannelSetVolume(lp_players, c_soundCategoryCombat,   lv_v, lv_d);
+    SoundChannelSetVolume(lp_players, c_soundCategoryMovement, lv_v, lv_d);
+    SoundChannelSetVolume(lp_players, c_soundCategoryAmbient,  lv_v, lv_d);
+    SoundChannelSetVolume(lp_players, c_soundCategorySpell,    lv_v, lv_d);
+}
+
+// =============================================================================
+// 镜头
+// =============================================================================
+void CMLib_CamApply(int lp_player, camerainfo lp_info, fixed lp_duration) {
+    if (lp_info == null) { return; }
+    CameraApplyInfo(lp_player, lp_info, CMLib_ClampFixed(lp_duration, 0.0, 600.0), -1.0, 10.0, true);
+}
+
+void CMLib_CamApplyGroup(playergroup lp_players, camerainfo lp_info, fixed lp_duration) {
+    int lv_p;
+
+    if ((lp_players == null) || (lp_info == null)) { return; }
+    lv_p = PlayerGroupNextPlayer(lp_players, 0);
+    while (lv_p > 0) {
+        CMLib_CamApply(lv_p, lp_info, lp_duration);
+        lv_p = PlayerGroupNextPlayer(lp_players, lv_p);
+    }
+}
+
+void CMLib_CamPanTo(int lp_player, point lp_at, fixed lp_duration) {
+    if (lp_at == null) { return; }
+    CameraPan(lp_player, lp_at, CMLib_ClampFixed(lp_duration, 0.0, 600.0), -1.0, 10.0, false);
+}
+
+void CMLib_CamPanToGroup(playergroup lp_players, point lp_at, fixed lp_duration) {
+    int lv_p;
+
+    if ((lp_players == null) || (lp_at == null)) { return; }
+    lv_p = PlayerGroupNextPlayer(lp_players, 0);
+    while (lv_p > 0) {
+        CMLib_CamPanTo(lv_p, lp_at, lp_duration);
+        lv_p = PlayerGroupNextPlayer(lp_players, lv_p);
+    }
+}
+
+void CMLib_CamShake(int lp_player, fixed lp_amplitude, fixed lp_duration) {
+    // 频率 / 随机度用暴雪战役同款手感参数，调用方只需关心强度与时长。
+    CameraShakeStart(lp_player, c_cameraPositionTarget, c_cameraDirectionZ,
+                     CMLib_ClampFixed(lp_amplitude, 0.0, 100.0), 10.0, 15.0,
+                     CMLib_ClampFixed(lp_duration, 0.0, 600.0));
+}
+
+void CMLib_CamShakeGroup(playergroup lp_players, fixed lp_amplitude, fixed lp_duration) {
+    int lv_p;
+
+    if (lp_players == null) { return; }
+    lv_p = PlayerGroupNextPlayer(lp_players, 0);
+    while (lv_p > 0) {
+        CMLib_CamShake(lv_p, lp_amplitude, lp_duration);
+        lv_p = PlayerGroupNextPlayer(lp_players, lv_p);
+    }
+}
+
+void CMLib_CamShakeStop(int lp_player) {
+    CameraShakeStop(lp_player);
+}
+
+void CMLib_CamSetValue(int lp_player, int lp_valueType, fixed lp_value, fixed lp_duration) {
+    CameraSetValue(lp_player, lp_valueType, lp_value,
+                   CMLib_ClampFixed(lp_duration, 0.0, 600.0), -1.0, 10.0);
+}
+
+void CMLib_CamSetDistance(int lp_player, fixed lp_distance, fixed lp_duration) {
+    CMLib_CamSetValue(lp_player, c_cameraValueDistance, lp_distance, lp_duration);
+}
+
+void CMLib_CamLock(playergroup lp_players, bool lp_locked) {
+    int lv_p;
+
+    if (lp_players == null) { return; }
+    lv_p = PlayerGroupNextPlayer(lp_players, 0);
+    while (lv_p > 0) {
+        CameraLockInput(lv_p, lp_locked);
+        lv_p = PlayerGroupNextPlayer(lp_players, lv_p);
+    }
+}
+
+void CMLib_CamReset(int lp_player, fixed lp_duration) {
+    CMLib_CamApply(lp_player, CameraInfoDefault(), lp_duration);
+}
+
+// =============================================================================
+// 淡入淡出
+// =============================================================================
+void CMLib_FadeOut(fixed lp_duration, bool lp_wait) {
+    CinematicFade(false, CMLib_ClampFixed(lp_duration, 0.0, 60.0), c_fadeStyleNormal,
+                  Color(0.0, 0.0, 0.0), 100.0, lp_wait);
+}
+
+void CMLib_FadeIn(fixed lp_duration, bool lp_wait) {
+    CinematicFade(true, CMLib_ClampFixed(lp_duration, 0.0, 60.0), c_fadeStyleNormal,
+                  Color(0.0, 0.0, 0.0), 100.0, lp_wait);
+}
+
+void CMLib_FadeToColor(color lp_color, fixed lp_duration, bool lp_wait) {
+    CinematicFade(false, CMLib_ClampFixed(lp_duration, 0.0, 60.0), c_fadeStyleNormal,
+                  lp_color, 100.0, lp_wait);
+}
+
+// =============================================================================
+// Ping / 小地图标记
+// =============================================================================
+int CMLib_PingAt(playergroup lp_players, point lp_at, color lp_color, fixed lp_duration) {
+    if (lp_at == null) {
+        CMLib_LogWarn("FX", "PingAt: 位置为空。");
+        return 0;
+    }
+    PingCreate(lp_players, "Ping", lp_at, lp_color, CMLib_ClampFixed(lp_duration, 0.0, 600.0));
+    return PingLastCreated();
+}
+
+int CMLib_PingOnUnit(playergroup lp_players, unit lp_unit, color lp_color, fixed lp_duration) {
+    int lv_ping;
+
+    if (lp_unit == null) {
+        CMLib_LogWarn("FX", "PingOnUnit: 单位为空。");
+        return 0;
+    }
+    lv_ping = CMLib_PingAt(lp_players, UnitGetPosition(lp_unit), lp_color, lp_duration);
+    if (lv_ping != 0) {
+        PingSetUnit(lv_ping, lp_unit);
+    }
+    return lv_ping;
+}
+
+int CMLib_PingAtLabeled(playergroup lp_players, point lp_at, color lp_color, fixed lp_duration,
+                        fixed lp_scale, text lp_tooltip) {
+    int lv_ping = CMLib_PingAt(lp_players, lp_at, lp_color, lp_duration);
+
+    if (lv_ping == 0) { return 0; }
+    PingSetScale(lv_ping, CMLib_ClampFixed(lp_scale, 0.1, 10.0));
+    PingSetTooltip(lv_ping, lp_tooltip);
+    return lv_ping;
+}
+
+void CMLib_PingKill(int lp_ping) {
+    if (lp_ping == 0) { return; }
+    PingDestroy(lp_ping);
+}
+
+void CMLib_MinimapAlert(playergroup lp_players, point lp_at, color lp_color, fixed lp_duration) {
+    if (lp_at == null) { return; }
+    MinimapPing(lp_players, lp_at, CMLib_ClampFixed(lp_duration, 0.0, 60.0), lp_color);
+}
+
+// =============================================================================
+// 飘字（TextTag）
+// =============================================================================
+int CMLib_FloatText(text lp_text, point lp_at, playergroup lp_players, int lp_fontSize, fixed lp_duration) {
+    int lv_tag;
+
+    if (lp_at == null) { return 0; }
+    TextTagCreate(lp_text, CMLib_ClampInt(lp_fontSize, 6, 72), lp_at, 0.5, true, false, lp_players);
+    lv_tag = TextTagLastCreated();
+    if (lv_tag != 0) {
+        TextTagSetTime(lv_tag, c_textTagTimeDuration, CMLib_ClampFixed(lp_duration, 0.1, 600.0));
+    }
+    return lv_tag;
+}
+
+int CMLib_FloatTextOnUnit(text lp_text, unit lp_unit, playergroup lp_players, int lp_fontSize,
+                          fixed lp_heightOffset, fixed lp_duration) {
+    int lv_tag;
+
+    if (lp_unit == null) { return 0; }
+    lv_tag = CMLib_FloatText(lp_text, UnitGetPosition(lp_unit), lp_players, lp_fontSize, lp_duration);
+    if (lv_tag != 0) {
+        TextTagAttachToUnit(lv_tag, lp_unit, lp_heightOffset);
+    }
+    return lv_tag;
+}
+
+int CMLib_FloatTextRising(text lp_text, point lp_at, playergroup lp_players, int lp_fontSize,
+                          fixed lp_duration, fixed lp_speed) {
+    int lv_tag = CMLib_FloatText(lp_text, lp_at, lp_players, lp_fontSize, lp_duration);
+
+    if (lv_tag != 0) {
+        // 角度 90 = 正上方。
+        TextTagSetVelocity(lv_tag, lp_speed, 90.0);
+    }
+    return lv_tag;
+}
+
+void CMLib_FloatTextKill(int lp_tag) {
+    if (lp_tag == 0) { return; }
+    TextTagDestroy(lp_tag);
+}
+
+// =============================================================================
+// Actor 消息 / 数据层特效
+// =============================================================================
+void CMLib_ActorMsg(unit lp_unit, string lp_message) {
+    if ((lp_unit == null) || (lp_message == "")) { return; }
+    ActorScopeSend(ActorScopeFromUnit(lp_unit), lp_message);
+}
+
+void CMLib_ActorMsgTo(unit lp_unit, string lp_refName, string lp_message) {
+    actor lv_a;
+
+    if ((lp_unit == null) || (lp_message == "")) { return; }
+    lv_a = ActorFromScope(ActorScopeFromUnit(lp_unit), lp_refName);
+    if (lv_a == null) {
+        CMLib_LogWarn("FX", "ActorMsgTo: 找不到子 Actor " + lp_refName);
+        return;
+    }
+    ActorSend(lv_a, lp_message);
+}
+
+void CMLib_ActorTint(unit lp_unit, int lp_r255, int lp_g255, int lp_b255, fixed lp_duration) {
+    // Actor 消息里的 SetTintColor 用 0~255 三元组 + 淡入时长（秒）。
+    CMLib_ActorMsg(lp_unit, "SetTintColor "
+        + IntToString(CMLib_ClampInt(lp_r255, 0, 255)) + ","
+        + IntToString(CMLib_ClampInt(lp_g255, 0, 255)) + ","
+        + IntToString(CMLib_ClampInt(lp_b255, 0, 255)) + " "
+        + FixedToString(CMLib_ClampFixed(lp_duration, 0.0, 60.0), 2));
+}
+
+void CMLib_ActorTintClear(unit lp_unit, fixed lp_duration) {
+    CMLib_ActorTint(lp_unit, 255, 255, 255, lp_duration);
+}
+
+void CMLib_ActorScale(unit lp_unit, fixed lp_scale, fixed lp_duration) {
+    fixed lv_s = CMLib_ClampFixed(lp_scale, 0.05, 20.0);
+
+    CMLib_ActorMsg(lp_unit, "SetScale "
+        + FixedToString(lv_s, 3) + ","
+        + FixedToString(lv_s, 3) + ","
+        + FixedToString(lv_s, 3) + " "
+        + FixedToString(CMLib_ClampFixed(lp_duration, 0.0, 60.0), 2));
+}
+
+void CMLib_ActorAnim(unit lp_unit, string lp_animName) {
+    if (lp_animName == "") { return; }
+    CMLib_ActorMsg(lp_unit, "AnimBracketStart Cmlib " + lp_animName);
+}
+
+void CMLib_FxAtPoint(int lp_player, string lp_effect, point lp_at) {
+    if ((lp_effect == "") || (lp_at == null)) { return; }
+    PlayerCreateEffectPoint(lp_player, lp_effect, lp_at);
+}
+
+void CMLib_FxOnUnit(unit lp_source, string lp_effect, unit lp_target) {
+    if ((lp_source == null) || (lp_target == null) || (lp_effect == "")) { return; }
+    UnitCreateEffectUnit(lp_source, lp_effect, lp_target);
+}
+
+// =============================================================================
+// round 13：镜头预设抖动 / 存档恢复 / 声道与带主控声音
+// =============================================================================
+void CMLib_CamShakePreset(int lp_player, string lp_amplitude, string lp_frequency,
+                          fixed lp_blendIn, fixed lp_blendOut, fixed lp_duration) {
+    if ((lp_amplitude == "") || (lp_frequency == "")) {
+        return;
+    }
+    CameraShake(lp_player, lp_amplitude, lp_frequency, lp_blendIn, lp_blendOut,
+                lp_duration);
+}
+
+point CMLib_CamTarget(int lp_player) {
+    return CameraGetTarget(lp_player);
+}
+
+void CMLib_CamSave(int lp_player) {
+    CameraSave(lp_player);
+}
+
+void CMLib_CamRestore(int lp_player, fixed lp_duration, fixed lp_velocity,
+                      fixed lp_decelerate) {
+    CameraRestore(lp_player, lp_duration, lp_velocity, lp_decelerate);
+}
+
+void CMLib_SfxChannelMute(playergroup lp_players, int lp_channel, bool lp_mute) {
+    if ((lp_players == null)) {
+        return;
+    }
+    SoundChannelMute(lp_players, lp_channel, lp_mute);
+}
+
+void CMLib_SfxPlayAtFor(string lp_soundId, int lp_owner, playergroup lp_players,
+                        point lp_at, fixed lp_volume) {
+    if ((lp_soundId == "") || (lp_at == null)) {
+        return;
+    }
+    SoundPlayAtPointForPlayer(CMLib_SfxLink(lp_soundId, -1), lp_owner, lp_players,
+                              lp_at, 0.0, CMLib_FxVol(lp_volume), CMLIB_FX_NO_OFFSET);
+}
+
+
+// -----------------------------------------------------------------------------
+// round 18：带归属玩家的全局音效
+// -----------------------------------------------------------------------------
+
+void CMLib_SfxPlayOwned(string lp_soundId, int lp_owner,
+                        playergroup lp_players, fixed lp_volume) {
+    playergroup lv_pg;
+
+    if ((lp_soundId == "")) {
+        return;
+    }
+    lv_pg = lp_players;
+    if ((lv_pg == null)) {
+        lv_pg = PlayerGroupAll();
+    }
+    SoundPlayForPlayer(CMLib_SfxLink(lp_soundId, -1), lp_owner, lv_pg,
+                       CMLib_FxVol(lp_volume), CMLIB_FX_NO_OFFSET);
+}
+
+// =============================================================================
+// CMLib :: Round19 —— 实现
+// =============================================================================
+void CMLib_PingShow(int lp_ping, bool lp_visible) {
+    if (lp_ping <= 0) { return; }
+    PingSetVisible(lp_ping, lp_visible);
+}
+
+void CMLib_PingMove(int lp_ping, point lp_pos) {
+    if ((lp_ping <= 0) || (lp_pos == null)) { return; }
+    PingSetPosition(lp_ping, lp_pos);
+}
+
+void CMLib_PingTint(int lp_ping, color lp_color) {
+    // 注意：color 是值类型，不能与 null 比较（round18 血泪）。
+    if (lp_ping <= 0) { return; }
+    PingSetColor(lp_ping, lp_color);
+}
+
+void CMLib_PingRotate(int lp_ping, fixed lp_rotation) {
+    if (lp_ping <= 0) { return; }
+    PingSetRotation(lp_ping, lp_rotation);
+}
+
+void CMLib_PingModel(int lp_ping, string lp_modelLink) {
+    if ((lp_ping <= 0) || (lp_modelLink == "")) { return; }
+    PingSetModel(lp_ping, lp_modelLink);
+}
+
+void CMLib_PingLifetime(int lp_ping, fixed lp_duration) {
+    if (lp_ping <= 0) { return; }
+    PingSetDuration(lp_ping, lp_duration);
+}
+
+fixed CMLib_CamInfoValue(camerainfo lp_cam, int lp_type) {
+    return CameraInfoGetValue(lp_cam, lp_type);
+}
+
+point CMLib_CamInfoTarget(camerainfo lp_cam) {
+    return CameraInfoGetTarget(lp_cam);
+}
+
+void CMLib_CamBounds(playergroup lp_players, region lp_bounds, bool lp_includeMinimap) {
+    if ((lp_players == null) || (lp_bounds == null)) { return; }
+    CameraSetBounds(lp_players, lp_bounds, lp_includeMinimap);
+}
+
+void CMLib_CamFollowGroup(int lp_player, unitgroup lp_group, bool lp_follow, bool lp_isOffset) {
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return; }
+    if (lp_group == null) { return; }
+    CameraFollowUnitGroup(lp_player, lp_group, lp_follow, lp_isOffset);
+}
+
+void CMLib_CamApplyData(playergroup lp_players, string lp_cameraId) {
+    if ((lp_players == null) || (lp_cameraId == "")) { return; }
+    CameraSetData(lp_players, lp_cameraId);
+}
+
+void CMLib_MusicPause(playergroup lp_players, int lp_category, bool lp_pause, bool lp_fade) {
+    if (lp_players == null) { return; }
+    SoundtrackPause(lp_players, lp_category, lp_pause, lp_fade);
+}
+
+void CMLib_MusicDefault(playergroup lp_players, int lp_category, string lp_soundtrack,
+                        int lp_cue, int lp_index) {
+    if ((lp_players == null) || (lp_soundtrack == "")) { return; }
+    SoundtrackDefault(lp_players, lp_category, lp_soundtrack, lp_cue, lp_index);
+}
+
+void CMLib_PortraitShow(int lp_portrait, playergroup lp_players, bool lp_visible,
+                        bool lp_force) {
+    if ((lp_portrait <= 0) || (lp_players == null)) { return; }
+    PortraitSetVisible(lp_portrait, lp_players, lp_visible, lp_force);
+}
+
+void CMLib_MovieRecStart(string lp_name) {
+    if (lp_name == "") { return; }
+    MovieStartRecording(lp_name);
+}
+
+void CMLib_MovieRecStop() {
+    MovieStopRecording();
+}
+
+void CMLib_TextTagShowFor(int lp_tag, playergroup lp_players, bool lp_show) {
+    if ((lp_tag <= 0) || (lp_players == null)) { return; }
+    TextTagShow(lp_tag, lp_players, lp_show);
+}
+
+void CMLib_PreloadModel(string lp_path, bool lp_queue) {
+    if (lp_path == "") { return; }
+    PreloadModel(lp_path, lp_queue);
+}
+
+void CMLib_PreloadMovie(string lp_path, bool lp_queue) {
+    if (lp_path == "") { return; }
+    PreloadMovie(lp_path, lp_queue);
+}
+
+void CMLib_PreloadAsset(string lp_key, bool lp_queue) {
+    if (lp_key == "") { return; }
+    PreloadAsset(lp_key, lp_queue);
+}
+
+void CMLib_PreloadImage(string lp_path, bool lp_queue) {
+    if (lp_path == "") { return; }
+    PreloadImage(lp_path, lp_queue);
+}
+
+void CMLib_PreloadSound(string lp_path, bool lp_queue) {
+    if (lp_path == "") { return; }
+    PreloadSound(lp_path, lp_queue);
+}
+
+int CMLib_PreloadCSV(string lp_kind, string lp_csv, bool lp_queue) {
+    int lv_n;
+    int lv_i;
+    int lv_done;
+    string lv_item;
+    lv_done = 0;
+    if ((lp_kind == "") || (lp_csv == "")) { return 0; }
+    lv_n = CMLib_SplitCount(lp_csv, ",");
+    lv_i = 0;
+    while (lv_i < lv_n) {
+        lv_item = CMLib_SplitAt(lp_csv, ",", lv_i);
+        if (lv_item != "") {
+            if (lp_kind == "model")      { PreloadModel(lv_item, lp_queue); lv_done += 1; }
+            else if (lp_kind == "movie") { PreloadMovie(lv_item, lp_queue); lv_done += 1; }
+            else if (lp_kind == "asset") { PreloadAsset(lv_item, lp_queue); lv_done += 1; }
+            else if (lp_kind == "image") { PreloadImage(lv_item, lp_queue); lv_done += 1; }
+            else if (lp_kind == "sound") { PreloadSound(lv_item, lp_queue); lv_done += 1; }
+        }
+        lv_i += 1;
+    }
+    return lv_done;
+}
+
+// =============================================================================
+// CMLib :: Round20 —— Cutscene 与声音同步等待（实现）
+// =============================================================================
+
+void CMLib_CutscenePlay(int lp_cutscene) {
+    if (lp_cutscene <= 0) { return; }
+    CutscenePlay(lp_cutscene);
+}
+
+bool CMLib_CutsceneBookmark(int lp_cutscene, string lp_bookmark) {
+    if (lp_cutscene <= 0) { return false; }
+    if (lp_bookmark == "") { return false; }
+    CutsceneGoToBookmark(lp_cutscene, lp_bookmark);
+    return true;
+}
+
+void CMLib_SfxWaitFrom(sound lp_sound, fixed lp_offset) {
+    fixed lv_offset;
+
+    if (lp_sound == null) { return; }
+    lv_offset = lp_offset;
+    if (lv_offset < 0.0) { lv_offset = 0.0; }
+    SoundWait(lp_sound, lv_offset, c_soundOffsetStart);
+}
+
+void CMLib_SfxWaitEnd(sound lp_sound, fixed lp_offset) {
+    fixed lv_offset;
+
+    if (lp_sound == null) { return; }
+    lv_offset = lp_offset;
+    if (lv_offset < 0.0) { lv_offset = 0.0; }
+    SoundWait(lp_sound, lv_offset, c_soundOffsetEnd);
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round22 —— Actor 层补齐
+// -----------------------------------------------------------------------------
+
+actor CMLib_ActorFrom(string lp_name) {
+    if (lp_name == "") { return null; }
+    return ActorFrom(lp_name);
+}
+
+actorscope CMLib_ActorScopeOfUnit(unit lp_unit) {
+    if (CMLib_UnitOk(lp_unit) == false) { return null; }
+    return ActorScopeFromUnit(lp_unit);
+}
+
+actor CMLib_ActorCreate(actorscope lp_scope, string lp_actorName,
+                        string lp_c1, string lp_c2, string lp_c3) {
+    if (lp_scope == null) { return null; }
+    if (lp_actorName == "") { return null; }
+    return ActorCreate(lp_scope, lp_actorName, lp_c1, lp_c2, lp_c3);
+}
+
+actor CMLib_ActorRegionCreate(actorscope lp_scope, string lp_actorName, region lp_region) {
+    if (lp_scope == null) { return null; }
+    if (lp_actorName == "") { return null; }
+    if (lp_region == null) { return null; }
+    return ActorRegionCreate(lp_scope, lp_actorName, lp_region);
+}
+
+void CMLib_ActorRegionSend(actor lp_actor, int lp_intersect, string lp_msg,
+                           string lp_filters, string lp_terms) {
+    if (lp_actor == null) { return; }
+    if (lp_msg == "") { return; }
+    ActorRegionSend(lp_actor, lp_intersect, lp_msg, lp_filters, lp_terms);
+}
+
+void CMLib_ActorSendTo(actor lp_actor, string lp_refName, string lp_msg) {
+    if (lp_actor == null) { return; }
+    if (lp_msg == "") { return; }
+    ActorSendTo(lp_actor, lp_refName, lp_msg);
+}
+
+// =============================================================================
+// Round27：sound / camerainfo 生产端
+// =============================================================================
+sound CMLib_SfxLastPlayed() {
+    return SoundLastPlayed();
+}
+
+camerainfo CMLib_CamInfoDefault() {
+    return CameraInfoDefault();
+}
+
+camerainfo CMLib_CamInfoFromId(int lp_id) {
+    if (lp_id <= 0) { return CameraInfoDefault(); }
+    return CameraInfoFromId(lp_id);
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round26 —— 过场模式 / 图像叠层 / 数据驱动过场
+// -----------------------------------------------------------------------------
+
+void CMLib_CineMode(playergroup lp_players, bool lp_on, fixed lp_duration) {
+    playergroup lv_to;
+    fixed       lv_d;
+
+    lv_to = lp_players;
+    if (lv_to == null) { lv_to = PlayerGroupActive(); }
+    lv_d = lp_duration;
+    if (lv_d < 0.0) { lv_d = 0.0; }
+    CinematicMode(lv_to, lp_on, lv_d);
+}
+
+void CMLib_CineOverlay(bool lp_fadeIn, fixed lp_duration, string lp_imagePath,
+                       fixed lp_transparency, bool lp_waitUntilDone) {
+    fixed lv_d;
+
+    // 淡入却没给图 = 调用方写错了；引擎行为未定义，宁可空操作。
+    if (lp_fadeIn == true && lp_imagePath == "") { return; }
+    lv_d = lp_duration;
+    if (lv_d < 0.0) { lv_d = 0.0; }
+    CinematicOverlay(lp_fadeIn, lv_d, lp_imagePath, lp_transparency,
+                     lp_waitUntilDone);
+}
+
+void CMLib_CineDataRun(int lp_id, playergroup lp_players, bool lp_waitUntilDone) {
+    playergroup lv_to;
+
+    if (lp_id < 0) { return; }
+    lv_to = lp_players;
+    if (lv_to == null) { lv_to = PlayerGroupActive(); }
+    CinematicDataRun(lp_id, lv_to, lp_waitUntilDone);
+}
+
+void CMLib_CineDataStop() {
+    CinematicDataStop();
+}

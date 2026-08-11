@@ -1,0 +1,402 @@
+// =============================================================================
+// CMLib :: Geo —— 实现
+// =============================================================================
+
+include "scripts/cmlib/cmlib_geo_h"
+
+// =============================================================================
+// 点：构造与坐标
+// =============================================================================
+point CMLib_PointOffset(point lp_p, fixed lp_dx, fixed lp_dy) {
+    if (lp_p == null) { return null; }
+    return PointWithOffset(lp_p, lp_dx, lp_dy);
+}
+
+fixed CMLib_PointX(point lp_p) {
+    if (lp_p == null) { return 0.0; }
+    return PointGetX(lp_p);
+}
+
+fixed CMLib_PointY(point lp_p) {
+    if (lp_p == null) { return 0.0; }
+    return PointGetY(lp_p);
+}
+
+fixed CMLib_PointHeight(point lp_p) {
+    if (lp_p == null) { return 0.0; }
+    return PointGetHeight(lp_p);
+}
+
+// =============================================================================
+// 点：关系量
+// =============================================================================
+fixed CMLib_Distance(point lp_a, point lp_b) {
+    if ((lp_a == null) || (lp_b == null)) { return 0.0; }
+    return DistanceBetweenPoints(lp_a, lp_b);
+}
+
+fixed CMLib_AngleBetween(point lp_a, point lp_b) {
+    if ((lp_a == null) || (lp_b == null)) { return 0.0; }
+    return AngleBetweenPoints(lp_a, lp_b);
+}
+
+point CMLib_PointPolar(point lp_src, fixed lp_distance, fixed lp_angleDeg) {
+    if (lp_src == null) { return null; }
+    return PointWithOffsetPolar(lp_src, lp_distance, lp_angleDeg);
+}
+
+point CMLib_PointTowards(point lp_src, point lp_tgt, fixed lp_distance) {
+    if ((lp_src == null) || (lp_tgt == null)) { return null; }
+    return PointWithOffsetPolar(lp_src, lp_distance, AngleBetweenPoints(lp_src, lp_tgt));
+}
+
+point CMLib_LerpPoint(point lp_a, point lp_b, fixed lp_t) {
+    fixed lx = 0.0;
+    fixed ly = 0.0;
+
+    if ((lp_a == null) || (lp_b == null)) { return null; }
+    lx = PointGetX(lp_a) + (PointGetX(lp_b) - PointGetX(lp_a)) * lp_t;
+    ly = PointGetY(lp_a) + (PointGetY(lp_b) - PointGetY(lp_a)) * lp_t;
+    // 以 lp_a 为基准做偏移，继承其高度，避免凭空造 Z。
+    return PointWithOffset(lp_a, lx - PointGetX(lp_a), ly - PointGetY(lp_a));
+}
+
+// =============================================================================
+// 点：寻路 / 可达
+// =============================================================================
+bool CMLib_PointPassable(point lp_p) {
+    if (lp_p == null) { return false; }
+    return PointPathingPassable(lp_p);
+}
+
+bool CMLib_PointsConnected(point lp_a, point lp_b) {
+    if ((lp_a == null) || (lp_b == null)) { return false; }
+    return PointPathingIsConnected(lp_a, lp_b);
+}
+
+point CMLib_FindPathablePoint(point lp_p, fixed lp_maxRadius) {
+    fixed lr = 2.0;
+    int  lring = 1;
+    int  lang = 0;
+    int  langMax = 12;
+    int  ringMax = 24;
+    fixed lang_deg = 0.0;
+    point lcand = null;
+
+    if (lp_p == null) { return null; }
+    if (PointPathingPassable(lp_p)) { return lp_p; }
+
+    // 螺旋外扩搜索：每圈 12 个角度，半径每圈 +2，直到 lp_maxRadius。
+    for (lring = 1; lring <= ringMax; lring += 1) {
+        for (lang = 0; lang < langMax; lang += 1) {
+            lang_deg = (IntToFixed(lang) * 360.0) / IntToFixed(langMax);
+            lcand = PointWithOffsetPolar(lp_p, lr, lang_deg);
+            if (PointPathingPassable(lcand)) { return lcand; }
+        }
+        lr = lr + 2.0;
+        if (lr > lp_maxRadius) { break; }
+    }
+    return null;
+}
+
+// =============================================================================
+// 区域：构造
+// =============================================================================
+region CMLib_RegionCircle(point lp_center, fixed lp_radius) {
+    if (lp_center == null) { return null; }
+    return RegionCircle(lp_center, lp_radius);
+}
+
+region CMLib_RegionRect(fixed lp_minx, fixed lp_miny, fixed lp_maxx, fixed lp_maxy) {
+    return RegionRect(lp_minx, lp_miny, lp_maxx, lp_maxy);
+}
+
+region CMLib_RegionEmpty() {
+    return RegionEmpty();
+}
+
+// =============================================================================
+// 区域：查询 / 修改
+// =============================================================================
+point CMLib_RegionCenter(region lp_region) {
+    if (lp_region == null) { return null; }
+    return RegionGetCenter(lp_region);
+}
+
+point CMLib_RegionRandomPoint(region lp_region) {
+    if (lp_region == null) { return null; }
+    return RegionRandomPoint(lp_region);
+}
+
+bool CMLib_RegionContains(region lp_region, point lp_p) {
+    if ((lp_region == null) || (lp_p == null)) { return false; }
+    return RegionContainsPoint(lp_region, lp_p);
+}
+
+void CMLib_RegionAddCircle(region lp_region, bool lp_positive, point lp_center, fixed lp_radius) {
+    if ((lp_region == null) || (lp_center == null)) { return; }
+    RegionAddCircle(lp_region, lp_positive, lp_center, lp_radius);
+}
+
+void CMLib_RegionAddRect(region lp_region, bool lp_positive,
+                         fixed lp_minx, fixed lp_miny, fixed lp_maxx, fixed lp_maxy) {
+    if (lp_region == null) { return; }
+    RegionAddRect(lp_region, lp_positive, lp_minx, lp_miny, lp_maxx, lp_maxy);
+}
+
+// =============================================================================
+// 生成几何：常用组合
+// =============================================================================
+point CMLib_RandomPointInRadius(point lp_center, fixed lp_radius) {
+    region lreg;
+
+    if (lp_center == null) { return null; }
+    lreg = RegionCircle(lp_center, lp_radius);
+    if (lreg == null) { return null; }
+    return RegionRandomPoint(lreg);
+}
+
+// =============================================================================
+// 单位状态：自定义值
+// =============================================================================
+fixed CMLib_UnitGetValue(unit lp_unit, int lp_index) {
+    if (lp_unit == null) { return 0.0; }
+    return UnitGetCustomValue(lp_unit, lp_index);
+}
+
+void CMLib_UnitSetValue(unit lp_unit, int lp_index, fixed lp_value) {
+    if (lp_unit == null) { return; }
+    UnitSetCustomValue(lp_unit, lp_index, lp_value);
+}
+
+// =============================================================================
+// 单位状态：行为查询
+// =============================================================================
+int CMLib_UnitBehaviorCount(unit lp_unit, string lp_behavior) {
+    if ((lp_unit == null) || (lp_behavior == "")) { return 0; }
+    return UnitBehaviorCount(lp_unit, lp_behavior);
+}
+
+bool CMLib_UnitHasBehavior(unit lp_unit, string lp_behavior) {
+    return CMLib_UnitBehaviorCount(lp_unit, lp_behavior) > 0;
+}
+
+// =============================================================================
+// round 13：点朝向 / 寻路代价 / 区域合并与包围盒
+// =============================================================================
+fixed CMLib_PointFacing(point lp_p) {
+    if ((lp_p == null)) {
+        return 0.0;
+    }
+    return PointGetFacing(lp_p);
+}
+
+void CMLib_PointSetFacing(point lp_p, fixed lp_facing) {
+    if ((lp_p == null)) {
+        return;
+    }
+    PointSetFacing(lp_p, lp_facing);
+}
+
+int CMLib_PathCost(point lp_a, point lp_b) {
+    if ((lp_a == null) || (lp_b == null)) {
+        return -1;
+    }
+    return PointPathingCost(lp_a, lp_b);
+}
+
+void CMLib_RegionAdd(region lp_target, region lp_add) {
+    if ((lp_target == null) || (lp_add == null)) {
+        return;
+    }
+    RegionAddRegion(lp_target, lp_add);
+}
+
+point CMLib_RegionBoundsMin(region lp_r) {
+    if ((lp_r == null)) {
+        return null;
+    }
+    return RegionGetBoundsMin(lp_r);
+}
+
+point CMLib_RegionBoundsMax(region lp_r) {
+    if ((lp_r == null)) {
+        return null;
+    }
+    return RegionGetBoundsMax(lp_r);
+}
+
+
+// -----------------------------------------------------------------------------
+// round 18：角度三角函数
+// -----------------------------------------------------------------------------
+
+fixed CMLib_SinDeg(fixed lp_degrees) {
+    return Sin(lp_degrees);
+}
+
+fixed CMLib_CosDeg(fixed lp_degrees) {
+    return Cos(lp_degrees);
+}
+
+fixed CMLib_NormalizeAngle(fixed lp_degrees) {
+    fixed lv_a;
+    int lv_guard;
+
+    lv_a = lp_degrees;
+    lv_guard = 0;
+    while ((lv_a < 0.0) && (lv_guard < 64)) {
+        lv_a = lv_a + 360.0;
+        lv_guard = lv_guard + 1;
+    }
+    lv_guard = 0;
+    while ((lv_a >= 360.0) && (lv_guard < 64)) {
+        lv_a = lv_a - 360.0;
+        lv_guard = lv_guard + 1;
+    }
+    return lv_a;
+}
+
+// =============================================================================
+// CMLib :: Round19 —— 实现
+// =============================================================================
+void CMLib_PlayableMapSet(region lp_r) {
+    if (lp_r == null) { return; }
+    RegionPlayableMapSet(lp_r);
+}
+
+// =============================================================================
+// CMLib :: Round20 —— 地形高度图采样（实现）
+// =============================================================================
+
+fixed CMLib_TerrainHeight(int lp_layer, point lp_p) {
+    if (lp_p == null) { return 0.0; }
+    return WorldHeight(lp_layer, lp_p);
+}
+
+fixed CMLib_GroundHeight(point lp_p) {
+    if (lp_p == null) { return 0.0; }
+    return WorldHeight(c_heightMapGround, lp_p);
+}
+
+fixed CMLib_AirHeight(point lp_p) {
+    if (lp_p == null) { return 0.0; }
+    return WorldHeight(c_heightMapAir, lp_p);
+}
+
+fixed CMLib_TerrainHeightDelta(int lp_layer, point lp_a, point lp_b) {
+    if (lp_a == null) { return 0.0; }
+    if (lp_b == null) { return 0.0; }
+    return (WorldHeight(lp_layer, lp_b) - WorldHeight(lp_layer, lp_a));
+}
+
+bool CMLib_TerrainSameLevel(int lp_layer, point lp_a, point lp_b, fixed lp_tolerance) {
+    fixed lv_delta;
+
+    if (lp_a == null) { return false; }
+    if (lp_b == null) { return false; }
+    lv_delta = (WorldHeight(lp_layer, lp_b) - WorldHeight(lp_layer, lp_a));
+    if (lv_delta < 0.0) { lv_delta = -lv_delta; }
+    return (lv_delta <= lp_tolerance);
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round26 —— 预置点/区域按名取用 + 原地改写
+// -----------------------------------------------------------------------------
+
+point CMLib_PointById(int lp_id) {
+    if (lp_id < 0) { return null; }
+    return PointFromId(lp_id);
+}
+
+point CMLib_PointByName(string lp_name) {
+    if (lp_name == "") { return null; }
+    return PointFromName(lp_name);
+}
+
+point CMLib_PointLerp(point lp_source, point lp_dest, fixed lp_fraction) {
+    fixed lv_f;
+
+    if (lp_source == null) { return null; }
+    if (lp_dest == null) { return null; }
+    lv_f = lp_fraction;
+    if (lv_f < 0.0) { lv_f = 0.0; }
+    if (lv_f > 1.0) { lv_f = 1.0; }
+    return PointInterpolate(lp_source, lp_dest, lv_f);
+}
+
+fixed CMLib_PointCliffLevel(point lp_p) {
+    if (lp_p == null) { return 0.0; }
+    return PointPathingCliffLevel(lp_p);
+}
+
+point CMLib_PointReflect(point lp_source, point lp_dest, fixed lp_angle) {
+    if (lp_source == null) { return null; }
+    if (lp_dest == null) { return null; }
+    return PointReflect(lp_source, lp_dest, lp_angle);
+}
+
+void CMLib_PointCopy(point lp_dst, point lp_src) {
+    if (lp_dst == null) { return; }
+    if (lp_src == null) { return; }
+    // 引擎口径：PointSet(p1, p2) 是"把 p2 拷进 p1"。
+    PointSet(lp_dst, lp_src);
+}
+
+void CMLib_PointSetHeight(point lp_p, fixed lp_height) {
+    if (lp_p == null) { return; }
+    PointSetHeight(lp_p, lp_height);
+}
+
+bool CMLib_PointsWithin(point lp_a, point lp_b, fixed lp_range) {
+    fixed lv_r;
+
+    if (lp_a == null) { return false; }
+    if (lp_b == null) { return false; }
+    lv_r = lp_range;
+    if (lv_r < 0.0) { lv_r = 0.0; }
+    return PointsInRange(lp_a, lp_b, lv_r);
+}
+
+void CMLib_RegionAttach(region lp_region, unit lp_unit, point lp_offset) {
+    point lv_off;
+
+    if (lp_region == null) { return; }
+    lv_off = lp_offset;
+    if (lv_off == null) { lv_off = Point(0.0, 0.0); }
+    // lp_unit == null 是官方认可的"解除跟随"，不拦。
+    RegionAttachToUnit(lp_region, lp_unit, lv_off);
+}
+
+unit CMLib_RegionAttachUnit(region lp_region) {
+    if (lp_region == null) { return null; }
+    return RegionGetAttachUnit(lp_region);
+}
+
+region CMLib_RegionById(int lp_id) {
+    if (lp_id < 0) { return null; }
+    return RegionFromId(lp_id);
+}
+
+region CMLib_RegionByName(string lp_name) {
+    if (lp_name == "") { return null; }
+    return RegionFromName(lp_name);
+}
+
+point CMLib_RegionOffset(region lp_region) {
+    if (lp_region == null) { return null; }
+    return RegionGetOffset(lp_region);
+}
+
+void CMLib_RegionSetOffset(region lp_region, point lp_offset) {
+    if (lp_region == null) { return; }
+    if (lp_offset == null) { return; }
+    RegionSetOffset(lp_region, lp_offset);
+}
+
+void CMLib_RegionSetCenter(region lp_region, point lp_center) {
+    if (lp_region == null) { return; }
+    if (lp_center == null) { return; }
+    RegionSetCenter(lp_region, lp_center);
+}

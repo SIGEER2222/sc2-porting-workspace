@@ -1,0 +1,366 @@
+// =============================================================================
+// CMLib :: Game —— 实现
+// =============================================================================
+
+// ---- 任务计时 ---------------------------------------------------------------
+
+fixed CMLib_GameMissionTime() {
+    return GameGetMissionTime();
+}
+
+int CMLib_GameMissionMinutes() {
+    fixed lv_t;
+
+    lv_t = GameGetMissionTime();
+    if (lv_t < 0.0) {
+        lv_t = 0.0;
+    }
+    return FixedToInt(lv_t) / 60;
+}
+
+int CMLib_GameMissionSeconds() {
+    fixed lv_t;
+
+    lv_t = GameGetMissionTime();
+    if (lv_t < 0.0) {
+        lv_t = 0.0;
+    }
+    return FixedToInt(lv_t) - (CMLib_GameMissionMinutes() * 60);
+}
+
+void CMLib_GameMissionTimePause(bool lp_paused) {
+    GameSetMissionTimePaused(lp_paused);
+}
+
+bool CMLib_GameMissionTimeIsPaused() {
+    return GameIsMissionTimePaused();
+}
+
+fixed CMLib_GameMissionTimeRemaining(fixed lp_deadlineSecs) {
+    fixed lv_left;
+
+    lv_left = lp_deadlineSecs - GameGetMissionTime();
+    if (lv_left < 0.0) {
+        return 0.0;
+    }
+    return lv_left;
+}
+
+bool CMLib_GameMissionTimePassed(fixed lp_secs) {
+    return GameGetMissionTime() >= lp_secs;
+}
+
+// ---- 游戏速度 / 时间缩放 -----------------------------------------------------
+
+void CMLib_GameSpeedSet(int lp_speed) {
+    GameSetSpeedValue(lp_speed);
+}
+
+int CMLib_GameSpeedGet() {
+    return GameGetSpeedValue();
+}
+
+void CMLib_GameSpeedLock(bool lp_locked) {
+    GameSetSpeedLocked(lp_locked);
+}
+
+void CMLib_GameTimeScaleSet(fixed lp_scale) {
+    fixed lv_s;
+
+    lv_s = lp_scale;
+    // 缩放为 0 会让全局时间彻底停摆且无法自恢复，钳一个下限。
+    if (lv_s < 0.01) {
+        lv_s = 0.01;
+    }
+    GameSetGlobalTimeScale(lv_s);
+}
+
+fixed CMLib_GameTimeScaleGet() {
+    return GameGetGlobalTimeScale();
+}
+
+void CMLib_GameSlowMotion(fixed lp_scale, fixed lp_holdSecs) {
+    CMLib_GameTimeScaleSet(lp_scale);
+    // 用真实时间等待：慢动作本身会拖慢游戏时间，用 c_timeGame 会等出错误时长。
+    Wait(lp_holdSecs, c_timeReal);
+    GameSetGlobalTimeScale(1.0);
+}
+
+// ---- 昼夜与光照 -------------------------------------------------------------
+
+string CMLib_GameTimeOfDayGet() {
+    return GameTimeOfDayGet();
+}
+
+void CMLib_GameTimeOfDaySet(string lp_time) {
+    GameTimeOfDaySet(lp_time);
+}
+
+void CMLib_GameTimeOfDayPause(bool lp_paused) {
+    GameTimeOfDayPause(lp_paused);
+}
+
+bool CMLib_GameTimeOfDayIsPaused() {
+    return GameTimeOfDayIsPaused();
+}
+
+void CMLib_GameTimeOfDayLength(fixed lp_secs) {
+    fixed lv_s;
+
+    lv_s = lp_secs;
+    if (lv_s < 1.0) {
+        lv_s = 1.0;
+    }
+    GameTimeOfDaySetLength(lv_s);
+}
+
+void CMLib_GameLightingSet(string lp_id, fixed lp_blendSecs) {
+    fixed lv_b;
+
+    lv_b = lp_blendSecs;
+    if (lv_b < 0.0) {
+        lv_b = 0.0;
+    }
+    GameSetLighting(lp_id, lv_b);
+}
+
+void CMLib_GameLockAmbience(string lp_timeOfDay, string lp_lightingId) {
+    if (lp_timeOfDay != "") {
+        GameTimeOfDaySet(lp_timeOfDay);
+    }
+    GameTimeOfDayPause(true);
+    if (lp_lightingId != "") {
+        GameSetLighting(lp_lightingId, 0.0);
+    }
+}
+
+// ---- 胜负 -------------------------------------------------------------------
+
+void CMLib_GameEndForPlayer(int lp_player, int lp_endType, bool lp_showDialog,
+                            bool lp_showScore) {
+    if (!CMLib_IsValidPlayerSlot(lp_player)) {
+        CMLib_LogWarn("game", "GameEndForPlayer: 非法玩家槽位");
+        return;
+    }
+    GameOver(lp_player, lp_endType, lp_showDialog, lp_showScore);
+}
+
+void CMLib_GameEndForPlayers(playergroup lp_players, int lp_endType,
+                             bool lp_showDialog, bool lp_showScore) {
+    int lv_i;
+    int lv_n;
+
+    if (lp_players == null) {
+        return;
+    }
+    lv_n = PlayerGroupCount(lp_players);
+    lv_i = 1;                       // PlayerGroupPlayer 索引从 1 开始
+    while (lv_i <= lv_n) {
+        CMLib_GameEndForPlayer(PlayerGroupPlayer(lp_players, lv_i), lp_endType,
+                               lp_showDialog, lp_showScore);
+        lv_i = lv_i + 1;
+    }
+}
+
+void CMLib_GameVictory(int lp_player) {
+    CMLib_GameEndForPlayer(lp_player, CMLIB_END_VICTORY, true, true);
+}
+
+void CMLib_GameDefeat(int lp_player) {
+    CMLib_GameEndForPlayer(lp_player, CMLIB_END_DEFEAT, true, true);
+}
+
+void CMLib_GameEndAllActive(int lp_endType) {
+    int lv_p;
+
+    lv_p = CMLIB_PLAYER_MIN;
+    while (lv_p <= CMLIB_PLAYER_MAX) {
+        if (CMLib_IsActivePlayer(lv_p)) {
+            GameOver(lv_p, lp_endType, true, true);
+        }
+        lv_p = lv_p + 1;
+    }
+}
+
+// ---- 作弊 / 调试 -------------------------------------------------------------
+
+bool CMLib_GameCheatsOn(int lp_category) {
+    return GameCheatsEnabled(lp_category);
+}
+
+bool CMLib_GameDevMode() {
+    return GameCheatsEnabled(CMLIB_CHEAT_DEV);
+}
+
+bool CMLib_GameDebugAllowed(string lp_optionName, int lp_player) {
+    if (!GameCheatsEnabled(CMLIB_CHEAT_DEV)) {
+        return false;
+    }
+    if (lp_optionName == "") {
+        return true;
+    }
+    return GameIsDebugOptionSet(lp_optionName, lp_player);
+}
+
+// ---- 视野 / 迷雾 -------------------------------------------------------------
+
+void CMLib_VisReveal(int lp_player, region lp_area, fixed lp_durationSecs) {
+    fixed lv_d;
+
+    if (lp_area == null) {
+        CMLib_LogWarn("game", "VisReveal: 区域为空");
+        return;
+    }
+    lv_d = lp_durationSecs;
+    if (lv_d < 0.0) {
+        lv_d = 0.0;   // 引擎约定：0 = 永久
+    }
+    VisRevealArea(lp_player, lp_area, lv_d, false);
+}
+
+void CMLib_VisRevealPermanent(int lp_player, region lp_area) {
+    CMLib_VisReveal(lp_player, lp_area, 0.0);
+}
+
+void CMLib_VisExplore(int lp_player, region lp_area, bool lp_explored) {
+    if (lp_area == null) {
+        return;
+    }
+    VisExploreArea(lp_player, lp_area, lp_explored, false);
+}
+
+void CMLib_VisHide(int lp_player, region lp_area) {
+    if (lp_area == null) {
+        return;
+    }
+    VisFillArea(lp_player, lp_area, CMLIB_VIS_MASK, false);
+}
+
+void CMLib_VisRevealForPlayers(playergroup lp_players, region lp_area,
+                               fixed lp_durationSecs) {
+    int lv_i;
+    int lv_n;
+
+    if (lp_players == null) {
+        return;
+    }
+    lv_n = PlayerGroupCount(lp_players);
+    lv_i = 1;                       // PlayerGroupPlayer 索引从 1 开始
+    while (lv_i <= lv_n) {
+        CMLib_VisReveal(PlayerGroupPlayer(lp_players, lv_i), lp_area,
+                        lp_durationSecs);
+        lv_i = lv_i + 1;
+    }
+}
+
+bool CMLib_VisIsVisible(int lp_player, point lp_pos) {
+    if (lp_pos == null) {
+        return false;
+    }
+    return VisIsVisibleForPlayer(lp_player, lp_pos);
+}
+
+void CMLib_VisFogEnable(bool lp_enable) {
+    VisEnable(CMLIB_VIS_FOG, lp_enable);
+}
+
+void CMLib_VisMaskEnable(bool lp_enable) {
+    VisEnable(CMLIB_VIS_MASK, lp_enable);
+}
+
+void CMLib_VisRevealMapForPlayer(int lp_player) {
+    region lv_map;
+
+    lv_map = RegionPlayableMap();
+    if (lv_map == null) {
+        CMLib_LogWarn("game", "VisRevealMapForPlayer: 可玩区域不可用");
+        return;
+    }
+    VisExploreArea(lp_player, lv_map, true, false);
+    VisRevealArea(lp_player, lv_map, 0.0, false);
+}
+
+// ---- 揭示器 -----------------------------------------------------------------
+
+revealer CMLib_RevealerCreate(int lp_player, region lp_area) {
+    if (lp_area == null) {
+        CMLib_LogWarn("game", "RevealerCreate: 区域为空");
+        return null;
+    }
+    return VisRevealerCreate(lp_player, lp_area);
+}
+
+void CMLib_RevealerEnable(revealer lp_r, bool lp_enable) {
+    if (lp_r == null) {
+        return;
+    }
+    VisRevealerEnable(lp_r, lp_enable);
+}
+
+void CMLib_RevealerDestroy(revealer lp_r) {
+    if (lp_r == null) {
+        return;
+    }
+    VisRevealerDestroy(lp_r);
+}
+
+void CMLib_RevealerRefresh(revealer lp_r) {
+    if (lp_r == null) {
+        return;
+    }
+    VisRevealerUpdate(lp_r);
+}
+
+// ---- 蔓延（Creep）------------------------------------------------------------
+
+void CMLib_CreepAdd(point lp_pos, fixed lp_radius, bool lp_permanent) {
+    if (lp_pos == null || lp_radius <= 0.0) {
+        return;
+    }
+    CreepModify(lp_pos, lp_radius, true, lp_permanent);
+}
+
+void CMLib_CreepRemove(point lp_pos, fixed lp_radius) {
+    if (lp_pos == null || lp_radius <= 0.0) {
+        return;
+    }
+    CreepModify(lp_pos, lp_radius, false, false);
+}
+
+bool CMLib_CreepAt(point lp_pos) {
+    if (lp_pos == null) {
+        return false;
+    }
+    return CreepIsPresent(lp_pos);
+}
+
+void CMLib_CreepSpeedSet(int lp_speedType, fixed lp_percent) {
+    fixed lv_p;
+
+    lv_p = lp_percent;
+    if (lv_p < 0.0) {
+        lv_p = 0.0;
+    }
+    CreepSetSpeed(lp_speedType, lv_p);
+}
+
+// =============================================================================
+// CMLib :: Round19 —— 实现
+// =============================================================================
+void CMLib_GameBackground(int lp_type, string lp_model, fixed lp_animSpeed) {
+    if (lp_model == "") { return; }
+    GameSetBackground(CMLib_ClampInt(lp_type, c_backgroundFixed, c_backgroundTerrain),
+                      lp_model, lp_animSpeed);
+}
+
+void CMLib_GameCheat(int lp_cheat, bool lp_allow) {
+    GameCheatAllow(lp_cheat, lp_allow);
+}
+
+bool CMLib_GameOnline() {
+    return GameIsOnline();
+}
+
+bool CMLib_GameTestMap(bool lp_auto) {
+    return GameIsTestMap(lp_auto);
+}

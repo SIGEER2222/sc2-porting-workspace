@@ -1,0 +1,188 @@
+// =============================================================================
+// CMLib :: Geo —— 几何 / 寻路 / 单位状态
+//
+// 来源：各 mod 中 Point* / Region* 调用超 1.9 万次，但几乎全是「手写偏移 +
+// 手写距离公式 + 手写螺旋寻路」的重复样板；且：
+//   * 距离 / 角度自己用 sqrt / atan 重写（错精度、错象限）；
+//   * 「在半径内随机一点」各处用 RegionCircle + RegionRandomPoint 拼，
+//     但 RegionEmpty + AddCircle 的生命周期没人管；
+//   * 生成点落在悬崖/建筑里时，没做可达性回退，单位卡死；
+//   * UnitGetCustomValue / UnitSetCustomValue 是最常用的「挂数据」手段，
+//     但每个 mod 都裸调、索引常量各写各的。
+//
+// 本模块统一：点偏移 / 距离 / 角度 / 极坐标 / 线性插值 / 高度 / 可达性；
+// 区域构造（圆 / 矩形 / 空）与查询；半径随机点、最近可达点回退；
+// 单位自定义值读写与行为存在性查询。
+//
+// 坐标约定：fixed，地图坐标；角度单位 = 度（与 AngleBetweenPoints 一致）。
+// 颜色 / 文本相关见 cmlib_text；单位生成 / 行为增删见 cmlib_unit。
+//
+// 依赖：cmlib_core_h（日志 / 数值工具）
+// =============================================================================
+
+include "scripts/cmlib/cmlib_core_h"
+
+// ---- 点：构造与坐标 ---------------------------------------------------------
+// 相对偏移（x 向右、y 向上），返回新点。
+point CMLib_PointOffset(point lp_p, fixed lp_dx, fixed lp_dy);
+// 点的 X / Y 分量。
+fixed CMLib_PointX(point lp_p);
+fixed CMLib_PointY(point lp_p);
+// 点所在位置的地形高度（用于贴地生成 / 飞行单位落地）。
+fixed CMLib_PointHeight(point lp_p);
+
+// ---- 点：关系量 -------------------------------------------------------------
+// 两点欧氏距离。
+fixed CMLib_Distance(point lp_a, point lp_b);
+// 从 a 指向 b 的角度（度，0 = +X 轴，逆时针为正）。
+fixed CMLib_AngleBetween(point lp_a, point lp_b);
+// 以 lp_src 为原点、给定距离与角度求得的新点。
+point CMLib_PointPolar(point lp_src, fixed lp_distance, fixed lp_angleDeg);
+// 从 lp_src 朝 lp_tgt 方向走 lp_distance 距离得到的新点。
+point CMLib_PointTowards(point lp_src, point lp_tgt, fixed lp_distance);
+// 线性插值：lp_t=0 返回 a，lp_t=1 返回 b（高度取 a 的高度；如需贴地由调用方处理）。
+point CMLib_LerpPoint(point lp_a, point lp_b, fixed lp_t);
+
+// ---- 点：寻路 / 可达 --------------------------------------------------------
+// 该点是否可通行（不在悬崖/建筑内部）。
+bool CMLib_PointPassable(point lp_p);
+// 两点之间是否连通（可走路径存在）。用于判断目标是否可达。
+bool CMLib_PointsConnected(point lp_a, point lp_b);
+// 找一个离 lp_p 最近的可达点：先试本身，再螺旋外扩到 lp_maxRadius，
+// 找不到返回 null。生成单位 / 放特效前的兜底。
+point CMLib_FindPathablePoint(point lp_p, fixed lp_maxRadius);
+
+// ---- 区域：构造 -------------------------------------------------------------
+// 圆形区域（正）。用完记得 RegionDestroy 释放（见 CMLib_RegionFree）。
+region CMLib_RegionCircle(point lp_center, fixed lp_radius);
+// 矩形区域（minx,miny 到 maxx,maxy）。
+region CMLib_RegionRect(fixed lp_minx, fixed lp_miny, fixed lp_maxx, fixed lp_maxy);
+// 空区域（可后续用 Add* 累积）。
+// 注意：区域句柄由引擎垃圾回收，没有显式的 Destroy 原生函数，不要手动释放；
+// 短生命周期的查询区域（如 CMLib_RandomPointInRadius 内部）直接丢弃即可。
+region CMLib_RegionEmpty();
+
+// ---- 区域：查询 / 修改 ------------------------------------------------------
+// 区域中心点。
+point CMLib_RegionCenter(region lp_region);
+// 区域内随机一点（用于刷兵 / 投放）。
+point CMLib_RegionRandomPoint(region lp_region);
+// 点是否落在区域内。
+bool  CMLib_RegionContains(region lp_region, point lp_p);
+// 往区域里加 / 抠一个圆（lp_positive = true 加，false 抠）。
+void  CMLib_RegionAddCircle(region lp_region, bool lp_positive, point lp_center, fixed lp_radius);
+// 往区域里加 / 抠一个矩形。
+void  CMLib_RegionAddRect(region lp_region, bool lp_positive,
+                          fixed lp_minx, fixed lp_miny, fixed lp_maxx, fixed lp_maxy);
+
+// ---- 生成几何：常用组合 -----------------------------------------------------
+// 以 lp_center 为圆心、半径 lp_radius 内随机一点（RegionCircle + RegionRandomPoint）。
+point CMLib_RandomPointInRadius(point lp_center, fixed lp_radius);
+
+// ---- 单位状态：自定义值 -----------------------------------------------------
+// 读写单位的「自定义值槽」（UnitGetCustomValue / UnitSetCustomValue 的语义化封装）。
+// 索引 lp_index 需与同工程约定一致（建议用具名常量，别裸写数字）。
+fixed CMLib_UnitGetValue(unit lp_unit, int lp_index);
+void  CMLib_UnitSetValue(unit lp_unit, int lp_index, fixed lp_value);
+
+// ---- 单位状态：行为查询 -----------------------------------------------------
+// 单位身上某行为当前层数（0 表示没有）。
+int  CMLib_UnitBehaviorCount(unit lp_unit, string lp_behavior);
+// 单位是否拥有某行为（层数 > 0）。
+bool CMLib_UnitHasBehavior(unit lp_unit, string lp_behavior);
+
+// ---- round 13：点朝向 / 寻路代价 / 区域合并与包围盒（真实缺口补齐）---------
+// 点自带的朝向（度）。null 返回 0.0。
+fixed CMLib_PointFacing(point lp_p);
+// 设置点自带朝向（度）。生成单位时用它统一朝向，避免每处手传 facing。
+void  CMLib_PointSetFacing(point lp_p, fixed lp_facing);
+// 两点间寻路代价（不可达 / null 返回 -1）。用于生成点可达性预检。
+int   CMLib_PathCost(point lp_a, point lp_b);
+// 把 lp_add 并入 lp_target（原地修改 lp_target）。任一为 null 安全返回。
+void  CMLib_RegionAdd(region lp_target, region lp_add);
+// 区域包围盒左下 / 右上角点。null 返回 null。
+point CMLib_RegionBoundsMin(region lp_r);
+point CMLib_RegionBoundsMax(region lp_r);
+
+
+// ---- round 18：角度三角函数（SC2 用「度」不是弧度，是真实陷阱）------------------
+// 各 mod 里 Sin/Cos 合计 395 次调用，全部按角度制。用这两个包装避免有人
+// 顺手套 Radians/Degrees 转换转两次。
+fixed CMLib_SinDeg(fixed lp_degrees);
+fixed CMLib_CosDeg(fixed lp_degrees);
+// 把任意角度规整到 [0, 360)。做朝向插值/转向判定前必须先规整，否则
+// 359 度和 1 度会被当成"差 358 度"。
+fixed CMLib_NormalizeAngle(fixed lp_degrees);
+
+// =============================================================================
+// CMLib :: Round19 —— 可玩区域设置
+// =============================================================================
+// 收缩/扩张可玩地图范围（迷雾、镜头边界、单位出生合法性都跟着它走）。
+void CMLib_PlayableMapSet(region lp_r);
+
+// =============================================================================
+// CMLib :: Round20 —— 地形高度图采样
+//
+// CMLib_PointHeight 读的是 point 自带的高度分量（点被创建时钉住的值），
+// 而 CMLib_TerrainHeight 是**实时**去采样地形高度图 —— 悬崖、可破坏地形、
+// 剧情中被抬升/下沉的地块，只有后者能读到当前真实值。
+//
+// lp_layer 传引擎常量：c_heightMapGround（地表）/ c_heightMapAir（空中层）/
+// c_heightMapGlide（滑翔层，虫族地面单位与部分飞行单位吃这一层）。
+// 本库不复制这三个常量的数值 —— 直接引用引擎符号，值变了也跟着变。
+// =============================================================================
+
+fixed CMLib_TerrainHeight(int lp_layer, point lp_p);
+// 便捷版：地表层 / 空中层，省得每次记常量名。
+fixed CMLib_GroundHeight(point lp_p);
+fixed CMLib_AirHeight(point lp_p);
+// 两点在同一高度图层上的高度差（b - a）；用来判断"上坡还是下坡"。
+fixed CMLib_TerrainHeightDelta(int lp_layer, point lp_a, point lp_b);
+// 两点是否算同一层平地（高度差在 lp_tolerance 内）。悬崖判定的常用写法。
+bool  CMLib_TerrainSameLevel(int lp_layer, point lp_a, point lp_b, fixed lp_tolerance);
+
+
+// =============================================================================
+// CMLib :: Round26 —— 编辑器预置点/区域的按名取用 + 点区域的原地改写
+//
+// 补的是两类刚需：
+//   1. 编辑器里摆好的 Point / Region，脚本侧只能靠 *FromName / *FromId 取，
+//      之前整族没进库，各 mod 只能裸调。
+//   2. point / region 是**引用型句柄**，引擎提供了原地改写（PointSet /
+//      PointSetHeight / RegionSetOffset / RegionSetCenter / RegionAttachToUnit）。
+//      裸调最容易踩的坑是「以为拿到副本、实际改了别人手里的同一个对象」，
+//      所以这里把命名写成动词明确的形态（Copy / SetXxx / Attach）。
+//
+// 命名口径：CMLib_PointCopy(dst, src) 语义 = 把 src 的坐标写进 dst，
+// 对应引擎 PointSet(p1, p2)（p2 拷进 p1）。参数顺序刻意写成"目标在前"，
+// 跟赋值语句读起来一致，避免记反。
+// =============================================================================
+
+// 编辑器预置点：按 id / 按名取；取不到返回 null。
+point  CMLib_PointById(int lp_id);
+point  CMLib_PointByName(string lp_name);
+// 线性插值：fraction 0 = source，1 = dest（自动夹到 [0,1]）。
+point  CMLib_PointLerp(point lp_source, point lp_dest, fixed lp_fraction);
+// 该点所在的悬崖层高；点为 null 返回 0。
+fixed  CMLib_PointCliffLevel(point lp_p);
+// 以 dest 为轴、按角度镜像 source；任一为 null 返回 null。
+point  CMLib_PointReflect(point lp_source, point lp_dest, fixed lp_angle);
+// 原地拷贝：把 lp_src 的坐标写进 lp_dst（**会改 lp_dst 指向的对象**）。
+void   CMLib_PointCopy(point lp_dst, point lp_src);
+// 原地改高度。
+void   CMLib_PointSetHeight(point lp_p, fixed lp_height);
+// 两点是否在给定距离内；range 负值按 0（等价于"必须重合"）。
+bool   CMLib_PointsWithin(point lp_a, point lp_b, fixed lp_range);
+
+// 区域跟随单位：offset 为 null 按零偏移；unit 传 null = 解除跟随（官方语义）。
+void   CMLib_RegionAttach(region lp_region, unit lp_unit, point lp_offset);
+// 当前跟随的单位；没有则 null。
+unit   CMLib_RegionAttachUnit(region lp_region);
+// 编辑器预置区域：按 id / 按名取；取不到返回 null。
+region CMLib_RegionById(int lp_id);
+region CMLib_RegionByName(string lp_name);
+// 区域整体偏移量读写。
+point  CMLib_RegionOffset(region lp_region);
+void   CMLib_RegionSetOffset(region lp_region, point lp_offset);
+// 把区域整体挪到以某点为中心（引擎内部换算成 offset）。
+void   CMLib_RegionSetCenter(region lp_region, point lp_center);

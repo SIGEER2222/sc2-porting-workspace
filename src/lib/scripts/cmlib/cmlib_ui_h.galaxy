@@ -1,0 +1,191 @@
+// =============================================================================
+// CMLib :: UI
+// Dialog / DialogControl 的挂钩、创建与「空值安全」属性设置。
+//
+// 解决的重复：
+//   1) DialogControlHookup(...) 后必跟 DialogControlLastCreated()  —— 370+ 处
+//   2) 每次设置属性前手写 if (control != c_invalidDialogControlId) —— 200+ 处
+//   3) 索引化子控件 "Item" + IntToString(i) 的循环挂钩             —— 数十处
+//   4) 创建控件后连写 SetPosition / SetSize / SetVisible          —— 490+ 处
+// =============================================================================
+
+// ---- 批量操作用的数组类型 ----------------------------------------------------
+// Galaxy 不支持 `int[]` 形参，批量接口必须走 arrayref<具名数组 typedef>。
+// 调用方直接用 CMLib_UIControlArray 声明控件数组即可传入。
+const int CMLIB_UI_ARRAY_MAX = 64;
+typedef int[CMLIB_UI_ARRAY_MAX] CMLib_UIControlArray;
+
+// ---- 有效性 -----------------------------------------------------------------
+bool CMLib_UIValid(int lp_control);
+
+// ---- 挂钩（hookup）：返回控件 id，失败返回 c_invalidDialogControlId ------------
+// 父控件无效时直接短路返回 invalid，不会抛脚本错误。
+int CMLib_UIHookup(int lp_parent, int lp_type, string lp_name);
+// 挂钩索引化子控件，等价于 CMLib_UIHookup(parent, type, prefix + IntToString(index))。
+int CMLib_UIHookupIndexed(int lp_parent, int lp_type, string lp_prefix, int lp_index);
+// 从根屏幕挂钩（对应 DialogControlHookupStandard）。
+int CMLib_UIHookupStandard(int lp_type, string lp_name);
+// 常用类型的语义化包装。
+int CMLib_UIHookupPanel(int lp_parent, string lp_name);
+int CMLib_UIHookupButton(int lp_parent, string lp_name);
+int CMLib_UIHookupLabel(int lp_parent, string lp_name);
+int CMLib_UIHookupImage(int lp_parent, string lp_name);
+
+// ---- 创建 -------------------------------------------------------------------
+int CMLib_UICreateInPanel(int lp_parent, int lp_type);
+int CMLib_UICreateFromTemplate(int lp_parent, int lp_type, string lp_template);
+
+// ---- 属性设置（全部内建有效性检查，控件无效时静默跳过）------------------------
+void CMLib_UISetText(int lp_control, playergroup lp_players, text lp_text);
+void CMLib_UISetTooltip(int lp_control, playergroup lp_players, text lp_text);
+void CMLib_UISetImage(int lp_control, playergroup lp_players, string lp_image);
+void CMLib_UISetColor(int lp_control, playergroup lp_players, color lp_color);
+void CMLib_UISetToggled(int lp_control, playergroup lp_players, bool lp_toggled);
+void CMLib_UISetVisible(int lp_control, playergroup lp_players, bool lp_visible);
+void CMLib_UISetEnabled(int lp_control, playergroup lp_players, bool lp_enabled);
+void CMLib_UISetSize(int lp_control, playergroup lp_players, int lp_width, int lp_height);
+void CMLib_UISetPosition(int lp_control, playergroup lp_players, int lp_anchor, int lp_offsetX, int lp_offsetY);
+void CMLib_UISetPositionRelative(int lp_control, playergroup lp_players, int lp_anchor, int lp_relative, int lp_relativeAnchor, int lp_offsetX, int lp_offsetY);
+void CMLib_UISetAnimationState(int lp_control, playergroup lp_players, string lp_stateGroup, string lp_state);
+void CMLib_UISetRenderPriority(int lp_control, playergroup lp_players, int lp_priority);
+
+// ---- 组合操作（一次调用替代 3~4 行样板）--------------------------------------
+// 创建 + 定位 + 尺寸；返回控件 id。
+int  CMLib_UICreatePlaced(int lp_parent, int lp_type, playergroup lp_players, int lp_anchor, int lp_offsetX, int lp_offsetY, int lp_width, int lp_height);
+// 同时设置可见与可用，常见于「面板整体启停」。
+void CMLib_UISetActive(int lp_control, playergroup lp_players, bool lp_active);
+// 批量设置一组控件的可见性（数组 + 长度）。lp_count 会自动钳制到 CMLIB_UI_ARRAY_MAX。
+void CMLib_UISetVisibleRange(arrayref<CMLib_UIControlArray> lp_controls, int lp_count, playergroup lp_players, bool lp_visible);
+
+// ---- 列表控件 ---------------------------------------------------------------
+void CMLib_UIListClear(int lp_control, playergroup lp_players);
+void CMLib_UIListAddItem(int lp_control, playergroup lp_players, text lp_value);
+void CMLib_UIListSelect(int lp_control, playergroup lp_players, int lp_index);
+
+// ---- 事件 -------------------------------------------------------------------
+// 为控件注册点击事件；控件无效或 trigger 为 null 时静默跳过，返回是否成功注册。
+bool CMLib_UIOnClick(trigger lp_trigger, int lp_control);
+// 为一组控件批量注册点击事件，返回成功注册数量。
+int  CMLib_UIOnClickRange(trigger lp_trigger, arrayref<CMLib_UIControlArray> lp_controls, int lp_count);
+
+// ---- HUD 消息区（UIDisplayMessage 族）---------------------------------------
+// 原生 UIDisplayMessage 在 1100+ 处被直接调用，每处都要手写 playergroup 与区域常量。
+// 这里给出「区域语义化 + 全员/单人快捷」两层封装；players 传 null 时自动视为全员，
+// 避免最常见的空 playergroup 静默丢消息。
+void CMLib_Msg(playergroup lp_players, int lp_area, text lp_message);
+void CMLib_MsgAll(int lp_area, text lp_message);
+void CMLib_MsgPlayer(int lp_player, int lp_area, text lp_message);
+void CMLib_MsgClear(playergroup lp_players, int lp_area);
+void CMLib_MsgClearAll();
+// 语义化快捷（区域常量已内置，调用点不必再记 c_messageArea*）
+void CMLib_MsgObjective(playergroup lp_players, text lp_message);
+void CMLib_MsgDirective(playergroup lp_players, text lp_message);
+void CMLib_MsgError(playergroup lp_players, text lp_message);
+void CMLib_MsgSubtitle(playergroup lp_players, text lp_message);
+void CMLib_MsgWarning(playergroup lp_players, text lp_message);
+
+// ---- 警报（UIAlertPoint / UIAlertUnit）---------------------------------------
+// point / unit 为空时原生会抛脚本错误，这里前置守门后静默跳过。
+void CMLib_AlertAtPoint(string lp_alert, int lp_player, text lp_message, string lp_icon, point lp_p);
+void CMLib_AlertAtUnit(string lp_alert, int lp_player, text lp_message, string lp_icon, unit lp_unit);
+
+// ---- 透明度淡变 / 动画事件 ----------------------------------------------------
+// 【语义坑】SC2 的 transparency：0.0 = 完全不透明，1.0 = 完全透明（与直觉相反）。
+// CMLib_UIFadeIn/Out 按「视觉直觉」命名：FadeIn = 淡入可见 = 目标 0.0。
+void CMLib_UIFade(int lp_control, playergroup lp_players, fixed lp_seconds, fixed lp_targetTransparency);
+void CMLib_UIFadeIn(int lp_control, playergroup lp_players, fixed lp_seconds);
+void CMLib_UIFadeOut(int lp_control, playergroup lp_players, fixed lp_seconds);
+void CMLib_UIAnimEvent(int lp_control, playergroup lp_players, string lp_eventName);
+
+// ---- 原生 HUD 框架显隐（UISetFrameVisible / UISetWorldVisible）-----------------
+void CMLib_HudFrame(playergroup lp_players, int lp_frameType, bool lp_visible);
+void CMLib_HudFrameAll(int lp_frameType, bool lp_visible);
+// 批量：frameSpec 为逗号分隔的框架类型序号，例如 "21,22,6"（小地图/命令面板/资源栏）。
+// 返回实际应用的框架数量。
+int  CMLib_HudFrameCSV(playergroup lp_players, string lp_frameSpec, bool lp_visible);
+// 过场模式：一次性隐藏/恢复核心 HUD（菜单栏、资源、补给、小地图、命令面板、
+// 信息面板、控制台、编队栏、闲置工人、部队按钮、任务目标、警报面板）。
+void CMLib_HudCinematic(playergroup lp_players, bool lp_cinematicOn);
+void CMLib_HudWorldVisible(playergroup lp_players, bool lp_visible);
+
+// ---- round 17：UI 模式 / 高亮 / 光标 -------------------------------------------
+// UI 模式切换（c_uiModeFullscreen / Letterboxed / Console），原工程 392 次调用。
+void CMLib_UISetMode(playergroup lp_players, int lp_mode, fixed lp_duration);
+// 瞬时切换的糖。
+void CMLib_UIMode(playergroup lp_players, int lp_mode);
+// 三种模式的语义化入口。
+void CMLib_UIModeConsole(playergroup lp_players, fixed lp_duration);
+void CMLib_UIModeLetterbox(playergroup lp_players, fixed lp_duration);
+void CMLib_UIModeFullscreen(playergroup lp_players, fixed lp_duration);
+// 高亮指挥面板上某个技能按钮（新手引导 312 次调用）。
+void CMLib_UIButtonHighlight(playergroup lp_players, string lp_ability,
+                             int lp_cmdIndex, bool lp_highlight);
+// 鼠标指针显隐。
+void CMLib_UICursor(playergroup lp_players, bool lp_visible);
+// 允许 / 禁止某种选择方式（框选、双击同类等）。
+void CMLib_UISelectionType(playergroup lp_players, int lp_selectionType, bool lp_enabled);
+
+
+// ---- round 18：Dialog 控件族（面板效果真实缺口）--------------------------------
+// 直接在对话框上建控件。原生 `DialogControlCreate` 在 78 个 mod 文件里 537 次调用，
+// 是最常用的面板构造入口，而库里此前只有 InPanel 变体（要求先有一个 panel 容器）。
+// dialog 无效（<=0，多半是 DialogCreate 失败或还没建）时返回 0 而不是把无效 id 传下去。
+int  CMLib_DlgCtrlCreate(int lp_dialog, int lp_type);
+// 带模板版本；模板名传 "" 时自动退化成无模板创建（模板名拼错在真机是静默无样式）。
+int  CMLib_DlgCtrlCreateTpl(int lp_dialog, int lp_type, string lp_template);
+// 取列表框/下拉框当前选中项（1-based；无效控件返回 0）。
+int  CMLib_DlgCtrlSelectedItem(int lp_control, int lp_player);
+// 让控件铺满整个对话框（做全屏面板的常用姿势）。players 传 null = 所有玩家。
+void CMLib_DlgCtrlFullDialog(int lp_control, playergroup lp_players, bool lp_full);
+// 销毁单个控件（无效 id 直接忽略，避免"销毁两次"崩掉）。
+void CMLib_DlgCtrlDestroy(int lp_control);
+// 高亮指挥面板上某个按钮 face（新手引导/教学关高频）。players 传 null = 所有玩家。
+void CMLib_UIFaceHighlight(playergroup lp_players, string lp_face, bool lp_highlight);
+
+// =============================================================================
+// CMLib :: Round20 —— 面板效果补完
+//
+// 覆盖三件事：
+//   1. Dialog 控件的**反查**（可见性 / 属于哪个对话框 / 挂靠单位状态框架）
+//   2. 命令面板开关（c_uiCommandAllow*，做教学关锁操作的正规姿势）
+//   3. 目标选择模式（UISetTargetingOrder，自定义技能施法圈）与警报清理
+// =============================================================================
+
+// ---- Dialog 控件反查 ----------------------------------------------------------
+// 控件 id 非法（<=c_invalidDialogControlId）一律 false / 0，不去问引擎。
+bool CMLib_DlgCtrlVisible(int lp_control, int lp_player);
+int  CMLib_DlgCtrlDialog(int lp_control);
+// 把 XML 里定义的单位状态框架挂成脚本可控的控件；失败返回 c_invalidDialogControlId。
+int  CMLib_DlgHookupUnitStatus(int lp_type, string lp_template, unit lp_unit);
+
+// ---- 命令面板开关 -------------------------------------------------------------
+// option 取 c_uiCommandAllowButtons / Hotkeys / SmartClick / Modifiers /
+//            InfoPanel / Minimap / Pings / ModifiersSmartCtrlAttack /
+//            InventoryTargeting
+void CMLib_UICommandAllow(playergroup lp_players, int lp_option, bool lp_allow);
+// 一次性开关全部 9 项（教学关「先锁死再逐项放开」的常用起手式）。
+void CMLib_UICommandAllowAll(playergroup lp_players, bool lp_allow);
+
+// ---- 目标选择模式 / 警报 -------------------------------------------------------
+// 强制玩家进入某个命令的目标选择态；sticky=true 时施放后不退出（连点施法）。
+void CMLib_UITargetOrder(playergroup lp_players, unitgroup lp_units, order lp_order,
+                         bool lp_sticky);
+void CMLib_UIAlertClear(int lp_player);
+void CMLib_UIAlertClearAll();
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round22 —— 面板主线：警报开关 / 文字滚屏 / 游戏菜单项 / 控件观察
+// -----------------------------------------------------------------------------
+// 单类警报的显示开关（如屏蔽"你的部队受到攻击"）。
+void CMLib_UIAlertTypeVisible(playergroup lp_players, string lp_alert, bool lp_visible);
+// 片头式文字滚屏。soundlink 允许传 null（无音效）。
+void CMLib_UITextCrawlShow(playergroup lp_players, text lp_title, text lp_text,
+                           fixed lp_maxTime, soundlink lp_birth, soundlink lp_type);
+void CMLib_UITextCrawlHide(playergroup lp_players);
+// c_gameMenuDialog* 菜单项显隐（如屏蔽"放弃"按钮）。
+void CMLib_UIGameMenuItemVisible(playergroup lp_players, int lp_menuItemType, bool lp_visible);
+// 让控件观察某类对象。引擎未导出对应常量族，观察类型由数据层定义，只能传裸 int。
+void CMLib_DCObservedType(int lp_control, int lp_observedType);
+// 取控件在某玩家视角下的相对控件；控件无效返回 c_invalidDialogControlId。
+int  CMLib_DCRelative(int lp_control, int lp_player);

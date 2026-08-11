@@ -1,0 +1,178 @@
+// =============================================================================
+// CMLib :: Catalog
+// 运行时 Catalog 字段读写 —— 单位 / 武器 / 效果 / 行为 / 技能 / 按钮。
+//
+// 解决的重复：
+//   工程里 CatalogFieldValueModify(...) 出现 2700+ 次（仅 reborn 系列），
+//   典型写法是逐条硬编码 catalog id、字段路径、字符串化的数值和 operation。
+//   常见坑：
+//     1) 数值必须先 FixedToString / IntToString，写错精度会静默截断
+//     2) 数组字段路径 "Field[0].Sub" 手拼易错
+//     3) 返回值 bool 基本没人检查 —— 条目名打错就静默失效
+//   本模块统一：类型化入参 + 路径构造 + 失败落日志。
+//
+// 依赖：cmlib_core_h（日志 / 数值工具）
+// =============================================================================
+
+// ---- 修改模式（对 c_upgradeOperation* 的语义化别名）---------------------------
+// 原生常量定义在 GameData/Upgrade.galaxy：
+//   Add=0 Subtract=1 AddBaseMultiply=2 SubtractBaseMultiply=3 Multiply=4 Divide=5 Set=6
+const int CMLIB_CAT_ADD      = c_upgradeOperationAdd;
+const int CMLIB_CAT_SUB      = c_upgradeOperationSubtract;
+const int CMLIB_CAT_MUL      = c_upgradeOperationMultiply;
+const int CMLIB_CAT_DIV      = c_upgradeOperationDivide;
+const int CMLIB_CAT_SET      = c_upgradeOperationSet;
+// 以「基础值的倍数」加减，是平衡数值最常用的一档（+50% 基础攻击等）。
+const int CMLIB_CAT_ADD_BASE = c_upgradeOperationAddBaseMultiply;
+const int CMLIB_CAT_SUB_BASE = c_upgradeOperationSubtractBaseMultiply;
+
+// ---- 字段路径构造 ------------------------------------------------------------
+// "Field[index]"
+string CMLib_CatPathIndex(string lp_field, int lp_index);
+// "Field[index].Sub"
+string CMLib_CatPathIndexSub(string lp_field, int lp_index, string lp_sub);
+// "Field.Sub"
+string CMLib_CatPathSub(string lp_field, string lp_sub);
+
+// ---- 通用读 ------------------------------------------------------------------
+bool   CMLib_CatEntryExists(int lp_catalog, string lp_entry);
+string CMLib_CatGetString(int lp_catalog, string lp_entry, string lp_path, int lp_player, string lp_fallback);
+int    CMLib_CatGetInt(int lp_catalog, string lp_entry, string lp_path, int lp_player, int lp_fallback);
+fixed  CMLib_CatGetFixed(int lp_catalog, string lp_entry, string lp_path, int lp_player, fixed lp_fallback);
+int    CMLib_CatArrayCount(int lp_catalog, string lp_entry, string lp_path, int lp_player);
+
+// ---- 通用写（条目不存在 / 写入失败会落 ERROR 日志并返回 false）----------------
+bool CMLib_CatSetString(int lp_catalog, string lp_entry, string lp_path, int lp_player, string lp_value);
+bool CMLib_CatSetInt(int lp_catalog, string lp_entry, string lp_path, int lp_player, int lp_value);
+bool CMLib_CatSetFixed(int lp_catalog, string lp_entry, string lp_path, int lp_player, fixed lp_value);
+bool CMLib_CatModifyInt(int lp_catalog, string lp_entry, string lp_path, int lp_player, int lp_value, int lp_operation);
+bool CMLib_CatModifyFixed(int lp_catalog, string lp_entry, string lp_path, int lp_player, fixed lp_value, int lp_operation);
+// 按百分比缩放当前值（-25 表示减少 25%），内部走 AddBaseMultiply / SubtractBaseMultiply。
+bool CMLib_CatScalePercent(int lp_catalog, string lp_entry, string lp_path, int lp_player, int lp_percent);
+
+// ---- 单位（c_gameCatalogUnit）------------------------------------------------
+fixed CMLib_UnitDataGetLifeMax(string lp_unitType, int lp_player);
+fixed CMLib_UnitDataGetShieldMax(string lp_unitType, int lp_player);
+fixed CMLib_UnitDataGetSpeed(string lp_unitType, int lp_player);
+int   CMLib_UnitDataGetArmor(string lp_unitType, int lp_player);
+int   CMLib_UnitDataGetSupply(string lp_unitType, int lp_player);
+bool  CMLib_UnitDataSetLifeMax(string lp_unitType, int lp_player, fixed lp_value);
+bool  CMLib_UnitDataSetShieldMax(string lp_unitType, int lp_player, fixed lp_value);
+bool  CMLib_UnitDataSetSpeed(string lp_unitType, int lp_player, fixed lp_value);
+bool  CMLib_UnitDataAddArmor(string lp_unitType, int lp_player, int lp_delta);
+// 建造 / 训练资源：CostResource[Minerals] / CostResource[Vespene]。
+bool  CMLib_UnitDataSetCost(string lp_unitType, int lp_player, int lp_minerals, int lp_vespene);
+// 人口占用（Food）：CUnit 用负数表示消耗，正数表示提供。
+bool  CMLib_UnitDataSetFood(string lp_unitType, int lp_player, fixed lp_food);
+// 一次性给单位做百分比强化（生命 + 护盾 + 移速），常用于难度缩放 / 指挥官精通。
+bool  CMLib_UnitDataBoostPercent(string lp_unitType, int lp_player, int lp_percent);
+
+// ---- 武器（c_gameCatalogWeapon）----------------------------------------------
+fixed CMLib_WeaponDataGetRange(string lp_weapon, int lp_player);
+fixed CMLib_WeaponDataGetPeriod(string lp_weapon, int lp_player);
+bool  CMLib_WeaponDataAddRange(string lp_weapon, int lp_player, fixed lp_delta);
+// 攻速：period 越小越快，所以「提速 X%」= period 减少 X%。
+bool  CMLib_WeaponDataSpeedUpPercent(string lp_weapon, int lp_player, int lp_percent);
+
+// ---- 效果（c_gameCatalogEffect）----------------------------------------------
+fixed CMLib_EffectDataGetAmount(string lp_effect, int lp_player);
+bool  CMLib_EffectDataSetAmount(string lp_effect, int lp_player, fixed lp_value);
+bool  CMLib_EffectDataAddAmount(string lp_effect, int lp_player, fixed lp_delta);
+bool  CMLib_EffectDataScalePercent(string lp_effect, int lp_player, int lp_percent);
+
+// ---- 行为（c_gameCatalogBehavior）--------------------------------------------
+fixed CMLib_BehaviorDataGetDuration(string lp_behavior, int lp_player);
+bool  CMLib_BehaviorDataSetDuration(string lp_behavior, int lp_player, fixed lp_seconds);
+// 修改 Modification 下的属性，如 "Modification.DamageDealtScaled[0]"。
+bool  CMLib_BehaviorDataSetModFixed(string lp_behavior, int lp_player, string lp_modPath, fixed lp_value);
+
+// ---- 技能 / 按钮（面板展示层）------------------------------------------------
+// 技能冷却：Cost[index].Cooldown.TimeUse。
+bool  CMLib_AbilDataSetCooldown(string lp_abil, int lp_player, int lp_index, fixed lp_seconds);
+fixed CMLib_AbilDataGetCooldown(string lp_abil, int lp_player, int lp_index);
+// 技能耗能：Cost[index].Vital[Energy]。
+bool  CMLib_AbilDataSetEnergyCost(string lp_abil, int lp_player, int lp_index, fixed lp_value);
+// 生产 / 建造耗时：InfoArray[slot].Time。注意建造时间属于生产技能而非 CUnit，
+// slot 可以是数字下标（"0"）也可以是具名槽（"Build1"），与 XML 里的 index 一致。
+bool  CMLib_AbilDataSetTrainTime(string lp_abil, int lp_player, string lp_slot, fixed lp_seconds);
+fixed CMLib_AbilDataGetTrainTime(string lp_abil, int lp_player, string lp_slot);
+// 按钮图标 / 提示，用于运行时换皮。
+bool  CMLib_ButtonDataSetIcon(string lp_button, int lp_player, string lp_iconPath);
+string CMLib_ButtonDataGetIcon(string lp_button, int lp_player);
+
+// ---- 目录全表遍历 -------------------------------------------------------------
+// 【索引坑】CatalogEntryGet 的 index 是 **1-based**（暴雪自动生成代码一律
+// `i = 1; while (i <= CatalogEntryCount(...))`）。从 0 开始遍历会漏掉第一条并
+// 在末尾越界拿到空串。CMLib_CatEntryAt 内部做范围守门，越界一律返回 ""。
+int    CMLib_CatCount(int lp_catalog);
+string CMLib_CatEntryAt(int lp_catalog, int lp_index);
+string CMLib_CatEntryScope(int lp_catalog, string lp_entry);
+// 字段是数组时的元素个数（对应 CatalogFieldValueCount）。
+int    CMLib_CatFieldCount(int lp_catalog, string lp_entry, string lp_fieldPath, int lp_player);
+// 直接取整数，省掉 CatalogFieldValueGet + StringToInt 的往返（对应 CatalogFieldValueGetAsInt）。
+int    CMLib_CatGetIntFast(int lp_catalog, string lp_entry, string lp_fieldPath, int lp_player);
+// 反查条目下标（1-based），找不到返回 0。
+int    CMLib_CatFindIndex(int lp_catalog, string lp_entry);
+// 遍历全表，返回第一个「指定字段 == 期望值」的条目 id，找不到返回 ""。
+string CMLib_CatFirstWhere(int lp_catalog, string lp_fieldPath, string lp_wantValue, int lp_player);
+// 遍历全表，统计「指定字段 == 期望值」的条目数量。
+int    CMLib_CatCountWhere(int lp_catalog, string lp_fieldPath, string lp_wantValue, int lp_player);
+
+// ---- 目录链接替换（运行时换单位/换模型的标准手法）-------------------------------
+bool   CMLib_CatLinkSwap(int lp_player, int lp_catalog, string lp_idA, string lp_idB);
+string CMLib_CatLinkOf(int lp_player, int lp_catalog, string lp_id);
+
+// ---- round 13：字段存在性 / 引用写入（真实缺口补齐）-------------------------
+// 某 Catalog 作用域下字段路径是否存在。读字段前先探，避免拿到空串当默认值。
+bool CMLib_CatFieldExists(string lp_scope, string lp_field);
+// 按「引用路径」写值（CatalogReferenceSet），用于改数据层引用而非字面值。
+// 引用串非法 / 空返回 false。
+bool CMLib_CatRefSet(string lp_reference, int lp_player, string lp_value);
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round22 —— Catalog 引用改写 / 默认值判定
+// -----------------------------------------------------------------------------
+// 按 "Catalog,Entry,Field" 三段引用串改写；operation 取 c_upgradeOperation*。
+bool CMLib_CatRefModify(string lp_reference, int lp_player, string lp_value, int lp_operation);
+// 该条目是否为数据层默认（未被任何 upgrade/override 改过）。
+bool CMLib_CatEntryIsDefault(int lp_catalog, string lp_entry);
+
+
+// =============================================================================
+// CMLib :: Round26 —— Catalog 反射（scope/field 元信息）与引用读取
+//
+// 之前只封了「按 entry+fieldPath 读写值」，缺的是**反射面**：某个 scope 里
+// 到底有哪些字段、字段是不是数组、是不是子 scope、类型是什么。做数据驱动的
+// 通用面板 / 调试器时这一层是刚需，否则只能把字段名硬编码进脚本。
+//
+// 命名避让：已有的 CMLib_CatFieldCount 是「某 entry 某字段的**值**个数」
+// （4 参），本轮的 CMLib_CatScopeFieldCount 是「某 scope 的**字段**个数」
+// （1 参）。Galaxy 不支持重载，名字必须分开，别混。
+//
+// 索引口径：CatalogFieldGet 与 CatalogEntryGet 一致，均为 **1-based**；
+// 越界返回空串（本库另加守门，index < 1 直接返回 ""，不进引擎）。
+// =============================================================================
+
+// entry 的类别 id（CUnit / CAbil / ... 的内部枚举）；entry 为空返回 0。
+int    CMLib_CatEntryClass(int lp_catalog, string lp_entry);
+// entry 的父条目（数据继承链上一级）；无父或非法返回 ""。
+string CMLib_CatEntryParent(int lp_catalog, string lp_entry);
+// scope（如 "Unit"、"Abil"）里的字段总数；scope 为空返回 0。
+int    CMLib_CatScopeFieldCount(string lp_scope);
+// scope 的第 index 个字段名，**1-based**；越界或非法返回 ""。
+string CMLib_CatScopeFieldAt(string lp_scope, int lp_index);
+// 字段是否数组 / 是否子 scope；任一参数为空一律 false。
+bool   CMLib_CatFieldIsArray(string lp_scope, string lp_field);
+bool   CMLib_CatFieldIsScope(string lp_scope, string lp_field);
+// 字段类型名（字符串形态）；非法返回 ""。
+string CMLib_CatFieldType(string lp_scope, string lp_field);
+// 字段类型的大类枚举；非法返回 0。
+int    CMLib_CatFieldTypeCat(string lp_scope, string lp_field);
+// 把 flags 型字段整体读成位掩码 int；非法返回 0。
+int    CMLib_CatGetFlags(int lp_catalog, string lp_entry, string lp_fieldPath,
+                         int lp_player);
+// Catalog 引用（"Unit,Marine,LifeMax" 这种整串形态）的元素个数 / 读值。
+int    CMLib_CatRefCount(string lp_reference, int lp_player);
+string CMLib_CatRefGet(string lp_reference, int lp_player);
+int    CMLib_CatRefInt(string lp_reference, int lp_player);

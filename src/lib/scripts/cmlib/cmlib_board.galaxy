@@ -1,0 +1,663 @@
+// =============================================================================
+// CMLib :: Board —— 实现
+// 说明见 cmlib_board_h.galaxy。
+//
+// 编码约定（与全库一致）：
+//   - 局部变量一律声明在函数块**开头**（Galaxy 硬性要求）；
+//   - 不使用裸数组形参（真机会静默丢弃整段 MapScript），批量入参走 CSV / playergroup；
+//   - 所有对外函数先做句柄/参数守门，失败写日志而不是崩。
+// =============================================================================
+
+static string CMLib_BoardLogTag = "board";
+
+// -----------------------------------------------------------------------------
+// 内部：把 0~100 的 r/g/b 夹到合法区间再造 color。
+// 直接把越界值丢给 Color() 会得到不可预期的显示结果，这里统一收敛。
+// -----------------------------------------------------------------------------
+static color CMLib_BoardMakeColor(fixed lp_r, fixed lp_g, fixed lp_b) {
+    fixed lv_r;
+    fixed lv_g;
+    fixed lv_b;
+
+    lv_r = CMLib_ClampFixed(lp_r, 0.0, 100.0);
+    lv_g = CMLib_ClampFixed(lp_g, 0.0, 100.0);
+    lv_b = CMLib_ClampFixed(lp_b, 0.0, 100.0);
+    return Color(lv_r, lv_g, lv_b);
+}
+
+// =============================================================================
+// 生命周期
+// =============================================================================
+
+bool CMLib_BoardValid(int lp_board) {
+    return lp_board > CMLIB_BOARD_NONE;
+}
+
+int CMLib_BoardCreate(int lp_cols, int lp_rows, string lp_name) {
+    return CMLib_BoardCreateColored(lp_cols, lp_rows, lp_name,
+                                    100.0, 100.0, 100.0);
+}
+
+int CMLib_BoardCreateColored(int lp_cols, int lp_rows, string lp_name,
+                             fixed lp_r, fixed lp_g, fixed lp_b) {
+    int lv_board;
+
+    if (lp_cols <= 0 || lp_rows < 0) {
+        CMLib_LogError(CMLib_BoardLogTag,
+                       "BoardCreate: 非法的行列数，cols 必须 > 0、rows 必须 >= 0");
+        return CMLIB_BOARD_NONE;
+    }
+
+    BoardCreate(lp_cols, lp_rows, StringToText(lp_name),
+                CMLib_BoardMakeColor(lp_r, lp_g, lp_b));
+    lv_board = BoardLastCreated();
+
+    if (!CMLib_BoardValid(lv_board)) {
+        // 原生失败是静默的，这里把它变成可见信号。
+        CMLib_LogError(CMLib_BoardLogTag,
+                       "BoardCreate 失败（返回 c_boardNone），name=" + lp_name);
+        return CMLIB_BOARD_NONE;
+    }
+    return lv_board;
+}
+
+int CMLib_BoardQuick(string lp_name, string lp_headersCsv,
+                     playergroup lp_players) {
+    int lv_board;
+    int lv_cols;
+
+    lv_cols = CMLib_SplitCount(lp_headersCsv, ",");
+    if (lv_cols <= 0) {
+        lv_cols = 1;
+    }
+
+    // 只建表头行，数据行由调用方后续 BoardResize 扩。
+    lv_board = CMLib_BoardCreate(lv_cols, 0, lp_name);
+    if (!CMLib_BoardValid(lv_board)) {
+        return CMLIB_BOARD_NONE;
+    }
+
+    CMLib_BoardHeaders(lv_board, lp_headersCsv);
+    CMLib_BoardTitle(lv_board, lp_name, "", false);
+    CMLib_BoardShow(lv_board, lp_players, true);
+    return lv_board;
+}
+
+void CMLib_BoardDestroy(int lp_board) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardDestroy(lp_board);
+}
+
+// =============================================================================
+// 显示 / 布局
+// =============================================================================
+
+void CMLib_BoardShow(int lp_board, playergroup lp_players, bool lp_show) {
+    if (!CMLib_BoardValid(lp_board) || lp_players == null) {
+        return;
+    }
+    BoardSetState(lp_board, lp_players, c_boardStateShowing, lp_show);
+}
+
+void CMLib_BoardShowAll(int lp_board, bool lp_show) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardShowAll(lp_show, PlayerGroupAll());
+}
+
+void CMLib_BoardAnchor(int lp_board, int lp_anchor,
+                       int lp_offsetX, int lp_offsetY) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardSetAnchor(lp_board, lp_anchor, lp_offsetX, lp_offsetY);
+}
+
+void CMLib_BoardAnchorTopRight(int lp_board, int lp_offsetX, int lp_offsetY) {
+    CMLib_BoardAnchor(lp_board, c_anchorTopRight, lp_offsetX, lp_offsetY);
+}
+
+void CMLib_BoardAnchorTopLeft(int lp_board, int lp_offsetX, int lp_offsetY) {
+    CMLib_BoardAnchor(lp_board, c_anchorTopLeft, lp_offsetX, lp_offsetY);
+}
+
+void CMLib_BoardAnchorTop(int lp_board, int lp_offsetX, int lp_offsetY) {
+    CMLib_BoardAnchor(lp_board, c_anchorTop, lp_offsetX, lp_offsetY);
+}
+
+void CMLib_BoardResetPosition(int lp_board) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardResetPosition(lp_board);
+}
+
+void CMLib_BoardResize(int lp_board, int lp_cols, int lp_rows) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    if (lp_cols > 0) {
+        BoardSetColumnCount(lp_board, lp_cols);
+    }
+    if (lp_rows >= 0) {
+        BoardSetRowCount(lp_board, lp_rows);
+    }
+}
+
+void CMLib_BoardColumnWidth(int lp_board, int lp_col, fixed lp_width) {
+    if (!CMLib_BoardValid(lp_board) || lp_width <= 0.0) {
+        return;
+    }
+    BoardSetColumnWidth(lp_board, lp_col, lp_width);
+}
+
+// =============================================================================
+// 标题
+// =============================================================================
+
+void CMLib_BoardTitle(int lp_board, string lp_text, string lp_icon,
+                      bool lp_clickable) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardTitleSetText(lp_board, StringToText(lp_text));
+    if (lp_icon != "") {
+        BoardTitleSetIcon(lp_board, lp_icon);
+    }
+    BoardTitleSetClickable(lp_board, lp_clickable);
+}
+
+void CMLib_BoardTitleShow(int lp_board, playergroup lp_players, bool lp_show) {
+    if (!CMLib_BoardValid(lp_board) || lp_players == null) {
+        return;
+    }
+    BoardTitleShow(lp_board, lp_players, lp_show);
+}
+
+void CMLib_BoardTitleColor(int lp_board, fixed lp_r, fixed lp_g, fixed lp_b) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardTitleSetColor(lp_board, c_boardColorText,
+                       CMLib_BoardMakeColor(lp_r, lp_g, lp_b));
+}
+
+// =============================================================================
+// 单元格
+// =============================================================================
+
+void CMLib_BoardCell(int lp_board, int lp_col, int lp_row, string lp_text) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardItemSetText(lp_board, lp_col, lp_row, StringToText(lp_text));
+}
+
+void CMLib_BoardCellInt(int lp_board, int lp_col, int lp_row, int lp_value) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardItemSetText(lp_board, lp_col, lp_row, IntToText(lp_value));
+    // 关键：只设文本的话，排序会按字符串走（"10" < "9"）。
+    BoardItemSetSortValue(lp_board, lp_col, lp_row, lp_value);
+}
+
+void CMLib_BoardCellFixed(int lp_board, int lp_col, int lp_row,
+                          fixed lp_value, int lp_precision) {
+    int lv_precision;
+
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    lv_precision = CMLib_ClampInt(lp_precision, 0, 6);
+    BoardItemSetText(lp_board, lp_col, lp_row,
+                     FixedToText(lp_value, lv_precision));
+    BoardItemSetSortValue(lp_board, lp_col, lp_row, FixedToInt(lp_value));
+}
+
+void CMLib_BoardCellColor(int lp_board, int lp_col, int lp_row,
+                          fixed lp_r, fixed lp_g, fixed lp_b) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardItemSetTextColor(lp_board, lp_col, lp_row,
+                          CMLib_BoardMakeColor(lp_r, lp_g, lp_b));
+}
+
+void CMLib_BoardCellBackColor(int lp_board, int lp_col, int lp_row,
+                              fixed lp_r, fixed lp_g, fixed lp_b) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardItemSetBackgroundColor(lp_board, lp_col, lp_row,
+                                CMLib_BoardMakeColor(lp_r, lp_g, lp_b));
+}
+
+void CMLib_BoardCellIcon(int lp_board, int lp_col, int lp_row,
+                         string lp_icon, bool lp_onLeft) {
+    if (!CMLib_BoardValid(lp_board) || lp_icon == "") {
+        return;
+    }
+    BoardItemSetIcon(lp_board, lp_col, lp_row, lp_icon, lp_onLeft);
+}
+
+void CMLib_BoardCellAlign(int lp_board, int lp_col, int lp_row, int lp_align) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardItemSetAlignment(lp_board, lp_col, lp_row, lp_align);
+}
+
+void CMLib_BoardCellFontSize(int lp_board, int lp_col, int lp_row, int lp_size) {
+    if (!CMLib_BoardValid(lp_board) || lp_size <= 0) {
+        return;
+    }
+    BoardItemSetFontSize(lp_board, lp_col, lp_row, lp_size);
+}
+
+void CMLib_BoardCellProgress(int lp_board, int lp_col, int lp_row,
+                             fixed lp_min, fixed lp_max, fixed lp_value,
+                             fixed lp_r, fixed lp_g, fixed lp_b) {
+    fixed lv_max;
+    color lv_color;
+
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    // max <= min 会让进度条渲染异常，这里兜一个最小可用区间。
+    lv_max = lp_max;
+    if (lv_max <= lp_min) {
+        lv_max = lp_min + 1.0;
+    }
+    lv_color = CMLib_BoardMakeColor(lp_r, lp_g, lp_b);
+
+    BoardItemSetProgressShow(lp_board, lp_col, lp_row, true);
+    BoardItemSetProgressRange(lp_board, lp_col, lp_row, lp_min, lv_max);
+    BoardItemSetProgressValue(lp_board, lp_col, lp_row,
+                              CMLib_ClampFixed(lp_value, lp_min, lv_max));
+    BoardItemSetProgressColor(lp_board, lp_col, lp_row, lv_color, 0);
+}
+
+void CMLib_BoardCellProgressHide(int lp_board, int lp_col, int lp_row) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardItemSetProgressShow(lp_board, lp_col, lp_row, false);
+}
+
+// =============================================================================
+// CSV 批量填充
+// =============================================================================
+
+void CMLib_BoardHeaders(int lp_board, string lp_csv) {
+    CMLib_BoardRow(lp_board, CMLIB_BOARD_HEADER, lp_csv);
+}
+
+void CMLib_BoardRow(int lp_board, int lp_row, string lp_csv) {
+    int lv_n;
+    int lv_i;
+
+    if (!CMLib_BoardValid(lp_board) || lp_csv == "") {
+        return;
+    }
+    lv_n = CMLib_SplitCount(lp_csv, ",");
+    lv_i = 0;
+    while (lv_i < lv_n) {
+        BoardItemSetText(lp_board, lv_i, lp_row,
+                         StringToText(CMLib_SplitAt(lp_csv, ",", lv_i)));
+        lv_i = lv_i + 1;
+    }
+}
+
+void CMLib_BoardRowInt(int lp_board, int lp_row, string lp_csv) {
+    int lv_n;
+    int lv_i;
+    string lv_cell;
+
+    if (!CMLib_BoardValid(lp_board) || lp_csv == "") {
+        return;
+    }
+    lv_n = CMLib_SplitCount(lp_csv, ",");
+    lv_i = 0;
+    while (lv_i < lv_n) {
+        lv_cell = CMLib_SplitAt(lp_csv, ",", lv_i);
+        // 非数字项 ParseInt 回落到 0，显示仍用原串，只是排序权重为 0。
+        BoardItemSetText(lp_board, lv_i, lp_row, StringToText(lv_cell));
+        BoardItemSetSortValue(lp_board, lv_i, lp_row,
+                              CMLib_ParseInt(lv_cell, 0));
+        lv_i = lv_i + 1;
+    }
+}
+
+void CMLib_BoardRowClear(int lp_board, int lp_row) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardItemSetText(lp_board, CMLIB_BOARD_ALL, lp_row, StringToText(""));
+}
+
+// =============================================================================
+// 玩家列
+// =============================================================================
+
+void CMLib_BoardPlayerColumn(int lp_board, int lp_col, bool lp_groupByTeams) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardSetPlayerColumn(lp_board, lp_col, lp_groupByTeams);
+}
+
+void CMLib_BoardPlayersAdd(int lp_board, playergroup lp_players) {
+    int lv_n;
+    int lv_i;
+
+    if (!CMLib_BoardValid(lp_board) || lp_players == null) {
+        return;
+    }
+    lv_n = PlayerGroupCount(lp_players);
+    lv_i = 1;
+    while (lv_i <= lv_n) {
+        BoardPlayerAdd(lp_board, PlayerGroupPlayer(lp_players, lv_i));
+        lv_i = lv_i + 1;
+    }
+}
+
+void CMLib_BoardPlayersRemove(int lp_board, playergroup lp_players) {
+    int lv_n;
+    int lv_i;
+
+    if (!CMLib_BoardValid(lp_board) || lp_players == null) {
+        return;
+    }
+    lv_n = PlayerGroupCount(lp_players);
+    lv_i = 1;
+    while (lv_i <= lv_n) {
+        BoardPlayerRemove(lp_board, PlayerGroupPlayer(lp_players, lv_i));
+        lv_i = lv_i + 1;
+    }
+}
+
+void CMLib_BoardPlayersAddActive(int lp_board) {
+    int lv_p;
+
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    lv_p = 1;
+    while (lv_p <= CMLIB_PLAYER_MAX) {
+        if (CMLib_IsActivePlayer(lv_p)) {
+            BoardPlayerAdd(lp_board, lv_p);
+        }
+        lv_p = lv_p + 1;
+    }
+}
+
+// =============================================================================
+// 排序 / 状态
+// =============================================================================
+
+void CMLib_BoardSort(int lp_board, int lp_col, bool lp_ascending) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardSort(lp_board, lp_col, lp_ascending, CMLIB_BOARD_SORT_PRIMARY);
+}
+
+void CMLib_BoardSortSecondary(int lp_board, int lp_col, bool lp_ascending) {
+    if (!CMLib_BoardValid(lp_board)) {
+        return;
+    }
+    BoardSort(lp_board, lp_col, lp_ascending, CMLIB_BOARD_SORT_SECONDARY);
+}
+
+void CMLib_BoardSetState(int lp_board, playergroup lp_players,
+                         int lp_state, bool lp_value) {
+    if (!CMLib_BoardValid(lp_board) || lp_players == null) {
+        return;
+    }
+    BoardSetState(lp_board, lp_players, lp_state, lp_value);
+}
+
+void CMLib_BoardMinimizable(int lp_board, playergroup lp_players,
+                            bool lp_enable) {
+    if (!CMLib_BoardValid(lp_board) || lp_players == null) {
+        return;
+    }
+    // 只 Enable 不 Show 的话按钮不出现，两步必须成对。
+    BoardMinimizeShow(lp_board, lp_players, lp_enable);
+    BoardMinimizeEnable(lp_board, lp_players, lp_enable);
+}
+
+void CMLib_BoardMinimize(int lp_board, playergroup lp_players,
+                         bool lp_minimized) {
+    if (!CMLib_BoardValid(lp_board) || lp_players == null) {
+        return;
+    }
+    BoardMinimizeSetState(lp_board, lp_players, lp_minimized);
+}
+
+// =============================================================================
+// VictoryPanel
+// =============================================================================
+
+void CMLib_VPanelVictoryText(string lp_text) {
+    VictoryPanelSetVictoryText(StringToText(lp_text));
+}
+
+void CMLib_VPanelMission(string lp_title, string lp_text) {
+    VictoryPanelSetMissionTitle(StringToText(lp_title));
+    VictoryPanelSetMissionText(StringToText(lp_text));
+}
+
+void CMLib_VPanelTime(string lp_title, string lp_text) {
+    VictoryPanelSetMissionTimeTitle(StringToText(lp_title));
+    VictoryPanelSetMissionTimeText(StringToText(lp_text));
+}
+
+void CMLib_VPanelReward(string lp_title, string lp_text, int lp_credits) {
+    VictoryPanelSetRewardTitle(StringToText(lp_title));
+    VictoryPanelSetRewardText(StringToText(lp_text));
+    if (lp_credits >= 0) {
+        VictoryPanelSetRewardCredits(lp_credits);
+    }
+}
+
+void CMLib_VPanelStatisticsTitle(string lp_title) {
+    VictoryPanelSetStatisticsTitle(StringToText(lp_title));
+}
+
+void CMLib_VPanelAchievementsTitle(string lp_title) {
+    VictoryPanelSetAchievementsTitle(StringToText(lp_title));
+}
+
+void CMLib_VPanelStat(string lp_label, string lp_value) {
+    VictoryPanelAddCustomStatisticLine(StringToText(lp_label),
+                                       StringToText(lp_value));
+}
+
+void CMLib_VPanelStatInt(string lp_label, int lp_value) {
+    VictoryPanelAddCustomStatisticLine(StringToText(lp_label),
+                                       IntToText(lp_value));
+}
+
+void CMLib_VPanelStatFixed(string lp_label, fixed lp_value, int lp_precision) {
+    int lv_precision;
+
+    lv_precision = CMLib_ClampInt(lp_precision, 0, 6);
+    VictoryPanelAddCustomStatisticLine(StringToText(lp_label),
+                                       FixedToText(lp_value, lv_precision));
+}
+
+void CMLib_VPanelStatBatch(string lp_csv) {
+    int lv_n;
+    int lv_i;
+    string lv_item;
+    string lv_label;
+    string lv_value;
+    int lv_sepAt;
+
+    if (lp_csv == "") {
+        return;
+    }
+    lv_n = CMLib_SplitCount(lp_csv, ",");
+    lv_i = 0;
+    while (lv_i < lv_n) {
+        lv_item = CMLib_SplitAt(lp_csv, ",", lv_i);
+        lv_sepAt = StringFind(lv_item, ":", true);
+        if (lv_sepAt > 0) {
+            // 只在**第一个**冒号处切，这样 "用时:12:30" 的值仍是 "12:30"。
+            lv_label = StringSub(lv_item, 1, lv_sepAt - 1);
+            lv_value = StringSub(lv_item, lv_sepAt + 1, StringLength(lv_item));
+        } else {
+            lv_label = lv_item;
+            lv_value = "";
+        }
+        VictoryPanelAddCustomStatisticLine(StringToText(lv_label),
+                                           StringToText(lv_value));
+        lv_i = lv_i + 1;
+    }
+}
+
+void CMLib_VPanelStatClear() {
+    VictoryPanelClearCustomStatisticTable();
+}
+
+void CMLib_VPanelTracked(string lp_statistic) {
+    if (lp_statistic == "") {
+        return;
+    }
+    VictoryPanelAddTrackedStatistic(lp_statistic);
+}
+
+void CMLib_VPanelTrackedBatch(string lp_csv) {
+    int lv_n;
+    int lv_i;
+    string lv_stat;
+
+    if (lp_csv == "") {
+        return;
+    }
+    lv_n = CMLib_SplitCount(lp_csv, ",");
+    lv_i = 0;
+    while (lv_i < lv_n) {
+        lv_stat = CMLib_TrimSpaces(CMLib_SplitAt(lp_csv, ",", lv_i));
+        if (lv_stat != "") {
+            VictoryPanelAddTrackedStatistic(lv_stat);
+        }
+        lv_i = lv_i + 1;
+    }
+}
+
+void CMLib_VPanelVisuals(string lp_planetModel, string lp_background,
+                         string lp_summaryBackground) {
+    if (lp_planetModel != "") {
+        VictoryPanelSetPlanetModelLink(lp_planetModel);
+    }
+    if (lp_background != "") {
+        VictoryPanelSetBackgroundFilePath(lp_background);
+    }
+    if (lp_summaryBackground != "") {
+        VictoryPanelSetSummaryBackgroundFilePath(lp_summaryBackground);
+    }
+}
+
+void CMLib_VPanelOnExit(trigger lp_trigger, int lp_player) {
+    if (lp_trigger == null) {
+        return;
+    }
+    TriggerAddEventVictoryPanelExit(lp_trigger, lp_player);
+}
+
+void CMLib_VPanelOnPlayAgain(trigger lp_trigger, int lp_player) {
+    if (lp_trigger == null) {
+        return;
+    }
+    TriggerAddEventVictoryPanelPlayMissionAgain(lp_trigger, lp_player);
+}
+
+int CMLib_VPanelPickedDifficulty() {
+    return EventVictoryPanelDifficultySelected();
+}
+
+// =============================================================================
+// CMLib :: Round20 —— 结算面板成就（实现）
+// =============================================================================
+void CMLib_VPanelAchievement(string lp_achievement) {
+    if (lp_achievement == "") { return; }
+    VictoryPanelAddAchievement(lp_achievement);
+}
+
+void CMLib_VPanelAchievementBatch(string lp_csv) {
+    int    lv_n;
+    int    lv_i;
+    string lv_one;
+
+    if (lp_csv == "") { return; }
+    lv_n = CMLib_SplitCount(lp_csv, ",");
+    lv_i = 0;
+    while (lv_i < lv_n) {
+        lv_one = CMLib_TrimSpaces(CMLib_SplitAt(lp_csv, ",", lv_i));
+        if (lv_one != "") {
+            VictoryPanelAddAchievement(lv_one);
+        }
+        lv_i = (lv_i + 1);
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round22 —— 计分板补齐
+// -----------------------------------------------------------------------------
+
+void CMLib_BoardRowGroup(int lp_board, int lp_row, int lp_group) {
+    if (!CMLib_BoardValid(lp_board)) { return; }
+    if (lp_row < 1) { return; }
+    BoardRowSetGroup(lp_board, lp_row, lp_group);
+}
+
+void CMLib_BoardGroupCount(int lp_board, int lp_groups) {
+    if (!CMLib_BoardValid(lp_board)) { return; }
+    if (lp_groups < 0) { return; }
+    BoardSetGroupCount(lp_board, lp_groups);
+}
+
+void CMLib_BoardPosition(int lp_board, int lp_x, int lp_y) {
+    if (!CMLib_BoardValid(lp_board)) { return; }
+    BoardSetPosition(lp_board, lp_x, lp_y);
+}
+
+void CMLib_BoardTitleAlign(int lp_board, int lp_align, int lp_iconPos) {
+    if (!CMLib_BoardValid(lp_board)) { return; }
+    BoardTitleSetAlignment(lp_board, lp_align, lp_iconPos);
+}
+
+void CMLib_BoardName(int lp_board, text lp_name, color lp_color) {
+    if (!CMLib_BoardValid(lp_board)) { return; }
+    BoardSetName(lp_board, lp_name, lp_color);
+}
+
+void CMLib_BoardMinimizeColor(int lp_board, color lp_color) {
+    if (!CMLib_BoardValid(lp_board)) { return; }
+    BoardMinimizeSetColor(lp_board, lp_color);
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round26 —— 结算面板自定义统计项
+// -----------------------------------------------------------------------------
+
+void CMLib_VPanelCustomStatisticText(text lp_text) {
+    VictoryPanelSetCustomStatisticText(lp_text);
+}
+
+void CMLib_VPanelCustomStatisticValue(text lp_text) {
+    VictoryPanelSetCustomStatisticValue(lp_text);
+}
+
+void CMLib_VPanelCustomStatisticInt(text lp_label, int lp_value) {
+    VictoryPanelSetCustomStatisticText(lp_label);
+    VictoryPanelSetCustomStatisticValue(IntToText(lp_value));
+}

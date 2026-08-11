@@ -1,0 +1,608 @@
+// =============================================================================
+// CMLib :: Stat —— 实现
+// =============================================================================
+
+include "scripts/cmlib/cmlib_stat_h"
+
+// 内部：两位补零，给时间戳拼接用。
+static string CMLib_Stat2(int lp_n) {
+    if ((lp_n >= 0) && (lp_n < 10)) {
+        return "0" + IntToString(lp_n);
+    }
+    return IntToString(lp_n);
+}
+
+// =============================================================================
+// 成就
+// =============================================================================
+void CMLib_AchAward(int lp_player, string lp_name) {
+    if (lp_name == "") { return; }
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) {
+        CMLib_LogWarn("STAT", "AchAward: 非法玩家槽位 " + IntToString(lp_player));
+        return;
+    }
+    AchievementAward(lp_player, lp_name);
+}
+
+void CMLib_AchErase(int lp_player, string lp_name) {
+    if (lp_name == "") { return; }
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return; }
+    AchievementErase(lp_player, lp_name);
+}
+
+int CMLib_AchAwardGroup(playergroup lp_players, string lp_name) {
+    int lv_i;
+    int lv_n;
+    int lv_p;
+    int lv_done;
+
+    lv_done = 0;
+    if ((lp_players == null) || (lp_name == "")) { return 0; }
+    lv_n = PlayerGroupCount(lp_players);
+    lv_i = 1;
+    while (lv_i <= lv_n) {
+        lv_p = PlayerGroupPlayer(lp_players, lv_i);
+        if (CMLib_IsValidPlayerSlot(lv_p) == true) {
+            AchievementAward(lv_p, lp_name);
+            lv_done = lv_done + 1;
+        }
+        lv_i = lv_i + 1;
+    }
+    return lv_done;
+}
+
+void CMLib_AchTermSet(int lp_player, string lp_term, int lp_quantity) {
+    if (lp_term == "") { return; }
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return; }
+    AchievementTermQuantitySet(lp_player, lp_term, lp_quantity);
+}
+
+void CMLib_AchTermAdd(int lp_player, string lp_term, int lp_quantity) {
+    if (lp_term == "") { return; }
+    if (lp_quantity == 0) { return; }
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return; }
+    AchievementTermQuantityAdd(lp_player, lp_term, lp_quantity);
+}
+
+void CMLib_AchTermTick(int lp_player, string lp_term) {
+    CMLib_AchTermAdd(lp_player, lp_term, 1);
+}
+
+void CMLib_AchDisable(int lp_player) {
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return; }
+    AchievementsDisable(lp_player);
+}
+
+bool CMLib_AchDisabled(int lp_player) {
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return true; }
+    return AchievementsDisabled(lp_player);
+}
+
+void CMLib_AchDisableGroup(playergroup lp_players) {
+    int lv_i;
+    int lv_n;
+
+    if (lp_players == null) { return; }
+    lv_n = PlayerGroupCount(lp_players);
+    lv_i = 1;
+    while (lv_i <= lv_n) {
+        CMLib_AchDisable(PlayerGroupPlayer(lp_players, lv_i));
+        lv_i = lv_i + 1;
+    }
+}
+
+void CMLib_AchPanelCategory(playergroup lp_players, string lp_category) {
+    if ((lp_players == null) || (lp_category == "")) { return; }
+    AchievementPanelSetCategory(lp_players, lp_category);
+}
+
+void CMLib_AchPanelShow(playergroup lp_players, bool lp_visible) {
+    if (lp_players == null) { return; }
+    AchievementPanelSetVisible(lp_players, lp_visible);
+}
+
+text CMLib_AchPercentText(int lp_player, string lp_category) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false) || (lp_category == "")) {
+        return StringToText("");
+    }
+    return AchievementPercentText(lp_player, lp_category);
+}
+
+// =============================================================================
+// 计分
+// =============================================================================
+void CMLib_ScoreSetInt(int lp_player, string lp_value, int lp_amount) {
+    if (lp_value == "") { return; }
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) {
+        CMLib_LogWarn("STAT", "ScoreSetInt: 非法玩家槽位 " + IntToString(lp_player));
+        return;
+    }
+    PlayerScoreValueSetFromInt(lp_player, lp_value, lp_amount);
+}
+
+void CMLib_ScoreSetFixed(int lp_player, string lp_value, fixed lp_amount) {
+    if (lp_value == "") { return; }
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return; }
+    PlayerScoreValueSetFromFixed(lp_player, lp_value, lp_amount);
+}
+
+int CMLib_ScoreGetInt(int lp_player, string lp_value) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false) || (lp_value == "")) { return 0; }
+    return PlayerScoreValueGetAsInt(lp_player, lp_value);
+}
+
+fixed CMLib_ScoreGetFixed(int lp_player, string lp_value) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false) || (lp_value == "")) { return 0.0; }
+    return PlayerScoreValueGetAsFixed(lp_player, lp_value);
+}
+
+void CMLib_ScoreAddInt(int lp_player, string lp_value, int lp_delta) {
+    if (lp_delta == 0) { return; }
+    CMLib_ScoreSetInt(lp_player, lp_value, CMLib_ScoreGetInt(lp_player, lp_value) + lp_delta);
+}
+
+void CMLib_ScoreAddFixed(int lp_player, string lp_value, fixed lp_delta) {
+    if (lp_delta == 0.0) { return; }
+    CMLib_ScoreSetFixed(lp_player, lp_value, CMLib_ScoreGetFixed(lp_player, lp_value) + lp_delta);
+}
+
+void CMLib_ScoreEnable(int lp_player, string lp_value, bool lp_enable) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false) || (lp_value == "")) { return; }
+    PlayerScoreValueEnable(lp_player, lp_value, lp_enable);
+}
+
+void CMLib_ScoreEnableAll(int lp_player, bool lp_enable) {
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return; }
+    PlayerScoreValueEnableAll(lp_player, lp_enable);
+}
+
+int CMLib_ScoreSetIntGroup(playergroup lp_players, string lp_value, int lp_amount) {
+    int lv_i;
+    int lv_n;
+    int lv_p;
+    int lv_done;
+
+    lv_done = 0;
+    if ((lp_players == null) || (lp_value == "")) { return 0; }
+    lv_n = PlayerGroupCount(lp_players);
+    lv_i = 1;
+    while (lv_i <= lv_n) {
+        lv_p = PlayerGroupPlayer(lp_players, lv_i);
+        if (CMLib_IsValidPlayerSlot(lv_p) == true) {
+            PlayerScoreValueSetFromInt(lv_p, lp_value, lp_amount);
+            lv_done = lv_done + 1;
+        }
+        lv_i = lv_i + 1;
+    }
+    return lv_done;
+}
+
+// =============================================================================
+// 战役进度
+// =============================================================================
+void CMLib_CampaignInitAI() {
+    CampaignInitAI();
+}
+
+void CMLib_CampaignMode(playergroup lp_players, bool lp_on) {
+    if (lp_players == null) { return; }
+    CampaignMode(lp_players, lp_on);
+}
+
+void CMLib_CampaignText(playergroup lp_players, string lp_campaignId, text lp_text) {
+    if ((lp_players == null) || (lp_campaignId == "")) { return; }
+    CampaignProgressSetText(lp_players, lp_campaignId, lp_text);
+}
+
+void CMLib_CampaignImage(playergroup lp_players, string lp_campaignId, string lp_path) {
+    if ((lp_players == null) || (lp_campaignId == "") || (lp_path == "")) { return; }
+    CampaignProgressSetImageFilePath(lp_players, lp_campaignId, lp_path);
+}
+
+void CMLib_CampaignFinished(playergroup lp_players, string lp_campaignId, bool lp_finished) {
+    if ((lp_players == null) || (lp_campaignId == "")) { return; }
+    CampaignProgressSetCampaignFinished(lp_players, lp_campaignId, lp_finished);
+}
+
+void CMLib_CampaignTutorialFinished(playergroup lp_players, string lp_campaignId, bool lp_finished) {
+    if ((lp_players == null) || (lp_campaignId == "")) { return; }
+    CampaignProgressSetTutorialFinished(lp_players, lp_campaignId, lp_finished);
+}
+
+void CMLib_CampaignSavesEnable(playergroup lp_players, bool lp_enable) {
+    if (lp_players == null) { return; }
+    CampaignProgressEnableCampaignSaves(lp_players, lp_enable);
+}
+
+void CMLib_CampaignCompletedSavesEnable(playergroup lp_players, bool lp_enable) {
+    if (lp_players == null) { return; }
+    CampaignProgressEnableCampaignCompletedSaves(lp_players, lp_enable);
+}
+
+void CMLib_CampaignDeleteSave(playergroup lp_players) {
+    if (lp_players == null) { return; }
+    CampaignProgressDeleteCampaignSave(lp_players);
+}
+
+// =============================================================================
+// 难度
+// =============================================================================
+text CMLib_DiffName(int lp_difficulty) {
+    return DifficultyName(lp_difficulty);
+}
+
+text CMLib_DiffNameCampaign(int lp_difficulty) {
+    return DifficultyNameCampaign(lp_difficulty);
+}
+
+bool CMLib_DiffEnabled(int lp_difficulty) {
+    return DifficultyEnabled(lp_difficulty);
+}
+
+int CMLib_DiffAPM(int lp_difficulty) {
+    return DifficultyAPM(lp_difficulty);
+}
+
+int CMLib_DiffOfPlayer(int lp_player) {
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return 0; }
+    return PlayerDifficulty(lp_player);
+}
+
+void CMLib_DiffSetPlayer(int lp_player, int lp_difficulty) {
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) {
+        CMLib_LogWarn("STAT", "DiffSetPlayer: 非法玩家槽位 " + IntToString(lp_player));
+        return;
+    }
+    PlayerSetDifficulty(lp_player, lp_difficulty);
+}
+
+text CMLib_DiffNameOfPlayer(int lp_player, bool lp_campaignStyle) {
+    int lv_d = CMLib_DiffOfPlayer(lp_player);
+
+    if (lp_campaignStyle == true) {
+        return DifficultyNameCampaign(lv_d);
+    }
+    return DifficultyName(lv_d);
+}
+
+// =============================================================================
+// 效果历史
+// =============================================================================
+effecthistory CMLib_EffHist(unit lp_unit, int lp_maxCount) {
+    int lv_max = lp_maxCount;
+
+    if (lp_unit == null) { return null; }
+    if (lv_max <= 0) { lv_max = CMLIB_EFFHIST_DEFAULT_MAX; }
+    return UnitEffectHistory(lp_unit, lv_max);
+}
+
+int CMLib_EffHistCount(effecthistory lp_history) {
+    if (lp_history == null) { return 0; }
+    return EffectHistoryCount(lp_history);
+}
+
+// 内部：索引是否落在有效范围。
+static bool CMLib_EffHistIdxOk(effecthistory lp_history, int lp_index) {
+    if (lp_history == null) { return false; }
+    if (lp_index < 0) { return false; }
+    return lp_index < EffectHistoryCount(lp_history);
+}
+
+string CMLib_EffHistAbil(effecthistory lp_history, int lp_index) {
+    if (CMLib_EffHistIdxOk(lp_history, lp_index) == false) { return ""; }
+    return EffectHistoryGetAbil(lp_history, lp_index);
+}
+
+string CMLib_EffHistEffect(effecthistory lp_history, int lp_index, int lp_which) {
+    if (CMLib_EffHistIdxOk(lp_history, lp_index) == false) { return ""; }
+    return EffectHistoryGetEffect(lp_history, lp_index, lp_which);
+}
+
+string CMLib_EffHistWeapon(effecthistory lp_history, int lp_index) {
+    if (CMLib_EffHistIdxOk(lp_history, lp_index) == false) { return ""; }
+    return EffectHistoryGetWeapon(lp_history, lp_index);
+}
+
+fixed CMLib_EffHistTime(effecthistory lp_history, int lp_index) {
+    if (CMLib_EffHistIdxOk(lp_history, lp_index) == false) { return 0.0; }
+    return EffectHistoryGetTime(lp_history, lp_index);
+}
+
+int CMLib_EffHistType(effecthistory lp_history, int lp_index) {
+    if (CMLib_EffHistIdxOk(lp_history, lp_index) == false) { return 0; }
+    return EffectHistoryGetType(lp_history, lp_index);
+}
+
+unit CMLib_EffHistUnitAt(effecthistory lp_history, int lp_index, int lp_location) {
+    if (CMLib_EffHistIdxOk(lp_history, lp_index) == false) { return null; }
+    return EffectHistoryGetUnitByLocation(lp_history, lp_index, lp_location);
+}
+
+int CMLib_EffHistAmountInt(effecthistory lp_history, int lp_index, int lp_amount, bool lp_total) {
+    if (CMLib_EffHistIdxOk(lp_history, lp_index) == false) { return 0; }
+    return EffectHistoryGetAmountInt(lp_history, lp_index, lp_amount, lp_total);
+}
+
+fixed CMLib_EffHistAmountFixed(effecthistory lp_history, int lp_index, int lp_amount, bool lp_total) {
+    if (CMLib_EffHistIdxOk(lp_history, lp_index) == false) { return 0.0; }
+    return EffectHistoryGetAmountFixed(lp_history, lp_index, lp_amount, lp_total);
+}
+
+int CMLib_EffHistLast(effecthistory lp_history) {
+    int lv_n = CMLib_EffHistCount(lp_history);
+
+    if (lv_n <= 0) { return -1; }
+    return lv_n - 1;
+}
+
+string CMLib_EffHistLastEffectOf(unit lp_unit) {
+    effecthistory lv_h;
+    int lv_i;
+
+    lv_h = CMLib_EffHist(lp_unit, CMLIB_EFFHIST_DEFAULT_MAX);
+    lv_i = CMLib_EffHistLast(lv_h);
+    if (lv_i < 0) { return ""; }
+    return CMLib_EffHistEffect(lv_h, lv_i, CMLIB_EFFHIST_ROOT);
+}
+
+// =============================================================================
+// 时间 / 日期 / 布尔
+// =============================================================================
+int CMLib_B2I(bool lp_value) {
+    return BoolToInt(lp_value);
+}
+
+bool CMLib_I2B(int lp_value) {
+    return lp_value != 0;
+}
+
+int CMLib_NowEpoch() {
+    return DateTimeToInt(CurrentDateTimeGet());
+}
+
+int CMLib_StartEpoch() {
+    return DateTimeToInt(InitialDateTimeGet());
+}
+
+int CMLib_RealElapsedSecs() {
+    int lv_d = CMLib_NowEpoch() - CMLib_StartEpoch();
+
+    if (lv_d < 0) { return 0; }
+    return lv_d;
+}
+
+int CMLib_EpochField(int lp_epoch, int lp_field) {
+    datetime lv_dt = IntToDateTime(lp_epoch);
+
+    if (lp_field == 0) { return GetDateTimeYear(lv_dt); }
+    if (lp_field == 1) { return GetDateTimeMonth(lv_dt); }
+    if (lp_field == 2) { return GetDateTimeDay(lv_dt); }
+    if (lp_field == 3) { return GetDateTimeHour(lv_dt); }
+    if (lp_field == 4) { return GetDateTimeMinute(lv_dt); }
+    if (lp_field == 5) { return GetDateTimeSecond(lv_dt); }
+    if (lp_field == 6) { return GetDateTimeWeekday(lv_dt); }
+    return 0;
+}
+
+string CMLib_EpochStamp(int lp_epoch) {
+    datetime lv_dt = IntToDateTime(lp_epoch);
+
+    return IntToString(GetDateTimeYear(lv_dt)) + "-"
+         + CMLib_Stat2(GetDateTimeMonth(lv_dt)) + "-"
+         + CMLib_Stat2(GetDateTimeDay(lv_dt)) + " "
+         + CMLib_Stat2(GetDateTimeHour(lv_dt)) + ":"
+         + CMLib_Stat2(GetDateTimeMinute(lv_dt)) + ":"
+         + CMLib_Stat2(GetDateTimeSecond(lv_dt));
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round23 —— StatEvent 实现
+// -----------------------------------------------------------------------------
+// 形态严格复用 probe_statevent.py 的 wrapped 档（已真机 PASS）：
+// 不自声明 native、直调引擎内建符号、每个入口守门早退。
+
+// 已发送句柄环形缓冲。Galaxy 全局数组语法是 `类型[尺寸] 名`，
+// 写成 `int 名[尺寸]` 会 G1001（round3 血泪）。
+int[CMLIB_STATEVT_SENT_MAX] CMLib_StatEvtSentRing;
+int CMLib_StatEvtSentAt;
+
+int CMLib_StatEvtBegin(string lp_name) {
+    if (lp_name == "") {
+        CMLib_LogWarn("StatEvt", "事件名为空，忽略 Begin");
+        return CMLIB_STATEVT_INVALID;
+    }
+    return StatEventCreate(lp_name);
+}
+
+bool CMLib_StatEvtOk(int lp_ev) {
+    int lv_i;
+
+    // 先挡 0：环形缓冲初值全是 0，不先挡就会把"没发过的无效句柄"
+    // 和"槽位空着"混成同一件事。
+    if (lp_ev == CMLIB_STATEVT_INVALID) {
+        return false;
+    }
+    lv_i = 0;
+    while ((lv_i < CMLIB_STATEVT_SENT_MAX)) {
+        if ((CMLib_StatEvtSentRing[lv_i] == lp_ev)) {
+            return false;
+        }
+        lv_i = lv_i + 1;
+    }
+    return true;
+}
+
+void CMLib_StatEvtStr(int lp_ev, string lp_key, string lp_value) {
+    if (!CMLib_StatEvtOk(lp_ev)) {
+        return;
+    }
+    if (lp_key == "") {
+        return;
+    }
+    StatEventAddDataString(lp_ev, lp_key, lp_value);
+}
+
+void CMLib_StatEvtInt(int lp_ev, string lp_key, int lp_value) {
+    if (!CMLib_StatEvtOk(lp_ev)) {
+        return;
+    }
+    if (lp_key == "") {
+        return;
+    }
+    StatEventAddDataInt(lp_ev, lp_key, lp_value);
+}
+
+void CMLib_StatEvtFixed(int lp_ev, string lp_key, fixed lp_value) {
+    if (!CMLib_StatEvtOk(lp_ev)) {
+        return;
+    }
+    if (lp_key == "") {
+        return;
+    }
+    StatEventAddDataFixed(lp_ev, lp_key, lp_value);
+}
+
+bool CMLib_StatEvtSend(int lp_ev) {
+    if (!CMLib_StatEvtOk(lp_ev)) {
+        return false;
+    }
+    StatEventSend(lp_ev);
+    // 记账要在 Send 之后：Send 若抛错中断线程，这个句柄就不该被标记成
+    // "已发送"，否则重试路径会被自家守门拦死。
+    CMLib_StatEvtSentRing[CMLib_StatEvtSentAt] = lp_ev;
+    CMLib_StatEvtSentAt = CMLib_StatEvtSentAt + 1;
+    if ((CMLib_StatEvtSentAt >= CMLIB_STATEVT_SENT_MAX)) {
+        CMLib_StatEvtSentAt = 0;
+    }
+    return true;
+}
+
+int CMLib_StatEvtLast() {
+    return StatEventLastCreated();
+}
+
+int CMLib_StatEvtCsvCount(string lp_spec) {
+    int    lv_n;
+    int    lv_i;
+    int    lv_done;
+    string lv_item;
+    int    lv_sepAt;
+    string lv_key;
+
+    if (lp_spec == "") {
+        return 0;
+    }
+    lv_n = CMLib_SplitCount(lp_spec, ",");
+    lv_i = 0;
+    lv_done = 0;
+    while ((lv_i < lv_n)) {
+        lv_item = CMLib_SplitAt(lp_spec, ",", lv_i);
+        // StringFind 是 1-based（round10 血泪）。> 0 排除"没找到"；
+        // 冒号在首位时 key 会 trim 成空串，由下面的 != "" 拦掉。
+        lv_sepAt = StringFind(lv_item, ":", true);
+        if ((lv_sepAt > 0)) {
+            lv_key = CMLib_TrimSpaces(StringSub(lv_item, 1, lv_sepAt - 1));
+            if ((lv_key != "")) {
+                lv_done = lv_done + 1;
+            }
+        }
+        lv_i = lv_i + 1;
+    }
+    return lv_done;
+}
+
+int CMLib_StatEvtStrCSV(int lp_ev, string lp_spec) {
+    int    lv_n;
+    int    lv_i;
+    int    lv_done;
+    string lv_item;
+    int    lv_sepAt;
+    string lv_key;
+    string lv_val;
+
+    if (!CMLib_StatEvtOk(lp_ev)) {
+        return 0;
+    }
+    if (lp_spec == "") {
+        return 0;
+    }
+    lv_n = CMLib_SplitCount(lp_spec, ",");
+    lv_i = 0;
+    lv_done = 0;
+    while ((lv_i < lv_n)) {
+        lv_item = CMLib_SplitAt(lp_spec, ",", lv_i);
+        // StringFind 是 1-based（round10 血泪：core 切分器曾按 0-based 写，
+        // 连锁污染了全库 CSV API）。> 0 同时排除了"没找到"(0) 与
+        // "冒号在首位"(1 → key 为空) 两种情况里的前者。
+        lv_sepAt = StringFind(lv_item, ":", true);
+        if ((lv_sepAt > 0)) {
+            lv_key = CMLib_TrimSpaces(StringSub(lv_item, 1, lv_sepAt - 1));
+            lv_val = StringSub(lv_item, lv_sepAt + 1, StringLength(lv_item));
+            if ((lv_key != "")) {
+                StatEventAddDataString(lp_ev, lv_key, lv_val);
+                lv_done = lv_done + 1;
+            }
+        }
+        lv_i = lv_i + 1;
+    }
+    return lv_done;
+}
+
+int CMLib_StatEvtIntCSV(int lp_ev, string lp_spec) {
+    int    lv_n;
+    int    lv_i;
+    int    lv_done;
+    string lv_item;
+    int    lv_sepAt;
+    string lv_key;
+    string lv_val;
+
+    if (!CMLib_StatEvtOk(lp_ev)) {
+        return 0;
+    }
+    if (lp_spec == "") {
+        return 0;
+    }
+    lv_n = CMLib_SplitCount(lp_spec, ",");
+    lv_i = 0;
+    lv_done = 0;
+    while ((lv_i < lv_n)) {
+        lv_item = CMLib_SplitAt(lp_spec, ",", lv_i);
+        lv_sepAt = StringFind(lv_item, ":", true);
+        if ((lv_sepAt > 0)) {
+            lv_key = CMLib_TrimSpaces(StringSub(lv_item, 1, lv_sepAt - 1));
+            lv_val = StringSub(lv_item, lv_sepAt + 1, StringLength(lv_item));
+            if ((lv_key != "")) {
+                // 解析失败按 0 计而不是丢键 —— 埋点少一个键比多一个 0
+                // 难查得多（下游按键名对齐时会整体错位）。
+                StatEventAddDataInt(lp_ev, lv_key, CMLib_ParseInt(lv_val, 0));
+                lv_done = lv_done + 1;
+            }
+        }
+        lv_i = lv_i + 1;
+    }
+    return lv_done;
+}
+
+bool CMLib_StatEvtSendCSV(string lp_name, string lp_spec) {
+    int lv_ev;
+
+    lv_ev = CMLib_StatEvtBegin(lp_name);
+    if (!CMLib_StatEvtOk(lv_ev)) {
+        return false;
+    }
+    CMLib_StatEvtStrCSV(lv_ev, lp_spec);
+    return CMLib_StatEvtSend(lv_ev);
+}
+
+bool CMLib_StatEvtSendInt(string lp_name, string lp_key, int lp_value) {
+    int lv_ev;
+
+    lv_ev = CMLib_StatEvtBegin(lp_name);
+    if (!CMLib_StatEvtOk(lv_ev)) {
+        return false;
+    }
+    CMLib_StatEvtInt(lv_ev, lp_key, lp_value);
+    return CMLib_StatEvtSend(lv_ev);
+}

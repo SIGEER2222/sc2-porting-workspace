@@ -1,0 +1,1001 @@
+// =============================================================================
+// CMLib :: Trig —— 实现
+// =============================================================================
+
+include "scripts/cmlib/cmlib_trig_h"
+
+// -----------------------------------------------------------------------------
+// 内部状态
+// -----------------------------------------------------------------------------
+trigger[CMLIB_TRIG_MAX] CMLib_TrigRegT;
+string[CMLIB_TRIG_MAX]  CMLib_TrigRegName;
+string[CMLIB_TRIG_MAX]  CMLib_TrigRegTag;
+int     CMLib_TrigRegCount = 0;
+// 因容量不足而未纳入管理的触发器计数（自检时输出，便于发现该调大 CMLIB_TRIG_MAX）。
+int     CMLib_TrigOverflow = 0;
+// TriggerQueueEnter/Exit 的配对深度。
+int     CMLib_TrigQDepth = 0;
+// 队列深度告警阈值：超过这个层数基本可以断定有漏 Exit。
+const int CMLIB_TRIG_QDEPTH_WARN = 16;
+
+// 跨触发器传参的键名前缀，避免与业务键撞车。
+const string CMLIB_TRIG_ARG_PREFIX = "cmlib.trigarg";
+
+// 内部：按 trigger 句柄找注册表下标，找不到返回 CMLIB_TRIG_NONE。
+static int CMLib_TrigIndexOf(trigger lp_trigger) {
+    int lv_i;
+
+    if (lp_trigger == null) { return CMLIB_TRIG_NONE; }
+    lv_i = 0;
+    while (lv_i < CMLib_TrigRegCount) {
+        if (CMLib_TrigRegT[lv_i] == lp_trigger) { return lv_i; }
+        lv_i += 1;
+    }
+    return CMLIB_TRIG_NONE;
+}
+
+// 内部：从注册表摘除下标 lp_index（用末位覆盖，O(1)）。
+static void CMLib_TrigRemoveAt(int lp_index) {
+    int lv_last;
+
+    if ((lp_index < 0) || (lp_index >= CMLib_TrigRegCount)) { return; }
+    lv_last = CMLib_TrigRegCount - 1;
+    CMLib_TrigRegT[lp_index] = CMLib_TrigRegT[lv_last];
+    CMLib_TrigRegName[lp_index] = CMLib_TrigRegName[lv_last];
+    CMLib_TrigRegTag[lp_index] = CMLib_TrigRegTag[lv_last];
+    CMLib_TrigRegT[lv_last] = null;
+    CMLib_TrigRegName[lv_last] = "";
+    CMLib_TrigRegTag[lv_last] = "";
+    CMLib_TrigRegCount = lv_last;
+}
+
+// -----------------------------------------------------------------------------
+// 创建与注册
+// -----------------------------------------------------------------------------
+void CMLib_TrigRegister(trigger lp_trigger, string lp_name, string lp_tag) {
+    if (lp_trigger == null) {
+        CMLib_LogWarn("Trig", "TrigRegister: 传入 null 触发器，已忽略。");
+        return;
+    }
+    if (CMLib_TrigIndexOf(lp_trigger) != CMLIB_TRIG_NONE) {
+        CMLib_LogWarn("Trig", "TrigRegister: 触发器已登记，忽略重复登记 " + lp_name);
+        return;
+    }
+    if (CMLib_TrigRegCount >= CMLIB_TRIG_MAX) {
+        CMLib_TrigOverflow += 1;
+        CMLib_LogError("Trig",
+            "TrigRegister: 注册表已满(" + IntToString(CMLIB_TRIG_MAX) +
+            ")，" + lp_name + " 不受分组管理。请调大 CMLIB_TRIG_MAX。");
+        return;
+    }
+    CMLib_TrigRegT[CMLib_TrigRegCount] = lp_trigger;
+    CMLib_TrigRegName[CMLib_TrigRegCount] = lp_name;
+    CMLib_TrigRegTag[CMLib_TrigRegCount] = lp_tag;
+    CMLib_TrigRegCount += 1;
+}
+
+void CMLib_TrigUnregister(trigger lp_trigger) {
+    CMLib_TrigRemoveAt(CMLib_TrigIndexOf(lp_trigger));
+}
+
+trigger CMLib_TrigNew(string lp_funcName, string lp_tag) {
+    trigger lv_t;
+
+    if (lp_funcName == "") {
+        CMLib_LogError("Trig", "TrigNew: 函数名为空，无法创建触发器。");
+        return null;
+    }
+    lv_t = TriggerCreate(lp_funcName);
+    CMLib_TrigRegister(lv_t, lp_funcName, lp_tag);
+    return lv_t;
+}
+
+trigger CMLib_TrigNewDisabled(string lp_funcName, string lp_tag) {
+    trigger lv_t;
+
+    lv_t = CMLib_TrigNew(lp_funcName, lp_tag);
+    if (lv_t != null) { TriggerEnable(lv_t, false); }
+    return lv_t;
+}
+
+// -----------------------------------------------------------------------------
+// 查询
+// -----------------------------------------------------------------------------
+int CMLib_TrigCount() {
+    return CMLib_TrigRegCount;
+}
+
+int CMLib_TrigCountByTag(string lp_tag) {
+    int lv_i;
+    int lv_n;
+
+    lv_i = 0;
+    lv_n = 0;
+    while (lv_i < CMLib_TrigRegCount) {
+        if (CMLib_TrigRegTag[lv_i] == lp_tag) { lv_n += 1; }
+        lv_i += 1;
+    }
+    return lv_n;
+}
+
+trigger CMLib_TrigFind(string lp_name) {
+    int lv_i;
+
+    lv_i = 0;
+    while (lv_i < CMLib_TrigRegCount) {
+        if (CMLib_TrigRegName[lv_i] == lp_name) { return CMLib_TrigRegT[lv_i]; }
+        lv_i += 1;
+    }
+    return null;
+}
+
+bool CMLib_TrigIsRegistered(trigger lp_trigger) {
+    return CMLib_TrigIndexOf(lp_trigger) != CMLIB_TRIG_NONE;
+}
+
+bool CMLib_TrigEnabled(trigger lp_trigger) {
+    if (lp_trigger == null) { return false; }
+    return TriggerIsEnabled(lp_trigger);
+}
+
+// -----------------------------------------------------------------------------
+// 开关 / 销毁：单个
+// -----------------------------------------------------------------------------
+void CMLib_TrigSet(trigger lp_trigger, bool lp_enable) {
+    if (lp_trigger == null) { return; }
+    TriggerEnable(lp_trigger, lp_enable);
+}
+
+void CMLib_TrigOn(trigger lp_trigger) {
+    CMLib_TrigSet(lp_trigger, true);
+}
+
+void CMLib_TrigOff(trigger lp_trigger) {
+    CMLib_TrigSet(lp_trigger, false);
+}
+
+void CMLib_TrigKill(trigger lp_trigger) {
+    if (lp_trigger == null) { return; }
+    CMLib_TrigUnregister(lp_trigger);
+    TriggerDestroy(lp_trigger);
+}
+
+// -----------------------------------------------------------------------------
+// 开关 / 销毁：按 tag 批量
+// -----------------------------------------------------------------------------
+// 内部：批量设置启用态，返回受影响个数。
+static int CMLib_TrigTagSet(string lp_tag, bool lp_enable) {
+    int lv_i;
+    int lv_n;
+
+    lv_i = 0;
+    lv_n = 0;
+    while (lv_i < CMLib_TrigRegCount) {
+        if (CMLib_TrigRegTag[lv_i] == lp_tag) {
+            if (CMLib_TrigRegT[lv_i] != null) {
+                TriggerEnable(CMLib_TrigRegT[lv_i], lp_enable);
+                lv_n += 1;
+            }
+        }
+        lv_i += 1;
+    }
+    return lv_n;
+}
+
+int CMLib_TrigTagOn(string lp_tag) {
+    return CMLib_TrigTagSet(lp_tag, true);
+}
+
+int CMLib_TrigTagOff(string lp_tag) {
+    return CMLib_TrigTagSet(lp_tag, false);
+}
+
+int CMLib_TrigTagKill(string lp_tag) {
+    int lv_i;
+    int lv_n;
+    trigger lv_t;
+
+    lv_n = 0;
+    // 倒序遍历：CMLib_TrigRemoveAt 用末位覆盖，倒序才不会漏检被搬上来的元素。
+    lv_i = CMLib_TrigRegCount - 1;
+    while (lv_i >= 0) {
+        if (CMLib_TrigRegTag[lv_i] == lp_tag) {
+            lv_t = CMLib_TrigRegT[lv_i];
+            CMLib_TrigRemoveAt(lv_i);
+            if (lv_t != null) {
+                TriggerDestroy(lv_t);
+                lv_n += 1;
+            }
+        }
+        lv_i -= 1;
+    }
+    return lv_n;
+}
+
+// -----------------------------------------------------------------------------
+// 执行
+// -----------------------------------------------------------------------------
+void CMLib_TrigRun(trigger lp_trigger) {
+    if (lp_trigger == null) { return; }
+    TriggerExecute(lp_trigger, true, false);
+}
+
+void CMLib_TrigRunNow(trigger lp_trigger) {
+    if (lp_trigger == null) { return; }
+    TriggerExecute(lp_trigger, true, true);
+}
+
+void CMLib_TrigForce(trigger lp_trigger) {
+    if (lp_trigger == null) { return; }
+    TriggerExecute(lp_trigger, false, false);
+}
+
+void CMLib_TrigForceNow(trigger lp_trigger) {
+    if (lp_trigger == null) { return; }
+    TriggerExecute(lp_trigger, false, true);
+}
+
+bool CMLib_TrigTest(trigger lp_trigger) {
+    if (lp_trigger == null) { return false; }
+    return TriggerEvaluate(lp_trigger);
+}
+
+void CMLib_TrigStopSelf() {
+    trigger lv_t;
+
+    lv_t = TriggerGetCurrent();
+    if (lv_t == null) {
+        CMLib_LogWarn("Trig", "TrigStopSelf: 不在触发器执行上下文中，已忽略。");
+        return;
+    }
+    TriggerStop(lv_t);
+}
+
+// -----------------------------------------------------------------------------
+// 执行队列（成对保护）
+// -----------------------------------------------------------------------------
+void CMLib_TrigQueueBegin() {
+    TriggerQueueEnter();
+    CMLib_TrigQDepth += 1;
+    if (CMLib_TrigQDepth == CMLIB_TRIG_QDEPTH_WARN) {
+        CMLib_LogWarn("Trig",
+            "队列嵌套深度已达 " + IntToString(CMLIB_TRIG_QDEPTH_WARN) +
+            "，很可能有触发器漏调 CMLib_TrigQueueEnd。");
+    }
+}
+
+void CMLib_TrigQueueEnd() {
+    if (CMLib_TrigQDepth <= 0) {
+        CMLib_LogError("Trig",
+            "TrigQueueEnd: 没有对应的 Begin（深度已为 0），已忽略。" +
+            "多余的 Exit 会释放掉别人的队列位，导致后续触发器错乱。");
+        return;
+    }
+    CMLib_TrigQDepth -= 1;
+    TriggerQueueExit();
+}
+
+int CMLib_TrigQueueDepth() {
+    return CMLib_TrigQDepth;
+}
+
+bool CMLib_TrigQueueIsEmpty() {
+    return TriggerQueueIsEmpty();
+}
+
+void CMLib_TrigQueuePause(bool lp_pause) {
+    TriggerQueuePause(lp_pause);
+}
+
+// -----------------------------------------------------------------------------
+// 事件挂载：生命周期
+// -----------------------------------------------------------------------------
+void CMLib_TrigOnMapInit(trigger lp_trigger) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventMapInit(lp_trigger);
+}
+
+void CMLib_TrigOnElapsed(trigger lp_trigger, fixed lp_secs) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventTimeElapsed(lp_trigger, lp_secs, c_timeGame);
+}
+
+// 内部：周期事件的公共校验。周期 <= 0 会让触发器每帧反复执行，必须拦。
+static bool CMLib_TrigPeriodGuard(trigger lp_trigger, fixed lp_secs) {
+    if (lp_trigger == null) { return false; }
+    if (lp_secs <= 0.0) {
+        CMLib_LogError("Trig",
+            "TrigOnPeriod: 周期必须 > 0（收到 " + FixedToString(lp_secs, 3) +
+            "）。周期 0 会让触发器无限重入并卡死游戏，已拒绝挂载。");
+        return false;
+    }
+    return true;
+}
+
+void CMLib_TrigOnPeriod(trigger lp_trigger, fixed lp_secs) {
+    if (CMLib_TrigPeriodGuard(lp_trigger, lp_secs) == false) { return; }
+    TriggerAddEventTimePeriodic(lp_trigger, lp_secs, c_timeGame);
+}
+
+void CMLib_TrigOnPeriodReal(trigger lp_trigger, fixed lp_secs) {
+    if (CMLib_TrigPeriodGuard(lp_trigger, lp_secs) == false) { return; }
+    TriggerAddEventTimePeriodic(lp_trigger, lp_secs, c_timeReal);
+}
+
+void CMLib_TrigOnTimer(trigger lp_trigger, timer lp_timer) {
+    if (lp_trigger == null) { return; }
+    if (lp_timer == null) {
+        CMLib_LogWarn("Trig", "TrigOnTimer: 计时器为 null，已忽略。");
+        return;
+    }
+    TriggerAddEventTimer(lp_trigger, lp_timer);
+}
+
+// -----------------------------------------------------------------------------
+// 事件挂载：单位
+// -----------------------------------------------------------------------------
+// 内部：unit -> unitref，null 保持 null（原生用 null 表示「任意单位」通配）。
+static unitref CMLib_TrigUnitRef(unit lp_unit) {
+    if (lp_unit == null) { return null; }
+    return UnitRefFromUnit(lp_unit);
+}
+
+void CMLib_TrigOnUnitDied(trigger lp_trigger, unit lp_unit) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitDied(lp_trigger, CMLib_TrigUnitRef(lp_unit));
+}
+
+void CMLib_TrigOnUnitAttacked(trigger lp_trigger, unit lp_unit) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitAttacked(lp_trigger, CMLib_TrigUnitRef(lp_unit));
+}
+
+void CMLib_TrigOnUnitChangeOwner(trigger lp_trigger, unit lp_unit) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitChangeOwner(lp_trigger, CMLib_TrigUnitRef(lp_unit));
+}
+
+void CMLib_TrigOnUnitGainLevel(trigger lp_trigger, unit lp_unit) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitGainLevel(lp_trigger, CMLib_TrigUnitRef(lp_unit));
+}
+
+void CMLib_TrigOnUnitCreated(trigger lp_trigger, unit lp_unit,
+                             string lp_creatorAbil, string lp_creatorBehavior) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitCreated(lp_trigger, CMLib_TrigUnitRef(lp_unit),
+                               lp_creatorAbil, lp_creatorBehavior);
+}
+
+void CMLib_TrigOnUnitDamaged(trigger lp_trigger, unit lp_unit, string lp_effect) {
+    if (lp_trigger == null) { return; }
+    // c_unitDamageTypeAny(-1) = 不限伤害类型；c_unitDamageEither(0) = 致命与非致命都收。
+    // 注意别把「是否致命」这一档写成 c_unitDamageTypeAny —— 两组常量域不同，
+    // 传错会变成只收致命伤害，导致掉血监听整体失效。
+    TriggerAddEventUnitDamaged(lp_trigger, CMLib_TrigUnitRef(lp_unit),
+                               c_unitDamageTypeAny, c_unitDamageEither, lp_effect);
+}
+
+void CMLib_TrigOnUnitIdle(trigger lp_trigger, unit lp_unit, bool lp_idle) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitBecomesIdle(lp_trigger, CMLib_TrigUnitRef(lp_unit), lp_idle);
+}
+
+// -----------------------------------------------------------------------------
+// 事件挂载：单位 · 空间与交互
+// -----------------------------------------------------------------------------
+void CMLib_TrigOnUnitRegion(trigger lp_trigger, unit lp_unit, region lp_region,
+                            bool lp_entering) {
+    if (lp_trigger == null) { return; }
+    if (lp_region == null) {
+        CMLib_LogWarn("Trig", "TrigOnUnitRegion: 区域为 null，事件未挂载。");
+        return;
+    }
+    TriggerAddEventUnitRegion(lp_trigger, CMLib_TrigUnitRef(lp_unit), lp_region,
+                              lp_entering);
+}
+
+void CMLib_TrigOnUnitRegionBoth(trigger lp_trigger, unit lp_unit, region lp_region) {
+    // 进入与离开是两条独立事件；只挂一条会让「区域内计数」单向漂移。
+    CMLib_TrigOnUnitRegion(lp_trigger, lp_unit, lp_region, true);
+    CMLib_TrigOnUnitRegion(lp_trigger, lp_unit, lp_region, false);
+}
+
+void CMLib_TrigOnUnitRange(trigger lp_trigger, unit lp_unit, unit lp_from,
+                           fixed lp_range, bool lp_entering) {
+    if (lp_trigger == null) { return; }
+    if (lp_from == null) {
+        CMLib_LogWarn("Trig", "TrigOnUnitRange: 参照单位为 null，事件未挂载。");
+        return;
+    }
+    TriggerAddEventUnitRange(lp_trigger, CMLib_TrigUnitRef(lp_unit), lp_from,
+                             lp_range, lp_entering);
+}
+
+void CMLib_TrigOnUnitRangePoint(trigger lp_trigger, unit lp_unit, point lp_point,
+                                fixed lp_range, bool lp_entering) {
+    if (lp_trigger == null) { return; }
+    if (lp_point == null) {
+        CMLib_LogWarn("Trig", "TrigOnUnitRangePoint: 参照点为 null，事件未挂载。");
+        return;
+    }
+    TriggerAddEventUnitRangePoint(lp_trigger, CMLib_TrigUnitRef(lp_unit), lp_point,
+                                  lp_range, lp_entering);
+}
+
+void CMLib_TrigOnUnitCargo(trigger lp_trigger, unit lp_unit, bool lp_loading) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitCargo(lp_trigger, CMLib_TrigUnitRef(lp_unit), lp_loading);
+}
+
+void CMLib_TrigOnUnitSelected(trigger lp_trigger, unit lp_unit, int lp_player,
+                              bool lp_selected) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitSelected(lp_trigger, CMLib_TrigUnitRef(lp_unit), lp_player,
+                                lp_selected);
+}
+
+void CMLib_TrigOnUnitClicked(trigger lp_trigger, unit lp_unit, int lp_player) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitClick(lp_trigger, CMLib_TrigUnitRef(lp_unit), lp_player);
+}
+
+void CMLib_TrigOnUnitHighlight(trigger lp_trigger, unit lp_unit, int lp_player,
+                               bool lp_highlighted) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitHighlight(lp_trigger, CMLib_TrigUnitRef(lp_unit), lp_player,
+                                 lp_highlighted);
+}
+
+// -----------------------------------------------------------------------------
+// 事件挂载：单位 · 技能与命令
+// -----------------------------------------------------------------------------
+void CMLib_TrigOnUnitAbility(trigger lp_trigger, unit lp_unit, abilcmd lp_abilcmd,
+                             int lp_stage, bool lp_includeShared) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitAbility(lp_trigger, CMLib_TrigUnitRef(lp_unit), lp_abilcmd,
+                               lp_stage, lp_includeShared);
+}
+
+void CMLib_TrigOnUnitAbilityUsed(trigger lp_trigger, unit lp_unit, abilcmd lp_abilcmd) {
+    // c_unitAbilStageExecute(-3) = 真正开始施放那一刻，不含排队/取消。
+    // includeSharedAbils=true：不带这个，建造类共享技能（AbilBuild 等）收不到。
+    CMLib_TrigOnUnitAbility(lp_trigger, lp_unit, lp_abilcmd,
+                            c_unitAbilStageExecute, true);
+}
+
+void CMLib_TrigOnUnitAutoCast(trigger lp_trigger, unit lp_unit, abilcmd lp_abilcmd,
+                              int lp_changeType, bool lp_includeShared) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitAbilityAutoCastChange(lp_trigger, CMLib_TrigUnitRef(lp_unit),
+                                             lp_abilcmd, lp_changeType,
+                                             lp_includeShared);
+}
+
+void CMLib_TrigOnUnitOrder(trigger lp_trigger, unit lp_unit, abilcmd lp_abilcmd) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitOrder(lp_trigger, CMLib_TrigUnitRef(lp_unit), lp_abilcmd);
+}
+
+void CMLib_TrigOnUnitProperty(trigger lp_trigger, unit lp_unit, int lp_prop) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitProperty(lp_trigger, CMLib_TrigUnitRef(lp_unit), lp_prop);
+}
+
+void CMLib_TrigOnUnitBehavior(trigger lp_trigger, unit lp_unit, string lp_behavior,
+                              int lp_changeType) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitBehaviorChange(lp_trigger, CMLib_TrigUnitRef(lp_unit),
+                                      lp_behavior, lp_changeType);
+}
+
+// -----------------------------------------------------------------------------
+// 事件挂载：建筑 / 生产进度
+// -----------------------------------------------------------------------------
+void CMLib_TrigOnConstructProgress(trigger lp_trigger, unit lp_unit, int lp_stage) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitConstructProgress(lp_trigger, CMLib_TrigUnitRef(lp_unit),
+                                         lp_stage);
+}
+
+void CMLib_TrigOnTrainProgress(trigger lp_trigger, unit lp_unit, int lp_stage) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitTrainProgress(lp_trigger, CMLib_TrigUnitRef(lp_unit), lp_stage);
+}
+
+void CMLib_TrigOnResearchProgress(trigger lp_trigger, unit lp_unit, int lp_stage) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitResearchProgress(lp_trigger, CMLib_TrigUnitRef(lp_unit),
+                                        lp_stage);
+}
+
+void CMLib_TrigOnReviveProgress(trigger lp_trigger, unit lp_unit, int lp_stage) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitReviveProgress(lp_trigger, CMLib_TrigUnitRef(lp_unit), lp_stage);
+}
+
+void CMLib_TrigOnLearnProgress(trigger lp_trigger, unit lp_unit, int lp_stage) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitLearnProgress(lp_trigger, CMLib_TrigUnitRef(lp_unit), lp_stage);
+}
+
+void CMLib_TrigOnSpecializeProgress(trigger lp_trigger, unit lp_unit, int lp_stage) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitSpecializeProgress(lp_trigger, CMLib_TrigUnitRef(lp_unit),
+                                          lp_stage);
+}
+
+void CMLib_TrigOnArmMagazineProgress(trigger lp_trigger, unit lp_unit, int lp_stage) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitArmMagazineProgress(lp_trigger, CMLib_TrigUnitRef(lp_unit),
+                                           lp_stage);
+}
+
+void CMLib_TrigOnBuildingDone(trigger lp_trigger, unit lp_unit) {
+    CMLib_TrigOnConstructProgress(lp_trigger, lp_unit, c_unitProgressStageComplete);
+}
+
+void CMLib_TrigOnTrainDone(trigger lp_trigger, unit lp_unit) {
+    CMLib_TrigOnTrainProgress(lp_trigger, lp_unit, c_unitProgressStageComplete);
+}
+
+void CMLib_TrigOnResearchDone(trigger lp_trigger, unit lp_unit) {
+    CMLib_TrigOnResearchProgress(lp_trigger, lp_unit, c_unitProgressStageComplete);
+}
+
+void CMLib_TrigOnUnitRevive(trigger lp_trigger, unit lp_unit) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitRevive(lp_trigger, CMLib_TrigUnitRef(lp_unit));
+}
+
+void CMLib_TrigOnUnitPowerup(trigger lp_trigger, unit lp_unit) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventUnitPowerup(lp_trigger, CMLib_TrigUnitRef(lp_unit));
+}
+
+// -----------------------------------------------------------------------------
+// 事件挂载：效果（Effect）
+// -----------------------------------------------------------------------------
+void CMLib_TrigOnEffectUsed(trigger lp_trigger, int lp_player, string lp_effect) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventPlayerEffectUsed(lp_trigger, lp_player, lp_effect);
+}
+
+void CMLib_TrigOnEffectScope(trigger lp_trigger, int lp_player, string lp_scope) {
+    if (lp_trigger == null) { return; }
+    if (lp_scope == "") {
+        CMLib_LogWarn("Trig", "TrigOnEffectScope: 作用域为空，事件未挂载。");
+        return;
+    }
+    TriggerAddEventPlayerEffectUsedFromScope(lp_trigger, lp_player, lp_scope);
+}
+
+// -----------------------------------------------------------------------------
+// 事件挂载：面板 / 对话框控件
+// -----------------------------------------------------------------------------
+void CMLib_TrigOnDialogControl(trigger lp_trigger, int lp_player, int lp_control,
+                               int lp_eventType) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventDialogControl(lp_trigger, lp_player, lp_control, lp_eventType);
+}
+
+void CMLib_TrigOnButtonClick(trigger lp_trigger, int lp_control) {
+    if (lp_trigger == null) { return; }
+    if (lp_control == c_invalidDialogControlId) {
+        // 传 0 在原生里等价于「任意控件」，但绝大多数情况是控件创建失败留下的 0。
+        // 这里不拦截（保留通配能力），只提示，避免一个失败的控件让全局按钮乱响。
+        CMLib_LogWarn("Trig",
+            "TrigOnButtonClick: 控件 id 为 0（无效/通配），请确认控件已创建成功。");
+    }
+    TriggerAddEventDialogControl(lp_trigger, c_playerAny, lp_control,
+                                 c_triggerControlEventTypeClick);
+}
+
+// -----------------------------------------------------------------------------
+// 事件取参：上述事件族的配套读取
+// -----------------------------------------------------------------------------
+region CMLib_EvtRegion() {
+    return EventUnitRegion();
+}
+
+unit CMLib_EvtRangeUnit() {
+    return EventUnitRangeUnit();
+}
+
+unit CMLib_EvtCargoUnit() {
+    return EventUnitCargo();
+}
+
+abilcmd CMLib_EvtAbility() {
+    return EventUnitAbility();
+}
+
+int CMLib_EvtAbilityStage() {
+    return EventUnitAbilityStage();
+}
+
+unit CMLib_EvtAbilityOtherUnit() {
+    return EventUnitAbilityOtherUnit();
+}
+
+string CMLib_EvtBehavior() {
+    return EventUnitBehavior();
+}
+
+string CMLib_EvtProgressType() {
+    return EventUnitProgressObjectType();
+}
+
+unit CMLib_EvtProgressUnit() {
+    // 建筑建造完成事件里这里通常是 null（造的是建筑本身，不是被训练出的单位）；
+    // 想拿建筑本体请用 CMLib_EvtUnit()。
+    return EventUnitProgressUnit();
+}
+
+string CMLib_EvtEffect() {
+    return EventPlayerEffectUsed();
+}
+
+unit CMLib_EvtEffectUnit(int lp_location) {
+    return EventPlayerEffectUsedUnit(lp_location);
+}
+
+point CMLib_EvtEffectPoint(int lp_location) {
+    return EventPlayerEffectUsedPoint(lp_location);
+}
+
+unit CMLib_EvtEffectCaster() {
+    return EventPlayerEffectUsedUnit(CMLIB_EFFECT_LOC_CASTER_UNIT);
+}
+
+unit CMLib_EvtEffectTarget() {
+    return EventPlayerEffectUsedUnit(CMLIB_EFFECT_LOC_TARGET_UNIT);
+}
+
+int CMLib_EvtControl() {
+    return EventDialogControl();
+}
+
+int CMLib_EvtControlEventType() {
+    return EventDialogControlEventType();
+}
+
+bool CMLib_EvtIsControl(int lp_control) {
+    if (lp_control == c_invalidDialogControlId) { return false; }
+    return (EventDialogControl() == lp_control);
+}
+
+// -----------------------------------------------------------------------------
+// 事件挂载：玩家
+// -----------------------------------------------------------------------------
+void CMLib_TrigOnPlayerLeft(trigger lp_trigger, int lp_player, int lp_result) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventPlayerLeft(lp_trigger, lp_player, lp_result);
+}
+
+void CMLib_TrigOnAllianceChange(trigger lp_trigger, int lp_player) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventPlayerAllianceChange(lp_trigger, lp_player);
+}
+
+void CMLib_TrigOnAIWave(trigger lp_trigger, int lp_player) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventPlayerAIWave(lp_trigger, lp_player);
+}
+
+void CMLib_TrigOnChat(trigger lp_trigger, int lp_player, string lp_text, bool lp_exact) {
+    if (lp_trigger == null) { return; }
+    TriggerAddEventChatMessage(lp_trigger, lp_player, lp_text, lp_exact);
+}
+
+void CMLib_TrigOnGeneric(trigger lp_trigger, string lp_eventName) {
+    if (lp_trigger == null) { return; }
+    if (lp_eventName == "") {
+        CMLib_LogWarn("Trig", "TrigOnGeneric: 事件名为空，已忽略。");
+        return;
+    }
+    TriggerAddEventGeneric(lp_trigger, lp_eventName);
+}
+
+void CMLib_TrigSend(string lp_eventName) {
+    if (lp_eventName == "") {
+        CMLib_LogWarn("Trig", "TrigSend: 事件名为空，已忽略。");
+        return;
+    }
+    TriggerSendEvent(lp_eventName);
+}
+
+// -----------------------------------------------------------------------------
+// 事件取参
+// -----------------------------------------------------------------------------
+int CMLib_EvtPlayer() {
+    return EventPlayer();
+}
+
+unit CMLib_EvtUnit() {
+    return EventUnit();
+}
+
+unit CMLib_EvtTargetUnit() {
+    return EventUnitTargetUnit();
+}
+
+string CMLib_EvtChat(bool lp_matchedOnly) {
+    return EventChatMessage(lp_matchedOnly);
+}
+
+// -----------------------------------------------------------------------------
+// 跨触发器传参
+// -----------------------------------------------------------------------------
+// 内部：统一键名，避免各处自拼字符串撞车。
+static string CMLib_TrigArgKey(string lp_slot) {
+    return CMLib_Key2(CMLIB_TRIG_ARG_PREFIX, lp_slot);
+}
+
+void CMLib_TrigArgSetInt(string lp_slot, int lp_value) {
+    CMLib_StoreInt(CMLib_TrigArgKey(lp_slot), lp_value);
+}
+
+int CMLib_TrigArgGetInt(string lp_slot, int lp_fallback) {
+    return CMLib_LoadInt(CMLib_TrigArgKey(lp_slot), lp_fallback);
+}
+
+void CMLib_TrigArgSetFixed(string lp_slot, fixed lp_value) {
+    CMLib_StoreFixed(CMLib_TrigArgKey(lp_slot), lp_value);
+}
+
+fixed CMLib_TrigArgGetFixed(string lp_slot, fixed lp_fallback) {
+    return CMLib_LoadFixed(CMLib_TrigArgKey(lp_slot), lp_fallback);
+}
+
+void CMLib_TrigArgSetString(string lp_slot, string lp_value) {
+    CMLib_StoreString(CMLib_TrigArgKey(lp_slot), lp_value);
+}
+
+string CMLib_TrigArgGetString(string lp_slot, string lp_fallback) {
+    return CMLib_LoadString(CMLib_TrigArgKey(lp_slot), lp_fallback);
+}
+
+void CMLib_TrigArgSetUnit(string lp_slot, unit lp_value) {
+    CMLib_StoreUnit(CMLib_TrigArgKey(lp_slot), lp_value);
+}
+
+unit CMLib_TrigArgGetUnit(string lp_slot) {
+    return CMLib_LoadUnit(CMLib_TrigArgKey(lp_slot));
+}
+
+void CMLib_TrigCallInt(trigger lp_trigger, string lp_slot, int lp_value) {
+    if (lp_trigger == null) { return; }
+    CMLib_TrigArgSetInt(lp_slot, lp_value);
+    TriggerExecute(lp_trigger, true, false);
+}
+
+// -----------------------------------------------------------------------------
+// 等待
+// -----------------------------------------------------------------------------
+void CMLib_WaitGame(fixed lp_secs) {
+    if (lp_secs <= 0.0) { return; }
+    Wait(lp_secs, c_timeGame);
+}
+
+void CMLib_WaitReal(fixed lp_secs) {
+    if (lp_secs <= 0.0) { return; }
+    Wait(lp_secs, c_timeReal);
+}
+
+void CMLib_WaitAI(fixed lp_secs) {
+    if (lp_secs <= 0.0) { return; }
+    Wait(lp_secs, c_timeAI);
+}
+
+void CMLib_Yield() {
+    Wait(0.0625, c_timeReal);
+}
+
+// -----------------------------------------------------------------------------
+// 计时器
+// -----------------------------------------------------------------------------
+// 内部：新建并启动。
+static timer CMLib_TimerStartNew(fixed lp_secs, bool lp_periodic) {
+    timer lv_t;
+
+    if (lp_secs <= 0.0) {
+        CMLib_LogError("Trig",
+            "Timer: 时长必须 > 0（收到 " + FixedToString(lp_secs, 3) + "），已拒绝。");
+        return null;
+    }
+    lv_t = TimerCreate();
+    TimerStart(lv_t, lp_secs, lp_periodic, c_timeGame);
+    return lv_t;
+}
+
+timer CMLib_TimerOnce(fixed lp_secs) {
+    return CMLib_TimerStartNew(lp_secs, false);
+}
+
+timer CMLib_TimerLoop(fixed lp_secs) {
+    return CMLib_TimerStartNew(lp_secs, true);
+}
+
+fixed CMLib_TimerLeft(timer lp_timer) {
+    if (lp_timer == null) { return 0.0; }
+    return TimerGetRemaining(lp_timer);
+}
+
+fixed CMLib_TimerElapsed(timer lp_timer) {
+    if (lp_timer == null) { return 0.0; }
+    return TimerGetElapsed(lp_timer);
+}
+
+void CMLib_TimerHold(timer lp_timer, bool lp_pause) {
+    if (lp_timer == null) { return; }
+    TimerPause(lp_timer, lp_pause);
+}
+
+void CMLib_TimerReset(timer lp_timer) {
+    if (lp_timer == null) { return; }
+    TimerRestart(lp_timer);
+}
+
+// -----------------------------------------------------------------------------
+// 自检
+// -----------------------------------------------------------------------------
+void CMLib_TrigDumpState() {
+    int lv_i;
+    int lv_enabled;
+
+    lv_i = 0;
+    lv_enabled = 0;
+    while (lv_i < CMLib_TrigRegCount) {
+        if (CMLib_TrigRegT[lv_i] != null) {
+            if (TriggerIsEnabled(CMLib_TrigRegT[lv_i]) == true) { lv_enabled += 1; }
+        }
+        lv_i += 1;
+    }
+    CMLib_LogInfo("Trig",
+        "注册 " + IntToString(CMLib_TrigRegCount) + " 个 / 启用 " + IntToString(lv_enabled) +
+        " 个 / 溢出未管理 " + IntToString(CMLib_TrigOverflow) +
+        " 个 / 队列深度 " + IntToString(CMLib_TrigQDepth));
+    if (CMLib_TrigQDepth != 0) {
+        CMLib_LogError("Trig",
+            "队列深度非 0，说明有 CMLib_TrigQueueBegin 没有配对的 End —— " +
+            "后续排队触发器会静默不执行。");
+    }
+}
+
+// 清触发器队列（round 12 真实缺口补齐）。
+void CMLib_TriggerQueueClear(int lp_option) {
+    TriggerQueueClear(lp_option);
+}
+
+// =============================================================================
+// round 13：触发器执行计数 + 事件取参补齐
+// =============================================================================
+int CMLib_TrigExecCount(trigger lp_t) {
+    if ((lp_t == null)) {
+        return 0;
+    }
+    return TriggerGetExecCount(lp_t);
+}
+
+unit CMLib_EvtCreatedUnit() {
+    return EventUnitCreatedUnit();
+}
+
+int CMLib_EvtDmgSourcePlayer() {
+    return EventUnitDamageSourcePlayer();
+}
+
+unit CMLib_EvtDmgSourceUnit() {
+    return EventUnitDamageSourceUnit();
+}
+
+int CMLib_EvtEffectUsedUnitOwner(int lp_location) {
+    return EventPlayerEffectUsedUnitOwner(lp_location);
+}
+
+
+// -----------------------------------------------------------------------------
+// round 18：触发器查找 + 事件取参补齐
+// -----------------------------------------------------------------------------
+
+trigger CMLib_TrigFindByFunc(string lp_funcName) {
+    if ((lp_funcName == "")) {
+        return null;
+    }
+    return TriggerFind(lp_funcName);
+}
+
+void CMLib_TrigOnPlayerPropChange(trigger lp_t, int lp_player, int lp_prop) {
+    if ((lp_t == null)) {
+        return;
+    }
+    TriggerAddEventPlayerPropChange(lp_t, lp_player, lp_prop);
+}
+
+string CMLib_EvtUpgradeName() {
+    return EventUpgradeName();
+}
+
+fixed CMLib_EvtDamageAmount() {
+    return EventUnitDamageAmount();
+}
+
+string CMLib_TrigEventParamName(string lp_eventName, string lp_paramName) {
+    if ((lp_eventName == "")) {
+        return "";
+    }
+    if ((lp_paramName == "")) {
+        return "";
+    }
+    return TriggerEventParamName(lp_eventName, lp_paramName);
+}
+
+// =============================================================================
+// CMLib :: Round19 —— 事件族补齐 实现
+// =============================================================================
+void CMLib_OnKeyPressed(trigger lp_t, int lp_player, int lp_key, bool lp_down) {
+    CMLib_OnKeyPressedMod(lp_t, lp_player, lp_key, lp_down,
+                          c_keyModifierStateIgnore, c_keyModifierStateIgnore,
+                          c_keyModifierStateIgnore);
+}
+
+void CMLib_OnKeyPressedMod(trigger lp_t, int lp_player, int lp_key, bool lp_down,
+                           int lp_shift, int lp_ctrl, int lp_alt) {
+    if (lp_t == null) { return; }
+    TriggerAddEventKeyPressed(lp_t, lp_player, lp_key, lp_down,
+                              lp_shift, lp_ctrl, lp_alt);
+}
+
+void CMLib_OnButtonPressed(trigger lp_t, int lp_player, string lp_button) {
+    if ((lp_t == null) || (lp_button == "")) { return; }
+    TriggerAddEventButtonPressed(lp_t, lp_player, lp_button);
+}
+
+void CMLib_OnUpgradeLevelChanged(trigger lp_t, int lp_player) {
+    if (lp_t == null) { return; }
+    TriggerAddEventUpgradeLevelChanged(lp_t, lp_player);
+}
+
+void CMLib_OnBehaviorCategoryChange(trigger lp_t, unitref lp_u, int lp_category,
+                                    int lp_changeType) {
+    if (lp_t == null) { return; }
+    TriggerAddEventUnitBehaviorChangeFromCategory(lp_t, lp_u, lp_category, lp_changeType);
+}
+
+string CMLib_EvtDamageEffect() { return EventUnitDamageEffect(); }
+order  CMLib_EvtOrder()        { return EventUnitOrder(); }
+unit   CMLib_EvtTarget()       { return EventUnitTarget(); }
+point  CMLib_EvtTargetPoint()  { return EventUnitTargetPoint(); }
+timer  CMLib_EvtTimer()        { return EventTimer(); }
+wave   CMLib_EvtWave()         { return EventPlayerWave(); }
+int    CMLib_EvtKey()          { return EventKeyPressed(); }
+bool   CMLib_EvtKeyShift()     { return EventKeyShift(); }
+bool   CMLib_EvtKeyCtrl()      { return EventKeyControl(); }
+bool   CMLib_EvtKeyAlt()       { return EventKeyAlt(); }
+string CMLib_EvtButton()       { return EventButtonPressed(); }
+
+void CMLib_SkippableBegin(playergroup lp_allowed, int lp_requiredCount, trigger lp_onSkip,
+                          bool lp_testConds, bool lp_wait) {
+    playergroup lv_pg;
+    int lv_need;
+    lv_pg = lp_allowed;
+    if (lv_pg == null) { lv_pg = PlayerGroupAll(); }
+    lv_need = lp_requiredCount;
+    if (lv_need <= 0) { lv_need = PlayerGroupCount(lv_pg); }
+    if (lv_need <= 0) { lv_need = 1; }
+    TriggerSkippableBegin(lv_pg, lv_need, lp_onSkip, lp_testConds, lp_wait);
+}
+
+void CMLib_SkippableEnd() {
+    TriggerSkippableEnd();
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round26 —— 最近一次启动的计时器
+// -----------------------------------------------------------------------------
+
+timer CMLib_TimerLastStarted() {
+    return TimerLastStarted();
+}

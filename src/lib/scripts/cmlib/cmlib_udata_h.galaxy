@@ -1,0 +1,97 @@
+// =============================================================================
+// CMLib :: UData
+// UserData —— SC2 数据编辑器里的「用户自定义数据表」（Data Editor > User Data）。
+// 战役/合作 mod 常用它把关卡配置、指挥官参数、单位档位表做成可视化数据，
+// 再由触发器在运行时读取。
+//
+// 缺口来源：全量 mod 扫描 misc 桶零覆盖部分 —— UserDataInstance(1258) /
+//           UserDataGetInt(1240) / UserDataInstanceCount(937) /
+//           UserDataSetInt(739)，合计约 4~5k 次调用，此前完全未封装。
+//
+// 本模块解决原生 API 的两个痛点：
+//   1. 所有 Get* 都要传 inIndex，且越界不报错、静默返回 0/""；
+//   2. 没有"存在性检查"，拼错字段名只能靠肉眼。
+// 因此这里所有 Get 都带 fallback，并在越界/字段缺失时走日志告警。
+//
+// 依赖：cmlib_core（日志、Key 拼装）。
+// =============================================================================
+
+// ---- 实例枚举 ---------------------------------------------------------------
+int    CMLib_UDataCount(string lp_type);
+// 取第 lp_index 个实例 id；越界返回 ""。
+string CMLib_UDataAt(string lp_type, int lp_index);
+// 该实例 id 是否存在于该类型下（线性查找，适合配置表规模）。
+bool   CMLib_UDataHas(string lp_type, string lp_instance);
+// 实例 id 在类型里的下标；找不到返回 -1。
+int    CMLib_UDataIndexOf(string lp_type, string lp_instance);
+
+// ---- 字段元信息 -------------------------------------------------------------
+int    CMLib_UDataFieldCount(string lp_type);
+string CMLib_UDataFieldAt(string lp_type, int lp_index);
+bool   CMLib_UDataFieldExists(string lp_type, string lp_field);
+// 字段的数组长度（非数组字段为 1）。
+int    CMLib_UDataFieldValues(string lp_type, string lp_field);
+bool   CMLib_UDataFieldWritable(string lp_type, string lp_field);
+
+// ---- 读取（全部带 fallback + 越界保护）----------------------------------------
+int    CMLib_UDataInt(string lp_type, string lp_instance, string lp_field,
+                      int lp_fallback);
+fixed  CMLib_UDataFixed(string lp_type, string lp_instance, string lp_field,
+                        fixed lp_fallback);
+string CMLib_UDataString(string lp_type, string lp_instance, string lp_field,
+                         string lp_fallback);
+text   CMLib_UDataText(string lp_type, string lp_instance, string lp_field);
+string CMLib_UDataGameLink(string lp_type, string lp_instance, string lp_field);
+string CMLib_UDataUnit(string lp_type, string lp_instance, string lp_field);
+// 数组字段按下标读；越界返回 fallback。
+int    CMLib_UDataIntAt(string lp_type, string lp_instance, string lp_field,
+                        int lp_index, int lp_fallback);
+fixed  CMLib_UDataFixedAt(string lp_type, string lp_instance, string lp_field,
+                          int lp_index, fixed lp_fallback);
+string CMLib_UDataStringAt(string lp_type, string lp_instance, string lp_field,
+                           int lp_index, string lp_fallback);
+
+// ---- 写入（仅对可修改字段生效，否则告警并跳过）--------------------------------
+void CMLib_UDataSetInt(string lp_type, string lp_instance, string lp_field,
+                       int lp_value);
+void CMLib_UDataSetFixed(string lp_type, string lp_instance, string lp_field,
+                         fixed lp_value);
+void CMLib_UDataSetString(string lp_type, string lp_instance, string lp_field,
+                          string lp_value);
+void CMLib_UDataSetIntAt(string lp_type, string lp_instance, string lp_field,
+                         int lp_index, int lp_value);
+
+// ---- 便捷聚合 ---------------------------------------------------------------
+// 把某类型下所有实例的某个 int 字段求和 / 取最大，做配置表统计用。
+int CMLib_UDataSumInt(string lp_type, string lp_field);
+int CMLib_UDataMaxInt(string lp_type, string lp_field);
+// 按「字段 == 目标值」查找第一个匹配的实例 id；找不到返回 ""。
+string CMLib_UDataFindByInt(string lp_type, string lp_field, int lp_value);
+string CMLib_UDataFindByString(string lp_type, string lp_field, string lp_value);
+
+
+// ---- round 18：用户数据实例查询（真实缺口）-------------------------------------
+// 按「类型 + 实例 + 字段 + 下标」读一条 UserData 实例引用（返回实例 id 字符串）。
+// 各 mod 325 次调用；任一必填入参为空返回 ""。
+string CMLib_UDataUserInstance(string lp_type, string lp_instance,
+                               string lp_field, int lp_index);
+
+// =============================================================================
+// CMLib :: Round19 —— User Data 图片路径
+// =============================================================================
+// 从自定义 User Data 表里取图片资源路径；任一参数为空返回 ""。
+string CMLib_UDataImagePath(string lp_type, string lp_instance, string lp_field,
+                            int lp_index);
+
+// =============================================================================
+// CMLib :: Round20 —— UserData 补齐：升级引用与整型重置
+// =============================================================================
+
+// 把某个 UserData 类型下**所有实例**的字段重置回数据层默认值。
+// 注意作用域是整个 type，不是单个 instance —— 换关卡/重开局时用，
+// 局内想清单个实例请逐字段 CMLib_UDataSet*。
+void   CMLib_UDataResetType(string lp_type);
+// 读 upgrade 型字段（返回 upgrade 的 link id 字符串），越界/不存在返回 ""。
+string CMLib_UDataUpgrade(string lp_type, string lp_instance, string lp_field, int lp_index);
+// 便捷版：取第 0 个索引。
+string CMLib_UDataUpgrade0(string lp_type, string lp_instance, string lp_field);

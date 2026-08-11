@@ -1,0 +1,125 @@
+// =============================================================================
+// CMLib :: Player
+// 玩家槽位、playergroup 构造、资源、联盟、科技升级。
+//
+// 解决的重复：
+//   1) `for (p = 1; p <= 15; p += 1) { if (PlayerStatus(p) == c_playerStatusActive) ... }`
+//      这段扫描在合作 / 战役脚本里到处都是，且边界（1..15 还是 0..15）写法不统一
+//   2) 手动 PlayerGroupEmpty() + 循环 PlayerGroupAdd 构造「所有活跃人类玩家」
+//   3) 资源加减直接调 PlayerModifyPropertyInt，没有下限保护会出现负矿
+//   4) 联盟设置要对称调用两次 PlayerSetAlliance，漏一次就变成单向同盟
+//
+// 依赖：cmlib_core_h
+// =============================================================================
+
+// ---- 访问者原型 --------------------------------------------------------------
+void CMLib_PlayerVisitor_Proto(int lp_player, int lp_arg);
+typedef funcref<CMLib_PlayerVisitor_Proto> CMLib_PlayerVisitor;
+
+// ---- 槽位判定 ----------------------------------------------------------------
+// 仍在游戏中（c_playerStatusActive）。
+bool CMLib_PlayerActive(int lp_player);
+// 活跃且是真人（c_playerTypeUser）。
+bool CMLib_PlayerIsHuman(int lp_player);
+// 活跃且是电脑（c_playerTypeComputer）。
+bool CMLib_PlayerIsComputer(int lp_player);
+// 中立 / 敌对槽位（通常是 0 和 15），用于排除环境单位归属。
+bool CMLib_PlayerIsEnvironment(int lp_player);
+
+// ---- 遍历 --------------------------------------------------------------------
+// 遍历 1..15 中所有活跃玩家；返回访问到的数量。
+int CMLib_ForEachActivePlayer(CMLib_PlayerVisitor lp_visitor, int lp_arg);
+// 只遍历活跃真人玩家。
+int CMLib_ForEachHumanPlayer(CMLib_PlayerVisitor lp_visitor, int lp_arg);
+// 遍历 lp_source 中所有玩家。
+int CMLib_ForEachInGroup(playergroup lp_group, CMLib_PlayerVisitor lp_visitor, int lp_arg);
+
+// ---- playergroup 构造 --------------------------------------------------------
+playergroup CMLib_PGActive();
+playergroup CMLib_PGHumans();
+playergroup CMLib_PGComputers();
+playergroup CMLib_PGSingle(int lp_player);
+playergroup CMLib_PGPair(int lp_a, int lp_b);
+// 所有与 lp_player 结盟（allianceId = Passive）的活跃玩家，含自己。
+playergroup CMLib_PGAlliesOf(int lp_player);
+// 所有与 lp_player 敌对的活跃玩家。
+playergroup CMLib_PGEnemiesOf(int lp_player);
+int CMLib_PGCount(playergroup lp_group);
+bool CMLib_PGHas(playergroup lp_group, int lp_player);
+
+// ---- 资源 --------------------------------------------------------------------
+int  CMLib_ResGet(int lp_player, int lp_prop);
+int  CMLib_ResGetMinerals(int lp_player);
+int  CMLib_ResGetVespene(int lp_player);
+// 加减资源，自动保证结果不为负；返回实际变化量。
+int  CMLib_ResAdd(int lp_player, int lp_prop, int lp_delta);
+int  CMLib_ResAddMinerals(int lp_player, int lp_delta);
+int  CMLib_ResAddVespene(int lp_player, int lp_delta);
+void CMLib_ResSet(int lp_player, int lp_prop, int lp_value);
+// 尝试扣费：余额足够才扣并返回 true，不足则原样不动返回 false（避免半扣费）。
+bool CMLib_ResTrySpend(int lp_player, int lp_minerals, int lp_vespene);
+// 给一组玩家同时发资源。
+void CMLib_ResGrantGroup(playergroup lp_group, int lp_minerals, int lp_vespene);
+// 剩余人口（SuppliesLimit - SuppliesUsed），不足时返回 0。
+int  CMLib_SupplyFree(int lp_player);
+
+// ---- 联盟 --------------------------------------------------------------------
+// 对称设置：同时改 a→b 和 b→a，避免单向同盟这个经典 bug。
+void CMLib_AllySetMutual(int lp_a, int lp_b, int lp_allianceId, bool lp_value);
+// 一次打包设置「完全盟友」：Passive + Vision + Control + Spend。
+void CMLib_AllyMakeFullAllies(int lp_a, int lp_b);
+// 一次打包设置「敌对」：清除 Passive / Vision / Control / Spend。
+void CMLib_AllyMakeEnemies(int lp_a, int lp_b);
+// 单向共享视野。
+void CMLib_AllyGiveVision(int lp_from, int lp_to, bool lp_value);
+bool CMLib_AllyIsAlly(int lp_a, int lp_b);
+
+// ---- 科技升级 ----------------------------------------------------------------
+// 已完成的升级等级。
+int  CMLib_UpgradeLevel(int lp_player, string lp_upgrade);
+bool CMLib_UpgradeHas(int lp_player, string lp_upgrade);
+// 幂等：已达到目标等级则不重复加；返回实际加了几级。
+int  CMLib_UpgradeEnsureLevel(int lp_player, string lp_upgrade, int lp_targetLevel);
+// 给一组玩家统一加同一个升级。
+int  CMLib_UpgradeGrantGroup(playergroup lp_group, string lp_upgrade, int lp_levels);
+
+// ---- 玩家静态属性 --------------------------------------------------------------
+// 出生点：非法槽位返回 (0,0) 而不是 null，调用方无需再判空（原生对非法槽会抛错）。
+point  CMLib_PlayerStart(int lp_player);
+// 难度等级（对应 PlayerDifficulty），非法槽返回 0。
+int    CMLib_PlayerDiff(int lp_player);
+// 种族字符串（"Terr"/"Zerg"/"Prot"），非法槽返回 ""。
+string CMLib_PlayerRaceOf(int lp_player);
+// 玩家组安全拷贝：null 输入返回空组而不是 null，避免下游连锁判空。
+playergroup CMLib_PGCopyOf(playergroup lp_group);
+// 按同盟类型取玩家组（c_playerGroupAlly / c_playerGroupEnemy）。
+playergroup CMLib_PGAllianceOf(int lp_type, int lp_player);
+
+// ---- round 17：玩家标识 / 颜色 / 天赋 / 冷却 / 玩家组增删 -------------------------
+// 这些原生对非法槽位（<1 或 >15）会直接抛错，各 mod 里几乎不判空 —— 在此收口。
+text   CMLib_PlayerNameOf(int lp_player);
+string CMLib_PlayerHandleOf(int lp_player);
+int    CMLib_PlayerTypeOf(int lp_player);
+int    CMLib_PlayerStatusOf(int lp_player);
+int    CMLib_PlayerPropInt(int lp_player, int lp_prop);
+
+// 颜色索引：读取用「当前色」（不是默认色）；设置默认连带改已有单位。
+int  CMLib_PlayerColor(int lp_player);
+void CMLib_PlayerSetColor(int lp_player, int lp_index, bool lp_changeUnits);
+
+// 合作模式天赋 / 指挥官技能冷却。
+bool  CMLib_PlayerTalent(int lp_player, string lp_talent);
+fixed CMLib_PlayerCooldown(int lp_player, string lp_cooldown);
+// 冷却是否已走完（<= 0 视为就绪）。
+bool  CMLib_PlayerCooldownReady(int lp_player, string lp_cooldown);
+
+// 玩家组增删查：null 组一律安全退出，不崩。
+void CMLib_PGAdd(playergroup lp_group, int lp_player);
+void CMLib_PGRemove(playergroup lp_group, int lp_player);
+void CMLib_PGClear(playergroup lp_group);
+// 取第 i 个玩家（i 从 1 起）；越界返回 0。
+int  CMLib_PGAt(playergroup lp_group, int lp_index);
+
+// 以玩家身份在某点 / 某单位上放一个 Effect（技能伤害、治疗、召唤都走这里）。
+void CMLib_PlayerEffectAt(int lp_player, string lp_effect, point lp_target);
+void CMLib_PlayerEffectOn(int lp_player, string lp_effect, unit lp_target);

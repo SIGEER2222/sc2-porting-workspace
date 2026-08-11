@@ -1,0 +1,627 @@
+// =============================================================================
+// CMLib :: Player (实现)
+//
+// 槽位约定：玩家 0 是中立（Neutral），15 常被用作敌对/环境。
+// 本模块的「活跃玩家」扫描范围固定为 CMLIB_PLAYER_MIN..CMLIB_PLAYER_MAX (1..15)，
+// 并且逐个用 PlayerStatus 过滤，不假设槽位连续。
+// =============================================================================
+
+include "scripts/cmlib/cmlib_core_h"
+include "scripts/cmlib/cmlib_player_h"
+
+// -----------------------------------------------------------------------------
+// 槽位判定
+// -----------------------------------------------------------------------------
+
+void CMLib_PlayerVisitor_Proto(int lp_player, int lp_arg) {
+}
+
+bool CMLib_PlayerActive(int lp_player) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return false;
+    }
+    return (PlayerStatus(lp_player) == c_playerStatusActive);
+}
+
+bool CMLib_PlayerIsHuman(int lp_player) {
+    if ((CMLib_PlayerActive(lp_player) == false)) {
+        return false;
+    }
+    return (PlayerType(lp_player) == c_playerTypeUser);
+}
+
+bool CMLib_PlayerIsComputer(int lp_player) {
+    if ((CMLib_PlayerActive(lp_player) == false)) {
+        return false;
+    }
+    return (PlayerType(lp_player) == c_playerTypeComputer);
+}
+
+bool CMLib_PlayerIsEnvironment(int lp_player) {
+    int lv_type;
+
+    lv_type = PlayerType(lp_player);
+    if ((lv_type == c_playerTypeNeutral)) {
+        return true;
+    }
+    if ((lv_type == c_playerTypeHostile)) {
+        return true;
+    }
+    return false;
+}
+
+// -----------------------------------------------------------------------------
+// 遍历
+// -----------------------------------------------------------------------------
+
+int CMLib_ForEachActivePlayer(CMLib_PlayerVisitor lp_visitor, int lp_arg) {
+    int lv_p;
+    int lv_visited;
+
+    lv_p = CMLIB_PLAYER_MIN;
+    lv_visited = 0;
+    while ((lv_p <= CMLIB_PLAYER_MAX)) {
+        if ((CMLib_PlayerActive(lv_p) == true)) {
+            lp_visitor(lv_p, lp_arg);
+            lv_visited += 1;
+        }
+        lv_p += 1;
+    }
+    return lv_visited;
+}
+
+int CMLib_ForEachHumanPlayer(CMLib_PlayerVisitor lp_visitor, int lp_arg) {
+    int lv_p;
+    int lv_visited;
+
+    lv_p = CMLIB_PLAYER_MIN;
+    lv_visited = 0;
+    while ((lv_p <= CMLIB_PLAYER_MAX)) {
+        if ((CMLib_PlayerIsHuman(lv_p) == true)) {
+            lp_visitor(lv_p, lp_arg);
+            lv_visited += 1;
+        }
+        lv_p += 1;
+    }
+    return lv_visited;
+}
+
+int CMLib_ForEachInGroup(playergroup lp_group, CMLib_PlayerVisitor lp_visitor, int lp_arg) {
+    int lv_i;
+    int lv_count;
+    int lv_visited;
+
+    if ((lp_group == null)) {
+        return 0;
+    }
+
+    lv_count = PlayerGroupCount(lp_group);
+    lv_i = 1;
+    lv_visited = 0;
+    while ((lv_i <= lv_count)) {
+        lp_visitor(PlayerGroupPlayer(lp_group, lv_i), lp_arg);
+        lv_visited += 1;
+        lv_i += 1;
+    }
+    return lv_visited;
+}
+
+// -----------------------------------------------------------------------------
+// playergroup 构造
+// -----------------------------------------------------------------------------
+
+playergroup CMLib_PGActive() {
+    playergroup lv_group;
+    int lv_p;
+
+    lv_group = PlayerGroupEmpty();
+    lv_p = CMLIB_PLAYER_MIN;
+    while ((lv_p <= CMLIB_PLAYER_MAX)) {
+        if ((CMLib_PlayerActive(lv_p) == true)) {
+            PlayerGroupAdd(lv_group, lv_p);
+        }
+        lv_p += 1;
+    }
+    return lv_group;
+}
+
+playergroup CMLib_PGHumans() {
+    playergroup lv_group;
+    int lv_p;
+
+    lv_group = PlayerGroupEmpty();
+    lv_p = CMLIB_PLAYER_MIN;
+    while ((lv_p <= CMLIB_PLAYER_MAX)) {
+        if ((CMLib_PlayerIsHuman(lv_p) == true)) {
+            PlayerGroupAdd(lv_group, lv_p);
+        }
+        lv_p += 1;
+    }
+    return lv_group;
+}
+
+playergroup CMLib_PGComputers() {
+    playergroup lv_group;
+    int lv_p;
+
+    lv_group = PlayerGroupEmpty();
+    lv_p = CMLIB_PLAYER_MIN;
+    while ((lv_p <= CMLIB_PLAYER_MAX)) {
+        if ((CMLib_PlayerIsComputer(lv_p) == true)) {
+            PlayerGroupAdd(lv_group, lv_p);
+        }
+        lv_p += 1;
+    }
+    return lv_group;
+}
+
+playergroup CMLib_PGSingle(int lp_player) {
+    playergroup lv_group;
+
+    lv_group = PlayerGroupEmpty();
+    PlayerGroupAdd(lv_group, lp_player);
+    return lv_group;
+}
+
+playergroup CMLib_PGPair(int lp_a, int lp_b) {
+    playergroup lv_group;
+
+    lv_group = PlayerGroupEmpty();
+    PlayerGroupAdd(lv_group, lp_a);
+    if ((lp_b != lp_a)) {
+        PlayerGroupAdd(lv_group, lp_b);
+    }
+    return lv_group;
+}
+
+playergroup CMLib_PGAlliesOf(int lp_player) {
+    playergroup lv_group;
+    int lv_p;
+
+    lv_group = PlayerGroupEmpty();
+    PlayerGroupAdd(lv_group, lp_player);
+    lv_p = CMLIB_PLAYER_MIN;
+    while ((lv_p <= CMLIB_PLAYER_MAX)) {
+        if ((lv_p != lp_player)) {
+            if ((CMLib_PlayerActive(lv_p) == true)) {
+                if ((PlayerGetAlliance(lp_player, c_allianceIdPassive, lv_p) == true)) {
+                    PlayerGroupAdd(lv_group, lv_p);
+                }
+            }
+        }
+        lv_p += 1;
+    }
+    return lv_group;
+}
+
+playergroup CMLib_PGEnemiesOf(int lp_player) {
+    playergroup lv_group;
+    int lv_p;
+
+    lv_group = PlayerGroupEmpty();
+    lv_p = CMLIB_PLAYER_MIN;
+    while ((lv_p <= CMLIB_PLAYER_MAX)) {
+        if ((lv_p != lp_player)) {
+            if ((CMLib_PlayerActive(lv_p) == true)) {
+                if ((PlayerGetAlliance(lp_player, c_allianceIdPassive, lv_p) == false)) {
+                    PlayerGroupAdd(lv_group, lv_p);
+                }
+            }
+        }
+        lv_p += 1;
+    }
+    return lv_group;
+}
+
+int CMLib_PGCount(playergroup lp_group) {
+    if ((lp_group == null)) {
+        return 0;
+    }
+    return PlayerGroupCount(lp_group);
+}
+
+bool CMLib_PGHas(playergroup lp_group, int lp_player) {
+    if ((lp_group == null)) {
+        return false;
+    }
+    return PlayerGroupHasPlayer(lp_group, lp_player);
+}
+
+// -----------------------------------------------------------------------------
+// 资源
+// -----------------------------------------------------------------------------
+
+int CMLib_ResGet(int lp_player, int lp_prop) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return 0;
+    }
+    return PlayerGetPropertyInt(lp_player, lp_prop);
+}
+
+int CMLib_ResGetMinerals(int lp_player) {
+    return CMLib_ResGet(lp_player, c_playerPropMinerals);
+}
+
+int CMLib_ResGetVespene(int lp_player) {
+    return CMLib_ResGet(lp_player, c_playerPropVespene);
+}
+
+// 返回实际变化量：扣费时如果余额不足，只扣到 0，返回负的实扣数。
+int CMLib_ResAdd(int lp_player, int lp_prop, int lp_delta) {
+    int lv_current;
+    int lv_applied;
+
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return 0;
+    }
+    if ((lp_delta == 0)) {
+        return 0;
+    }
+
+    if ((lp_delta > 0)) {
+        PlayerModifyPropertyInt(lp_player, lp_prop, c_playerPropOperAdd, lp_delta);
+        return lp_delta;
+    }
+
+    lv_current = PlayerGetPropertyInt(lp_player, lp_prop);
+    lv_applied = -lp_delta;
+    if ((lv_applied > lv_current)) {
+        lv_applied = lv_current;
+    }
+    if ((lv_applied <= 0)) {
+        return 0;
+    }
+    PlayerModifyPropertyInt(lp_player, lp_prop, c_playerPropOperSubtract, lv_applied);
+    return -lv_applied;
+}
+
+int CMLib_ResAddMinerals(int lp_player, int lp_delta) {
+    return CMLib_ResAdd(lp_player, c_playerPropMinerals, lp_delta);
+}
+
+int CMLib_ResAddVespene(int lp_player, int lp_delta) {
+    return CMLib_ResAdd(lp_player, c_playerPropVespene, lp_delta);
+}
+
+void CMLib_ResSet(int lp_player, int lp_prop, int lp_value) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return;
+    }
+    if ((lp_value < 0)) {
+        PlayerModifyPropertyInt(lp_player, lp_prop, c_playerPropOperSetTo, 0);
+        return;
+    }
+    PlayerModifyPropertyInt(lp_player, lp_prop, c_playerPropOperSetTo, lp_value);
+}
+
+// 先查后扣，保证「要么全扣、要么不扣」。
+bool CMLib_ResTrySpend(int lp_player, int lp_minerals, int lp_vespene) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return false;
+    }
+    if ((PlayerGetPropertyInt(lp_player, c_playerPropMinerals) < lp_minerals)) {
+        return false;
+    }
+    if ((PlayerGetPropertyInt(lp_player, c_playerPropVespene) < lp_vespene)) {
+        return false;
+    }
+    if ((lp_minerals > 0)) {
+        PlayerModifyPropertyInt(lp_player, c_playerPropMinerals, c_playerPropOperSubtract, lp_minerals);
+    }
+    if ((lp_vespene > 0)) {
+        PlayerModifyPropertyInt(lp_player, c_playerPropVespene, c_playerPropOperSubtract, lp_vespene);
+    }
+    return true;
+}
+
+void CMLib_ResGrantGroup(playergroup lp_group, int lp_minerals, int lp_vespene) {
+    int lv_i;
+    int lv_count;
+    int lv_player;
+
+    if ((lp_group == null)) {
+        return;
+    }
+
+    lv_count = PlayerGroupCount(lp_group);
+    lv_i = 1;
+    while ((lv_i <= lv_count)) {
+        lv_player = PlayerGroupPlayer(lp_group, lv_i);
+        if ((lp_minerals != 0)) {
+            CMLib_ResAdd(lv_player, c_playerPropMinerals, lp_minerals);
+        }
+        if ((lp_vespene != 0)) {
+            CMLib_ResAdd(lv_player, c_playerPropVespene, lp_vespene);
+        }
+        lv_i += 1;
+    }
+}
+
+int CMLib_SupplyFree(int lp_player) {
+    int lv_free;
+
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return 0;
+    }
+    lv_free = (PlayerGetPropertyInt(lp_player, c_playerPropSuppliesLimit) - PlayerGetPropertyInt(lp_player, c_playerPropSuppliesUsed));
+    if ((lv_free < 0)) {
+        return 0;
+    }
+    return lv_free;
+}
+
+// -----------------------------------------------------------------------------
+// 联盟
+// -----------------------------------------------------------------------------
+
+void CMLib_AllySetMutual(int lp_a, int lp_b, int lp_allianceId, bool lp_value) {
+    if ((lp_a == lp_b)) {
+        return;
+    }
+    PlayerSetAlliance(lp_a, lp_allianceId, lp_b, lp_value);
+    PlayerSetAlliance(lp_b, lp_allianceId, lp_a, lp_value);
+}
+
+void CMLib_AllyMakeFullAllies(int lp_a, int lp_b) {
+    CMLib_AllySetMutual(lp_a, lp_b, c_allianceIdPassive, true);
+    CMLib_AllySetMutual(lp_a, lp_b, c_allianceIdVision, true);
+    CMLib_AllySetMutual(lp_a, lp_b, c_allianceIdControl, true);
+    CMLib_AllySetMutual(lp_a, lp_b, c_allianceIdSpend, true);
+}
+
+void CMLib_AllyMakeEnemies(int lp_a, int lp_b) {
+    CMLib_AllySetMutual(lp_a, lp_b, c_allianceIdPassive, false);
+    CMLib_AllySetMutual(lp_a, lp_b, c_allianceIdVision, false);
+    CMLib_AllySetMutual(lp_a, lp_b, c_allianceIdControl, false);
+    CMLib_AllySetMutual(lp_a, lp_b, c_allianceIdSpend, false);
+}
+
+void CMLib_AllyGiveVision(int lp_from, int lp_to, bool lp_value) {
+    if ((lp_from == lp_to)) {
+        return;
+    }
+    // Vision 的方向：source 把视野给 target，所以是 source 侧设置。
+    PlayerSetAlliance(lp_from, c_allianceIdVision, lp_to, lp_value);
+}
+
+bool CMLib_AllyIsAlly(int lp_a, int lp_b) {
+    if ((lp_a == lp_b)) {
+        return true;
+    }
+    return PlayerGetAlliance(lp_a, c_allianceIdPassive, lp_b);
+}
+
+// -----------------------------------------------------------------------------
+// 科技升级
+// -----------------------------------------------------------------------------
+
+int CMLib_UpgradeLevel(int lp_player, string lp_upgrade) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return 0;
+    }
+    return TechTreeUpgradeCount(lp_player, lp_upgrade, c_techCountCompleteOnly);
+}
+
+bool CMLib_UpgradeHas(int lp_player, string lp_upgrade) {
+    return (CMLib_UpgradeLevel(lp_player, lp_upgrade) > 0);
+}
+
+int CMLib_UpgradeEnsureLevel(int lp_player, string lp_upgrade, int lp_targetLevel) {
+    int lv_current;
+    int lv_missing;
+
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return 0;
+    }
+
+    lv_current = TechTreeUpgradeCount(lp_player, lp_upgrade, c_techCountCompleteOnly);
+    lv_missing = (lp_targetLevel - lv_current);
+    if ((lv_missing <= 0)) {
+        return 0;
+    }
+    TechTreeUpgradeAddLevel(lp_player, lp_upgrade, lv_missing);
+    return lv_missing;
+}
+
+int CMLib_UpgradeGrantGroup(playergroup lp_group, string lp_upgrade, int lp_levels) {
+    int lv_i;
+    int lv_count;
+    int lv_granted;
+
+    if ((lp_group == null)) {
+        return 0;
+    }
+    if ((lp_levels <= 0)) {
+        return 0;
+    }
+
+    lv_count = PlayerGroupCount(lp_group);
+    lv_i = 1;
+    lv_granted = 0;
+    while ((lv_i <= lv_count)) {
+        TechTreeUpgradeAddLevel(PlayerGroupPlayer(lp_group, lv_i), lp_upgrade, lp_levels);
+        lv_granted += 1;
+        lv_i += 1;
+    }
+    return lv_granted;
+}
+
+// -----------------------------------------------------------------------------
+// 玩家静态属性
+// -----------------------------------------------------------------------------
+
+point CMLib_PlayerStart(int lp_player) {
+    point lv_p;
+
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return Point(0.0, 0.0);
+    }
+    // 真机实测：没有为该槽位摆开始点的地图（含 API create_game 起的测试图），
+    // PlayerStartLocation 会返回 null。本封装的契约是「永不返回 null」，
+    // 否则调用方一个 PointGetX 就把整条触发器打断。
+    lv_p = PlayerStartLocation(lp_player);
+    if ((lv_p == null)) {
+        return Point(0.0, 0.0);
+    }
+    return lv_p;
+}
+
+int CMLib_PlayerDiff(int lp_player) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return 0;
+    }
+    return PlayerDifficulty(lp_player);
+}
+
+string CMLib_PlayerRaceOf(int lp_player) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return "";
+    }
+    return PlayerRace(lp_player);
+}
+
+playergroup CMLib_PGCopyOf(playergroup lp_group) {
+    if ((lp_group == null)) {
+        return PlayerGroupEmpty();
+    }
+    return PlayerGroupCopy(lp_group);
+}
+
+playergroup CMLib_PGAllianceOf(int lp_type, int lp_player) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return PlayerGroupEmpty();
+    }
+    return PlayerGroupAlliance(lp_type, lp_player);
+}
+
+// -----------------------------------------------------------------------------
+// round 17：玩家标识 / 颜色 / 天赋 / 冷却 / 玩家组增删 / 玩家施法
+// -----------------------------------------------------------------------------
+
+text CMLib_PlayerNameOf(int lp_player) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return StringToText("");
+    }
+    return PlayerName(lp_player);
+}
+
+string CMLib_PlayerHandleOf(int lp_player) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return "";
+    }
+    return PlayerHandle(lp_player);
+}
+
+int CMLib_PlayerTypeOf(int lp_player) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return c_playerTypeNone;
+    }
+    return PlayerType(lp_player);
+}
+
+int CMLib_PlayerStatusOf(int lp_player) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return c_playerStatusUnused;
+    }
+    return PlayerStatus(lp_player);
+}
+
+int CMLib_PlayerPropInt(int lp_player, int lp_prop) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return 0;
+    }
+    return PlayerGetPropertyInt(lp_player, lp_prop);
+}
+
+int CMLib_PlayerColor(int lp_player) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return 0;
+    }
+    return PlayerGetColorIndex(lp_player, false);
+}
+
+void CMLib_PlayerSetColor(int lp_player, int lp_index, bool lp_changeUnits) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        CMLib_LogWarn("player", "PlayerSetColor: 玩家槽位非法");
+        return;
+    }
+    if ((lp_index < 0)) {
+        return;
+    }
+    PlayerSetColorIndex(lp_player, lp_index, lp_changeUnits);
+}
+
+bool CMLib_PlayerTalent(int lp_player, string lp_talent) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false) || (lp_talent == "")) {
+        return false;
+    }
+    return PlayerHasTalent(lp_player, lp_talent);
+}
+
+fixed CMLib_PlayerCooldown(int lp_player, string lp_cooldown) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false) || (lp_cooldown == "")) {
+        return 0.0;
+    }
+    return PlayerGetCooldown(lp_player, lp_cooldown);
+}
+
+bool CMLib_PlayerCooldownReady(int lp_player, string lp_cooldown) {
+    return (CMLib_PlayerCooldown(lp_player, lp_cooldown) <= 0.0);
+}
+
+void CMLib_PGAdd(playergroup lp_group, int lp_player) {
+    if ((lp_group == null)) {
+        return;
+    }
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return;
+    }
+    PlayerGroupAdd(lp_group, lp_player);
+}
+
+void CMLib_PGRemove(playergroup lp_group, int lp_player) {
+    if ((lp_group == null)) {
+        return;
+    }
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return;
+    }
+    PlayerGroupRemove(lp_group, lp_player);
+}
+
+void CMLib_PGClear(playergroup lp_group) {
+    if ((lp_group == null)) {
+        return;
+    }
+    PlayerGroupClear(lp_group);
+}
+
+int CMLib_PGAt(playergroup lp_group, int lp_index) {
+    if ((lp_group == null)) {
+        return 0;
+    }
+    if ((lp_index < 1) || (lp_index > PlayerGroupCount(lp_group))) {
+        return 0;
+    }
+    return PlayerGroupPlayer(lp_group, lp_index);
+}
+
+void CMLib_PlayerEffectAt(int lp_player, string lp_effect, point lp_target) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return;
+    }
+    if ((lp_effect == "") || (lp_target == null)) {
+        return;
+    }
+    PlayerCreateEffectPoint(lp_player, lp_effect, lp_target);
+}
+
+void CMLib_PlayerEffectOn(int lp_player, string lp_effect, unit lp_target) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return;
+    }
+    if ((lp_effect == "") || (lp_target == null)) {
+        return;
+    }
+    PlayerCreateEffectUnit(lp_player, lp_effect, lp_target);
+}

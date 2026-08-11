@@ -1,0 +1,159 @@
+// =============================================================================
+// CMLib :: Path —— 单位行进路线（Path）与寻路地形查询
+//
+// 为什么单列一个模块：
+//   gap_scan round16 对工作区全部 mod 的统计里，path 域 **1045 次调用 / 覆盖率 0%**，
+//   是剩余体量最大的完全未覆盖领域：
+//     PathLastCreated 260 / PathingType 233 / PathSetVisible 88 /
+//     PathDestroy 73 / PathCreateForUnit 59 / PathAddWayPoint 58 …
+//   这一族在战役与合作任务里专门用来画「部队行军路线 / 空投航线 / 撤离路径」，
+//   属于典型的**单位表现层**能力，各 mod 各写一套，参数顺序极易记错。
+//
+// 命名取舍：SC2 的 Path* native 指的是**可视化行进路线**，不是寻路代价计算。
+//   cmlib_geo 里已有 CMLib_PathCost / CMLib_FindPathablePoint（真·寻路），
+//   为免混淆，本模块的路线族一律用 CMLib_Route* 前缀，
+//   只有地形寻路类型查询保留 CMLib_Pathing* 前缀。
+//
+// 依赖：cmlib_core（日志）、core.sc2mod natives。
+// =============================================================================
+
+// 无效路线 id。引擎没有给 c_invalidPathId，本库统一以 0 表示"没有"。
+// （真机探针 route.id.positive 会验证首个创建出来的路线 id 确实 > 0，
+//   若哪天引擎改成从 0 开始发号，该断言会立刻红，不会静默误伤。）
+const int CMLIB_ROUTE_NONE = 0;
+
+// 路线段索引：作用于整条路线。等价于引擎的 c_pathLocationAll。
+const int CMLIB_ROUTE_ALL = -1;
+
+// CMLib_RouteAddWayChain 单次最多插入的航点数，防脏数据把触发器卡死。
+const int CMLIB_ROUTE_MAX_CHAIN = 64;
+
+// =============================================================================
+// 创建 / 销毁
+// =============================================================================
+
+// 为一个已存在的单位创建行进路线，返回路线 id（失败返回 CMLIB_ROUTE_NONE）。
+int CMLib_RouteForUnit(playergroup lp_players, unit lp_unit);
+
+// 为"单位类型 + 起点"创建路线（单位还没造出来时用，比如预告增援航线）。
+int CMLib_RouteForUnitType(playergroup lp_players, string lp_type,
+                           int lp_player, point lp_source);
+
+// 最近一次创建的路线 id。
+int CMLib_RouteLast();
+
+// 路线 id 是否有效。
+bool CMLib_RouteOk(int lp_route);
+
+// 销毁单条 / 某玩家组的全部路线。id 无效时静默返回，不报错。
+void CMLib_RouteDestroy(int lp_route);
+void CMLib_RouteDestroyAll(playergroup lp_players);
+
+// =============================================================================
+// 起点 / 终点
+// =============================================================================
+
+void CMLib_RouteSetFromPoint(int lp_route, point lp_pos);
+void CMLib_RouteSetFromUnit(int lp_route, unit lp_unit);
+void CMLib_RouteSetToPoint(int lp_route, point lp_pos);
+void CMLib_RouteSetToUnit(int lp_route, unit lp_unit);
+
+point  CMLib_RouteFromPoint(int lp_route);
+point  CMLib_RouteToPoint(int lp_route);
+unit   CMLib_RouteFromUnit(int lp_route);
+unit   CMLib_RouteToUnit(int lp_route);
+unit   CMLib_RouteUnit(int lp_route);
+string CMLib_RouteUnitType(int lp_route);
+
+// =============================================================================
+// 航点
+// =============================================================================
+
+void CMLib_RouteAddWay(int lp_route, point lp_pos);
+void CMLib_RouteClearWays(int lp_route);
+
+// 在 lp_from..lp_to 之间等距插入 lp_steps 个中间航点（不含两端），
+// 返回实际插入数量。lp_steps 会被钳到 [0, CMLIB_ROUTE_MAX_CHAIN]。
+// 手写这个插值循环是各 mod 里最常见的重复代码之一。
+int CMLib_RouteAddWayChain(int lp_route, point lp_from, point lp_to, int lp_steps);
+
+// =============================================================================
+// 外观：整条路线（*At 变体可指定单段）
+// =============================================================================
+
+void CMLib_RouteShow(int lp_route, bool lp_show);
+void CMLib_RouteShowAt(int lp_route, int lp_loc, bool lp_show);
+bool CMLib_RouteVisibleAt(int lp_route, int lp_loc);
+
+// ⚠️ color 是值类型，**不可为 null、不可与 null 比较**（那是编译期错误，
+//    而 SC2 对编译失败的反应是静默丢弃整个 MapScript）。因此：
+//    · 传入的 lp_color 不做判空，非法路线 id 才是唯一守门条件；
+//    · Get 的失败态返回哨兵色 ColorWithAlpha(0,0,0,0)（全透明黑），不是 null。
+void  CMLib_RouteColor(int lp_route, color lp_color);
+void  CMLib_RouteColorAt(int lp_route, int lp_loc, color lp_color);
+color CMLib_RouteColorGet(int lp_route, int lp_loc);
+
+void  CMLib_RouteLineWidth(int lp_route, fixed lp_width);
+fixed CMLib_RouteLineWidthGet(int lp_route, int lp_loc);
+
+void   CMLib_RouteLineTexture(int lp_route, string lp_texture);
+string CMLib_RouteLineTextureGet(int lp_route, int lp_loc);
+
+void  CMLib_RouteLineTile(int lp_route, fixed lp_length);
+fixed CMLib_RouteLineTileGet(int lp_route, int lp_loc);
+
+void   CMLib_RouteStepModel(int lp_route, string lp_model);
+string CMLib_RouteStepModelGet(int lp_route, int lp_loc);
+
+void  CMLib_RouteStepScale(int lp_route, fixed lp_scale);
+fixed CMLib_RouteStepScaleGet(int lp_route, int lp_loc);
+
+void  CMLib_RouteStepMid(int lp_route, fixed lp_midpoint);
+fixed CMLib_RouteStepMidGet(int lp_route, int lp_loc);
+
+// =============================================================================
+// 步进 / 距离约束
+// =============================================================================
+
+void  CMLib_RouteMinSteps(int lp_route, int lp_count);
+int   CMLib_RouteMinStepsGet(int lp_route);
+void  CMLib_RouteMinLinear(int lp_route, fixed lp_distance);
+fixed CMLib_RouteMinLinearGet(int lp_route);
+void  CMLib_RouteMinTravel(int lp_route, fixed lp_distance);
+fixed CMLib_RouteMinTravelGet(int lp_route);
+void  CMLib_RouteAbilFilter(int lp_route, int lp_abilClass, int lp_filter);
+
+// =============================================================================
+// 组合封装
+// =============================================================================
+
+// 「给某单位画一条到目标点的彩色路线并立刻显示」——最高频的一次性用法，
+// 把 创建→设终点→上色→设宽→显示 五步收成一步。返回路线 id。
+int CMLib_RouteQuick(playergroup lp_players, unit lp_unit, point lp_to,
+                     color lp_color, fixed lp_width);
+
+// 同上，但终点是另一个单位（护送 / 追击提示）。
+int CMLib_RouteQuickToUnit(playergroup lp_players, unit lp_unit, unit lp_target,
+                           color lp_color, fixed lp_width);
+
+// =============================================================================
+// 禁飞区
+// =============================================================================
+
+void CMLib_RouteNoFlyAdd(point lp_center, fixed lp_inner, fixed lp_outer);
+void CMLib_RouteNoFlyClear(region lp_area);
+
+// =============================================================================
+// 地形寻路类型查询
+// =============================================================================
+
+// 原始寻路类型（c_pathingUnpathable / Ground / Building / Cliff）。
+int CMLib_PathingAt(point lp_pos);
+
+bool CMLib_PathingIsGround(point lp_pos);      // 可走地面
+bool CMLib_PathingIsBuilding(point lp_pos);    // 被建筑占用
+bool CMLib_PathingIsCliff(point lp_pos);       // 悬崖
+bool CMLib_PathingIsBlocked(point lp_pos);     // 不可通行（Unpathable / Cliff）
+
+// 类型 -> 可读名，日志/调试用。
+string CMLib_PathingName(int lp_type);

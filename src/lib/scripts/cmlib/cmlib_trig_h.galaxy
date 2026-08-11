@@ -1,0 +1,423 @@
+// =============================================================================
+// CMLib :: Trig —— 触发器编排 / 事件挂载 / 等待与计时
+//
+// 来源：对 94 个 mod 业务脚本的调用频次扫描显示，触发器域是**最大的未封装缺口**
+//       —— 43,250 次调用 / 168 个不同 API，其中：
+//         Wait(6965)  TriggerCreate(6751)  EventPlayer(4955)  TriggerEnable(4321)
+//         TriggerExecute(4079)  EventUnit(3128)  TriggerGetCurrent(2793)
+//         TriggerQueueEnter(742) / TriggerQueueExit(742)  TriggerAddEventTimePeriodic(554)
+//
+// 本模块要解决的四个真实痛点：
+//
+//  1) **触发器没有身份，也没有分组。**
+//     原生 trigger 是裸句柄，mod 里普遍用几十个全局变量各存一个，导致
+//     「进入第二阶段时关掉第一阶段的全部触发器」只能一行行手写 TriggerEnable。
+//     本模块给每个触发器一个 name + tag，并提供按 tag 的批量开关/销毁。
+//
+//  2) **TriggerExecute 的两个 bool 参数含义极易记混。**
+//     TriggerExecute(t, testConds, waitUntilDone) —— 写反会导致条件被跳过
+//     或整条执行链被同步阻塞。本模块拆成四个语义明确的入口，不再传裸 bool。
+//
+//  3) **TriggerQueueEnter / TriggerQueueExit 必须成对，漏 Exit 会永久卡死队列。**
+//     这是 SC2 里最难查的一类死锁：队列一旦没人 Exit，后续所有排队触发器
+//     全部静默不执行、无报错。本模块用配对计数 + 日志告警把它显式化。
+//
+//  4) **Wait 的时间类型基本靠默写。**
+//     Wait(secs, c_timeGame) 受游戏速度影响，Wait(secs, c_timeReal) 不受。
+//     过场动画用错会在快速模式下音画不同步。这里拆成语义化入口。
+//
+// 【重要 · 异步与作用域】
+//   Wait 是异步的：触发器函数在 Wait 处让出执行权，局部变量在恢复后**依然有效**
+//   （Galaxy 每次触发器执行有独立栈），但**全局变量可能已被其它触发器改写**。
+//   跨触发器传参不要依赖全局临时量，用 cmlib_core 的 Store*/Load*（DataTable 键值）
+//   显式传递；本模块提供 CMLib_TrigArg* 系列作为该模式的具名封装。
+//
+// 【重要 · 事件只能在触发器创建后挂载】
+//   TriggerAddEvent* 必须作用在已存在的 trigger 上，且通常在 InitMap 阶段完成。
+//   运行中给触发器加事件是允许的，但不要在该触发器**自身正在执行时**加，
+//   否则事件表变更与当前遍历竞争，行为未定义。
+//
+// 依赖：cmlib_core_h（日志 / 键值存储 / 钳制）
+// =============================================================================
+
+include "scripts/cmlib/cmlib_core_h"
+
+// ---- 容量 -------------------------------------------------------------------
+// 注册表容量。超出后 CMLib_TrigNew 仍会返回可用的 trigger，但不再纳入分组管理
+// （并打一条 error 日志），以保证「库不会因为容量问题让游戏逻辑失效」。
+const int CMLIB_TRIG_MAX = 256;
+
+// 无效索引。
+const int CMLIB_TRIG_NONE = -1;
+
+// ---- 创建与注册 -------------------------------------------------------------
+// 创建触发器并纳入注册表。
+//   lp_funcName —— 触发器主体函数名（与 TriggerCreate 一致，须是全局函数名字符串）
+//   lp_tag      —— 分组标签，用于批量开关；传 "" 表示不分组
+// 返回新建的 trigger。
+trigger CMLib_TrigNew(string lp_funcName, string lp_tag);
+
+// 同上，但创建后立即置为禁用（常用于「先建好、进入某阶段才打开」）。
+trigger CMLib_TrigNewDisabled(string lp_funcName, string lp_tag);
+
+// 把一个**已存在**的触发器纳入注册表（用于接管 GUI 编辑器生成的触发器）。
+// 重复登记同一个 trigger 会被忽略并告警。
+void CMLib_TrigRegister(trigger lp_trigger, string lp_name, string lp_tag);
+
+// 从注册表移除（不销毁触发器本身）。
+void CMLib_TrigUnregister(trigger lp_trigger);
+
+// ---- 查询 -------------------------------------------------------------------
+// 注册表中触发器总数。
+int CMLib_TrigCount();
+// 某个 tag 下的触发器数量。
+int CMLib_TrigCountByTag(string lp_tag);
+// 按登记名查找，找不到返回 null。
+trigger CMLib_TrigFind(string lp_name);
+// 该触发器是否已登记。
+bool CMLib_TrigIsRegistered(trigger lp_trigger);
+// 触发器当前是否启用（null 安全，null 返回 false）。
+bool CMLib_TrigEnabled(trigger lp_trigger);
+
+// ---- 开关 / 销毁：单个 ------------------------------------------------------
+// null 安全的启用 / 禁用 / 销毁。销毁会同时从注册表摘除。
+void CMLib_TrigOn(trigger lp_trigger);
+void CMLib_TrigOff(trigger lp_trigger);
+void CMLib_TrigSet(trigger lp_trigger, bool lp_enable);
+void CMLib_TrigKill(trigger lp_trigger);
+
+// ---- 开关 / 销毁：按 tag 批量 -----------------------------------------------
+// 批量启用 / 禁用 / 销毁同 tag 的全部触发器，返回受影响个数。
+// 这是「关卡阶段切换」的主力接口：CMLib_TrigTagOff("phase1"); CMLib_TrigTagOn("phase2");
+int CMLib_TrigTagOn(string lp_tag);
+int CMLib_TrigTagOff(string lp_tag);
+int CMLib_TrigTagKill(string lp_tag);
+
+// ---- 执行：语义化的 TriggerExecute ------------------------------------------
+// 原生 TriggerExecute(t, testConds, waitUntilDone) 的四个组合，各给一个名字：
+//   Run       —— 走条件检查，异步（最常用）
+//   RunNow    —— 走条件检查，同步等待执行完毕
+//   Force     —— 跳过条件检查，异步
+//   ForceNow  —— 跳过条件检查，同步等待执行完毕
+// 全部 null 安全。
+void CMLib_TrigRun(trigger lp_trigger);
+void CMLib_TrigRunNow(trigger lp_trigger);
+void CMLib_TrigForce(trigger lp_trigger);
+void CMLib_TrigForceNow(trigger lp_trigger);
+
+// 仅求值条件，不执行动作（null 安全，null 返回 false）。
+bool CMLib_TrigTest(trigger lp_trigger);
+
+// 停止当前正在执行的触发器（等价 TriggerStop(TriggerGetCurrent())）。
+void CMLib_TrigStopSelf();
+
+// ---- 执行队列（成对保护）----------------------------------------------------
+// TriggerQueueEnter/Exit 必须严格配对。本模块维护一个深度计数：
+//   * Exit 多于 Enter  -> 记 error 日志并忽略该次 Exit（避免把别人的队列位释放掉）
+//   * 深度异常增长      -> 记 warn 日志（提示很可能漏了 Exit）
+void CMLib_TrigQueueBegin();
+void CMLib_TrigQueueEnd();
+// 当前队列嵌套深度（用于自检 / 调试输出）。正常收敛到 0。
+int  CMLib_TrigQueueDepth();
+// 队列是否为空（原生 TriggerQueueIsEmpty 的直通）。
+bool CMLib_TrigQueueIsEmpty();
+// 暂停 / 恢复队列调度。
+void CMLib_TrigQueuePause(bool lp_pause);
+
+// ---- 事件挂载：生命周期 -----------------------------------------------------
+void CMLib_TrigOnMapInit(trigger lp_trigger);
+// 游戏内经过 lp_secs 秒后触发一次（游戏时间）。
+void CMLib_TrigOnElapsed(trigger lp_trigger, fixed lp_secs);
+// 每 lp_secs 秒触发一次（游戏时间）。周期 <= 0 会被拒绝并告警——
+// 周期 0 会让触发器每帧甚至死循环执行，是典型的卡死原因。
+void CMLib_TrigOnPeriod(trigger lp_trigger, fixed lp_secs);
+// 同上，但用真实时间（不受游戏速度影响），适合 UI 刷新 / 计时显示。
+void CMLib_TrigOnPeriodReal(trigger lp_trigger, fixed lp_secs);
+// 绑定到一个 timer 对象。
+void CMLib_TrigOnTimer(trigger lp_trigger, timer lp_timer);
+
+// ---- 事件挂载：单位 ---------------------------------------------------------
+// lp_unit 传 null 表示「任意单位」（原生用 null unitref 表示通配）。
+void CMLib_TrigOnUnitDied(trigger lp_trigger, unit lp_unit);
+void CMLib_TrigOnUnitAttacked(trigger lp_trigger, unit lp_unit);
+void CMLib_TrigOnUnitChangeOwner(trigger lp_trigger, unit lp_unit);
+void CMLib_TrigOnUnitGainLevel(trigger lp_trigger, unit lp_unit);
+// 单位被创建。lp_creatorAbil / lp_creatorBehavior 传 "" 表示不限。
+void CMLib_TrigOnUnitCreated(trigger lp_trigger, unit lp_unit,
+                             string lp_creatorAbil, string lp_creatorBehavior);
+// 单位受伤。lp_effect 传 "" 表示不限效果。
+void CMLib_TrigOnUnitDamaged(trigger lp_trigger, unit lp_unit, string lp_effect);
+// 单位进入 / 离开空闲态。
+void CMLib_TrigOnUnitIdle(trigger lp_trigger, unit lp_unit, bool lp_idle);
+
+// ---- 事件挂载：单位 · 空间与交互 --------------------------------------------
+// 【第 7 轮扫描缺口】这一组在 94 个 mod 里的**文件铺开度**最高，却几乎没人封装：
+//   TriggerAddEventUnitAbility(180 文件) / TriggerAddEventUnitRegion(168 文件)
+//   ——即「技能被按下」与「谁进了这块地」，是任务脚本的两大骨架事件。
+//
+// 单位进入 / 离开区域。lp_unit 传 null = 任意单位；lp_entering=true 进入、false 离开。
+// 【坑】进入与离开是**两个独立事件**，要都收就得挂两次；很多 mod 只挂了进入，
+//       结果「区域内人数」计数只增不减。CMLib_TrigOnUnitRegionBoth 一次挂两条。
+void CMLib_TrigOnUnitRegion(trigger lp_trigger, unit lp_unit, region lp_region,
+                            bool lp_entering);
+void CMLib_TrigOnUnitRegionBoth(trigger lp_trigger, unit lp_unit, region lp_region);
+
+// 单位与另一单位 / 某点的距离进出。lp_entering=true 进入范围、false 脱离。
+void CMLib_TrigOnUnitRange(trigger lp_trigger, unit lp_unit, unit lp_from,
+                           fixed lp_range, bool lp_entering);
+void CMLib_TrigOnUnitRangePoint(trigger lp_trigger, unit lp_unit, point lp_point,
+                                fixed lp_range, bool lp_entering);
+
+// 单位装载 / 卸载运输。lp_loading=true 装入、false 卸出。
+void CMLib_TrigOnUnitCargo(trigger lp_trigger, unit lp_unit, bool lp_loading);
+
+// 单位被选中 / 取消选中；被点击；被鼠标高亮。
+// lp_player 传 c_playerAny(16) 表示不限玩家。
+void CMLib_TrigOnUnitSelected(trigger lp_trigger, unit lp_unit, int lp_player,
+                              bool lp_selected);
+void CMLib_TrigOnUnitClicked(trigger lp_trigger, unit lp_unit, int lp_player);
+void CMLib_TrigOnUnitHighlight(trigger lp_trigger, unit lp_unit, int lp_player,
+                               bool lp_highlighted);
+
+// ---- 事件挂载：单位 · 技能与命令 --------------------------------------------
+// 技能阶段。lp_stage 用 c_unitAbilStage*（Execute=-3 / Queue=-2 / Complete=-6 /
+// Cancel=-4 / All=-1）。**注意这一组是负数常量**，不要跟 c_unitProgressStage*(0..4) 混。
+// lp_abilcmd 传 null = 任意技能。lp_includeShared=true 会收到共享技能（如建造队列）。
+void CMLib_TrigOnUnitAbility(trigger lp_trigger, unit lp_unit, abilcmd lp_abilcmd,
+                             int lp_stage, bool lp_includeShared);
+// 最常用的一档：技能开始施放（Execute）。等价于上面传 c_unitAbilStageExecute。
+void CMLib_TrigOnUnitAbilityUsed(trigger lp_trigger, unit lp_unit, abilcmd lp_abilcmd);
+// 技能自动施放开关变化。
+// lp_changeType 用 c_unitAbilAutoCastChange*（All=-1 / Off=0 / On=1）。
+void CMLib_TrigOnUnitAutoCast(trigger lp_trigger, unit lp_unit, abilcmd lp_abilcmd,
+                              int lp_changeType, bool lp_includeShared);
+// 单位收到命令。lp_abilcmd 传 null = 任意命令。
+void CMLib_TrigOnUnitOrder(trigger lp_trigger, unit lp_unit, abilcmd lp_abilcmd);
+// 单位属性（生命 / 能量 / 护盾 …）变化。lp_prop 用 c_unitProp*。
+void CMLib_TrigOnUnitProperty(trigger lp_trigger, unit lp_unit, int lp_prop);
+// 单位 Behavior 变化。lp_behavior 传 "" = 任意 Behavior。
+// lp_changeType 用 c_unitBehaviorChange*：
+//   Any=-1 / Create=0 / Destroy=1 / Refresh=2 / Increase=3 / Decrease=4 /
+//   Activate=5 / Deactivate=6
+void CMLib_TrigOnUnitBehavior(trigger lp_trigger, unit lp_unit, string lp_behavior,
+                              int lp_changeType);
+// 事件取参：本次变化涉及的 Behavior id。
+string CMLib_EvtBehavior();
+
+// ---- 事件挂载：建筑 / 生产进度 ----------------------------------------------
+// 【建筑域核心】这一族是「建筑造好了 / 兵练出来了 / 科技研完了」的唯一正规入口。
+// lp_stage 用 c_unitProgressStage*：Start=0 / Cancel=1 / Complete=2 / Pause=3 / Resume=4。
+// 【坑】没有 EventUnitProgressStage() 这个原生 —— 阶段是在**注册时**过滤的，
+//       想区分阶段就得挂多条触发器，不要试图在触发器里读回阶段。
+void CMLib_TrigOnConstructProgress(trigger lp_trigger, unit lp_unit, int lp_stage);
+void CMLib_TrigOnTrainProgress(trigger lp_trigger, unit lp_unit, int lp_stage);
+void CMLib_TrigOnResearchProgress(trigger lp_trigger, unit lp_unit, int lp_stage);
+void CMLib_TrigOnReviveProgress(trigger lp_trigger, unit lp_unit, int lp_stage);
+void CMLib_TrigOnLearnProgress(trigger lp_trigger, unit lp_unit, int lp_stage);
+void CMLib_TrigOnSpecializeProgress(trigger lp_trigger, unit lp_unit, int lp_stage);
+void CMLib_TrigOnArmMagazineProgress(trigger lp_trigger, unit lp_unit, int lp_stage);
+// 语义化快捷入口：建筑建成 / 单位出兵完成 / 科技研究完成。
+void CMLib_TrigOnBuildingDone(trigger lp_trigger, unit lp_unit);
+void CMLib_TrigOnTrainDone(trigger lp_trigger, unit lp_unit);
+void CMLib_TrigOnResearchDone(trigger lp_trigger, unit lp_unit);
+// 单位被复活 / 拾取增益物。
+void CMLib_TrigOnUnitRevive(trigger lp_trigger, unit lp_unit);
+void CMLib_TrigOnUnitPowerup(trigger lp_trigger, unit lp_unit);
+
+// ---- 事件挂载：效果（Effect）------------------------------------------------
+// 玩家的某个 Effect 被执行。lp_player 传 c_playerAny 表示不限。
+// lp_effect 传 "" = 任意效果。这是做「技能命中回调」最省事的方式：
+// 不用改数据表加 Behavior，直接监听效果链上的某个 CEffect。
+void CMLib_TrigOnEffectUsed(trigger lp_trigger, int lp_player, string lp_effect);
+// 监听某个效果**作用域**（Scope）下的所有效果。
+void CMLib_TrigOnEffectScope(trigger lp_trigger, int lp_player, string lp_scope);
+
+// 效果事件的「位置」枚举。
+// 【为什么要自己定义】原生 c_effectLocation* 定义在 TriggerLibs/GameData/Game.galaxy，
+//   **不在 natives.galaxy**。纯 mod 脚本若没 include 那一份就取不到符号，
+//   而 CMLib 要保证只依赖 natives。数值与官方一一对应，可直接互换。
+const int CMLIB_EFFECT_LOC_CASTER_UNIT = 0;
+const int CMLIB_EFFECT_LOC_CASTER_POINT = 1;
+const int CMLIB_EFFECT_LOC_SOURCE_UNIT = 6;
+const int CMLIB_EFFECT_LOC_SOURCE_POINT = 7;
+const int CMLIB_EFFECT_LOC_TARGET_UNIT = 12;
+const int CMLIB_EFFECT_LOC_TARGET_POINT = 13;
+const int CMLIB_EFFECT_LOC_ORIGIN_UNIT = 18;
+// 便捷取参：施法者 / 目标单位。
+unit CMLib_EvtEffectCaster();
+unit CMLib_EvtEffectTarget();
+
+// ---- 事件挂载：面板 / 对话框控件 --------------------------------------------
+// 【面板域核心】lp_eventType 用 c_triggerControlEventType*：
+//   Any=-1 / Click=0 / Checked=1 / ValueChanged=2 / SelectionChanged=3 /
+//   SelectionDoubleClicked=4 / TextChanged=5 / MouseEnter=6 / MouseExit=7 /
+//   HotkeyPressed=8 / DoubleClick=9
+// lp_control 传 c_invalidDialogControlId(0) = 任意控件；lp_player 传 c_playerAny。
+void CMLib_TrigOnDialogControl(trigger lp_trigger, int lp_player, int lp_control,
+                               int lp_eventType);
+// 最常用的一档：按钮被点击。
+void CMLib_TrigOnButtonClick(trigger lp_trigger, int lp_control);
+
+// ---- 事件取参：上面这些事件的配套读取 ---------------------------------------
+// 只在对应事件的触发器执行期间有效。
+region  CMLib_EvtRegion();           // 区域事件命中的区域
+unit    CMLib_EvtRangeUnit();        // 距离事件的对方单位
+unit    CMLib_EvtCargoUnit();        // 装卸事件的运输单位
+abilcmd CMLib_EvtAbility();          // 技能事件的 abilcmd
+int     CMLib_EvtAbilityStage();     // 技能事件的阶段
+unit    CMLib_EvtAbilityOtherUnit(); // 技能事件的目标单位
+string  CMLib_EvtProgressType();     // 进度事件：正在造/练/研的对象类型 id
+unit    CMLib_EvtProgressUnit();     // 进度事件：正在训练出来的单位（建筑事件常为 null）
+string  CMLib_EvtEffect();           // 效果事件：效果 id
+unit    CMLib_EvtEffectUnit(int lp_location);  // 效果事件：某位置的单位（c_effectUnit*）
+point   CMLib_EvtEffectPoint(int lp_location); // 效果事件：某位置的点
+int     CMLib_EvtControl();          // 面板事件：被操作的控件 id
+int     CMLib_EvtControlEventType(); // 面板事件：事件类型
+// 面板事件便捷判定：该事件是否来自指定控件（同时校验控件有效）。
+bool    CMLib_EvtIsControl(int lp_control);
+
+// ---- 事件挂载：玩家 ---------------------------------------------------------
+void CMLib_TrigOnPlayerLeft(trigger lp_trigger, int lp_player, int lp_result);
+void CMLib_TrigOnAllianceChange(trigger lp_trigger, int lp_player);
+void CMLib_TrigOnAIWave(trigger lp_trigger, int lp_player);
+// 聊天命令。lp_exact = true 表示必须完全相等，false 表示前缀匹配。
+void CMLib_TrigOnChat(trigger lp_trigger, int lp_player, string lp_text, bool lp_exact);
+// 自定义事件名（配合 CMLib_TrigSend 做模块间解耦通信）。
+void CMLib_TrigOnGeneric(trigger lp_trigger, string lp_eventName);
+// 发送一个自定义事件，唤醒所有监听该名字的触发器。
+void CMLib_TrigSend(string lp_eventName);
+
+// ---- 事件取参：常用响应式读取 -----------------------------------------------
+// 这些只能在触发器**执行期间**调用；在别处调用返回值无意义。
+int  CMLib_EvtPlayer();
+unit CMLib_EvtUnit();
+unit CMLib_EvtTargetUnit();
+// 聊天事件的消息文本（lp_matchedOnly = true 只取匹配部分）。
+string CMLib_EvtChat(bool lp_matchedOnly);
+
+// ---- 跨触发器传参（配合异步 TriggerExecute）--------------------------------
+// TriggerExecute 不能带参数。标准做法是用键值存储在调用前写、被调方立即读。
+// 这几个封装统一了键名前缀，避免各模块自己拼串撞车。
+// 【约定】被调触发器应在函数**第一件事**就把参数读走（Wait 之后再读可能已被覆盖）。
+void   CMLib_TrigArgSetInt(string lp_slot, int lp_value);
+int    CMLib_TrigArgGetInt(string lp_slot, int lp_fallback);
+void   CMLib_TrigArgSetFixed(string lp_slot, fixed lp_value);
+fixed  CMLib_TrigArgGetFixed(string lp_slot, fixed lp_fallback);
+void   CMLib_TrigArgSetString(string lp_slot, string lp_value);
+string CMLib_TrigArgGetString(string lp_slot, string lp_fallback);
+void   CMLib_TrigArgSetUnit(string lp_slot, unit lp_value);
+unit   CMLib_TrigArgGetUnit(string lp_slot);
+
+// 一步到位：写一个 int 参数并异步执行目标触发器。
+void CMLib_TrigCallInt(trigger lp_trigger, string lp_slot, int lp_value);
+
+// ---- 等待：语义化 -----------------------------------------------------------
+// 游戏时间等待（受游戏速度影响）——玩法逻辑用这个。
+void CMLib_WaitGame(fixed lp_secs);
+// 真实时间等待（不受游戏速度影响）——过场 / UI 节奏用这个。
+void CMLib_WaitReal(fixed lp_secs);
+// AI 时间等待。
+void CMLib_WaitAI(fixed lp_secs);
+// 让出一帧（最小非零等待）。用于避免在长循环里独占执行、触发脚本超时保护。
+void CMLib_Yield();
+
+// ---- 计时器 -----------------------------------------------------------------
+// 新建并启动一个一次性 / 周期计时器（游戏时间）。
+timer CMLib_TimerOnce(fixed lp_secs);
+timer CMLib_TimerLoop(fixed lp_secs);
+// 剩余 / 已过秒数（null 安全，null 返回 0）。
+fixed CMLib_TimerLeft(timer lp_timer);
+fixed CMLib_TimerElapsed(timer lp_timer);
+// 暂停 / 恢复 / 重启（null 安全）。
+void CMLib_TimerHold(timer lp_timer, bool lp_pause);
+void CMLib_TimerReset(timer lp_timer);
+
+// ---- 自检 -------------------------------------------------------------------
+// 输出注册表摘要与队列深度到日志，用于排查「触发器没跑」类问题。
+// 建议在关卡切换处调一次；队列深度非 0 基本可断定漏了 CMLib_TrigQueueEnd。
+void CMLib_TrigDumpState();
+
+// 清触发器队列（配合 c_triggerQueue* 常量：Retain/Remove/Kill）。
+// 用于打断正在排队的触发器链，避免旧队列污染新逻辑。
+void CMLib_TriggerQueueClear(int lp_option);
+
+// ---- round 13：触发器执行计数 + 事件取参补齐（真实缺口）--------------------
+// 触发器累计执行次数。null 返回 0。用于「只跑一次」与死循环自检。
+int  CMLib_TrigExecCount(trigger lp_t);
+// 「单位被创建」事件：取被创建的单位。
+unit CMLib_EvtCreatedUnit();
+// 「单位受伤」事件：取伤害来源玩家 / 来源单位。
+int  CMLib_EvtDmgSourcePlayer();
+unit CMLib_EvtDmgSourceUnit();
+// 「效果被使用」事件：取指定位置单位的归属玩家（位置用 CMLIB_EFFECT_LOC_* 常量）。
+int  CMLib_EvtEffectUsedUnitOwner(int lp_location);
+
+
+// ---- round 18：触发器查找 + 事件取参补齐（真实缺口）----------------------------
+// 按 Galaxy 函数名找「引擎侧」触发器（GUI 触发器互相调用时的通用入口）。
+// 注意与前面的 CMLib_TrigFind 区分：那个查 CMLib 自己的登记表，这个查引擎表。
+trigger CMLib_TrigFindByFunc(string lp_funcName);
+// 注册「玩家属性变化」事件（矿/气/人口/科技点等，见 c_playerProp* 常量）。
+void CMLib_TrigOnPlayerPropChange(trigger lp_t, int lp_player, int lp_prop);
+// 「升级完成」事件：取升级 id。
+string CMLib_EvtUpgradeName();
+// 「单位受伤」事件：取本次伤害数值（fixed）。
+fixed  CMLib_EvtDamageAmount();
+// 自定义脚本事件的参数名解析（`TriggerSendEvent` 那一套的配套函数）。
+// 任一入参为空返回 ""，避免把空名字送进事件表。
+string CMLib_TrigEventParamName(string lp_eventName, string lp_paramName);
+
+// =============================================================================
+// CMLib :: Round19 —— 事件族补齐（按键 / 界面按钮 / 升级 / 行为分类）+ 可跳过段
+//
+// 本模块此前已有 41 个事件注册器，但缺了「玩家输入」这一整类 —— 而热键与
+// 界面按钮正是自定义面板效果最常见的驱动源（gap_scan：KeyPressed 246 次 /
+// ButtonPressed 124 次 / UpgradeLevelChanged 138 次）。
+//
+// 修饰键约定（引擎常量，natives.galaxy）：
+//   c_keyModifierStateIgnore(0) 不关心 / Require(1) 必须按下 / Exclude(2) 必须没按
+// =============================================================================
+
+// 按键事件。三个修饰键一律 Ignore —— 90% 的用法都是「不管有没有按 Shift」。
+void CMLib_OnKeyPressed(trigger lp_t, int lp_player, int lp_key, bool lp_down);
+// 完整式：显式指定 shift / ctrl / alt 的 c_keyModifierState*。
+void CMLib_OnKeyPressedMod(trigger lp_t, int lp_player, int lp_key, bool lp_down,
+                           int lp_shift, int lp_ctrl, int lp_alt);
+// 自定义界面按钮（UI 框架里的 button id）。
+void CMLib_OnButtonPressed(trigger lp_t, int lp_player, string lp_button);
+void CMLib_OnUpgradeLevelChanged(trigger lp_t, int lp_player);
+// 按 Behavior **分类**（c_behaviorCategory*）而非具体 buff 监听增删，
+// 做「被控制/被隐身」这类通用反应时比逐个 buff 挂事件省事得多。
+void CMLib_OnBehaviorCategoryChange(trigger lp_t, unitref lp_u, int lp_category,
+                                    int lp_changeType);
+
+// ---- 事件取参（只能在对应事件的响应体内调用，否则返回值无意义） ----
+string CMLib_EvtDamageEffect();
+order  CMLib_EvtOrder();
+unit   CMLib_EvtTarget();
+point  CMLib_EvtTargetPoint();
+timer  CMLib_EvtTimer();
+wave   CMLib_EvtWave();
+int    CMLib_EvtKey();
+bool   CMLib_EvtKeyShift();
+bool   CMLib_EvtKeyCtrl();
+bool   CMLib_EvtKeyAlt();
+string CMLib_EvtButton();
+
+// ---- 可跳过段（过场动画标配） ----
+// 在 Begin/End 之间的 Wait 会在足够多玩家按下跳过键时被打断，转而执行 onSkip。
+// requiredCount <= 0 时自动取「允许跳过的玩家全数」。
+void CMLib_SkippableBegin(playergroup lp_allowed, int lp_requiredCount, trigger lp_onSkip,
+                          bool lp_testConds, bool lp_wait);
+void CMLib_SkippableEnd();
+
+
+// =============================================================================
+// CMLib :: Round26 —— 最近一次启动的计时器
+//
+// 配合 CMLib_TimerOnce / CMLib_TimerLoop 用：这两个封装内部会 TimerStart，
+// 所以调完立刻取 CMLib_TimerLastStarted() 就能拿回同一个句柄，适合"启动后
+// 立刻挂窗口 / 挂事件"的写法，省一个中间变量。
+// =============================================================================
+
+timer CMLib_TimerLastStarted();

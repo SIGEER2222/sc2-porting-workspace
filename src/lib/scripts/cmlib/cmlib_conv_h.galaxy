@@ -1,0 +1,201 @@
+// =============================================================================
+// CMLib :: Conv
+// 过场对白：Transmission（通讯/头像台词）与 Conversation（对话数据与分支回复）。
+//
+// 缺口来源：全量 mod 扫描 —— cinematic 领域 8183 次调用覆盖率 30.9%，
+//           其中 Transmission* 几乎全裸（TransmissionLastSent 1323 /
+//           TransmissionWait 1109 / TransmissionSourceFromUnit 640）；
+//           conversation 领域 3081 次调用覆盖率 0%。
+//
+// 依赖：cmlib_core（日志）。
+//       TransmissionSend* 走 core.sc2mod 的 natives（TransmissionSendForPlayer），
+//       不依赖 NativeLib 的包装版本，避免与 cmlib_fx 的 include 产生耦合。
+// =============================================================================
+
+// ---- 时长模式（对应 c_transmissionDuration*）---------------------------------
+const int CMLIB_TRANS_DUR_DEFAULT = 0;   // 用语音自身长度
+const int CMLIB_TRANS_DUR_ADD     = 1;   // 语音长度 + duration
+const int CMLIB_TRANS_DUR_SUB     = 2;   // 语音长度 - duration
+const int CMLIB_TRANS_DUR_SET     = 3;   // 强制为 duration
+
+// 无目标头像时传这个（引擎用 -1 表示"不改画像窗口"）。
+const int CMLIB_TRANS_NO_PORTRAIT = -1;
+
+// ---- Transmission 来源构造 ---------------------------------------------------
+// 以场上某个单位为说话人；lp_flash 让单位在说话时闪烁。
+transmissionsource CMLib_TransFromUnit(unit lp_unit, bool lp_flash);
+// 以单位类型（而非实例）为说话人，单位不在场时用这个。
+transmissionsource CMLib_TransFromUnitType(string lp_unitType);
+// 直接指定模型（自定义角色画像常用）。
+transmissionsource CMLib_TransFromModel(string lp_modelLink);
+// 播放一段过场影片作为"说话人"。
+transmissionsource CMLib_TransFromMovie(string lp_assetLink, bool lp_subtitles);
+// 空来源：只出字幕、不出头像。
+transmissionsource CMLib_TransNone();
+
+// ---- Transmission 发送 -------------------------------------------------------
+// 最常用形态：对一组玩家播一句带语音与字幕的台词，用语音自身长度。
+// 返回 transmission id，可交给 CMLib_TransWait / CMLib_TransClear。
+int CMLib_TransSay(playergroup lp_players, transmissionsource lp_source,
+                   soundlink lp_sound, text lp_speaker, text lp_subtitle,
+                   bool lp_waitUntilDone);
+// 指定时长模式的完整版。
+int CMLib_TransSayTimed(playergroup lp_players, transmissionsource lp_source,
+                        soundlink lp_sound, text lp_speaker, text lp_subtitle,
+                        fixed lp_duration, int lp_durationType,
+                        bool lp_waitUntilDone);
+// 只发给单个玩家。
+int CMLib_TransSayToPlayer(int lp_player, transmissionsource lp_source,
+                           soundlink lp_sound, text lp_speaker, text lp_subtitle,
+                           bool lp_waitUntilDone);
+// 纯字幕，无语音无头像（旁白/提示）。
+int CMLib_TransSubtitle(playergroup lp_players, text lp_subtitle,
+                        fixed lp_durationSecs, bool lp_waitUntilDone);
+// 单位说话的一步到位快捷式（最高频组合）。
+int CMLib_TransUnitSay(playergroup lp_players, unit lp_unit, soundlink lp_sound,
+                       text lp_speaker, text lp_subtitle, bool lp_waitUntilDone);
+
+// ---- Transmission 控制 -------------------------------------------------------
+int  CMLib_TransLast();
+// 等待某条通讯播完；lp_offsetSecs 可为负（提前若干秒返回）。
+void CMLib_TransWait(int lp_transmission, fixed lp_offsetSecs);
+// 等待"最后一条"播完 —— 配合 CMLib_TransSay(waitUntilDone=false) 做流水线。
+void CMLib_TransWaitLast(fixed lp_offsetSecs);
+bool CMLib_TransIsDone(int lp_transmission);
+void CMLib_TransClear(int lp_transmission);
+void CMLib_TransClearAll();
+void CMLib_TransClearFor(playergroup lp_players);
+bool CMLib_TransPlayerBusy(int lp_player);
+// 顺序播放两/三句台词，自动串行等待，省去手写 Wait 链。
+void CMLib_TransSequence2(playergroup lp_players, transmissionsource lp_s1,
+                          soundlink lp_snd1, text lp_speaker1, text lp_sub1,
+                          transmissionsource lp_s2, soundlink lp_snd2,
+                          text lp_speaker2, text lp_sub2);
+
+// ---- Conversation：对话实例与分支回复 -----------------------------------------
+int  CMLib_ConvCreate(bool lp_visible);
+int  CMLib_ConvLast();
+void CMLib_ConvShow(int lp_conv, playergroup lp_players, bool lp_visible);
+void CMLib_ConvDestroy(int lp_conv);
+void CMLib_ConvDestroyAll();
+bool CMLib_ConvVisibleFor(int lp_conv, int lp_player);
+// 新增一条可选回复，返回 replyId。
+int  CMLib_ConvReplyAdd(int lp_conv, text lp_text);
+void CMLib_ConvReplySetText(int lp_conv, int lp_reply, text lp_text);
+void CMLib_ConvReplySetState(int lp_conv, int lp_reply, int lp_state);
+int  CMLib_ConvReplyState(int lp_conv, int lp_reply);
+void CMLib_ConvReplyClear(int lp_conv);
+
+// ---- Conversation Data：战役对白数据表访问 ------------------------------------
+// 把某个 state（角色/场景）绑定到场上单位或玩家画像，之后数据表里的台词
+// 就会自动使用它。战役移植里这是最常见的接线动作。
+void   CMLib_ConvBindUnit(string lp_stateIndex, unit lp_unit);
+void   CMLib_ConvBindPortrait(string lp_stateIndex, int lp_player);
+int    CMLib_ConvStateCount(string lp_stateId);
+string CMLib_ConvStateAt(string lp_stateId, int lp_index);
+text   CMLib_ConvStateName(string lp_stateIndex);
+
+// =============================================================================
+// CMLib :: Round19 —— ConversationData 数据驱动对白
+//
+// 与本模块上半部分的 Conversation*（运行时手搓对话框）不同，ConversationData*
+// 走的是**编辑器 Conversation 数据表**：对白行、说话人、镜头、状态变量都在数据层
+// 配好，脚本只负责「跑哪一段、给谁看、能不能跳过」。战役类地图几乎全用这一套。
+//
+// 覆盖率证据：gap_scan 显示 conversation 域仅 9.9%，是全库最低。前几轮误判为
+// 「GUI 自动访问器噪声」，classify_gaps_round19.py 证伪 —— 这些全是 natives.galaxy
+// 里的正经 native。
+//
+// 跳过档位直接用引擎常量（均在 natives.galaxy，安全）：
+//   c_conversationSkipNone(0) / c_conversationSkipSimple(1) / c_conversationSkipFull(2)
+// =============================================================================
+
+// 播放一段对白。convId 为空直接返回，避免引擎在空 id 上报错。
+void CMLib_ConvDataRun(string lp_convId, playergroup lp_players, int lp_skipType, bool lp_wait);
+// 便捷式：全体玩家 / 允许完整跳过 / 不阻塞当前触发器。
+void CMLib_ConvDataRunAll(string lp_convId);
+void CMLib_ConvDataStop();
+// 当前状态下这段对白还有没有可播的行（避免播出一段空对白）。
+bool CMLib_ConvDataCanRun(string lp_convId, bool lp_unpickedOnly);
+// 取某行绑定的音效 id；无音效或 id 空时返回 ""。
+string CMLib_ConvDataSound(string lp_convLine, bool lp_checkConditions);
+// 指定某一行只对特定玩家播放 / 恢复默认。
+void CMLib_ConvDataLinePlayers(string lp_convId, string lp_lineId, playergroup lp_players);
+void CMLib_ConvDataLineReset(string lp_convId, string lp_lineId);
+// 把数据层的镜头索引绑到一个 camerainfo + 回调触发器上。
+void CMLib_ConvDataCamera(string lp_camIndex, string lp_charIndex, camerainfo lp_cam,
+                          trigger lp_t, bool lp_wait);
+// 对白状态变量（数据层的分支条件）。
+void CMLib_ConvDataStateSet(string lp_stateIndex, int lp_value);
+int  CMLib_ConvDataStateGet(string lp_stateIndex);
+text CMLib_ConvDataStateTextOf(string lp_stateIndex, string lp_infoName);
+
+// =============================================================================
+// CMLib :: Round20 —— 数据驱动对话（ConversationData）补齐
+//
+// conv 域此前只封了 Run / Stop / State 读写，缺「预载 / 存档 / 重置」这三块，
+// 而它们恰恰是战役型 mod 最容易踩坑的地方：
+//   · 不预载 —— 首句语音有明显吞字（引擎现读现解码）。
+//   · 不存档 —— 玩家读档后分支状态回到初始，选过的选项重新出现。
+// =============================================================================
+
+// 预载某段对话的全部语音行；进关卡前调一次，别放在对话触发的同一帧。
+void   CMLib_ConvDataPreload(string lp_convId);
+// 批量预载，lp_csv 形如 "Conv01,Conv02,Conv03"，返回成功提交的条数。
+int    CMLib_ConvDataPreloadBatch(string lp_csv);
+// 读状态索引上的 fixed 型信息字段（ConvDataStateGet 只能读 int）。
+fixed  CMLib_ConvDataStateFixed(string lp_stateIndex, string lp_infoName);
+// 当前正在播的那一行对应的 sound id；没有则 ""。
+string CMLib_ConvDataActiveSound();
+// 对话节点状态（哪些行/选项播过）存进 bank 的指定 section。
+void   CMLib_ConvDataSaveNodes(string lp_convId, bank lp_bank, string lp_section);
+void   CMLib_ConvDataLoadNodes(string lp_convId, bank lp_bank, string lp_section);
+// 把某个 state id 下的全部状态值重置回数据层默认（重开一章时用）。
+void   CMLib_ConvDataResetStates(string lp_stateId);
+
+
+// =============================================================================
+// CMLib :: Round26 —— 通讯（Transmission）补齐
+//
+// conv 域此前只封了「发一条通讯」这条主路径，剩下四个开关族全漏了：
+//   · 源级开关（能不能暂停 / 能不能被串流录进去 / 要不要写进消息日志）
+//   · 全局开关（发通讯时是否藏掉右上角警报面板）
+//   · Select 变体（多一个 isSelect 参数的发送入口）
+//
+// ⚠ TransmissionSendForPlayerSelect 的返回类型：NativeLib.TriggerLib 的
+//   ParamDef 标 `transmission`，但 natives_missing.galaxy:1596 的源码写的是
+//   `native int`。以源码为准 —— 元数据只当"这个符号存在"的证据，不当签名。
+//
+// ⚠ isSelect 语义未经证实：翻遍 reference 下全部官方 .galaxy，57 处调用
+//   **一律传 false**，true 分支零观测。这里如实透传、不替调用方兜底，
+//   要用 true 请自己先做真机对照。（round25 教训：可调用 ≠ 语义可预测。）
+// =============================================================================
+
+// TransmissionSetOption 的选项索引。引擎只导出了这一个。
+const int CMLIB_TRANS_OPT_HIDE_ALERT_PANEL = 1;
+
+// 发一条通讯（Select 变体）。owningPlayer 传 c_maxPlayers 表示"不归属特定玩家"。
+// players 传 null 会自动回落成 PlayerGroupActive()，和 CMLib_TransSayTimed 一致。
+int  CMLib_TransSendForPlayerSelect(playergroup lp_players, transmissionsource lp_source,
+                                    int lp_portrait, string lp_portraitActor,
+                                    string lp_portraitAnim, soundlink lp_sound,
+                                    text lp_speaker, text lp_subtitle,
+                                    fixed lp_duration, int lp_durationType,
+                                    bool lp_waitUntilDone, int lp_owningPlayer,
+                                    bool lp_isSelect);
+
+// 全局通讯选项开关。用 CMLIB_TRANS_OPT_* 常量。
+void CMLib_TransSetOption(int lp_option, bool lp_value);
+// 便捷式：发通讯时藏掉右上角警报面板（过场里最常用的一个）。
+void CMLib_TransHideAlertPanel(bool lp_hide);
+
+// 源级开关。source 是值类型（transmissionsource），不能判 null，
+// 传 TransmissionSource() 造出来的空源也是合法调用，引擎自己吞掉。
+void CMLib_TransSourceBypassLog(transmissionsource lp_source, bool lp_bypass);
+void CMLib_TransSourcePauseAllowed(transmissionsource lp_source, bool lp_allowed);
+void CMLib_TransSourceStreaming(transmissionsource lp_source, bool lp_allowed);
+
+// ===========================================================================
+// 调用范围登记（check_call_scope.py R 层）
+// ---------------------------------------------------------------------------
+// @scope-flagonly TransmissionSendForPlayerSelect 仅社区补录声明；void过场发送，失败即无对白输出，无逻辑依赖

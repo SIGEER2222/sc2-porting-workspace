@@ -1,0 +1,646 @@
+// =============================================================================
+// CMLib :: AI —— 实现
+// =============================================================================
+
+include "scripts/cmlib/cmlib_ai_h"
+
+// -----------------------------------------------------------------------------
+// 波次生命周期
+// -----------------------------------------------------------------------------
+void CMLib_AIWaveBegin(int lp_player, point lp_gather) {
+    if (CMLib_AIWaveState == CMLIB_AIWAVE_BUILDING) {
+        CMLib_LogWarn("AI", "AIWaveBegin: 上一波次未 Send 就被覆盖，已强制重置。");
+    }
+    CMLib_AIWaveOwner = lp_player;
+    CMLib_AIWaveState = CMLIB_AIWAVE_BUILDING;
+    CMLib_AIWaveEntries = 0;
+    if (lp_gather != null) {
+        AIAttackWaveSetGatherPoint(lp_player, lp_gather);
+    }
+}
+
+bool CMLib_AIWaveIsBuilding() {
+    return CMLib_AIWaveState == CMLIB_AIWAVE_BUILDING;
+}
+
+int CMLib_AIWaveEntryCount() {
+    return CMLib_AIWaveEntries;
+}
+
+// 内部：加配额前的统一校验。
+static bool CMLib_AIWaveGuard(string lp_who, string lp_unitType) {
+    if (CMLib_AIWaveState != CMLIB_AIWAVE_BUILDING) {
+        CMLib_LogWarn("AI", lp_who + ": 未先调用 CMLib_AIWaveBegin，忽略 " + lp_unitType);
+        return false;
+    }
+    if (lp_unitType == "") {
+        CMLib_LogWarn("AI", lp_who + ": 单位类型为空，已忽略。");
+        return false;
+    }
+    return true;
+}
+
+// -----------------------------------------------------------------------------
+// 波次单位配额
+// -----------------------------------------------------------------------------
+void CMLib_AIWaveAdd(int lp_qty, string lp_unitType) {
+    if (CMLib_AIWaveGuard("AIWaveAdd", lp_unitType) == false) { return; }
+    if (lp_qty <= 0) { return; }
+    AIAttackWaveAddUnits4(lp_qty, lp_qty, lp_qty, lp_qty, lp_unitType);
+    CMLib_AIWaveEntries += 1;
+}
+
+void CMLib_AIWaveAdd4(int lp_casual, int lp_normal, int lp_hard, int lp_brutal, string lp_unitType) {
+    if (CMLib_AIWaveGuard("AIWaveAdd4", lp_unitType) == false) { return; }
+    if ((lp_casual <= 0) && (lp_normal <= 0) && (lp_hard <= 0) && (lp_brutal <= 0)) { return; }
+    AIAttackWaveAddUnits4(CMLib_MaxInt(lp_casual, 0), CMLib_MaxInt(lp_normal, 0),
+                          CMLib_MaxInt(lp_hard, 0), CMLib_MaxInt(lp_brutal, 0), lp_unitType);
+    CMLib_AIWaveEntries += 1;
+}
+
+void CMLib_AIWaveAddRamp(int lp_base, int lp_step, string lp_unitType) {
+    CMLib_AIWaveAdd4(lp_base,
+                     lp_base + lp_step,
+                     lp_base + lp_step * 2,
+                     lp_base + lp_step * 3,
+                     lp_unitType);
+}
+
+void CMLib_AIWaveAddScaled(int lp_base, int lp_pctCasual, int lp_pctNormal, int lp_pctHard, int lp_pctBrutal, string lp_unitType) {
+    CMLib_AIWaveAdd4(CMLib_ScalePercentInt(lp_base, lp_pctCasual),
+                     CMLib_ScalePercentInt(lp_base, lp_pctNormal),
+                     CMLib_ScalePercentInt(lp_base, lp_pctHard),
+                     CMLib_ScalePercentInt(lp_base, lp_pctBrutal),
+                     lp_unitType);
+}
+
+void CMLib_AIWaveAddAtDifficulty(int lp_difficulty, int lp_qty, string lp_unitType) {
+    // Galaxy 没有三元运算符，四档配额逐个显式赋值。
+    int lv_d = CMLib_ClampInt(lp_difficulty, CMLIB_DIFF_CASUAL, CMLIB_DIFF_BRUTAL);
+    int lv_c = 0;
+    int lv_n = 0;
+    int lv_h = 0;
+    int lv_b = 0;
+
+    if (lv_d == CMLIB_DIFF_CASUAL)      { lv_c = lp_qty; }
+    else if (lv_d == CMLIB_DIFF_NORMAL) { lv_n = lp_qty; }
+    else if (lv_d == CMLIB_DIFF_HARD)   { lv_h = lp_qty; }
+    else                                { lv_b = lp_qty; }
+    CMLib_AIWaveAdd4(lv_c, lv_n, lv_h, lv_b, lp_unitType);
+}
+
+// -----------------------------------------------------------------------------
+// 波次成员来源
+// -----------------------------------------------------------------------------
+void CMLib_AIWaveUseGroup(int lp_player, unitgroup lp_group) {
+    if (lp_group == null) { return; }
+    AIAttackWaveUseGroup(lp_player, lp_group);
+    CMLib_AIWaveEntries += 1;
+}
+
+void CMLib_AIWaveUseUnit(int lp_player, unit lp_unit) {
+    if (lp_unit == null) { return; }
+    AIAttackWaveUseUnit(lp_player, lp_unit);
+    CMLib_AIWaveEntries += 1;
+}
+
+// -----------------------------------------------------------------------------
+// 波次目标
+// -----------------------------------------------------------------------------
+void CMLib_AIWaveTargetPlayers(int lp_player, playergroup lp_targets) {
+    if (lp_targets == null) {
+        CMLib_LogWarn("AI", "AIWaveTargetPlayers: 目标玩家组为空。");
+        return;
+    }
+    AIAttackWaveSetTargetPlayer(lp_player, lp_targets);
+}
+
+void CMLib_AIWaveTargetPlayer(int lp_player, int lp_targetPlayer) {
+    AIAttackWaveSetTargetPlayer(lp_player, PlayerGroupSingle(lp_targetPlayer));
+}
+
+void CMLib_AIWaveTargetPoint(int lp_player, point lp_target) {
+    if (lp_target == null) { return; }
+    AIAttackWaveSetTargetPoint(lp_player, lp_target);
+}
+
+void CMLib_AIWaveTargetUnit(int lp_player, unit lp_target) {
+    if (lp_target == null) { return; }
+    AIAttackWaveSetTargetUnit(lp_player, lp_target);
+}
+
+void CMLib_AIWaveTargetMelee(int lp_player) {
+    AIAttackWaveSetTargetMelee(lp_player);
+}
+
+// -----------------------------------------------------------------------------
+// 波次路线
+// -----------------------------------------------------------------------------
+void CMLib_AIWaveWaypoint(int lp_player, point lp_waypoint, bool lp_useTransport) {
+    if (lp_waypoint == null) { return; }
+    AIAttackWaveAddWaypoint(lp_player, lp_waypoint, lp_useTransport);
+}
+
+void CMLib_AIWaveClearWaypoints(int lp_player) {
+    AIAttackWaveClearWaypoints(lp_player);
+}
+
+// -----------------------------------------------------------------------------
+// 发送
+// -----------------------------------------------------------------------------
+int CMLib_AIWaveSend(int lp_player, int lp_delaySeconds, bool lp_wait) {
+    int lv_result;
+
+    if (CMLib_AIWaveState != CMLIB_AIWAVE_BUILDING) {
+        CMLib_LogWarn("AI", "AIWaveSend: 没有正在构建的波次，已忽略。");
+        return 0;
+    }
+    if (CMLib_AIWaveEntries == 0) {
+        CMLib_LogWarn("AI", "AIWaveSend: 波次里一个单位都没有，仍按空波次发送。");
+    }
+    lv_result = AIAttackWaveSend(lp_player, CMLib_MaxInt(lp_delaySeconds, 0), lp_wait);
+    CMLib_AIWaveState = CMLIB_AIWAVE_IDLE;
+    CMLib_AIWaveOwner = -1;
+    CMLib_AIWaveEntries = 0;
+    return lv_result;
+}
+
+int CMLib_AIWaveSendJittered(int lp_player, int lp_delaySeconds, int lp_jitterSeconds, bool lp_wait) {
+    int lv_jitter = CMLib_MaxInt(lp_jitterSeconds, 0);
+    int lv_delay = lp_delaySeconds;
+
+    if (lv_jitter > 0) {
+        lv_delay = lv_delay + RandomInt(-lv_jitter, lv_jitter);
+    }
+    return CMLib_AIWaveSend(lp_player, CMLib_MaxInt(lv_delay, 0), lp_wait);
+}
+
+void CMLib_AIWaveCancelLast() {
+    wave lv_w = WaveLastCreated();
+
+    if (lv_w == null) {
+        CMLib_LogWarn("AI", "AIWaveCancelLast: 没有可取消的波次。");
+        return;
+    }
+    AIAttackWaveCancel(lv_w);
+}
+
+// -----------------------------------------------------------------------------
+// 一步式常用组合
+// -----------------------------------------------------------------------------
+int CMLib_AIWaveSimple(int lp_player, point lp_gather, string lp_unitType, int lp_qty,
+                       int lp_targetPlayer, int lp_delaySeconds) {
+    CMLib_AIWaveBegin(lp_player, lp_gather);
+    CMLib_AIWaveAdd(lp_qty, lp_unitType);
+    CMLib_AIWaveTargetPlayer(lp_player, lp_targetPlayer);
+    return CMLib_AIWaveSend(lp_player, lp_delaySeconds, false);
+}
+
+// -----------------------------------------------------------------------------
+// 难度
+// -----------------------------------------------------------------------------
+void CMLib_AISetDifficulty(int lp_player, int lp_difficulty, bool lp_state) {
+    AISetDifficulty(lp_player, lp_difficulty, lp_state);
+}
+
+int CMLib_AIPickByDifficulty(int lp_difficulty, int lp_v0, int lp_v1, int lp_v2, int lp_v3) {
+    int lv_d = CMLib_ClampInt(lp_difficulty, CMLIB_DIFF_CASUAL, CMLIB_DIFF_BRUTAL);
+
+    if (lv_d == CMLIB_DIFF_CASUAL) { return lp_v0; }
+    if (lv_d == CMLIB_DIFF_NORMAL) { return lp_v1; }
+    if (lv_d == CMLIB_DIFF_HARD)   { return lp_v2; }
+    return lp_v3;
+}
+
+int CMLib_AIScaleByDifficulty(int lp_base, int lp_difficulty, int lp_stepPercent) {
+    int lv_d = CMLib_ClampInt(lp_difficulty, CMLIB_DIFF_CASUAL, CMLIB_DIFF_BRUTAL);
+
+    return CMLib_ScalePercentInt(lp_base, 100 + lp_stepPercent * lv_d);
+}
+
+// -----------------------------------------------------------------------------
+// 战术施法
+// -----------------------------------------------------------------------------
+int CMLib_AICastSelf(unit lp_caster, string lp_ability, int lp_cmdIndex) {
+    if (lp_caster == null) { return 0; }
+    return AICast(lp_caster, Order(AbilityCommand(lp_ability, lp_cmdIndex)), c_noMarker, false);
+}
+
+int CMLib_AICastAtPoint(unit lp_caster, string lp_ability, int lp_cmdIndex, point lp_target) {
+    if ((lp_caster == null) || (lp_target == null)) { return 0; }
+    return AICast(lp_caster, OrderTargetingPoint(AbilityCommand(lp_ability, lp_cmdIndex), lp_target), c_noMarker, false);
+}
+
+int CMLib_AICastAtUnit(unit lp_caster, string lp_ability, int lp_cmdIndex, unit lp_target) {
+    if ((lp_caster == null) || (lp_target == null)) { return 0; }
+    return AICast(lp_caster, OrderTargetingUnit(AbilityCommand(lp_ability, lp_cmdIndex), lp_target), c_noMarker, false);
+}
+
+bool CMLib_AICastIfReady(unit lp_caster, string lp_ability, int lp_cmdIndex, string lp_cooldownLink) {
+    if (lp_caster == null) { return false; }
+    if (UnitAbilityGetCooldown(lp_caster, lp_ability, lp_cooldownLink) > 0.0) { return false; }
+    CMLib_AICastSelf(lp_caster, lp_ability, lp_cmdIndex);
+    return true;
+}
+
+// -----------------------------------------------------------------------------
+// 杂项
+// -----------------------------------------------------------------------------
+void CMLib_AIBulliesInRegion(int lp_player, region lp_region, bool lp_active) {
+    if (lp_region == null) { return; }
+    AIToggleBulliesInRegion(lp_player, lp_region, lp_active);
+}
+
+void CMLib_AIScriptControl(unit lp_unit, bool lp_scripted) {
+    if (lp_unit == null) { return; }
+    AISetUnitScriptControlled(lp_unit, lp_scripted);
+}
+
+void CMLib_AIScriptControlGroup(unitgroup lp_group, bool lp_scripted) {
+    int lv_i;
+    int lv_n;
+    unit lv_u;
+
+    if (lp_group == null) { return; }
+    lv_n = UnitGroupCount(lp_group, c_unitCountAll);
+    lv_i = lv_n;
+    while (lv_i >= 1) {
+        lv_u = UnitGroupUnitFromEnd(lp_group, lv_i);
+        if (lv_u != null) {
+            AISetUnitScriptControlled(lv_u, lp_scripted);
+        }
+        lv_i -= 1;
+    }
+}
+
+// ---- 波次/计时/旗标/计数封装（合作任务 AI 高频原生）--------------------------
+void CMLib_AIAttackWaveAddUnits(int lp_difficulty, int lp_count, string lp_unitType) {
+    if (lp_unitType == null) { return; }
+    if (lp_count < 1) { lp_count = 1; }
+    AIAttackWaveAddUnits(lp_difficulty, lp_count, lp_unitType);
+}
+
+void CMLib_AISetFlag(int lp_player, int lp_index, bool lp_state) {
+    if ((lp_index < 1) || (lp_index > 128)) { return; }
+    AISetFlag(lp_player, lp_index, lp_state);
+}
+
+fixed CMLib_AIGetTime() {
+    return AIGetTime();
+}
+
+void CMLib_AICounterUnitSetup(int lp_player, string lp_seeWhat, fixed lp_factorSameTech,
+                              string lp_makeSameTech, fixed lp_factorAnyTech, string lp_makeAnyTech) {
+    if (lp_seeWhat == null) { return; }
+    if (lp_makeSameTech == null) { return; }
+    if (lp_makeAnyTech == null) { return; }
+    AICounterUnitSetup(lp_player, lp_seeWhat, lp_factorSameTech, lp_makeSameTech, lp_factorAnyTech, lp_makeAnyTech);
+}
+
+
+// -----------------------------------------------------------------------------
+// round 18：AI 状态 / 自杀冲锋 / 子状态几率
+// -----------------------------------------------------------------------------
+
+int CMLib_AIState(int lp_player, int lp_index) {
+    return AIState(lp_player, lp_index);
+}
+
+void CMLib_AIUnitSuicide(unit lp_unit, bool lp_enable) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    AISetUnitSuicide(lp_unit, lp_enable);
+}
+
+void CMLib_AIGroupSuicide(unitgroup lp_group, bool lp_enable) {
+    if ((lp_group == null)) {
+        return;
+    }
+    AISetGroupSuicide(lp_group, lp_enable);
+}
+
+void CMLib_AIGroupScriptControlled(unitgroup lp_group, bool lp_enable) {
+    if ((lp_group == null)) {
+        return;
+    }
+    AISetGroupScriptControlled(lp_group, lp_enable);
+}
+
+void CMLib_AISubStateChance(int lp_subState, int lp_chance) {
+    int lv_c;
+
+    lv_c = lp_chance;
+    if ((lv_c < 0)) {
+        lv_c = 0;
+    }
+    if ((lv_c > 100)) {
+        lv_c = 100;
+    }
+    AISetSubStateChance(lp_subState, lv_c);
+}
+
+// =============================================================================
+// CMLib :: Round19 —— 实现
+// =============================================================================
+void CMLib_AITimePause(bool lp_pause) {
+    AITimePause(lp_pause);
+}
+
+void CMLib_TechTreeUnitHelp(int lp_player, string lp_unitType, bool lp_display) {
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return; }
+    if (lp_unitType == "") { return; }
+    TechTreeUnitHelp(lp_player, lp_unitType, lp_display);
+}
+
+// =============================================================================
+// CMLib :: Round24 —— AI 战术过滤（aifilter 句柄族）实现
+// =============================================================================
+// 全族裸调（不 include TriggerLibs/Tactical/TacticalAI），理由见 _h 头注释。
+// 统一约定：filter == null 一律安全短路，Apply 返回空组而不是 null。
+
+// ---- 句柄层 ----------------------------------------------------------------
+aifilter CMLib_AIFilterNew(int lp_player) {
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) {
+        CMLib_LogWarn("AI", "AIFilterNew: 非法玩家槽，返回 null 过滤器。");
+        return null;
+    }
+    return AIFilter(lp_player);
+}
+
+void CMLib_AIFilterAlliance(aifilter lp_filter, int lp_playerGroup) {
+    if (lp_filter == null) { return; }
+    AISetFilterAlliance(lp_filter, lp_playerGroup);
+}
+
+void CMLib_AIFilterTypes(aifilter lp_filter, string lp_filterStr) {
+    if (lp_filter == null) { return; }
+    if (lp_filterStr == null) { return; }
+    AISetFilterBits(lp_filter, UnitFilterStr(lp_filterStr));
+}
+
+void CMLib_AIFilterPlane(aifilter lp_filter, int lp_plane) {
+    int lv_p;
+
+    if (lp_filter == null) { return; }
+    lv_p = lp_plane;
+    if (lv_p != CMLIB_AIPLANE_AIR) { lv_p = CMLIB_AIPLANE_GROUND; }
+    AISetFilterPlane(lp_filter, lv_p);
+}
+
+// 内部：区间参数统一守门。min > max 是调用方笔误，忽略该条件比悄悄过滤成空组好。
+static bool CMLib_AIFilterRangeOk(string lp_who, aifilter lp_filter, fixed lp_min, fixed lp_max) {
+    if (lp_filter == null) { return false; }
+    if (lp_min > lp_max) {
+        CMLib_LogWarn("AI", lp_who + ": min > max，条件已忽略。");
+        return false;
+    }
+    return true;
+}
+
+void CMLib_AIFilterLife(aifilter lp_filter, fixed lp_min, fixed lp_max) {
+    if (CMLib_AIFilterRangeOk("AIFilterLife", lp_filter, lp_min, lp_max) == false) { return; }
+    AISetFilterLife(lp_filter, lp_min, lp_max);
+}
+
+void CMLib_AIFilterLifePercent(aifilter lp_filter, fixed lp_min, fixed lp_max) {
+    fixed lv_lo;
+    fixed lv_hi;
+
+    if (CMLib_AIFilterRangeOk("AIFilterLifePercent", lp_filter, lp_min, lp_max) == false) { return; }
+    lv_lo = CMLib_ClampFixed(lp_min, 0.0, 100.0);
+    lv_hi = CMLib_ClampFixed(lp_max, 0.0, 100.0);
+    AISetFilterLifePercent(lp_filter, lv_lo, lv_hi);
+}
+
+void CMLib_AIFilterLifeLost(aifilter lp_filter, fixed lp_min, fixed lp_max) {
+    if (CMLib_AIFilterRangeOk("AIFilterLifeLost", lp_filter, lp_min, lp_max) == false) { return; }
+    AISetFilterLifeLost(lp_filter, lp_min, lp_max);
+}
+
+void CMLib_AIFilterShields(aifilter lp_filter, fixed lp_min, fixed lp_max) {
+    if (CMLib_AIFilterRangeOk("AIFilterShields", lp_filter, lp_min, lp_max) == false) { return; }
+    AISetFilterShields(lp_filter, lp_min, lp_max);
+}
+
+void CMLib_AIFilterRange(aifilter lp_filter, unit lp_center, fixed lp_radius) {
+    if (lp_filter == null) { return; }
+    // center 为 null 时**跳过**而不是照传 —— round24 callall 档的教训：
+    // 把无效参数喂进 setter，结果是整组被过滤空，且没有任何报错线索。
+    if (lp_center == null) {
+        CMLib_LogWarn("AI", "AIFilterRange: 圆心单位为空，半径条件已忽略。");
+        return;
+    }
+    if (lp_radius <= 0.0) { return; }
+    AISetFilterRange(lp_filter, lp_center, lp_radius);
+}
+
+void CMLib_AIFilterInCombat(aifilter lp_filter, bool lp_want) {
+    if (lp_filter == null) { return; }
+    AISetFilterInCombat(lp_filter, lp_want);
+}
+
+void CMLib_AIFilterSortByLife(aifilter lp_filter, fixed lp_life, fixed lp_distance) {
+    if (lp_filter == null) { return; }
+    AISetFilterLifeSortReference(lp_filter, lp_life, lp_distance);
+}
+
+// ---- round25 新增 -----------------------------------------------------------
+// 守门口径统一：**参数无效就跳过这一条件**，不照传给 native。
+// 理由是 round24 那条教训——把无效参数喂进 setter，得到的是一个空组，
+// 而空组和"确实没有符合的单位"长得一模一样，调用方拿不到任何线索。
+void CMLib_AIFilterExcludeUnit(aifilter lp_filter, unit lp_exclude) {
+    if (lp_filter == null) { return; }
+    if (lp_exclude == null) { return; }
+    AISetFilterSelf(lp_filter, lp_exclude);
+}
+
+void CMLib_AIFilterLifeMod(aifilter lp_filter, int lp_type, fixed lp_mod) {
+    if (lp_filter == null) { return; }
+    AISetFilterLifeMod(lp_filter, lp_type, lp_mod);
+}
+
+void CMLib_AIFilterBehaviorCount(aifilter lp_filter, int lp_min, int lp_max,
+                                 string lp_behavior) {
+    if (lp_filter == null) { return; }
+    // 空串在 Galaxy 里与 null 等价，两种写法都要拦。
+    if ((lp_behavior == null) || (lp_behavior == "")) {
+        CMLib_LogWarn("AI", "AIFilterBehaviorCount: behavior 串为空，条件已忽略。");
+        return;
+    }
+    if (lp_min > lp_max) {
+        CMLib_LogWarn("AI", "AIFilterBehaviorCount: min > max，条件已忽略。");
+        return;
+    }
+    AISetFilterBehaviorCount(lp_filter, lp_min, lp_max, lp_behavior);
+}
+
+void CMLib_AIFilterMelee(aifilter lp_filter, bool lp_want) {
+    if (lp_filter == null) { return; }
+    AISetFilterMelee(lp_filter, lp_want);
+}
+
+void CMLib_AIFilterValidPassenger(aifilter lp_filter, unit lp_transport) {
+    if (lp_filter == null) { return; }
+    if (lp_transport == null) {
+        CMLib_LogWarn("AI", "AIFilterValidPassenger: 运输单位为空，条件已忽略。");
+        return;
+    }
+    AISetFilterValidPassenger(lp_filter, lp_transport);
+}
+
+void CMLib_AIFilterMarkerCount(aifilter lp_filter, int lp_min, int lp_max,
+                               marker lp_marker) {
+    if (lp_filter == null) { return; }
+    if (lp_marker == null) {
+        CMLib_LogWarn("AI", "AIFilterMarkerCount: marker 为空，条件已忽略。");
+        return;
+    }
+    if (lp_min > lp_max) {
+        CMLib_LogWarn("AI", "AIFilterMarkerCount: min > max，条件已忽略。");
+        return;
+    }
+    AISetFilterMarker(lp_filter, lp_min, lp_max, lp_marker);
+}
+
+void CMLib_AIFilterLifePerMarker(aifilter lp_filter, fixed lp_each, marker lp_marker) {
+    if (lp_filter == null) { return; }
+    if (lp_marker == null) {
+        CMLib_LogWarn("AI", "AIFilterLifePerMarker: marker 为空，条件已忽略。");
+        return;
+    }
+    if (lp_each <= 0.0) { return; }
+    AISetFilterLifePerMarker(lp_filter, lp_each, lp_marker);
+}
+
+void CMLib_AIFilterCanAttackAlly(aifilter lp_filter, bool lp_groundAllies,
+                                 bool lp_airAllies) {
+    if (lp_filter == null) { return; }
+    // 真机实证：(false,false) 会把结果筛成空组。它的本意是"没有要照顾的友军"，
+    // 但绝大多数调用方会把两个 false 读成"我不关心这个维度"。语义反了 180 度，
+    // 而且失败形态是静默空组 —— 这正是最难查的那种。直接拦掉。
+    if ((lp_groundAllies == false) && (lp_airAllies == false)) {
+        // 注意：Galaxy **没有** C/Python 那种相邻字符串字面量隐式拼接，
+        // 写成两行相邻字面量会被解析成多传一个实参（G000 + G1001）。
+        CMLib_LogWarn("AI", "AIFilterCanAttackAlly: 两个方向都为 false 会筛成空组，不是「不限制」，条件已忽略。");
+        return;
+    }
+    AISetFilterCanAttackAlly(lp_filter, lp_groundAllies, lp_airAllies);
+}
+
+unitgroup CMLib_AIFilterApply(aifilter lp_filter, unitgroup lp_source) {
+    unitgroup lv_out;
+
+    if ((lp_filter == null) || (lp_source == null)) { return UnitGroupEmpty(); }
+    lv_out = AIGetFilterGroup(lp_filter, lp_source);
+    if (lv_out == null) { return UnitGroupEmpty(); }
+    return lv_out;
+}
+
+int CMLib_AIFilterApplyCount(aifilter lp_filter, unitgroup lp_source) {
+    return UnitGroupCount(CMLib_AIFilterApply(lp_filter, lp_source), c_unitCountAll);
+}
+
+// ---- 一站式层 ---------------------------------------------------------------
+// 内部：建过滤器 + 设阵营，返回 null 表示玩家槽非法。
+static aifilter CMLib_AISelectBase(int lp_player, int lp_alliance) {
+    aifilter lv_f = CMLib_AIFilterNew(lp_player);
+
+    if (lv_f == null) { return null; }
+    AISetFilterAlliance(lv_f, lp_alliance);
+    return lv_f;
+}
+
+unitgroup CMLib_AISelectEnemies(int lp_player, unitgroup lp_source) {
+    return CMLib_AIFilterApply(CMLib_AISelectBase(lp_player, c_playerGroupEnemy), lp_source);
+}
+
+unitgroup CMLib_AISelectAllies(int lp_player, unitgroup lp_source) {
+    return CMLib_AIFilterApply(CMLib_AISelectBase(lp_player, c_playerGroupAlly), lp_source);
+}
+
+unitgroup CMLib_AISelectInRange(int lp_player, unitgroup lp_source, unit lp_center, fixed lp_radius) {
+    aifilter lv_f = CMLib_AISelectBase(lp_player, c_playerGroupAny);
+
+    CMLib_AIFilterRange(lv_f, lp_center, lp_radius);
+    return CMLib_AIFilterApply(lv_f, lp_source);
+}
+
+unitgroup CMLib_AISelectWounded(int lp_player, unitgroup lp_source, fixed lp_maxLifePercent) {
+    aifilter lv_f = CMLib_AISelectBase(lp_player, c_playerGroupAny);
+
+    CMLib_AIFilterLifePercent(lv_f, 0.0, lp_maxLifePercent);
+    // 血量权重 1 / 距离权重 0 —— 最残的排前面。
+    CMLib_AIFilterSortByLife(lv_f, 1.0, 0.0);
+    return CMLib_AIFilterApply(lv_f, lp_source);
+}
+
+unitgroup CMLib_AISelectByType(int lp_player, unitgroup lp_source, string lp_filterStr) {
+    aifilter lv_f = CMLib_AISelectBase(lp_player, c_playerGroupAny);
+
+    CMLib_AIFilterTypes(lv_f, lp_filterStr);
+    return CMLib_AIFilterApply(lv_f, lp_source);
+}
+
+unitgroup CMLib_AISelectGround(int lp_player, unitgroup lp_source) {
+    aifilter lv_f = CMLib_AISelectBase(lp_player, c_playerGroupAny);
+
+    CMLib_AIFilterPlane(lv_f, CMLIB_AIPLANE_GROUND);
+    return CMLib_AIFilterApply(lv_f, lp_source);
+}
+
+unitgroup CMLib_AISelectAir(int lp_player, unitgroup lp_source) {
+    aifilter lv_f = CMLib_AISelectBase(lp_player, c_playerGroupAny);
+
+    CMLib_AIFilterPlane(lv_f, CMLIB_AIPLANE_AIR);
+    return CMLib_AIFilterApply(lv_f, lp_source);
+}
+
+// ---- 无句柄组过滤 -----------------------------------------------------------
+unitgroup CMLib_AIGroupProduction(unitgroup lp_source, bool lp_activeOnly) {
+    unitgroup lv_out;
+
+    if (lp_source == null) { return UnitGroupEmpty(); }
+    lv_out = AIFilterProduction(lp_source, lp_activeOnly);
+    if (lv_out == null) { return UnitGroupEmpty(); }
+    return lv_out;
+}
+
+unitgroup CMLib_AIGroupPathable(unitgroup lp_source, point lp_from) {
+    unitgroup lv_out;
+
+    if ((lp_source == null) || (lp_from == null)) { return UnitGroupEmpty(); }
+    lv_out = AIFilterPathable(lp_source, lp_from);
+    if (lv_out == null) { return UnitGroupEmpty(); }
+    return lv_out;
+}
+
+unitgroup CMLib_AIGroupCasters(unitgroup lp_source) {
+    unitgroup lv_out;
+
+    if (lp_source == null) { return UnitGroupEmpty(); }
+    lv_out = AIFilterCasters(lp_source);
+    if (lv_out == null) { return UnitGroupEmpty(); }
+    return lv_out;
+}
+
+unitgroup CMLib_AIGroupGathering(unitgroup lp_source, int lp_resource, fixed lp_distance) {
+    unitgroup lv_out;
+
+    if (lp_source == null) { return UnitGroupEmpty(); }
+    lv_out = AIFilterGathering(lp_source, lp_resource, CMLib_MaxFixed(lp_distance, 0.0));
+    if (lv_out == null) { return UnitGroupEmpty(); }
+    return lv_out;
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round26 —— AIFilter 能量档
+// -----------------------------------------------------------------------------
+
+void CMLib_AIFilterEnergy(aifilter lp_filter, fixed lp_min, fixed lp_max) {
+    if (CMLib_AIFilterRangeOk("AIFilterEnergy", lp_filter, lp_min, lp_max) == false) {
+        return;
+    }
+    AISetFilterEnergy(lp_filter, lp_min, lp_max);
+}

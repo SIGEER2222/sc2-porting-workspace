@@ -1,0 +1,231 @@
+// =============================================================================
+// CMLib :: Core
+// 公共常量、数值钳制、字符串/定点数工具、调试输出。
+// 依赖：仅 core.sc2mod natives。
+// =============================================================================
+
+// ---- 版本 -------------------------------------------------------------------
+const int CMLIB_VERSION_MAJOR = 1;
+const int CMLIB_VERSION_MINOR = 0;
+
+// ---- 玩家槽位约定（合作模式）-------------------------------------------------
+const int CMLIB_PLAYER_MIN = 1;
+const int CMLIB_PLAYER_MAX = 15;
+
+// ---- 日志级别 ---------------------------------------------------------------
+const int CMLIB_LOG_OFF   = 0;
+const int CMLIB_LOG_ERROR = 1;
+const int CMLIB_LOG_WARN  = 2;
+const int CMLIB_LOG_INFO  = 3;
+const int CMLIB_LOG_DEBUG = 4;
+
+// ---- 数值 -------------------------------------------------------------------
+int   CMLib_ClampInt(int lp_value, int lp_min, int lp_max);
+fixed CMLib_ClampFixed(fixed lp_value, fixed lp_min, fixed lp_max);
+int   CMLib_MinInt(int lp_a, int lp_b);
+int   CMLib_MaxInt(int lp_a, int lp_b);
+int   CMLib_AbsInt(int lp_value);
+// 安全整数除法：除数为 0 时返回 lp_fallback，避免触发脚本错误。
+int   CMLib_DivInt(int lp_numerator, int lp_denominator, int lp_fallback);
+// 定点数除法，除数为 0 时返回 lp_fallback。
+fixed CMLib_DivFixed(fixed lp_numerator, fixed lp_denominator, fixed lp_fallback);
+// 百分比缩放：value * percent / 100，全程走 fixed 避免整数截断。
+int   CMLib_ScalePercentInt(int lp_value, int lp_percent);
+fixed CMLib_ScalePercentFixed(fixed lp_value, int lp_percent);
+// 线性插值，lp_t 取 0.0 ~ 1.0，超界自动钳制。
+fixed CMLib_Lerp(fixed lp_from, fixed lp_to, fixed lp_t);
+
+// ---- 玩家 -------------------------------------------------------------------
+bool CMLib_IsValidPlayerSlot(int lp_player);
+// 该槽位是否为仍在游戏中的真人/电脑玩家。
+bool CMLib_IsActivePlayer(int lp_player);
+
+// ---- 字符串 -----------------------------------------------------------------
+// ⚠ 引擎语义（round21 真机实证）：Galaxy 里**空串与 null 等价**，`s != null`
+//   永远等价于 `s != ""`，不能用来区分"未设置"与"空"。判空一律走下面两个函数，
+//   它们对 null / "" / 零长 三种形态都成立。
+bool   CMLib_StrIsEmpty(string lp_s);
+bool   CMLib_StrNotEmpty(string lp_s);
+string CMLib_CharAt(string lp_s, int lp_index);
+bool   CMLib_StartsWith(string lp_s, string lp_prefix);
+bool   CMLib_EndsWith(string lp_s, string lp_suffix);
+bool   CMLib_Contains(string lp_s, string lp_needle);
+string CMLib_TrimSpaces(string lp_s);
+// 按分隔符取第 lp_index 段（0 起）；越界返回 ""。
+string CMLib_SplitAt(string lp_s, string lp_sep, int lp_index);
+int    CMLib_SplitCount(string lp_s, string lp_sep);
+// 容错转换：非法输入返回 lp_fallback，而不是 0。
+int    CMLib_ParseInt(string lp_s, int lp_fallback);
+fixed  CMLib_ParseFixed(string lp_s, fixed lp_fallback);
+string CMLib_BoolToString(bool lp_value);
+bool   CMLib_ParseBool(string lp_s, bool lp_fallback);
+
+// ---- 键名拼装（Bank / DataTable / UserData 通用）------------------------------
+string CMLib_Key1(string lp_a);
+string CMLib_Key2(string lp_a, string lp_b);
+string CMLib_Key3(string lp_a, string lp_b, string lp_c);
+string CMLib_KeyPlayer(string lp_prefix, int lp_player);
+string CMLib_KeyIndexed(string lp_prefix, int lp_index);
+
+// ---- DataTable 存储（与上面的 Key* 拼装函数配套）------------------------------
+// 全部走全局表（global = true）。Get* 在键不存在时返回 lp_fallback，
+// 而不是 Galaxy 原生 DataTableGet* 的「静默返回 0 / null + 抛警告」。
+bool   CMLib_StoreHas(string lp_key);
+void   CMLib_StoreInt(string lp_key, int lp_value);
+int    CMLib_LoadInt(string lp_key, int lp_fallback);
+void   CMLib_StoreFixed(string lp_key, fixed lp_value);
+fixed  CMLib_LoadFixed(string lp_key, fixed lp_fallback);
+void   CMLib_StoreString(string lp_key, string lp_value);
+string CMLib_LoadString(string lp_key, string lp_fallback);
+void   CMLib_StoreBool(string lp_key, bool lp_value);
+bool   CMLib_LoadBool(string lp_key, bool lp_fallback);
+void   CMLib_StoreUnit(string lp_key, unit lp_value);
+unit   CMLib_LoadUnit(string lp_key);
+// 计数器：不存在时视为 0，返回累加后的新值。用于 kill count / wave index 等。
+int    CMLib_StoreBump(string lp_key, int lp_delta);
+
+// ---- 日志 -------------------------------------------------------------------
+void CMLib_LogSetLevel(int lp_level);
+int  CMLib_LogGetLevel();
+void CMLib_LogError(string lp_tag, string lp_message);
+void CMLib_LogWarn(string lp_tag, string lp_message);
+void CMLib_LogInfo(string lp_tag, string lp_message);
+void CMLib_LogDebug(string lp_tag, string lp_message);
+
+// ---- 随机数 / 取模安全封装 -----------------------------------------------------
+// 【真坑】RandomInt/RandomFixed 在 min > max 时行为未定义；ModI 在 m == 0 时
+// 触发除零运行时错误并中断当前触发器。以下封装自动交换边界 / 兜底返回。
+fixed CMLib_RandF(fixed lp_min, fixed lp_max);
+int   CMLib_RandI(int lp_min, int lp_max);
+int   CMLib_ModSafe(int lp_x, int lp_m);
+
+// =============================================================================
+// CMLib :: Round20 —— DataTable 作用域族（DT*）与补充数学
+//
+// 与本模块上半部分的 CMLib_Store* / CMLib_Load* 的分工：
+//   · Store/Load   —— 固定 global=true 的「全局便签」，bool 走 int 存储，
+//                     方便直接倒进 Bank；日常存个状态用它就够。
+//   · DT*          —— 显式带 lp_global 的完整通道，覆盖引擎全部强类型
+//                     （bool / unitgroup / timer / objective / region），
+//                     还能枚举、按前缀清理。写系统级模块用这一套。
+// local 表（global=false）的生命周期跟着**当前线程**走，跨触发器读不到，
+// 这一点引擎不会报错，只会让你读到默认值 —— 用之前先想清楚作用域。
+//
+// gap_scan 显示 data 域覆盖率 66.1%，是排除 GUI 噪声后的真实最低域。
+// =============================================================================
+
+// ---- 通用 --------------------------------------------------------------------
+bool   CMLib_DTHas(bool lp_global, string lp_key);
+void   CMLib_DTRemove(bool lp_global, string lp_key);
+void   CMLib_DTClear(bool lp_global);
+int    CMLib_DTCount(bool lp_global);
+// 按序号取键名；越界返回 ""。遍历整张表请从 0 扫到 CMLib_DTCount()（含两端），
+// 拿到 "" 就跳过 —— 引擎没说这个索引是 0 起还是 1 起，本库两头都兼容。
+string CMLib_DTNameAt(bool lp_global, int lp_index);
+// 删除所有以 lp_prefix 开头的键，返回删掉的条数。
+// 倒序遍历删除 —— 正序删会让后面的 index 整体前移，漏掉一半（老坑）。
+int    CMLib_DTClearPrefix(bool lp_global, string lp_prefix);
+
+// ---- 强类型存取（不存在时返回 fallback / 空值，绝不抛给引擎） -----------------
+void       CMLib_DTSetBool(bool lp_global, string lp_key, bool lp_value);
+bool       CMLib_DTGetBool(bool lp_global, string lp_key, bool lp_fallback);
+void       CMLib_DTSetUG(bool lp_global, string lp_key, unitgroup lp_value);
+unitgroup  CMLib_DTGetUG(bool lp_global, string lp_key);
+void       CMLib_DTSetTimer(bool lp_global, string lp_key, timer lp_value);
+timer      CMLib_DTGetTimer(bool lp_global, string lp_key);
+void       CMLib_DTSetObjective(bool lp_global, string lp_key, int lp_value);
+int        CMLib_DTGetObjective(bool lp_global, string lp_key);
+void       CMLib_DTSetRegion(bool lp_global, string lp_key, region lp_value);
+region     CMLib_DTGetRegion(bool lp_global, string lp_key);
+
+// ---- 补充数学 / 计时器 ---------------------------------------------------------
+// 四舍五入到 int（引擎的 FixedToInt 是截断，两者别混用）。
+int   CMLib_RoundI(fixed lp_x);
+fixed CMLib_TimerDuration(timer lp_timer);
+bool  CMLib_TimerPaused(timer lp_timer);
+// 计时器完成度 0.0~1.0，给进度条用；时长<=0 返回 0。
+fixed CMLib_TimerProgress(timer lp_timer);
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round20b —— DataTable 强类型族补全（带 scope 参数）
+// 说明：CMLib_Store*/CMLib_Load* 是 global=true 固定的老接口；DT* 系列显式带
+//       lp_global，local 表（false）用于「本触发器线程私有」的临时状态。
+// -----------------------------------------------------------------------------
+void   CMLib_DTSetInt(bool lp_global, string lp_key, int lp_value);
+int    CMLib_DTGetInt(bool lp_global, string lp_key, int lp_fallback);
+void   CMLib_DTSetFixed(bool lp_global, string lp_key, fixed lp_value);
+fixed  CMLib_DTGetFixed(bool lp_global, string lp_key, fixed lp_fallback);
+void   CMLib_DTSetString(bool lp_global, string lp_key, string lp_value);
+string CMLib_DTGetString(bool lp_global, string lp_key, string lp_fallback);
+void   CMLib_DTSetUnit(bool lp_global, string lp_key, unit lp_value);
+unit   CMLib_DTGetUnit(bool lp_global, string lp_key);           // 缺键返回 null
+void   CMLib_DTSetPoint(bool lp_global, string lp_key, point lp_value);
+point  CMLib_DTGetPoint(bool lp_global, string lp_key);          // 缺键返回 null
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round22 —— 定点数(fixed) 数学补齐
+// 说明：整型侧 CMLib_MinInt/MaxInt/AbsInt 早已存在；fixed 侧一直是空白，
+//       而 Galaxy 里绝大多数坐标/时间/伤害运算都是 fixed。
+// -----------------------------------------------------------------------------
+fixed CMLib_MinFixed(fixed lp_a, fixed lp_b);
+fixed CMLib_MaxFixed(fixed lp_a, fixed lp_b);
+fixed CMLib_AbsFixed(fixed lp_value);
+// 取模：m == 0 时返回 0（引擎除零会抛运行时错误、中断整条触发器线程）。
+fixed CMLib_ModFixed(fixed lp_x, fixed lp_m);
+
+// ---- Round27：DataTable 强类型族补齐（sound / camerainfo / marker） -------------
+// 这三种此前只有引擎 native 有 Get/Set，库侧缺失 —— 于是库的公开 API 虽然收这些
+// 句柄做形参，调用方却没有任何合法途径拿到它们（只能喂 null）。补齐后 DataTable
+// 成为这三类句柄的通用「跨触发器传递」通道。
+void       CMLib_DTSetSound(bool lp_global, string lp_key, sound lp_value);
+sound      CMLib_DTGetSound(bool lp_global, string lp_key);       // 缺键返回 null
+void       CMLib_DTSetCameraInfo(bool lp_global, string lp_key, camerainfo lp_value);
+camerainfo CMLib_DTGetCameraInfo(bool lp_global, string lp_key);  // 缺键返回 null
+void       CMLib_DTSetMarker(bool lp_global, string lp_key, marker lp_value);
+marker     CMLib_DTGetMarker(bool lp_global, string lp_key);      // 缺键返回 null
+
+
+// =============================================================================
+// CMLib :: Round26 —— 字符串族补齐（大小写 / 比较 / 包含 / 分词 / 替换 / 外部串）
+//
+// core 之前只有 CMLib_StartsWith / SplitAt / ParseInt 这几件自研工具，引擎
+// 原生的字符串族基本没进库。补的时候把三个最容易记反的口径钉死在注释里：
+//
+//   · StringContains 的 location：c_stringBegin=0 / c_stringEnd=1 /
+//     c_stringAnywhere=2。传错就是"以为在查子串、实际在查前缀"。
+//   · StringWord 是 **1-based**：官方例子 StringWord("klaatu barada nikto", 2)
+//     == "barada"。
+//   · StringReplaceWord 的 maxCount 用 c_stringReplaceAll(-1) 表示全替换。
+//
+// StringReplace 替换的是**字符下标区间**（不是子串匹配），别和
+// StringReplaceWord 混用 —— 后者才是"按词替换"。
+// =============================================================================
+
+// 全大写 / 全小写（upper = true 转大写）。
+string   CMLib_StrCase(string lp_s, bool lp_upper);
+// 字典序比较：< 0 / 0 / > 0。caseSens 用 c_stringCase / c_stringNoCase。
+int      CMLib_StrCompare(string lp_a, string lp_b, bool lp_caseSens);
+// 前缀 / 后缀 / 任意位置包含，location 见上方口径说明；非法 location 按任意位置。
+bool     CMLib_StrContains(string lp_s, string lp_sub, int lp_location,
+                           bool lp_caseSens);
+// 外部化字符串表查表：素材路径型 / 快捷键型。
+text     CMLib_StrAsset(string lp_s);
+text     CMLib_StrHotkey(string lp_s);
+// 替换字符下标区间 [start, end]；start > end 或空串原样返回。
+string   CMLib_StrReplaceRange(string lp_s, string lp_replace, int lp_start,
+                               int lp_end);
+// 按词替换；maxCount 传 c_stringReplaceAll 表示全部。
+string   CMLib_StrReplaceWord(string lp_s, string lp_word, string lp_replace,
+                              int lp_maxCount, bool lp_caseSens);
+// 取第 index 个空白分隔的词，**1-based**；越界返回 ""。
+string   CMLib_StrWord(string lp_s, int lp_index);
+// 字符串转 datetime。注意：格式由引擎解析，本库不做格式校验，
+// 空串会被替换成一个固定的合法占位串以避免解析失败中断触发器。
+datetime CMLib_StrToDateTime(string lp_s);
+
+// ===========================================================================
+// 调用范围登记（check_call_scope.py R 层）
+// ---------------------------------------------------------------------------
+// @scope-flagonly StringToDateTime 仅社区补录声明；解析失败返回0，调用点已做零值兜底，不参与控制流

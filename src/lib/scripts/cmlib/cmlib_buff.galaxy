@@ -1,0 +1,563 @@
+// =============================================================================
+// CMLib :: Buff —— 实现
+// 声明见 cmlib_buff_h.galaxy
+// =============================================================================
+
+// =============================================================================
+// Behavior：单体
+// =============================================================================
+
+bool CMLib_BuffAdd(unit lp_unit, string lp_buff, unit lp_caster, int lp_count) {
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_buff == "")) {
+        return false;
+    }
+    if ((lp_count <= 0)) {
+        return false;
+    }
+    UnitBehaviorAdd(lp_unit, lp_buff, lp_caster, lp_count);
+    return true;
+}
+
+int CMLib_BuffRemove(unit lp_unit, string lp_buff, int lp_count) {
+    int lv_have;
+    int lv_take;
+
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_buff == "")) {
+        return 0;
+    }
+    if ((lp_count <= 0)) {
+        return 0;
+    }
+    lv_have = UnitBehaviorCount(lp_unit, lp_buff);
+    if ((lv_have <= 0)) {
+        return 0;
+    }
+    lv_take = lp_count;
+    if ((lv_take > lv_have)) {
+        lv_take = lv_have;
+    }
+    UnitBehaviorRemove(lp_unit, lp_buff, lv_take);
+    return lv_take;
+}
+
+int CMLib_BuffSetCount(unit lp_unit, string lp_buff, unit lp_caster, int lp_target) {
+    int lv_have;
+    int lv_want;
+
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_buff == "")) {
+        return 0;
+    }
+
+    lv_want = lp_target;
+    if ((lv_want < 0)) {
+        lv_want = 0;
+    }
+    if ((lv_want > CMLIB_BUFF_MAX_STACK)) {
+        CMLib_LogWarn("buff", "SetCount 目标层数超上限，已钳制: " + lp_buff);
+        lv_want = CMLIB_BUFF_MAX_STACK;
+    }
+
+    lv_have = UnitBehaviorCount(lp_unit, lp_buff);
+    if ((lv_have == lv_want)) {
+        return lv_have;
+    }
+    if ((lv_have < lv_want)) {
+        UnitBehaviorAdd(lp_unit, lp_buff, lp_caster, lv_want - lv_have);
+    }
+    else {
+        UnitBehaviorRemove(lp_unit, lp_buff, lv_have - lv_want);
+    }
+    return UnitBehaviorCount(lp_unit, lp_buff);
+}
+
+int CMLib_BuffStripAll(unit lp_unit, string lp_buff) {
+    int lv_have;
+
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_buff == "")) {
+        return 0;
+    }
+    lv_have = UnitBehaviorCount(lp_unit, lp_buff);
+    if ((lv_have <= 0)) {
+        return 0;
+    }
+    if ((lv_have > CMLIB_BUFF_MAX_STACK)) {
+        lv_have = CMLIB_BUFF_MAX_STACK;
+    }
+    UnitBehaviorRemove(lp_unit, lp_buff, lv_have);
+    return lv_have;
+}
+
+int CMLib_BuffCount(unit lp_unit, string lp_buff) {
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_buff == "")) {
+        return 0;
+    }
+    return UnitBehaviorCount(lp_unit, lp_buff);
+}
+
+bool CMLib_BuffHas(unit lp_unit, string lp_buff) {
+    return CMLib_BuffCount(lp_unit, lp_buff) > 0;
+}
+
+int CMLib_BuffCountAll(unit lp_unit) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return 0;
+    }
+    return UnitBehaviorCountAll(lp_unit);
+}
+
+string CMLib_BuffNameAt(unit lp_unit, int lp_index) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return "";
+    }
+    if ((lp_index < 0) || (lp_index >= UnitBehaviorCountAll(lp_unit))) {
+        return "";
+    }
+    return UnitBehaviorGet(lp_unit, lp_index);
+}
+
+bool CMLib_BuffEnabled(unit lp_unit, string lp_buff) {
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_buff == "")) {
+        return false;
+    }
+    if ((UnitBehaviorCount(lp_unit, lp_buff) <= 0)) {
+        return false;
+    }
+    return UnitBehaviorEnabled(lp_unit, lp_buff);
+}
+
+// =============================================================================
+// Behavior：时限
+// =============================================================================
+
+fixed CMLib_BuffTimeLeft(unit lp_unit, string lp_buff) {
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_buff == "")) {
+        return 0.0;
+    }
+    if ((UnitBehaviorCount(lp_unit, lp_buff) <= 0)) {
+        return 0.0;
+    }
+    return UnitBehaviorDuration(lp_unit, lp_buff);
+}
+
+bool CMLib_BuffAddTimed(unit lp_unit, string lp_buff, unit lp_caster, fixed lp_seconds) {
+    if ((CMLib_BuffAdd(lp_unit, lp_buff, lp_caster, 1) == false)) {
+        return false;
+    }
+    if ((lp_seconds <= 0.0)) {
+        return true;
+    }
+    UnitBehaviorSetDurationRemaining(lp_unit, lp_buff, lp_seconds);
+    return true;
+}
+
+bool CMLib_BuffRefresh(unit lp_unit, string lp_buff, fixed lp_seconds) {
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_buff == "")) {
+        return false;
+    }
+    if ((UnitBehaviorCount(lp_unit, lp_buff) <= 0)) {
+        return false;
+    }
+    if ((lp_seconds < 0.0)) {
+        return false;
+    }
+    UnitBehaviorSetDurationRemaining(lp_unit, lp_buff, lp_seconds);
+    return true;
+}
+
+bool CMLib_BuffExtend(unit lp_unit, string lp_buff, fixed lp_extraSeconds) {
+    fixed lv_left;
+
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_buff == "")) {
+        return false;
+    }
+    if ((UnitBehaviorCount(lp_unit, lp_buff) <= 0)) {
+        return false;
+    }
+    lv_left = UnitBehaviorDuration(lp_unit, lp_buff) + lp_extraSeconds;
+    if ((lv_left < 0.0)) {
+        lv_left = 0.0;
+    }
+    UnitBehaviorSetDurationRemaining(lp_unit, lp_buff, lv_left);
+    return true;
+}
+
+// =============================================================================
+// Behavior：按 flag 分类
+// =============================================================================
+
+bool CMLib_BuffHasFlag(string lp_buff, int lp_flag) {
+    if ((lp_buff == "")) {
+        return false;
+    }
+    return UnitBehaviorHasFlag(lp_buff, lp_flag);
+}
+
+void CMLib_BuffPurgeFlag(unit lp_unit, int lp_flag) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    UnitBehaviorRemoveCategory(lp_unit, lp_flag);
+}
+
+string CMLib_BuffFindByFlag(unit lp_unit, int lp_flag) {
+    int    lv_n;
+    int    lv_i;
+    string lv_name;
+
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return "";
+    }
+    lv_n = UnitBehaviorCountAll(lp_unit);
+    if ((lv_n > CMLIB_BUFF_MAX_SLOTS)) {
+        lv_n = CMLIB_BUFF_MAX_SLOTS;
+    }
+    lv_i = 0;
+    while ((lv_i < lv_n)) {
+        lv_name = UnitBehaviorGet(lp_unit, lv_i);
+        lv_i += 1;
+        if ((lv_name == "")) {
+            continue;
+        }
+        if ((UnitBehaviorHasFlag(lv_name, lp_flag) == true)) {
+            return lv_name;
+        }
+    }
+    return "";
+}
+
+bool CMLib_BuffAnyWithFlag(unit lp_unit, int lp_flag) {
+    return CMLib_BuffFindByFlag(lp_unit, lp_flag) != "";
+}
+
+bool CMLib_BuffTransfer(unit lp_from, unit lp_to, string lp_buff, int lp_count) {
+    if ((CMLib_UnitOk(lp_from) == false) || (CMLib_UnitOk(lp_to) == false)) {
+        return false;
+    }
+    if ((lp_buff == "") || (lp_count <= 0)) {
+        return false;
+    }
+    if ((UnitBehaviorCount(lp_from, lp_buff) <= 0)) {
+        return false;
+    }
+    UnitBehaviorTransfer(lp_from, lp_to, lp_buff, lp_count);
+    return true;
+}
+
+// =============================================================================
+// Behavior：批量
+// =============================================================================
+
+int CMLib_BuffAddGroup(unitgroup lp_group, string lp_buff, unit lp_caster, int lp_count) {
+    int  lv_index;
+    int  lv_done;
+    unit lv_unit;
+
+    if ((lp_group == null) || (lp_buff == "")) {
+        return 0;
+    }
+    lv_index = UnitGroupCount(lp_group, c_unitCountAll);
+    lv_done = 0;
+    while ((lv_index >= 1)) {
+        lv_unit = UnitGroupUnitFromEnd(lp_group, lv_index);
+        lv_index -= 1;
+        if ((CMLib_BuffAdd(lv_unit, lp_buff, lp_caster, lp_count) == true)) {
+            lv_done += 1;
+        }
+    }
+    return lv_done;
+}
+
+int CMLib_BuffStripGroup(unitgroup lp_group, string lp_buff) {
+    int  lv_index;
+    int  lv_done;
+    unit lv_unit;
+
+    if ((lp_group == null) || (lp_buff == "")) {
+        return 0;
+    }
+    lv_index = UnitGroupCount(lp_group, c_unitCountAll);
+    lv_done = 0;
+    while ((lv_index >= 1)) {
+        lv_unit = UnitGroupUnitFromEnd(lp_group, lv_index);
+        lv_index -= 1;
+        if ((CMLib_BuffStripAll(lv_unit, lp_buff) > 0)) {
+            lv_done += 1;
+        }
+    }
+    return lv_done;
+}
+
+int CMLib_BuffAddCSV(unit lp_unit, unit lp_caster, string lp_spec) {
+    int    lv_n;
+    int    lv_i;
+    int    lv_done;
+    int    lv_count;
+    string lv_item;
+    string lv_name;
+    string lv_num;
+
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_spec == "")) {
+        return 0;
+    }
+
+    lv_n = CMLib_SplitCount(lp_spec, ",");
+    lv_i = 0;
+    lv_done = 0;
+    while ((lv_i < lv_n)) {
+        lv_item = CMLib_TrimSpaces(CMLib_SplitAt(lp_spec, ",", lv_i));
+        lv_i += 1;
+        if ((lv_item == "")) {
+            continue;
+        }
+        lv_name = CMLib_TrimSpaces(CMLib_SplitAt(lv_item, ":", 0));
+        lv_num = CMLib_TrimSpaces(CMLib_SplitAt(lv_item, ":", 1));
+        if ((lv_name == "")) {
+            continue;
+        }
+        // 省略层数时按 1 层
+        lv_count = 1;
+        if ((lv_num != "")) {
+            lv_count = CMLib_ParseInt(lv_num, 1);
+        }
+        if ((CMLib_BuffAdd(lp_unit, lv_name, lp_caster, lv_count) == true)) {
+            lv_done += 1;
+        }
+    }
+    return lv_done;
+}
+
+// =============================================================================
+// 单位状态位
+// =============================================================================
+
+bool CMLib_UStateIsReadOnly(int lp_state) {
+    // 名单来自 core.sc2mod/Base.SC2Data/TriggerLibs/natives.galaxy 中
+    // 标注了 "// Read-only" 的那些 c_unitState*。写这些位引擎静默忽略。
+    if ((lp_state == c_unitStateBuried)
+     || (lp_state == c_unitStateCloaked)
+     || (lp_state == c_unitStateDetector)
+     || (lp_state == c_unitStateRadar)
+     || (lp_state == c_unitStateVisionSuppressed)
+     || (lp_state == c_unitStateAttackSuppressed)
+     || (lp_state == c_unitStateInStasis)
+     || (lp_state == c_unitStateHallucination)
+     || (lp_state == c_unitStateUnderConstruction)
+     || (lp_state == c_unitStateInsideTransport)
+     || (lp_state == c_unitStateIdle)
+     || (lp_state == c_unitStateIsDead)
+     || (lp_state == c_unitStateIsTransport)
+     || (lp_state == c_unitStateRevivable)
+     || (lp_state == c_unitStateInsideUnitTransport)
+     || (lp_state == c_unitStateInsidePlayerTransport)
+     || (lp_state == c_unitStateIsChangeling)) {
+        return true;
+    }
+    return false;
+}
+
+bool CMLib_UStateSet(unit lp_unit, int lp_state, bool lp_value) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return false;
+    }
+    if ((CMLib_UStateIsReadOnly(lp_state) == true)) {
+        CMLib_LogWarn("buff", "试图写只读单位状态位 " + IntToString(lp_state) + "，已拒绝");
+        return false;
+    }
+    UnitSetState(lp_unit, lp_state, lp_value);
+    return true;
+}
+
+bool CMLib_UStateGet(unit lp_unit, int lp_state) {
+    if ((lp_unit == null)) {
+        return false;
+    }
+    return UnitTestState(lp_unit, lp_state);
+}
+
+bool CMLib_UStateToggle(unit lp_unit, int lp_state) {
+    bool lv_next;
+
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return false;
+    }
+    lv_next = (UnitTestState(lp_unit, lp_state) == false);
+    if ((CMLib_UStateSet(lp_unit, lp_state, lv_next) == false)) {
+        return UnitTestState(lp_unit, lp_state);
+    }
+    return lv_next;
+}
+
+int CMLib_UStateSetGroup(unitgroup lp_group, int lp_state, bool lp_value) {
+    int  lv_index;
+    int  lv_done;
+    unit lv_unit;
+
+    if ((lp_group == null)) {
+        return 0;
+    }
+    if ((CMLib_UStateIsReadOnly(lp_state) == true)) {
+        CMLib_LogWarn("buff", "批量写只读单位状态位 " + IntToString(lp_state) + "，已拒绝");
+        return 0;
+    }
+    lv_index = UnitGroupCount(lp_group, c_unitCountAll);
+    lv_done = 0;
+    while ((lv_index >= 1)) {
+        lv_unit = UnitGroupUnitFromEnd(lp_group, lv_index);
+        lv_index -= 1;
+        if ((CMLib_UnitOk(lv_unit) == false)) {
+            continue;
+        }
+        UnitSetState(lv_unit, lp_state, lp_value);
+        lv_done += 1;
+    }
+    return lv_done;
+}
+
+// ---- 具名封装 -----------------------------------------------------------------
+
+bool CMLib_UnitInvulnerable(unit lp_unit, bool lp_on) {
+    return CMLib_UStateSet(lp_unit, c_unitStateInvulnerable, lp_on);
+}
+
+bool CMLib_UnitHide(unit lp_unit, bool lp_hidden) {
+    return CMLib_UStateSet(lp_unit, c_unitStateHidden, lp_hidden);
+}
+
+bool CMLib_UnitPause(unit lp_unit, bool lp_paused) {
+    return CMLib_UStateSet(lp_unit, c_unitStatePaused, lp_paused);
+}
+
+bool CMLib_UnitSelectable(unit lp_unit, bool lp_on) {
+    return CMLib_UStateSet(lp_unit, c_unitStateSelectable, lp_on);
+}
+
+bool CMLib_UnitTargetable(unit lp_unit, bool lp_on) {
+    return CMLib_UStateSet(lp_unit, c_unitStateTargetable, lp_on);
+}
+
+bool CMLib_UnitStatusBar(unit lp_unit, bool lp_on) {
+    return CMLib_UStateSet(lp_unit, c_unitStateStatusBar, lp_on);
+}
+
+bool CMLib_UnitStun(unit lp_unit, bool lp_on) {
+    return CMLib_UStateSet(lp_unit, c_unitStateStunned, lp_on);
+}
+
+bool CMLib_UnitSilence(unit lp_unit, bool lp_on) {
+    return CMLib_UStateSet(lp_unit, c_unitStateSilenced, lp_on);
+}
+
+bool CMLib_UnitUsingSupply(unit lp_unit, bool lp_on) {
+    return CMLib_UStateSet(lp_unit, c_unitStateUsingSupply, lp_on);
+}
+
+void CMLib_UnitGhostMode(unit lp_unit, bool lp_ghost) {
+    bool lv_visible;
+
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    lv_visible = (lp_ghost == false);
+    UnitSetState(lp_unit, c_unitStateHidden, lp_ghost);
+    UnitSetState(lp_unit, c_unitStateSelectable, lv_visible);
+    UnitSetState(lp_unit, c_unitStateTargetable, lv_visible);
+    UnitSetState(lp_unit, c_unitStateStatusBar, lv_visible);
+    UnitSetState(lp_unit, c_unitStateUsingSupply, lv_visible);
+}
+
+// ---- 只读状态位查询 -----------------------------------------------------------
+
+bool CMLib_UnitUnderConstruction(unit lp_unit) {
+    return CMLib_UStateGet(lp_unit, c_unitStateUnderConstruction);
+}
+
+bool CMLib_UnitCloaked(unit lp_unit) {
+    return CMLib_UStateGet(lp_unit, c_unitStateCloaked);
+}
+
+bool CMLib_UnitHallucination(unit lp_unit) {
+    return CMLib_UStateGet(lp_unit, c_unitStateHallucination);
+}
+
+bool CMLib_UnitInTransport(unit lp_unit) {
+    return CMLib_UStateGet(lp_unit, c_unitStateInsideTransport);
+}
+
+bool CMLib_UnitIdleState(unit lp_unit) {
+    return CMLib_UStateGet(lp_unit, c_unitStateIdle);
+}
+
+bool CMLib_UnitDeadState(unit lp_unit) {
+    return CMLib_UStateGet(lp_unit, c_unitStateIsDead);
+}
+
+bool CMLib_UnitBuried(unit lp_unit) {
+    return CMLib_UStateGet(lp_unit, c_unitStateBuried);
+}
+
+// =============================================================================
+// 玩家状态位
+// =============================================================================
+
+bool CMLib_PStateSet(int lp_player, int lp_state, bool lp_value) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return false;
+    }
+    PlayerSetState(lp_player, lp_state, lp_value);
+    // 影子缓存：引擎没有 getter，只能自己记
+    CMLib_StoreBool(CMLib_Key3("cmlib", "pstate",
+        IntToString(lp_player) + "_" + IntToString(lp_state)), lp_value);
+    return true;
+}
+
+bool CMLib_PStateGet(int lp_player, int lp_state, bool lp_fallback) {
+    return CMLib_LoadBool(CMLib_Key3("cmlib", "pstate",
+        IntToString(lp_player) + "_" + IntToString(lp_state)), lp_fallback);
+}
+
+int CMLib_PStateSetGroup(playergroup lp_players, int lp_state, bool lp_value) {
+    int lv_index;
+    int lv_done;
+    int lv_player;
+
+    if ((lp_players == null)) {
+        return 0;
+    }
+    lv_index = PlayerGroupCount(lp_players);
+    lv_done = 0;
+    while ((lv_index >= 1)) {
+        lv_player = PlayerGroupPlayer(lp_players, lv_index);
+        lv_index -= 1;
+        if ((CMLib_PStateSet(lv_player, lp_state, lp_value) == true)) {
+            lv_done += 1;
+        }
+    }
+    return lv_done;
+}
+
+// ---- 具名封装 -----------------------------------------------------------------
+
+void CMLib_PlayerFreeCost(int lp_player, bool lp_on) {
+    CMLib_PStateSet(lp_player, c_playerStateMineralCostIgnored, lp_on);
+    CMLib_PStateSet(lp_player, c_playerStateVespeneCostIgnored, lp_on);
+    CMLib_PStateSet(lp_player, c_playerStateTerrazineCostIgnored, lp_on);
+    CMLib_PStateSet(lp_player, c_playerStateCustomCostIgnored, lp_on);
+    CMLib_PStateSet(lp_player, c_playerStateFoodIgnored, lp_on);
+}
+
+void CMLib_PlayerPauseCooldowns(int lp_player, bool lp_on) {
+    CMLib_PStateSet(lp_player, c_playerStateChargesPaused, lp_on);
+    CMLib_PStateSet(lp_player, c_playerStateCooldownsPaused, lp_on);
+}
+
+bool CMLib_PlayerShowScore(int lp_player, bool lp_on) {
+    return CMLib_PStateSet(lp_player, c_playerStateShowScore, lp_on);
+}
+
+bool CMLib_PlayerGivesBounty(int lp_player, bool lp_on) {
+    return CMLib_PStateSet(lp_player, c_playerStateGivesBounty, lp_on);
+}
+
+bool CMLib_PlayerInLeaderPanel(int lp_player, bool lp_on) {
+    return CMLib_PStateSet(lp_player, c_playerStateDisplayInLeaderPanel, lp_on);
+}

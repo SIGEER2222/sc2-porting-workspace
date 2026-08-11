@@ -1,0 +1,471 @@
+// =============================================================================
+// CMLib :: Unit
+// 单位 / 建筑 / 单位组 的常用封装。
+//
+// 解决的重复：
+//   1) UnitFilter(0, 0, (1 << c_targetFilterMissile),
+//        (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32)))
+//      —— 这段逐字重复了上百次，且极易把 -32 写错
+//   2) UnitGroupCount + UnitGroupUnitFromEnd 的倒序迭代样板 —— 180+ 处
+//   3) UnitCreate(...) 后必跟 UnitLastCreated()             —— 170+ 处
+//   4) 加 buff / 武器前先 UnitHasBehavior2 判定的重复分支
+// =============================================================================
+
+// ---- 单位过滤器（预置）------------------------------------------------------
+// 排除：投射物、已死亡。
+unitfilter CMLib_FilterAlive();
+// 排除：投射物、已死亡、隐藏。工程里出现频率最高的一档。
+unitfilter CMLib_FilterAliveVisible();
+// 在 AliveVisible 基础上再排除：无敌、被控制中。
+unitfilter CMLib_FilterAliveVisibleTargetable();
+// 只要结构（建筑）。
+unitfilter CMLib_FilterStructure();
+// 只要非结构（部队）。
+unitfilter CMLib_FilterNonStructure();
+
+// ---- 单位有效性 -------------------------------------------------------------
+// null / 已销毁 / 已死亡 三重判定，替代零散的 `u != null` 检查。
+bool CMLib_UnitOk(unit lp_unit);
+bool CMLib_UnitIsStructure(unit lp_unit);
+bool CMLib_UnitIsType(unit lp_unit, string lp_unitType);
+bool CMLib_UnitOwnedBy(unit lp_unit, int lp_player);
+
+// ---- 单位组：迭代 -----------------------------------------------------------
+// 访问者原型；lp_arg 为调用方透传的整型上下文（通常是玩家编号）。
+void CMLib_UnitVisitor_Proto(unit lp_unit, int lp_arg);
+typedef funcref<CMLib_UnitVisitor_Proto> CMLib_UnitVisitor;
+
+// 倒序安全遍历（遍历中删除单位不会跳项）；返回实际访问到的单位数。
+int CMLib_UGForEach(unitgroup lp_group, CMLib_UnitVisitor lp_visitor, int lp_arg);
+// 只遍历通过 CMLib_UnitOk 的单位。
+int CMLib_UGForEachAlive(unitgroup lp_group, CMLib_UnitVisitor lp_visitor, int lp_arg);
+
+int  CMLib_UGSize(unitgroup lp_group);
+int  CMLib_UGSizeAlive(unitgroup lp_group);
+bool CMLib_UGIsEmpty(unitgroup lp_group);
+// 倒序索引取值，lp_indexFromEnd 从 UnitGroupCount 递减到 1。
+unit CMLib_UGAt(unitgroup lp_group, int lp_indexFromEnd);
+unit CMLib_UGFirstAlive(unitgroup lp_group);
+
+// ---- 单位组：查询 -----------------------------------------------------------
+unitgroup CMLib_UGOfTypeInMap(string lp_unitType, int lp_player);
+unitgroup CMLib_UGOfTypeInRegion(string lp_unitType, int lp_player, region lp_region);
+unitgroup CMLib_UGOfTypeNearPoint(string lp_unitType, int lp_player, point lp_point, fixed lp_radius);
+unitgroup CMLib_UGStructuresOfPlayer(int lp_player);
+unitgroup CMLib_UGArmyOfPlayer(int lp_player);
+
+// ---- 单位组：增删 / 取值 ---------------------------------------------------
+void     CMLib_UGAdd(unitgroup lp_group, unit lp_unit);          // 追加单个单位
+void     CMLib_UGAddGroup(unitgroup lp_group, unitgroup lp_add); // 追加整组
+void     CMLib_UGRemove(unitgroup lp_group, unit lp_unit);       // 移除单个单位
+void     CMLib_UGClear(unitgroup lp_group);                      // 清空（保留组对象）
+unitgroup CMLib_UGCopy(unitgroup lp_group);                      // 深拷贝
+unit     CMLib_UGUnit(unitgroup lp_group, int lp_index);         // 正向 one-based 取值
+unit     CMLib_UGRandomUnit(unitgroup lp_group, int lp_type);    // 随机一个（lp_type=c_unitCount*）
+bool     CMLib_UGHasUnit(unitgroup lp_group, unit lp_unit);      // 是否含该单位
+
+// ---- 生成 -------------------------------------------------------------------
+// UnitCreate + UnitLastCreated 一步到位；创建失败返回 null。
+unit CMLib_Spawn(string lp_unitType, int lp_player, point lp_pos, fixed lp_facing);
+// 忽略地形/占位限制强制生成（等价 c_unitCreateIgnorePlacement）。
+unit CMLib_SpawnForced(string lp_unitType, int lp_player, point lp_pos, fixed lp_facing);
+// 批量生成，返回单位组。
+unitgroup CMLib_SpawnMany(int lp_count, string lp_unitType, int lp_player, point lp_pos, fixed lp_facing);
+// 围绕中心点按圆周均匀铺开生成，常用于波次刷兵/建筑环。
+unitgroup CMLib_SpawnRing(int lp_count, string lp_unitType, int lp_player, point lp_center, fixed lp_radius);
+// 在原地以相同朝向/血量比例重建单位（换型 / 刷新用），返回新单位。
+unit CMLib_RespawnInPlace(unit lp_unit, string lp_newUnitType, int lp_player);
+
+// ---- 属性 -------------------------------------------------------------------
+// 当前生命 / 最大生命 的百分比（0.0 ~ 100.0）；单位无效返回 0.0。
+fixed CMLib_UnitLifePercent(unit lp_unit);
+fixed CMLib_UnitShieldPercent(unit lp_unit);
+// 按百分比设置当前生命，自动钳制到 0 ~ 100。
+void  CMLib_UnitSetLifePercent(unit lp_unit, fixed lp_percent);
+// 复制生命/护盾/能量的百分比到目标单位（换型保血用）。
+void  CMLib_UnitCopyVitalsPercent(unit lp_from, unit lp_to);
+
+// ---- 状态 / 位置 -----------------------------------------------------------
+// 设置单位状态位（lp_state 为 c_unitState* 常量）；lp_val=true 置位 / false 清位。
+void CMLib_UnitSetState(unit lp_unit, int lp_state, bool lp_val);
+// 设置单位坐标；lp_blend=true 平滑移动（带位移动画），false 瞬移。
+void CMLib_UnitSetPosition(unit lp_unit, point lp_pos, bool lp_blend);
+
+// ---- 行为 / 武器（幂等封装）--------------------------------------------------
+// 已存在则不重复添加；返回是否发生变更。
+bool CMLib_UnitEnsureBehavior(unit lp_unit, string lp_behavior, int lp_player, int lp_count);
+// 不存在则不调用移除；返回是否发生变更。
+bool CMLib_UnitRemoveBehavior(unit lp_unit, string lp_behavior, int lp_player, int lp_count);
+bool CMLib_UnitToggleBehavior(unit lp_unit, string lp_behavior, int lp_player, bool lp_on);
+bool CMLib_UnitEnsureWeapon(unit lp_unit, string lp_weapon, string lp_turret);
+bool CMLib_UnitRemoveWeapon(unit lp_unit, string lp_weapon);
+// 对整组单位幂等挂 / 摘 buff，返回受影响单位数。
+int  CMLib_UGEnsureBehavior(unitgroup lp_group, string lp_behavior, int lp_player, int lp_count);
+int  CMLib_UGRemoveBehavior(unitgroup lp_group, string lp_behavior, int lp_player, int lp_count);
+// 普通行为变体（带 caster 单位，用于按施法者属性缩放的 buff / 非玩家归属场景）；
+// 区别于上面的 player 变体（按玩家归属）。lp_count 为叠层数。
+void CMLib_UnitBehaviorAdd(unit lp_unit, string lp_behavior, unit lp_caster, int lp_count);
+void CMLib_UnitBehaviorRemove(unit lp_unit, string lp_behavior, int lp_count);
+
+// ---- 命令 -------------------------------------------------------------------
+bool CMLib_UnitOrderAbility(unit lp_unit, string lp_ability, int lp_cmdIndex, int lp_queueType);
+bool CMLib_UnitOrderAbilityAtPoint(unit lp_unit, string lp_ability, int lp_cmdIndex, point lp_target, int lp_queueType);
+int  CMLib_UGOrderAbilityAtPoint(unitgroup lp_group, string lp_ability, int lp_cmdIndex, point lp_target, int lp_queueType);
+
+// ---- 清理 -------------------------------------------------------------------
+// 移除整组单位；返回移除数量。用于清场 / 重置。
+int CMLib_UGRemoveAll(unitgroup lp_group);
+int CMLib_UGKillAll(unitgroup lp_group);
+
+// ---- 过滤器 / 全局暂停 / 归属 --------------------------------------------------
+// UnitFilterMatch 对 null 单位会抛脚本错误，这里前置守门后返回 false。
+bool CMLib_UnitMatchFilter(unit lp_unit, int lp_player, unitfilter lp_filter);
+// 全局暂停（过场必备）。原生就是全局开关，包一层只为语义清晰 + 统一入口。
+void CMLib_UnitsPauseAll(bool lp_pause);
+// 单位类型的本地化名（对应 UnitTypeGetName），空类型返回空文本而非报错。
+text CMLib_UnitTypeName(string lp_unitType);
+// 转移归属；单位无效或玩家槽非法时不动作，返回是否真的改了。
+bool CMLib_UnitChangeOwner(unit lp_unit, int lp_player, bool lp_changeColor);
+
+// ---- 编组下令 ------------------------------------------------------------------
+// 整组一次性下令（对应 UnitGroupIssueOrder），比逐个 UnitIssueOrder 高效。
+bool CMLib_UGIssueOrder(unitgroup lp_group, order lp_order, int lp_queueType);
+// 无目标技能（如 Stop / HoldPosition / 变形），返回是否成功下发。
+bool CMLib_UGOrderAbility(unitgroup lp_group, string lp_ability, int lp_cmdIndex, int lp_queueType);
+// 以单位为目标的技能（如 Attack 某单位）。
+bool CMLib_UGOrderAbilityAtUnit(unitgroup lp_group, string lp_ability, int lp_cmdIndex, unit lp_target, int lp_queueType);
+
+// ---- 按同盟关系取编组（UnitGroupAlliance）---------------------------------------
+// region 传 null 自动用全地图；maxCount <= 0 自动用 c_unitCountAll（不限量）。
+unitgroup CMLib_UGAlliance(int lp_player, int lp_alliance, region lp_region, unitfilter lp_filter, int lp_maxCount);
+unitgroup CMLib_UGEnemiesOf(int lp_player, int lp_maxCount);
+unitgroup CMLib_UGAlliesOf(int lp_player, int lp_maxCount);
+
+// ---- 单位操作便利封装（round 12 真实缺口补齐）-------------------------------
+// 在 unit 上创建定点/单位效果（区别于 CMLib_FxAtPoint 的玩家域效果）。
+void CMLib_UnitCreateEffectPoint(unit lp_unit, string lp_effect, point lp_target);
+// 启停单位某个技能（如禁用 Attack / 启用被动）。
+void CMLib_UnitAbilityEnable(unit lp_unit, string lp_ability, bool lp_enable);
+// 给运输单位装入货舱单位（id 为单位类型，count 为数量）。
+void CMLib_UnitCargoCreate(unit lp_unit, string lp_id, int lp_count);
+// 设置单位飞行高度（height=0 落地；duration=0 瞬时）。
+void CMLib_UnitSetHeight(unit lp_unit, fixed lp_height, fixed lp_duration);
+// 从游戏中无痕移除一个单位（null + UnitOk 守门）。区别于 CMLib_UnitKill（击杀给赏金）。
+void CMLib_UnitRemove(unit lp_unit);
+// ---- 编组几何便利封装 -------------------------------------------------------
+// 组内离某点最近的存活单位；空组/null 返回 null。
+unit CMLib_UGClosestToPoint(unitgroup lp_group, point lp_point);
+// 组的质心点；空组/null 返回 null。
+point CMLib_UGCenterOfGroup(unitgroup lp_group);
+
+// ---- round 13：命令队列 / 选择集 / 过滤（真实缺口补齐）----------------------
+// 读单位命令队列第 N 条命令（0 基）。越界 / 死单位返回 null。
+// 注意 UnitOrder 是**读取**命令而非下达命令，下达见 CMLib_UnitOrderAbility。
+order      CMLib_UnitOrderAt(unit lp_unit, int lp_index);
+// 单位当前命令队列里是否含某技能（判「正在建造/正在施法」的标准手法）。
+bool       CMLib_UnitOrderHasAbil(unit lp_unit, string lp_ability);
+// 清空某玩家的当前选择集。非法槽位安全返回。
+void       CMLib_SelClear(int lp_player);
+// 取某玩家当前选中的单位组。非法槽位返回空组（不返回 null）。
+unitgroup  CMLib_UGSelected(int lp_player);
+// 按「单位类型 + 过滤规格串」筛选单位组。
+// lp_type 传 "" 表示不限类型；lp_filterSpec 传 "" 时回退为「存活」过滤；
+// lp_maxCount <= 0 表示不限数量。非法槽位返回空组。
+unitgroup  CMLib_UGFilterStr(string lp_type, int lp_player, unitgroup lp_group,
+                             string lp_filterSpec, int lp_maxCount);
+
+// =============================================================================
+// round 17 —— gap_scan 高频缺口补齐
+//   UnitFromId 12334 次 / UnitTypeTestFlag 385 / UnitSetFacing 379 /
+//   UnitSelect 329 / UnitSetInfoText 294 / UnitGetTag 266 / UnitCount 224 /
+//   UnitTypeGetProperty 220 / OrderGetTargetUnit 226 / OrderSetTargetPoint 199
+//   —— 全部 0 封装，且都缺 null / 槽位守卫。
+// =============================================================================
+
+// 按编辑器预置单位 id 取单位（取不到返回 null 并告警）。
+unit CMLib_UnitById(int lp_id);
+
+// 单位运行时 tag（存 bank / 建索引表时当唯一键用）。0 表示无效。
+int CMLib_UnitTag(unit lp_unit);
+
+// 转向。lp_duration <= 0 时瞬间转向。
+void CMLib_UnitFace(unit lp_unit, fixed lp_facing, fixed lp_duration);
+
+// 让某个单位朝向另一个单位 / 某点（内部算角度，省掉 AngleBetweenPoints 手写）。
+void CMLib_UnitFaceUnit(unit lp_unit, unit lp_target, fixed lp_duration);
+void CMLib_UnitFacePoint(unit lp_unit, point lp_target, fixed lp_duration);
+
+// 选中 / 取消选中（带槽位校验）。
+void CMLib_UnitSelectFor(unit lp_unit, int lp_player, bool lp_select);
+
+// 清空某玩家的选择并只选中这一个单位（教学 / 引导流程最常见需求）。
+void CMLib_UnitSelectOnly(unit lp_unit, int lp_player);
+
+// 覆盖单位信息面板文本（info / tip / subtip 三段）。
+void CMLib_UnitInfoText(unit lp_unit, text lp_info, text lp_tip, text lp_subTip);
+
+// 单位类型静态查询（读数据表，不需要实例）。
+bool  CMLib_UnitTypeFlag(string lp_unitType, int lp_flag);
+fixed CMLib_UnitTypeProp(string lp_unitType, int lp_prop);
+
+// 常用类型判定的语义封装。
+bool CMLib_UnitTypeIsStructure(string lp_unitType);
+bool CMLib_UnitTypeIsWorker(string lp_unitType);
+
+// 计数：某玩家在某区域内的某类型单位数。
+// lp_region 传 null = 全图；lp_filterSpec 传 "" = 存活过滤；
+// lp_maxCount <= 0 = 不设上限。
+int CMLib_UnitCountOf(string lp_unitType, int lp_player, region lp_region,
+                      string lp_filterSpec, int lp_maxCount);
+
+// 同上但按同盟关系统计（c_playerGroupAlly / c_playerGroupEnemy / …）。
+int CMLib_UnitCountAllianceOf(int lp_player, int lp_alliance, region lp_region,
+                              string lp_filterSpec, int lp_maxCount);
+
+// ---- order 结构读写 ---------------------------------------------------------
+// 这些 native 对 null order 会直接崩，各 mod 里几乎没人加判空。
+abilcmd CMLib_OrderAbilCmd(order lp_order);
+unit    CMLib_OrderTargetUnit(order lp_order);
+point   CMLib_OrderTargetPoint(order lp_order);
+void    CMLib_OrderSetTargetUnit(order lp_order, unit lp_target);
+void    CMLib_OrderSetTargetPoint(order lp_order, point lp_target);
+
+// 造一条「对点 / 对单位」的完整命令，一行搞定 Order + SetTarget 两步。
+order CMLib_OrderAt(string lp_ability, int lp_cmdIndex, point lp_target);
+order CMLib_OrderOn(string lp_ability, int lp_cmdIndex, unit lp_target);
+
+// 自动施法开关命令。
+order CMLib_OrderAutoCast(string lp_ability, int lp_cmdIndex, bool lp_on);
+
+
+// ---- round 18：单位 / 单位组真实缺口 ------------------------------------------
+// `UnitHasBehavior` 与库里已封的 `UnitHasBehavior2` 是**两个不同的原生**：
+// 前者是"这个单位身上有没有这个 behavior"，后者是触发器版（各 mod 共 447 次用前者）。
+// 两者语义在隐藏/内部 behavior 上有差异，故单独提供，不做别名。
+bool CMLib_UnitHasBehaviorRaw(unit lp_unit, string lp_behavior);
+// 技能充能信息。lp_type 用 **c_unitAbilCharge\*** 常量族
+// （CountMax=0 / CountUse=1 / CountLeft=2 / RegenMax=3 / RegenLeft=4）。
+// 注意引擎里**没有** c_chargeInfo* 这种名字，写错常量名 = 编译失败 = 整图静默丢弃。
+// 单位或 abilcmd 无效返回 0.0。
+fixed CMLib_UnitAbilChargeInfo(unit lp_unit, abilcmd lp_abil, int lp_type);
+// 重置技能冷却/充能。lp_location 是**裸 int**（引擎没有对应常量族），
+// 与 UnitAbilitySpend 的 inLocation 同一套编号，不确定就传 0。
+void CMLib_UnitAbilReset(unit lp_unit, abilcmd lp_abil, int lp_location);
+// 改单位队伍颜色索引（做"临时染色标记"最省事的手段，不需要 Actor 消息）。
+void CMLib_UnitTeamColor(unit lp_unit, int lp_index);
+// 当前命令队列长度。null 单位返回 0，可直接用来判"是不是闲着"。
+int  CMLib_UnitOrderCount(unit lp_unit);
+// 由变量名取 unitref（做存档/配置驱动的单位引用）。名字为空返回 null。
+unitref CMLib_UnitRefFromVar(string lp_varName);
+
+// 取单位组里落在某区域内的子集。g 为 null 返回空组；region 为 null 原样返回 g；
+// maxCount <= 0 归一到 c_noMaxCount（= 0，即不限量）；**负数**才是真坑：
+// 直接把 -1 丢给原生行为未定义，所以这里统一夹到 0。
+// （注意：c_noMaxCount 是 UnitGroup* 家族的 maxCount 哨兵；c_unitCountAll 是
+//  UnitGroupCount 的*计数类型*参数，两者数值同为 0 但语义不同，不要混用。）
+unitgroup CMLib_UGFilterRegion(unitgroup lp_group, region lp_region, int lp_maxCount);
+
+// =============================================================================
+// CMLib :: Round19 —— 单位造价 / 运输舱产出 / 技能命令解包
+// =============================================================================
+// costType 取 c_unitCostMinerals / Vespene / Terrazine / SumMineralsVespene 等。
+int CMLib_UnitTypeCost(string lp_unitType, int lp_costType);
+// 上一次 UnitCargoCreate 产出的整组单位（一次造多个时只能靠它拿全）。
+unitgroup CMLib_UnitCargoLastGroup();
+// 从 abilcmd 里取出技能 id 字符串（做技能事件分发时的标准姿势）。
+string CMLib_AbilCmdAbility(abilcmd lp_cmd);
+
+// =============================================================================
+// CMLib :: Round20 —— 单位 / 建筑主线补完
+//
+// 这一段回答的是「一个单位或建筑，在运行时到底能被问出什么、能被改什么」：
+//   选中闪烁 / 载具舱 / Buff 时长与来源 / 整数属性 / 技能可见性 /
+//   建筑落点求解 / 模型挂点 / 生产队列 / 单位名 / 武器与 DPS /
+//   采集状态 / 编组选中 / 闲置单位 / 命令(order)目标查询
+// =============================================================================
+
+// ---- 视觉与选择 --------------------------------------------------------------
+// 让单位的选择圈闪烁 lp_period 秒（0 表示停止）。教学关引导视线常用。
+void CMLib_UnitFlash(unit lp_unit, fixed lp_period);
+// 批量选中/取消选中。注意这是**改玩家选择框**，不是加编组。
+void CMLib_UGSelect(unitgroup lp_group, int lp_player, bool lp_select);
+// 该玩家当前闲置的单位；workerOnly=true 时只要闲置农民（经营类地图刚需）。
+unitgroup CMLib_UGIdle(int lp_player, bool lp_workerOnly);
+int CMLib_UGIdleCount(int lp_player, bool lp_workerOnly);
+
+// ---- 载具舱 ------------------------------------------------------------------
+// 车/船/虫道里装的单位；单位无效或空舱一律返回空组（绝不返回 null）。
+unitgroup CMLib_UnitCargo(unit lp_unit);
+int CMLib_UnitCargoCount(unit lp_unit);
+
+// ---- Buff 时长与来源 ----------------------------------------------------------
+// 强行改写身上某个 Behavior 的剩余时长（做「延长/缩短增益」最直接的一招）。
+void CMLib_UnitBuffDuration(unit lp_unit, string lp_behavior, fixed lp_duration);
+// 取该 Behavior 的关联单位（施法者 / 来源 / 目标，由 lp_location 决定）。
+unit CMLib_UnitBuffEffectUnit(unit lp_unit, string lp_behavior, int lp_location,
+                              int lp_index);
+
+// ---- 属性 --------------------------------------------------------------------
+// 整数通道读属性（c_unitProp*）；current=false 读的是基础值而非当前值。
+int   CMLib_UnitPropInt(unit lp_unit, int lp_prop, bool lp_current);
+
+// ---- 技能 --------------------------------------------------------------------
+// 只控制命令面板上「看不看得见」，不等于禁用（禁用请用 AbilEnable 那一族）。
+void CMLib_UnitAbilShow(unit lp_unit, string lp_abil, bool lp_show);
+bool CMLib_UnitAbilExists(unit lp_unit, string lp_abil);
+
+// ---- 建筑放置 ----------------------------------------------------------------
+// 在 lp_source 附近 lp_range 内求一个能放下该建筑的合法落点。
+// 求不到返回 null —— 调用方必须判空，别直接喂给 UnitCreate。
+point CMLib_UnitTypePlaceNear(string lp_unitType, int lp_player, point lp_source,
+                              fixed lp_range);
+
+// ---- 模型挂点 ----------------------------------------------------------------
+// 取模型挂点的世界坐标（"Ref_Weapon"/"Ref_Center" 等）；失败返回 null。
+point CMLib_UnitAttachPoint(unit lp_unit, string lp_attachment);
+
+// ---- 生产队列 ----------------------------------------------------------------
+// 队列容量属性（c_unitQueueProperty*）。
+int  CMLib_UnitQueueProp(unit lp_unit, int lp_prop);
+int  CMLib_UnitQueueUsed(unit lp_unit);
+int  CMLib_UnitQueueFree(unit lp_unit);
+bool CMLib_UnitIsProducing(unit lp_unit);
+// 指定队列槽里的条目数 / 第 N 条的 id / 第 N 条是不是某类型。
+int    CMLib_UnitQueueItemCount(unit lp_unit, int lp_slot);
+string CMLib_UnitQueueItemAt(unit lp_unit, int lp_item, int lp_slot);
+bool   CMLib_UnitQueueItemIs(unit lp_unit, int lp_item, int lp_type);
+// 第 N 条还差几秒 / 完成度 0.0~1.0（进度条直接用这个）。
+fixed CMLib_UnitQueueEta(unit lp_unit, int lp_item);
+fixed CMLib_UnitQueueProgress(unit lp_unit, int lp_item);
+
+// ---- 名称 --------------------------------------------------------------------
+// 本地化后的单位显示名；无效单位返回空 text 而不是 null。
+// 单位**实例**的显示名 —— 英雄改过名、剧情单位挂过自定义名的，读到的是那个。
+// 和 text 模块的 CMLib_UnitName 区别很大：后者走 UnitGetType 拿的是**类型名**，
+// 同一批小兵读出来全一样。要显示"这一个"就用 CustomName。
+text CMLib_UnitCustomName(unit lp_unit);
+
+// ---- 武器 --------------------------------------------------------------------
+int   CMLib_UnitWeaponCount(unit lp_unit);
+// ⚠ 武器索引是 **1-based**（lp_index ∈ [1, UnitWeaponCount]）。
+//   round21 真机实证：CMLib_UnitDpsTotal 内部按 1..n 循环，对 Marine 取到
+//   正的 period/damage；传 0 属越界，按守卫返回 0.0（不是"第一把武器"）。
+fixed CMLib_UnitWeaponPeriod(unit lp_unit, int lp_index);
+fixed CMLib_UnitWeaponDamage(unit lp_unit, int lp_index, int lp_attribute,
+                             bool lp_maximum);
+// 单武器 DPS = 伤害 / 攻击间隔；间隔<=0 时返回 0 而不是除零。
+fixed CMLib_UnitWeaponDps(unit lp_unit, int lp_index);
+// 全武器 DPS 求和（对空对地都算，做战力评估用）。
+fixed CMLib_UnitDpsTotal(unit lp_unit);
+
+// ---- 采集 --------------------------------------------------------------------
+bool CMLib_UnitIsHarvesting(unit lp_unit, int lp_resource);
+
+// ---- 命令(order) 目标查询 -----------------------------------------------------
+// flag 序号由数据层定义，引擎没有导出 c_orderFlag* 常量族，只能传裸 int。
+bool  CMLib_OrderFlag(order lp_order, int lp_flag);
+// 不管目标是点还是单位，一律给出世界坐标；没有目标返回 null。
+point CMLib_OrderTargetPos(order lp_order);
+// c_orderTargetNone / Point / Unit / Item
+int   CMLib_OrderTargetType(order lp_order);
+bool  CMLib_OrderHasTarget(order lp_order);
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round20b —— 单位 → 单元素单位组
+// -----------------------------------------------------------------------------
+unitgroup CMLib_UGOf(unit lp_unit);          // null 单位返回空组，绝不返回 null
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round22 —— 单位主线：编队 / 载具容量 / 状态条 / 缩放 / 老兵等级
+// -----------------------------------------------------------------------------
+// 把单位塞进某玩家的控制编队（1~10）。编队号越界直接忽略，不让引擎吃脏值。
+void  CMLib_UnitCtrlGroupAdd(unit lp_unit, int lp_player, int lp_group);
+// c_unitCargoUnitCount / SpaceTotal / SpaceUsed / SpaceFree / SizeAsCargo /
+// SizeMax / Position —— 无效单位或越界类型返回 0。
+int   CMLib_UnitCargoValue(unit lp_unit, int lp_valueType);
+// 状态条【分组】覆盖（多单位共享一条血条时用）。
+// 注意与 buff 模块的 CMLib_UnitStatusBar(unit,bool) 区分：那个是显隐开关，这个是分组号。
+void  CMLib_UnitStatusBarGroup(unit lp_unit, int lp_group);
+// 三轴缩放。注意这是**表现层**缩放，不改碰撞体积与数据层数值。
+void  CMLib_UnitSetScale(unit lp_unit, fixed lp_x, fixed lp_y, fixed lp_z);
+// 等比缩放便捷式：scale <= 0 视为非法直接忽略（0 会让模型塌成一个点）。
+void  CMLib_UnitSetScaleUniform(unit lp_unit, fixed lp_scale);
+// 老兵行为当前等级；单位无效 / 行为名为空返回 0。
+int   CMLib_UnitVeterancyLevel(unit lp_unit, string lp_veterancyBehavior);
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round27 —— Marker 族（单位标记）
+//
+// marker 是引擎内建句柄，表示"某个东西在某单位身上留下的标记"，AI 战术过滤
+// (CMLib_AIFilterMarkerCount / CMLib_AIFilterLifePerMarker，见 cmlib_ai_h) 用它
+// 做条件，技能层用它防 overkill（多个 AI 单位不重复对同一目标放大招）。
+//
+// link 是数据层路径字符串，官方 c_MK_* 常量即这些串，例如：
+//     "Abil/250mmStrikeCannons/AI"、"Abil/Yamato/AI"、"AI/Tactical/Danger"
+// 库内不引用 c_MK_* 常量本身（那些定义在 Tactical/RequirementsAI.galaxy，
+// 不在 core 默认 include 范围内），只收字符串，调用方想用常量自己传进来。
+//
+// 匹配标志用 GameData/Game.galaxy 的 c_markerMatchId / Link /
+// CasterPlayer / CasterUnit（0~3）。
+// -----------------------------------------------------------------------------
+// 按 link 造一个 marker；link 为空返回 null（不让空串进引擎）。
+marker CMLib_Marker(string lp_link);
+// 造一个"由某玩家施放"的 marker；玩家槽非法时退化为无施法者版本。
+marker CMLib_MarkerForPlayer(string lp_link, int lp_player);
+// 造一个"由某单位施放"的 marker；单位无效时退化为无施法者版本。
+marker CMLib_MarkerForUnit(string lp_link, unit lp_unit);
+// 取单位身上第 lp_index 个 marker。
+// 注意：引擎对该索引的基准（0-based / 1-based）无任何官方文档与用例，
+// 库不替它拍板 —— 只做 index < 0 守门后原样透传，调用方请配合
+// CMLib_UnitMarkerCount 试探，或改用"按 link 构造 + Count"的确定性路径。
+marker CMLib_UnitMarkerAt(unit lp_unit, int lp_index);
+// 给单位打标记。单位无效或 marker 为 null 时忽略。
+void   CMLib_UnitMarkerAdd(unit lp_unit, marker lp_marker);
+// 单位身上该 marker 的数量；单位无效或 marker 为 null 返回 0。
+int    CMLib_UnitMarkerCount(unit lp_unit, marker lp_marker);
+// 移除单位身上的该 marker。单位无效或 marker 为 null 时忽略。
+void   CMLib_UnitMarkerRemove(unit lp_unit, marker lp_marker);
+// marker 的施法玩家；marker 为 null 返回 0（= 中立槽，非法玩家）。
+int    CMLib_MarkerCastPlayer(marker lp_marker);
+// marker 的施法单位；marker 为 null 返回 null。
+unit   CMLib_MarkerCastUnit(marker lp_marker);
+// 设置匹配标志（c_markerMatch*）。marker 为 null 或 flag 越界时忽略。
+void   CMLib_MarkerMatchFlag(marker lp_marker, int lp_flag, bool lp_state);
+// 读匹配标志；marker 为 null 或 flag 越界返回 false。
+bool   CMLib_MarkerHasMatchFlag(marker lp_marker, int lp_flag);
+
+
+// =============================================================================
+// CMLib :: Round26 —— order 对象补齐（拥有者 / 物品目标 / 乘客 / 放置 / 组目标）
+//
+// 之前只封了「点目标 / 单位目标」两条最常见的路径，order 对象本身还有一整套
+// setter 没进库：改拥有者、改能力命令、改 flag、物品目标、乘客目标、
+// 建筑放置校验，以及三种额外的构造器（相对点 / 单位组 / 物品）。
+//
+// 口径提醒：flag 序号由数据层定义，引擎没有导出 c_orderFlag* 常量族，只能传
+// 裸 int —— 这跟已有的 CMLib_OrderFlag 是同一条约定。
+// =============================================================================
+
+// order 的拥有者玩家；order 为 null 返回 0。
+int   CMLib_OrderPlayer(order lp_order);
+void  CMLib_OrderSetPlayer(order lp_order, int lp_player);
+// 物品目标（Item 语义，与 Unit 目标是两条独立通道）。
+unit  CMLib_OrderTargetItem(order lp_order);
+void  CMLib_OrderSetTargetItem(order lp_order, unit lp_item);
+// 换掉 order 携带的能力命令。
+void  CMLib_OrderSetAbilCmd(order lp_order, abilcmd lp_cmd);
+// 置 flag；flag 序号为负一律忽略（与 CMLib_OrderFlag 读侧对称）。
+void  CMLib_OrderSetFlag(order lp_order, int lp_flag, bool lp_value);
+// 乘客目标（装载/卸载类命令用）。传 null 表示清空，属合法用法。
+void  CMLib_OrderSetPassenger(order lp_order, unit lp_unit);
+// 建筑放置：返回该点是否可放置；point 为 null 直接 false。
+bool  CMLib_OrderSetPlacement(order lp_order, point lp_point, unit lp_placer,
+                              string lp_type);
+// 构造器三件套：物品目标 / 相对点 / 单位组。
+order CMLib_OrderOnItem(abilcmd lp_cmd, unit lp_item);
+order CMLib_OrderAtRelative(abilcmd lp_cmd, point lp_point);
+order CMLib_OrderOnGroup(abilcmd lp_cmd, unitgroup lp_group);
+// "Ability,CmdIndex" 形态的字符串直转 abilcmd；空串返回 null。
+abilcmd CMLib_AbilCmdFromString(string lp_s);

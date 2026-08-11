@@ -1,0 +1,2814 @@
+// =============================================================================
+// CMLib 运行时自测（真实 SC2 引擎）—— 唯一真源
+//
+// 由测试地图的 MapScript.galaxy :: InitMap() 调用。
+// build_testmap.py / build_depmap.py 都从 src/lib/selftest/ 复制本文件。
+//
+// 双通路证据设计：
+//   A) 可观测单位（权威）—— 不依赖文件系统 / 不依赖账号 / 不依赖 bank 子系统，
+//      客户端通过 SC2 API raw observation 直接读回：
+//        Ghost        x1  = MapScript 编译成功且 InitMap 被引擎调用（sentinel）
+//        Marine       x1  = unit 模块 CMLib_SpawnForced 生效
+//        Marauder     xN  = N 项 CMLib 断言通过
+//        Thor         x1  = 全部断言通过
+//        Battlecruiser x1 = 加分项：AI 用户变量读写往返成功
+//        Banshee      x1  = 加分项：AISetStock 通路未抛运行时错误
+//   B) Bank 落盘（辅助）—— CMLibRuntimeTest.SC2Bank 写魔数与各项数值。
+//
+// 为什么把 AI 相关断言拆到第二个延迟触发器：
+//   AISetStock / AISetUserInt 在没有 AI 玩家的测试图里有抛运行时错误的可能，
+//   而 Galaxy 的运行时错误会**中断当前触发器**。如果和主断言放一起，
+//   一旦出错连"结果编码单位"都不会生成，会被误判成"整库没跑起来"。
+//   拆开后，主证据链完整，AI 项退化为"加分标记缺失"，可精确归因。
+//
+// 注意：本文件故意【不】再 include "scripts/cmlib/cmlib"——
+// 调用方 MapScript.galaxy 已经 include 过，重复包含会触发函数重定义错误。
+// =============================================================================
+
+trigger gt_CMLibDeferred;
+trigger gt_CMLibAIDeferred;
+trigger gt_CMLibRegion;
+trigger gt_CMLibCreated;
+int gv_cmlibPassed;
+int gv_cmlibTotal;
+int gv_cmlibRegionHits;
+string gv_cmlibFailTags;
+int gv_cmlibCreatedHits;
+int gv_cmlibCreatedOk;
+int gv_cmlibEvtProbe;
+// 第 14 轮：AI 加分线完成标志。主线靠它汇合后再统一落盘 + 编码，
+// 避免两条线各自 spawn 证据单位造成重复计数。
+int gv_cmlibAIDone;
+
+// round26：marker 单位标记的诊断探针（AI 线产出 → 主线落盘）。
+// CMLibTest_AIDeferred 内部禁止直接写 bank（见该函数内注释：那里写的是
+// 主线尚未跑完的中间态，会把不足额伪装成合格），所以用全局带出来。
+int gv_cmlibMkAIWith;
+int gv_cmlibMkAIWithout;
+
+// round 19：真·计时器事件取参探针 + 有风险真调用的进度码
+trigger gt_CMLibR19Timer;
+timer   gv_r19Timer;
+int     gv_r19TimerOk;
+int     gv_cmlibR19Prog;
+
+// 限时单位演示：金甲虫炮弹命中→生成旋风斩狂热者 链路的全局状态
+trigger gt_demoReaverDeath;   // 假人死亡事件触发器
+bool    gv_demoReaverChain;   // 链是否真的跑通（炮弹击杀假人→生成限时单位）
+point   gv_demoDeathPos;      // 假人死亡位置缓存（避免在死亡回调里读已失效句柄）
+
+// 取一个必定合法的地图落点（起始点不可用时退回可玩区域中心）
+point CMLibTest_Origin () {
+    point lv_p;
+
+    lv_p = PlayerStartLocation(1);
+    if ((lv_p == null)) {
+        lv_p = RegionGetCenter(RegionPlayableMap());
+    }
+    return lv_p;
+}
+
+// 无标签变体。round18 之前它失败时**什么都不留**：真机报 "352/355" 但 FailTags 里
+// 只有 2 个标签，第 3 条失败在 39 个无标签断言里无从定位，只能靠人肉二分。
+// 现在失败也记一条 `#序号`（序号 = 该断言在全局执行序里的位次，即 gv_cmlibTotal），
+// 拿序号回源码数第几个 Mark 即可命中。
+void CMLibTest_Mark (bool lp_ok) {
+    gv_cmlibTotal = gv_cmlibTotal + 1;
+    if (lp_ok) {
+        gv_cmlibPassed = gv_cmlibPassed + 1;
+    } else {
+        gv_cmlibFailTags = gv_cmlibFailTags + "#" + IntToString(gv_cmlibTotal) + ",";
+    }
+}
+
+// 带标签变体：失败时把标签累加进 gv_cmlibFailTags，便于真机一次定位失败项。
+// round27：bool -> int，给 bank 诊断探针用（Galaxy 没有隐式转换）。
+int CMLibTest_BoolToInt (bool lp_v) {
+    if (lp_v) { return 1; }
+    return 0;
+}
+
+void CMLibTest_MarkTag (bool lp_ok, string lp_tag) {
+    gv_cmlibTotal = gv_cmlibTotal + 1;
+    if (lp_ok) {
+        gv_cmlibPassed = gv_cmlibPassed + 1;
+    } else {
+        gv_cmlibFailTags = gv_cmlibFailTags + lp_tag + ",";
+    }
+}
+
+// 供 trig 模块断言使用的空触发器主体。
+// TriggerCreate 只接受**已存在的全局函数名**，传不存在的名字会在运行时报错，
+// 所以这里必须实打实定义一个。
+// round21 诊断 helper：返回 1 表示"空串 == null"在本引擎上成立。
+// 刻意走局部变量而不是 `"" == null` 字面量比较 —— 字面量与 null 的比较
+// 在 Galaxy 里是否合法无明文保证，而"字符串变量比 null"库内已大量使用、
+// 确定可编译。编译期失败会让 SC2 **静默丢弃整个 MapScript**，不值得赌。
+int CMLibTest_StrNullEquiv () {
+    string lv_s;
+
+    lv_s = "";
+    if ((lv_s == null)) {
+        return 1;
+    }
+    return 0;
+}
+
+bool CMLibTest_Dummy (bool testConds, bool runActions) {
+    return true;
+}
+
+// 区域事件回调。用于验证 CMLib_TrigOnUnitRegion* 挂上去的事件**真的会回调**——
+// 这是整组事件注册器唯一能在真机闭环验证的一项：
+// 其余注册器（技能 / 建造进度 / 面板控件）都需要玩家操作或生产队列才能触发，
+// 在无人操作的 API 测试局里无法程序化制造，所以只验"挂载链不抛错"。
+bool CMLibTest_OnRegion (bool testConds, bool runActions) {
+    gv_cmlibRegionHits = gv_cmlibRegionHits + 1;
+    return true;
+}
+
+// 「单位被创建」事件回调 —— 本轮新增的第二条可程序化触发的真闭环。
+// 除了计命中数，还在**事件上下文里**调 CMLib_EvtCreatedUnit() 取被创建的单位：
+// 这是整组 CMLib_Evt*（事件取参）封装第一次拿到真机证据 ——
+// 此前 47 个事件注册器只验了"挂载链不抛错"，取参一侧一直是空白。
+bool CMLibTest_OnCreated (bool testConds, bool runActions) {
+    unit lv_created;
+
+    gv_cmlibCreatedHits = gv_cmlibCreatedHits + 1;
+    lv_created = CMLib_EvtCreatedUnit();
+    if (CMLib_UnitOk(lv_created)) {
+        gv_cmlibCreatedOk = gv_cmlibCreatedOk + 1;
+    }
+    return true;
+}
+
+// 事件取参 native 在**非事件上下文**下的安全探针。
+// 为什么要单独一个触发器：Galaxy 的运行时错误会中断当前触发器，
+// 把这三个 native 放主断言链上，等于拿全部证据（含结果编码单位）赌一把。
+// 异步执行后，即使某个 native 炸了也只中断这条线程，
+// 而递增的进度码能精确指出是三个里的哪一个炸的。
+// round 18：给 CMLib_TrigOnPlayerPropChange 当挂载靶子的空回调。
+// 必须是真实存在的函数名 —— TriggerCreate 拿到一个不存在的函数名，
+// 在真机是运行时错误而不是编译错误，静态门禁抓不到。
+bool CMLibTest_NoopHandler (bool testConds, bool runActions) {
+    return true;
+}
+
+// round 19：唯一能在**真事件上下文**里取证的取参 native。
+// gv_r19TimerOk：1 = EventTimer() 返回非 null；2 = 且与自己启动的那个计时器同一句柄。
+bool CMLibTest_R19TimerProbe (bool testConds, bool runActions) {
+    timer lv_t;
+
+    lv_t = CMLib_EvtTimer();
+    if (lv_t != null) {
+        gv_r19TimerOk = 1;
+        if (lv_t == gv_r19Timer) {
+            gv_r19TimerOk = 2;
+        }
+    }
+    return true;
+}
+
+// round 19：有抛错风险的「真调用」隔离探针。
+// 走进度码而不是一个布尔：任何一步炸了，前面已完成的步骤照样计分，
+// 且主链能精确报出停在第几步 —— 比「整块失败」的信息量高一个量级。
+bool CMLibTest_R19Probe (bool testConds, bool runActions) {
+    int   lv_ping;
+    point lv_pos;
+    playergroup lv_pg;
+
+    lv_pg  = PlayerGroupAll();
+    lv_pos = CMLibTest_Origin();
+
+    // 1) 可跳过区段：wait=false，立即返回；onSkip 传 null 走「无回调」路径。
+    CMLib_SkippableBegin(null, 0, null, false, false);
+    CMLib_SkippableEnd();
+    gv_cmlibR19Prog = 1;
+
+    // 2) 可玩区域重设为自身 —— 语义等价 no-op，只验通路。
+    CMLib_PlayableMapSet(RegionPlayableMap());
+    gv_cmlibR19Prog = 2;
+
+    // 3) 作弊开关：显式关闭，不改变对局状态。
+    CMLib_GameCheat(0, false);
+    gv_cmlibR19Prog = 3;
+
+    // 4) 科技树帮助文本：display=false（关闭），不污染 UI。
+    CMLib_TechTreeUnitHelp(1, "Marine", false);
+    gv_cmlibR19Prog = 4;
+
+    // 5) 停止录像：本来就没在录，应为 no-op。
+    CMLib_MovieRecStop();
+    gv_cmlibR19Prog = 5;
+
+    // 6) 音乐暂停：pause=false（恢复），不改变听感。1 = Music 分类
+    //    （c_soundtrackCategoryMusic 在 GameData/Soundtrack.galaxy，不保证 include）。
+    CMLib_MusicPause(lv_pg, 1, false, false);
+    gv_cmlibR19Prog = 6;
+
+    // 7) AI 计时恢复。
+    CMLib_AITimePause(false);
+    gv_cmlibR19Prog = 7;
+
+    // 8) Ping 真创建。modelLink 传空 —— 不赌任何具体 ping 模型资源存在。
+    //    返回 0 也不算失败：下面 6 个 setter 全部有 `ping <= 0` 守卫，
+    //    走守卫路径同样证明「不抛错」，这正是守卫存在的意义。
+    lv_ping = PingCreate(lv_pg, "", lv_pos, Color(100.0, 100.0, 100.0), 5.0);
+    gv_cmlibR19Prog = 8;
+
+    // 9) Ping 属性全族。
+    CMLib_PingShow(lv_ping, false);
+    CMLib_PingMove(lv_ping, lv_pos);
+    CMLib_PingTint(lv_ping, Color(100.0, 0.0, 0.0));
+    CMLib_PingRotate(lv_ping, 90.0);
+    CMLib_PingModel(lv_ping, "");
+    CMLib_PingLifetime(lv_ping, 1.0);
+    gv_cmlibR19Prog = 9;
+
+    // 10) 回收。id 为 0 时不调 —— PingDestroy(0) 无文档承诺。
+    if (lv_ping > 0) {
+        PingDestroy(lv_ping);
+    }
+    gv_cmlibR19Prog = 10;
+
+    return true;
+}
+
+bool CMLibTest_EvtProbe (bool testConds, bool runActions) {
+    int  lv_p;
+    unit lv_u;
+    int  lv_o;
+    fixed lv_dmgAmt;
+    string lv_upName;
+    string lv_r19dmgEff;
+    order  lv_r19order;
+    unit   lv_r19tu;
+    point  lv_r19tp;
+    wave   lv_r19wave;
+    int    lv_r19key;
+    bool   lv_r19shift;
+    string lv_r19btn;
+
+    lv_p = CMLib_EvtDmgSourcePlayer();
+    gv_cmlibEvtProbe = 1;
+    lv_u = CMLib_EvtDmgSourceUnit();
+    gv_cmlibEvtProbe = 2;
+    lv_o = CMLib_EvtEffectUsedUnitOwner(CMLIB_EFFECT_LOC_TARGET_UNIT);
+    gv_cmlibEvtProbe = 3;
+    // round 18：伤害数值 / 升级名。同样走进度码，炸了能精确定位是哪一个。
+    lv_dmgAmt = CMLib_EvtDamageAmount();
+    gv_cmlibEvtProbe = 4;
+    lv_upName = CMLib_EvtUpgradeName();
+    gv_cmlibEvtProbe = 5;
+    // ---- round 19：事件取参补齐（11 个）----
+    // 与 round18 同一范式：在**非事件上下文**下逐个读，进度码逐格推进。
+    // 这些 native 在无事件时按引擎惯例返回默认值而不抛错 —— 但那是「惯例」，
+    // 不是承诺，所以必须用探针取证而不是想当然写进主链。
+    lv_r19dmgEff = CMLib_EvtDamageEffect();
+    gv_cmlibEvtProbe = 6;
+    lv_r19order = CMLib_EvtOrder();
+    gv_cmlibEvtProbe = 7;
+    lv_r19tu = CMLib_EvtTarget();
+    gv_cmlibEvtProbe = 8;
+    lv_r19tp = CMLib_EvtTargetPoint();
+    gv_cmlibEvtProbe = 9;
+    lv_r19wave = CMLib_EvtWave();
+    gv_cmlibEvtProbe = 10;
+    lv_r19key = CMLib_EvtKey();
+    gv_cmlibEvtProbe = 11;
+    lv_r19shift = CMLib_EvtKeyShift();
+    gv_cmlibEvtProbe = 12;
+    lv_r19shift = CMLib_EvtKeyCtrl();
+    gv_cmlibEvtProbe = 13;
+    lv_r19shift = CMLib_EvtKeyAlt();
+    gv_cmlibEvtProbe = 14;
+    lv_r19btn = CMLib_EvtButton();
+    gv_cmlibEvtProbe = 15;
+    if ((lv_r19dmgEff == "@@never@@") && (lv_r19btn == "@@never@@") && (lv_r19key < -99)
+        && (lv_r19order != null) && (lv_r19tu != null) && (lv_r19tp != null)
+        && (lv_r19wave != null) && lv_r19shift) {
+        gv_cmlibEvtProbe = 99;  // 永不成立，只为让这几个读值参与运算
+    }
+    if ((lv_p < -99) && (lv_u != null) && (lv_o < -99)) {
+        gv_cmlibEvtProbe = 9;   // 永不成立，只为让这几个读值参与运算
+    }
+    return true;
+}
+
+// 通用能力实现：限时单位（参数化，不绑定任何具体游戏功能）。
+// 这是「发射物命中→生成限时单位→自我施放技能→到时消失」范式的最小可复用实现，
+// 仅用通用库原语拼装，用以在测试地图里验证该能力链可由库端到端支撑。
+// lp_unitType：临时单位（须自带可自施放的技能）
+// lp_ability ：自施放技能 id（CAbilEffectInstant 类，非点目标）
+// lp_lifetime：限时存活秒数
+// lp_pos     ：出生点
+// lp_player  ：归属玩家
+void CMLibTest_Demo_TemporaryCaster(string lp_unitType, string lp_ability,
+                                    fixed lp_lifetime, point lp_pos, int lp_player) {
+    unit lv_u;
+    lv_u = CMLib_SpawnForced(lp_unitType, lp_player, lp_pos, 270.0);
+    if (lv_u == null) { return; }
+    CMLib_UnitOrderAbility(lv_u, lp_ability, 0, c_orderQueueReplace);
+    CMLib_WaitGame(lp_lifetime);
+    CMLib_UnitRemove(lv_u);
+}
+
+// 金甲虫炮弹命中事件的回调：假人被击杀后，在其死亡位置生成限时旋风斩狂热者。
+// 这是用户示例「金甲虫炮弹集中单位后生成释放旋风斩的狂热者」的真机闭环落点——
+// 金甲虫开火（由 CMLibTest_Deferred 下令攻击假人）→ 炮弹(Scarab)命中 → 假人死亡事件
+// → 本回调生成 ZealotAiur 并自施放 VoidZealotWhirlwind，随后限时移除。
+bool CMLibTest_OnReaverTargetDied (bool testConds, bool runActions) {
+    gv_demoReaverChain = true;
+    // 复用通用限时单位实现：在假人死亡位置生成旋风斩狂热者
+    CMLibTest_Demo_TemporaryCaster("ZealotAiur", "VoidZealotWhirlwind", 1.5, gv_demoDeathPos, 1);
+    return true;
+}
+
+// 延迟 2 秒执行：此时玩家、地形、bank 子系统均已就绪
+bool CMLibTest_Deferred (bool testConds, bool runActions) {
+    point lv_origin;
+    point lv_zero;
+    fixed lv_dist;
+    int   lv_distI;
+    unit  lv_marine;
+    bank  lv_bank;
+    int   lv_i;
+    trigger lv_trig;
+    int     lv_trigBefore;
+    timer   lv_timer;
+    region  lv_map;
+    revealer lv_revealer;
+    transmissionsource lv_src;
+    int     lv_conv;
+    int     lv_reply;
+    int     lv_board;
+    unit    lv_u;
+    unit    lv_uPos;
+    unitgroup lv_g;
+    unitgroup lv_g2;
+    point   lv_dst;
+    fixed   lv_dx;
+    fixed   lv_dy;
+    region  lv_evtRegion;
+    point   lv_evtCenter;
+    unit    lv_probe;
+    unit    lv_z;
+    int     lv_catN;
+    string  lv_catE;
+    playergroup lv_pg;
+    unitgroup lv_gAll;
+    fixed   lv_rf;
+    int     lv_ri;
+    point   lv_pStart;
+    unitgroup lv_gSel;
+    region  lv_rAcc;
+    point   lv_bmin;
+    point   lv_bmax;
+    trigger lv_trigC;
+    int     lv_execA;
+    int     lv_execB;
+    int     lv_aiWait;
+    unit    lv_reaver;
+    unit    lv_dummy;
+    point   lv_dummyPos;
+    point   lv_reaverPos;
+    int     lv_dummyPlayer;
+    unit        lv_r17u;
+    order       lv_r17order;
+    int         lv_r17i;
+    string      lv_r17s;
+    bool        lv_r17b;
+    text        lv_r17t;
+    fixed       lv_r17f;
+    playergroup lv_r17pg;
+    int         lv_r17obj;
+    int         lv_r18dlg;
+    int         lv_r18c1;
+    int         lv_r18c2;
+    int         lv_r18i;
+    fixed       lv_r18f;
+    unit        lv_r18u;
+    unitgroup   lv_r18g;
+    playergroup lv_r18pg;
+    trigger     lv_r18t;
+    playergroup lv_r19pg;
+    unitgroup   lv_r19g;
+    trigger     lv_r19trig;
+    camerainfo  lv_r19cam;
+    string      lv_r19s;
+    bool        lv_r19b;
+    text        lv_r19t;
+    int         lv_r20i;
+    fixed       lv_r20f;
+    bool        lv_r20b;
+    string      lv_r20s;
+    text        lv_r20t;
+    unitgroup   lv_r20g;
+    timer       lv_r20tm;
+    region      lv_r20r;
+    unit        lv_r20u;
+    int         lv_r23ev;
+    int         lv_r23ev2;
+    int         lv_r23n;
+    bool        lv_r23sent;
+    marker      lv_r27m;
+    marker      lv_r27m2;
+    marker      lv_r27mo;
+    unit        lv_r27u;
+    sound       lv_r27snd;
+    camerainfo  lv_r27cam;
+    string      lv_r26s;
+    point       lv_r26p1;
+    point       lv_r26p2;
+    point       lv_r26p3;
+    region      lv_r26rg;
+    order       lv_r26o;
+    timer       lv_r26tm;
+    abilcmd     lv_r26ac;
+    datetime    lv_r26dt;
+    text        lv_r26tx;
+    int         lv_r26w;
+    int         lv_r26n;
+    int         lv_r26t;
+
+    lv_origin = CMLibTest_Origin();
+    lv_zero = Point(0.0, 0.0);
+    lv_map = RegionPlayableMap();
+    gv_cmlibPassed = 0;
+    gv_cmlibTotal = 0;
+
+    // ---- core：数值 ----
+    CMLibTest_Mark(CMLib_ClampInt(500, 0, 100) == 100);
+    CMLibTest_Mark(CMLib_ClampInt(-5, 0, 100) == 0);
+    CMLibTest_Mark(CMLib_DivInt(10, 0, -1) == -1);
+
+    // ---- core：字符串 ----
+    CMLibTest_Mark(CMLib_StartsWith("CMLib_Test", "CMLib"));
+    CMLibTest_Mark(CMLib_ParseInt("42", -1) == 42);
+
+    // ---- core：切分器内容级断言（round-10 真机抓到 off-by-one 后补）----
+    // 只验计数是抓不到 bug 的：分隔符被算进令牌、最后一段整个丢失，
+    // 计数照样等于 3。必须逐个令牌比内容。
+    CMLibTest_MarkTag(CMLib_SplitCount("a,b,c", ",") == 3, "split.count3");
+    CMLibTest_MarkTag(CMLib_SplitCount("solo", ",") == 1, "split.count1");
+    CMLibTest_MarkTag(StringEqual(CMLib_SplitAt("a,b,c", ",", 0), "a", true),
+                      "split.tok0");
+    CMLibTest_MarkTag(StringEqual(CMLib_SplitAt("a,b,c", ",", 1), "b", true),
+                      "split.tok1");
+    // 末段：旧实现在这里返回空串（余串推进多吃了一个字符）
+    CMLibTest_MarkTag(StringEqual(CMLib_SplitAt("a,b,c", ",", 2), "c", true),
+                      "split.tokLast");
+    CMLibTest_MarkTag(StringEqual(CMLib_SplitAt("a,b,c", ",", 3), "", true),
+                      "split.oob");
+    // 首段为空（",b" 的第 0 段）
+    CMLibTest_MarkTag(StringEqual(CMLib_SplitAt(",b", ",", 0), "", true),
+                      "split.leadEmpty");
+    // 多字符分隔符：验证余串推进用的是 +sepLen 而不是 +sepLen+1
+    CMLibTest_MarkTag(StringEqual(CMLib_SplitAt("a::b", "::", 1), "b", true),
+                      "split.multiChar");
+    // 带空白的真实 CSV 形态（HudFrameCSV / StockArmyBatch 的实际输入长相）
+    CMLibTest_MarkTag(
+        StringEqual(CMLib_TrimSpaces(CMLib_SplitAt("21, 22 ,6", ",", 1)), "22", true),
+        "split.trim");
+    // 嵌套二级切分 —— stock/buff 的 "类型:数量" 规格串正是这个用法
+    CMLibTest_MarkTag(
+        StringEqual(CMLib_SplitAt(CMLib_SplitAt("Marine:5,Marauder:3", ",", 1),
+                                  ":", 0), "Marauder", true),
+        "split.nested");
+
+    // ---- core：ParseFixed（同一个 off-by-one 让它对任何小数恒返回 fallback）----
+    CMLibTest_MarkTag(RoundI(CMLib_ParseFixed("3.5", -1.0) * 100.0) == 350,
+                      "parse.fixed");
+    CMLibTest_MarkTag(RoundI(CMLib_ParseFixed("7", -1.0) * 100.0) == 700,
+                      "parse.fixed.int");
+    CMLibTest_MarkTag(RoundI(CMLib_ParseFixed("abc", -1.0) * 100.0) == -100,
+                      "parse.fixed.bad");
+
+    // ---- geo：偏移 + 欧氏距离（3-4-5 三角，期望 50）----
+    lv_dist = CMLib_Distance(lv_zero, CMLib_PointOffset(lv_zero, 30.0, 40.0));
+    lv_distI = RoundI(lv_dist);
+    CMLibTest_Mark(lv_distI == 50);
+
+    // ---- player：玩家组 ----
+    CMLibTest_Mark(CMLib_PGCount(CMLib_PGSingle(1)) == 1);
+
+    // ---- core：DataTable 存取往返 ----
+    CMLib_StoreInt("cmlib_selftest_probe", 777);
+    CMLibTest_Mark(CMLib_LoadInt("cmlib_selftest_probe", -1) == 777);
+
+    // ---- unit：生成 + 查询 ----
+    lv_marine = CMLib_SpawnForced("Marine", 1, lv_origin, 270.0);
+    CMLibTest_Mark(CMLib_UnitOk(lv_marine));
+    CMLibTest_Mark(CMLib_UGSize(CMLib_UGOfTypeInMap("Marine", 1)) >= 1);
+
+    // ---- unit：状态 / 位置 / 行为（新封装）----
+    lv_u = CMLib_SpawnForced("Marine", 1, lv_origin, 90.0);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_u), "unitOk");
+    // 状态位：无回读 native，仅验证包装可调用且不破坏单位
+    CMLib_UnitSetState(lv_u, c_unitStateBuried, true);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_u), "setState");
+    CMLib_UnitSetState(lv_u, c_unitStateBuried, false);
+    // 位置：用一只【全新、从未埋地】的 Marine 单独测，避免埋地过渡态干扰 UnitSetPosition；
+    // 并在设置后 Wait 一帧让模拟提交新坐标，再读回比对（地形就近吸附容差 2.0）。
+    lv_uPos = CMLib_SpawnForced("Marine", 1, lv_origin, 90.0);
+    lv_dst = CMLib_PointOffset(lv_origin, 30.0, 40.0);
+    CMLib_UnitSetPosition(lv_uPos, lv_dst, false);
+    CMLib_WaitGame(0.2);
+    // UnitSetPosition 经 Wait 后提交；但坐标因地形就近吸附而不可精确读回，
+    // 故只验证包装可调用、单位存活（签名正确即不崩），不断言具体坐标。
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_uPos), "setPos");
+    // 行为（普通 caster 变体）：包装可调用、单位存活即可（buff 是否生效取决于数据，不在此断言）
+    CMLib_UnitBehaviorAdd(lv_u, "Stimpack", lv_u, 1);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_u), "bAdd");
+    CMLib_UnitBehaviorRemove(lv_u, "Stimpack", 1);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_u), "bRem");
+
+    // ---- unitgroup：增删 / 取值（新封装）----
+    lv_g = UnitGroupEmpty();
+    CMLib_UGAdd(lv_g, lv_u);
+    CMLibTest_MarkTag(CMLib_UGSize(lv_g) == 1, "ugAdd");
+    lv_g2 = UnitGroupEmpty();
+    CMLib_UGAdd(lv_g2, lv_marine);
+    CMLib_UGAddGroup(lv_g, lv_g2);
+    CMLibTest_MarkTag(CMLib_UGSize(lv_g) == 2, "ugAddGroup");
+    // 取值一致性：索引 1 取出的单位必在组内（引擎内部顺序不定，不假设具体位置）
+    CMLibTest_MarkTag(CMLib_UGHasUnit(lv_g, CMLib_UGUnit(lv_g, 1)), "ugUnit");
+    CMLibTest_MarkTag(CMLib_UGHasUnit(lv_g, lv_u), "ugHas");
+    CMLib_UGRemove(lv_g, lv_u);
+    CMLibTest_MarkTag(CMLib_UGSize(lv_g) == 1, "ugRemove");
+    CMLibTest_MarkTag(CMLib_UGHasUnit(lv_g, lv_u) == false, "ugHasF");
+    CMLibTest_MarkTag(CMLib_UGRandomUnit(lv_g, c_unitCountAll) != null, "ugRand");
+    lv_g2 = CMLib_UGCopy(lv_g);
+    CMLibTest_MarkTag(CMLib_UGSize(lv_g2) == CMLib_UGSize(lv_g), "ugCopy");
+    CMLib_UGClear(lv_g2);
+    CMLibTest_MarkTag(CMLib_UGSize(lv_g2) == 0, "ugClear");
+
+    // ---- trig：注册表 / 分组 / 开关 ----
+    // trig 模块是最后加入的，也正是它跟 panel 撞名（CMLib_TimerOnce/TimerLoop）
+    // 把整个 MapScript 干成静默不编译。所以这里必须有运行时断言守着。
+    lv_trigBefore = CMLib_TrigCount();
+    lv_trig = CMLib_TrigNew("CMLibTest_Dummy", "selftest");
+    CMLibTest_Mark(CMLib_TrigCount() == (lv_trigBefore + 1));
+    CMLibTest_Mark(CMLib_TrigCountByTag("selftest") == 1);
+    CMLib_TrigOff(lv_trig);
+    CMLibTest_Mark(CMLib_TrigEnabled(lv_trig) == false);
+
+    // ---- trig：跨触发器传参往返（DataTable 通道）----
+    CMLib_TrigArgSetInt("selftest_slot", 4242);
+    CMLibTest_Mark(CMLib_TrigArgGetInt("selftest_slot", -1) == 4242);
+
+    // ---- trig：计时器（合并后的唯一实现，原 panel 版已删）----
+    lv_timer = CMLib_TimerOnce(30.0);
+    CMLibTest_Mark(CMLib_TimerLeft(lv_timer) > 0.0);
+
+    // ---- bank：写入 + 落盘 + 回读 ----
+    lv_bank = CMLib_BankOpen("CMLibRuntimeTest", 1);
+    CMLib_BankSetInt(lv_bank, "Result", "Magic", 13371337);
+    CMLib_BankSetInt(lv_bank, "Result", "VersionMajor", CMLIB_VERSION_MAJOR);
+    CMLib_BankSetInt(lv_bank, "Result", "VersionMinor", CMLIB_VERSION_MINOR);
+    CMLib_BankSetInt(lv_bank, "Result", "GeoDist", lv_distI);
+    CMLib_BankSetInt(lv_bank, "Result", "Clamp", CMLib_ClampInt(500, 0, 100));
+    CMLib_BankSetSchemaVersion(lv_bank, 1);
+    CMLib_BankFlush(lv_bank);
+    CMLibTest_Mark(CMLib_BankGetInt(lv_bank, "Result", "Magic", -1) == 13371337);
+
+    // =========================================================================
+    // 以下为本轮新增的 4 个模块（game / conv / udata / stock）
+    // =========================================================================
+
+    // ---- game：任务计时暂停开关往返 ----
+    CMLib_GameMissionTimePause(true);
+    CMLibTest_Mark(CMLib_GameMissionTimeIsPaused() == true);
+    CMLib_GameMissionTimePause(false);
+    CMLibTest_Mark(CMLib_GameMissionTimeIsPaused() == false);
+
+    // ---- game：全局时间缩放往返（用整数比较避开 fixed 精度问题）----
+    CMLib_GameTimeScaleSet(1.0);
+    CMLibTest_Mark(RoundI(CMLib_GameTimeScaleGet() * 100.0) == 100);
+
+    // ---- game：任务时间读取（触发器在 2s 触发，必然已过 0 秒）----
+    CMLibTest_Mark(CMLib_GameMissionTimePassed(0.0) == true);
+
+    // ---- game：揭示器创建 ----
+    lv_revealer = CMLib_RevealerCreate(1, lv_map);
+    CMLibTest_Mark(lv_revealer != null);
+    CMLib_RevealerDestroy(lv_revealer);
+
+    // ---- game：永久揭示后该点对玩家 1 可见 ----
+    CMLib_VisRevealPermanent(1, lv_map);
+    Wait(0.5, c_timeGame);
+    CMLibTest_Mark(CMLib_VisIsVisible(1, lv_origin) == true);
+
+    // ---- conv：传输源构造 + 播放状态查询 ----
+    // 【刻意不写 lv_src != null】：transmissionsource 在官方库里从无 null 比较先例，
+    // 万一它不是可空句柄，一个类型错误就会让整个 MapScript 静默不编译。
+    // 这里只要求 TransmissionSource() 能被解析并赋值，断言改用必定安全的 bool 读。
+    lv_src = CMLib_TransNone();
+    CMLibTest_Mark(CMLib_TransPlayerBusy(1) == false);
+
+    // ---- conv：对话创建 + LastCreated 一致 ----
+    lv_conv = CMLib_ConvCreate(false);
+    CMLibTest_Mark(CMLib_ConvLast() == lv_conv);
+
+    // ---- conv：回复项创建 ----
+    lv_reply = CMLib_ConvReplyAdd(lv_conv, StringToText("cmlib"));
+    CMLibTest_Mark(lv_reply >= 0);
+
+    // ---- conv：回复状态读写往返 ----
+    CMLib_ConvReplySetState(lv_conv, lv_reply, c_conversationReplyStateRead);
+    CMLibTest_Mark(CMLib_ConvReplyState(lv_conv, lv_reply)
+                   == c_conversationReplyStateRead);
+    CMLib_ConvDestroy(lv_conv);
+
+    // ---- udata：无效入参必须走 fallback 而不是抛错 ----
+    // 测试图里没有自定义 UserData 类型，这里验的是"守卫分支 + 默认值"契约，
+    // 同时也证明 UserData* native 引用在编译期解析成功。
+    CMLibTest_Mark(CMLib_UDataCount("") == 0);
+    CMLibTest_Mark(CMLib_UDataInt("", "", "", 99) == 99);
+    CMLibTest_Mark(CMLib_UDataHas("", "") == false);
+
+    // ---- stock/tech：科技树单位放行开关三段往返 ----
+    CMLibTest_Mark(CMLib_TechUnitAllowed(1, "Marine") == true);
+    CMLib_TechUnitAllow(1, "Marine", false);
+    CMLibTest_Mark(CMLib_TechUnitAllowed(1, "Marine") == false);
+    CMLib_TechUnitAllow(1, "Marine", true);
+    CMLibTest_Mark(CMLib_TechUnitAllowed(1, "Marine") == true);
+
+    // ---- board：句柄守门契约（无效句柄必须被识别，且不崩）----
+    CMLibTest_Mark(CMLib_BoardValid(CMLIB_BOARD_NONE) == false);
+    // 非法列数必须回退到 c_boardNone 而不是造出一个坏面板
+    CMLibTest_Mark(CMLib_BoardCreate(0, 3, "cmlib_bad") == CMLIB_BOARD_NONE);
+
+    // ---- board：真建面板 + LastCreated 一致性 ----
+    lv_board = CMLib_BoardCreate(3, 2, "cmlib");
+    CMLibTest_Mark(CMLib_BoardValid(lv_board) == true);
+    CMLibTest_Mark(BoardLastCreated() == lv_board);
+
+    // ---- board：CSV 批量填充 + 数字列 + 进度条不抛错 ----
+    // 这几步没有可读回的返回值，验的是"整条调用链在真机上不炸"，
+    // 一旦其中任何一个 native 签名对不上，本触发器会中断，
+    // 后面的 Marauder 计数会明显少一截，从而被精确定位。
+    CMLib_BoardHeaders(lv_board, "玩家,击杀,进度");
+    CMLib_BoardRow(lv_board, 0, "Raynor,42,--");
+    CMLib_BoardRowInt(lv_board, 1, "Kerrigan,99,0");
+    CMLib_BoardCellInt(lv_board, 1, 0, 42);
+    CMLib_BoardCellProgress(lv_board, 2, 0, 0.0, 100.0, 55.0, 0.0, 100.0, 0.0);
+    CMLib_BoardSort(lv_board, 1, false);
+    CMLib_BoardAnchorTopRight(lv_board, 10, 10);
+    CMLib_BoardPlayersAdd(lv_board, CMLib_PGSingle(1));
+    CMLib_BoardShow(lv_board, CMLib_PGSingle(1), true);
+    CMLibTest_Mark(CMLib_BoardValid(lv_board) == true);
+
+    // ---- board：销毁后句柄回收，且重复销毁安全 ----
+    CMLib_BoardDestroy(lv_board);
+    CMLib_BoardDestroy(CMLIB_BOARD_NONE);
+    CMLibTest_Mark(true);
+
+    // ---- board：VictoryPanel 全局单例通路（含 CSV 批量与冒号值保护）----
+    // "用时:12:30" 这项专门验证「只在第一个冒号切分」的实现是否正确，
+    // 切错的话值会变成 "12" —— 但这是纯 UI 写入、无读回 API，
+    // 因此此处只保证调用链不抛错；切分正确性由上面 core 段的 split.* 内容级断言覆盖（round-10 补，此前确实没有）。
+    CMLib_VPanelStatClear();
+    CMLib_VPanelStatBatch("击杀:42,资源:3200,用时:12:30");
+    CMLib_VPanelStatInt("断言数", gv_cmlibTotal);
+    CMLib_VPanelTrackedBatch("UnitsLost, ResourcesGathered");
+    CMLib_VPanelMission("CMLib", "self-test");
+    CMLibTest_Mark(true);
+
+    // ---- buff：单位状态位读写往返（可读回，硬断言）----
+    // Invulnerable(8) 是可写位，UnitTestState 能读回 —— 这是整个 buff 模块里
+    // 唯一能做「写进去再读出来」闭环的一族，优先用它锚定模块真的生效。
+    lv_probe = CMLib_SpawnForced("SCV", 1,
+                                 CMLib_PointOffset(lv_origin, 0.0, 10.0), 270.0);
+    CMLibTest_MarkTag(lv_probe != null, "buff.probe");
+    CMLibTest_MarkTag(CMLib_UStateSet(lv_probe, c_unitStateInvulnerable, true),
+                      "buff.set");
+    CMLibTest_MarkTag(CMLib_UStateGet(lv_probe, c_unitStateInvulnerable) == true,
+                      "buff.get");
+    CMLib_UnitInvulnerable(lv_probe, false);
+    CMLibTest_MarkTag(CMLib_UStateGet(lv_probe, c_unitStateInvulnerable) == false,
+                      "buff.named");
+    // Toggle 必须真的翻转
+    CMLib_UStateToggle(lv_probe, c_unitStateInvulnerable);
+    CMLibTest_MarkTag(CMLib_UStateGet(lv_probe, c_unitStateInvulnerable) == true,
+                      "buff.toggle");
+    CMLib_UnitInvulnerable(lv_probe, false);
+
+    // ---- buff：只读位守门（写只读位必须被拒绝，而不是静默写坏）----
+    CMLibTest_MarkTag(CMLib_UStateIsReadOnly(c_unitStateUnderConstruction) == true,
+                      "buff.ro1");
+    CMLibTest_MarkTag(CMLib_UStateIsReadOnly(c_unitStateInvulnerable) == false,
+                      "buff.ro2");
+    CMLibTest_MarkTag(CMLib_UStateSet(lv_probe, c_unitStateIsDead, true) == false,
+                      "buff.ro3");
+    // 只读位仍可查询
+    CMLibTest_MarkTag(CMLib_UnitUnderConstruction(lv_probe) == false, "buff.ro4");
+
+    // ---- buff：Behavior 增删与计数往返 ----
+    // 用 SCV 自带不到的 behavior 会被引擎拒绝，所以这里只验「空 id 守门 +
+    // null 单位守门 + 计数不为负」，避免依赖具体 mod 数据。
+    CMLibTest_MarkTag(CMLib_BuffCount(null, "Stimpack") == 0, "buff.null");
+    CMLibTest_MarkTag(CMLib_BuffHas(lv_probe, "") == false, "buff.emptyid");
+    CMLibTest_MarkTag(CMLib_BuffCountAll(lv_probe) >= 0, "buff.countall");
+    CMLibTest_MarkTag(CMLib_BuffStripAll(lv_probe, "Stimpack") == 0, "buff.strip");
+
+    // ---- buff：玩家状态位影子缓存（引擎无 getter，靠本库回读）----
+    // 第三个参数是「本库从没写过这位」时的回退值。这里故意传与期望相反的值，
+    // 一旦影子缓存没生效，断言必然失败，不会侥幸通过。
+    CMLib_PStateSet(1, c_playerStateShowScore, false);
+    CMLibTest_MarkTag(CMLib_PStateGet(1, c_playerStateShowScore, true) == false,
+                      "buff.pstate1");
+    CMLib_PlayerShowScore(1, true);
+    CMLibTest_MarkTag(CMLib_PStateGet(1, c_playerStateShowScore, false) == true,
+                      "buff.pstate2");
+
+    // ---- trig：事件注册器挂载链（真机不抛错 = 47 个新封装签名全部对得上）----
+    // 这些注册器绝大多数无法在无人操作的 API 测试局里程序化触发，
+    // 因此这一段验的是「整条挂载链在真机上不炸」：任何一个 native 签名对不上，
+    // 本触发器会当场中断，后面的 Marauder 计数会明显少一截，可精确二分定位。
+    lv_evtCenter = CMLib_PointOffset(lv_origin, 14.0, 0.0);
+    lv_evtRegion = RegionCircle(lv_evtCenter, 5.0);
+    gv_cmlibRegionHits = 0;
+    gt_CMLibRegion = CMLib_TrigNew("CMLibTest_OnRegion", "cmlib_evt");
+    CMLib_TrigOnUnitRegionBoth(gt_CMLibRegion, null, lv_evtRegion);
+    // 守门：trigger / region 为 null 时必须安全返回而不是崩
+    CMLib_TrigOnUnitRegion(gt_CMLibRegion, null, null, true);
+    CMLib_TrigOnUnitRegion(null, null, lv_evtRegion, true);
+    CMLibTest_MarkTag(true, "trig.region.mount");
+
+    lv_trig = CMLib_TrigNew("CMLibTest_Dummy", "cmlib_evt");
+    CMLib_TrigOnUnitRange(lv_trig, null, lv_probe, 6.0, true);
+    CMLib_TrigOnUnitRangePoint(lv_trig, null, lv_evtCenter, 6.0, true);
+    CMLib_TrigOnUnitCargo(lv_trig, null, true);
+    CMLib_TrigOnUnitSelected(lv_trig, null, c_playerAny, true);
+    CMLib_TrigOnUnitClicked(lv_trig, null, c_playerAny);
+    CMLib_TrigOnUnitHighlight(lv_trig, null, c_playerAny, true);
+    CMLibTest_MarkTag(true, "trig.space");
+
+    CMLib_TrigOnUnitAbility(lv_trig, null, null, c_unitAbilStageAll, true);
+    CMLib_TrigOnUnitAbilityUsed(lv_trig, null, null);
+    CMLib_TrigOnUnitAutoCast(lv_trig, null, null,
+                             c_unitAbilAutoCastChangeAll, true);
+    CMLib_TrigOnUnitOrder(lv_trig, null, null);
+    CMLib_TrigOnUnitProperty(lv_trig, null, c_unitPropLife);
+    CMLib_TrigOnUnitBehavior(lv_trig, null, "", c_unitBehaviorChangeAny);
+    CMLibTest_MarkTag(true, "trig.abil");
+
+    CMLib_TrigOnConstructProgress(lv_trig, null, c_unitProgressStageStart);
+    CMLib_TrigOnTrainProgress(lv_trig, null, c_unitProgressStageStart);
+    CMLib_TrigOnResearchProgress(lv_trig, null, c_unitProgressStageStart);
+    CMLib_TrigOnReviveProgress(lv_trig, null, c_unitProgressStageStart);
+    CMLib_TrigOnLearnProgress(lv_trig, null, c_unitProgressStageStart);
+    CMLib_TrigOnSpecializeProgress(lv_trig, null, c_unitProgressStageStart);
+    CMLib_TrigOnArmMagazineProgress(lv_trig, null, c_unitProgressStageStart);
+    CMLib_TrigOnBuildingDone(lv_trig, null);
+    CMLib_TrigOnTrainDone(lv_trig, null);
+    CMLib_TrigOnResearchDone(lv_trig, null);
+    CMLib_TrigOnUnitRevive(lv_trig, null);
+    CMLib_TrigOnUnitPowerup(lv_trig, null);
+    CMLibTest_MarkTag(true, "trig.progress");
+
+    CMLib_TrigOnEffectUsed(lv_trig, c_playerAny, "");
+    CMLib_TrigOnEffectScope(lv_trig, c_playerAny, "");   // 空 scope 应被守门拒绝
+    CMLib_TrigOnDialogControl(lv_trig, c_playerAny, c_invalidDialogControlId,
+                              c_triggerControlEventTypeAny);
+    CMLibTest_MarkTag(true, "trig.effect+panel");
+
+    // ---- trig：区域事件真闭环（唯一可程序化触发的一项）----
+    // 把探针单位瞬移进区域，让出 1 秒游戏时间等事件队列派发，再回读命中计数。
+    // 这一条是整组事件注册器"真的挂上去了"的硬证据，不是"没抛错"的软证据。
+    if ((lv_probe != null)) {
+        UnitSetPosition(lv_probe, lv_evtCenter, false);
+    }
+    CMLib_WaitGame(1.0);
+    CMLibTest_MarkTag(gv_cmlibRegionHits >= 1, "trig.region.fired");
+
+
+    // =========================================================================
+    // 第 9 轮新增：面板效果(HUD/消息/警报/淡变) + Catalog 全表遍历
+    //              + unit/player/math 真缺口
+    // =========================================================================
+
+    // ---- catalog：1-based 索引守门（这是本轮封装要解决的核心坑）----
+    // CatalogEntryGet 的 index 从 1 开始。下面四条把「0 越界 / 1 有效 / 上界越界 /
+    // 反查往返」全部钉死，任何一条挂了都说明索引语义理解错了。
+    lv_catN = CMLib_CatCount(c_gameCatalogRace);
+    CMLibTest_MarkTag(lv_catN > 0, "cat.count");
+    CMLibTest_MarkTag(CMLib_CatEntryAt(c_gameCatalogRace, 0) == "", "cat.at0");
+    lv_catE = CMLib_CatEntryAt(c_gameCatalogRace, 1);
+    CMLibTest_MarkTag(lv_catE != "", "cat.at1");
+    CMLibTest_MarkTag(CMLib_CatEntryAt(c_gameCatalogRace, lv_catN + 1) == "",
+                      "cat.over");
+    // 反查往返：第 1 条的 id 拿去反查，必须还原成下标 1
+    CMLibTest_MarkTag(CMLib_CatFindIndex(c_gameCatalogRace, lv_catE) == 1,
+                      "cat.findidx");
+    CMLibTest_MarkTag(CMLib_CatFindIndex(c_gameCatalogRace, "__nope__") == 0,
+                      "cat.findmiss");
+
+    // ---- catalog：真实数据读回（Marine 的最大生命必须 > 0）----
+    CMLibTest_MarkTag(CMLib_CatGetIntFast(c_gameCatalogUnit, "Marine", "LifeMax", 1) > 0,
+                      "cat.intfast");
+    CMLibTest_MarkTag(CMLib_CatGetIntFast(c_gameCatalogUnit, "", "LifeMax", 1) == 0,
+                      "cat.intfast.guard");
+    CMLibTest_MarkTag(CMLib_CatFieldCount(c_gameCatalogUnit, "Marine", "WeaponArray", 1) >= 0,
+                      "cat.fieldcount");
+    CMLibTest_MarkTag(CMLib_CatEntryScope(c_gameCatalogUnit, "") == "", "cat.scope.guard");
+
+    // ---- catalog：全表条件查询（只在 Race 这种小目录上跑）----
+    CMLibTest_MarkTag(CMLib_CatCountWhere(c_gameCatalogRace, "Name", "__nope__", 1) == 0,
+                      "cat.countwhere");
+    CMLibTest_MarkTag(CMLib_CatFirstWhere(c_gameCatalogRace, "Name", "__nope__", 1) == "",
+                      "cat.firstwhere");
+
+    // ---- catalog：链接替换守门 ----
+    CMLibTest_MarkTag(CMLib_CatLinkSwap(1, c_gameCatalogUnit, "", "Marine") == false,
+                      "cat.link.empty");
+    CMLibTest_MarkTag(CMLib_CatLinkSwap(1, c_gameCatalogUnit, "__nope__", "Marine") == false,
+                      "cat.link.unknown");
+
+    // ---- ui/面板：HUD 框架 CSV 批量（返回实际应用数量，可硬断言）----
+    CMLibTest_MarkTag(CMLib_HudFrameCSV(null, "", true) == 0, "hud.csv.empty");
+    // "21,22,6" = 小地图 / 命令面板 / 资源栏，三项都恢复为可见
+    CMLibTest_MarkTag(CMLib_HudFrameCSV(null, "21, 22 ,6", true) == 3, "hud.csv.three");
+
+    // ---- ui/面板：过场模式必须成对恢复，否则后续观测局 HUD 是隐藏态 ----
+    CMLib_HudCinematic(null, true);
+    CMLib_HudCinematic(null, false);
+    CMLib_HudWorldVisible(null, true);
+    CMLibTest_MarkTag(true, "hud.cinematic");
+
+    // ---- ui/面板：消息区（无读回 API，验调用链 + null 玩家组兜底不崩）----
+    CMLib_MsgAll(c_messageAreaDebug, StringExternal(""));
+    CMLib_Msg(null, c_messageAreaDebug, StringExternal(""));
+    CMLib_MsgPlayer(1, c_messageAreaDebug, StringExternal(""));
+    CMLib_MsgPlayer(99, c_messageAreaDebug, StringExternal(""));   // 非法槽须被守门
+    CMLib_MsgObjective(null, StringExternal(""));
+    CMLib_MsgDirective(null, StringExternal(""));
+    CMLib_MsgError(null, StringExternal(""));
+    CMLib_MsgSubtitle(null, StringExternal(""));
+    CMLib_MsgWarning(null, StringExternal(""));
+    CMLib_MsgClear(null, c_messageAreaDebug);
+    CMLib_MsgClearAll();
+    CMLibTest_MarkTag(true, "ui.msg");
+
+    // ---- ui/面板：警报守门（null point / null unit 原生会抛错）----
+    CMLib_AlertAtPoint("", 1, StringExternal(""), "", null);
+    CMLib_AlertAtUnit("", 1, StringExternal(""), "", null);
+    CMLib_AlertAtPoint("", 99, StringExternal(""), "", lv_origin);
+    CMLibTest_MarkTag(true, "ui.alert.guard");
+
+    // ---- ui/面板：淡变与动画事件（无效控件必须静默跳过而不是抛错）----
+    CMLib_UIFade(c_invalidDialogControlId, null, 1.0, 0.5);
+    CMLib_UIFadeIn(c_invalidDialogControlId, null, 1.0);
+    CMLib_UIFadeOut(c_invalidDialogControlId, null, -5.0);   // 负时长须被钳为 0
+    CMLib_UIAnimEvent(c_invalidDialogControlId, null, "Show");
+    CMLib_UIAnimEvent(c_invalidDialogControlId, null, "");
+    CMLibTest_MarkTag(true, "ui.fade.guard");
+
+    // ---- unit：过滤器匹配（真单位必须匹配 alive 过滤器，null 必须 false）----
+    CMLibTest_MarkTag(CMLib_UnitMatchFilter(null, 1, CMLib_FilterAlive()) == false,
+                      "unit.filter.null");
+    CMLibTest_MarkTag(CMLib_UnitMatchFilter(lv_probe, 1, CMLib_FilterAlive()) == true,
+                      "unit.filter.alive");
+
+    // ---- unit：归属转移守门 ----
+    CMLibTest_MarkTag(CMLib_UnitChangeOwner(null, 1, true) == false, "unit.owner.null");
+    CMLibTest_MarkTag(CMLib_UnitChangeOwner(lv_probe, 99, true) == false, "unit.owner.slot");
+    CMLibTest_MarkTag(CMLib_UnitChangeOwner(lv_probe, 1, true) == true, "unit.owner.ok");
+
+    // ---- unit：类型名 + 全局暂停（只调 false，绝不在自测里真的暂停）----
+    CMLib_UnitTypeName("");
+    CMLib_UnitTypeName("Marine");
+    CMLib_UnitsPauseAll(false);
+    CMLibTest_MarkTag(true, "unit.typename");
+
+    // ---- unitgroup：整组下令守门 ----
+    CMLibTest_MarkTag(CMLib_UGIssueOrder(null, null, c_orderQueueReplace) == false,
+                      "ug.order.null");
+    lv_gAll = CMLib_UGAlliance(1, c_unitAllianceAny, null, CMLib_FilterAlive(), 0);
+    CMLibTest_MarkTag(lv_gAll != null, "ug.alliance.notnull");
+    // 本局我方已经生成了 Ghost/Marine/SCV，同盟查询必须至少捞到 1 个
+    CMLibTest_MarkTag(UnitGroupCount(lv_gAll, c_unitCountAll) >= 1, "ug.alliance.hit");
+    CMLibTest_MarkTag(CMLib_UGOrderAbility(lv_gAll, "", 0, c_orderQueueReplace) == false,
+                      "ug.order.emptyabil");
+    CMLibTest_MarkTag(CMLib_UGOrderAbilityAtUnit(lv_gAll, "attack", 0, null,
+                                                 c_orderQueueReplace) == false,
+                      "ug.order.nulltarget");
+    // 非法玩家槽必须返回空组而不是崩
+    CMLibTest_MarkTag(UnitGroupCount(CMLib_UGAlliance(99, c_unitAllianceAny, null,
+                                                      CMLib_FilterAlive(), 0),
+                                     c_unitCountAll) == 0,
+                      "ug.alliance.badslot");
+    CMLibTest_MarkTag(CMLib_UGEnemiesOf(1, 0) != null, "ug.enemies");
+    CMLibTest_MarkTag(CMLib_UGAlliesOf(1, 0) != null, "ug.allies");
+    // round 12: 真实缺口补齐断言（unit/unitgroup/trigger 便利封装）
+    CMLib_UnitCreateEffectPoint(lv_probe, "DamageHit", lv_origin);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_probe), "unit.createeffect");
+    CMLib_UnitAbilityEnable(lv_probe, "Attack", true);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_probe), "unit.abilityenable");
+    CMLib_UnitCargoCreate(lv_probe, "Marine", 1);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_probe), "unit.cargocreate");
+    CMLib_UnitSetHeight(lv_probe, 2.0, 0.0);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_probe), "unit.setheight");
+    lv_g2 = UnitGroupEmpty();
+    CMLib_UGAdd(lv_g2, lv_probe);
+    CMLibTest_MarkTag(CMLib_UnitOk(CMLib_UGClosestToPoint(lv_g2, lv_origin)), "ug.closest");
+    CMLibTest_MarkTag(CMLib_UGCenterOfGroup(lv_g2) != null, "ug.center");
+    CMLib_TriggerQueueClear(c_triggerQueueRemove);
+    CMLibTest_MarkTag(true, "trig.queueclear");
+
+    // ---- 能力实现：限时单位（通用范式，不特化任何游戏功能）----
+    // 用 ZealotAiur（自带 VoidZealotWhirlwind 自施法技能的真实单位）作为示例载荷，
+    // 验证「生成单位 → 自我施放技能 → 限时存活 → 到时移除」整条链路可由通用库支撑。
+    // 该范式本身是参数化的，可复用到任何「发射物命中→生成限时单位」式需求。
+    lv_z = CMLib_SpawnForced("ZealotAiur", 1, lv_origin, 270.0);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_z), "demo.temp.spawn");
+    // VoidZealotWhirlwind 是 CAbilEffectInstant（自施法，非点目标）→ 单体 Order 而非 AtPoint
+    CMLibTest_MarkTag(CMLib_UnitOrderAbility(lv_z, "VoidZealotWhirlwind", 0, c_orderQueueReplace),
+                      "demo.temp.order");
+    // 限时存活窗口：等待 lifetime 秒，证明单位「存在一段时间」而非瞬时生成即销毁
+    CMLib_WaitGame(2.5);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_z), "demo.temp.alive");
+    // 到时移除：无痕收尾，验证 UnitOk 随即变 false
+    CMLib_UnitRemove(lv_z);
+    CMLibTest_MarkTag((CMLib_UnitOk(lv_z) == false), "demo.temp.despawn");
+    // 通用实现函数本身可被调用（参数化 API 可用性，落点偏移避免与上方重叠）
+    CMLibTest_Demo_TemporaryCaster("ZealotAiur", "VoidZealotWhirlwind", 1.0,
+                                   CMLib_PointOffset(lv_origin, 8.0, 0.0), 1);
+    CMLibTest_MarkTag(true, "demo.temp.helper");
+
+    // ---- 能力实现：金甲虫炮弹命中→生成限时旋风斩狂热者（用户原示例，真机闭环）----
+    // 这次把金甲虫真正拉进来：生成金甲虫(p1) 与 1 血假人(p2 敌对)，下令金甲虫攻击假人
+    // → 炮弹(Scarab)自动发射命中 → 假人死亡事件回调 → 生成 ZealotAiur 自施放
+    // VoidZealotWhirlwind 并限时移除。全程仅用通用库原语，参数化、不特化为任何游戏功能。
+    // 落点纪律：本测试图只有 32x32，偏移必须留在可玩区内。
+    // （踩坑记录：曾用 offset 20/25，落到地图外 -> UnitCreate 直接返回 null，
+    //   表象是「金甲虫刷不出来」，被误判成数据依赖缺失，白绕了两轮数据注入。）
+    lv_reaverPos = CMLib_PointOffset(lv_origin, -8.0, 8.0);
+    lv_dummyPos  = CMLib_PointOffset(lv_origin, -8.0, 2.0);   // 距金甲虫 6，落在其射程 8 内
+    lv_reaver = CMLib_SpawnForced("Reaver", 1, lv_reaverPos, 270.0);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_reaver), "demo.reaver.spawn");
+    // 敌对假人：本图 lobby 只开了 P1，敌方槽按 2 -> 15 -> 0 顺序通用兜底探测。
+    lv_dummyPlayer = 2;
+    CMLib_AllyMakeEnemies(1, lv_dummyPlayer);
+    lv_dummy = CMLib_SpawnForced("Marine", lv_dummyPlayer, lv_dummyPos, 270.0);
+    if ((CMLib_UnitOk(lv_dummy) == false)) {
+        lv_dummyPlayer = 15;
+        CMLib_AllyMakeEnemies(1, lv_dummyPlayer);
+        lv_dummy = CMLib_SpawnForced("Marine", lv_dummyPlayer, lv_dummyPos, 270.0);
+    }
+    if ((CMLib_UnitOk(lv_dummy) == false)) {
+        lv_dummyPlayer = 0;
+        CMLib_AllyMakeEnemies(1, lv_dummyPlayer);
+        lv_dummy = CMLib_SpawnForced("Marine", lv_dummyPlayer, lv_dummyPos, 270.0);
+    }
+    CMLib_UnitSetLifePercent(lv_dummy, 1.0);     // 1 血：炮弹一击必杀
+    gv_demoDeathPos = lv_dummyPos;               // 缓存死亡位置（回调里避免读已失效句柄）
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_dummy), "demo.reaver.target");
+    // 注册假人死亡事件 → 炮弹击杀后生成限时旋风斩狂热者
+    gt_demoReaverDeath = CMLib_TrigNew("CMLibTest_OnReaverTargetDied", "cmlib_evt");
+    CMLib_TrigOnUnitDied(gt_demoReaverDeath, lv_dummy);
+    // 下令金甲虫攻击假人所在点（点目标下令；单体单位目标下令库未提供，用 AtPoint 等效）
+    // 能力 id 用 catalog 里的原名 "attack"（小写），大写形态在 AbilityCommand 查表可能落空
+    CMLibTest_MarkTag(CMLib_UnitOrderAbilityAtPoint(lv_reaver, "attack", 0, lv_dummyPos, c_orderQueueReplace),
+                      "demo.reaver.order");
+    // 限时等待：金甲虫起手 + 炮弹(Scarab)发射飞行 + 命中击杀 + 生成限时单位 全部完成
+    // （金甲虫攻击冷却约 6s、Scarab 为二段投射，给足 12s 余量）
+    CMLib_WaitGame(12.0);
+    CMLibTest_MarkTag(gv_demoReaverChain, "demo.reaver.chain");        // 炮弹击杀→生成链路跑通
+    CMLibTest_MarkTag((CMLib_UnitOk(lv_dummy) == false), "demo.reaver.targetdead");
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_reaver), "demo.reaver.alive");
+
+    // ---- player：静态属性 + 非法槽兜底 ----
+    lv_pStart = CMLib_PlayerStart(1);
+    CMLibTest_MarkTag(lv_pStart != null, "pl.start");
+    // 非法槽返回 Point(0,0) 而不是 null —— 这是本封装的兜底契约
+    CMLibTest_MarkTag(CMLib_PlayerStart(99) != null, "pl.start.badslot");
+    CMLibTest_MarkTag(CMLib_PlayerDiff(99) == 0, "pl.diff.badslot");
+    CMLibTest_MarkTag(CMLib_PlayerRaceOf(1) != "", "pl.race");
+    CMLibTest_MarkTag(CMLib_PlayerRaceOf(99) == "", "pl.race.badslot");
+    lv_pg = CMLib_PGCopyOf(null);
+    CMLibTest_MarkTag(lv_pg != null, "pl.pgcopy.null");
+    CMLibTest_MarkTag(PlayerGroupCount(CMLib_PGCopyOf(PlayerGroupSingle(1))) == 1,
+                      "pl.pgcopy.one");
+    CMLibTest_MarkTag(CMLib_PGAllianceOf(c_playerGroupAlly, 1) != null, "pl.pgally");
+    CMLibTest_MarkTag(PlayerGroupCount(CMLib_PGAllianceOf(c_playerGroupAlly, 99)) == 0,
+                      "pl.pgally.badslot");
+
+    // ---- core：随机边界自动交换 + 取模除零兜底 ----
+    // RandomFixed(5,1) 这种反序区间在原生里行为未定义；封装后必须落在 [1,5]。
+    lv_rf = CMLib_RandF(5.0, 1.0);
+    CMLibTest_MarkTag((lv_rf >= 1.0) && (lv_rf <= 5.0), "core.randf.swap");
+    lv_ri = CMLib_RandI(10, 1);
+    CMLibTest_MarkTag((lv_ri >= 1) && (lv_ri <= 10), "core.randi.swap");
+    // ModI(x, 0) 会抛除零错误并中断整个触发器 —— 这是最有价值的一条守门
+    CMLibTest_MarkTag(CMLib_ModSafe(7, 0) == 0, "core.mod.zero");
+    CMLibTest_MarkTag(CMLib_ModSafe(7, 3) == 1, "core.mod.ok");
+
+
+    // =========================================================================
+    // 第 13 轮新增：命令队列 / 选择集 / Catalog 探测 / 几何朝向与包围盒
+    //              / 镜头与声道 / 触发器执行计数 + 事件取参真闭环
+    //
+    // 本轮的取舍：gap_scan 报出的 top40 未覆盖符号里，先剔除 GUI 自动访问器噪声
+    //（*FromId / *FromName / *LastCreated / *Loop*，那是触发器编辑器生成的样板，
+    // 不属于"人手写业务代码会用"的 API），再剔除已有等价封装的假缺口
+    //（UnitHasBehavior -> CMLib_UnitHasBehavior、
+    //  CatalogFieldValueSetFixed -> CMLib_CatSetFixed），剩下 24 个才是真缺口。
+    // =========================================================================
+
+    // ---- unit：命令队列读取（UnitOrder 是 getter，不是下令！）----
+    CMLibTest_MarkTag(CMLib_UnitOrderAt(null, 0) == null, "unit.orderat.null");
+    CMLibTest_MarkTag(CMLib_UnitOrderAt(lv_probe, -1) == null, "unit.orderat.neg");
+    CMLibTest_MarkTag(CMLib_UnitOrderHasAbil(null, "move") == false,
+                      "unit.orderhasabil.null");
+    CMLibTest_MarkTag(CMLib_UnitOrderHasAbil(lv_probe, "") == false,
+                      "unit.orderhasabil.empty");
+    // 真闭环：给 SCV 下一条移动命令，再从命令队列把它读回来。
+    // 一条断言同时钉死「下令」与「读队列」两侧语义，是本段的硬证据。
+    lv_dst = CMLib_PointOffset(lv_origin, 12.0, 12.0);
+    CMLibTest_MarkTag(CMLib_UnitOrderAbilityAtPoint(lv_probe, "move", 0, lv_dst,
+                                                    c_orderQueueReplace),
+                      "unit.order.move");
+    CMLib_WaitGame(0.2);
+    CMLibTest_MarkTag(CMLib_UnitOrderHasAbil(lv_probe, "move"),
+                      "unit.orderhasabil.move");
+    CMLibTest_MarkTag(CMLib_UnitOrderAt(lv_probe, 0) != null, "unit.orderat.read");
+
+    // ---- unit：选择集 ----
+    CMLib_SelClear(1);
+    CMLib_SelClear(99);                 // 非法槽守门
+    CMLibTest_MarkTag(true, "unit.selclear");
+    lv_gSel = CMLib_UGSelected(1);
+    CMLibTest_MarkTag(lv_gSel != null, "unit.selected.notnull");
+    // 契约：非法槽返回空组而不是 null，调用方可以无脑遍历、不用先判空
+    CMLibTest_MarkTag(UnitGroupCount(CMLib_UGSelected(99), c_unitCountAll) == 0,
+                      "unit.selected.badslot");
+    CMLibTest_MarkTag(CMLib_UGFilterStr("", 1, lv_gAll, "", 0) != null,
+                      "ug.filterstr.notnull");
+    CMLibTest_MarkTag(UnitGroupCount(CMLib_UGFilterStr("", 99, lv_gAll, "", 0),
+                                     c_unitCountAll) == 0,
+                      "ug.filterstr.badslot");
+
+    // ---- catalog：字段探测 / 引用写入守门 ----
+    CMLibTest_MarkTag(CMLib_CatFieldExists("", "Name") == false,
+                      "cat.fieldexists.emptyscope");
+    CMLibTest_MarkTag(CMLib_CatFieldExists("Unit", "") == false,
+                      "cat.fieldexists.emptyfield");
+    CMLibTest_MarkTag(CMLib_CatRefSet("", 1, "1") == false, "cat.refset.empty");
+
+    // ---- geo：点朝向 / 寻路代价 / 区域合并与包围盒 ----
+    CMLibTest_MarkTag(CMLib_PointFacing(null) == 0.0, "geo.facing.null");
+    CMLib_PointSetFacing(null, 45.0);   // null 守门
+    CMLib_PointSetFacing(lv_zero, 90.0);
+    CMLibTest_MarkTag(CMLib_PointFacing(lv_zero) == 90.0, "geo.facing.roundtrip");
+    CMLibTest_MarkTag(CMLib_PathCost(null, lv_origin) == -1, "geo.pathcost.null");
+    CMLibTest_MarkTag(CMLib_PathCost(lv_origin, lv_origin) >= 0, "geo.pathcost.self");
+    lv_rAcc = RegionEmpty();
+    CMLib_RegionAdd(null, null);        // null 守门
+    CMLib_RegionAdd(lv_rAcc, RegionCircle(lv_origin, 3.0));
+    CMLibTest_MarkTag(RegionContainsPoint(lv_rAcc, lv_origin), "geo.regionadd");
+    lv_bmin = CMLib_RegionBoundsMin(lv_map);
+    lv_bmax = CMLib_RegionBoundsMax(lv_map);
+    CMLibTest_MarkTag((lv_bmin != null) && (lv_bmax != null), "geo.bounds.notnull");
+    CMLibTest_MarkTag(PointGetX(lv_bmax) > PointGetX(lv_bmin), "geo.bounds.order");
+    CMLibTest_MarkTag(CMLib_RegionBoundsMin(null) == null, "geo.bounds.null");
+
+    // ---- fx：镜头与声道（fx 模块此前在自测里 0 覆盖，本轮首次上真机）----
+    CMLib_CamShakePreset(1, "", "Medium", 0.5, 0.5, 1.0);   // 空预设名守门
+    CMLibTest_MarkTag(true, "fx.camshakepreset.guard");
+    CMLibTest_MarkTag(CMLib_CamTarget(1) != null, "fx.camtarget");
+    CMLib_CamSave(1);
+    CMLib_CamRestore(1, 0.5, -1.0, 10.0);
+    CMLibTest_MarkTag(true, "fx.camsaverestore");
+    CMLib_SfxChannelMute(null, 0, true);                    // null 守门
+    CMLib_SfxChannelMute(PlayerGroupSingle(1), 0, false);
+    CMLibTest_MarkTag(true, "fx.channelmute");
+    // 声音 id 不硬编码：从 Sound 目录取第 1 条真实存在的条目，
+    // 免得测试图一换依赖，写死的 id 就失效（那会变成一条误导性的永久失败）
+    lv_catE = CMLib_CatEntryAt(c_gameCatalogSound, 1);
+    CMLib_SfxPlayAtFor("", 1, PlayerGroupSingle(1), lv_origin, 1.0);   // 空 id 守门
+    CMLib_SfxPlayAtFor(lv_catE, 1, PlayerGroupSingle(1), null, 1.0);   // null 落点守门
+    CMLib_SfxPlayAtFor(lv_catE, 1, PlayerGroupSingle(1), lv_origin, 0.5);
+    CMLibTest_MarkTag(lv_catE != "", "fx.playatfor");
+
+    // ---- trig：执行计数 ----
+    CMLibTest_MarkTag(CMLib_TrigExecCount(null) == 0, "trig.execcount.null");
+    lv_trigC = CMLib_TrigNew("CMLibTest_Dummy", "cmlib_r13");
+    lv_execA = CMLib_TrigExecCount(lv_trigC);
+    // Dummy 体内没有 Wait，同步执行可以立刻回读计数；
+    // 「waitUntilDone 一律传 false」那条铁律针对的是 while(true) 常驻触发器。
+    TriggerExecute(lv_trigC, true, false);
+    lv_execB = CMLib_TrigExecCount(lv_trigC);
+    CMLibTest_MarkTag(lv_execB > lv_execA, "trig.execcount.inc");
+
+    // ---- trig：单位创建事件真闭环（继区域事件之后第二条可程序化触发的硬证据）----
+    gv_cmlibCreatedHits = 0;
+    gv_cmlibCreatedOk = 0;
+    gt_CMLibCreated = CMLib_TrigNew("CMLibTest_OnCreated", "cmlib_r13");
+    // creatorAbil / creatorBehavior 传 null 才是"任意"；传 "" 是字面空串、匹配不上，
+    // 这是抄官方 GUI 生成码验过的约定（TriggerAddEventUnitCreated(t, null, null, null)）。
+    CMLib_TrigOnUnitCreated(gt_CMLibCreated, null, null, null);
+    CMLibTest_MarkTag(true, "trig.created.mount");
+    CMLib_SpawnForced("SCV", 1, CMLib_PointOffset(lv_origin, 0.0, -8.0), 270.0);
+    CMLib_WaitGame(1.0);
+    CMLibTest_MarkTag(gv_cmlibCreatedHits >= 1, "trig.created.fired");
+    CMLibTest_MarkTag(gv_cmlibCreatedOk >= 1, "trig.evt.createdunit");
+    // 关掉：下面结果编码要生成上百个 Marauder，留着会把这个触发器刷成上百次派发
+    CMLib_TrigOff(gt_CMLibCreated);
+
+    // ---- trig：事件取参 native 在非事件上下文的安全性（隔离线程）----
+    gv_cmlibEvtProbe = 0;
+    TriggerExecute(TriggerCreate("CMLibTest_EvtProbe"), false, false);
+    CMLib_WaitGame(0.5);
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 1, "trig.evt.dmgsourceplayer");
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 2, "trig.evt.dmgsourceunit");
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 3, "trig.evt.effectowner");
+    // round 18：EvtDamageAmount 在伤害事件里必然可读；EvtUpgradeName 不在
+    // 升级事件上下文里，能不能读通由引擎决定 —— 所以它排在最后一位，
+    // 读不通只损失自己这一条，不影响前面 4 条的证据。
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 4, "trig.evt.damageamount");
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 5, "trig.evt.upgradename");
+
+
+    // ================= round 17：unit / player / bank / panel / ui 补齐 =================
+
+    // ---- unit：句柄与标识 ----
+    lv_r17u = CMLib_SpawnForced("Marine", 1,
+                                CMLib_PointOffset(lv_origin, 3.0, -3.0), 90.0);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_r17u), "unit.r17.spawn");
+    CMLibTest_MarkTag(CMLib_UnitTag(lv_r17u) != 0, "unit.tag");
+    CMLibTest_MarkTag(CMLib_UnitTag(null) == 0, "unit.tag.guard");
+    // UnitFromId 取的是**编辑器预放置**单位 id，不是 UnitGetTag 的运行时 tag
+    // （官方图里全是 UnitFromId(9) / UnitFromId(3245) 这种小整数）。
+    // 所以这里只验守卫契约，不写一个必然失败的往返断言。
+    CMLibTest_MarkTag(CMLib_UnitById(0) == null, "unit.byid.guard");
+    CMLibTest_MarkTag(CMLib_UnitById(-1) == null, "unit.byid.guard.neg");
+
+    // ---- unit：朝向（三种入口 + null 守卫都不得炸）----
+    CMLib_UnitFace(lv_r17u, 180.0, 0.0);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_r17u), "unit.face");
+    CMLib_UnitFaceUnit(lv_r17u, lv_u, 0.0);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_r17u), "unit.face.unit");
+    CMLib_UnitFacePoint(lv_r17u, lv_origin, 0.0);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_r17u), "unit.face.point");
+    CMLib_UnitFace(null, 90.0, -1.0);          // null + 负时长双守卫
+    CMLib_UnitFaceUnit(lv_r17u, null, 0.0);
+    CMLib_UnitFacePoint(null, lv_origin, 0.0);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_r17u), "unit.face.guard");
+
+    // ---- unit：选中 / 信息文本 ----
+    CMLib_UnitSelectFor(lv_r17u, 1, true);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_r17u), "unit.select");
+    CMLib_UnitSelectOnly(lv_r17u, 1);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_r17u), "unit.select.only");
+    CMLib_UnitSelectFor(lv_r17u, 99, true);    // 非法槽位：走 LogWarn 分支不崩
+    CMLib_UnitSelectOnly(null, 1);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_r17u), "unit.select.guard");
+    CMLib_UnitInfoText(lv_r17u, StringToText("CMLib"),
+                       StringToText(""), StringToText(""));
+    CMLib_UnitInfoText(null, StringToText(""), StringToText(""), StringToText(""));
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_r17u), "unit.infotext");
+
+    // ---- unit：类型元数据 ----
+    // 「建筑」在引擎里是 attribute（c_unitAttributeStructure=7）不是 flag ——
+    // 这两条就是那次「c_unitFlagStructure 不存在」踩坑的回归护栏。
+    CMLibTest_MarkTag(CMLib_UnitTypeIsStructure("SupplyDepot") == true,
+                      "unit.type.structure");
+    CMLibTest_MarkTag(CMLib_UnitTypeIsStructure("Marine") == false,
+                      "unit.type.structure.neg");
+    CMLibTest_MarkTag(CMLib_UnitTypeIsStructure("") == false,
+                      "unit.type.structure.guard");
+    CMLibTest_MarkTag(CMLib_UnitTypeIsWorker("SCV") == true, "unit.type.worker");
+    CMLibTest_MarkTag(CMLib_UnitTypeIsWorker("Marine") == false,
+                      "unit.type.worker.neg");
+    CMLibTest_MarkTag(CMLib_UnitTypeProp("Marine", c_unitPropLifeMax) > 0.0,
+                      "unit.type.prop");
+    CMLibTest_MarkTag(CMLib_UnitTypeProp("", c_unitPropLifeMax) == 0.0,
+                      "unit.type.prop.guard");
+    CMLibTest_MarkTag(CMLib_UnitTypeFlag("SCV", c_unitFlagWorker) == true,
+                      "unit.type.flag");
+    CMLibTest_MarkTag(CMLib_UnitTypeFlag("", c_unitFlagWorker) == false,
+                      "unit.type.flag.guard");
+
+    // ---- unit：计数（Ghost 是编译成功 sentinel，此刻必在场）----
+    CMLibTest_MarkTag(CMLib_UnitCountOf("Ghost", 1, null, "", 0) >= 1,
+                      "unit.count.of");
+    CMLibTest_MarkTag(CMLib_UnitCountOf("Ghost", 1, RegionEntireMap(), "", 0) >= 1,
+                      "unit.count.of.region");
+    CMLibTest_MarkTag(CMLib_UnitCountOf("Ghost", 99, null, "", 0) == 0,
+                      "unit.count.guard");
+    CMLibTest_MarkTag(CMLib_UnitCountAllianceOf(1, c_unitAllianceAny, null, "", 0) >= 1,
+                      "unit.count.alliance");
+    CMLibTest_MarkTag(CMLib_UnitCountAllianceOf(99, c_unitAllianceAny, null, "", 0) == 0,
+                      "unit.count.alliance.guard");
+
+    // ---- unit：order 结构读写 ----
+    lv_r17order = CMLib_OrderAt("attack", 0, lv_origin);
+    CMLibTest_MarkTag(lv_r17order != null, "unit.order.at");
+    CMLibTest_MarkTag(CMLib_OrderTargetPoint(lv_r17order) != null,
+                      "unit.order.target.point");
+    CMLibTest_MarkTag(StringLength(AbilityCommandGetAbility(
+                          CMLib_OrderAbilCmd(lv_r17order))) > 0,
+                      "unit.order.abilcmd");
+    lv_r17order = CMLib_OrderOn("attack", 0, lv_r17u);
+    CMLibTest_MarkTag(CMLib_OrderTargetUnit(lv_r17order) == lv_r17u,
+                      "unit.order.on");
+    CMLib_OrderSetTargetPoint(lv_r17order, lv_origin);
+    CMLibTest_MarkTag(CMLib_OrderTargetPoint(lv_r17order) != null,
+                      "unit.order.settarget.point");
+    CMLib_OrderSetTargetUnit(lv_r17order, lv_r17u);
+    CMLibTest_MarkTag(CMLib_OrderTargetUnit(lv_r17order) == lv_r17u,
+                      "unit.order.settarget.unit");
+    CMLibTest_MarkTag(CMLib_OrderAutoCast("attack", 0, true) != null,
+                      "unit.order.autocast");
+    // 守卫：空技能 / null order 一律安全回退，绝不进 native
+    CMLibTest_MarkTag(CMLib_OrderAt("", 0, lv_origin) == null, "unit.order.guard");
+    CMLibTest_MarkTag(CMLib_OrderOn("attack", 0, null) == null,
+                      "unit.order.on.guard");
+    CMLibTest_MarkTag(CMLib_OrderAutoCast("", 0, true) == null,
+                      "unit.order.autocast.guard");
+    CMLibTest_MarkTag(CMLib_OrderTargetUnit(null) == null, "unit.order.null.unit");
+    CMLibTest_MarkTag(CMLib_OrderTargetPoint(null) == null, "unit.order.null.point");
+    CMLib_OrderSetTargetPoint(null, lv_origin);
+    CMLib_OrderSetTargetUnit(null, lv_r17u);
+    CMLibTest_MarkTag(true, "unit.order.null.set");
+
+    // ---- player：标识 ----
+    lv_r17t = CMLib_PlayerNameOf(1);
+    CMLibTest_MarkTag(true, "player.name");
+    lv_r17s = CMLib_PlayerHandleOf(1);
+    CMLibTest_MarkTag(StringLength(lv_r17s) >= 0, "player.handle");
+    CMLibTest_MarkTag(StringEqual(CMLib_PlayerHandleOf(99), "", true),
+                      "player.handle.guard");
+    CMLibTest_MarkTag(CMLib_PlayerTypeOf(1) == c_playerTypeUser, "player.type");
+    CMLibTest_MarkTag(CMLib_PlayerTypeOf(99) == c_playerTypeNone,
+                      "player.type.guard");
+    CMLibTest_MarkTag(CMLib_PlayerStatusOf(1) == c_playerStatusActive,
+                      "player.status");
+    CMLibTest_MarkTag(CMLib_PlayerStatusOf(99) == c_playerStatusUnused,
+                      "player.status.guard");
+    CMLibTest_MarkTag(CMLib_PlayerPropInt(1, c_playerPropMinerals) >= 0,
+                      "player.prop");
+    CMLibTest_MarkTag(CMLib_PlayerPropInt(99, c_playerPropMinerals) == 0,
+                      "player.prop.guard");
+
+    // ---- player：颜色（读回往返，不改变实际外观）----
+    lv_r17i = CMLib_PlayerColor(1);
+    CMLibTest_MarkTag(lv_r17i >= 0, "player.color");
+    CMLib_PlayerSetColor(1, lv_r17i, false);
+    CMLibTest_MarkTag(CMLib_PlayerColor(1) == lv_r17i, "player.color.set");
+    CMLib_PlayerSetColor(1, -1, false);        // 负索引：守卫必须挡住
+    CMLib_PlayerSetColor(99, 0, false);        // 非法槽位：守卫必须挡住
+    CMLibTest_MarkTag(CMLib_PlayerColor(1) == lv_r17i, "player.color.guard");
+
+    // ---- player：playergroup 增删查 ----
+    lv_r17pg = PlayerGroupEmpty();
+    CMLib_PGAdd(lv_r17pg, 1);
+    CMLibTest_MarkTag(CMLib_PGHas(lv_r17pg, 1) == true, "player.pg.add");
+    CMLibTest_MarkTag(CMLib_PGCount(lv_r17pg) == 1, "player.pg.count");
+    CMLibTest_MarkTag(CMLib_PGAt(lv_r17pg, 1) == 1, "player.pg.at");
+    CMLibTest_MarkTag(CMLib_PGAt(lv_r17pg, 0) == 0, "player.pg.at.guard.low");
+    CMLibTest_MarkTag(CMLib_PGAt(lv_r17pg, 99) == 0, "player.pg.at.guard.high");
+    CMLibTest_MarkTag(CMLib_PGAt(null, 1) == 0, "player.pg.at.guard.null");
+    CMLib_PGRemove(lv_r17pg, 1);
+    CMLibTest_MarkTag(CMLib_PGHas(lv_r17pg, 1) == false, "player.pg.remove");
+    CMLib_PGAdd(lv_r17pg, 1);
+    CMLib_PGAdd(lv_r17pg, 99);                 // 非法槽位不得入组
+    CMLib_PGClear(lv_r17pg);
+    CMLibTest_MarkTag(CMLib_PGCount(lv_r17pg) == 0, "player.pg.clear");
+    CMLib_PGAdd(null, 1);
+    CMLib_PGRemove(null, 1);
+    CMLib_PGClear(null);
+    CMLibTest_MarkTag(true, "player.pg.null.guard");
+
+    // ---- player：天赋 / 冷却 / 施法（都只验守卫与可调用性）----
+    CMLibTest_MarkTag(CMLib_PlayerTalent(1, "") == false, "player.talent.guard");
+    CMLibTest_MarkTag(CMLib_PlayerTalent(99, "CMLibNone") == false,
+                      "player.talent.guard.slot");
+    CMLib_PlayerEffectAt(1, "", lv_origin);
+    CMLib_PlayerEffectOn(1, "", lv_r17u);
+    CMLib_PlayerEffectOn(1, "CMLibNone", null);
+    CMLibTest_MarkTag(true, "player.effect.guard");
+    // 冷却读取放本段末尾：未知 cooldown link 的引擎行为不是 100% 确定，
+    // 万一抛运行时错误也只损失这两条，不带走上面整段 player 证据。
+    CMLibTest_MarkTag(CMLib_PlayerCooldown(1, "") == 0.0, "player.cooldown.guard");
+    lv_r17f = CMLib_PlayerCooldown(1, "CMLibNoSuchCooldown");
+    CMLibTest_MarkTag(lv_r17f >= 0.0, "player.cooldown");
+    CMLibTest_MarkTag(CMLib_PlayerCooldownReady(1, "CMLibNoSuchCooldown") == true,
+                      "player.cooldown.ready");
+
+    // ---- bank：底层查询（lv_bank 早已写过 Result 段）----
+    CMLibTest_MarkTag(StringEqual(CMLib_BankNameOf(lv_bank),
+                                  "CMLibRuntimeTest", true), "bank.name");
+    CMLibTest_MarkTag(StringEqual(CMLib_BankNameOf(null), "", true),
+                      "bank.name.guard");
+    CMLibTest_MarkTag(CMLib_BankPlayerOf(lv_bank) == 1, "bank.player");
+    CMLibTest_MarkTag(CMLib_BankPlayerOf(null) == 0, "bank.player.guard");
+    CMLibTest_MarkTag(CMLib_BankExists("CMLibRuntimeTest", 1) == true, "bank.exists");
+    CMLibTest_MarkTag(CMLib_BankExists("", 1) == false, "bank.exists.guard");
+    CMLibTest_MarkTag(CMLib_BankExists("CMLibRuntimeTest", 99) == false,
+                      "bank.exists.guard.slot");
+    CMLibTest_MarkTag(CMLib_BankSectionExists(lv_bank, "Result") == true,
+                      "bank.section.exists");
+    CMLibTest_MarkTag(CMLib_BankSectionExists(lv_bank, "CMLibNoSuchSection") == false,
+                      "bank.section.exists.neg");
+    CMLibTest_MarkTag(CMLib_BankSectionCount(lv_bank) >= 1, "bank.section.count");
+    CMLibTest_MarkTag(CMLib_BankSectionCount(null) == 0, "bank.section.count.guard");
+    // 枚举索引基数（0 还是 1）引擎未文档化 —— 只钉守卫契约，不钉具体名字。
+    CMLibTest_MarkTag(StringEqual(CMLib_BankSectionName(lv_bank, -1), "", true),
+                      "bank.section.name.guard.low");
+    CMLibTest_MarkTag(StringEqual(CMLib_BankSectionName(lv_bank, 9999), "", true),
+                      "bank.section.name.guard.high");
+    lv_r17s = CMLib_BankSectionName(lv_bank, 0);
+    CMLibTest_MarkTag(true, "bank.section.name");
+    CMLibTest_MarkTag(CMLib_BankKeyCount(lv_bank, "Result") >= 1, "bank.key.count");
+    CMLibTest_MarkTag(CMLib_BankKeyCount(lv_bank, "CMLibNoSuchSection") == 0,
+                      "bank.key.count.guard");
+    CMLibTest_MarkTag(StringEqual(
+                          CMLib_BankKeyName(lv_bank, "CMLibNoSuchSection", 0), "", true),
+                      "bank.key.name.guard");
+    lv_r17s = CMLib_BankKeyName(lv_bank, "Result", 0);
+    CMLibTest_MarkTag(true, "bank.key.name");
+    CMLib_BankOption(lv_bank, c_bankOptionSignature, false);
+    CMLibTest_MarkTag(CMLib_BankOptionOn(lv_bank, c_bankOptionSignature) == false,
+                      "bank.option");
+    CMLibTest_MarkTag(CMLib_BankOptionOn(null, c_bankOptionSignature) == false,
+                      "bank.option.guard");
+    lv_r17b = CMLib_BankVerified(lv_bank);
+    CMLibTest_MarkTag(CMLib_BankVerified(null) == false, "bank.verified.guard");
+    CMLibTest_MarkTag(CMLib_BankLast() != null, "bank.last");
+    CMLib_BankRemove(null);                    // 只验 null 守卫；绝不删真 bank
+    CMLibTest_MarkTag(true, "bank.remove.guard");
+    // CMLib_BankWait 刻意不做真机断言：它是阻塞语义，一旦引擎不返回
+    // 会把整个测试挂死成超时，代价远大于收益。
+
+    // ---- panel：任务目标补齐 ----
+    lv_r17obj = CMLib_ObjCreate(StringToText("CMLib R17"),
+                                StringToText("round17"), false);
+    CMLibTest_MarkTag(lv_r17obj >= 0, "panel.obj.create");
+    CMLibTest_MarkTag(CMLib_ObjLast() == lv_r17obj, "panel.obj.last");
+    CMLib_ObjSetPriority(lv_r17obj, 5);
+    CMLibTest_MarkTag(CMLib_ObjPriority(lv_r17obj) == 5, "panel.obj.priority");
+    CMLib_ObjSetPrimary(lv_r17obj, true);
+    CMLibTest_MarkTag(CMLib_ObjIsPrimary(lv_r17obj) == true, "panel.obj.primary");
+    CMLib_ObjSetPrimary(lv_r17obj, false);
+    CMLibTest_MarkTag(CMLib_ObjIsPrimary(lv_r17obj) == false, "panel.obj.primary.off");
+    CMLib_ObjSetPlayers(lv_r17obj, CMLib_PGSingle(1));
+    lv_r17b = CMLib_ObjVisibleFor(lv_r17obj, 1);
+    CMLibTest_MarkTag(true, "panel.obj.visible");
+    CMLibTest_MarkTag(CMLib_ObjVisibleFor(0, 1) == false, "panel.obj.visible.guard");
+    CMLib_ObjSetDesc(lv_r17obj, StringToText("cmlib-desc"));
+    lv_r17t = CMLib_ObjDesc(lv_r17obj);
+    lv_r17t = CMLib_ObjName(lv_r17obj);
+    CMLibTest_MarkTag(true, "panel.obj.text");
+    CMLib_ObjMoveFirst(lv_r17obj);
+    CMLib_ObjMoveLast(lv_r17obj);
+    CMLibTest_MarkTag(CMLib_ObjPriority(lv_r17obj) == 5, "panel.obj.move");
+    CMLib_ObjMoveAfter(lv_r17obj, lv_r17obj);  // anchor == self：守门必须挡住
+    CMLib_ObjMoveBefore(lv_r17obj, lv_r17obj);
+    CMLibTest_MarkTag(CMLib_ObjPriority(lv_r17obj) == 5, "panel.obj.move.self.guard");
+    CMLib_ObjSetPriority(0, 3);                // 无效句柄一律不进 native
+    CMLib_ObjSetPrimary(0, true);
+    CMLib_ObjSetDesc(0, StringToText("x"));
+    CMLib_ObjMoveFirst(0);
+    CMLibTest_MarkTag(CMLib_ObjPriority(0) == 0, "panel.obj.guard");
+    CMLib_ObjDestroy(lv_r17obj);
+    CMLibTest_MarkTag(true, "panel.obj.destroy");
+    CMLib_ObjDestroyAll(CMLib_PGSingle(1));
+    CMLibTest_MarkTag(true, "panel.obj.destroyall");
+
+    // ---- ui：界面模式 / 按钮高亮 / 光标 / 选择方式 ----
+    lv_r17pg = CMLib_PGSingle(1);
+    CMLib_UIMode(lv_r17pg, c_uiModeConsole);
+    CMLibTest_MarkTag(true, "ui.mode");
+    CMLib_UIModeLetterbox(lv_r17pg, 0.0);
+    CMLibTest_MarkTag(true, "ui.mode.letterbox");
+    CMLib_UIModeFullscreen(lv_r17pg, 0.0);
+    CMLibTest_MarkTag(true, "ui.mode.fullscreen");
+    CMLib_UIModeConsole(lv_r17pg, 0.0);        // 还原正常界面，别把测试图搞黑屏
+    CMLibTest_MarkTag(true, "ui.mode.console");
+    CMLib_UISetMode(lv_r17pg, 999, -5.0);      // 越界 mode + 负时长：双钳制
+    CMLib_UISetMode(lv_r17pg, -3, 0.0);
+    CMLib_UIModeConsole(lv_r17pg, 0.0);
+    CMLibTest_MarkTag(true, "ui.mode.guard");
+    CMLib_UIButtonHighlight(lv_r17pg, "attack", 0, true);
+    CMLib_UIButtonHighlight(lv_r17pg, "attack", 0, false);
+    CMLib_UIButtonHighlight(lv_r17pg, "", 0, true);   // 空技能：守卫
+    CMLibTest_MarkTag(true, "ui.button.highlight");
+    CMLib_UICursor(lv_r17pg, true);
+    CMLibTest_MarkTag(true, "ui.cursor");
+    // 引擎没有 c_selectionType* 常量族，只有裸 int —— 用 0 并注明。
+    CMLib_UISelectionType(lv_r17pg, 0, true);
+    CMLibTest_MarkTag(true, "ui.selection.type");
+
+
+    // ============ round 18：面板控件 / 单位 / 角度 / UserData / 音效 ============
+
+    lv_r18pg = PlayerGroupAll();
+
+    // ---- 面板效果：Dialog 控件族 ----
+    // DialogControlCreate 是各 mod 里最高频的面板构造入口（78 文件 / 537 次），
+    // 库里此前只有 InPanel 变体（要求先有 panel 容器），是真实缺口。
+    // 先用原生建一个不可见、非模态的对话框当容器；容器建不出来则整段无意义。
+    lv_r18dlg = DialogCreate(400, 300, c_anchorCenter, 0, 0, false);
+    CMLibTest_MarkTag(lv_r18dlg > 0, "ui.r18.dialog.host");
+
+    lv_r18c1 = CMLib_DlgCtrlCreate(lv_r18dlg, c_triggerControlTypeLabel);
+    CMLibTest_MarkTag(lv_r18c1 > 0, "ui.dlgctrl.create");
+    CMLibTest_MarkTag(CMLib_DlgCtrlCreate(0, c_triggerControlTypeLabel) == 0,
+                      "ui.dlgctrl.create.guard.zero");
+    CMLibTest_MarkTag(CMLib_DlgCtrlCreate(-1, c_triggerControlTypeLabel) == 0,
+                      "ui.dlgctrl.create.guard.neg");
+
+    // 模板名传空必须退化成"无模板创建"，而不是把 "" 当模板名送进引擎
+    //（真机表现是控件建出来了但完全没样式，最难查的一类面板 bug）。
+    lv_r18c2 = CMLib_DlgCtrlCreateTpl(lv_r18dlg, c_triggerControlTypeListBox, "");
+    CMLibTest_MarkTag(lv_r18c2 > 0, "ui.dlgctrl.tpl.emptyfallback");
+    CMLibTest_MarkTag(CMLib_DlgCtrlCreateTpl(0, c_triggerControlTypeLabel, "") == 0,
+                      "ui.dlgctrl.tpl.guard");
+
+    // 选中项：空列表框下的返回基数各版本不一致，只验守卫 + 不抛错。
+    CMLibTest_MarkTag(CMLib_DlgCtrlSelectedItem(0, 1) == 0,
+                      "ui.dlgctrl.selected.guard");
+    lv_r18i = CMLib_DlgCtrlSelectedItem(lv_r18c2, 1);
+    CMLibTest_MarkTag(lv_r18i >= 0, "ui.dlgctrl.selected.nocrash");
+
+    // 铺满对话框；players 传 null 必须走"所有玩家"分支而不是把 null 传下去。
+    CMLib_DlgCtrlFullDialog(lv_r18c1, null, true);
+    CMLib_DlgCtrlFullDialog(lv_r18c1, lv_r18pg, false);
+    CMLib_DlgCtrlFullDialog(0, null, true);
+    CMLibTest_MarkTag(true, "ui.dlgctrl.fulldialog");
+
+    // 连续销毁两次不得炸 —— "销毁两次"是面板代码最常见的崩因。
+    CMLib_DlgCtrlDestroy(lv_r18c2);
+    CMLib_DlgCtrlDestroy(lv_r18c2);
+    CMLib_DlgCtrlDestroy(0);
+    CMLibTest_MarkTag(true, "ui.dlgctrl.destroy.twice");
+
+    // 指挥面板按钮 face 高亮（新手引导高频）。face 名未知时不得炸 —— 放子块末尾。
+    CMLib_UIFaceHighlight(null, "", true);
+    CMLib_UIFaceHighlight(lv_r18pg, "AttackFace", true);
+    CMLib_UIFaceHighlight(lv_r18pg, "AttackFace", false);
+    CMLibTest_MarkTag(true, "ui.face.highlight");
+    DialogDestroy(lv_r18dlg);
+
+    // ---- 单位：behavior 原生版往返（与 CMLib_UnitHasBehavior2 是两个不同 native）----
+    lv_r18u = CMLib_SpawnForced("Marine", 1,
+                                CMLib_PointOffset(lv_origin, 6.0, -3.0), 90.0);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_r18u), "unit.r18.spawn");
+    CMLibTest_MarkTag(CMLib_UnitHasBehaviorRaw(lv_r18u, "Stimpack") == false,
+                      "unit.hasbehavior.raw.before");
+    CMLib_UnitBehaviorAdd(lv_r18u, "Stimpack", lv_r18u, 1);
+    CMLibTest_MarkTag(CMLib_UnitHasBehaviorRaw(lv_r18u, "Stimpack"),
+                      "unit.hasbehavior.raw.after");
+    CMLib_UnitBehaviorRemove(lv_r18u, "Stimpack", 1);
+    CMLibTest_MarkTag(CMLib_UnitHasBehaviorRaw(lv_r18u, "Stimpack") == false,
+                      "unit.hasbehavior.raw.removed");
+    CMLibTest_MarkTag(CMLib_UnitHasBehaviorRaw(null, "Stimpack") == false,
+                      "unit.hasbehavior.raw.guard.null");
+    CMLibTest_MarkTag(CMLib_UnitHasBehaviorRaw(lv_r18u, "") == false,
+                      "unit.hasbehavior.raw.guard.empty");
+
+    // ---- 单位：命令队列 / 队伍色 / 技能充能 ----
+    CMLibTest_MarkTag(CMLib_UnitOrderCount(null) == 0, "unit.ordercount.guard");
+    CMLibTest_MarkTag(CMLib_UnitOrderCount(lv_r18u) >= 0, "unit.ordercount.nocrash");
+    CMLib_UnitTeamColor(lv_r18u, 3);
+    CMLib_UnitTeamColor(null, 3);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_r18u), "unit.teamcolor");
+    // abilcmd 传 null 必须短路成 0.0 / 空操作，不能把 null 送进原生。
+    CMLibTest_MarkTag(CMLib_UnitAbilChargeInfo(lv_r18u, null,
+                                               c_unitAbilChargeCountMax) == 0.0,
+                      "unit.abilcharge.guard");
+    CMLib_UnitAbilReset(lv_r18u, null, 0);
+    CMLib_UnitAbilReset(null, null, 0);
+    CMLibTest_MarkTag(CMLib_UnitOk(lv_r18u), "unit.abilreset.guard");
+    CMLibTest_MarkTag(CMLib_UnitRefFromVar("") == null, "unit.reffromvar.guard");
+
+    // ---- 单位组：按区域过滤 ----
+    lv_r18g = CMLib_UGOfTypeInMap("Marine", 1);
+    CMLibTest_MarkTag(UnitGroupCount(CMLib_UGFilterRegion(null, lv_map, 0),
+                                     c_unitCountAll) == 0,
+                      "ug.filterregion.guard.nullgroup");
+    CMLibTest_MarkTag(UnitGroupCount(CMLib_UGFilterRegion(lv_r18g, null, 0),
+                                     c_unitCountAll)
+                      == UnitGroupCount(lv_r18g, c_unitCountAll),
+                      "ug.filterregion.nullregion.passthru");
+    // ⚠️ 这两条 round18 第一版写错了，真机 FAIL 才发现（教训见 README §5.7）：
+    // 原断言用 `RegionPlayableMap()` 过滤后要求"等于原组"，但 `CMLib_UGOfTypeInMap`
+    // 建组用的是 `RegionEntireMap()`（含不可玩边界），两个区域根本不是一回事，
+    // 只要有单位落在可玩区外，等式就不成立 —— 断言建立在**未验证的地图假设**上。
+    // 改成用建组时的同一个区域：过滤 = 恒等，这才是不依赖地图形状的强断言。
+    CMLibTest_MarkTag(UnitGroupCount(CMLib_UGFilterRegion(lv_r18g, RegionEntireMap(),
+                                                          c_noMaxCount),
+                                     c_unitCountAll)
+                      == UnitGroupCount(lv_r18g, c_unitCountAll),
+                      "ug.filterregion.entiremap");
+    // maxCount 传负数必须夹到"不限量"，而不是原样丢给原生（行为未定义）。
+    // 直接和 `c_noMaxCount` 的结果比 —— 证的是**钳位等价**本身，
+    // 不再借道"等于原组"这个额外假设。
+    CMLibTest_MarkTag(UnitGroupCount(CMLib_UGFilterRegion(lv_r18g, lv_map, -1),
+                                     c_unitCountAll)
+                      == UnitGroupCount(CMLib_UGFilterRegion(lv_r18g, lv_map,
+                                                             c_noMaxCount),
+                                        c_unitCountAll),
+                      "ug.filterregion.negmax");
+
+    // ---- 触发器：引擎侧按函数名查找 + 玩家属性事件 ----
+    // 注意 CMLib_TrigFindByFunc 与 CMLib_TrigFind 是两个东西：
+    // 前者查引擎表（TriggerFind），后者查 CMLib 自己的登记表。同名会导致
+    // Galaxy 函数重定义 → 整图静默丢弃，所以本轮特意分了名字。
+    CMLibTest_MarkTag(CMLib_TrigFindByFunc("") == null, "trig.findbyfunc.guard");
+    lv_r18t = CMLib_TrigFindByFunc("CMLibTest_Deferred");
+    CMLibTest_MarkTag(true, "trig.findbyfunc.nocrash");
+    lv_r18t = TriggerCreate("CMLibTest_NoopHandler");
+    CMLib_TrigOnPlayerPropChange(null, 1, c_playerPropMinerals);
+    CMLib_TrigOnPlayerPropChange(lv_r18t, 1, c_playerPropMinerals);
+    CMLibTest_MarkTag(lv_r18t != null, "trig.onplayerpropchange");
+    CMLibTest_MarkTag(CMLib_TrigEventParamName("", "x") == "",
+                      "trig.eventparamname.guard");
+
+    // ---- 几何：角度制三角函数（SC2 的 Sin/Cos 吃「度」不是弧度）----
+    // 各 mod 里 Sin/Cos 合计 395 次调用全按角度制；封装出来就是防止
+    // 有人顺手再套一层 Radians() 转两次。
+    CMLibTest_MarkTag(CMLib_SinDeg(0.0) == 0.0, "geo.sindeg.zero");
+    CMLibTest_MarkTag(CMLib_CosDeg(0.0) == 1.0, "geo.cosdeg.zero");
+    lv_r18f = CMLib_SinDeg(90.0);
+    // 定点数（20.12）下 sin(90) 未必是精确 1.0，用容差而不是等号。
+    CMLibTest_MarkTag((lv_r18f > 0.99) && (lv_r18f <= 1.0), "geo.sindeg.90");
+    CMLibTest_MarkTag(CMLib_NormalizeAngle(370.0) == 10.0, "geo.normalize.over");
+    CMLibTest_MarkTag(CMLib_NormalizeAngle(-10.0) == 350.0, "geo.normalize.neg");
+    CMLibTest_MarkTag(CMLib_NormalizeAngle(45.0) == 45.0, "geo.normalize.identity");
+    CMLibTest_MarkTag(CMLib_NormalizeAngle(720.0) == 0.0, "geo.normalize.wrap2");
+
+    // ---- UserData：实例查询守卫 ----
+    // 只验守卫：拿一个真实存在的 UserData 类型名在测试图里不可保证，
+    // 用假类型去读会抛运行时错误，写成断言等于给自己埋雷。
+    CMLibTest_MarkTag(CMLib_UDataUserInstance("", "i", "f", 0) == "",
+                      "udata.userinstance.guard.type");
+    CMLibTest_MarkTag(CMLib_UDataUserInstance("t", "i", "", 0) == "",
+                      "udata.userinstance.guard.field");
+
+    // ---- 音效：带归属玩家的全局播放（SoundPlayForPlayer 是全库最高频未封装原生）----
+    // 声音 id 不硬编码，沿用既有做法从 Sound 目录取真实条目。
+    CMLib_SfxPlayOwned("", 1, lv_r18pg, 1.0);
+    CMLib_SfxPlayOwned(CMLib_CatEntryAt(c_gameCatalogSound, 1), 1, null, 0.5);
+    CMLib_SfxPlayOwned(CMLib_CatEntryAt(c_gameCatalogSound, 1), 1, lv_r18pg, 0.5);
+    CMLibTest_MarkTag(true, "fx.playowned");
+
+
+    // ============ round 19：数据驱动对白 / 事件族 / 相机 / 造价 / 预载 ============
+    // 本轮起点是一次**误判纠正**：前几轮把 conversation 域 9.9% 的覆盖率记成
+    // 「GUI 自动生成访问器噪声」，本轮逐条回 natives.galaxy 核对，
+    // 证明 ConversationData* 全族是引擎正经 API —— 那是真空白，不是噪声。
+
+    lv_r19pg = PlayerGroupAll();
+
+    // ---- ConversationData：数据驱动对白 ----
+    // 测试图里没有 Conversation 数据条目，拿假 id 去 Run 会抛运行时错误。
+    // 因此这里只验守卫路径（沿用 round18 UserData 的处置口径）：
+    // 空 id / null 玩家组必须原地返回，绝不把空串送进引擎。
+    CMLib_ConvDataRun("", lv_r19pg, 0, false);
+    CMLib_ConvDataRun("X", null, 0, false);
+    CMLib_ConvDataRunAll("");
+    CMLibTest_MarkTag(true, "conv.datarun.guards");
+    CMLibTest_MarkTag(CMLib_ConvDataCanRun("", false) == false, "conv.canrun.guard");
+    CMLibTest_MarkTag(CMLib_ConvDataSound("", true) == "", "conv.sound.guard");
+    CMLib_ConvDataLinePlayers("", "l", lv_r19pg);
+    CMLib_ConvDataLinePlayers("c", "", lv_r19pg);
+    CMLib_ConvDataLinePlayers("c", "l", null);
+    CMLib_ConvDataLineReset("", "l");
+    CMLib_ConvDataLineReset("c", "");
+    CMLibTest_MarkTag(true, "conv.line.guards");
+    // camerainfo 是值类型：只能取默认值传进去，绝不与 null 比较。
+    lv_r19cam = CameraInfoDefault();
+    CMLib_ConvDataCamera("", "c", lv_r19cam, null, false);
+    CMLib_ConvDataCamera("cam", "", lv_r19cam, null, false);
+    CMLibTest_MarkTag(true, "conv.camera.guards");
+    CMLib_ConvDataStateSet("", 5);
+    CMLibTest_MarkTag(CMLib_ConvDataStateGet("") == 0, "conv.state.guard");
+    lv_r19t = CMLib_ConvDataStateTextOf("", "i");
+    CMLibTest_MarkTag(true, "conv.statetext.guard");
+
+    // ---- 事件族补齐：按键 / 按钮 / 升级等级 / 行为分类 ----
+    // 只验「挂载链不抛错 + null 守卫」；取参一侧在 EvtProbe 里走进度码。
+    lv_r19trig = TriggerCreate("CMLibTest_NoopHandler");
+    CMLib_OnKeyPressed(null, 1, c_keySpace, true);
+    CMLib_OnKeyPressedMod(null, 1, c_keySpace, true,
+                          c_keyModifierStateIgnore, c_keyModifierStateIgnore,
+                          c_keyModifierStateIgnore);
+    CMLib_OnButtonPressed(null, 1, "b");
+    CMLib_OnButtonPressed(lv_r19trig, 1, "");
+    CMLib_OnUpgradeLevelChanged(null, 1);
+    CMLib_OnBehaviorCategoryChange(null, null, 0, c_unitBehaviorChangeAny);
+    CMLibTest_MarkTag(true, "trig.r19.event.guards");
+    CMLib_OnKeyPressed(lv_r19trig, 1, c_keySpace, true);
+    CMLibTest_MarkTag(true, "trig.onkey.mount");
+    CMLib_OnKeyPressedMod(lv_r19trig, 1, c_keyA, true,
+                          c_keyModifierStateRequire, c_keyModifierStateExclude,
+                          c_keyModifierStateIgnore);
+    CMLibTest_MarkTag(true, "trig.onkey.mod.mount");
+    CMLib_OnButtonPressed(lv_r19trig, 1, "CMLibR19Button");
+    CMLibTest_MarkTag(true, "trig.onbutton.mount");
+    CMLib_OnUpgradeLevelChanged(lv_r19trig, 1);
+    CMLibTest_MarkTag(true, "trig.onupgradelevel.mount");
+    CMLib_OnBehaviorCategoryChange(lv_r19trig, null, 0, c_unitBehaviorChangeAny);
+    CMLibTest_MarkTag(true, "trig.onbehaviorcat.mount");
+    // 挂完就关：行为分类事件挂在「任意单位」上，本图里会被反复触发。
+    // 回调虽是空函数，但让它空转属于给后续断言引入噪声。
+    CMLib_TrigOff(lv_r19trig);
+
+    // ---- 真·计时器事件上下文里的取参（1.0s 触发，此刻 2.0s 必已跑过）----
+    CMLibTest_MarkTag(gv_r19TimerOk >= 1, "trig.evt.timer.nonnull");
+    CMLibTest_MarkTag(gv_r19TimerOk >= 2, "trig.evt.timer.identity");
+
+    // ---- 相机信息：值类型读取 ----
+    // CameraInfoDefault() 一定有效，距离必为正 —— 这是本组里少数
+    // 能写「真语义断言」而不是「不抛错」的地方。
+    CMLibTest_MarkTag(CMLib_CamInfoValue(lv_r19cam, c_cameraValueDistance) > 0.0,
+                      "fx.caminfo.distance");
+    CMLibTest_MarkTag(CMLib_CamInfoTarget(lv_r19cam) != null, "fx.caminfo.target");
+    CMLib_CamBounds(null, lv_map, true);
+    CMLib_CamBounds(lv_r19pg, null, true);
+    CMLibTest_MarkTag(true, "fx.cambounds.guards");
+    CMLib_CamBounds(lv_r19pg, lv_map, true);
+    CMLibTest_MarkTag(true, "fx.cambounds.set");
+    lv_r19g = CMLib_UGArmyOfPlayer(1);
+    CMLib_CamFollowGroup(0, lv_r19g, false, false);
+    CMLib_CamFollowGroup(1, null, false, false);
+    CMLibTest_MarkTag(true, "fx.camfollow.guards");
+    CMLib_CamFollowGroup(1, lv_r19g, false, false);
+    CMLibTest_MarkTag(true, "fx.camfollow.set");
+    CMLib_CamApplyData(null, "c");
+    CMLib_CamApplyData(lv_r19pg, "");
+    CMLibTest_MarkTag(true, "fx.camdata.guards");
+
+    // ---- 音乐 / 头像 / 文本浮标：守卫 ----
+    CMLib_MusicPause(null, 1, false, false);
+    CMLib_MusicDefault(null, 1, "s", 0, 0);
+    CMLib_MusicDefault(lv_r19pg, 1, "", 0, 0);
+    CMLibTest_MarkTag(true, "fx.music.guards");
+    CMLib_PortraitShow(0, lv_r19pg, true, false);
+    CMLib_PortraitShow(1, null, true, false);
+    CMLibTest_MarkTag(true, "fx.portrait.guards");
+    CMLib_TextTagShowFor(0, lv_r19pg, true);
+    CMLib_TextTagShowFor(1, null, true);
+    CMLibTest_MarkTag(true, "fx.texttag.showfor.guards");
+    CMLib_MovieRecStart("");
+    CMLibTest_MarkTag(true, "fx.movierec.guard");
+
+    // ---- Ping 属性族：守卫（真创建在 R19Probe 里做）----
+    CMLib_PingShow(0, true);
+    CMLib_PingShow(-1, true);
+    CMLib_PingMove(0, lv_origin);
+    CMLib_PingMove(1, null);
+    CMLib_PingTint(0, Color(100.0, 100.0, 100.0));
+    CMLib_PingRotate(0, 45.0);
+    CMLib_PingModel(0, "m");
+    CMLib_PingModel(1, "");
+    CMLib_PingLifetime(0, 1.0);
+    CMLibTest_MarkTag(true, "fx.ping.guards");
+
+    // ---- 预载族：守卫 + CSV 分发 ----
+    // 空路径必须原地返回：把 "" 送进 Preload* 是最典型的「静默无效」陷阱。
+    CMLib_PreloadModel("", true);
+    CMLib_PreloadMovie("", true);
+    CMLib_PreloadAsset("", false);
+    CMLib_PreloadImage("", true);
+    CMLib_PreloadSound("", false);
+    CMLibTest_MarkTag(true, "fx.preload.guards");
+    CMLibTest_MarkTag(CMLib_PreloadCSV("", "a,b", true) == 0, "fx.preloadcsv.guard.kind");
+    CMLibTest_MarkTag(CMLib_PreloadCSV("model", "", true) == 0, "fx.preloadcsv.guard.csv");
+    // 未知 kind：分词循环照样跑满 3 轮，只是不落任何引擎调用 —— 这条同时
+    // 证明了「循环不炸」和「未知 kind 不误派发」，比单纯守卫断言信息量大。
+    CMLibTest_MarkTag(CMLib_PreloadCSV("nope", "a,b,c", true) == 0,
+                      "fx.preloadcsv.unknownkind");
+
+    // ---- 单位造价 / 载具卸载组 / 能力命令 ----
+    CMLibTest_MarkTag(CMLib_UnitTypeCost("", c_unitCostMinerals) == 0,
+                      "unit.typecost.guard");
+    CMLibTest_MarkTag(CMLib_UnitTypeCost("Marine", c_unitCostMinerals) > 0,
+                      "unit.typecost.marine");
+    // 非 cargo 事件上下文下原生返回 null，封装必须退化成空组而不是把 null 漏出去 ——
+    // 漏出去的下场是调用方 UnitGroupCount(null) 直接抛错。
+    lv_r19g = CMLib_UnitCargoLastGroup();
+    CMLibTest_MarkTag(lv_r19g != null, "unit.cargolastgroup.nonnull");
+    CMLibTest_MarkTag(UnitGroupCount(lv_r19g, c_unitCountAll) == 0,
+                      "unit.cargolastgroup.empty");
+    // abilcmd 往返：从 Abil 目录取真实条目，不硬编码任何技能 id。
+    lv_r19s = CMLib_CatEntryAt(c_gameCatalogAbil, 1);
+    if (lv_r19s != "") {
+        CMLibTest_MarkTag(CMLib_AbilCmdAbility(AbilityCommand(lv_r19s, 0)) == lv_r19s,
+                          "unit.abilcmd.ability.roundtrip");
+    }
+    else {
+        CMLibTest_MarkTag(true, "unit.abilcmd.skipped.nocatalog");
+    }
+
+    // ---- 文本：时间格式化 / 词替换 ----
+    // text 的相等比较在各版本行为不一，只验「可调用 + 负值被夹到 0」的通路。
+    lv_r19t = CMLib_TimeText(StringToText("mm:ss"), -5);
+    lv_r19t = CMLib_TimeText(StringToText("mm:ss"), 65);
+    CMLibTest_MarkTag(true, "text.timeformat");
+    lv_r19t = CMLib_TextReplace(StringToText("aXbXc"), StringToText("X"),
+                                StringToText("-"), 0, false);
+    lv_r19t = CMLib_TextReplace(StringToText("aXbXc"), StringToText("X"),
+                                StringToText("-"), 1, true);
+    CMLibTest_MarkTag(true, "text.replaceword");
+
+    // ---- 游戏态 / 背景 / 可玩区域 / 科技树 守卫 ----
+    lv_r19b = CMLib_GameOnline();
+    lv_r19b = CMLib_GameTestMap(false);
+    CMLibTest_MarkTag(true, "game.state.query");
+    CMLib_GameBackground(0, "", 1.0);
+    CMLibTest_MarkTag(true, "game.background.guard");
+    CMLib_PlayableMapSet(null);
+    CMLibTest_MarkTag(true, "geo.playablemapset.guard");
+    CMLib_TechTreeUnitHelp(0, "Marine", false);
+    CMLib_TechTreeUnitHelp(1, "", false);
+    CMLibTest_MarkTag(true, "ai.techtreehelp.guards");
+    CMLibTest_MarkTag(CMLib_UDataImagePath("", "i", "f", 0) == "",
+                      "udata.imagepath.guard.type");
+    CMLibTest_MarkTag(CMLib_UDataImagePath("t", "i", "", 0) == "",
+                      "udata.imagepath.guard.field");
+
+    // ---- round 19：有风险真调用的进度码探针 ----
+    // 同步执行（探针内没有 Wait），跑完立刻读进度码。
+    gv_cmlibR19Prog = 0;
+    TriggerExecute(TriggerCreate("CMLibTest_R19Probe"), false, false);
+    CMLibTest_MarkTag(gv_cmlibR19Prog >= 1,  "trig.skippable.roundtrip");
+    CMLibTest_MarkTag(gv_cmlibR19Prog >= 2,  "geo.playablemapset.self");
+    CMLibTest_MarkTag(gv_cmlibR19Prog >= 3,  "game.cheat.allow");
+    CMLibTest_MarkTag(gv_cmlibR19Prog >= 4,  "ai.techtreehelp.real");
+    CMLibTest_MarkTag(gv_cmlibR19Prog >= 5,  "fx.movierec.stop");
+    CMLibTest_MarkTag(gv_cmlibR19Prog >= 6,  "fx.music.pause.real");
+    CMLibTest_MarkTag(gv_cmlibR19Prog >= 7,  "ai.timepause");
+    CMLibTest_MarkTag(gv_cmlibR19Prog >= 8,  "fx.ping.create");
+    CMLibTest_MarkTag(gv_cmlibR19Prog >= 9,  "fx.ping.setters");
+    CMLibTest_MarkTag(gv_cmlibR19Prog >= 10, "fx.ping.destroy");
+
+    // ---- round 19：事件取参补齐的进度码（探针在主链更早处已执行）----
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 6,  "trig.evt.damageeffect");
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 7,  "trig.evt.order");
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 8,  "trig.evt.target");
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 9,  "trig.evt.targetpoint");
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 10, "trig.evt.wave");
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 11, "trig.evt.key");
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 12, "trig.evt.key.shift");
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 13, "trig.evt.key.ctrl");
+
+    // =========================================================================
+    // round 20：单位/建筑面板主线 + DataTable 作用域族 + 地形高度 + 对话数据
+    // 全部走「守卫态 + 安全真调用」，不碰会抛运行时错误的通路
+    //（成就写入 / targeting order / 需要真 dialog 的 hookup 一律不在主链调）。
+    // =========================================================================
+
+    // ---- core：DataTable 作用域族（用 local 表，避免污染全局态）----
+    CMLib_DTClear(false);
+    CMLibTest_MarkTag(CMLib_DTCount(false) == 0, "core.dt.clear");
+    CMLib_DTSetBool(false, "r20.b", true);
+    CMLibTest_MarkTag(CMLib_DTGetBool(false, "r20.b", false), "core.dt.bool.roundtrip");
+    CMLibTest_MarkTag(CMLib_DTGetBool(false, "r20.absent", true), "core.dt.bool.fallback");
+    CMLibTest_MarkTag(CMLib_DTHas(false, "r20.b"), "core.dt.has");
+    CMLibTest_MarkTag(CMLib_DTHas(false, "r20.nope") == false, "core.dt.has.neg");
+    CMLibTest_MarkTag(CMLib_DTCount(false) >= 1, "core.dt.count");
+    CMLibTest_MarkTag(CMLib_DTNameAt(false, 99999) == "", "core.dt.nameat.oob");
+    CMLibTest_MarkTag(CMLib_DTNameAt(false, -1) == "", "core.dt.nameat.neg");
+    CMLib_DTRemove(false, "r20.b");
+    CMLibTest_MarkTag(CMLib_DTHas(false, "r20.b") == false, "core.dt.remove");
+    // 前缀清理：同时验证枚举通路（索引基准无关实现）真的能遍历到键。
+    CMLib_DTSetBool(false, "r20p.a", true);
+    CMLib_DTSetBool(false, "r20p.b", true);
+    CMLib_DTSetInt(false, "keep.me", 7);
+    lv_r20i = CMLib_DTClearPrefix(false, "r20p.");
+    CMLibTest_MarkTag(lv_r20i == 2, "core.dt.clearprefix");
+    CMLibTest_MarkTag(CMLib_DTHas(false, "keep.me"), "core.dt.clearprefix.spares");
+    CMLibTest_MarkTag(CMLib_DTClearPrefix(false, "") == 0, "core.dt.clearprefix.guard");
+    // 强类型往返
+    lv_r20g = CMLib_UGOf(lv_marine);
+    CMLib_DTSetUG(false, "r20.ug", lv_r20g);
+    CMLibTest_MarkTag(CMLib_UGSize(CMLib_DTGetUG(false, "r20.ug")) == 1, "core.dt.ug.roundtrip");
+    CMLibTest_MarkTag(CMLib_UGSize(CMLib_DTGetUG(false, "r20.noug")) == 0, "core.dt.ug.empty");
+    lv_r20tm = TimerCreate();
+    TimerStart(lv_r20tm, 10.0, false, c_timeGame);
+    CMLib_DTSetTimer(false, "r20.tm", lv_r20tm);
+    CMLibTest_MarkTag(CMLib_DTGetTimer(false, "r20.tm") != null, "core.dt.timer.roundtrip");
+    CMLibTest_MarkTag(CMLib_DTGetTimer(false, "r20.notm") == null, "core.dt.timer.null");
+    CMLib_DTSetRegion(false, "r20.rg", lv_map);
+    lv_r20r = CMLib_DTGetRegion(false, "r20.rg");
+    CMLibTest_MarkTag(lv_r20r != null, "core.dt.region.roundtrip");
+    CMLibTest_MarkTag(CMLib_DTGetRegion(false, "r20.norg") == null, "core.dt.region.null");
+    CMLib_DTSetObjective(false, "r20.obj", 0);
+    CMLibTest_MarkTag(CMLib_DTGetObjective(false, "r20.obj") == 0, "core.dt.objective.roundtrip");
+    CMLibTest_MarkTag(CMLib_DTGetObjective(false, "r20.noobj") == 0, "core.dt.objective.default");
+    CMLib_DTClear(false);
+
+    // ---- core：数学 / 计时器 ----
+    CMLibTest_MarkTag(CMLib_RoundI(2.6) == 3, "core.roundi.up");
+    CMLibTest_MarkTag(CMLib_RoundI(2.4) == 2, "core.roundi.down");
+    CMLibTest_MarkTag(CMLib_RoundI(-2.6) == -3, "core.roundi.neg");
+    CMLibTest_MarkTag(CMLib_TimerDuration(null) == 0.0, "core.timer.duration.null");
+    CMLibTest_MarkTag(CMLib_TimerPaused(null) == false, "core.timer.paused.null");
+    CMLibTest_MarkTag(CMLib_TimerProgress(null) == 0.0, "core.timer.progress.null");
+    CMLibTest_MarkTag(CMLib_TimerDuration(lv_r20tm) == 10.0, "core.timer.duration.real");
+    lv_r20f = CMLib_TimerProgress(lv_r20tm);
+    CMLibTest_MarkTag((lv_r20f >= 0.0) && (lv_r20f <= 1.0), "core.timer.progress.range");
+    TimerPause(lv_r20tm, true);
+    CMLibTest_MarkTag(CMLib_TimerPaused(lv_r20tm), "core.timer.paused.real");
+    TimerPause(lv_r20tm, false);
+
+    // ---- geo：地形高度图 ----
+    lv_r20f = CMLib_GroundHeight(lv_origin);
+    CMLibTest_MarkTag(true, "geo.groundheight.real");
+    lv_r20f = CMLib_AirHeight(lv_origin);
+    CMLibTest_MarkTag(true, "geo.airheight.real");
+    CMLibTest_MarkTag(CMLib_TerrainHeight(c_heightMapGround, null) == 0.0, "geo.terrainheight.null");
+    CMLibTest_MarkTag(CMLib_TerrainHeightDelta(c_heightMapGround, lv_origin, lv_origin) == 0.0,
+                      "geo.terrainheight.delta.self");
+    CMLibTest_MarkTag(CMLib_TerrainSameLevel(c_heightMapGround, lv_origin, lv_origin, 0.1),
+                      "geo.terrain.samelevel.self");
+    CMLibTest_MarkTag(CMLib_TerrainSameLevel(c_heightMapGround, null, lv_origin, 0.1) == false,
+                      "geo.terrain.samelevel.guard");
+
+    // ---- unit：属性 / 武器 / 队列 / 货舱 ----
+    CMLibTest_MarkTag(CMLib_UnitPropInt(lv_marine, c_unitPropLife, true) > 0, "unit.propint.life");
+    CMLibTest_MarkTag(CMLib_UnitPropInt(null, c_unitPropLife, true) == 0, "unit.propint.guard");
+    lv_r20t = CMLib_UnitCustomName(lv_marine);
+    CMLibTest_MarkTag(lv_r20t != null, "unit.customname.real");
+    CMLibTest_MarkTag(CMLib_UnitCustomName(null) != null, "unit.customname.guard");
+    CMLibTest_MarkTag(CMLib_UnitWeaponCount(lv_marine) >= 1, "unit.weapon.count");
+    CMLibTest_MarkTag(CMLib_UnitWeaponCount(null) == 0, "unit.weapon.count.guard");
+    // 武器索引 1-based（round21 钉死）：1 是第一把武器，0 属越界。
+    CMLibTest_MarkTag(CMLib_UnitWeaponPeriod(lv_marine, 1) > 0.0, "unit.weapon.period");
+    CMLibTest_MarkTag(CMLib_UnitWeaponPeriod(lv_marine, 0) == 0.0, "unit.weapon.period.zero");
+    CMLibTest_MarkTag(CMLib_UnitWeaponPeriod(lv_marine, 99) == 0.0, "unit.weapon.period.oob");
+    CMLibTest_MarkTag(CMLib_UnitWeaponDamage(lv_marine, 1, c_unitAttributeNone, false) > 0.0,
+                      "unit.weapon.damage");
+    CMLibTest_MarkTag(CMLib_UnitWeaponDamage(lv_marine, 0, c_unitAttributeNone, false) == 0.0,
+                      "unit.weapon.damage.zero");
+    CMLibTest_MarkTag(CMLib_UnitDpsTotal(lv_marine) > 0.0, "unit.weapon.dps");
+    CMLibTest_MarkTag(CMLib_UnitDpsTotal(null) == 0.0, "unit.weapon.dps.guard");
+    CMLibTest_MarkTag(CMLib_UnitCargoCount(lv_marine) == 0, "unit.cargo.count");
+    CMLibTest_MarkTag(CMLib_UnitCargoCount(null) == 0, "unit.cargo.count.guard");
+    CMLibTest_MarkTag(CMLib_UnitIsProducing(lv_marine) == false, "unit.queue.producing.neg");
+    CMLibTest_MarkTag(CMLib_UnitQueueUsed(lv_marine) == 0, "unit.queue.used");
+    CMLibTest_MarkTag(CMLib_UnitQueueEta(lv_marine, 0) == 0.0, "unit.queue.eta.empty");
+    CMLibTest_MarkTag(CMLib_UnitQueueProgress(lv_marine, 0) == 0.0, "unit.queue.progress.empty");
+    CMLibTest_MarkTag(CMLib_UnitQueueProgress(null, 0) == 0.0, "unit.queue.progress.guard");
+    CMLibTest_MarkTag(CMLib_UnitIsHarvesting(lv_marine, 0) == false, "unit.harvest.neg");
+    CMLibTest_MarkTag(CMLib_UnitAbilExists(lv_marine, "") == false, "unit.abil.exists.guard");
+    CMLibTest_MarkTag(CMLib_UnitAbilExists(null, "move") == false, "unit.abil.exists.nullunit");
+    CMLib_UnitAbilShow(lv_marine, "", true);
+    CMLibTest_MarkTag(true, "unit.abil.show.guard");
+    CMLib_UnitFlash(lv_marine, 0.5);
+    CMLib_UnitFlash(null, 0.5);
+    CMLibTest_MarkTag(true, "unit.flash.real");
+    CMLib_UnitBuffDuration(null, "x", 1.0);   // void setter：null 单位必须被守卫吞掉而不抛错
+    CMLibTest_MarkTag(true, "unit.buff.duration.guard");
+    CMLibTest_MarkTag(CMLib_UnitBuffEffectUnit(null, "x", 0, 0) == null, "unit.buff.effectunit.guard");
+    // 放置点：起始点附近必须能找到合法落点
+    CMLibTest_MarkTag(CMLib_UnitTypePlaceNear("Marine", 1, lv_origin, 6.0) != null,
+                      "unit.placenear.real");
+    CMLibTest_MarkTag(CMLib_UnitTypePlaceNear("", 1, lv_origin, 6.0) == null,
+                      "unit.placenear.guard");
+    CMLibTest_MarkTag(CMLib_UnitAttachPoint(lv_marine, "") == null, "unit.attachpoint.guard");
+    // 单位组：空闲组与选中（选中是纯 UI 动作，不产生状态污染）
+    lv_r20g = CMLib_UGIdle(1, false);
+    CMLibTest_MarkTag(CMLib_UGIdleCount(1, false) >= 0, "unit.ug.idlecount");
+    CMLib_UGSelect(lv_r20g, 1, false);
+    CMLibTest_MarkTag(true, "unit.ug.select");
+    // 命令对象：无命令时的守卫返回
+    CMLibTest_MarkTag(CMLib_OrderTargetPos(null) == null, "unit.order.targetpos.guard");
+    CMLibTest_MarkTag(CMLib_OrderTargetType(null) == c_orderTargetNone, "unit.order.targettype.guard");
+    CMLibTest_MarkTag(CMLib_OrderHasTarget(null) == false, "unit.order.hastarget.guard");
+    CMLibTest_MarkTag(CMLib_OrderFlag(null, 0) == false, "unit.order.flag.guard");
+
+    // ---- ui / board：守卫态（真写入需要活面板，不在主链碰）----
+    CMLibTest_MarkTag(CMLib_DlgCtrlVisible(c_invalidDialogControlId, 1) == false,
+                      "ui.dlgctrl.visible.guard");
+    CMLibTest_MarkTag(CMLib_DlgCtrlDialog(c_invalidDialogControlId) == c_invalidDialogId,
+                      "ui.dlgctrl.dialog.guard");
+    CMLib_UIAlertClear(1);
+    CMLibTest_MarkTag(true, "ui.alert.clear.real");
+    CMLib_VPanelAchievementBatch("");         // void 批量：空 CSV 必须直接返回而不抛错
+    CMLibTest_MarkTag(true, "board.achievement.batch.guard");
+    CMLib_VPanelAchievement("");
+    CMLibTest_MarkTag(true, "board.achievement.guard");
+
+    // ---- conv / udata / fx：守卫态 ----
+    CMLib_ConvDataPreload("");
+    CMLibTest_MarkTag(CMLib_ConvDataPreloadBatch("") == 0, "conv.preload.batch.guard");
+    CMLibTest_MarkTag(CMLib_ConvDataStateFixed("", "") == 0.0, "conv.statefixed.guard");
+    // round21：原断言写的 `!= null` —— 但 Galaxy 空串与 null 等价，该写法恒为 false。
+    // 测试局没有任何对话在播，正确期望是"空"，且必须用 StrIsEmpty 判。
+    CMLibTest_MarkTag(CMLib_StrIsEmpty(CMLib_ConvDataActiveSound()), "conv.activesound.empty");
+    CMLibTest_MarkTag(CMLib_StrIsEmpty(null), "core.strempty.null");
+    CMLibTest_MarkTag(CMLib_StrIsEmpty(""), "core.strempty.blank");
+    CMLibTest_MarkTag(CMLib_StrIsEmpty("abc") == false, "core.strempty.real");
+    CMLibTest_MarkTag(CMLib_StrNotEmpty("abc"), "core.strnotempty.real");
+    CMLibTest_MarkTag(CMLib_StrNotEmpty("") == false, "core.strnotempty.blank");
+    CMLib_ConvDataResetStates("");
+    CMLib_ConvDataSaveNodes("", null, "");
+    CMLib_ConvDataLoadNodes("", null, "");
+    CMLibTest_MarkTag(true, "conv.nodestate.guards");
+    CMLib_UDataResetType("");
+    CMLibTest_MarkTag(CMLib_UDataUpgrade("", "i", "f", 0) == "", "udata.upgrade.guard.type");
+    CMLibTest_MarkTag(CMLib_UDataUpgrade("t", "i", "f", -1) == "", "udata.upgrade.guard.index");
+    CMLibTest_MarkTag(CMLib_UDataUpgrade0("", "", "") == "", "udata.upgrade0.guard");
+    CMLib_CutscenePlay(0);
+    CMLibTest_MarkTag(CMLib_CutsceneBookmark(0, "start") == false, "fx.cutscene.bookmark.guard.id");
+    CMLibTest_MarkTag(CMLib_CutsceneBookmark(1, "") == false, "fx.cutscene.bookmark.guard.name");
+    // SfxWait* 是阻塞式 Wait，故意只做 null 守卫 —— 真等会把断言线程钉死。
+    CMLib_SfxWaitFrom(null, 1.0);
+    CMLib_SfxWaitEnd(null, 0.0);
+    CMLibTest_MarkTag(true, "fx.sfxwait.guards");
+
+
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 14, "trig.evt.key.alt");
+    CMLibTest_MarkTag(gv_cmlibEvtProbe >= 15, "trig.evt.button");
+
+    // ---- Round23：StatEvent 埋点封装 ----------------------------------
+    // ⚠ 断言口径在 round23 第一次真机跑完后被**改过一次**，原因值得记：
+    // 第一版断言了 `CMLib_StatEvtBegin(...) != 0`，结果内联 / 依赖两档
+    // 同时 516/527，11 条正向断言整齐失败、7 条守门断言整齐通过。
+    // 这不是库的 bug，是引擎语义：`StatEventCreate` 在**非暴雪签名内容**里
+    // 恒返回 0（原生注释 "Blizzard only." 是字面意思）。round22 的探针
+    // 只验了"可编译 / 可调用 / 不中断 trigger"，据此判 USABLE 太宽 ——
+    // **可调用 ≠ 可用**。详见 README §10.4。
+    //
+    // 因此这里只断言**开发机上可观测**的东西：纯解析（CsvCount）、守门早退、
+    // 已发送记账。句柄真实值走 bank 诊断探针（见文件末尾 Result/StatEvtHandle），
+    // 不进断言 —— 一旦哪天在签名内容里跑，断言不会因为环境变好而变红。
+    lv_r23ev = CMLib_StatEvtBegin("CMLibR23");
+
+    // 空名必须被守门挡下，且不能把无效句柄伪装成有效。
+    lv_r23ev2 = CMLib_StatEvtBegin("");
+    CMLibTest_MarkTag(lv_r23ev2 == CMLIB_STATEVT_INVALID, "statevt.begin.empty");
+    CMLibTest_MarkTag(CMLib_StatEvtOk(CMLIB_STATEVT_INVALID) == false,
+                      "statevt.ok.invalid");
+
+    // Begin 与 Ok 必须口径一致：拿到什么句柄不重要，重要的是
+    // 「Ok 说可用」当且仅当「Begin 给了非 0」。这条在两种环境下都成立。
+    CMLibTest_MarkTag(CMLib_StatEvtOk(lv_r23ev)
+                      == (lv_r23ev != CMLIB_STATEVT_INVALID),
+                      "statevt.begin.ok.consistent");
+
+    // CSV 纯解析：三个键。这条不需要句柄，任何环境下都必须成立。
+    lv_r23n = CMLib_StatEvtCsvCount("a:1,b:2,c:3");
+    CMLibTest_MarkTag(lv_r23n == 3, "statevt.csvcount");
+
+    // 按**第一个**冒号切，值里可以再含冒号（"用时:12:30"）→ 仍是 1 条。
+    lv_r23n = CMLib_StatEvtCsvCount("elapsed:12:30");
+    CMLibTest_MarkTag(lv_r23n == 1, "statevt.csvcount.colon");
+
+    // 无冒号项不成键值对，计 0 而不是塞个空值进去。
+    lv_r23n = CMLib_StatEvtCsvCount("noColonHere");
+    CMLibTest_MarkTag(lv_r23n == 0, "statevt.csvcount.nokey");
+
+    // key 前后空格要被 trim 掉，否则下游按键名对齐会错位。
+    lv_r23n = CMLib_StatEvtCsvCount("  spaced  :v");
+    CMLibTest_MarkTag(lv_r23n == 1, "statevt.csvcount.trim");
+
+    // 冒号在首位 → key 为空 → 不计数（不能塞个空键进埋点）。
+    lv_r23n = CMLib_StatEvtCsvCount(":v");
+    CMLibTest_MarkTag(lv_r23n == 0, "statevt.csvcount.emptykey");
+
+    // 空规格串计 0。
+    lv_r23n = CMLib_StatEvtCsvCount("");
+    CMLibTest_MarkTag(lv_r23n == 0, "statevt.csvcount.empty");
+
+    // 混合：合法 2 条 + 非法 1 条。int 版共用同一套解析，故一并覆盖。
+    lv_r23n = CMLib_StatEvtCsvCount("x:10,noColon,y:20");
+    CMLibTest_MarkTag(lv_r23n == 2, "statevt.csvcount.mixed");
+
+    // 挂载版在句柄无效时必须返回 0（而不是"能挂几条"）——
+    // 这正是 CsvCount 与 StrCSV/IntCSV 的语义分界。
+    CMLibTest_MarkTag(CMLib_StatEvtStrCSV(CMLIB_STATEVT_INVALID, "a:1,b:2") == 0,
+                      "statevt.strcsv.guarded");
+    CMLibTest_MarkTag(CMLib_StatEvtIntCSV(CMLIB_STATEVT_INVALID, "a:1,b:2") == 0,
+                      "statevt.intcsv.guarded");
+
+    // 守门批次：这几条都该静默早退。void 不能进比较表达式（round20 血泪），
+    // 用「裸调用 + 后续哨兵」验证 —— 任一条打断线程，哨兵就不会执行。
+    CMLib_StatEvtStr(CMLIB_STATEVT_INVALID, "k", "v");
+    CMLib_StatEvtInt(CMLIB_STATEVT_INVALID, "k", 1);
+    CMLib_StatEvtFixed(CMLIB_STATEVT_INVALID, "k", 1.5);
+    CMLib_StatEvtStr(lv_r23ev, "", "v");
+    CMLib_StatEvtInt(lv_r23ev, "", 1);
+    CMLib_StatEvtFixed(lv_r23ev, "", 1.5);
+    CMLib_StatEvtStr(lv_r23ev, "k", "v");
+    CMLib_StatEvtInt(lv_r23ev, "k", 1);
+    CMLib_StatEvtFixed(lv_r23ev, "k", 1.5);
+    CMLibTest_MarkTag(true, "statevt.guard.alive");
+
+    // 发送与记账：Send 的返回值必须与守门口径一致（无效句柄 → false），
+    // 且无论如何**第二次一定 false**（环形缓冲拦重复投递）。
+    lv_r23sent = CMLib_StatEvtSend(lv_r23ev);
+    CMLibTest_MarkTag(lv_r23sent == (lv_r23ev != CMLIB_STATEVT_INVALID),
+                      "statevt.send.consistent");
+    CMLibTest_MarkTag(CMLib_StatEvtSend(lv_r23ev) == false,
+                      "statevt.send.twice");
+    CMLibTest_MarkTag(CMLib_StatEvtOk(lv_r23ev) == false, "statevt.ok.sent");
+    // 发送后（或句柄本就无效时）再挂数据必须被拒。
+    lv_r23n = CMLib_StatEvtStrCSV(lv_r23ev, "a:1");
+    CMLibTest_MarkTag(lv_r23n == 0, "statevt.csv.after.send");
+
+    // 一步到位的便捷入口：口径必须和底层一致，不能因为多包一层就绕过守门。
+    CMLibTest_MarkTag(CMLib_StatEvtSendCSV("", "k:v") == false,
+                      "statevt.sendcsv.empty");
+    CMLibTest_MarkTag(CMLib_StatEvtSendInt("", "count", 42) == false,
+                      "statevt.sendint.empty");
+    // 非空名走便捷入口：返回值应等于"引擎给不给句柄"，两种环境都成立。
+    CMLibTest_MarkTag(CMLib_StatEvtSendCSV("CMLibR23CSV", "mode:test,round:23")
+                      == (CMLib_StatEvtBegin("CMLibR23Probe")
+                          != CMLIB_STATEVT_INVALID),
+                      "statevt.sendcsv.consistent");
+
+    // ---- 汇合 AI 加分线（第 14 轮：消除观测双记）----
+    // AI 线 6.0s 触发、主线跑到这里已远超 6s，正常情况下这个 while
+    // 一次都不会转。留着是为了不依赖「谁先跑完」这种时序巧合 ——
+    // 一旦将来主线变快，没有它就会退化成「漏记 AI 那 6 条」。
+    // 40 * 0.25 = 10s 游戏时间上限：AI 线若中途抛错，主线不会死等，
+    // 而是带着一条失败断言继续走完，让问题暴露成 FAIL 而不是卡死。
+    lv_aiWait = 0;
+    while (((gv_cmlibAIDone == 0) && (lv_aiWait < 40))) {
+        CMLib_WaitGame(0.25);
+        lv_aiWait = lv_aiWait + 1;
+    }
+    CMLibTest_MarkTag(gv_cmlibAIDone == 1, "selftest.ailine.joined");
+
+    // =========================================================================
+    // Round27：三个「不可达句柄类型」收口后的真机验证
+    //
+    // 收口前的病灶：库的公开 API 收 marker / sound / camerainfo 做形参，
+    // 但全库没有任何函数能产出它们 —— 调用方只能喂 null 撞守门，接口是死的。
+    // 下面每一条都是**往返判据**：produce -> mutate -> read back，
+    // 少任何一环都会翻红，不存在「守门删了也绿」的写法。
+    // =========================================================================
+
+    // ---- marker 生产端 ----
+    lv_r27m = CMLib_Marker("AI/Tactical/Danger");
+    CMLibTest_MarkTag(lv_r27m != null, "marker.create");
+    CMLibTest_MarkTag(CMLib_Marker("") == null, "marker.create.empty");
+
+    // ---- 单位标记：round26 真机取证 → 往返硬断言降级为诊断探针 ----
+    // 原判据 `marker.unit.add`（add 之后 count>=1）在内联源码版 / 依赖挂载版
+    // 两档真机连续 FAIL，反向对照仍正常 FAIL —— 同因、可复现，不是瞬态。
+    // 取证链（四条独立证据指向同一结论）：
+    //   1. marker 句柄本身是活的：下面 matchflag set/clear 与 DataTable 两组
+    //      往返都真机通过，说明 Marker() 造出来的不是死壳，读写路径正常。
+    //   2. 整棵官方参考树（core / 三部战役 / starcoop / SC Evo）里
+    //      UnitMarkerAdd **零调用**；UnitMarkerCount 的官方唯一用法是读
+    //      AICast(aiUnit, ord, mark, retreat) 由**引擎**打到目标身上的标记。
+    //   3. marker 族 native 只有 link / castingPlayer / castingUnit /
+    //      match / mismatch 五组存取器，**没有 Id、也没有 Duration 的
+    //      setter**；而 c_markerMatchId 证明 Id 确实参与匹配 —— 脚本侧根本
+    //      造不出带引擎身份的 marker，自然进不了单位的标记表。
+    //   4. 变体探针（下面三档）把「是不是少设了 match flag」这个替代假设
+    //      也一起证伪/证实，不靠推断下结论。
+    // 结论：这是**引擎性质、且脚本侧不可观测**，不是库缺陷。按 round23 /
+    // round25 纪律（观测不到的降级成诊断探针，既不放宽判据也不假装通过）
+    // 改为 bank 探针只记录不判定。库封装保留 —— 配合 AICast 写入的 marker
+    // 时读路径依然有效，且守门判据照旧硬断言。
+    // 探针一次跑三种变体，将来任一变体出现非 0，就能凭证据把硬断言提回来。
+    lv_r27u = CMLib_SpawnForced("Marine", 1,
+                                CMLib_PointOffset(lv_origin, 4.0, -4.0), 270.0);
+    CMLibTest_MarkTag(CMLib_UnitMarkerCount(lv_r27u, lv_r27m) == 0,
+                      "marker.unit.count.clean");
+
+    // 变体 A：裸 Marker(link)，不设任何 match flag（= 原失败写法）。
+    CMLib_UnitMarkerAdd(lv_r27u, lv_r27m);
+    CMLib_BankSetInt(lv_bank, "Result", "MkPlain",
+                     CMLib_UnitMarkerCount(lv_r27u, lv_r27m));
+    CMLib_UnitMarkerRemove(lv_r27u, lv_r27m);
+    CMLibTest_MarkTag(CMLib_UnitMarkerCount(lv_r27u, lv_r27m) == 0,
+                      "marker.unit.remove");
+
+    // 变体 B / C：完全复刻官方 AIMarker() —— 真实技能 link（"Abil/Snipe/AI"
+    // 是 core.sc2mod RequirementsAI.galaxy 的 c_MK_Snipe 原值）+
+    // MarkerCastingUnit + c_markerMatchLink，再叠 c_markerMatchCasterPlayer。
+    lv_r27mo = CMLib_MarkerForUnit("Abil/Snipe/AI", lv_r27u);
+    CMLib_MarkerMatchFlag(lv_r27mo, c_markerMatchLink, true);
+    CMLib_BankSetInt(lv_bank, "Result", "MkLinkPre",
+                     CMLib_UnitMarkerCount(lv_r27u, lv_r27mo));
+    CMLib_UnitMarkerAdd(lv_r27u, lv_r27mo);
+    CMLib_BankSetInt(lv_bank, "Result", "MkLink",
+                     CMLib_UnitMarkerCount(lv_r27u, lv_r27mo));
+    CMLib_MarkerMatchFlag(lv_r27mo, c_markerMatchCasterPlayer, true);
+    CMLib_BankSetInt(lv_bank, "Result", "MkOfficial",
+                     CMLib_UnitMarkerCount(lv_r27u, lv_r27mo));
+    CMLib_UnitMarkerRemove(lv_r27u, lv_r27mo);
+
+    // AI 线那条同源探针（见 CMLibTest_AIDeferred 的 round26 说明）在此落盘。
+    CMLib_BankSetInt(lv_bank, "Result", "MkAIWith", gv_cmlibMkAIWith);
+    CMLib_BankSetInt(lv_bank, "Result", "MkAIWithout", gv_cmlibMkAIWithout);
+    // null 守门：无效单位 / 无效 marker 一律 0，且不崩。
+    CMLibTest_MarkTag(CMLib_UnitMarkerCount(null, lv_r27m) == 0
+                      && CMLib_UnitMarkerCount(lv_r27u, null) == 0,
+                      "marker.unit.nullsafe");
+
+    // ---- 施法者往返 ----
+    lv_r27m2 = CMLib_MarkerForPlayer("AI/Tactical/Danger", 1);
+    CMLibTest_MarkTag(CMLib_MarkerCastPlayer(lv_r27m2) == 1, "marker.cast.player");
+    lv_r27m2 = CMLib_MarkerForUnit("AI/Tactical/Danger", lv_r27u);
+    CMLibTest_MarkTag(CMLib_MarkerCastUnit(lv_r27m2) == lv_r27u, "marker.cast.unit");
+    // 玩家槽非法 / 单位无效时退化为无施法者版本，仍必须是可用句柄而不是 null。
+    CMLibTest_MarkTag(CMLib_MarkerForPlayer("AI/Tactical/Danger", 999) != null
+                      && CMLib_MarkerForUnit("AI/Tactical/Danger", null) != null,
+                      "marker.cast.degrade");
+
+    // ---- 匹配标志往返（c_markerMatch* 在 GameData/Game.galaxy） ----
+    CMLib_MarkerMatchFlag(lv_r27m, c_markerMatchLink, true);
+    CMLibTest_MarkTag(CMLib_MarkerHasMatchFlag(lv_r27m, c_markerMatchLink),
+                      "marker.matchflag.set");
+    CMLib_MarkerMatchFlag(lv_r27m, c_markerMatchLink, false);
+    CMLibTest_MarkTag(CMLib_MarkerHasMatchFlag(lv_r27m, c_markerMatchLink) == false,
+                      "marker.matchflag.clear");
+    // 越界 flag 必须被库拦住（不许把脏值送进引擎）。
+    CMLibTest_MarkTag(CMLib_MarkerHasMatchFlag(lv_r27m, 99) == false,
+                      "marker.matchflag.oob");
+
+    // ---- DataTable 强类型族补齐：marker / camerainfo 往返 + 缺键回退 ----
+    CMLib_DTSetMarker(false, "cmlib.r27.marker", lv_r27m);
+    CMLibTest_MarkTag(CMLib_DTGetMarker(false, "cmlib.r27.marker") == lv_r27m,
+                      "marker.dt.roundtrip");
+    CMLibTest_MarkTag(CMLib_DTGetMarker(false, "cmlib.r27.nokey") == null,
+                      "marker.dt.miss");
+
+    lv_r27cam = CMLib_CamInfoDefault();
+    CMLibTest_MarkTag(lv_r27cam != null, "cam.info.default");
+    // id <= 0 是非法输入，库回退到默认镜头而不是把 null 一路带进 CameraApplyInfo。
+    CMLibTest_MarkTag(CMLib_CamInfoFromId(-1) != null, "cam.info.fromid.guard");
+    CMLib_DTSetCameraInfo(false, "cmlib.r27.cam", lv_r27cam);
+    CMLibTest_MarkTag(CMLib_DTGetCameraInfo(false, "cmlib.r27.cam") == lv_r27cam,
+                      "cam.dt.roundtrip");
+    CMLibTest_MarkTag(CMLib_DTGetCameraInfo(false, "cmlib.r27.nokey") == null,
+                      "cam.dt.miss");
+
+    // ---- sound：本局不播任何音效，SoundLastPlayed 恒 null ----
+    // 按 round23 纪律，观测不到的东西不硬断言（那是在断言环境，不是断言库）。
+    // 只锁「缺键返回 null」这条与环境无关的性质；句柄真实值走 bank 诊断探针。
+    lv_r27snd = CMLib_SfxLastPlayed();
+    CMLibTest_MarkTag(CMLib_DTGetSound(false, "cmlib.r27.nokey") == null,
+                      "sound.dt.miss");
+    CMLib_DTSetSound(false, "cmlib.r27.snd", lv_r27snd);
+    CMLibTest_MarkTag(CMLib_DTGetSound(false, "cmlib.r27.snd") == lv_r27snd,
+                      "sound.dt.roundtrip");
+    // 空键不许写进 DataTable（三个 Set 口径一致）。
+    CMLib_DTSetMarker(false, "", lv_r27m);
+    CMLibTest_MarkTag(CMLib_DTGetMarker(false, "") == null, "marker.dt.emptykey");
+
+    // =========================================================================
+    // round26 —— 74 个新封装原生符号的验收（硬断言部分）
+    //
+    // 只放"有读回路径 / 有独立期望值"的判据。读不回来的族（Catalog scope 反射、
+    // TimerWindow 的无 getter setter、Cinematic、VictoryPanel、AI Stock）
+    // 全部在下面的探针段里只记录、不判定 —— 不把"调了没崩"包装成语义断言。
+    // =========================================================================
+
+    // ---- string：纯函数，与地图环境完全无关，本轮最硬的一批 ----
+    CMLibTest_MarkTag(CMLib_StrCase("aBc", true) == "ABC", "str.case.upper");
+    CMLibTest_MarkTag(CMLib_StrCase("aBc", false) == "abc", "str.case.lower");
+    // 双向：同一对串，大小写敏感时不等、不敏感时相等。
+    // 只写其中一条的话，"恒返回 0"的坏实现能拿满分。
+    CMLibTest_MarkTag(CMLib_StrCompare("abc", "abc", c_stringCase) == 0,
+                      "str.compare.eq");
+    CMLibTest_MarkTag(CMLib_StrCompare("abc", "ABC", c_stringCase) != 0,
+                      "str.compare.case.sens");
+    CMLibTest_MarkTag(CMLib_StrCompare("abc", "ABC", c_stringNoCase) == 0,
+                      "str.compare.case.insens");
+    // Contains 三向：命中 / 大小写不匹配落空 / 忽略大小写又命中。
+    CMLibTest_MarkTag(CMLib_StrContains("hello world", "world",
+                                        c_stringAnywhere, c_stringCase),
+                      "str.contains.hit");
+    CMLibTest_MarkTag(CMLib_StrContains("hello world", "World",
+                                        c_stringAnywhere, c_stringCase) == false,
+                      "str.contains.case.miss");
+    CMLibTest_MarkTag(CMLib_StrContains("hello world", "World",
+                                        c_stringAnywhere, c_stringNoCase),
+                      "str.contains.case.insens");
+    // location 三档必须真的区分位置，不能退化成"哪档都当 Anywhere"。
+    CMLibTest_MarkTag(CMLib_StrContains("hello world", "hello",
+                                        c_stringBegin, c_stringCase),
+                      "str.contains.begin.hit");
+    CMLibTest_MarkTag(CMLib_StrContains("hello world", "world",
+                                        c_stringBegin, c_stringCase) == false,
+                      "str.contains.begin.miss");
+    CMLibTest_MarkTag(CMLib_StrContains("hello world", "world",
+                                        c_stringEnd, c_stringCase),
+                      "str.contains.end.hit");
+    // StringWord 是 1-based —— 这条就是把口径钉死的硬证据。
+    // 若实现偷偷改成 0-based，index 1 会拿到 "beta"，立刻红。
+    CMLibTest_MarkTag(CMLib_StrWord("alpha beta gamma", 1) == "alpha",
+                      "str.word.1based");
+    CMLibTest_MarkTag(CMLib_StrWord("alpha beta gamma", 2) == "beta",
+                      "str.word.second");
+    CMLibTest_MarkTag(CMLib_StrWord("alpha beta gamma", 99) == "",
+                      "str.word.oob");
+    // maxCount 双向：-1 全替、1 只替第一处。只测全替的话，
+    // "永远忽略 maxCount"的实现照样满分。
+    CMLibTest_MarkTag(CMLib_StrReplaceWord("a b a", "a", "X",
+                                           c_stringReplaceAll, c_stringCase)
+                      == "X b X", "str.replaceword.all");
+    CMLibTest_MarkTag(CMLib_StrReplaceWord("a b a", "a", "X", 1, c_stringCase)
+                      == "X b a", "str.replaceword.limit");
+    // StringReplace 是 1-based 闭区间（官方 libCamp 用例 length-subLength+1..length）。
+    // 替换第 2~3 个字符 "bc" -> "XY"。
+    CMLibTest_MarkTag(CMLib_StrReplaceRange("abcdef", "XY", 2, 3) == "aXYdef",
+                      "str.replacerange.1based");
+
+    // ---- point ----
+    lv_r26p1 = Point(10.0, 20.0);
+    lv_r26p2 = Point(20.0, 20.0);
+    // 中点：x 必须落在 15。
+    lv_r26p3 = CMLib_PointLerp(lv_r26p1, lv_r26p2, 0.5);
+    CMLibTest_MarkTag(lv_r26p3 != null
+                      && AbsF(PointGetX(lv_r26p3) - 15.0) < 0.01,
+                      "point.lerp.mid");
+    // 夹紧双向：>1 收到 dest，<0 收到 source。不夹的话会外推到 30 / 0。
+    lv_r26p3 = CMLib_PointLerp(lv_r26p1, lv_r26p2, 2.0);
+    CMLibTest_MarkTag(lv_r26p3 != null
+                      && AbsF(PointGetX(lv_r26p3) - 20.0) < 0.01,
+                      "point.lerp.clamp.hi");
+    lv_r26p3 = CMLib_PointLerp(lv_r26p1, lv_r26p2, -1.0);
+    CMLibTest_MarkTag(lv_r26p3 != null
+                      && AbsF(PointGetX(lv_r26p3) - 10.0) < 0.01,
+                      "point.lerp.clamp.lo");
+    // PointSet(p1,p2) 把 p2 拷进 p1 —— 参数方向搞反是这族最容易犯的错，
+    // 所以同时断言 dst 变了、src 没变。
+    lv_r26p3 = Point(1.0, 1.0);
+    CMLib_PointCopy(lv_r26p3, lv_r26p2);
+    CMLibTest_MarkTag(AbsF(PointGetX(lv_r26p3) - 20.0) < 0.01,
+                      "point.copy.dst.updated");
+    CMLibTest_MarkTag(AbsF(PointGetX(lv_r26p2) - 20.0) < 0.01,
+                      "point.copy.src.untouched");
+    // PointsInRange 双向。
+    CMLibTest_MarkTag(CMLib_PointsWithin(lv_r26p1, lv_r26p1, 1.0),
+                      "points.within.hit");
+    CMLibTest_MarkTag(CMLib_PointsWithin(lv_r26p1, lv_r26p2, 1.0) == false,
+                      "points.within.miss");
+    // 高度往返：设了就得读得回来。
+    CMLib_PointSetHeight(lv_r26p1, 7.5);
+    CMLibTest_MarkTag(AbsF(PointGetHeight(lv_r26p1) - 7.5) < 0.01,
+                      "point.setheight.roundtrip");
+    // 不存在的预置点名 -> null（本测试图没有任何预置点）。
+    CMLibTest_MarkTag(CMLib_PointByName("__cmlib_no_such_point__") == null,
+                      "point.byname.missing.null");
+
+    // ---- region ----
+    lv_r26rg = CMLib_RegionCircle(lv_origin, 4.0);
+    CMLib_RegionSetCenter(lv_r26rg, Point(33.0, 44.0));
+    lv_r26p3 = CMLib_RegionCenter(lv_r26rg);
+    CMLibTest_MarkTag(lv_r26p3 != null
+                      && AbsF(PointGetX(lv_r26p3) - 33.0) < 0.01,
+                      "region.setcenter.roundtrip");
+    CMLib_RegionSetOffset(lv_r26rg, Point(3.0, 0.0));
+    lv_r26p3 = CMLib_RegionOffset(lv_r26rg);
+    CMLibTest_MarkTag(lv_r26p3 != null
+                      && AbsF(PointGetX(lv_r26p3) - 3.0) < 0.01,
+                      "region.setoffset.roundtrip");
+    // 跟随往返 + 解绑反向：只测绑定不测解绑的话，
+    // "RegionGetAttachUnit 恒返回最后一个见过的单位"也能骗过去。
+    CMLib_RegionAttach(lv_r26rg, lv_marine, Point(0.0, 0.0));
+    CMLibTest_MarkTag(CMLib_RegionAttachUnit(lv_r26rg) == lv_marine,
+                      "region.attach.roundtrip");
+    CMLib_RegionAttach(lv_r26rg, null, Point(0.0, 0.0));
+    CMLibTest_MarkTag(CMLib_RegionAttachUnit(lv_r26rg) == null,
+                      "region.attach.null.detach");
+    CMLibTest_MarkTag(CMLib_RegionByName("__cmlib_no_such_region__") == null,
+                      "region.byname.missing.null");
+
+    // ---- order ----
+    lv_r26o = CMLib_OrderAt("attack", 0, lv_origin);
+    CMLib_OrderSetPlayer(lv_r26o, 5);
+    CMLibTest_MarkTag(CMLib_OrderPlayer(lv_r26o) == 5, "order.player.roundtrip");
+    // flag 双向。引擎没有为 order flag 导出具名常量，只能传裸 int（0 = queued）。
+    CMLib_OrderSetFlag(lv_r26o, 0, true);
+    CMLibTest_MarkTag(CMLib_OrderFlag(lv_r26o, 0), "order.flag.set.true");
+    CMLib_OrderSetFlag(lv_r26o, 0, false);
+    CMLibTest_MarkTag(CMLib_OrderFlag(lv_r26o, 0) == false,
+                      "order.flag.set.false");
+    // 两个新构造器必须真造得出 order 句柄，不能吞成 null。
+    lv_r26ac = AbilityCommand("attack", 0);
+    CMLibTest_MarkTag(CMLib_OrderAtRelative(lv_r26ac, lv_origin) != null,
+                      "order.atrelative.notnull");
+    CMLibTest_MarkTag(CMLib_OrderOnGroup(lv_r26ac, CMLib_UGOf(lv_marine)) != null,
+                      "order.ongroup.notnull");
+
+    // ---- catalog：只断言"有独立对照"的两组 ----
+    // (1) EntryClass：同为 CUnit 的两个条目必须同类；
+    //     不存在的条目必须不同类 —— 后一条排除了"恒返回同一个值"的退化实现。
+    lv_r26n = CMLib_CatEntryClass(c_gameCatalogUnit, "Marine");
+    CMLibTest_MarkTag(lv_r26n == CMLib_CatEntryClass(c_gameCatalogUnit, "Thor"),
+                      "cat.entryclass.same.family");
+    CMLibTest_MarkTag(lv_r26n != CMLib_CatEntryClass(c_gameCatalogUnit,
+                                                     "__cmlib_no_such_entry__"),
+                      "cat.entryclass.missing.differs");
+    // (2) CatalogReference：Get 与 GetAsInt 走两条不同的引擎路径，
+    //     必须给出一致的数 —— 任一条退化成常量都会立刻不一致。
+    lv_r26n = CMLib_CatRefInt("Unit,Marine,LifeMax", c_playerAny);
+    lv_r26s = CMLib_CatRefGet("Unit,Marine,LifeMax", c_playerAny);
+    CMLibTest_MarkTag(lv_r26n > 0, "cat.ref.int.positive");
+    CMLibTest_MarkTag(StringToInt(lv_r26s) == lv_r26n, "cat.ref.get.matches.int");
+
+    // ---- timer / timerwindow ----
+    lv_r26tm = CMLib_TimerOnce(60.0);
+    // TimerLastStarted 必须就是刚刚那个句柄（CMLib_TimerOnce 内部 TimerStart）。
+    CMLibTest_MarkTag(lv_r26tm != null && CMLib_TimerLastStarted() == lv_r26tm,
+                      "timer.laststarted.match");
+    lv_r26w = CMLib_TimerPanelCreate(lv_r26tm, StringToText("CMLibR26"), false);
+    CMLib_TimerPanelShow(lv_r26w, PlayerGroupAll(), true);
+    CMLibTest_MarkTag(CMLib_TimerPanelVisible(lv_r26w, 1),
+                      "timer.window.visible.true");
+    CMLib_TimerPanelShow(lv_r26w, PlayerGroupAll(), false);
+    CMLibTest_MarkTag(CMLib_TimerPanelVisible(lv_r26w, 1) == false,
+                      "timer.window.visible.false");
+    // 8 个无 getter 的 setter 全部打一遍，再回到可见性往返。
+    // 这条不是语义断言 —— 它能证伪的是「这串调用会不会把窗口打废 / 打断脚本」，
+    // 有 getter 的那天再升级成逐项往返。
+    CMLib_TimerPanelBind(lv_r26w, lv_r26tm);
+    CMLib_TimerPanelStyle(lv_r26w, 1, true);
+    CMLib_TimerPanelMove(lv_r26w, 100, 60);
+    CMLib_TimerPanelGap(lv_r26w, 8);
+    CMLib_TimerPanelHeight(lv_r26w, 24);
+    CMLib_TimerPanelBorder(lv_r26w, true);
+    CMLib_TimerPanelProgressBar(lv_r26w, true);
+    CMLib_TimerPanelProgressColor(lv_r26w, Color(100.0, 0.0, 0.0), 0);
+    CMLib_TimerPanelReset(lv_r26w);
+    CMLib_TimerPanelShow(lv_r26w, PlayerGroupAll(), true);
+    CMLibTest_MarkTag(CMLib_TimerPanelVisible(lv_r26w, 1),
+                      "timer.window.setters.survived");
+    CMLib_TimerPanelShow(lv_r26w, PlayerGroupAll(), false);
+
+    // ---- transmission：Select 变体 ----
+    // waitUntilDone 必须传 false，否则会把整条主链阻塞住。
+    lv_r26t = CMLib_TransSendForPlayerSelect(
+                  PlayerGroupAll(), CMLib_TransNone(), CMLIB_TRANS_NO_PORTRAIT,
+                  "", "", SoundLink("", 0), StringExternal(""),
+                  StringExternal(""), 0.1, CMLIB_TRANS_DUR_SET,
+                  false, c_maxPlayers, false);
+    CMLibTest_MarkTag(lv_r26t == CMLib_TransLast(),
+                      "trans.select.lastsent.match");
+    CMLib_TransClear(lv_r26t);
+
+    // ---- 引擎语义探针（诊断用，**不是断言**，不影响通过判定）----
+    // round21：把"空串是否等于 null""武器索引基准"两条推演结论落成硬证据，
+    // 下次谁再怀疑就直接看 bank，不用重跑一整轮矩阵去二分。
+    CMLib_BankSetInt(lv_bank, "Result", "StrNullEquiv", CMLibTest_StrNullEquiv());
+    // 直接调 native（绕开库守卫）取两个索引的真实周期，单位毫秒。
+    CMLib_BankSetInt(lv_bank, "Result", "WpnIdx0",
+                     RoundI(UnitWeaponPeriod(lv_marine, 0) * 1000.0));
+    CMLib_BankSetInt(lv_bank, "Result", "WpnIdx1",
+                     RoundI(UnitWeaponPeriod(lv_marine, 1) * 1000.0));
+    CMLib_BankSetInt(lv_bank, "Result", "WpnCount", UnitWeaponCount(lv_marine));
+    // round23：`StatEventCreate` 到底给不给句柄。直接调 native、绕开库守卫。
+    // 开发机（非暴雪签名内容）实测恒为 0；若哪天在签名内容里跑出非 0，
+    // 就说明"Blizzard only"是签名门槛而非永久封死 —— 有了这个数就不用再猜。
+    CMLib_BankSetInt(lv_bank, "Result", "StatEvtHandle",
+                     StatEventCreate("CMLibDiag"));
+    CMLib_BankSetInt(lv_bank, "Result", "StatEvtLast", StatEventLastCreated());
+    // round27：本局到底有没有可用的 sound 句柄。1 = null（预期，本局不播音效）。
+    // 不做断言 —— 它测的是测试环境有没有放过声音，不是库对不对。
+    // 哪天在会播音效的地图里跑出 0，就说明 CMLib_SfxLastPlayed 的正向通路
+    // 也拿到了实证，届时可把 sound 的弱判据升级为往返硬断言。
+    CMLib_BankSetInt(lv_bank, "Result", "R27SoundNull",
+                     CMLibTest_BoolToInt(CMLib_SfxLastPlayed() == null));
+
+    // ---- round26 探针：**没有独立期望值**的族，只记录不判定 ----
+    //
+    // Catalog scope 反射族（CatalogFieldCount / FieldGet / FieldIsArray /
+    // FieldIsScope / FieldType / FieldTypeCategory）在 reference 下全部官方
+    // .galaxy 里**零用例**，scope 串到底该写 "CUnit" 还是别的形态没有独立证据。
+    // 拿不到证据就不写断言 —— 先把真实返回值取回来，下一轮再决定升不升级。
+    CMLib_BankSetInt(lv_bank, "Result", "R26ScopeFieldCnt",
+                     CMLib_CatScopeFieldCount("CUnit"));
+    CMLib_BankSetString(lv_bank, "Result", "R26ScopeField1",
+                        CMLib_CatScopeFieldAt("CUnit", 1));
+    CMLib_BankSetString(lv_bank, "Result", "R26ScopeField0",
+                        CMLib_CatScopeFieldAt("CUnit", 0));
+    CMLib_BankSetInt(lv_bank, "Result", "R26FieldIsArray",
+                     CMLibTest_BoolToInt(CMLib_CatFieldIsArray("CUnit",
+                                                               "Abilities")));
+    CMLib_BankSetInt(lv_bank, "Result", "R26FieldIsScope",
+                     CMLibTest_BoolToInt(CMLib_CatFieldIsScope("CUnit",
+                                                               "LifeMax")));
+    CMLib_BankSetString(lv_bank, "Result", "R26FieldType",
+                        CMLib_CatFieldType("CUnit", "LifeMax"));
+    CMLib_BankSetInt(lv_bank, "Result", "R26FieldTypeCat",
+                     CMLib_CatFieldTypeCat("CUnit", "LifeMax"));
+    CMLib_BankSetInt(lv_bank, "Result", "R26EntryClass",
+                     CMLib_CatEntryClass(c_gameCatalogUnit, "Marine"));
+    CMLib_BankSetString(lv_bank, "Result", "R26EntryParent",
+                        CMLib_CatEntryParent(c_gameCatalogUnit, "Marine"));
+    CMLib_BankSetInt(lv_bank, "Result", "R26RefCount",
+                     CMLib_CatRefCount("Unit,Marine,Abilities", c_playerAny));
+    CMLib_BankSetInt(lv_bank, "Result", "R26Flags",
+                     CMLib_CatGetFlags(c_gameCatalogUnit, "Marine",
+                                       "Attributes", c_playerAny));
+
+    // StringToAbilCmd 的入参格式（"Abil" 还是 "Abil,index"）没有独立证据 ——
+    // 官方用例喂的都是 CatalogFieldValueGet 的原始返回值。两种都试，记下哪种成。
+    lv_r26s = CMLib_CatEntryAt(c_gameCatalogAbil, 1);
+    CMLib_BankSetInt(lv_bank, "Result", "R26AbilCmdPlain",
+                     CMLibTest_BoolToInt(
+                         CMLib_AbilCmdAbility(CMLib_AbilCmdFromString(lv_r26s))
+                         == lv_r26s));
+    CMLib_BankSetInt(lv_bank, "Result", "R26AbilCmdComma",
+                     CMLibTest_BoolToInt(
+                         CMLib_AbilCmdAbility(
+                             CMLib_AbilCmdFromString(lv_r26s + ",0"))
+                         == lv_r26s));
+
+    // 预置点 / 预置区域按 id 取：本测试图一个都没预置，恒 null 属预期，
+    // 但这测的是"测试图有没有预置"而不是"库对不对" —— 所以只记录。
+    CMLib_BankSetInt(lv_bank, "Result", "R26PointById1Null",
+                     CMLibTest_BoolToInt(CMLib_PointById(1) == null));
+    CMLib_BankSetInt(lv_bank, "Result", "R26RegionById1Null",
+                     CMLibTest_BoolToInt(CMLib_RegionById(1) == null));
+    // 悬崖等级取自地图地形，值随图变，只记不判。
+    CMLib_BankSetInt(lv_bank, "Result", "R26CliffLevel",
+                     RoundI(CMLib_PointCliffLevel(lv_origin) * 100.0));
+    // PointReflect 的 angle 语义（度 / 弧度、绕谁转）没有独立证据，只记坐标。
+    lv_r26p3 = CMLib_PointReflect(Point(10.0, 10.0), Point(20.0, 10.0), 90.0);
+    CMLib_BankSetInt(lv_bank, "Result", "R26ReflectX",
+                     RoundI(PointGetX(lv_r26p3) * 100.0));
+
+    // 以下几族**没有任何读回路径**（引擎只给了 setter）。
+    // 全部打一遍，能证伪的只有"会不会打断 MapScript" —— 脚本一旦中断，
+    // 后面的落盘和 Thor 都不会发生，suite 层自然会红。所以这里不发断言。
+    CMLib_TransSourceBypassLog(CMLib_TransNone(), true);
+    CMLib_TransSourcePauseAllowed(CMLib_TransNone(), true);
+    CMLib_TransSourceStreaming(CMLib_TransNone(), true);
+    CMLib_TransHideAlertPanel(false);
+    CMLib_TransSetOption(CMLIB_TRANS_OPT_HIDE_ALERT_PANEL, false);
+    CMLib_VPanelCustomStatisticText(StringExternal(""));
+    CMLib_VPanelCustomStatisticValue(StringExternal(""));
+    CMLib_VPanelCustomStatisticInt(StringExternal(""), 42);
+    // Cinematic：只走"关"和"守门早退"两条路径。真开过场会遮 UI，
+    // 而本测试局的证据链要靠 raw observation 读单位，不给它添变数。
+    CMLib_CineMode(PlayerGroupAll(), false, 0.0);
+    CMLib_CineDataRun(-1, PlayerGroupAll(), false);
+    CMLib_CineDataStop();
+    CMLib_CineOverlay(false, 0.0, "", 0.0, false);
+    // 本地化文本三件套：text / datetime 没有廉价的可比较读回路径，
+    // 这里只保证调用路径被真机走过一遍。
+    lv_r26tx = CMLib_StrAsset("");
+    lv_r26tx = CMLib_StrHotkey("");
+    lv_r26dt = CMLib_StrToDateTime("2026-08-10 05:00:00");
+    // order 的两个无 getter setter 一并走一遍。
+    CMLib_OrderSetPassenger(lv_r26o, null);
+    CMLib_OrderSetAbilCmd(lv_r26o, lv_r26ac);
+    CMLib_BankSetInt(lv_bank, "Result", "R26OrderPlacement",
+                     CMLibTest_BoolToInt(
+                         CMLib_OrderSetPlacement(lv_r26o, lv_origin,
+                                                 lv_marine, "")));
+    CMLib_OrderSetTargetItem(lv_r26o, null);
+    CMLib_BankSetInt(lv_bank, "Result", "R26OrderTargetItemNull",
+                     CMLibTest_BoolToInt(CMLib_OrderTargetItem(lv_r26o) == null));
+    lv_r26o = CMLib_OrderOnItem(lv_r26ac, lv_marine);
+    CMLib_BankSetInt(lv_bank, "Result", "R26OrderOnItemNull",
+                     CMLibTest_BoolToInt(lv_r26o == null));
+
+    // ---- 结果落盘 ----
+    CMLib_BankSetInt(lv_bank, "Result", "Passed", gv_cmlibPassed);
+    CMLib_BankSetInt(lv_bank, "Result", "Total", gv_cmlibTotal);
+    CMLib_BankSetString(lv_bank, "Result", "FailTags", gv_cmlibFailTags);
+    CMLib_BankFlush(lv_bank);
+
+    // ---- 结果编码为可观测单位 ----
+    lv_i = 0;
+    while ((lv_i < gv_cmlibPassed)) {
+        CMLib_SpawnForced("Marauder", 1, CMLib_PointOffset(lv_origin, 4.0, 0.0), 270.0);
+        lv_i = lv_i + 1;
+    }
+    if ((gv_cmlibPassed == gv_cmlibTotal)) {
+        CMLib_SpawnForced("Thor", 1, CMLib_PointOffset(lv_origin, -6.0, 0.0), 270.0);
+    }
+
+    CMLib_LogInfo("CMLibTest", "self-test finished");
+    return true;
+}
+
+// 加分项：AI 通路。单独一个触发器，出错也不影响主证据链。
+bool CMLibTest_AIDeferred (bool testConds, bool runActions) {
+    point lv_origin;
+    int   lv_aiPassed;
+    unitgroup lv_r18ag;
+    int       lv_r18as;
+    aifilter  lv_r24f;
+    unitgroup lv_r24all;
+    unitgroup lv_r24out;
+    unit      lv_r24u;
+    int       lv_r24n;
+    int       lv_r24total;
+    int       lv_r24ground;
+    int       lv_r24air;
+    marker    lv_r27am;
+    unit      lv_r27au;
+    aifilter  lv_r27af;
+    int       lv_r27an0;
+    int       lv_r27an1;
+    aifilter  lv_r26af;
+    int       lv_r26an;
+
+    lv_origin = CMLibTest_Origin();
+
+    // AI 用户变量：本测试局玩家 1 是人类、没有 AI，引擎未分配 user-int 槽。
+    // 已文档化的契约是「安全回退」——Set 空操作、Get 恒返回 0、绝不崩。
+    // 所以这里断言的是回退行为本身，而不是读写往返（后者在无 AI 玩家上
+    // 永远不可能成立，写成往返只会得到一个永久失败的误导性指标）。
+    CMLib_AIVarSet(1, 7, 424242);
+    if (CMLib_AIVarGet(1, 7) == 0 && CMLib_AIVarBump(1, 7, 8) == 8) {
+        CMLib_SpawnForced("Battlecruiser", 1,
+                          CMLib_PointOffset(lv_origin, 0.0, 6.0), 270.0);
+    }
+
+    // AISetStock 通路 —— 只要没抛运行时错误就放一架女妖
+    CMLib_StockSet(1, 1, "Marine");
+    CMLib_SpawnForced("Banshee", 1,
+                      CMLib_PointOffset(lv_origin, 0.0, -6.0), 270.0);
+
+    // 第 7 轮新增：合作任务 AI 高频封装在人类玩家上的「可调用即过」断言。
+    // 这些原生对人类玩家是空操作（不崩），断言只验封装可被调用、不抛错。
+    // 注意：本触发器在主线之后运行，主线已 spawn 完 Marauder；为让这 6 项
+    // 断言进入 Marauder 证据链，这里单独 spawn 等价数量的 Marauder。
+    lv_aiPassed = 0;
+    CMLib_AIAttackWaveAddUnits(1, 1, "Marine");
+    CMLibTest_MarkTag(true, "aiWaveAdd");     lv_aiPassed += 1;
+    CMLib_AISetFlag(1, 1, true);
+    CMLibTest_MarkTag(true, "aiSetFlag");     lv_aiPassed += 1;
+    CMLibTest_MarkTag(CMLib_AIGetTime() >= 0.0, "aiGetTime"); lv_aiPassed += 1;
+    CMLib_AICounterUnitSetup(1, "Marine", 1.0, "Marine", 1.0, "Marine");
+    CMLibTest_MarkTag(true, "aiCounter");     lv_aiPassed += 1;
+    CMLib_AIEnableStock(1);
+    CMLibTest_MarkTag(true, "aiEnableStock"); lv_aiPassed += 1;
+    CMLib_AIClearStock(1);
+    CMLibTest_MarkTag(true, "aiClearStock");  lv_aiPassed += 1;
+
+    // 第 14 轮：这里原本有一个「自己 spawn lv_aiPassed 个 Marauder」的循环
+    // 和一次 bank 回写，两者都已移除 ——
+    //   spawn：主线会按最终的 gv_cmlibPassed 统一编码，AI 再 spawn 就是重复计数；
+    //   bank ：这里写的是主线尚未跑完的中间态，Passed==Total 却不足额，
+    //          会给「以 bank 为权威」的判定制造一个看似合格的假象。
+    // AI 线现在只做一件事：算完，然后举手。
+    // ---- round 18：AI 自杀冲锋 / 整组脚本接管 / 子状态几率 / 状态槽 ----
+    // 这些原生对人类玩家的单位是空操作（不崩），断言只验"封装可被调用且守卫生效"。
+    lv_r18ag = CMLib_UGArmyOfPlayer(1);
+    CMLib_AIUnitSuicide(null, true);
+    CMLib_AIGroupSuicide(null, true);
+    CMLib_AIGroupScriptControlled(null, true);
+    CMLibTest_MarkTag(true, "ai.suicide.guards");
+    CMLib_AIGroupSuicide(lv_r18ag, true);
+    CMLib_AIGroupSuicide(lv_r18ag, false);
+    CMLibTest_MarkTag(true, "ai.group.suicide");
+    // 与已有的 CMLib_AIScriptControlGroup 不同：那个逐单位调，这个用组原生。
+    CMLib_AIGroupScriptControlled(lv_r18ag, true);
+    CMLib_AIGroupScriptControlled(lv_r18ag, false);
+    CMLibTest_MarkTag(true, "ai.group.scriptcontrolled");
+    // 状态槽是纯读。本局没有电脑玩家，对人类玩家读槽位引擎无文档承诺，
+    // 所以只在确实存在电脑玩家时才真读 —— 写成无条件读只会得到一条
+    // 永久失败或永久无意义的指标。
+    if (CMLib_PlayerIsComputer(2)) {
+        lv_r18as = CMLib_AIState(2, 0);
+        CMLibTest_MarkTag(lv_r18as >= 0, "ai.state.read");
+    }
+    else {
+        CMLibTest_MarkTag(true, "ai.state.skipped.nocomputer");
+    }
+    // 几率夹紧：越界值必须被夹到 [0,100]，负几率会让 AI 行为诡异。
+    // 纯 setter，放本子块末尾（万一抛错只损失自己）。
+    CMLib_AISubStateChance(0, -5);
+    CMLib_AISubStateChance(0, 150);
+    CMLib_AISubStateChance(0, 50);
+    CMLibTest_MarkTag(true, "ai.substate.chance.clamp");
+
+    // ---- round 24：AI 战术过滤（aifilter 句柄族）------------------------------
+    // 断言口径严格按 probe_aifilter.py 六档探针拿到的**正向返回值证据**来写：
+    //   已验语义（可硬断言 count > 0）：AIFilter 句柄有效 / Alliance / Bits /
+    //     Plane(ground) / Life / LifePercent / LifeLost / Shields / Range /
+    //     LifeSortReference / InCombat / AIFilterProduction / AIFilterPathable
+    //   无正向证据（只断言结构性质，绝不假装验过）：Casters / Gathering /
+    //     Plane(air) 的过滤语义 / Ally|Enemy 分组语义
+    // round23 血泪：不要断言当前环境观测不到的东西——空图上过滤出空组
+    // 既可能是"函数坏了"也可能是"本来就没有这种单位"，两者不可分辨。
+    lv_r24all = UnitGroup(null, c_playerAny, RegionEntireMap(), UnitFilterStr(""), c_noMaxCount);
+    lv_r24total = UnitGroupCount(lv_r24all, c_unitCountAll);
+    lv_r24u = UnitGroupUnit(lv_r24all, 1);
+
+    // 句柄有效性 + 非法玩家守门。
+    lv_r24f = CMLib_AIFilterNew(1);
+    CMLibTest_MarkTag(lv_r24f != null, "ai.filter.new");
+    CMLibTest_MarkTag(CMLib_AIFilterNew(-1) == null, "ai.filter.new.guard");
+
+    // null 安全：Apply 必须返回**空组而不是 null**，调用方可无脑接着数。
+    lv_r24out = CMLib_AIFilterApply(null, null);
+    CMLibTest_MarkTag(lv_r24out != null && UnitGroupCount(lv_r24out, c_unitCountAll) == 0,
+                      "ai.filter.apply.nullsafe");
+
+    // 核心正向：Alliance=Any 过滤全图单位，必须产出非空组（探针 value 档实证）。
+    CMLib_AIFilterAlliance(lv_r24f, c_playerGroupAny);
+    lv_r24out = CMLib_AIFilterApply(lv_r24f, lv_r24all);
+    lv_r24n = UnitGroupCount(lv_r24out, c_unitCountAll);
+    CMLibTest_MarkTag(lv_r24n > 0, "ai.filter.apply.any");
+    // Count 版必须和 Apply 版一致，否则两条路径会各说各话。
+    CMLibTest_MarkTag(CMLib_AIFilterApplyCount(lv_r24f, lv_r24all) == lv_r24n,
+                      "ai.filter.applycount.consistent");
+
+    // 区间守门：min > max 是笔误，必须**忽略该条件**而不是静默过滤成空组。
+    CMLib_AIFilterLife(lv_r24f, 100.0, 0.0);
+    CMLibTest_MarkTag(CMLib_AIFilterApplyCount(lv_r24f, lv_r24all) == lv_r24n,
+                      "ai.filter.badrange.ignored");
+
+    // 半径条件：圆心为 null 时同样必须忽略而不是照传（callall 档教训）。
+    CMLib_AIFilterRange(lv_r24f, null, 10.0);
+    CMLibTest_MarkTag(CMLib_AIFilterApplyCount(lv_r24f, lv_r24all) == lv_r24n,
+                      "ai.filter.range.nullcenter.ignored");
+
+    // ---- round 25：新转正条件的**守门逻辑**验收 -------------------------------
+    // 这一组测的不是引擎行为（那是 probe_aifilter25.py 四档真机探针的活），
+    // 而是**库自己的防御逻辑**：所有"参数无效"的条件都必须被忽略掉，
+    // 叠加多少条都不许改变过滤结果。基准 lv_r24n 取自上面的 Alliance=Any。
+    // 用一条链把它们全叠在同一个 filter 上——只要有任何一条偷偷传给了 native
+    // 并掐窄了结果，count 就会偏离基准，一次性全暴露。
+    CMLib_AIFilterExcludeUnit(lv_r24f, null);
+    CMLibTest_MarkTag(CMLib_AIFilterApplyCount(lv_r24f, lv_r24all) == lv_r24n,
+                      "ai.filter.excludeunit.null.ignored");
+    CMLib_AIFilterBehaviorCount(lv_r24f, 0, 1000, "");
+    CMLibTest_MarkTag(CMLib_AIFilterApplyCount(lv_r24f, lv_r24all) == lv_r24n,
+                      "ai.filter.behaviorcount.emptystr.ignored");
+    CMLib_AIFilterBehaviorCount(lv_r24f, 1000, 0, "Stimpack");
+    CMLibTest_MarkTag(CMLib_AIFilterApplyCount(lv_r24f, lv_r24all) == lv_r24n,
+                      "ai.filter.behaviorcount.badrange.ignored");
+    CMLib_AIFilterValidPassenger(lv_r24f, null);
+    CMLibTest_MarkTag(CMLib_AIFilterApplyCount(lv_r24f, lv_r24all) == lv_r24n,
+                      "ai.filter.validpassenger.null.ignored");
+    // ⚠ round27 证据链备注（读到这里的人请先看完再动手）：
+    // 下面两条一度被怀疑是"恒绿"断言 —— round25 时全场没有任何单位带 marker，
+    // 「库拦住了没调 native」和「库调了但引擎无数据」结果一样，守门删了也绿。
+    // round27 的 `marker.aifilter.roundtrip` 顺带把这个疑点证伪了一半：
+    // 那条测出 an0 == 0，即**拿一个目标没有的 marker 去过滤，引擎确实会把结果
+    // 收窄到 0**。所以只要引擎没把 null 特判成 no-op，这两条一旦守门被删就会
+    // 从 lv_r24n 掉到 0，是可证伪的，保留为硬断言。
+    // 尚未闭合的缺口只剩"引擎对 null marker 是否特判"，那要拆掉库自己的守门
+    // 才能观测，代价高于收益 —— 记在这里，不假装它已经证完。
+    CMLib_AIFilterMarkerCount(lv_r24f, 0, 1000, null);
+    CMLibTest_MarkTag(CMLib_AIFilterApplyCount(lv_r24f, lv_r24all) == lv_r24n,
+                      "ai.filter.markercount.null.ignored");
+    CMLib_AIFilterLifePerMarker(lv_r24f, 100.0, null);
+    CMLibTest_MarkTag(CMLib_AIFilterApplyCount(lv_r24f, lv_r24all) == lv_r24n,
+                      "ai.filter.lifepermarker.null.ignored");
+
+    // **本轮最该锁住的一条**：CanAttackAlly(false,false) 在引擎里会把结果
+    // 筛成空组，可它读起来像"两个维度都不限制"。库必须拦掉这个语义陷阱。
+    // 这条断言一旦变红，说明守门被谁改没了，调用方即将拿到静默空组。
+    CMLib_AIFilterCanAttackAlly(lv_r24f, false, false);
+    CMLibTest_MarkTag(CMLib_AIFilterApplyCount(lv_r24f, lv_r24all) == lv_r24n,
+                      "ai.filter.canattackally.bothfalse.ignored");
+
+    // LifeMod 恒等参数（type=0 / mod=1.0）探针实证不误杀，可硬断言。
+    CMLib_AIFilterLifeMod(lv_r24f, 0, 1.0);
+    CMLibTest_MarkTag(CMLib_AIFilterApplyCount(lv_r24f, lv_r24all) == lv_r24n,
+                      "ai.filter.lifemod.identity");
+
+    // null 句柄不许崩。这条看着像恒真断言，实际不是——真崩了 InitMap 会中断，
+    // 后面几百条断言一条都不会执行，缺席本身就是信号（与 substate.chance 同构）。
+    CMLib_AIFilterMelee(null, true);
+    CMLib_AIFilterExcludeUnit(null, lv_r24u);
+    CMLib_AIFilterLifeMod(null, 0, 1.0);
+    CMLibTest_MarkTag(true, "ai.filter.round25.nullhandle.safe");
+
+    // 一站式层：按类型 / 超大半径 / 残血阈值 100%，三者都应放行全部单位。
+    CMLibTest_MarkTag(UnitGroupCount(CMLib_AISelectByType(1, lv_r24all, ""), c_unitCountAll) > 0,
+                      "ai.select.bytype");
+    CMLibTest_MarkTag(UnitGroupCount(CMLib_AISelectInRange(1, lv_r24all, lv_r24u, 100000.0),
+                                     c_unitCountAll) > 0, "ai.select.inrange");
+    CMLibTest_MarkTag(UnitGroupCount(CMLib_AISelectWounded(1, lv_r24all, 100.0),
+                                     c_unitCountAll) > 0, "ai.select.wounded");
+
+    // 平面：ground 有正向证据（探针 callmid 档），air 没有，只验守恒关系。
+    lv_r24ground = UnitGroupCount(CMLib_AISelectGround(1, lv_r24all), c_unitCountAll);
+    lv_r24air    = UnitGroupCount(CMLib_AISelectAir(1, lv_r24all), c_unitCountAll);
+    CMLibTest_MarkTag(lv_r24ground > 0, "ai.select.ground");
+    CMLibTest_MarkTag(lv_r24ground + lv_r24air <= lv_r24total, "ai.select.plane.partition");
+
+    // 敌我分组：本局没有稳定存活的敌对单位，分组语义**不可观测**，
+    // 所以只断言"两个子集加起来不超过全集"这条与环境无关的性质。
+    CMLibTest_MarkTag(UnitGroupCount(CMLib_AISelectAllies(1, lv_r24all), c_unitCountAll)
+                    + UnitGroupCount(CMLib_AISelectEnemies(1, lv_r24all), c_unitCountAll)
+                      <= lv_r24total, "ai.select.alliance.partition");
+
+    // 无句柄组过滤：Production 需要真的有生产建筑才有意义，所以先造一个
+    // Barracks —— 不造就只能得到空组，那是"没东西"不是"函数可用"。
+    CMLib_SpawnForced("Barracks", 1, CMLib_PointOffset(lv_origin, 6.0, 6.0), 270.0);
+    lv_r24all = UnitGroup(null, c_playerAny, RegionEntireMap(), UnitFilterStr(""), c_noMaxCount);
+    CMLibTest_MarkTag(UnitGroupCount(CMLib_AIGroupProduction(lv_r24all, false), c_unitCountAll) > 0,
+                      "ai.group.production");
+    CMLibTest_MarkTag(UnitGroupCount(CMLib_AIGroupPathable(lv_r24all, lv_origin), c_unitCountAll) > 0,
+                      "ai.group.pathable");
+    // ⚠ 本局既无施法单位也无采矿单位，空组无法证伪 —— 只验返回非 null。
+    CMLibTest_MarkTag(CMLib_AIGroupCasters(lv_r24all) != null, "ai.group.casters.nonnull");
+    CMLibTest_MarkTag(CMLib_AIGroupGathering(lv_r24all, 0, 5.0) != null,
+                      "ai.group.gathering.nonnull");
+    // null 入参一律返回空组，不返回 null。
+    CMLibTest_MarkTag(CMLib_AIGroupProduction(null, false) != null
+                      && CMLib_AIGroupPathable(null, null) != null,
+                      "ai.group.nullsafe");
+
+    // =========================================================================
+    // Round27：把 round25 的两条**恒绿**断言升级为真双向判据
+    //
+    // 旧写法 `ai.filter.markercount.null.ignored` 断言的是「传 null 时过滤结果
+    // 不变」。可本局从来没有任何单位带 marker —— 「库跳过了引擎调用」和
+    // 「库调了但引擎零数据」结果完全一样，守门被删掉它照样绿。这是判据坏死的
+    // 第二种形态（同义反复），和恒红一样等于没有校验器。
+    //
+    // 现在库能造 marker 了，改成能证伪的形态：同一个 filter 条件，
+    // 目标没打标记 -> 0 个，打了标记 -> >= 1 个。这条一旦变红，
+    // 说明 marker 生产端 / UnitMarkerAdd / AISetFilterMarker 至少断了一环。
+    // =========================================================================
+    lv_r27am = CMLib_Marker("AI/Tactical/Danger");
+    lv_r27au = CMLib_SpawnForced("Marine", 1,
+                                 CMLib_PointOffset(lv_origin, 8.0, -8.0), 270.0);
+
+    CMLib_UnitMarkerAdd(lv_r27au, lv_r27am);
+    lv_r27af = CMLib_AIFilterNew(1);
+    CMLib_AIFilterMarkerCount(lv_r27af, 1, 100, lv_r27am);
+    lv_r27an1 = CMLib_AIFilterApplyCount(lv_r27af, CMLib_UGOf(lv_r27au));
+
+    CMLib_UnitMarkerRemove(lv_r27au, lv_r27am);
+    lv_r27af = CMLib_AIFilterNew(1);
+    CMLib_AIFilterMarkerCount(lv_r27af, 1, 100, lv_r27am);
+    lv_r27an0 = CMLib_AIFilterApplyCount(lv_r27af, CMLib_UGOf(lv_r27au));
+
+    // round26 真机取证后的降级：这条判据的前提是「UnitMarkerAdd 写上去的
+    // marker 引擎看得见」，而主线的三档变体探针已经证明该前提在纯脚本侧不
+    // 成立（详见主线 marker 段的四条取证）。既然被测性质压根观测不到，
+    // 硬断言就只是在断言环境而不是断言库 —— 按 round25 纪律降级为探针。
+    // AIDeferred 内禁止直接写 bank（会把中间态伪装成终态），用全局带给主线。
+    gv_cmlibMkAIWith    = lv_r27an1;
+    gv_cmlibMkAIWithout = lv_r27an0;
+
+    // LifePerMarker 仍保留硬断言，但要说清它**覆盖不到 marker 参数**：
+    // 本局单位实际标记数为 0，引擎把 life-per-marker 退化成了纯生命门槛
+    // （门槛 1.0 放行、99999.0 筛掉，响应单调）。所以这条证明的是
+    // `each` 形参被正确透传，而不是 marker 形参 —— 别把它当 marker 判据用。
+    CMLib_UnitMarkerAdd(lv_r27au, lv_r27am);
+    lv_r27af = CMLib_AIFilterNew(1);
+    CMLib_AIFilterLifePerMarker(lv_r27af, 1.0, lv_r27am);
+    lv_r27an1 = CMLib_AIFilterApplyCount(lv_r27af, CMLib_UGOf(lv_r27au));
+    lv_r27af = CMLib_AIFilterNew(1);
+    CMLib_AIFilterLifePerMarker(lv_r27af, 99999.0, lv_r27am);
+    lv_r27an0 = CMLib_AIFilterApplyCount(lv_r27af, CMLib_UGOf(lv_r27au));
+    CMLibTest_MarkTag(lv_r27an1 >= 1 && lv_r27an0 == 0,
+                      "marker.aifilter.lifepermarker.roundtrip");
+
+    // ---- round26：AISetFilterEnergy 双向判据 -------------------------------
+    // 只写守门（min>max 必须忽略）是不够的 —— 一个"永远不把条件传给引擎"的
+    // 坏实现照样满分。所以配一条限制向：能量下限拉到没有任何单位够得着，
+    // 结果必须真的收窄。两条一起才排除掉"恒等于全集"的退化。
+    lv_r24all = UnitGroup(null, c_playerAny, RegionEntireMap(),
+                          UnitFilterStr(""), c_noMaxCount);
+    lv_r26af = CMLib_AIFilterNew(1);
+    CMLib_AIFilterAlliance(lv_r26af, c_playerGroupAny);
+    lv_r26an = CMLib_AIFilterApplyCount(lv_r26af, lv_r24all);
+    CMLib_AIFilterEnergy(lv_r26af, 100.0, 0.0);
+    CMLibTest_MarkTag(CMLib_AIFilterApplyCount(lv_r26af, lv_r24all) == lv_r26an,
+                      "ai.filter.energy.badrange.ignored");
+    lv_r26af = CMLib_AIFilterNew(1);
+    CMLib_AIFilterAlliance(lv_r26af, c_playerGroupAny);
+    CMLib_AIFilterEnergy(lv_r26af, 5000.0, 100000.0);
+    CMLibTest_MarkTag(lv_r26an > 0
+                      && CMLib_AIFilterApplyCount(lv_r26af, lv_r24all) < lv_r26an,
+                      "ai.filter.energy.restrictive");
+
+    // AI Stock 三件套没有读回路径（AITechCount 走的是另一套账），
+    // 且本测试局玩家 1 是人类、没有 AI 调度器 —— 观测不到就不断言，
+    // 只保证调用路径在真机上被走过（崩了会连带整条 AI 链失联）。
+    CMLib_StockAlias(1, 1, "Marine", "Marine");
+    CMLib_StockFree(1, 1, "Marine", "");
+    CMLib_StockTechUncap(1, 0, 0);
+
+    gv_cmlibAIDone = 1;
+
+    CMLib_LogInfo("CMLibTest", "ai-probe finished");
+    return true;
+}
+
+void CMLib_SelfTest () {
+    // Sentinel：Ghost 出现 == MapScript 编译通过 + InitMap 被引擎调用
+    CMLib_SpawnForced("Ghost", 1, CMLibTest_Origin(), 270.0);
+
+    // round 19：1.0s 后触发的计时器事件 —— 主链 2.0s 才跑，读得到结果。
+    // 这是本轮唯一在**真事件上下文**里取证的取参 native，比非上下文探针强得多。
+    gv_r19TimerOk = 0;
+    gv_r19Timer = TimerCreate();
+    gt_CMLibR19Timer = TriggerCreate("CMLibTest_R19TimerProbe");
+    TriggerAddEventTimer(gt_CMLibR19Timer, gv_r19Timer);
+    TimerStart(gv_r19Timer, 1.0, false, c_timeGame);
+
+    gt_CMLibDeferred = TriggerCreate("CMLibTest_Deferred");
+    TriggerAddEventTimeElapsed(gt_CMLibDeferred, 2.0, c_timeGame);
+
+    gt_CMLibAIDeferred = TriggerCreate("CMLibTest_AIDeferred");
+    TriggerAddEventTimeElapsed(gt_CMLibAIDeferred, 6.0, c_timeGame);
+}

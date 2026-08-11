@@ -1,0 +1,598 @@
+// =============================================================================
+// CMLib :: Catalog (实现)
+//
+// 字段路径速查（已对照 CMRE_Core_Base 的实际 XML 校验）：
+//   CUnit      LifeMax / ShieldsMax / Speed / LifeArmor / Food
+//              CostResource[Minerals] / CostResource[Vespene]
+//   CWeapon    Range / Period
+//   CEffect*   Amount
+//   CBehavior* Duration / Modification.<字段>
+//   CAbil*     Cost[i].Cooldown.TimeUse / Cost[i].Vital[Energy] / InfoArray[slot].Time
+//   CButton    Icon
+//
+// 注意：建造时间不在 CUnit 上，而在生产技能的 InfoArray[slot].Time。
+// =============================================================================
+
+include "scripts/cmlib/cmlib_core_h"
+include "scripts/cmlib/cmlib_catalog_h"
+
+// -----------------------------------------------------------------------------
+// 字段路径构造
+// -----------------------------------------------------------------------------
+
+string CMLib_CatPathIndex(string lp_field, int lp_index) {
+    return lp_field + "[" + IntToString(lp_index) + "]";
+}
+
+string CMLib_CatPathIndexSub(string lp_field, int lp_index, string lp_sub) {
+    return lp_field + "[" + IntToString(lp_index) + "]." + lp_sub;
+}
+
+string CMLib_CatPathSub(string lp_field, string lp_sub) {
+    return lp_field + "." + lp_sub;
+}
+
+// -----------------------------------------------------------------------------
+// 通用读
+// -----------------------------------------------------------------------------
+
+bool CMLib_CatEntryExists(int lp_catalog, string lp_entry) {
+    if ((lp_entry == null)) {
+        return false;
+    }
+    if ((lp_entry == "")) {
+        return false;
+    }
+    return CatalogEntryIsValid(lp_catalog, lp_entry);
+}
+
+string CMLib_CatGetString(int lp_catalog, string lp_entry, string lp_path, int lp_player, string lp_fallback) {
+    string lv_raw;
+
+    if ((CMLib_CatEntryExists(lp_catalog, lp_entry) == false)) {
+        return lp_fallback;
+    }
+    lv_raw = CatalogFieldValueGet(lp_catalog, lp_entry, lp_path, lp_player);
+    if ((lv_raw == null)) {
+        return lp_fallback;
+    }
+    if ((lv_raw == "")) {
+        return lp_fallback;
+    }
+    return lv_raw;
+}
+
+int CMLib_CatGetInt(int lp_catalog, string lp_entry, string lp_path, int lp_player, int lp_fallback) {
+    if ((CMLib_CatEntryExists(lp_catalog, lp_entry) == false)) {
+        return lp_fallback;
+    }
+    return CMLib_ParseInt(CatalogFieldValueGet(lp_catalog, lp_entry, lp_path, lp_player), lp_fallback);
+}
+
+fixed CMLib_CatGetFixed(int lp_catalog, string lp_entry, string lp_path, int lp_player, fixed lp_fallback) {
+    if ((CMLib_CatEntryExists(lp_catalog, lp_entry) == false)) {
+        return lp_fallback;
+    }
+    return CMLib_ParseFixed(CatalogFieldValueGet(lp_catalog, lp_entry, lp_path, lp_player), lp_fallback);
+}
+
+int CMLib_CatArrayCount(int lp_catalog, string lp_entry, string lp_path, int lp_player) {
+    if ((CMLib_CatEntryExists(lp_catalog, lp_entry) == false)) {
+        return 0;
+    }
+    return CatalogFieldValueCount(lp_catalog, lp_entry, lp_path, lp_player);
+}
+
+// -----------------------------------------------------------------------------
+// 通用写
+// -----------------------------------------------------------------------------
+
+bool CMLib_CatSetString(int lp_catalog, string lp_entry, string lp_path, int lp_player, string lp_value) {
+    bool lv_ok;
+
+    if ((CMLib_CatEntryExists(lp_catalog, lp_entry) == false)) {
+        CMLib_LogError("CMLib.Catalog", "unknown entry '" + lp_entry + "' (catalog " + IntToString(lp_catalog) + ")");
+        return false;
+    }
+    lv_ok = CatalogFieldValueSet(lp_catalog, lp_entry, lp_path, lp_player, lp_value);
+    if ((lv_ok == false)) {
+        CMLib_LogError("CMLib.Catalog", "set failed: " + lp_entry + "." + lp_path + " = " + lp_value);
+    }
+    return lv_ok;
+}
+
+bool CMLib_CatSetInt(int lp_catalog, string lp_entry, string lp_path, int lp_player, int lp_value) {
+    return CMLib_CatSetString(lp_catalog, lp_entry, lp_path, lp_player, IntToString(lp_value));
+}
+
+bool CMLib_CatSetFixed(int lp_catalog, string lp_entry, string lp_path, int lp_player, fixed lp_value) {
+    // 精度 4 位：SC2 数据层多数字段到小数点后 4 位就足够，
+    // 用默认 FixedToString(v, c_fixedPrecisionAny) 会带出冗余尾数。
+    return CMLib_CatSetString(lp_catalog, lp_entry, lp_path, lp_player, FixedToString(lp_value, 4));
+}
+
+bool CMLib_CatModifyInt(int lp_catalog, string lp_entry, string lp_path, int lp_player, int lp_value, int lp_operation) {
+    bool lv_ok;
+
+    if ((CMLib_CatEntryExists(lp_catalog, lp_entry) == false)) {
+        CMLib_LogError("CMLib.Catalog", "unknown entry '" + lp_entry + "' (catalog " + IntToString(lp_catalog) + ")");
+        return false;
+    }
+    lv_ok = CatalogFieldValueModify(lp_catalog, lp_entry, lp_path, lp_player, IntToString(lp_value), lp_operation);
+    if ((lv_ok == false)) {
+        CMLib_LogError("CMLib.Catalog", "modify failed: " + lp_entry + "." + lp_path);
+    }
+    return lv_ok;
+}
+
+bool CMLib_CatModifyFixed(int lp_catalog, string lp_entry, string lp_path, int lp_player, fixed lp_value, int lp_operation) {
+    bool lv_ok;
+
+    if ((CMLib_CatEntryExists(lp_catalog, lp_entry) == false)) {
+        CMLib_LogError("CMLib.Catalog", "unknown entry '" + lp_entry + "' (catalog " + IntToString(lp_catalog) + ")");
+        return false;
+    }
+    lv_ok = CatalogFieldValueModify(lp_catalog, lp_entry, lp_path, lp_player, FixedToString(lp_value, 4), lp_operation);
+    if ((lv_ok == false)) {
+        CMLib_LogError("CMLib.Catalog", "modify failed: " + lp_entry + "." + lp_path);
+    }
+    return lv_ok;
+}
+
+// percent > 0 → 在基础值上加 percent%；percent < 0 → 在基础值上减 |percent|%。
+// 走 AddBaseMultiply/SubtractBaseMultiply 而不是 Multiply，
+// 这样多次调用是「线性叠加」而非「连乘」，符合大多数指挥官精通的预期。
+bool CMLib_CatScalePercent(int lp_catalog, string lp_entry, string lp_path, int lp_player, int lp_percent) {
+    fixed lv_ratio;
+
+    if ((lp_percent == 0)) {
+        return true;
+    }
+    if ((lp_percent > 0)) {
+        lv_ratio = (IntToFixed(lp_percent) / 100.0);
+        return CMLib_CatModifyFixed(lp_catalog, lp_entry, lp_path, lp_player, lv_ratio, CMLIB_CAT_ADD_BASE);
+    }
+    lv_ratio = (IntToFixed(-lp_percent) / 100.0);
+    return CMLib_CatModifyFixed(lp_catalog, lp_entry, lp_path, lp_player, lv_ratio, CMLIB_CAT_SUB_BASE);
+}
+
+// -----------------------------------------------------------------------------
+// 单位
+// -----------------------------------------------------------------------------
+
+fixed CMLib_UnitDataGetLifeMax(string lp_unitType, int lp_player) {
+    return CMLib_CatGetFixed(c_gameCatalogUnit, lp_unitType, "LifeMax", lp_player, 0.0);
+}
+
+fixed CMLib_UnitDataGetShieldMax(string lp_unitType, int lp_player) {
+    return CMLib_CatGetFixed(c_gameCatalogUnit, lp_unitType, "ShieldsMax", lp_player, 0.0);
+}
+
+fixed CMLib_UnitDataGetSpeed(string lp_unitType, int lp_player) {
+    return CMLib_CatGetFixed(c_gameCatalogUnit, lp_unitType, "Speed", lp_player, 0.0);
+}
+
+int CMLib_UnitDataGetArmor(string lp_unitType, int lp_player) {
+    return CMLib_CatGetInt(c_gameCatalogUnit, lp_unitType, "LifeArmor", lp_player, 0);
+}
+
+int CMLib_UnitDataGetSupply(string lp_unitType, int lp_player) {
+    return CMLib_CatGetInt(c_gameCatalogUnit, lp_unitType, "Food", lp_player, 0);
+}
+
+bool CMLib_UnitDataSetLifeMax(string lp_unitType, int lp_player, fixed lp_value) {
+    return CMLib_CatSetFixed(c_gameCatalogUnit, lp_unitType, "LifeMax", lp_player, lp_value);
+}
+
+bool CMLib_UnitDataSetShieldMax(string lp_unitType, int lp_player, fixed lp_value) {
+    return CMLib_CatSetFixed(c_gameCatalogUnit, lp_unitType, "ShieldsMax", lp_player, lp_value);
+}
+
+bool CMLib_UnitDataSetSpeed(string lp_unitType, int lp_player, fixed lp_value) {
+    return CMLib_CatSetFixed(c_gameCatalogUnit, lp_unitType, "Speed", lp_player, lp_value);
+}
+
+bool CMLib_UnitDataAddArmor(string lp_unitType, int lp_player, int lp_delta) {
+    if ((lp_delta == 0)) {
+        return true;
+    }
+    if ((lp_delta > 0)) {
+        return CMLib_CatModifyInt(c_gameCatalogUnit, lp_unitType, "LifeArmor", lp_player, lp_delta, CMLIB_CAT_ADD);
+    }
+    return CMLib_CatModifyInt(c_gameCatalogUnit, lp_unitType, "LifeArmor", lp_player, -lp_delta, CMLIB_CAT_SUB);
+}
+
+bool CMLib_UnitDataSetCost(string lp_unitType, int lp_player, int lp_minerals, int lp_vespene) {
+    bool lv_ok;
+
+    lv_ok = CMLib_CatSetInt(c_gameCatalogUnit, lp_unitType, "CostResource[Minerals]", lp_player, lp_minerals);
+    if ((CMLib_CatSetInt(c_gameCatalogUnit, lp_unitType, "CostResource[Vespene]", lp_player, lp_vespene) == false)) {
+        lv_ok = false;
+    }
+    return lv_ok;
+}
+
+bool CMLib_UnitDataSetFood(string lp_unitType, int lp_player, fixed lp_food) {
+    return CMLib_CatSetFixed(c_gameCatalogUnit, lp_unitType, "Food", lp_player, lp_food);
+}
+
+bool CMLib_UnitDataBoostPercent(string lp_unitType, int lp_player, int lp_percent) {
+    bool lv_ok;
+
+    if ((CMLib_CatEntryExists(c_gameCatalogUnit, lp_unitType) == false)) {
+        CMLib_LogError("CMLib.Catalog", "BoostPercent: unknown unit '" + lp_unitType + "'");
+        return false;
+    }
+
+    lv_ok = CMLib_CatScalePercent(c_gameCatalogUnit, lp_unitType, "LifeMax", lp_player, lp_percent);
+    // 护盾只在原本就有护盾时才缩放，否则会给 0 护盾单位写入无意义的字段覆盖。
+    if ((CMLib_UnitDataGetShieldMax(lp_unitType, lp_player) > 0.0)) {
+        if ((CMLib_CatScalePercent(c_gameCatalogUnit, lp_unitType, "ShieldsMax", lp_player, lp_percent) == false)) {
+            lv_ok = false;
+        }
+    }
+    // 建筑没有移速，跳过以免污染数据。
+    if ((CMLib_UnitDataGetSpeed(lp_unitType, lp_player) > 0.0)) {
+        if ((CMLib_CatScalePercent(c_gameCatalogUnit, lp_unitType, "Speed", lp_player, lp_percent) == false)) {
+            lv_ok = false;
+        }
+    }
+    return lv_ok;
+}
+
+// -----------------------------------------------------------------------------
+// 武器
+// -----------------------------------------------------------------------------
+
+fixed CMLib_WeaponDataGetRange(string lp_weapon, int lp_player) {
+    return CMLib_CatGetFixed(c_gameCatalogWeapon, lp_weapon, "Range", lp_player, 0.0);
+}
+
+fixed CMLib_WeaponDataGetPeriod(string lp_weapon, int lp_player) {
+    return CMLib_CatGetFixed(c_gameCatalogWeapon, lp_weapon, "Period", lp_player, 0.0);
+}
+
+bool CMLib_WeaponDataAddRange(string lp_weapon, int lp_player, fixed lp_delta) {
+    if ((lp_delta == 0.0)) {
+        return true;
+    }
+    if ((lp_delta > 0.0)) {
+        return CMLib_CatModifyFixed(c_gameCatalogWeapon, lp_weapon, "Range", lp_player, lp_delta, CMLIB_CAT_ADD);
+    }
+    return CMLib_CatModifyFixed(c_gameCatalogWeapon, lp_weapon, "Range", lp_player, -lp_delta, CMLIB_CAT_SUB);
+}
+
+bool CMLib_WeaponDataSpeedUpPercent(string lp_weapon, int lp_player, int lp_percent) {
+    // Period 是「两次攻击的间隔」，越小越快 —— 所以提速要减 period。
+    return CMLib_CatScalePercent(c_gameCatalogWeapon, lp_weapon, "Period", lp_player, -lp_percent);
+}
+
+// -----------------------------------------------------------------------------
+// 效果
+// -----------------------------------------------------------------------------
+
+fixed CMLib_EffectDataGetAmount(string lp_effect, int lp_player) {
+    return CMLib_CatGetFixed(c_gameCatalogEffect, lp_effect, "Amount", lp_player, 0.0);
+}
+
+bool CMLib_EffectDataSetAmount(string lp_effect, int lp_player, fixed lp_value) {
+    return CMLib_CatSetFixed(c_gameCatalogEffect, lp_effect, "Amount", lp_player, lp_value);
+}
+
+bool CMLib_EffectDataAddAmount(string lp_effect, int lp_player, fixed lp_delta) {
+    if ((lp_delta == 0.0)) {
+        return true;
+    }
+    if ((lp_delta > 0.0)) {
+        return CMLib_CatModifyFixed(c_gameCatalogEffect, lp_effect, "Amount", lp_player, lp_delta, CMLIB_CAT_ADD);
+    }
+    return CMLib_CatModifyFixed(c_gameCatalogEffect, lp_effect, "Amount", lp_player, -lp_delta, CMLIB_CAT_SUB);
+}
+
+bool CMLib_EffectDataScalePercent(string lp_effect, int lp_player, int lp_percent) {
+    return CMLib_CatScalePercent(c_gameCatalogEffect, lp_effect, "Amount", lp_player, lp_percent);
+}
+
+// -----------------------------------------------------------------------------
+// 行为
+// -----------------------------------------------------------------------------
+
+fixed CMLib_BehaviorDataGetDuration(string lp_behavior, int lp_player) {
+    return CMLib_CatGetFixed(c_gameCatalogBehavior, lp_behavior, "Duration", lp_player, 0.0);
+}
+
+bool CMLib_BehaviorDataSetDuration(string lp_behavior, int lp_player, fixed lp_seconds) {
+    return CMLib_CatSetFixed(c_gameCatalogBehavior, lp_behavior, "Duration", lp_player, lp_seconds);
+}
+
+bool CMLib_BehaviorDataSetModFixed(string lp_behavior, int lp_player, string lp_modPath, fixed lp_value) {
+    return CMLib_CatSetFixed(c_gameCatalogBehavior, lp_behavior, CMLib_CatPathSub("Modification", lp_modPath), lp_player, lp_value);
+}
+
+// -----------------------------------------------------------------------------
+// 技能 / 按钮
+// -----------------------------------------------------------------------------
+
+bool CMLib_AbilDataSetCooldown(string lp_abil, int lp_player, int lp_index, fixed lp_seconds) {
+    return CMLib_CatSetFixed(c_gameCatalogAbil, lp_abil, CMLib_CatPathIndexSub("Cost", lp_index, "Cooldown.TimeUse"), lp_player, lp_seconds);
+}
+
+fixed CMLib_AbilDataGetCooldown(string lp_abil, int lp_player, int lp_index) {
+    return CMLib_CatGetFixed(c_gameCatalogAbil, lp_abil, CMLib_CatPathIndexSub("Cost", lp_index, "Cooldown.TimeUse"), lp_player, 0.0);
+}
+
+bool CMLib_AbilDataSetEnergyCost(string lp_abil, int lp_player, int lp_index, fixed lp_value) {
+    return CMLib_CatSetFixed(c_gameCatalogAbil, lp_abil, CMLib_CatPathIndexSub("Cost", lp_index, "Vital[Energy]"), lp_player, lp_value);
+}
+
+bool CMLib_AbilDataSetTrainTime(string lp_abil, int lp_player, string lp_slot, fixed lp_seconds) {
+    return CMLib_CatSetFixed(c_gameCatalogAbil, lp_abil, "InfoArray[" + lp_slot + "].Time", lp_player, lp_seconds);
+}
+
+fixed CMLib_AbilDataGetTrainTime(string lp_abil, int lp_player, string lp_slot) {
+    return CMLib_CatGetFixed(c_gameCatalogAbil, lp_abil, "InfoArray[" + lp_slot + "].Time", lp_player, 0.0);
+}
+
+bool CMLib_ButtonDataSetIcon(string lp_button, int lp_player, string lp_iconPath) {
+    return CMLib_CatSetString(c_gameCatalogButton, lp_button, "Icon", lp_player, lp_iconPath);
+}
+
+string CMLib_ButtonDataGetIcon(string lp_button, int lp_player) {
+    return CMLib_CatGetString(c_gameCatalogButton, lp_button, "Icon", lp_player, "");
+}
+
+// -----------------------------------------------------------------------------
+// 目录全表遍历
+// -----------------------------------------------------------------------------
+
+int CMLib_CatCount(int lp_catalog) {
+    return CatalogEntryCount(lp_catalog);
+}
+
+string CMLib_CatEntryAt(int lp_catalog, int lp_index) {
+    // 1-based：合法区间是 [1, count]。0 与越界都返回空串而不是让调用方拿到脏数据。
+    if ((lp_index < 1)) {
+        return "";
+    }
+    if ((lp_index > CatalogEntryCount(lp_catalog))) {
+        return "";
+    }
+    return CatalogEntryGet(lp_catalog, lp_index);
+}
+
+string CMLib_CatEntryScope(int lp_catalog, string lp_entry) {
+    if ((lp_entry == "")) {
+        return "";
+    }
+    if ((CatalogEntryIsValid(lp_catalog, lp_entry) == false)) {
+        return "";
+    }
+    return CatalogEntryScope(lp_catalog, lp_entry);
+}
+
+int CMLib_CatFieldCount(int lp_catalog, string lp_entry, string lp_fieldPath, int lp_player) {
+    if ((lp_entry == "")) {
+        return 0;
+    }
+    if ((CatalogEntryIsValid(lp_catalog, lp_entry) == false)) {
+        return 0;
+    }
+    return CatalogFieldValueCount(lp_catalog, lp_entry, lp_fieldPath, lp_player);
+}
+
+int CMLib_CatGetIntFast(int lp_catalog, string lp_entry, string lp_fieldPath, int lp_player) {
+    if ((lp_entry == "")) {
+        return 0;
+    }
+    if ((CatalogEntryIsValid(lp_catalog, lp_entry) == false)) {
+        return 0;
+    }
+    return CatalogFieldValueGetAsInt(lp_catalog, lp_entry, lp_fieldPath, lp_player);
+}
+
+int CMLib_CatFindIndex(int lp_catalog, string lp_entry) {
+    int lv_i;
+    int lv_n;
+
+    if ((lp_entry == "")) {
+        return 0;
+    }
+    lv_n = CatalogEntryCount(lp_catalog);
+    lv_i = 1;
+    while ((lv_i <= lv_n)) {
+        if ((CatalogEntryGet(lp_catalog, lv_i) == lp_entry)) {
+            return lv_i;
+        }
+        lv_i += 1;
+    }
+    return 0;
+}
+
+string CMLib_CatFirstWhere(int lp_catalog, string lp_fieldPath, string lp_wantValue, int lp_player) {
+    int lv_i;
+    int lv_n;
+    string lv_entry;
+
+    lv_n = CatalogEntryCount(lp_catalog);
+    lv_i = 1;
+    while ((lv_i <= lv_n)) {
+        lv_entry = CatalogEntryGet(lp_catalog, lv_i);
+        if ((lv_entry != "")) {
+            if ((CatalogFieldValueGet(lp_catalog, lv_entry, lp_fieldPath, lp_player) == lp_wantValue)) {
+                return lv_entry;
+            }
+        }
+        lv_i += 1;
+    }
+    return "";
+}
+
+int CMLib_CatCountWhere(int lp_catalog, string lp_fieldPath, string lp_wantValue, int lp_player) {
+    int lv_i;
+    int lv_n;
+    int lv_hits;
+    string lv_entry;
+
+    lv_n = CatalogEntryCount(lp_catalog);
+    lv_i = 1;
+    lv_hits = 0;
+    while ((lv_i <= lv_n)) {
+        lv_entry = CatalogEntryGet(lp_catalog, lv_i);
+        if ((lv_entry != "")) {
+            if ((CatalogFieldValueGet(lp_catalog, lv_entry, lp_fieldPath, lp_player) == lp_wantValue)) {
+                lv_hits += 1;
+            }
+        }
+        lv_i += 1;
+    }
+    return lv_hits;
+}
+
+// -----------------------------------------------------------------------------
+// 目录链接替换
+// -----------------------------------------------------------------------------
+
+bool CMLib_CatLinkSwap(int lp_player, int lp_catalog, string lp_idA, string lp_idB) {
+    if ((lp_idA == "")) {
+        return false;
+    }
+    if ((lp_idB == "")) {
+        return false;
+    }
+    if ((CatalogEntryIsValid(lp_catalog, lp_idA) == false)) {
+        CMLib_LogWarn("CMLib.Catalog", "LinkSwap skipped, unknown source id " + lp_idA);
+        return false;
+    }
+    CatalogLinkReplace(lp_player, lp_catalog, lp_idA, lp_idB);
+    return true;
+}
+
+string CMLib_CatLinkOf(int lp_player, int lp_catalog, string lp_id) {
+    if ((lp_id == "")) {
+        return "";
+    }
+    return CatalogLinkReplacement(lp_player, lp_catalog, lp_id);
+}
+
+// =============================================================================
+// round 13：字段存在性 / 引用写入
+// =============================================================================
+bool CMLib_CatFieldExists(string lp_scope, string lp_field) {
+    if ((lp_scope == "") || (lp_field == "")) {
+        return false;
+    }
+    return CatalogFieldExists(lp_scope, lp_field);
+}
+
+bool CMLib_CatRefSet(string lp_reference, int lp_player, string lp_value) {
+    if ((lp_reference == "")) {
+        return false;
+    }
+    return CatalogReferenceSet(lp_reference, lp_player, lp_value);
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round22 —— Catalog 引用改写 / 默认值判定
+// -----------------------------------------------------------------------------
+
+bool CMLib_CatRefModify(string lp_reference, int lp_player, string lp_value, int lp_operation) {
+    if (lp_reference == "") { return false; }
+    return CatalogReferenceModify(lp_reference, lp_player, lp_value, lp_operation);
+}
+
+bool CMLib_CatEntryIsDefault(int lp_catalog, string lp_entry) {
+    if (lp_entry == "") { return false; }
+    return CatalogEntryIsDefault(lp_catalog, lp_entry);
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round26 —— Catalog 反射与引用读取
+// -----------------------------------------------------------------------------
+
+int CMLib_CatEntryClass(int lp_catalog, string lp_entry) {
+    if (lp_entry == "") { return 0; }
+    return CatalogEntryClass(lp_catalog, lp_entry);
+}
+
+string CMLib_CatEntryParent(int lp_catalog, string lp_entry) {
+    string lv_s;
+
+    if (lp_entry == "") { return ""; }
+    lv_s = CatalogEntryParent(lp_catalog, lp_entry);
+    if (lv_s == null) { return ""; }
+    return lv_s;
+}
+
+int CMLib_CatScopeFieldCount(string lp_scope) {
+    if (lp_scope == "") { return 0; }
+    return CatalogFieldCount(lp_scope);
+}
+
+string CMLib_CatScopeFieldAt(string lp_scope, int lp_index) {
+    string lv_s;
+
+    if (lp_scope == "") { return ""; }
+    // 1-based，与 CatalogEntryGet 同口径；< 1 不进引擎。
+    if (lp_index < 1) { return ""; }
+    if (lp_index > CatalogFieldCount(lp_scope)) { return ""; }
+    lv_s = CatalogFieldGet(lp_scope, lp_index);
+    if (lv_s == null) { return ""; }
+    return lv_s;
+}
+
+bool CMLib_CatFieldIsArray(string lp_scope, string lp_field) {
+    if (lp_scope == "") { return false; }
+    if (lp_field == "") { return false; }
+    return CatalogFieldIsArray(lp_scope, lp_field);
+}
+
+bool CMLib_CatFieldIsScope(string lp_scope, string lp_field) {
+    if (lp_scope == "") { return false; }
+    if (lp_field == "") { return false; }
+    return CatalogFieldIsScope(lp_scope, lp_field);
+}
+
+string CMLib_CatFieldType(string lp_scope, string lp_field) {
+    string lv_s;
+
+    if (lp_scope == "") { return ""; }
+    if (lp_field == "") { return ""; }
+    lv_s = CatalogFieldType(lp_scope, lp_field);
+    if (lv_s == null) { return ""; }
+    return lv_s;
+}
+
+int CMLib_CatFieldTypeCat(string lp_scope, string lp_field) {
+    if (lp_scope == "") { return 0; }
+    if (lp_field == "") { return 0; }
+    return CatalogFieldTypeCategory(lp_scope, lp_field);
+}
+
+int CMLib_CatGetFlags(int lp_catalog, string lp_entry, string lp_fieldPath,
+                      int lp_player) {
+    if (lp_entry == "") { return 0; }
+    if (lp_fieldPath == "") { return 0; }
+    return CatalogFieldValueGetFlagsAsInt(lp_catalog, lp_entry, lp_fieldPath,
+                                          lp_player);
+}
+
+int CMLib_CatRefCount(string lp_reference, int lp_player) {
+    if (lp_reference == "") { return 0; }
+    return CatalogReferenceCount(lp_reference, lp_player);
+}
+
+string CMLib_CatRefGet(string lp_reference, int lp_player) {
+    string lv_s;
+
+    if (lp_reference == "") { return ""; }
+    lv_s = CatalogReferenceGet(lp_reference, lp_player);
+    if (lv_s == null) { return ""; }
+    return lv_s;
+}
+
+int CMLib_CatRefInt(string lp_reference, int lp_player) {
+    if (lp_reference == "") { return 0; }
+    return CatalogReferenceGetAsInt(lp_reference, lp_player);
+}

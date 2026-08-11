@@ -1,0 +1,872 @@
+// =============================================================================
+// CMLib :: Core (实现)
+// =============================================================================
+
+include "scripts/cmlib/cmlib_core_h"
+
+int CMLib_LogLevel = CMLIB_LOG_WARN;
+
+// -----------------------------------------------------------------------------
+// 数值
+// -----------------------------------------------------------------------------
+
+int CMLib_ClampInt(int lp_value, int lp_min, int lp_max) {
+    if ((lp_value < lp_min)) {
+        return lp_min;
+    }
+    if ((lp_value > lp_max)) {
+        return lp_max;
+    }
+    return lp_value;
+}
+
+fixed CMLib_ClampFixed(fixed lp_value, fixed lp_min, fixed lp_max) {
+    if ((lp_value < lp_min)) {
+        return lp_min;
+    }
+    if ((lp_value > lp_max)) {
+        return lp_max;
+    }
+    return lp_value;
+}
+
+int CMLib_MinInt(int lp_a, int lp_b) {
+    if ((lp_a < lp_b)) {
+        return lp_a;
+    }
+    return lp_b;
+}
+
+int CMLib_MaxInt(int lp_a, int lp_b) {
+    if ((lp_a > lp_b)) {
+        return lp_a;
+    }
+    return lp_b;
+}
+
+int CMLib_AbsInt(int lp_value) {
+    if ((lp_value < 0)) {
+        return -lp_value;
+    }
+    return lp_value;
+}
+
+int CMLib_DivInt(int lp_numerator, int lp_denominator, int lp_fallback) {
+    if ((lp_denominator == 0)) {
+        return lp_fallback;
+    }
+    return (lp_numerator / lp_denominator);
+}
+
+fixed CMLib_DivFixed(fixed lp_numerator, fixed lp_denominator, fixed lp_fallback) {
+    if ((lp_denominator == 0.0)) {
+        return lp_fallback;
+    }
+    return (lp_numerator / lp_denominator);
+}
+
+// 先转 fixed 再乘除，避免 (value * percent) 整数溢出与截断双重误差。
+int CMLib_ScalePercentInt(int lp_value, int lp_percent) {
+    return FixedToInt((IntToFixed(lp_value) * IntToFixed(lp_percent)) / 100.0);
+}
+
+fixed CMLib_ScalePercentFixed(fixed lp_value, int lp_percent) {
+    return ((lp_value * IntToFixed(lp_percent)) / 100.0);
+}
+
+fixed CMLib_Lerp(fixed lp_from, fixed lp_to, fixed lp_t) {
+    fixed lv_t;
+
+    lv_t = CMLib_ClampFixed(lp_t, 0.0, 1.0);
+    return (lp_from + ((lp_to - lp_from) * lv_t));
+}
+
+// -----------------------------------------------------------------------------
+// 玩家
+// -----------------------------------------------------------------------------
+
+bool CMLib_IsValidPlayerSlot(int lp_player) {
+    if ((lp_player < CMLIB_PLAYER_MIN)) {
+        return false;
+    }
+    if ((lp_player > CMLIB_PLAYER_MAX)) {
+        return false;
+    }
+    return true;
+}
+
+bool CMLib_IsActivePlayer(int lp_player) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return false;
+    }
+    if ((PlayerStatus(lp_player) != c_playerStatusActive)) {
+        return false;
+    }
+    if ((PlayerType(lp_player) == c_playerTypeNeutral)) {
+        return false;
+    }
+    if ((PlayerType(lp_player) == c_playerTypeHostile)) {
+        return false;
+    }
+    return true;
+}
+
+// -----------------------------------------------------------------------------
+// 字符串
+// -----------------------------------------------------------------------------
+
+// ⚠ 引擎语义（round21 真机实证）：Galaxy 空串与 null 等价。
+//   故此处三道判定其实互相覆盖 —— 保留全部三道是为了**语义自解释**，
+//   将来引擎行为若变（或换 storm 内核）也不会退化。
+//   注意不合并成 `a || b || c`：Galaxy 的短路求值行为无明文保证，
+//   StringLength(null) 一旦被求值就有风险，必须靠顺序 if 提前返回。
+bool CMLib_StrIsEmpty(string lp_s) {
+    if ((lp_s == null)) {
+        return true;
+    }
+    if ((lp_s == "")) {
+        return true;
+    }
+    if ((StringLength(lp_s) == 0)) {
+        return true;
+    }
+    return false;
+}
+
+bool CMLib_StrNotEmpty(string lp_s) {
+    return (CMLib_StrIsEmpty(lp_s) == false);
+}
+
+string CMLib_CharAt(string lp_s, int lp_index) {
+    if ((lp_index < 0)) {
+        return "";
+    }
+    if ((lp_index >= StringLength(lp_s))) {
+        return "";
+    }
+    // StringSub 为 1 起始闭区间。
+    return StringSub(lp_s, lp_index + 1, lp_index + 1);
+}
+
+bool CMLib_StartsWith(string lp_s, string lp_prefix) {
+    int lv_len;
+
+    lv_len = StringLength(lp_prefix);
+    if ((lv_len == 0)) {
+        return true;
+    }
+    if ((StringLength(lp_s) < lv_len)) {
+        return false;
+    }
+    return StringEqual(StringSub(lp_s, 1, lv_len), lp_prefix, true);
+}
+
+bool CMLib_EndsWith(string lp_s, string lp_suffix) {
+    int lv_len;
+    int lv_total;
+
+    lv_len = StringLength(lp_suffix);
+    lv_total = StringLength(lp_s);
+    if ((lv_len == 0)) {
+        return true;
+    }
+    if ((lv_total < lv_len)) {
+        return false;
+    }
+    return StringEqual(StringSub(lp_s, lv_total - lv_len + 1, lv_total), lp_suffix, true);
+}
+
+bool CMLib_Contains(string lp_s, string lp_needle) {
+    if ((StringLength(lp_needle) == 0)) {
+        return true;
+    }
+    return (StringFind(lp_s, lp_needle, true) >= 0);
+}
+
+string CMLib_TrimSpaces(string lp_s) {
+    int lv_start;
+    int lv_end;
+
+    lv_start = 1;
+    lv_end = StringLength(lp_s);
+    while ((lv_start <= lv_end) && StringEqual(StringSub(lp_s, lv_start, lv_start), " ", true)) {
+        lv_start += 1;
+    }
+    while ((lv_end >= lv_start) && StringEqual(StringSub(lp_s, lv_end, lv_end), " ", true)) {
+        lv_end -= 1;
+    }
+    if ((lv_start > lv_end)) {
+        return "";
+    }
+    return StringSub(lp_s, lv_start, lv_end);
+}
+
+int CMLib_SplitCount(string lp_s, string lp_sep) {
+    int lv_count;
+    int lv_pos;
+    int lv_sepLen;
+    string lv_rest;
+
+    lv_sepLen = StringLength(lp_sep);
+    if ((lv_sepLen == 0)) {
+        return 1;
+    }
+    // StringFind 是 1-based（未找到 = -1）。分隔符占 [lv_pos, lv_pos+sepLen-1]，
+    // 所以余串从 lv_pos + sepLen 开始，不是 +sepLen+1。
+    lv_count = 1;
+    lv_rest = lp_s;
+    lv_pos = StringFind(lv_rest, lp_sep, true);
+    while ((lv_pos > 0)) {
+        lv_count += 1;
+        lv_rest = StringSub(lv_rest, lv_pos + lv_sepLen, StringLength(lv_rest));
+        lv_pos = StringFind(lv_rest, lp_sep, true);
+    }
+    return lv_count;
+}
+
+string CMLib_SplitAt(string lp_s, string lp_sep, int lp_index) {
+    int lv_current;
+    int lv_pos;
+    int lv_sepLen;
+    string lv_rest;
+
+    if ((lp_index < 0)) {
+        return "";
+    }
+    lv_sepLen = StringLength(lp_sep);
+    if ((lv_sepLen == 0)) {
+        if ((lp_index == 0)) {
+            return lp_s;
+        }
+        return "";
+    }
+
+    // StringFind 是 1-based（未找到 = -1），StringSub 是 1-based 闭区间。
+    // 分隔符出现在 lv_pos，则本段令牌是 [1, lv_pos-1]，余串从 lv_pos+sepLen 起。
+    lv_current = 0;
+    lv_rest = lp_s;
+    while (true) {
+        lv_pos = StringFind(lv_rest, lp_sep, true);
+        if ((lv_pos <= 0)) {
+            if ((lv_current == lp_index)) {
+                return lv_rest;
+            }
+            return "";
+        }
+        if ((lv_current == lp_index)) {
+            if ((lv_pos == 1)) {
+                return "";
+            }
+            return StringSub(lv_rest, 1, lv_pos - 1);
+        }
+        lv_rest = StringSub(lv_rest, lv_pos + lv_sepLen, StringLength(lv_rest));
+        lv_current += 1;
+    }
+    return "";
+}
+
+int CMLib_ParseInt(string lp_s, int lp_fallback) {
+    string lv_trimmed;
+    string lv_body;
+    string lv_ch;
+    int lv_i;
+    int lv_len;
+
+    lv_trimmed = CMLib_TrimSpaces(lp_s);
+    lv_len = StringLength(lv_trimmed);
+    if ((lv_len == 0)) {
+        return lp_fallback;
+    }
+
+    lv_body = lv_trimmed;
+    if (StringEqual(StringSub(lv_trimmed, 1, 1), "-", true)) {
+        if ((lv_len == 1)) {
+            return lp_fallback;
+        }
+        lv_body = StringSub(lv_trimmed, 2, lv_len);
+    }
+
+    lv_i = 1;
+    lv_len = StringLength(lv_body);
+    while ((lv_i <= lv_len)) {
+        lv_ch = StringSub(lv_body, lv_i, lv_i);
+        if ((StringFind("0123456789", lv_ch, true) < 0)) {
+            return lp_fallback;
+        }
+        lv_i += 1;
+    }
+    return StringToInt(lv_trimmed);
+}
+
+fixed CMLib_ParseFixed(string lp_s, fixed lp_fallback) {
+    string lv_trimmed;
+    string lv_intPart;
+    string lv_fracPart;
+    int lv_dot;
+
+    lv_trimmed = CMLib_TrimSpaces(lp_s);
+    if ((StringLength(lv_trimmed) == 0)) {
+        return lp_fallback;
+    }
+
+    lv_dot = StringFind(lv_trimmed, ".", true);
+    if ((lv_dot <= 0)) {
+        if ((CMLib_ParseInt(lv_trimmed, 2147483647) == 2147483647)
+            && (StringEqual(lv_trimmed, "2147483647", true) == false)) {
+            return lp_fallback;
+        }
+        return StringToFixed(lv_trimmed);
+    }
+
+    // 1-based：小数点在 lv_dot，整数部分是 [1, lv_dot-1]，小数部分从 lv_dot+1 起。
+    // 旧代码按 0-based 写成 (1, lv_dot) / (lv_dot+2, ...)，导致整数部分把小数点
+    // 也带进去 -> ParseInt 判非数字 -> 任何 "3.14" 都恒返回 fallback。
+    if ((lv_dot <= 1)) {
+        lv_intPart = "";
+    }
+    else {
+        lv_intPart = StringSub(lv_trimmed, 1, lv_dot - 1);
+    }
+    lv_fracPart = StringSub(lv_trimmed, lv_dot + 1, StringLength(lv_trimmed));
+    if ((StringLength(lv_intPart) == 0)) {
+        lv_intPart = "0";
+    }
+    if ((StringLength(lv_fracPart) == 0)) {
+        lv_fracPart = "0";
+    }
+    if ((CMLib_ParseInt(lv_intPart, 2147483647) == 2147483647)
+        && (StringEqual(lv_intPart, "2147483647", true) == false)) {
+        return lp_fallback;
+    }
+    if ((CMLib_ParseInt(lv_fracPart, 2147483647) == 2147483647)
+        && (StringEqual(lv_fracPart, "2147483647", true) == false)) {
+        return lp_fallback;
+    }
+    return StringToFixed(lv_trimmed);
+}
+
+string CMLib_BoolToString(bool lp_value) {
+    if ((lp_value == true)) {
+        return "1";
+    }
+    return "0";
+}
+
+bool CMLib_ParseBool(string lp_s, bool lp_fallback) {
+    string lv_v;
+
+    lv_v = CMLib_TrimSpaces(lp_s);
+    if (StringEqual(lv_v, "1", false) || StringEqual(lv_v, "true", false) || StringEqual(lv_v, "yes", false) || StringEqual(lv_v, "on", false)) {
+        return true;
+    }
+    if (StringEqual(lv_v, "0", false) || StringEqual(lv_v, "false", false) || StringEqual(lv_v, "no", false) || StringEqual(lv_v, "off", false)) {
+        return false;
+    }
+    return lp_fallback;
+}
+
+// -----------------------------------------------------------------------------
+// 键名拼装
+// -----------------------------------------------------------------------------
+
+string CMLib_Key1(string lp_a) {
+    return lp_a;
+}
+
+string CMLib_Key2(string lp_a, string lp_b) {
+    return (lp_a + "/" + lp_b);
+}
+
+string CMLib_Key3(string lp_a, string lp_b, string lp_c) {
+    return (lp_a + "/" + lp_b + "/" + lp_c);
+}
+
+string CMLib_KeyPlayer(string lp_prefix, int lp_player) {
+    return (lp_prefix + "/P" + IntToString(lp_player));
+}
+
+string CMLib_KeyIndexed(string lp_prefix, int lp_index) {
+    return (lp_prefix + "[" + IntToString(lp_index) + "]");
+}
+
+// -----------------------------------------------------------------------------
+// 日志
+// -----------------------------------------------------------------------------
+
+void CMLib_LogSetLevel(int lp_level) {
+    CMLib_LogLevel = CMLib_ClampInt(lp_level, CMLIB_LOG_OFF, CMLIB_LOG_DEBUG);
+}
+
+int CMLib_LogGetLevel() {
+    return CMLib_LogLevel;
+}
+
+static void CMLib_LogEmit(int lp_level, string lp_prefix, string lp_tag, string lp_message) {
+    if ((CMLib_LogLevel < lp_level)) {
+        return;
+    }
+    TriggerDebugOutput(1, StringToText(lp_prefix + "[" + lp_tag + "] " + lp_message), true);
+}
+
+void CMLib_LogError(string lp_tag, string lp_message) {
+    CMLib_LogEmit(CMLIB_LOG_ERROR, "ERR ", lp_tag, lp_message);
+}
+
+void CMLib_LogWarn(string lp_tag, string lp_message) {
+    CMLib_LogEmit(CMLIB_LOG_WARN, "WARN ", lp_tag, lp_message);
+}
+
+void CMLib_LogInfo(string lp_tag, string lp_message) {
+    CMLib_LogEmit(CMLIB_LOG_INFO, "INFO ", lp_tag, lp_message);
+}
+
+void CMLib_LogDebug(string lp_tag, string lp_message) {
+    CMLib_LogEmit(CMLIB_LOG_DEBUG, "DBG ", lp_tag, lp_message);
+}
+
+// -----------------------------------------------------------------------------
+// DataTable 存储
+// -----------------------------------------------------------------------------
+
+bool CMLib_StoreHas(string lp_key) {
+    return DataTableValueExists(true, lp_key);
+}
+
+void CMLib_StoreInt(string lp_key, int lp_value) {
+    DataTableSetInt(true, lp_key, lp_value);
+}
+
+int CMLib_LoadInt(string lp_key, int lp_fallback) {
+    if ((DataTableValueExists(true, lp_key) == false)) {
+        return lp_fallback;
+    }
+    return DataTableGetInt(true, lp_key);
+}
+
+void CMLib_StoreFixed(string lp_key, fixed lp_value) {
+    DataTableSetFixed(true, lp_key, lp_value);
+}
+
+fixed CMLib_LoadFixed(string lp_key, fixed lp_fallback) {
+    if ((DataTableValueExists(true, lp_key) == false)) {
+        return lp_fallback;
+    }
+    return DataTableGetFixed(true, lp_key);
+}
+
+void CMLib_StoreString(string lp_key, string lp_value) {
+    DataTableSetString(true, lp_key, lp_value);
+}
+
+string CMLib_LoadString(string lp_key, string lp_fallback) {
+    if ((DataTableValueExists(true, lp_key) == false)) {
+        return lp_fallback;
+    }
+    return DataTableGetString(true, lp_key);
+}
+
+// bool 走 int 存储：DataTable 的 bool 通道在部分补丁上与编辑器生成代码冲突，
+// 统一落到 int 更稳，也方便 Bank 序列化。
+void CMLib_StoreBool(string lp_key, bool lp_value) {
+    if ((lp_value == true)) {
+        DataTableSetInt(true, lp_key, 1);
+        return;
+    }
+    DataTableSetInt(true, lp_key, 0);
+}
+
+bool CMLib_LoadBool(string lp_key, bool lp_fallback) {
+    if ((DataTableValueExists(true, lp_key) == false)) {
+        return lp_fallback;
+    }
+    return (DataTableGetInt(true, lp_key) != 0);
+}
+
+void CMLib_StoreUnit(string lp_key, unit lp_value) {
+    DataTableSetUnit(true, lp_key, lp_value);
+}
+
+unit CMLib_LoadUnit(string lp_key) {
+    if ((DataTableValueExists(true, lp_key) == false)) {
+        return null;
+    }
+    return DataTableGetUnit(true, lp_key);
+}
+
+int CMLib_StoreBump(string lp_key, int lp_delta) {
+    int lv_next;
+
+    lv_next = (CMLib_LoadInt(lp_key, 0) + lp_delta);
+    DataTableSetInt(true, lp_key, lv_next);
+    return lv_next;
+}
+
+// -----------------------------------------------------------------------------
+// 随机数 / 取模安全封装
+// -----------------------------------------------------------------------------
+
+fixed CMLib_RandF(fixed lp_min, fixed lp_max) {
+    if ((lp_min > lp_max)) {
+        return RandomFixed(lp_max, lp_min);
+    }
+    return RandomFixed(lp_min, lp_max);
+}
+
+int CMLib_RandI(int lp_min, int lp_max) {
+    if ((lp_min > lp_max)) {
+        return RandomInt(lp_max, lp_min);
+    }
+    return RandomInt(lp_min, lp_max);
+}
+
+int CMLib_ModSafe(int lp_x, int lp_m) {
+    // m == 0 会让引擎抛除零错误并中止整个触发器，这里兜底为 0。
+    if ((lp_m == 0)) {
+        return 0;
+    }
+    return ModI(lp_x, lp_m);
+}
+
+// =============================================================================
+// CMLib :: Round20 —— DataTable 作用域族（实现）
+// =============================================================================
+
+bool CMLib_DTHas(bool lp_global, string lp_key) {
+    if (lp_key == "") { return false; }
+    return DataTableValueExists(lp_global, lp_key);
+}
+
+void CMLib_DTRemove(bool lp_global, string lp_key) {
+    if (lp_key == "") { return; }
+    if (DataTableValueExists(lp_global, lp_key) == false) { return; }
+    DataTableValueRemove(lp_global, lp_key);
+}
+
+void CMLib_DTClear(bool lp_global) {
+    DataTableClear(lp_global);
+}
+
+int CMLib_DTCount(bool lp_global) {
+    return DataTableValueCount(lp_global);
+}
+
+string CMLib_DTNameAt(bool lp_global, int lp_index) {
+    string lv_s;
+
+    // DataTableValueName 的索引基准引擎无文档、官方脚本零用例（已全库确认）。
+    // 所以这里**不赌**：合法区间取 [0, count]（比任一基准都宽一格），
+    // 越界那一格引擎返回空名，由调用方按 "" 跳过即可。
+    // 配套的 DTClearPrefix 也按同一区间遍历 —— 无论 0-based 还是 1-based 都正确。
+    if (lp_index < 0) { return ""; }
+    if (lp_index > DataTableValueCount(lp_global)) { return ""; }
+    lv_s = DataTableValueName(lp_global, lp_index);
+    if (lv_s == null) { return ""; }
+    return lv_s;
+}
+
+int CMLib_DTClearPrefix(bool lp_global, string lp_prefix) {
+    int    lv_i;
+    int    lv_len;
+    int    lv_removed;
+    string lv_name;
+
+    lv_removed = 0;
+    if (lp_prefix == "") { return 0; }
+    lv_len = StringLength(lp_prefix);
+    // 从 count 倒扫到 0：覆盖两种索引基准，多扫的那一格拿到空名自动跳过。
+    lv_i = DataTableValueCount(lp_global);
+    while (lv_i >= 0) {
+        lv_name = DataTableValueName(lp_global, lv_i);
+        if (lv_name != null) {
+            if (StringLength(lv_name) >= lv_len) {
+                if (StringSub(lv_name, 1, lv_len) == lp_prefix) {
+                    DataTableValueRemove(lp_global, lv_name);
+                    lv_removed = (lv_removed + 1);
+                }
+            }
+        }
+        lv_i = (lv_i - 1);
+    }
+    return lv_removed;
+}
+
+// ---- 强类型存取 ---------------------------------------------------------------
+void CMLib_DTSetBool(bool lp_global, string lp_key, bool lp_value) {
+    if (lp_key == "") { return; }
+    DataTableSetBool(lp_global, lp_key, lp_value);
+}
+
+bool CMLib_DTGetBool(bool lp_global, string lp_key, bool lp_fallback) {
+    if (lp_key == "") { return lp_fallback; }
+    if (DataTableValueExists(lp_global, lp_key) == false) { return lp_fallback; }
+    return DataTableGetBool(lp_global, lp_key);
+}
+
+void CMLib_DTSetUG(bool lp_global, string lp_key, unitgroup lp_value) {
+    if (lp_key == "") { return; }
+    DataTableSetUnitGroup(lp_global, lp_key, lp_value);
+}
+
+unitgroup CMLib_DTGetUG(bool lp_global, string lp_key) {
+    if (lp_key == "") { return UnitGroupEmpty(); }
+    if (DataTableValueExists(lp_global, lp_key) == false) { return UnitGroupEmpty(); }
+    return DataTableGetUnitGroup(lp_global, lp_key);
+}
+
+void CMLib_DTSetTimer(bool lp_global, string lp_key, timer lp_value) {
+    if (lp_key == "") { return; }
+    DataTableSetTimer(lp_global, lp_key, lp_value);
+}
+
+timer CMLib_DTGetTimer(bool lp_global, string lp_key) {
+    if (lp_key == "") { return null; }
+    if (DataTableValueExists(lp_global, lp_key) == false) { return null; }
+    return DataTableGetTimer(lp_global, lp_key);
+}
+
+void CMLib_DTSetObjective(bool lp_global, string lp_key, int lp_value) {
+    if (lp_key == "") { return; }
+    DataTableSetObjective(lp_global, lp_key, lp_value);
+}
+
+int CMLib_DTGetObjective(bool lp_global, string lp_key) {
+    if (lp_key == "") { return 0; }
+    if (DataTableValueExists(lp_global, lp_key) == false) { return 0; }
+    return DataTableGetObjective(lp_global, lp_key);
+}
+
+void CMLib_DTSetRegion(bool lp_global, string lp_key, region lp_value) {
+    if (lp_key == "") { return; }
+    DataTableSetRegion(lp_global, lp_key, lp_value);
+}
+
+region CMLib_DTGetRegion(bool lp_global, string lp_key) {
+    if (lp_key == "") { return null; }
+    if (DataTableValueExists(lp_global, lp_key) == false) { return null; }
+    return DataTableGetRegion(lp_global, lp_key);
+}
+
+// ---- 补充数学 / 计时器 ---------------------------------------------------------
+int CMLib_RoundI(fixed lp_x) {
+    return RoundI(lp_x);
+}
+
+fixed CMLib_TimerDuration(timer lp_timer) {
+    if (lp_timer == null) { return 0.0; }
+    return TimerGetDuration(lp_timer);
+}
+
+bool CMLib_TimerPaused(timer lp_timer) {
+    if (lp_timer == null) { return false; }
+    return TimerIsPaused(lp_timer);
+}
+
+fixed CMLib_TimerProgress(timer lp_timer) {
+    fixed lv_total;
+    fixed lv_elapsed;
+
+    if (lp_timer == null) { return 0.0; }
+    lv_total = TimerGetDuration(lp_timer);
+    if (lv_total <= 0.0) { return 0.0; }
+    lv_elapsed = TimerGetElapsed(lp_timer);
+    return CMLib_ClampFixed((lv_elapsed / lv_total), 0.0, 1.0);
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round20b —— DataTable 强类型族补全
+// -----------------------------------------------------------------------------
+
+void CMLib_DTSetInt(bool lp_global, string lp_key, int lp_value) {
+    if (lp_key == "") { return; }
+    DataTableSetInt(lp_global, lp_key, lp_value);
+}
+
+int CMLib_DTGetInt(bool lp_global, string lp_key, int lp_fallback) {
+    if (lp_key == "") { return lp_fallback; }
+    if (DataTableValueExists(lp_global, lp_key) == false) { return lp_fallback; }
+    return DataTableGetInt(lp_global, lp_key);
+}
+
+void CMLib_DTSetFixed(bool lp_global, string lp_key, fixed lp_value) {
+    if (lp_key == "") { return; }
+    DataTableSetFixed(lp_global, lp_key, lp_value);
+}
+
+fixed CMLib_DTGetFixed(bool lp_global, string lp_key, fixed lp_fallback) {
+    if (lp_key == "") { return lp_fallback; }
+    if (DataTableValueExists(lp_global, lp_key) == false) { return lp_fallback; }
+    return DataTableGetFixed(lp_global, lp_key);
+}
+
+void CMLib_DTSetString(bool lp_global, string lp_key, string lp_value) {
+    if (lp_key == "") { return; }
+    DataTableSetString(lp_global, lp_key, lp_value);
+}
+
+string CMLib_DTGetString(bool lp_global, string lp_key, string lp_fallback) {
+    if (lp_key == "") { return lp_fallback; }
+    if (DataTableValueExists(lp_global, lp_key) == false) { return lp_fallback; }
+    return DataTableGetString(lp_global, lp_key);
+}
+
+void CMLib_DTSetUnit(bool lp_global, string lp_key, unit lp_value) {
+    if (lp_key == "") { return; }
+    DataTableSetUnit(lp_global, lp_key, lp_value);
+}
+
+unit CMLib_DTGetUnit(bool lp_global, string lp_key) {
+    if (lp_key == "") { return null; }
+    if (DataTableValueExists(lp_global, lp_key) == false) { return null; }
+    return DataTableGetUnit(lp_global, lp_key);
+}
+
+void CMLib_DTSetPoint(bool lp_global, string lp_key, point lp_value) {
+    if (lp_key == "") { return; }
+    DataTableSetPoint(lp_global, lp_key, lp_value);
+}
+
+point CMLib_DTGetPoint(bool lp_global, string lp_key) {
+    if (lp_key == "") { return null; }
+    if (DataTableValueExists(lp_global, lp_key) == false) { return null; }
+    return DataTableGetPoint(lp_global, lp_key);
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round22 —— 定点数(fixed) 数学补齐
+// -----------------------------------------------------------------------------
+
+fixed CMLib_MinFixed(fixed lp_a, fixed lp_b) {
+    return MinF(lp_a, lp_b);
+}
+
+fixed CMLib_MaxFixed(fixed lp_a, fixed lp_b) {
+    return MaxF(lp_a, lp_b);
+}
+
+fixed CMLib_AbsFixed(fixed lp_value) {
+    return AbsF(lp_value);
+}
+
+fixed CMLib_ModFixed(fixed lp_x, fixed lp_m) {
+    // 除零在 Galaxy 是运行时错误，会中断当前触发器线程 —— 守门比"信任调用方"划算。
+    if (lp_m == 0.0) { return 0.0; }
+    return ModF(lp_x, lp_m);
+}
+
+// =============================================================================
+// Round27：DataTable 强类型族补齐（sound / camerainfo / marker）
+// =============================================================================
+void CMLib_DTSetSound(bool lp_global, string lp_key, sound lp_value) {
+    if (lp_key == "") { return; }
+    DataTableSetSound(lp_global, lp_key, lp_value);
+}
+
+sound CMLib_DTGetSound(bool lp_global, string lp_key) {
+    if (lp_key == "") { return null; }
+    if (DataTableValueExists(lp_global, lp_key) == false) { return null; }
+    return DataTableGetSound(lp_global, lp_key);
+}
+
+void CMLib_DTSetCameraInfo(bool lp_global, string lp_key, camerainfo lp_value) {
+    if (lp_key == "") { return; }
+    DataTableSetCameraInfo(lp_global, lp_key, lp_value);
+}
+
+camerainfo CMLib_DTGetCameraInfo(bool lp_global, string lp_key) {
+    if (lp_key == "") { return null; }
+    if (DataTableValueExists(lp_global, lp_key) == false) { return null; }
+    return DataTableGetCameraInfo(lp_global, lp_key);
+}
+
+void CMLib_DTSetMarker(bool lp_global, string lp_key, marker lp_value) {
+    if (lp_key == "") { return; }
+    DataTableSetMarker(lp_global, lp_key, lp_value);
+}
+
+marker CMLib_DTGetMarker(bool lp_global, string lp_key) {
+    if (lp_key == "") { return null; }
+    if (DataTableValueExists(lp_global, lp_key) == false) { return null; }
+    return DataTableGetMarker(lp_global, lp_key);
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round26 —— 字符串族补齐
+// -----------------------------------------------------------------------------
+
+string CMLib_StrCase(string lp_s, bool lp_upper) {
+    if (lp_s == "") { return ""; }
+    return StringCase(lp_s, lp_upper);
+}
+
+int CMLib_StrCompare(string lp_a, string lp_b, bool lp_caseSens) {
+    return StringCompare(lp_a, lp_b, lp_caseSens);
+}
+
+bool CMLib_StrContains(string lp_s, string lp_sub, int lp_location,
+                       bool lp_caseSens) {
+    int lv_loc;
+
+    if (lp_s == "") { return false; }
+    if (lp_sub == "") { return false; }
+    lv_loc = lp_location;
+    if (lv_loc < c_stringBegin) { lv_loc = c_stringAnywhere; }
+    if (lv_loc > c_stringAnywhere) { lv_loc = c_stringAnywhere; }
+    return StringContains(lp_s, lp_sub, lv_loc, lp_caseSens);
+}
+
+text CMLib_StrAsset(string lp_s) {
+    if (lp_s == "") { return StringToText(""); }
+    return StringExternalAsset(lp_s);
+}
+
+text CMLib_StrHotkey(string lp_s) {
+    if (lp_s == "") { return StringToText(""); }
+    return StringExternalHotkey(lp_s);
+}
+
+string CMLib_StrReplaceRange(string lp_s, string lp_replace, int lp_start,
+                             int lp_end) {
+    string lv_out;
+
+    if (lp_s == "") { return ""; }
+    if (lp_start > lp_end) { return lp_s; }
+    lv_out = StringReplace(lp_s, lp_replace, lp_start, lp_end);
+    if (lv_out == null) { return lp_s; }
+    return lv_out;
+}
+
+string CMLib_StrReplaceWord(string lp_s, string lp_word, string lp_replace,
+                            int lp_maxCount, bool lp_caseSens) {
+    string lv_out;
+
+    if (lp_s == "") { return ""; }
+    if (lp_word == "") { return lp_s; }
+    if (lp_maxCount == 0) { return lp_s; }
+    lv_out = StringReplaceWord(lp_s, lp_word, lp_replace, lp_maxCount,
+                               lp_caseSens);
+    if (lv_out == null) { return lp_s; }
+    return lv_out;
+}
+
+string CMLib_StrWord(string lp_s, int lp_index) {
+    string lv_out;
+
+    if (lp_s == "") { return ""; }
+    // 1-based：StringWord("klaatu barada nikto", 2) == "barada"。
+    if (lp_index < 1) { return ""; }
+    lv_out = StringWord(lp_s, lp_index);
+    if (lv_out == null) { return ""; }
+    return lv_out;
+}
+
+datetime CMLib_StrToDateTime(string lp_s) {
+    string lv_s;
+
+    lv_s = lp_s;
+    // 空串交给引擎解析属未定义行为；给一个确定的占位串，让返回值可预期。
+    if (lv_s == "") { lv_s = "1/1/2000 00:00:00"; }
+    return StringToDateTime(lv_s);
+}

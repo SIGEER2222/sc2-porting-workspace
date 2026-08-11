@@ -1,0 +1,421 @@
+// =============================================================================
+// CMLib :: Conv —— 实现
+//
+// 说明：owningPlayer 一律传 c_maxPlayers，与暴雪自家 NativeLib.galaxy 的
+//       TransmissionSend / TransmissionSendAdvanced 包装保持一致语义
+//       （表示"不归属特定玩家"）。
+// =============================================================================
+
+// ---- Transmission 来源构造 ---------------------------------------------------
+
+transmissionsource CMLib_TransFromUnit(unit lp_unit, bool lp_flash) {
+    if (lp_unit == null) {
+        CMLib_LogWarn("conv", "TransFromUnit: 单位为空，退化为无头像来源");
+        return TransmissionSource();
+    }
+    return TransmissionSourceFromUnit(lp_unit, lp_flash, true, "");
+}
+
+transmissionsource CMLib_TransFromUnitType(string lp_unitType) {
+    if (lp_unitType == "") {
+        return TransmissionSource();
+    }
+    return TransmissionSourceFromUnitType(lp_unitType, true);
+}
+
+transmissionsource CMLib_TransFromModel(string lp_modelLink) {
+    if (lp_modelLink == "") {
+        return TransmissionSource();
+    }
+    return TransmissionSourceFromModel(lp_modelLink);
+}
+
+transmissionsource CMLib_TransFromMovie(string lp_assetLink, bool lp_subtitles) {
+    if (lp_assetLink == "") {
+        return TransmissionSource();
+    }
+    return TransmissionSourceFromMovie(lp_assetLink, lp_subtitles);
+}
+
+transmissionsource CMLib_TransNone() {
+    return TransmissionSource();
+}
+
+// ---- Transmission 发送 -------------------------------------------------------
+
+int CMLib_TransSayTimed(playergroup lp_players, transmissionsource lp_source,
+                        soundlink lp_sound, text lp_speaker, text lp_subtitle,
+                        fixed lp_duration, int lp_durationType,
+                        bool lp_waitUntilDone) {
+    playergroup lv_to;
+
+    lv_to = lp_players;
+    if (lv_to == null) {
+        lv_to = PlayerGroupActive();
+    }
+    return TransmissionSendForPlayer(lv_to, lp_source, CMLIB_TRANS_NO_PORTRAIT,
+                                     "", "", lp_sound, lp_speaker, lp_subtitle,
+                                     lp_duration, lp_durationType,
+                                     lp_waitUntilDone, c_maxPlayers);
+}
+
+int CMLib_TransSay(playergroup lp_players, transmissionsource lp_source,
+                   soundlink lp_sound, text lp_speaker, text lp_subtitle,
+                   bool lp_waitUntilDone) {
+    return CMLib_TransSayTimed(lp_players, lp_source, lp_sound, lp_speaker,
+                               lp_subtitle, 0.0, CMLIB_TRANS_DUR_DEFAULT,
+                               lp_waitUntilDone);
+}
+
+int CMLib_TransSayToPlayer(int lp_player, transmissionsource lp_source,
+                           soundlink lp_sound, text lp_speaker, text lp_subtitle,
+                           bool lp_waitUntilDone) {
+    return CMLib_TransSay(PlayerGroupSingle(lp_player), lp_source, lp_sound,
+                          lp_speaker, lp_subtitle, lp_waitUntilDone);
+}
+
+int CMLib_TransSubtitle(playergroup lp_players, text lp_subtitle,
+                        fixed lp_durationSecs, bool lp_waitUntilDone) {
+    fixed lv_d;
+
+    lv_d = lp_durationSecs;
+    if (lv_d <= 0.0) {
+        lv_d = 3.0;   // 无语音时必须给一个正时长，否则字幕一帧即消失
+    }
+    // 空 soundlink：SoundLink("", 0) 是引擎认可的"无语音"写法。
+    return CMLib_TransSayTimed(lp_players, TransmissionSource(),
+                               SoundLink("", 0), StringExternal(""), lp_subtitle,
+                               lv_d, CMLIB_TRANS_DUR_SET, lp_waitUntilDone);
+}
+
+int CMLib_TransUnitSay(playergroup lp_players, unit lp_unit, soundlink lp_sound,
+                       text lp_speaker, text lp_subtitle, bool lp_waitUntilDone) {
+    return CMLib_TransSay(lp_players, CMLib_TransFromUnit(lp_unit, true),
+                          lp_sound, lp_speaker, lp_subtitle, lp_waitUntilDone);
+}
+
+// ---- Transmission 控制 -------------------------------------------------------
+
+int CMLib_TransLast() {
+    return TransmissionLastSent();
+}
+
+void CMLib_TransWait(int lp_transmission, fixed lp_offsetSecs) {
+    TransmissionWait(lp_transmission, lp_offsetSecs);
+}
+
+void CMLib_TransWaitLast(fixed lp_offsetSecs) {
+    TransmissionWait(TransmissionLastSent(), lp_offsetSecs);
+}
+
+bool CMLib_TransIsDone(int lp_transmission) {
+    return TransmissionIsComplete(lp_transmission);
+}
+
+void CMLib_TransClear(int lp_transmission) {
+    TransmissionClear(lp_transmission);
+}
+
+void CMLib_TransClearAll() {
+    TransmissionClearAll();
+}
+
+void CMLib_TransClearFor(playergroup lp_players) {
+    if (lp_players == null) {
+        TransmissionClearAll();
+        return;
+    }
+    TransmissionClearGroup(lp_players);
+}
+
+bool CMLib_TransPlayerBusy(int lp_player) {
+    return TransmissionPlayerHasActiveTransmission(lp_player);
+}
+
+void CMLib_TransSequence2(playergroup lp_players, transmissionsource lp_s1,
+                          soundlink lp_snd1, text lp_speaker1, text lp_sub1,
+                          transmissionsource lp_s2, soundlink lp_snd2,
+                          text lp_speaker2, text lp_sub2) {
+    CMLib_TransSay(lp_players, lp_s1, lp_snd1, lp_speaker1, lp_sub1, true);
+    CMLib_TransSay(lp_players, lp_s2, lp_snd2, lp_speaker2, lp_sub2, true);
+}
+
+// ---- Conversation -----------------------------------------------------------
+
+int CMLib_ConvCreate(bool lp_visible) {
+    return ConversationCreate(lp_visible);
+}
+
+int CMLib_ConvLast() {
+    return ConversationLastCreated();
+}
+
+void CMLib_ConvShow(int lp_conv, playergroup lp_players, bool lp_visible) {
+    playergroup lv_to;
+
+    lv_to = lp_players;
+    if (lv_to == null) {
+        lv_to = PlayerGroupActive();
+    }
+    ConversationShow(lp_conv, lv_to, lp_visible);
+}
+
+void CMLib_ConvDestroy(int lp_conv) {
+    ConversationDestroy(lp_conv);
+}
+
+void CMLib_ConvDestroyAll() {
+    ConversationDestroyAll();
+}
+
+bool CMLib_ConvVisibleFor(int lp_conv, int lp_player) {
+    return ConversationVisible(lp_conv, lp_player);
+}
+
+int CMLib_ConvReplyAdd(int lp_conv, text lp_text) {
+    return ConversationReplyCreate(lp_conv, lp_text);
+}
+
+void CMLib_ConvReplySetText(int lp_conv, int lp_reply, text lp_text) {
+    ConversationReplySetText(lp_conv, lp_reply, lp_text);
+}
+
+void CMLib_ConvReplySetState(int lp_conv, int lp_reply, int lp_state) {
+    ConversationReplySetState(lp_conv, lp_reply, lp_state);
+}
+
+int CMLib_ConvReplyState(int lp_conv, int lp_reply) {
+    return ConversationReplyGetState(lp_conv, lp_reply);
+}
+
+void CMLib_ConvReplyClear(int lp_conv) {
+    ConversationReplyDestroyAll(lp_conv);
+}
+
+// ---- Conversation Data ------------------------------------------------------
+
+void CMLib_ConvBindUnit(string lp_stateIndex, unit lp_unit) {
+    if (lp_stateIndex == "" || lp_unit == null) {
+        CMLib_LogWarn("conv", "ConvBindUnit: state 或单位为空");
+        return;
+    }
+    ConversationDataRegisterUnit(lp_stateIndex, lp_unit);
+}
+
+void CMLib_ConvBindPortrait(string lp_stateIndex, int lp_player) {
+    if (lp_stateIndex == "") {
+        return;
+    }
+    ConversationDataRegisterPortrait(lp_stateIndex, lp_player);
+}
+
+int CMLib_ConvStateCount(string lp_stateId) {
+    if (lp_stateId == "") {
+        return 0;
+    }
+    return ConversationDataStateIndexCount(lp_stateId);
+}
+
+string CMLib_ConvStateAt(string lp_stateId, int lp_index) {
+    if (lp_stateId == "" || lp_index < 0) {
+        return "";
+    }
+    if (lp_index >= ConversationDataStateIndexCount(lp_stateId)) {
+        return "";
+    }
+    return ConversationDataStateIndex(lp_stateId, lp_index);
+}
+
+text CMLib_ConvStateName(string lp_stateIndex) {
+    if (lp_stateIndex == "") {
+        return StringExternal("");
+    }
+    return ConversationDataStateName(lp_stateIndex);
+}
+
+// =============================================================================
+// CMLib :: Round19 —— ConversationData 实现
+// =============================================================================
+void CMLib_ConvDataRun(string lp_convId, playergroup lp_players, int lp_skipType, bool lp_wait) {
+    if (lp_convId == "") { return; }
+    if (lp_players == null) { return; }
+    ConversationDataRun(lp_convId, lp_players,
+                        CMLib_ClampInt(lp_skipType, c_conversationSkipNone,
+                                       c_conversationSkipFull),
+                        lp_wait);
+}
+
+void CMLib_ConvDataRunAll(string lp_convId) {
+    CMLib_ConvDataRun(lp_convId, PlayerGroupAll(), c_conversationSkipFull, false);
+}
+
+void CMLib_ConvDataStop() {
+    ConversationDataStop();
+}
+
+bool CMLib_ConvDataCanRun(string lp_convId, bool lp_unpickedOnly) {
+    if (lp_convId == "") { return false; }
+    return ConversationDataCanRun(lp_convId, lp_unpickedOnly);
+}
+
+string CMLib_ConvDataSound(string lp_convLine, bool lp_checkConditions) {
+    string lv_s;
+    if (lp_convLine == "") { return ""; }
+    lv_s = ConversationDataGetSound(lp_convLine, lp_checkConditions);
+    if (lv_s == null) { return ""; }
+    return lv_s;
+}
+
+void CMLib_ConvDataLinePlayers(string lp_convId, string lp_lineId, playergroup lp_players) {
+    if ((lp_convId == "") || (lp_lineId == "") || (lp_players == null)) { return; }
+    ConversationDataLineSetPlayers(lp_convId, lp_lineId, lp_players);
+}
+
+void CMLib_ConvDataLineReset(string lp_convId, string lp_lineId) {
+    if ((lp_convId == "") || (lp_lineId == "")) { return; }
+    ConversationDataLineResetPlayers(lp_convId, lp_lineId);
+}
+
+void CMLib_ConvDataCamera(string lp_camIndex, string lp_charIndex, camerainfo lp_cam,
+                          trigger lp_t, bool lp_wait) {
+    if ((lp_camIndex == "") || (lp_charIndex == "")) { return; }
+    ConversationDataRegisterCamera(lp_camIndex, lp_charIndex, lp_cam, lp_t, lp_wait);
+}
+
+void CMLib_ConvDataStateSet(string lp_stateIndex, int lp_value) {
+    if (lp_stateIndex == "") { return; }
+    ConversationDataStateSetValue(lp_stateIndex, lp_value);
+}
+
+int CMLib_ConvDataStateGet(string lp_stateIndex) {
+    if (lp_stateIndex == "") { return 0; }
+    return ConversationDataStateGetValue(lp_stateIndex);
+}
+
+text CMLib_ConvDataStateTextOf(string lp_stateIndex, string lp_infoName) {
+    if ((lp_stateIndex == "") || (lp_infoName == "")) { return StringToText(""); }
+    return ConversationDataStateText(lp_stateIndex, lp_infoName);
+}
+
+// =============================================================================
+// CMLib :: Round20 —— 数据驱动对话补齐（实现）
+// =============================================================================
+
+void CMLib_ConvDataPreload(string lp_convId) {
+    if (lp_convId == "") { return; }
+    ConversationDataPreloadLines(lp_convId);
+}
+
+int CMLib_ConvDataPreloadBatch(string lp_csv) {
+    int    lv_count;
+    int    lv_i;
+    int    lv_done;
+    string lv_id;
+
+    lv_done = 0;
+    if (lp_csv == "") { return 0; }
+    lv_count = CMLib_SplitCount(lp_csv, ",");
+    lv_i = 1;
+    while (lv_i <= lv_count) {
+        lv_id = CMLib_TrimSpaces(CMLib_SplitAt(lp_csv, ",", lv_i));
+        if (lv_id != "") {
+            ConversationDataPreloadLines(lv_id);
+            lv_done = (lv_done + 1);
+        }
+        lv_i = (lv_i + 1);
+    }
+    return lv_done;
+}
+
+fixed CMLib_ConvDataStateFixed(string lp_stateIndex, string lp_infoName) {
+    if (lp_stateIndex == "") { return 0.0; }
+    if (lp_infoName == "") { return 0.0; }
+    return ConversationDataStateFixedValue(lp_stateIndex, lp_infoName);
+}
+
+string CMLib_ConvDataActiveSound() {
+    string lv_id;
+
+    lv_id = ConversationDataActiveSound();
+    if (lv_id == null) { return ""; }
+    return lv_id;
+}
+
+void CMLib_ConvDataSaveNodes(string lp_convId, bank lp_bank, string lp_section) {
+    if (lp_convId == "") { return; }
+    if (lp_bank == null) { return; }
+    if (lp_section == "") { return; }
+    ConversationDataSaveNodeState(lp_convId, lp_bank, lp_section);
+}
+
+void CMLib_ConvDataLoadNodes(string lp_convId, bank lp_bank, string lp_section) {
+    if (lp_convId == "") { return; }
+    if (lp_bank == null) { return; }
+    if (lp_section == "") { return; }
+    ConversationDataLoadNodeState(lp_convId, lp_bank, lp_section);
+}
+
+void CMLib_ConvDataResetStates(string lp_stateId) {
+    if (lp_stateId == "") { return; }
+    ConversationDataResetStateValues(lp_stateId);
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round26 —— 通讯（Transmission）补齐
+// -----------------------------------------------------------------------------
+
+int CMLib_TransSendForPlayerSelect(playergroup lp_players, transmissionsource lp_source,
+                                   int lp_portrait, string lp_portraitActor,
+                                   string lp_portraitAnim, soundlink lp_sound,
+                                   text lp_speaker, text lp_subtitle,
+                                   fixed lp_duration, int lp_durationType,
+                                   bool lp_waitUntilDone, int lp_owningPlayer,
+                                   bool lp_isSelect) {
+    playergroup lv_to;
+    int lv_owner;
+    string lv_actor;
+    string lv_anim;
+
+    lv_to = lp_players;
+    if (lv_to == null) {
+        lv_to = PlayerGroupActive();
+    }
+    lv_owner = lp_owningPlayer;
+    if (lv_owner < 0 || lv_owner > c_maxPlayers) {
+        lv_owner = c_maxPlayers;
+    }
+    // 官方用例里这两个串常传 ""，null 串在 Galaxy 里等价于空串，统一成 "" 更保险。
+    lv_actor = lp_portraitActor;
+    if (lv_actor == null) { lv_actor = ""; }
+    lv_anim = lp_portraitAnim;
+    if (lv_anim == null) { lv_anim = ""; }
+
+    return TransmissionSendForPlayerSelect(lv_to, lp_source, lp_portrait,
+                                           lv_actor, lv_anim, lp_sound,
+                                           lp_speaker, lp_subtitle,
+                                           lp_duration, lp_durationType,
+                                           lp_waitUntilDone, lv_owner,
+                                           lp_isSelect);
+}
+
+void CMLib_TransSetOption(int lp_option, bool lp_value) {
+    if (lp_option < 0) { return; }
+    TransmissionSetOption(lp_option, lp_value);
+}
+
+void CMLib_TransHideAlertPanel(bool lp_hide) {
+    TransmissionSetOption(CMLIB_TRANS_OPT_HIDE_ALERT_PANEL, lp_hide);
+}
+
+void CMLib_TransSourceBypassLog(transmissionsource lp_source, bool lp_bypass) {
+    TransmissionSourceSetBypassMessageLog(lp_source, lp_bypass);
+}
+
+void CMLib_TransSourcePauseAllowed(transmissionsource lp_source, bool lp_allowed) {
+    TransmissionSourceSetPauseAllowed(lp_source, lp_allowed);
+}
+
+void CMLib_TransSourceStreaming(transmissionsource lp_source, bool lp_allowed) {
+    TransmissionSourceSetStreamingAllowed(lp_source, lp_allowed);
+}

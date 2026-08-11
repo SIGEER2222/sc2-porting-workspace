@@ -1,0 +1,174 @@
+// =============================================================================
+// CMLib :: Buff —— 单位 Behavior（增益/减益）、单位状态位、玩家状态位
+//
+// 为什么单列一个模块：
+//   gap_scan 对工作区 1704 个 .galaxy 的统计里，文件铺开度最高的未覆盖引擎符号
+//   就集中在这三族 ——
+//     UnitBehaviorAdd    252 个文件
+//     UnitBehaviorRemove 213 个文件
+//     UnitSetState       210 个文件
+//     PlayerSetState     190 个文件
+//   cmlib_unit 里只包了 *Player 变体（施法者按玩家算），本模块补 caster 变体、
+//   层数收敛、时限刷新、按 flag 批量净化，以及两族状态位。
+//
+// 依赖：cmlib_core（日志 / Store*）、core.sc2mod natives。
+// =============================================================================
+
+// ---- 层数上限保护 -------------------------------------------------------------
+// 收敛类操作（CMLib_BuffSetCount / CMLib_BuffStripAll）内部是循环，
+// 给一个硬上限，避免脏数据把触发器卡死。
+const int CMLIB_BUFF_MAX_STACK = 256;
+
+// 单位身上同时挂载的 behavior 遍历上限（UnitBehaviorCountAll 的兜底）。
+const int CMLIB_BUFF_MAX_SLOTS = 64;
+
+// =============================================================================
+// Behavior：单体
+// =============================================================================
+
+// 挂 behavior，施法者是 unit（对应 UnitBehaviorAdd）。
+// 与 cmlib_unit 的 CMLib_UnitEnsureBehavior 的区别：
+//   - 那个是「没有才加」，且施法者按玩家编号算；
+//   - 这个是「无条件叠 lp_count 层」，施法者是具体单位，
+//     Damage Response / 归属击杀统计会算到 lp_caster 头上。
+// lp_caster 传 null 合法（引擎按无主处理）。
+bool CMLib_BuffAdd(unit lp_unit, string lp_buff, unit lp_caster, int lp_count);
+
+// 移除 lp_count 层；单位没挂或层数不足时按实际层数移除，不报错。
+// 返回实际移除的层数。
+int CMLib_BuffRemove(unit lp_unit, string lp_buff, int lp_count);
+
+// 把层数**收敛**到 lp_target（多退少补）。返回收敛后的实际层数。
+// 常见于「光环叠加值随科技等级变化」这类需要幂等的场景。
+int CMLib_BuffSetCount(unit lp_unit, string lp_buff, unit lp_caster, int lp_target);
+
+// 移除该 behavior 的全部层数，返回移除掉的层数。
+int CMLib_BuffStripAll(unit lp_unit, string lp_buff);
+
+int  CMLib_BuffCount(unit lp_unit, string lp_buff);
+bool CMLib_BuffHas(unit lp_unit, string lp_buff);
+// 该单位当前挂载的 behavior 总数（所有种类）。
+int  CMLib_BuffCountAll(unit lp_unit);
+// 按下标取 behavior 名（0 起）；越界返回 ""。
+string CMLib_BuffNameAt(unit lp_unit, int lp_index);
+
+// behavior 是否处于启用状态（被 Disable 的 behavior 仍在但不生效）。
+bool CMLib_BuffEnabled(unit lp_unit, string lp_buff);
+
+// =============================================================================
+// Behavior：时限
+// =============================================================================
+
+// 剩余时间（秒）；未挂载返回 0.0。永久 behavior 引擎返回 0.0，
+// 用 CMLib_BuffHas 区分「没挂」和「挂着但永久」。
+fixed CMLib_BuffTimeLeft(unit lp_unit, string lp_buff);
+
+// 挂一个带时限的 behavior：先叠 1 层，再把**剩余时间**设为 lp_seconds。
+// 注意用的是 SetDurationRemaining 而不是 SetDuration ——
+// 后者改的是「总时长」，对已经在倒计时的 behavior 不会重置进度。
+bool CMLib_BuffAddTimed(unit lp_unit, string lp_buff, unit lp_caster, fixed lp_seconds);
+
+// 只刷新时间，不叠层。单位没挂该 behavior 时返回 false（不会凭空补挂）。
+// 这就是「debuff 续期」的标准写法。
+bool CMLib_BuffRefresh(unit lp_unit, string lp_buff, fixed lp_seconds);
+
+// 延长剩余时间（在当前剩余基础上加）；未挂载返回 false。
+bool CMLib_BuffExtend(unit lp_unit, string lp_buff, fixed lp_extraSeconds);
+
+// =============================================================================
+// Behavior：按 flag 分类批量处理（净化 / 驱散）
+// =============================================================================
+
+// lp_flag 取 c_unitBehaviorFlag*（Magic / Stun / Slow / Cloak / TimedLife …）。
+bool CMLib_BuffHasFlag(string lp_buff, int lp_flag);
+
+// 净化：移除该单位身上所有带指定 flag 的 behavior。
+// 走引擎的 UnitBehaviorRemoveCategory，比自己遍历快且能处理隐藏 behavior。
+void CMLib_BuffPurgeFlag(unit lp_unit, int lp_flag);
+
+// 找出该单位身上第一个带指定 flag 的 behavior 名；找不到返回 ""。
+// 用于「驱散一个随机减益并播对应特效」这类需要知道名字的场景。
+string CMLib_BuffFindByFlag(unit lp_unit, int lp_flag);
+
+// 该单位是否挂着任意带指定 flag 的 behavior（例如判断是否被眩晕）。
+bool CMLib_BuffAnyWithFlag(unit lp_unit, int lp_flag);
+
+// 把 behavior 从一个单位转移到另一个（引擎原生支持，保留剩余时间）。
+bool CMLib_BuffTransfer(unit lp_from, unit lp_to, string lp_buff, int lp_count);
+
+// =============================================================================
+// Behavior：批量
+// =============================================================================
+
+// 对整个 unitgroup 叠 behavior，返回成功处理的单位数。
+int CMLib_BuffAddGroup(unitgroup lp_group, string lp_buff, unit lp_caster, int lp_count);
+int CMLib_BuffStripGroup(unitgroup lp_group, string lp_buff);
+
+// CSV 规格串批量挂载："BuffA:2,BuffB,BuffC:3"（省略层数按 1 层）。
+// 返回成功挂载的**种类数**。用 CSV 而不是数组形参，是因为 Galaxy 不支持
+// 裸数组形参 —— 真机会静默丢弃整个 MapScript，而静态检查抓不到（详见 README §2.6）。
+int CMLib_BuffAddCSV(unit lp_unit, unit lp_caster, string lp_spec);
+
+// =============================================================================
+// 单位状态位（c_unitState*）
+// =============================================================================
+
+// 引擎里有相当一部分 c_unitState* 标了 Read-only，写进去是**静默无效**的。
+// 这个函数把那份名单固化下来，方便调用前自检 / 单测。
+bool CMLib_UStateIsReadOnly(int lp_state);
+
+// 带守卫的写：单位非法或状态位只读时返回 false（并打 warn 日志），不静默吞掉。
+bool CMLib_UStateSet(unit lp_unit, int lp_state, bool lp_value);
+bool CMLib_UStateGet(unit lp_unit, int lp_state);
+// 翻转，返回翻转后的值。
+bool CMLib_UStateToggle(unit lp_unit, int lp_state);
+// 批量写整个 unitgroup，返回成功写入的单位数。
+int  CMLib_UStateSetGroup(unitgroup lp_group, int lp_state, bool lp_value);
+
+// ---- 常用状态位的具名封装（可读性 > 记数字）---------------------------------
+bool CMLib_UnitInvulnerable(unit lp_unit, bool lp_on);
+bool CMLib_UnitHide(unit lp_unit, bool lp_hidden);
+bool CMLib_UnitPause(unit lp_unit, bool lp_paused);
+bool CMLib_UnitSelectable(unit lp_unit, bool lp_on);
+bool CMLib_UnitTargetable(unit lp_unit, bool lp_on);
+bool CMLib_UnitStatusBar(unit lp_unit, bool lp_on);
+bool CMLib_UnitStun(unit lp_unit, bool lp_on);
+bool CMLib_UnitSilence(unit lp_unit, bool lp_on);
+bool CMLib_UnitUsingSupply(unit lp_unit, bool lp_on);
+
+// 复合：把单位变成「场上不存在」的样子（隐藏 + 不可选 + 不可锁定 + 无血条 +
+// 不吃人口）。做过场演出、预放置伏兵、单位池复用时最常用的一组开关。
+// lp_ghost = false 表示还原。
+void CMLib_UnitGhostMode(unit lp_unit, bool lp_ghost);
+
+// ---- 只读状态位的语义化查询 ---------------------------------------------------
+// 建筑正在建造中（c_unitStateUnderConstruction）。
+bool CMLib_UnitUnderConstruction(unit lp_unit);
+bool CMLib_UnitCloaked(unit lp_unit);
+bool CMLib_UnitHallucination(unit lp_unit);
+bool CMLib_UnitInTransport(unit lp_unit);
+bool CMLib_UnitIdleState(unit lp_unit);
+bool CMLib_UnitDeadState(unit lp_unit);
+bool CMLib_UnitBuried(unit lp_unit);
+
+// =============================================================================
+// 玩家状态位（c_playerState*）
+// =============================================================================
+
+// ⚠ 引擎**没有** PlayerGetState / PlayerTestState —— 玩家状态位是只写的。
+// 所以本模块在写入时同步落一份影子缓存（走 core 的 DataTable Store），
+// CMLib_PStateGet 读的是这份缓存，只对「经由 CMLib 写过」的位准确。
+// 没写过的位返回 lp_fallback，不会瞎猜。
+bool CMLib_PStateSet(int lp_player, int lp_state, bool lp_value);
+bool CMLib_PStateGet(int lp_player, int lp_state, bool lp_fallback);
+int  CMLib_PStateSetGroup(playergroup lp_players, int lp_state, bool lp_value);
+
+// ---- 具名封装 -----------------------------------------------------------------
+// 一键无消耗建造：矿 / 气 / 泰伦森 / 自定义资源 / 人口 全部忽略。
+// 测试图和「无限资源」类彩蛋模式的标准开法。
+void CMLib_PlayerFreeCost(int lp_player, bool lp_on);
+// 暂停该玩家所有充能与冷却。
+void CMLib_PlayerPauseCooldowns(int lp_player, bool lp_on);
+bool CMLib_PlayerShowScore(int lp_player, bool lp_on);
+bool CMLib_PlayerGivesBounty(int lp_player, bool lp_on);
+bool CMLib_PlayerInLeaderPanel(int lp_player, bool lp_on);

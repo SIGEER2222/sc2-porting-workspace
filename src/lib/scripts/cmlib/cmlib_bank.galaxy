@@ -1,0 +1,327 @@
+// =============================================================================
+// CMLib :: Bank —— 实现
+// =============================================================================
+
+include "scripts/cmlib/cmlib_bank_h"
+
+// 存档结构版本号所在的固定位置。
+// 注意：不要写成 `static const` —— Blizzard 全部官方库里从未出现该组合，
+// 真实引擎会拒绝，且独立 checker 不报错（典型的"静默编译失败"来源）。
+const string CMLIB_BANK_META_SECTION = "CMLibMeta";
+const string CMLIB_BANK_META_VERSION = "SchemaVersion";
+
+// 脏标记：由 Set* 系列自动置位，Flush 后清零。
+static bool CMLib_BankDirty = false;
+
+// =============================================================================
+// 打开 / 落盘
+// =============================================================================
+bank CMLib_BankOpen(string lp_name, int lp_player) {
+    if (lp_name == "") {
+        CMLib_LogError("BANK", "BankOpen: 存档名为空。");
+        return null;
+    }
+    return BankLoad(lp_name, lp_player);
+}
+
+void CMLib_BankFlush(bank lp_bank) {
+    if (lp_bank == null) {
+        CMLib_LogWarn("BANK", "BankFlush: 存档句柄为空。");
+        return;
+    }
+    BankSave(lp_bank);
+    CMLib_BankDirty = false;
+}
+
+void CMLib_BankMarkDirty() {
+    CMLib_BankDirty = true;
+}
+
+bool CMLib_BankIsDirty() {
+    return CMLib_BankDirty;
+}
+
+void CMLib_BankFlushIfDirty(bank lp_bank) {
+    if (CMLib_BankDirty == false) { return; }
+    CMLib_BankFlush(lp_bank);
+}
+
+// =============================================================================
+// 存在性
+// =============================================================================
+bool CMLib_BankHas(bank lp_bank, string lp_section, string lp_key) {
+    if (lp_bank == null) { return false; }
+    if ((lp_section == "") || (lp_key == "")) { return false; }
+    return BankKeyExists(lp_bank, lp_section, lp_key);
+}
+
+void CMLib_BankEnsureSection(bank lp_bank, string lp_section) {
+    if (lp_bank == null) { return; }
+    if (lp_section == "") { return; }
+    BankSectionCreate(lp_bank, lp_section);
+}
+
+// =============================================================================
+// 读
+// =============================================================================
+int CMLib_BankGetInt(bank lp_bank, string lp_section, string lp_key, int lp_fallback) {
+    if (CMLib_BankHas(lp_bank, lp_section, lp_key) == false) { return lp_fallback; }
+    return BankValueGetAsInt(lp_bank, lp_section, lp_key);
+}
+
+string CMLib_BankGetString(bank lp_bank, string lp_section, string lp_key, string lp_fallback) {
+    if (CMLib_BankHas(lp_bank, lp_section, lp_key) == false) { return lp_fallback; }
+    return BankValueGetAsString(lp_bank, lp_section, lp_key);
+}
+
+bool CMLib_BankGetBool(bank lp_bank, string lp_section, string lp_key, bool lp_fallback) {
+    if (CMLib_BankHas(lp_bank, lp_section, lp_key) == false) { return lp_fallback; }
+    return BankValueGetAsFlag(lp_bank, lp_section, lp_key);
+}
+
+fixed CMLib_BankGetFixed(bank lp_bank, string lp_section, string lp_key, fixed lp_fallback) {
+    if (CMLib_BankHas(lp_bank, lp_section, lp_key) == false) { return lp_fallback; }
+    return CMLib_ParseFixed(BankValueGetAsString(lp_bank, lp_section, lp_key), lp_fallback);
+}
+
+// =============================================================================
+// 写
+// =============================================================================
+// 内部：写入前的统一校验，顺带保证 section 存在。
+static bool CMLib_BankWriteGuard(bank lp_bank, string lp_section, string lp_key) {
+    if (lp_bank == null) {
+        CMLib_LogWarn("BANK", "写入失败：存档句柄为空。");
+        return false;
+    }
+    if ((lp_section == "") || (lp_key == "")) {
+        CMLib_LogWarn("BANK", "写入失败：section 或 key 为空。");
+        return false;
+    }
+    BankSectionCreate(lp_bank, lp_section);
+    return true;
+}
+
+void CMLib_BankSetInt(bank lp_bank, string lp_section, string lp_key, int lp_value) {
+    if (CMLib_BankWriteGuard(lp_bank, lp_section, lp_key) == false) { return; }
+    BankValueSetFromInt(lp_bank, lp_section, lp_key, lp_value);
+    CMLib_BankDirty = true;
+}
+
+void CMLib_BankSetString(bank lp_bank, string lp_section, string lp_key, string lp_value) {
+    if (CMLib_BankWriteGuard(lp_bank, lp_section, lp_key) == false) { return; }
+    BankValueSetFromString(lp_bank, lp_section, lp_key, lp_value);
+    CMLib_BankDirty = true;
+}
+
+void CMLib_BankSetBool(bank lp_bank, string lp_section, string lp_key, bool lp_value) {
+    if (CMLib_BankWriteGuard(lp_bank, lp_section, lp_key) == false) { return; }
+    BankValueSetFromFlag(lp_bank, lp_section, lp_key, lp_value);
+    CMLib_BankDirty = true;
+}
+
+void CMLib_BankSetFixed(bank lp_bank, string lp_section, string lp_key, fixed lp_value) {
+    if (CMLib_BankWriteGuard(lp_bank, lp_section, lp_key) == false) { return; }
+    // 保留 4 位小数：够用且避免浮点串过长撑大存档。
+    BankValueSetFromString(lp_bank, lp_section, lp_key, FixedToString(lp_value, 4));
+    CMLib_BankDirty = true;
+}
+
+// =============================================================================
+// 常用复合操作
+// =============================================================================
+int CMLib_BankBump(bank lp_bank, string lp_section, string lp_key, int lp_delta) {
+    int lv_new = CMLib_BankGetInt(lp_bank, lp_section, lp_key, 0) + lp_delta;
+
+    CMLib_BankSetInt(lp_bank, lp_section, lp_key, lv_new);
+    return lv_new;
+}
+
+int CMLib_BankKeepMax(bank lp_bank, string lp_section, string lp_key, int lp_value) {
+    int lv_cur = CMLib_BankGetInt(lp_bank, lp_section, lp_key, 0);
+
+    if (lp_value > lv_cur) {
+        CMLib_BankSetInt(lp_bank, lp_section, lp_key, lp_value);
+        return lp_value;
+    }
+    return lv_cur;
+}
+
+int CMLib_BankKeepMin(bank lp_bank, string lp_section, string lp_key, int lp_value) {
+    int lv_cur;
+
+    if (lp_value <= 0) {
+        // 0 / 负数在「最短用时」语义下是无效成绩，不写入。
+        return CMLib_BankGetInt(lp_bank, lp_section, lp_key, 0);
+    }
+    if (CMLib_BankHas(lp_bank, lp_section, lp_key) == false) {
+        CMLib_BankSetInt(lp_bank, lp_section, lp_key, lp_value);
+        return lp_value;
+    }
+    lv_cur = BankValueGetAsInt(lp_bank, lp_section, lp_key);
+    if ((lv_cur <= 0) || (lp_value < lv_cur)) {
+        CMLib_BankSetInt(lp_bank, lp_section, lp_key, lp_value);
+        return lp_value;
+    }
+    return lv_cur;
+}
+
+bool CMLib_BankUnlockOnce(bank lp_bank, string lp_section, string lp_key) {
+    if (CMLib_BankGetBool(lp_bank, lp_section, lp_key, false) == true) {
+        return false;
+    }
+    CMLib_BankSetBool(lp_bank, lp_section, lp_key, true);
+    return true;
+}
+
+void CMLib_BankSeedInt(bank lp_bank, string lp_section, string lp_key, int lp_value) {
+    if (CMLib_BankHas(lp_bank, lp_section, lp_key)) { return; }
+    CMLib_BankSetInt(lp_bank, lp_section, lp_key, lp_value);
+}
+
+void CMLib_BankSeedBool(bank lp_bank, string lp_section, string lp_key, bool lp_value) {
+    if (CMLib_BankHas(lp_bank, lp_section, lp_key)) { return; }
+    CMLib_BankSetBool(lp_bank, lp_section, lp_key, lp_value);
+}
+
+// =============================================================================
+// 清理
+// =============================================================================
+void CMLib_BankClearKey(bank lp_bank, string lp_section, string lp_key) {
+    if (CMLib_BankHas(lp_bank, lp_section, lp_key) == false) { return; }
+    BankKeyRemove(lp_bank, lp_section, lp_key);
+    CMLib_BankDirty = true;
+}
+
+void CMLib_BankClearSection(bank lp_bank, string lp_section) {
+    if (lp_bank == null) { return; }
+    if (lp_section == "") { return; }
+    BankSectionRemove(lp_bank, lp_section);
+    CMLib_BankDirty = true;
+}
+
+// =============================================================================
+// 存档版本管理
+// =============================================================================
+int CMLib_BankSchemaVersion(bank lp_bank) {
+    return CMLib_BankGetInt(lp_bank, CMLIB_BANK_META_SECTION, CMLIB_BANK_META_VERSION, 0);
+}
+
+void CMLib_BankSetSchemaVersion(bank lp_bank, int lp_version) {
+    CMLib_BankSetInt(lp_bank, CMLIB_BANK_META_SECTION, CMLIB_BANK_META_VERSION, lp_version);
+    CMLib_BankFlush(lp_bank);
+}
+
+// -----------------------------------------------------------------------------
+// round 17：bank 底层查询（不经过 CMLib 托管句柄）
+// 铁律：bank handle 绝不跨帧缓存 —— 这里只接受调用方当场拿到的 handle。
+// -----------------------------------------------------------------------------
+
+bank CMLib_BankLast() {
+    return BankLastCreated();
+}
+
+bool CMLib_BankExists(string lp_name, int lp_player) {
+    if ((lp_name == "")) {
+        return false;
+    }
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return false;
+    }
+    return BankExists(lp_name, lp_player);
+}
+
+void CMLib_BankRemove(bank lp_bank) {
+    if ((lp_bank == null)) {
+        return;
+    }
+    BankRemove(lp_bank);
+}
+
+void CMLib_BankWait(bank lp_bank) {
+    if ((lp_bank == null)) {
+        return;
+    }
+    BankWait(lp_bank);
+}
+
+void CMLib_BankOption(bank lp_bank, int lp_option, bool lp_enable) {
+    if ((lp_bank == null)) {
+        return;
+    }
+    BankOptionSet(lp_bank, lp_option, lp_enable);
+}
+
+bool CMLib_BankOptionOn(bank lp_bank, int lp_option) {
+    if ((lp_bank == null)) {
+        return false;
+    }
+    return BankOptionGet(lp_bank, lp_option);
+}
+
+bool CMLib_BankVerified(bank lp_bank) {
+    if ((lp_bank == null)) {
+        return false;
+    }
+    return BankVerify(lp_bank);
+}
+
+string CMLib_BankNameOf(bank lp_bank) {
+    if ((lp_bank == null)) {
+        return "";
+    }
+    return BankName(lp_bank);
+}
+
+int CMLib_BankPlayerOf(bank lp_bank) {
+    if ((lp_bank == null)) {
+        return 0;
+    }
+    return BankPlayer(lp_bank);
+}
+
+bool CMLib_BankSectionExists(bank lp_bank, string lp_section) {
+    if ((lp_bank == null) || (lp_section == "")) {
+        return false;
+    }
+    return BankSectionExists(lp_bank, lp_section);
+}
+
+int CMLib_BankSectionCount(bank lp_bank) {
+    if ((lp_bank == null)) {
+        return 0;
+    }
+    return BankSectionCount(lp_bank);
+}
+
+string CMLib_BankSectionName(bank lp_bank, int lp_index) {
+    if ((lp_bank == null)) {
+        return "";
+    }
+    if ((lp_index < 0) || (lp_index >= BankSectionCount(lp_bank))) {
+        return "";
+    }
+    return BankSectionName(lp_bank, lp_index);
+}
+
+int CMLib_BankKeyCount(bank lp_bank, string lp_section) {
+    if ((lp_bank == null) || (lp_section == "")) {
+        return 0;
+    }
+    if ((BankSectionExists(lp_bank, lp_section) == false)) {
+        return 0;
+    }
+    return BankKeyCount(lp_bank, lp_section);
+}
+
+string CMLib_BankKeyName(bank lp_bank, string lp_section, int lp_index) {
+    if ((lp_bank == null) || (lp_section == "")) {
+        return "";
+    }
+    if ((BankSectionExists(lp_bank, lp_section) == false)) {
+        return "";
+    }
+    if ((lp_index < 0) || (lp_index >= BankKeyCount(lp_bank, lp_section))) {
+        return "";
+    }
+    return BankKeyName(lp_bank, lp_section, lp_index);
+}

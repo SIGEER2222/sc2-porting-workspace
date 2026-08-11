@@ -1,0 +1,209 @@
+// =============================================================================
+// CMLib :: Board
+// 「面板效果」专项 —— 自定义排行榜面板（Board）与任务结算面板（VictoryPanel）。
+//
+// 缺口来源：全量 mod 扫描（1696 个 .galaxy）显示这两块 **零覆盖**，且是
+//           用户点名的「面板效果」里最缺的一段 ——
+//             VictoryPanelAddCustomStatisticLine(578) / BoardItemSetText(457) /
+//             VictoryPanelAddTrackedStatistic(380) / BoardCreate / BoardSort …
+//           合计 1000+ 次调用，分布在 100+ 个文件里，此前完全没有封装。
+//
+// 本模块解决原生 API 的五个痛点：
+//   1. 句柄无校验：BoardCreate 失败返回 c_boardNone(0)，后续所有 Board* 调用
+//      都会静默无效，排查时毫无线索 → 这里统一 CMLib_BoardValid 守门 + 日志。
+//   2. 数字列排序必须两步：BoardItemSetText 只改显示，排序用的是
+//      BoardItemSetSortValue，漏了第二步就会出现"看着是数字、排出来是乱序"
+//      这个最常见的坑 → CMLib_BoardCellInt 一次搞定两件事。
+//   3. 进度条要四步（ProgressShow + Range + Value + Color）才出效果
+//      → CMLib_BoardCellProgress 一行配好。
+//   4. 填表要逐格调用，行列一多就是几十行样板 → CSV 批量接口
+//      CMLib_BoardHeaders / CMLib_BoardRow，一行填一整排。
+//   5. 加玩家只能一个个 BoardPlayerAdd → 支持 playergroup 批量。
+//
+// 关于本模块**故意不封装**的两类 API（这是分析结论，不是遗漏）：
+//   - StatEvent*（StatEventCreate/StatEventSend/…）：**round23 起已由 cmlib_stat 封装**
+//     （CMLib_StatEvt*）。此前判为陷阱 API 的理由「只声明在 natives_missing.galaxy」
+//     已被 round22 推翻 —— native 符号表是引擎内建的，NativeLib.TriggerLib 里
+//     六个符号全带 <FlagNative/>，三档真机探针亦全 PASS。边界：不保证上报 Battle.net。
+//   - Achievement*（AchievementAward / AchievementTermQuantitySet / …）：
+//     暴雪在 natives.galaxy 里明确标注 "Blizzard maps only"，自定义地图
+//     调用无效。封装它等于给使用者提供一个永远不生效的假接口。
+//
+// 依赖：cmlib_core（日志、CSV 切分、数值解析）。
+// =============================================================================
+
+// ---- 常量 --------------------------------------------------------------------
+// 行号传这个值 = 操作表头行（原生 c_boardRowHeader）。
+const int CMLIB_BOARD_HEADER = -1;
+// 行号或列号传这个值 = 作用于该行/该列全部单元格（原生 c_boardItemAll）。
+const int CMLIB_BOARD_ALL    = -2;
+// 无效面板句柄（原生 c_boardNone）。
+const int CMLIB_BOARD_NONE   = 0;
+
+// 排序优先级上限，BoardSort 的 inPriority 越小越优先。
+const int CMLIB_BOARD_SORT_PRIMARY   = 0;
+const int CMLIB_BOARD_SORT_SECONDARY = 1;
+
+// ---- 生命周期 ----------------------------------------------------------------
+// 建面板。失败返回 CMLIB_BOARD_NONE 并写 error 日志（原生失败时静默）。
+int  CMLib_BoardCreate(int lp_cols, int lp_rows, string lp_name);
+// 带颜色的版本。lp_r/g/b 取 0~100（Galaxy color 惯例）。
+int  CMLib_BoardCreateColored(int lp_cols, int lp_rows, string lp_name,
+                              fixed lp_r, fixed lp_g, fixed lp_b);
+// 一步到位：建面板 + 写 CSV 表头 + 对指定玩家显示。最常用的入口。
+int  CMLib_BoardQuick(string lp_name, string lp_headersCsv, playergroup lp_players);
+// 句柄是否有效（> CMLIB_BOARD_NONE）。所有本模块函数内部都先过这一关。
+bool CMLib_BoardValid(int lp_board);
+// 安全销毁：句柄无效时直接返回，不报错。
+void CMLib_BoardDestroy(int lp_board);
+
+// ---- 显示 / 布局 --------------------------------------------------------------
+void CMLib_BoardShow(int lp_board, playergroup lp_players, bool lp_show);
+// 对全部玩家显示/隐藏（走原生 BoardShowAll）。
+void CMLib_BoardShowAll(int lp_board, bool lp_show);
+// 锚定到屏幕九宫格之一，lp_anchor 用引擎的 c_anchor* 常量。
+void CMLib_BoardAnchor(int lp_board, int lp_anchor, int lp_offsetX, int lp_offsetY);
+// 常用快捷位（右上 / 左上 / 顶部居中），省去记 c_anchor* 的心智负担。
+void CMLib_BoardAnchorTopRight(int lp_board, int lp_offsetX, int lp_offsetY);
+void CMLib_BoardAnchorTopLeft(int lp_board, int lp_offsetX, int lp_offsetY);
+void CMLib_BoardAnchorTop(int lp_board, int lp_offsetX, int lp_offsetY);
+void CMLib_BoardResetPosition(int lp_board);
+// 改行列数（运行时扩表用）。
+void CMLib_BoardResize(int lp_board, int lp_cols, int lp_rows);
+void CMLib_BoardColumnWidth(int lp_board, int lp_col, fixed lp_width);
+
+// ---- 标题 ---------------------------------------------------------------------
+// 一次设好标题文字 + 图标 + 是否可点击；lp_icon 传 "" 表示无图标。
+void CMLib_BoardTitle(int lp_board, string lp_text, string lp_icon,
+                      bool lp_clickable);
+void CMLib_BoardTitleShow(int lp_board, playergroup lp_players, bool lp_show);
+void CMLib_BoardTitleColor(int lp_board, fixed lp_r, fixed lp_g, fixed lp_b);
+
+// ---- 单元格 -------------------------------------------------------------------
+void CMLib_BoardCell(int lp_board, int lp_col, int lp_row, string lp_text);
+// 数字单元格：同时写显示文本与排序值，避免"数字列排序乱掉"的经典坑。
+void CMLib_BoardCellInt(int lp_board, int lp_col, int lp_row, int lp_value);
+// 定点数单元格，lp_precision 为小数位；排序值按 value 取整。
+void CMLib_BoardCellFixed(int lp_board, int lp_col, int lp_row,
+                          fixed lp_value, int lp_precision);
+void CMLib_BoardCellColor(int lp_board, int lp_col, int lp_row,
+                          fixed lp_r, fixed lp_g, fixed lp_b);
+void CMLib_BoardCellBackColor(int lp_board, int lp_col, int lp_row,
+                              fixed lp_r, fixed lp_g, fixed lp_b);
+void CMLib_BoardCellIcon(int lp_board, int lp_col, int lp_row,
+                         string lp_icon, bool lp_onLeft);
+void CMLib_BoardCellAlign(int lp_board, int lp_col, int lp_row, int lp_align);
+void CMLib_BoardCellFontSize(int lp_board, int lp_col, int lp_row, int lp_size);
+// 进度条一次配齐（原生需 4 次调用）。
+void CMLib_BoardCellProgress(int lp_board, int lp_col, int lp_row,
+                             fixed lp_min, fixed lp_max, fixed lp_value,
+                             fixed lp_r, fixed lp_g, fixed lp_b);
+void CMLib_BoardCellProgressHide(int lp_board, int lp_col, int lp_row);
+
+// ---- CSV 批量填充 -------------------------------------------------------------
+// 写表头行。lp_csv 形如 "玩家,击杀,存活时间"。列数超出面板宽度的部分忽略。
+void CMLib_BoardHeaders(int lp_board, string lp_csv);
+// 写第 lp_row 行。lp_csv 形如 "Raynor,42,03:15"。
+void CMLib_BoardRow(int lp_board, int lp_row, string lp_csv);
+// 写第 lp_row 行，且整行按数字处理（同步排序值）。非数字项按 0 排序。
+void CMLib_BoardRowInt(int lp_board, int lp_row, string lp_csv);
+// 清空整行（写入空串）。
+void CMLib_BoardRowClear(int lp_board, int lp_row);
+
+// ---- 玩家列 -------------------------------------------------------------------
+// 把某列标记为"玩家列"（自动填充玩家名/颜色），可选按队伍分组。
+void CMLib_BoardPlayerColumn(int lp_board, int lp_col, bool lp_groupByTeams);
+// 批量把 playergroup 里的玩家加进面板（原生只能一个个加）。
+void CMLib_BoardPlayersAdd(int lp_board, playergroup lp_players);
+void CMLib_BoardPlayersRemove(int lp_board, playergroup lp_players);
+// 把当前所有活跃玩家加进面板。
+void CMLib_BoardPlayersAddActive(int lp_board);
+
+// ---- 排序 / 状态 --------------------------------------------------------------
+void CMLib_BoardSort(int lp_board, int lp_col, bool lp_ascending);
+void CMLib_BoardSortSecondary(int lp_board, int lp_col, bool lp_ascending);
+void CMLib_BoardSetState(int lp_board, playergroup lp_players,
+                         int lp_state, bool lp_value);
+// 允许玩家最小化面板（Show + Enable 两步合一）。
+void CMLib_BoardMinimizable(int lp_board, playergroup lp_players, bool lp_enable);
+void CMLib_BoardMinimize(int lp_board, playergroup lp_players, bool lp_minimized);
+
+// =============================================================================
+// VictoryPanel —— 任务结算面板。全局单例，无句柄，所有函数直接作用于当前面板。
+// 注意：这些设置在结算面板弹出**之前**写入才生效，通常放在任务结束触发器里、
+//       GameOver / EndGame 之前。
+// =============================================================================
+
+// ---- 文案 ---------------------------------------------------------------------
+void CMLib_VPanelVictoryText(string lp_text);
+// 任务标题 + 副文本一次设好。
+void CMLib_VPanelMission(string lp_title, string lp_text);
+void CMLib_VPanelTime(string lp_title, string lp_text);
+// 奖励区：标题 + 描述 + 点数。
+void CMLib_VPanelReward(string lp_title, string lp_text, int lp_credits);
+void CMLib_VPanelStatisticsTitle(string lp_title);
+void CMLib_VPanelAchievementsTitle(string lp_title);
+
+// ---- 自定义统计行 --------------------------------------------------------------
+// 追加一行「标签 : 数值」。
+void CMLib_VPanelStat(string lp_label, string lp_value);
+void CMLib_VPanelStatInt(string lp_label, int lp_value);
+void CMLib_VPanelStatFixed(string lp_label, fixed lp_value, int lp_precision);
+// CSV 批量追加，形如 "击杀:42,资源:3200,用时:12:30"。
+// 注意分隔符：项间用 ',' 、标签与值之间用第一个 ':'（值里可再含 ':'，如时间）。
+void CMLib_VPanelStatBatch(string lp_csv);
+void CMLib_VPanelStatClear();
+
+// ---- 追踪统计 / 视觉 -----------------------------------------------------------
+void CMLib_VPanelTracked(string lp_statistic);
+// CSV 批量，形如 "UnitsLost,ResourcesGathered"。
+void CMLib_VPanelTrackedBatch(string lp_csv);
+// 星球模型 / 背景图 / 结算页背景图，传 "" 跳过对应项。
+void CMLib_VPanelVisuals(string lp_planetModel, string lp_background,
+                         string lp_summaryBackground);
+
+// ---- 事件 ---------------------------------------------------------------------
+// 玩家点「退出」/「再玩一次」时触发。
+void CMLib_VPanelOnExit(trigger lp_trigger, int lp_player);
+void CMLib_VPanelOnPlayAgain(trigger lp_trigger, int lp_player);
+// 读取玩家在结算面板上选择的难度（仅在上述事件回调里有效）。
+int  CMLib_VPanelPickedDifficulty();
+
+// =============================================================================
+// CMLib :: Round20 —— 结算面板成就
+// 任务通关后在结算页列出解锁的成就；空串直接跳过，避免面板出现空行。
+// =============================================================================
+void CMLib_VPanelAchievement(string lp_achievement);
+// CSV 批量，形如 "Ach_NoLosses,Ach_SpeedRun"。
+void CMLib_VPanelAchievementBatch(string lp_csv);
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round22 —— 计分板：行分组 / 分组数 / 位置 / 标题对齐 / 名称 / 最小化色
+// -----------------------------------------------------------------------------
+void CMLib_BoardRowGroup(int lp_board, int lp_row, int lp_group);
+void CMLib_BoardGroupCount(int lp_board, int lp_groups);
+void CMLib_BoardPosition(int lp_board, int lp_x, int lp_y);
+void CMLib_BoardTitleAlign(int lp_board, int lp_align, int lp_iconPos);
+// 注意：color 是**值类型**，不能传 null、也不能与 null 比较（round18 教训）。
+void CMLib_BoardName(int lp_board, text lp_name, color lp_color);
+void CMLib_BoardMinimizeColor(int lp_board, color lp_color);
+
+
+// =============================================================================
+// CMLib :: Round26 —— 结算面板自定义统计项
+//
+// 和 leaderboard 不是一回事：这两个写的是**游戏结束后**弹出的胜利/失败结算
+// 面板上那一行自定义统计（比如"击杀数 / 42"）。text 是本地化文本，
+// 走 StringToText / StringExternal，别硬编码中文串。
+//
+// 引擎只给了 Text + Value 两个 setter，没有 getter、没有清除接口 ——
+// 想"清掉"就传 StringToText("")。
+// =============================================================================
+
+// 统计项名称（左侧标签）。
+void CMLib_VPanelCustomStatisticText(text lp_text);
+// 统计项数值（右侧内容）。引擎签名就是 text，不是数字 —— 自己格式化好再传。
+void CMLib_VPanelCustomStatisticValue(text lp_text);
+// 便捷式：一次把标签 + 整数值写完，省掉调用方手搓 IntToText。
+void CMLib_VPanelCustomStatisticInt(text lp_label, int lp_value);

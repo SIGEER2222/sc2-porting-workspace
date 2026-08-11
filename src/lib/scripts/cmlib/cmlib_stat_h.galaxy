@@ -1,0 +1,263 @@
+// =============================================================================
+// CMLib :: Stat —— 成就 / 计分 / 战役进度 / 难度 / 效果历史 / 时间日期
+//
+// 为什么单列一个模块：
+//   gap_scan round16 里这几个域全是 **0% 覆盖**：
+//     achievement 534 次、campaign 131 次、difficulty 83 次、
+//     effect(EffectHistory) 47 次、conversion 229 次。
+//   它们的共同点是「面板上给玩家看的统计数字」——成就进度、结算分数、
+//   战役章节完成度、难度名。各 mod 都在裸调 native，且几乎都漏了
+//   玩家槽位校验（AchievementAward(-1, ...) 之类）。
+//
+// 关于 StatEvent*（leaderboard 域 740 次调用）：
+//   **round23 起已封装**，见本文件末尾 CMLib_StatEvt* 一节。
+//   此前判为"范围外不封装"的理由（符号只在 natives_missing.galaxy、
+//   官方 natives.galaxy 零命中）已被 round22 推翻 —— SC2 的 native 符号表是
+//   **引擎内建**的，.galaxy 里的 native 声明只是编辑器/lint 元数据，
+//   "不在 natives.galaxy" 推不出 "不可调用"。
+//   证据：NativeLib.TriggerLib 六个符号全带 <FlagNative/>；官方合作 mod
+//   LibCOOC.galaxy 零自声明直调；probe_statevent.py 三档真机探针全 PASS。
+//   边界：只保证可调用，**不保证上报 Battle.net**。
+//
+// 关于「Blizzard maps only」：
+//   Achievement* / CampaignProgress* 多数 native 官方注释标了 Blizzard maps only。
+//   它们**有声明**所以编译安全，只是在非官方图上运行时 no-op。
+//   本模块照常封装 —— 移植官方战役/合作图时这些调用必须存在，
+//   否则源行为对不上。
+//
+// 依赖：cmlib_core（日志 / 校验）、core.sc2mod natives。
+// =============================================================================
+
+// EffectHistory 的 inEffect 参数取值（官方仅此两个常量）。
+const int CMLIB_EFFHIST_ROOT    = c_effectHistoryEffectRoot;
+const int CMLIB_EFFHIST_CURRENT = c_effectHistoryEffectCurrent;
+
+// 一次抓取效果历史的默认条数上限。
+const int CMLIB_EFFHIST_DEFAULT_MAX = 16;
+
+// =============================================================================
+// 成就
+// =============================================================================
+
+// 授予 / 撤销成就。玩家槽位非法时直接忽略并告警。
+void CMLib_AchAward(int lp_player, string lp_name);
+void CMLib_AchErase(int lp_player, string lp_name);
+
+// 给整个 playergroup 授予同一个成就，返回实际授予人数。
+int CMLib_AchAwardGroup(playergroup lp_players, string lp_name);
+
+// 成就条目（term）计数：设定 / 累加。
+void CMLib_AchTermSet(int lp_player, string lp_term, int lp_quantity);
+void CMLib_AchTermAdd(int lp_player, string lp_term, int lp_quantity);
+
+// 累加 1 —— 最常见写法，省掉一个字面量。
+void CMLib_AchTermTick(int lp_player, string lp_term);
+
+// 成就系统开关与查询。
+void CMLib_AchDisable(int lp_player);
+bool CMLib_AchDisabled(int lp_player);
+
+// 对一整组玩家关掉成就（测试图 / 作弊模式下常用）。
+void CMLib_AchDisableGroup(playergroup lp_players);
+
+// 成就面板。
+void CMLib_AchPanelCategory(playergroup lp_players, string lp_category);
+void CMLib_AchPanelShow(playergroup lp_players, bool lp_visible);
+
+// 某分类完成百分比文本。
+text CMLib_AchPercentText(int lp_player, string lp_category);
+
+// =============================================================================
+// 计分（结算面板 / 自定义分数条目）
+// =============================================================================
+
+void CMLib_ScoreSetInt(int lp_player, string lp_value, int lp_amount);
+void CMLib_ScoreSetFixed(int lp_player, string lp_value, fixed lp_amount);
+
+int   CMLib_ScoreGetInt(int lp_player, string lp_value);
+fixed CMLib_ScoreGetFixed(int lp_player, string lp_value);
+
+// 在现有分数上加减（native 只有 Set，没有 Add，各 mod 都在手写 Get+Set）。
+void CMLib_ScoreAddInt(int lp_player, string lp_value, int lp_delta);
+void CMLib_ScoreAddFixed(int lp_player, string lp_value, fixed lp_delta);
+
+// 分数条目开关。
+void CMLib_ScoreEnable(int lp_player, string lp_value, bool lp_enable);
+void CMLib_ScoreEnableAll(int lp_player, bool lp_enable);
+
+// 对整组玩家设同一个分数值，返回生效人数。
+int CMLib_ScoreSetIntGroup(playergroup lp_players, string lp_value, int lp_amount);
+
+// =============================================================================
+// 战役进度
+// =============================================================================
+
+// 初始化战役 AI（移植官方战役图时的必备调用）。
+void CMLib_CampaignInitAI();
+
+// 战役模式开关。
+void CMLib_CampaignMode(playergroup lp_players, bool lp_on);
+
+// 战役进度条目：文本 / 图片 / 完成标记。
+void CMLib_CampaignText(playergroup lp_players, string lp_campaignId, text lp_text);
+void CMLib_CampaignImage(playergroup lp_players, string lp_campaignId, string lp_path);
+void CMLib_CampaignFinished(playergroup lp_players, string lp_campaignId, bool lp_finished);
+void CMLib_CampaignTutorialFinished(playergroup lp_players, string lp_campaignId, bool lp_finished);
+
+// 战役存档。
+void CMLib_CampaignSavesEnable(playergroup lp_players, bool lp_enable);
+void CMLib_CampaignCompletedSavesEnable(playergroup lp_players, bool lp_enable);
+void CMLib_CampaignDeleteSave(playergroup lp_players);
+
+// =============================================================================
+// 难度
+// =============================================================================
+
+text CMLib_DiffName(int lp_difficulty);
+text CMLib_DiffNameCampaign(int lp_difficulty);
+bool CMLib_DiffEnabled(int lp_difficulty);
+int  CMLib_DiffAPM(int lp_difficulty);
+
+// 玩家难度读写（带槽位校验）。
+int  CMLib_DiffOfPlayer(int lp_player);
+void CMLib_DiffSetPlayer(int lp_player, int lp_difficulty);
+
+// 当前玩家难度的战役名（"取当前难度显示名"一步到位）。
+text CMLib_DiffNameOfPlayer(int lp_player, bool lp_campaignStyle);
+
+// =============================================================================
+// 效果历史（伤害来源追溯：谁打的、用什么打的、打了多少）
+// =============================================================================
+
+// 抓单位的效果历史句柄。lp_maxCount <= 0 时用 CMLIB_EFFHIST_DEFAULT_MAX。
+effecthistory CMLib_EffHist(unit lp_unit, int lp_maxCount);
+
+int    CMLib_EffHistCount(effecthistory lp_history);
+string CMLib_EffHistAbil(effecthistory lp_history, int lp_index);
+string CMLib_EffHistEffect(effecthistory lp_history, int lp_index, int lp_which);
+string CMLib_EffHistWeapon(effecthistory lp_history, int lp_index);
+fixed  CMLib_EffHistTime(effecthistory lp_history, int lp_index);
+int    CMLib_EffHistType(effecthistory lp_history, int lp_index);
+unit   CMLib_EffHistUnitAt(effecthistory lp_history, int lp_index, int lp_location);
+int    CMLib_EffHistAmountInt(effecthistory lp_history, int lp_index, int lp_amount, bool lp_total);
+fixed  CMLib_EffHistAmountFixed(effecthistory lp_history, int lp_index, int lp_amount, bool lp_total);
+
+// 最近一条记录的索引（history 是从旧到新排的，count-1 就是最新）。
+// 空历史返回 -1。
+int CMLib_EffHistLast(effecthistory lp_history);
+
+// 一步到位：取某单位最近一次受到效果的根效果名（空则返回 ""）。
+string CMLib_EffHistLastEffectOf(unit lp_unit);
+
+// =============================================================================
+// 时间 / 日期 / 布尔转换
+// =============================================================================
+
+// BoolToInt 在各 mod 里被调了 189 次，多数是为了塞进 bank / 数组。
+int  CMLib_B2I(bool lp_value);
+bool CMLib_I2B(int lp_value);
+
+// 当前真实时间的 epoch 秒（存档打时间戳用）。
+int CMLib_NowEpoch();
+
+// 开局时刻的 epoch 秒。
+int CMLib_StartEpoch();
+
+// 本局已经过去的真实秒数（现实时间，不是游戏时间）。
+int CMLib_RealElapsedSecs();
+
+// 把 epoch 秒拆成年/月/日/时/分/秒（越界索引返回 0）。
+// lp_field: 0=年 1=月 2=日 3=时 4=分 5=秒 6=星期
+int CMLib_EpochField(int lp_epoch, int lp_field);
+
+// 常用的 "YYYY-MM-DD HH:MM:SS" 拼装（纯 string 拼接，不依赖
+// natives_missing 里的 DateTimeToString）。
+string CMLib_EpochStamp(int lp_epoch);
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round23 —— StatEvent（Battle.net 统计埋点）
+// -----------------------------------------------------------------------------
+// 【范围判定翻案记录】此前本模块头部注释写着「StatEvent* 刻意不封装」，理由是
+// 符号只存在于 natives_missing.galaxy、不被任何引擎库 include。该判据已被
+// round22 推翻：SC2 的 native 符号表是**引擎内建**的，.galaxy 里的 native
+// 声明只是编辑器/lint 元数据。证据链：
+//   ① NativeLib.TriggerLib 中六个 StatEvent* 全部带 <FlagNative/>；
+//   ② 官方合作 mod LibCOOC.galaxy 零自声明直调 StatEventCreate/StatEventSend；
+//   ③ probe_statevent.py 三档真机探针（baseline/call/wrapped）全 PASS。
+//
+// 【能力边界 —— 不要过度承诺】探针只证明了「可编译、可调用、不中断 trigger」。
+// 原生注释是 "Blizzard only. Sends the Stat Event to Battle.net."，
+// 自定义地图能否**真的上报** Battle.net 在客户端侧无法观测，本库不做承诺。
+// 定位：调用安全的埋点 API。上报与否交给平台，不要拿它做游戏逻辑的判据。
+//
+// 【为什么不自声明 native】封装形态严格复用探针 wrapped 档：直调 + 守门早退。
+// 库内自己写 `native int StatEventCreate(...)` 会与引擎内建符号撞名，
+// check_cmlib.py 第 1c 项就是专门拦这个的致命检查。
+
+// 无效事件句柄哨兵。引擎用 int 表示 StatEvent，0 视作无效。
+const int CMLIB_STATEVT_INVALID = 0;
+
+// 已发送句柄环形缓冲槽位数。StatEventSend 会**销毁**事件，
+// 重复 Send 同一句柄 = 对已销毁对象操作。库内记住最近 8 个发过的句柄并拦截。
+// 8 是权衡：埋点通常一局几次到几十次，且句柄递增不复用，
+// 只需拦住"同一段逻辑里手滑发两次"这种真实误用。
+const int CMLIB_STATEVT_SENT_MAX = 8;
+
+// 建事件。空名直接返回 CMLIB_STATEVT_INVALID 并告警（引擎对空名行为未定义）。
+int CMLib_StatEvtBegin(string lp_name);
+
+// 句柄是否可用：非 0 且不在"已发送"环形缓冲里。
+// 所有 Add / Send 都先过这一关，调用方可以不判直接串起来写。
+bool CMLib_StatEvtOk(int lp_ev);
+
+// 三类数据挂载。句柄无效或 key 为空一律静默忽略（埋点失败不该打断游戏逻辑）。
+void CMLib_StatEvtStr(int lp_ev, string lp_key, string lp_value);
+void CMLib_StatEvtInt(int lp_ev, string lp_key, int lp_value);
+void CMLib_StatEvtFixed(int lp_ev, string lp_key, fixed lp_value);
+
+// 发送并作废句柄。返回是否真的发出去了（false = 句柄无效或已发过）。
+bool CMLib_StatEvtSend(int lp_ev);
+
+// 最近创建的事件句柄。注意：它返回的是"最近 Create 的"，
+// 已经 Send 过的句柄也会被返回，所以拿到后仍要过 CMLib_StatEvtOk。
+int CMLib_StatEvtLast();
+
+// CSV 规格串里**合法键值对的条数**（纯解析，不碰引擎、不需要句柄）。
+// 存在的理由（round23 真机实证）：`StatEventCreate` 在非暴雪签名内容里
+// 恒返回 0（见 README §10.4），于是所有"要句柄才能跑"的 CSV 路径在开发机上
+// 都无法验证。把解析逻辑单独暴露出来，才能对它做**可观测**的断言 ——
+// 断言不可观测的东西，等于把测试挂在运气上。
+int CMLib_StatEvtCsvCount(string lp_spec);
+
+// CSV 批量挂载："k1:v1,k2:v2"。按**第一个**冒号切，所以值里可以再有冒号
+// （"用时:12:30" → key="用时" value="12:30"）。key 会 trim 空格。
+// 返回实际挂载成功的键数；句柄无效 / 空串 / 无冒号项均计 0。
+// ⚠ 句柄无效时返回 0 而不是解析条数 —— 要判"规格串写得对不对"请用
+// CMLib_StatEvtCsvCount，两者语义不同：一个是"挂上去几条"，一个是"能挂几条"。
+int CMLib_StatEvtStrCSV(int lp_ev, string lp_spec);
+// 同上，值走 CMLib_ParseInt 转 int（解析失败按 0 计，不丢键）。
+int CMLib_StatEvtIntCSV(int lp_ev, string lp_spec);
+
+// 一步到位：建 → CSV 批量挂载字符串 → 发送。返回是否成功发出。
+// 最常见的埋点写法，省掉三行样板。
+bool CMLib_StatEvtSendCSV(string lp_name, string lp_spec);
+
+// 一步到位：建 → 挂单个 int → 发送。计数类埋点用这个。
+bool CMLib_StatEvtSendInt(string lp_name, string lp_key, int lp_value);
+
+// ===========================================================================
+// 调用范围登记（check_call_scope.py R 层）
+// ---------------------------------------------------------------------------
+// StatEvent 一族在 core.sc2mod 里**没有官方 native 声明**，只出现在社区补录的
+// natives_missing.galaxy。round22 证明它可调用（官方 LibCOOC.galaxy 零自声明
+// 直调 StatEventCreate，说明 native 符号表是引擎内建的）；round23 紧接着证明
+// 「可调用 ≠ 可用」—— 在非暴雪签名内容里 StatEventCreate 恒返回 0。
+// 接受风险的前提：本模块一律按**返回值不可信**设计，纯 fire-and-forget 遥测，
+// 没有任何逻辑分支依赖它成功。发不出去 = 少一条埋点，不会影响任何游戏行为。
+// @scope-flagonly StatEventCreate round23真机证可调用但恒返回0；本模块按fire-and-forget设计，无逻辑依赖
+// @scope-flagonly StatEventLastCreated 同上，仅取句柄给后续AddData用，句柄为空时调用点已短路
+// @scope-flagonly StatEventAddDataInt 同上，void返回，失败即少一条埋点
+// @scope-flagonly StatEventAddDataFixed 同上，void返回，失败即少一条埋点
+// @scope-flagonly StatEventAddDataString 同上，void返回，失败即少一条埋点
+// @scope-flagonly StatEventSend 同上，void返回，失败即少一条埋点

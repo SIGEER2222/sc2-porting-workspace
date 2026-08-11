@@ -1,0 +1,103 @@
+// =============================================================================
+// CMLib :: Env —— 场景装饰物（Doodad）/ 地形 / 水面 / 大气雾
+//
+// 为什么单列一个模块：
+//   gap_scan round16 里 weather 域 **1014 次调用 / 覆盖率 0%**、
+//   visibility(Fog) 域 **167 次 / 0%**，两者合计 1181 次全裸奔：
+//     DoodadFromId 861（66 个文件）/ TerrainShowRegion 96 / WaterSetState 54 /
+//     FogSetEnabled 63 / FogSetColor 22 / FogSetStartHeight 18 …
+//   这一族是「建筑与场景表现」的主力：地图上预置的桥梁、残骸、门、装饰建筑
+//   全部是 Doodad，要让它们播动画 / 变色 / 显隐，必须先 DoodadFromId 拿到
+//   doodad，再 ActorFromDoodad 转成 actor 才能发消息 —— 这两步转换各 mod
+//   抄了几十遍，且很容易忘掉 null 检查。
+//
+// 命名区分：
+//   本模块的 CMLib_Fog* 指**大气雾（渲染层 Fog）**，
+//   与 cmlib_game 里的 CMLib_Vis*（战争迷雾 / 视野）完全是两码事，勿混。
+//
+// 依赖：cmlib_core（日志）、core.sc2mod natives。
+// =============================================================================
+
+// 水面形态切换的最短过渡时间，0 会让某些水面 actor 直接跳变出现闪烁。
+const fixed CMLIB_ENV_WATER_MIN_DURATION = 0.0625;
+
+// =============================================================================
+// Doodad（地图预置装饰物 / 装饰建筑）
+// =============================================================================
+
+// 按编辑器 doodad id 取 doodad 句柄。
+doodad CMLib_DoodadById(int lp_id);
+
+// 取 doodad 对应的 actor（发动画 / 变色 / 显隐都得走 actor）。
+// id 不存在时返回 null，不会崩。
+actor CMLib_DoodadActor(int lp_id);
+
+// 取 doodad actor 的 scope（要在它身上再建子 actor 时用）。
+actorscope CMLib_DoodadScope(int lp_id);
+
+// 给 doodad 发一条 actor 消息（如 "AnimPlay Stand Birth"、"SetTintColor ..."）。
+// 返回是否真的发出去了。
+bool CMLib_DoodadSend(int lp_id, string lp_msg);
+
+// 发送带本地化文本的 actor 消息。
+bool CMLib_DoodadSendText(int lp_id, text lp_msg);
+
+// 常用动作的语义封装（内部都是 CMLib_DoodadSend）。
+bool CMLib_DoodadShow(int lp_id, bool lp_visible);
+bool CMLib_DoodadAnim(int lp_id, string lp_animName);
+bool CMLib_DoodadDestroyFx(int lp_id);           // 播放毁灭动画
+bool CMLib_DoodadTint(int lp_id, color lp_color, fixed lp_duration);
+bool CMLib_DoodadScale(int lp_id, fixed lp_scale, fixed lp_duration);
+
+// 批量：对连续 id 区间 [lp_fromId, lp_toId] 发同一条消息，返回成功条数。
+// 编辑器里成排摆放的装饰物 id 通常连号，这个能省掉一大段复制粘贴。
+int CMLib_DoodadSendRange(int lp_fromId, int lp_toId, string lp_msg);
+
+// =============================================================================
+// 地形
+// =============================================================================
+
+// 显示 / 隐藏某区域的地形（做"地面塌陷 / 揭开隐藏区"效果）。
+void CMLib_TerrainShow(region lp_area, bool lp_show);
+
+// 取某点的地形贴图名。
+string CMLib_TerrainTextureAt(point lp_pos);
+
+// 该点是否是指定贴图（判"是不是站在岩浆/冰面上"）。
+bool CMLib_TerrainIsTexture(point lp_pos, string lp_texture);
+
+// =============================================================================
+// 水面
+// =============================================================================
+
+// 切换水面形态。lp_duration 会被抬到 CMLIB_ENV_WATER_MIN_DURATION 以上。
+bool CMLib_WaterMorph(string lp_water, fixed lp_duration, int lp_morphType);
+
+// 暂停 / 恢复水面动画。
+bool CMLib_WaterPause(string lp_water, bool lp_paused);
+
+// =============================================================================
+// 大气雾（渲染层 Fog，非战争迷雾）
+// =============================================================================
+
+void CMLib_FogEnable(bool lp_enabled);
+void CMLib_FogColor(color lp_color);
+void CMLib_FogColorOver(color lp_color, fixed lp_time);
+void CMLib_FogDensity(fixed lp_density);
+void CMLib_FogDensityOver(fixed lp_density, fixed lp_time);
+void CMLib_FogFallOff(fixed lp_fallOff);
+void CMLib_FogFallOffOver(fixed lp_fallOff, fixed lp_time);
+void CMLib_FogStartHeight(fixed lp_height);
+void CMLib_FogStartHeightOver(fixed lp_height, fixed lp_time);
+void CMLib_FogDisableAtUltra(bool lp_disable);
+
+// 一次性套用一整套雾参数并开启（最常见用法，5 行收成 1 行）。
+void CMLib_FogPreset(color lp_color, fixed lp_density,
+                     fixed lp_startHeight, fixed lp_fallOff);
+
+// 同上但带过渡时间，用于"逐渐起雾"。
+void CMLib_FogPresetOver(color lp_color, fixed lp_density,
+                         fixed lp_startHeight, fixed lp_fallOff, fixed lp_time);
+
+// 关雾并把密度归零（复位到无雾状态）。
+void CMLib_FogClear();

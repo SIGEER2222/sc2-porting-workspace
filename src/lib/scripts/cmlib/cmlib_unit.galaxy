@@ -1,0 +1,1627 @@
+// =============================================================================
+// CMLib :: Unit (实现)
+//
+// 关于 unitfilter 的位运算：
+//   c_targetFilter* 常量定义在 GameData/Game.galaxy。
+//   值 < 32 落在第 1 个 int（inRequired1 / inExcluded1）；
+//   值 >= 32 落在第 2 个 int，且必须写成 (1 << (常量 - 32))。
+//   原工程里这段位运算被逐字复制上百次，漏掉 -32 会静默失效 —— 在此收口。
+// =============================================================================
+
+include "scripts/cmlib/cmlib_core_h"
+include "scripts/cmlib/cmlib_unit_h"
+
+// -----------------------------------------------------------------------------
+// 单位过滤器
+// -----------------------------------------------------------------------------
+
+unitfilter CMLib_FilterAlive() {
+    return UnitFilter(
+        0,
+        0,
+        (1 << c_targetFilterMissile),
+        (1 << (c_targetFilterDead - 32))
+    );
+}
+
+unitfilter CMLib_FilterAliveVisible() {
+    return UnitFilter(
+        0,
+        0,
+        (1 << c_targetFilterMissile),
+        (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))
+    );
+}
+
+unitfilter CMLib_FilterAliveVisibleTargetable() {
+    return UnitFilter(
+        0,
+        0,
+        (1 << c_targetFilterMissile),
+        (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32)) | (1 << (c_targetFilterInvulnerable - 32))
+    );
+}
+
+unitfilter CMLib_FilterStructure() {
+    return UnitFilter(
+        (1 << c_targetFilterStructure),
+        0,
+        (1 << c_targetFilterMissile),
+        (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))
+    );
+}
+
+unitfilter CMLib_FilterNonStructure() {
+    return UnitFilter(
+        0,
+        0,
+        (1 << c_targetFilterMissile) | (1 << c_targetFilterStructure),
+        (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))
+    );
+}
+
+// -----------------------------------------------------------------------------
+// 单位有效性
+// -----------------------------------------------------------------------------
+
+bool CMLib_UnitOk(unit lp_unit) {
+    if ((lp_unit == null)) {
+        return false;
+    }
+    if ((UnitIsValid(lp_unit) == false)) {
+        return false;
+    }
+    if ((UnitIsAlive(lp_unit) == false)) {
+        return false;
+    }
+    return true;
+}
+
+bool CMLib_UnitIsStructure(unit lp_unit) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return false;
+    }
+    return UnitTypeTestAttribute(UnitGetType(lp_unit), c_unitAttributeStructure);
+}
+
+bool CMLib_UnitIsType(unit lp_unit, string lp_unitType) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return false;
+    }
+    return StringEqual(UnitGetType(lp_unit), lp_unitType, true);
+}
+
+bool CMLib_UnitOwnedBy(unit lp_unit, int lp_player) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return false;
+    }
+    return (UnitGetOwner(lp_unit) == lp_player);
+}
+
+// -----------------------------------------------------------------------------
+// 单位组：迭代
+// -----------------------------------------------------------------------------
+
+void CMLib_UnitVisitor_Proto(unit lp_unit, int lp_arg) {
+}
+
+int CMLib_UGSize(unitgroup lp_group) {
+    if ((lp_group == null)) {
+        return 0;
+    }
+    return UnitGroupCount(lp_group, c_unitCountAll);
+}
+
+int CMLib_UGSizeAlive(unitgroup lp_group) {
+    if ((lp_group == null)) {
+        return 0;
+    }
+    return UnitGroupCount(lp_group, c_unitCountAlive);
+}
+
+bool CMLib_UGIsEmpty(unitgroup lp_group) {
+    return (CMLib_UGSize(lp_group) == 0);
+}
+
+unit CMLib_UGAt(unitgroup lp_group, int lp_indexFromEnd) {
+    if ((lp_group == null)) {
+        return null;
+    }
+    if ((lp_indexFromEnd < 1)) {
+        return null;
+    }
+    return UnitGroupUnitFromEnd(lp_group, lp_indexFromEnd);
+}
+
+// 倒序遍历：先取 count，再从 count 递减到 1。
+// 这样遍历过程中调用 UnitRemove / UnitKill 不会导致索引错位漏项。
+int CMLib_UGForEach(unitgroup lp_group, CMLib_UnitVisitor lp_visitor, int lp_arg) {
+    int lv_index;
+    int lv_visited;
+    unit lv_unit;
+
+    if ((lp_group == null)) {
+        return 0;
+    }
+
+    lv_index = UnitGroupCount(lp_group, c_unitCountAll);
+    lv_visited = 0;
+    while ((lv_index >= 1)) {
+        lv_unit = UnitGroupUnitFromEnd(lp_group, lv_index);
+        lv_index -= 1;
+        if ((lv_unit == null)) {
+            continue;
+        }
+        lp_visitor(lv_unit, lp_arg);
+        lv_visited += 1;
+    }
+    return lv_visited;
+}
+
+int CMLib_UGForEachAlive(unitgroup lp_group, CMLib_UnitVisitor lp_visitor, int lp_arg) {
+    int lv_index;
+    int lv_visited;
+    unit lv_unit;
+
+    if ((lp_group == null)) {
+        return 0;
+    }
+
+    lv_index = UnitGroupCount(lp_group, c_unitCountAll);
+    lv_visited = 0;
+    while ((lv_index >= 1)) {
+        lv_unit = UnitGroupUnitFromEnd(lp_group, lv_index);
+        lv_index -= 1;
+        if ((CMLib_UnitOk(lv_unit) == false)) {
+            continue;
+        }
+        lp_visitor(lv_unit, lp_arg);
+        lv_visited += 1;
+    }
+    return lv_visited;
+}
+
+unit CMLib_UGFirstAlive(unitgroup lp_group) {
+    int lv_index;
+    unit lv_unit;
+
+    if ((lp_group == null)) {
+        return null;
+    }
+
+    lv_index = UnitGroupCount(lp_group, c_unitCountAll);
+    while ((lv_index >= 1)) {
+        lv_unit = UnitGroupUnitFromEnd(lp_group, lv_index);
+        lv_index -= 1;
+        if ((CMLib_UnitOk(lv_unit) == true)) {
+            return lv_unit;
+        }
+    }
+    return null;
+}
+
+// -----------------------------------------------------------------------------
+// 单位组：查询
+// -----------------------------------------------------------------------------
+
+unitgroup CMLib_UGOfTypeInMap(string lp_unitType, int lp_player) {
+    return UnitGroup(lp_unitType, lp_player, RegionEntireMap(), CMLib_FilterAliveVisible(), 0);
+}
+
+unitgroup CMLib_UGOfTypeInRegion(string lp_unitType, int lp_player, region lp_region) {
+    if ((lp_region == null)) {
+        return UnitGroupEmpty();
+    }
+    return UnitGroup(lp_unitType, lp_player, lp_region, CMLib_FilterAliveVisible(), 0);
+}
+
+unitgroup CMLib_UGOfTypeNearPoint(string lp_unitType, int lp_player, point lp_point, fixed lp_radius) {
+    if ((lp_point == null)) {
+        return UnitGroupEmpty();
+    }
+    return UnitGroup(lp_unitType, lp_player, RegionCircle(lp_point, lp_radius), CMLib_FilterAliveVisible(), 0);
+}
+
+unitgroup CMLib_UGStructuresOfPlayer(int lp_player) {
+    return UnitGroup(null, lp_player, RegionEntireMap(), CMLib_FilterStructure(), 0);
+}
+
+unitgroup CMLib_UGArmyOfPlayer(int lp_player) {
+    return UnitGroup(null, lp_player, RegionEntireMap(), CMLib_FilterNonStructure(), 0);
+}
+
+// -----------------------------------------------------------------------------
+// 生成
+// -----------------------------------------------------------------------------
+
+unit CMLib_Spawn(string lp_unitType, int lp_player, point lp_pos, fixed lp_facing) {
+    if ((lp_pos == null)) {
+        CMLib_LogWarn("CMLib.Unit", "Spawn skipped, null point for '" + lp_unitType + "'");
+        return null;
+    }
+    UnitCreate(1, lp_unitType, 0, lp_player, lp_pos, lp_facing);
+    return UnitLastCreated();
+}
+
+unit CMLib_SpawnForced(string lp_unitType, int lp_player, point lp_pos, fixed lp_facing) {
+    if ((lp_pos == null)) {
+        CMLib_LogWarn("CMLib.Unit", "SpawnForced skipped, null point for '" + lp_unitType + "'");
+        return null;
+    }
+    UnitCreate(1, lp_unitType, c_unitCreateIgnorePlacement, lp_player, lp_pos, lp_facing);
+    return UnitLastCreated();
+}
+
+unitgroup CMLib_SpawnMany(int lp_count, string lp_unitType, int lp_player, point lp_pos, fixed lp_facing) {
+    if ((lp_count < 1)) {
+        return UnitGroupEmpty();
+    }
+    if ((lp_pos == null)) {
+        CMLib_LogWarn("CMLib.Unit", "SpawnMany skipped, null point for '" + lp_unitType + "'");
+        return UnitGroupEmpty();
+    }
+    UnitCreate(lp_count, lp_unitType, c_unitCreateIgnorePlacement, lp_player, lp_pos, lp_facing);
+    return UnitLastCreatedGroup();
+}
+
+unitgroup CMLib_SpawnRing(int lp_count, string lp_unitType, int lp_player, point lp_center, fixed lp_radius) {
+    unitgroup lv_result;
+    unit lv_unit;
+    fixed lv_angle;
+    fixed lv_step;
+    point lv_pos;
+    int lv_i;
+
+    lv_result = UnitGroupEmpty();
+    if ((lp_count < 1)) {
+        return lv_result;
+    }
+    if ((lp_center == null)) {
+        CMLib_LogWarn("CMLib.Unit", "SpawnRing skipped, null center for '" + lp_unitType + "'");
+        return lv_result;
+    }
+
+    lv_step = (360.0 / IntToFixed(lp_count));
+    lv_i = 0;
+    while ((lv_i < lp_count)) {
+        lv_angle = (lv_step * IntToFixed(lv_i));
+        lv_pos = PointWithOffsetPolar(lp_center, lp_radius, lv_angle);
+        lv_unit = CMLib_SpawnForced(lp_unitType, lp_player, lv_pos, lv_angle);
+        if ((lv_unit != null)) {
+            UnitGroupAdd(lv_result, lv_unit);
+        }
+        lv_i += 1;
+    }
+    return lv_result;
+}
+
+unit CMLib_RespawnInPlace(unit lp_unit, string lp_newUnitType, int lp_player) {
+    unit lv_new;
+    point lv_pos;
+    fixed lv_facing;
+
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return null;
+    }
+
+    lv_pos = UnitGetPosition(lp_unit);
+    lv_facing = UnitGetFacing(lp_unit);
+    lv_new = CMLib_SpawnForced(lp_newUnitType, lp_player, lv_pos, lv_facing);
+    if ((lv_new == null)) {
+        CMLib_LogError("CMLib.Unit", "RespawnInPlace failed for '" + lp_newUnitType + "'");
+        return null;
+    }
+    CMLib_UnitCopyVitalsPercent(lp_unit, lv_new);
+    UnitRemove(lp_unit);
+    return lv_new;
+}
+
+// -----------------------------------------------------------------------------
+// 属性
+// -----------------------------------------------------------------------------
+
+fixed CMLib_UnitLifePercent(unit lp_unit) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return 0.0;
+    }
+    return UnitGetPropertyFixed(lp_unit, c_unitPropLifePercent, true);
+}
+
+fixed CMLib_UnitShieldPercent(unit lp_unit) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return 0.0;
+    }
+    return UnitGetPropertyFixed(lp_unit, c_unitPropShieldsPercent, true);
+}
+
+void CMLib_UnitSetLifePercent(unit lp_unit, fixed lp_percent) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    UnitSetPropertyFixed(lp_unit, c_unitPropLifePercent, CMLib_ClampFixed(lp_percent, 0.0, 100.0));
+}
+
+void CMLib_UnitCopyVitalsPercent(unit lp_from, unit lp_to) {
+    if ((lp_from == null)) {
+        return;
+    }
+    if ((lp_to == null)) {
+        return;
+    }
+    UnitSetPropertyFixed(lp_to, c_unitPropLifePercent, UnitGetPropertyFixed(lp_from, c_unitPropLifePercent, true));
+    UnitSetPropertyFixed(lp_to, c_unitPropShieldsPercent, UnitGetPropertyFixed(lp_from, c_unitPropShieldsPercent, true));
+    UnitSetPropertyFixed(lp_to, c_unitPropEnergyPercent, UnitGetPropertyFixed(lp_from, c_unitPropEnergyPercent, true));
+}
+
+// -----------------------------------------------------------------------------
+// 状态 / 位置
+// -----------------------------------------------------------------------------
+
+void CMLib_UnitSetState(unit lp_unit, int lp_state, bool lp_val) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    UnitSetState(lp_unit, lp_state, lp_val);
+}
+
+void CMLib_UnitSetPosition(unit lp_unit, point lp_pos, bool lp_blend) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    if ((lp_pos == null)) {
+        return;
+    }
+    UnitSetPosition(lp_unit, lp_pos, lp_blend);
+}
+
+// -----------------------------------------------------------------------------
+// 行为 / 武器
+// -----------------------------------------------------------------------------
+
+bool CMLib_UnitEnsureBehavior(unit lp_unit, string lp_behavior, int lp_player, int lp_count) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return false;
+    }
+    if ((UnitHasBehavior2(lp_unit, lp_behavior) == true)) {
+        return false;
+    }
+    UnitBehaviorAddPlayer(lp_unit, lp_behavior, lp_player, lp_count);
+    return true;
+}
+
+bool CMLib_UnitRemoveBehavior(unit lp_unit, string lp_behavior, int lp_player, int lp_count) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return false;
+    }
+    if ((UnitHasBehavior2(lp_unit, lp_behavior) == false)) {
+        return false;
+    }
+    UnitBehaviorRemovePlayer(lp_unit, lp_behavior, lp_player, lp_count);
+    return true;
+}
+
+bool CMLib_UnitToggleBehavior(unit lp_unit, string lp_behavior, int lp_player, bool lp_on) {
+    if ((lp_on == true)) {
+        return CMLib_UnitEnsureBehavior(lp_unit, lp_behavior, lp_player, 1);
+    }
+    return CMLib_UnitRemoveBehavior(lp_unit, lp_behavior, lp_player, 1);
+}
+
+bool CMLib_UnitEnsureWeapon(unit lp_unit, string lp_weapon, string lp_turret) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return false;
+    }
+    UnitWeaponAdd(lp_unit, lp_weapon, lp_turret);
+    return true;
+}
+
+bool CMLib_UnitRemoveWeapon(unit lp_unit, string lp_weapon) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return false;
+    }
+    UnitWeaponRemove(lp_unit, lp_weapon);
+    return true;
+}
+
+int CMLib_UGEnsureBehavior(unitgroup lp_group, string lp_behavior, int lp_player, int lp_count) {
+    int lv_index;
+    int lv_changed;
+    unit lv_unit;
+
+    if ((lp_group == null)) {
+        return 0;
+    }
+
+    lv_index = UnitGroupCount(lp_group, c_unitCountAll);
+    lv_changed = 0;
+    while ((lv_index >= 1)) {
+        lv_unit = UnitGroupUnitFromEnd(lp_group, lv_index);
+        lv_index -= 1;
+        if ((CMLib_UnitEnsureBehavior(lv_unit, lp_behavior, lp_player, lp_count) == true)) {
+            lv_changed += 1;
+        }
+    }
+    return lv_changed;
+}
+
+int CMLib_UGRemoveBehavior(unitgroup lp_group, string lp_behavior, int lp_player, int lp_count) {
+    int lv_index;
+    int lv_changed;
+    unit lv_unit;
+
+    if ((lp_group == null)) {
+        return 0;
+    }
+
+    lv_index = UnitGroupCount(lp_group, c_unitCountAll);
+    lv_changed = 0;
+    while ((lv_index >= 1)) {
+        lv_unit = UnitGroupUnitFromEnd(lp_group, lv_index);
+        lv_index -= 1;
+        if ((CMLib_UnitRemoveBehavior(lv_unit, lp_behavior, lp_player, lp_count) == true)) {
+            lv_changed += 1;
+        }
+    }
+    return lv_changed;
+}
+
+// 普通行为变体：带 caster 单位，可让 buff 按施法者属性缩放；不依赖玩家归属。
+void CMLib_UnitBehaviorAdd(unit lp_unit, string lp_behavior, unit lp_caster, int lp_count) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    if ((lp_behavior == null)) {
+        return;
+    }
+    if ((lp_count < 1)) {
+        lp_count = 1;
+    }
+    if ((lp_caster == null)) {
+        lp_caster = lp_unit;
+    }
+    UnitBehaviorAdd(lp_unit, lp_behavior, lp_caster, lp_count);
+}
+
+void CMLib_UnitBehaviorRemove(unit lp_unit, string lp_behavior, int lp_count) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    if ((lp_behavior == null)) {
+        return;
+    }
+    if ((lp_count < 1)) {
+        lp_count = 1;
+    }
+    UnitBehaviorRemove(lp_unit, lp_behavior, lp_count);
+}
+
+// -----------------------------------------------------------------------------
+// 命令
+// -----------------------------------------------------------------------------
+
+bool CMLib_UnitOrderAbility(unit lp_unit, string lp_ability, int lp_cmdIndex, int lp_queueType) {
+    order lv_order;
+
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return false;
+    }
+    lv_order = Order(AbilityCommand(lp_ability, lp_cmdIndex));
+    if ((UnitOrderIsValid(lp_unit, lv_order) == false)) {
+        return false;
+    }
+    return UnitIssueOrder(lp_unit, lv_order, lp_queueType);
+}
+
+bool CMLib_UnitOrderAbilityAtPoint(unit lp_unit, string lp_ability, int lp_cmdIndex, point lp_target, int lp_queueType) {
+    order lv_order;
+
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return false;
+    }
+    if ((lp_target == null)) {
+        return false;
+    }
+    lv_order = OrderTargetingPoint(AbilityCommand(lp_ability, lp_cmdIndex), lp_target);
+    if ((UnitOrderIsValid(lp_unit, lv_order) == false)) {
+        return false;
+    }
+    return UnitIssueOrder(lp_unit, lv_order, lp_queueType);
+}
+
+int CMLib_UGOrderAbilityAtPoint(unitgroup lp_group, string lp_ability, int lp_cmdIndex, point lp_target, int lp_queueType) {
+    int lv_index;
+    int lv_issued;
+    unit lv_unit;
+
+    if ((lp_group == null)) {
+        return 0;
+    }
+
+    lv_index = UnitGroupCount(lp_group, c_unitCountAll);
+    lv_issued = 0;
+    while ((lv_index >= 1)) {
+        lv_unit = UnitGroupUnitFromEnd(lp_group, lv_index);
+        lv_index -= 1;
+        if ((CMLib_UnitOrderAbilityAtPoint(lv_unit, lp_ability, lp_cmdIndex, lp_target, lp_queueType) == true)) {
+            lv_issued += 1;
+        }
+    }
+    return lv_issued;
+}
+
+// -----------------------------------------------------------------------------
+// 清理
+// -----------------------------------------------------------------------------
+
+int CMLib_UGRemoveAll(unitgroup lp_group) {
+    int lv_index;
+    int lv_removed;
+    unit lv_unit;
+
+    if ((lp_group == null)) {
+        return 0;
+    }
+
+    lv_index = UnitGroupCount(lp_group, c_unitCountAll);
+    lv_removed = 0;
+    while ((lv_index >= 1)) {
+        lv_unit = UnitGroupUnitFromEnd(lp_group, lv_index);
+        lv_index -= 1;
+        if ((lv_unit == null)) {
+            continue;
+        }
+        UnitRemove(lv_unit);
+        lv_removed += 1;
+    }
+    return lv_removed;
+}
+
+int CMLib_UGKillAll(unitgroup lp_group) {
+    int lv_index;
+    int lv_killed;
+    unit lv_unit;
+
+    if ((lp_group == null)) {
+        return 0;
+    }
+
+    lv_index = UnitGroupCount(lp_group, c_unitCountAll);
+    lv_killed = 0;
+    while ((lv_index >= 1)) {
+        lv_unit = UnitGroupUnitFromEnd(lp_group, lv_index);
+        lv_index -= 1;
+        if ((CMLib_UnitOk(lv_unit) == false)) {
+            continue;
+        }
+        UnitKill(lv_unit);
+        lv_killed += 1;
+    }
+    return lv_killed;
+}
+
+// 无痕移除单个单位（区别于 CMLib_UGKillAll / CMLib_UGRemove 操作的是组）。
+// null / 已消亡单位直接返回，不调用引擎 native 以免误删无效句柄。
+void CMLib_UnitRemove(unit lp_unit) {
+    if ((lp_unit == null)) {
+        return;
+    }
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    UnitRemove(lp_unit);
+}
+
+// -----------------------------------------------------------------------------
+// 单位组：增删 / 取值
+// -----------------------------------------------------------------------------
+
+void CMLib_UGAdd(unitgroup lp_group, unit lp_unit) {
+    if ((lp_group == null)) {
+        return;
+    }
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    UnitGroupAdd(lp_group, lp_unit);
+}
+
+void CMLib_UGAddGroup(unitgroup lp_group, unitgroup lp_add) {
+    if ((lp_group == null)) {
+        return;
+    }
+    if ((lp_add == null)) {
+        return;
+    }
+    UnitGroupAddUnitGroup(lp_group, lp_add);
+}
+
+void CMLib_UGRemove(unitgroup lp_group, unit lp_unit) {
+    if ((lp_group == null)) {
+        return;
+    }
+    if ((lp_unit == null)) {
+        return;
+    }
+    UnitGroupRemove(lp_group, lp_unit);
+}
+
+void CMLib_UGClear(unitgroup lp_group) {
+    if ((lp_group == null)) {
+        return;
+    }
+    UnitGroupClear(lp_group);
+}
+
+unitgroup CMLib_UGCopy(unitgroup lp_group) {
+    if ((lp_group == null)) {
+        return UnitGroupEmpty();
+    }
+    return UnitGroupCopy(lp_group);
+}
+
+// 正向 one-based 取值（区别于 CMLib_UGAt 的倒序）。越界 / 组空返回 null。
+unit CMLib_UGUnit(unitgroup lp_group, int lp_index) {
+    if ((lp_group == null)) {
+        return null;
+    }
+    if ((lp_index < 1)) {
+        return null;
+    }
+    if ((lp_index > CMLib_UGSize(lp_group))) {
+        return null;
+    }
+    return UnitGroupUnit(lp_group, lp_index);
+}
+
+unit CMLib_UGRandomUnit(unitgroup lp_group, int lp_type) {
+    if ((lp_group == null)) {
+        return null;
+    }
+    return UnitGroupRandomUnit(lp_group, lp_type);
+}
+
+bool CMLib_UGHasUnit(unitgroup lp_group, unit lp_unit) {
+    if ((lp_group == null)) {
+        return false;
+    }
+    if ((lp_unit == null)) {
+        return false;
+    }
+    return UnitGroupHasUnit(lp_group, lp_unit);
+}
+
+// -----------------------------------------------------------------------------
+// 过滤器 / 全局暂停 / 归属
+// -----------------------------------------------------------------------------
+
+bool CMLib_UnitMatchFilter(unit lp_unit, int lp_player, unitfilter lp_filter) {
+    if ((lp_unit == null)) {
+        return false;
+    }
+    return UnitFilterMatch(lp_unit, lp_player, lp_filter);
+}
+
+void CMLib_UnitsPauseAll(bool lp_pause) {
+    UnitPauseAll(lp_pause);
+}
+
+text CMLib_UnitTypeName(string lp_unitType) {
+    if ((lp_unitType == "")) {
+        return StringExternal("");
+    }
+    return UnitTypeGetName(lp_unitType);
+}
+
+bool CMLib_UnitChangeOwner(unit lp_unit, int lp_player, bool lp_changeColor) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return false;
+    }
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return false;
+    }
+    UnitSetOwner(lp_unit, lp_player, lp_changeColor);
+    return true;
+}
+
+// -----------------------------------------------------------------------------
+// 编组下令
+// -----------------------------------------------------------------------------
+
+bool CMLib_UGIssueOrder(unitgroup lp_group, order lp_order, int lp_queueType) {
+    if ((lp_group == null)) {
+        return false;
+    }
+    if ((lp_order == null)) {
+        return false;
+    }
+    if ((UnitGroupCount(lp_group, c_unitCountAll) < 1)) {
+        return false;
+    }
+    return UnitGroupIssueOrder(lp_group, lp_order, lp_queueType);
+}
+
+bool CMLib_UGOrderAbility(unitgroup lp_group, string lp_ability, int lp_cmdIndex, int lp_queueType) {
+    if ((lp_ability == "")) {
+        return false;
+    }
+    return CMLib_UGIssueOrder(lp_group, Order(AbilityCommand(lp_ability, lp_cmdIndex)), lp_queueType);
+}
+
+bool CMLib_UGOrderAbilityAtUnit(unitgroup lp_group, string lp_ability, int lp_cmdIndex, unit lp_target, int lp_queueType) {
+    if ((lp_ability == "")) {
+        return false;
+    }
+    if ((lp_target == null)) {
+        return false;
+    }
+    return CMLib_UGIssueOrder(lp_group, OrderTargetingUnit(AbilityCommand(lp_ability, lp_cmdIndex), lp_target), lp_queueType);
+}
+
+// -----------------------------------------------------------------------------
+// 按同盟关系取编组
+// -----------------------------------------------------------------------------
+
+unitgroup CMLib_UGAlliance(int lp_player, int lp_alliance, region lp_region, unitfilter lp_filter, int lp_maxCount) {
+    region lv_region;
+    int lv_max;
+
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return UnitGroupEmpty();
+    }
+    lv_region = lp_region;
+    if ((lv_region == null)) {
+        lv_region = RegionEntireMap();
+    }
+    lv_max = lp_maxCount;
+    if ((lv_max <= 0)) {
+        lv_max = c_unitCountAll;
+    }
+    return UnitGroupAlliance(lp_player, lp_alliance, lv_region, lp_filter, lv_max);
+}
+
+unitgroup CMLib_UGEnemiesOf(int lp_player, int lp_maxCount) {
+    return CMLib_UGAlliance(lp_player, c_unitAllianceEnemy, null, CMLib_FilterAlive(), lp_maxCount);
+}
+
+unitgroup CMLib_UGAlliesOf(int lp_player, int lp_maxCount) {
+    return CMLib_UGAlliance(lp_player, c_unitAllianceAlly, null, CMLib_FilterAlive(), lp_maxCount);
+}
+
+// ---- 单位操作便利封装（round 12）-------------------------------------------
+void CMLib_UnitCreateEffectPoint(unit lp_unit, string lp_effect, point lp_target) {
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_effect == "") || (lp_target == null)) {
+        return;
+    }
+    UnitCreateEffectPoint(lp_unit, lp_effect, lp_target);
+}
+
+void CMLib_UnitAbilityEnable(unit lp_unit, string lp_ability, bool lp_enable) {
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_ability == "")) {
+        return;
+    }
+    UnitAbilityEnable(lp_unit, lp_ability, lp_enable);
+}
+
+void CMLib_UnitCargoCreate(unit lp_unit, string lp_id, int lp_count) {
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_id == "") || (lp_count <= 0)) {
+        return;
+    }
+    UnitCargoCreate(lp_unit, lp_id, lp_count);
+}
+
+void CMLib_UnitSetHeight(unit lp_unit, fixed lp_height, fixed lp_duration) {
+    if (CMLib_UnitOk(lp_unit) == false) {
+        return;
+    }
+    UnitSetHeight(lp_unit, lp_height, lp_duration);
+}
+
+// ---- 编组几何便利封装（round 12）-------------------------------------------
+unit CMLib_UGClosestToPoint(unitgroup lp_group, point lp_point) {
+    if ((lp_group == null) || (lp_point == null)) {
+        return null;
+    }
+    return UnitGroupClosestToPoint(lp_group, lp_point);
+}
+
+point CMLib_UGCenterOfGroup(unitgroup lp_group) {
+    if (lp_group == null) {
+        return null;
+    }
+    return UnitGroupCenterOfGroup(lp_group);
+}
+
+// =============================================================================
+// round 13：命令队列 / 选择集 / 过滤
+// =============================================================================
+order CMLib_UnitOrderAt(unit lp_unit, int lp_index) {
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_index < 0)) {
+        return null;
+    }
+    return UnitOrder(lp_unit, lp_index);
+}
+
+bool CMLib_UnitOrderHasAbil(unit lp_unit, string lp_ability) {
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_ability == "")) {
+        return false;
+    }
+    return UnitOrderHasAbil(lp_unit, lp_ability);
+}
+
+void CMLib_SelClear(int lp_player) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return;
+    }
+    UnitClearSelection(lp_player);
+}
+
+unitgroup CMLib_UGSelected(int lp_player) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return UnitGroupEmpty();
+    }
+    return UnitGroupSelected(lp_player);
+}
+
+unitgroup CMLib_UGFilterStr(string lp_type, int lp_player, unitgroup lp_group,
+                            string lp_filterSpec, int lp_maxCount) {
+    unitfilter lv_filter;
+    int        lv_max;
+
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return UnitGroupEmpty();
+    }
+    lv_max = lp_maxCount;
+    if ((lv_max < 0)) {
+        lv_max = 0;
+    }
+    if ((lp_filterSpec == "")) {
+        lv_filter = CMLib_FilterAlive();
+    }
+    else {
+        lv_filter = UnitFilterStr(lp_filterSpec);
+    }
+    return UnitGroupFilter(lp_type, lp_player, lp_group, lv_filter, lv_max);
+}
+
+// -----------------------------------------------------------------------------
+// round 17：句柄 / 朝向 / 选中 / 信息面板 / 类型静态查询 / 计数 / order
+// -----------------------------------------------------------------------------
+
+unit CMLib_UnitById(int lp_id) {
+    if ((lp_id <= 0)) {
+        return null;
+    }
+    return UnitFromId(lp_id);
+}
+
+int CMLib_UnitTag(unit lp_unit) {
+    if ((lp_unit == null)) {
+        return 0;
+    }
+    return UnitGetTag(lp_unit);
+}
+
+void CMLib_UnitFace(unit lp_unit, fixed lp_facing, fixed lp_duration) {
+    fixed lv_dur;
+
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    lv_dur = lp_duration;
+    if ((lv_dur < 0.0)) {
+        lv_dur = 0.0;
+    }
+    UnitSetFacing(lp_unit, lp_facing, lv_dur);
+}
+
+void CMLib_UnitFaceUnit(unit lp_unit, unit lp_target, fixed lp_duration) {
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_target == null)) {
+        return;
+    }
+    CMLib_UnitFace(lp_unit,
+                   AngleBetweenPoints(UnitGetPosition(lp_unit),
+                                      UnitGetPosition(lp_target)),
+                   lp_duration);
+}
+
+void CMLib_UnitFacePoint(unit lp_unit, point lp_target, fixed lp_duration) {
+    if ((CMLib_UnitOk(lp_unit) == false) || (lp_target == null)) {
+        return;
+    }
+    CMLib_UnitFace(lp_unit,
+                   AngleBetweenPoints(UnitGetPosition(lp_unit), lp_target),
+                   lp_duration);
+}
+
+void CMLib_UnitSelectFor(unit lp_unit, int lp_player, bool lp_select) {
+    if ((lp_unit == null)) {
+        return;
+    }
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        CMLib_LogWarn("unit", "UnitSelectFor: 玩家槽位非法");
+        return;
+    }
+    UnitSelect(lp_unit, lp_player, lp_select);
+}
+
+void CMLib_UnitSelectOnly(unit lp_unit, int lp_player) {
+    if ((lp_unit == null)) {
+        return;
+    }
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        CMLib_LogWarn("unit", "UnitSelectOnly: 玩家槽位非法");
+        return;
+    }
+    UnitClearSelection(lp_player);
+    UnitSelect(lp_unit, lp_player, true);
+}
+
+void CMLib_UnitInfoText(unit lp_unit, text lp_info, text lp_tip, text lp_subTip) {
+    if ((lp_unit == null)) {
+        return;
+    }
+    UnitSetInfoText(lp_unit, lp_info, lp_tip, lp_subTip);
+}
+
+bool CMLib_UnitTypeFlag(string lp_unitType, int lp_flag) {
+    if ((lp_unitType == "")) {
+        return false;
+    }
+    return UnitTypeTestFlag(lp_unitType, lp_flag);
+}
+
+fixed CMLib_UnitTypeProp(string lp_unitType, int lp_prop) {
+    if ((lp_unitType == "")) {
+        return 0.0;
+    }
+    return UnitTypeGetProperty(lp_unitType, lp_prop);
+}
+
+bool CMLib_UnitTypeIsStructure(string lp_unitType) {
+    if ((lp_unitType == "")) {
+        return false;
+    }
+    // 注意：引擎没有 c_unitFlagStructure，「建筑」是 attribute 不是 flag。
+    return UnitTypeTestAttribute(lp_unitType, c_unitAttributeStructure);
+}
+
+bool CMLib_UnitTypeIsWorker(string lp_unitType) {
+    if ((lp_unitType == "")) {
+        return false;
+    }
+    return UnitTypeTestFlag(lp_unitType, c_unitFlagWorker);
+}
+
+int CMLib_UnitCountOf(string lp_unitType, int lp_player, region lp_region,
+                      string lp_filterSpec, int lp_maxCount) {
+    region     lv_region;
+    unitfilter lv_filter;
+    int        lv_max;
+
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return 0;
+    }
+    lv_region = lp_region;
+    if ((lv_region == null)) {
+        lv_region = RegionEntireMap();
+    }
+    if ((lp_filterSpec == "")) {
+        lv_filter = CMLib_FilterAlive();
+    }
+    else {
+        lv_filter = UnitFilterStr(lp_filterSpec);
+    }
+    lv_max = lp_maxCount;
+    if ((lv_max < 0)) {
+        lv_max = c_noMaxCount;
+    }
+    return UnitCount(lp_unitType, lp_player, lv_region, lv_filter, lv_max);
+}
+
+int CMLib_UnitCountAllianceOf(int lp_player, int lp_alliance, region lp_region,
+                              string lp_filterSpec, int lp_maxCount) {
+    region     lv_region;
+    unitfilter lv_filter;
+    int        lv_max;
+
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return 0;
+    }
+    lv_region = lp_region;
+    if ((lv_region == null)) {
+        lv_region = RegionEntireMap();
+    }
+    if ((lp_filterSpec == "")) {
+        lv_filter = CMLib_FilterAlive();
+    }
+    else {
+        lv_filter = UnitFilterStr(lp_filterSpec);
+    }
+    lv_max = lp_maxCount;
+    if ((lv_max < 0)) {
+        lv_max = c_noMaxCount;
+    }
+    return UnitCountAlliance(lp_player, lp_alliance, lv_region, lv_filter, lv_max);
+}
+
+// ---- order 结构读写 ---------------------------------------------------------
+
+abilcmd CMLib_OrderAbilCmd(order lp_order) {
+    if ((lp_order == null)) {
+        return null;
+    }
+    return OrderGetAbilityCommand(lp_order);
+}
+
+unit CMLib_OrderTargetUnit(order lp_order) {
+    if ((lp_order == null)) {
+        return null;
+    }
+    return OrderGetTargetUnit(lp_order);
+}
+
+point CMLib_OrderTargetPoint(order lp_order) {
+    if ((lp_order == null)) {
+        return null;
+    }
+    return OrderGetTargetPoint(lp_order);
+}
+
+void CMLib_OrderSetTargetUnit(order lp_order, unit lp_target) {
+    if ((lp_order == null) || (lp_target == null)) {
+        return;
+    }
+    OrderSetTargetUnit(lp_order, lp_target);
+}
+
+void CMLib_OrderSetTargetPoint(order lp_order, point lp_target) {
+    if ((lp_order == null) || (lp_target == null)) {
+        return;
+    }
+    OrderSetTargetPoint(lp_order, lp_target);
+}
+
+order CMLib_OrderAt(string lp_ability, int lp_cmdIndex, point lp_target) {
+    if ((lp_ability == "") || (lp_target == null)) {
+        return null;
+    }
+    return OrderTargetingPoint(AbilityCommand(lp_ability, lp_cmdIndex), lp_target);
+}
+
+order CMLib_OrderOn(string lp_ability, int lp_cmdIndex, unit lp_target) {
+    if ((lp_ability == "") || (lp_target == null)) {
+        return null;
+    }
+    return OrderTargetingUnit(AbilityCommand(lp_ability, lp_cmdIndex), lp_target);
+}
+
+order CMLib_OrderAutoCast(string lp_ability, int lp_cmdIndex, bool lp_on) {
+    if ((lp_ability == "")) {
+        return null;
+    }
+    return OrderSetAutoCast(AbilityCommand(lp_ability, lp_cmdIndex), lp_on);
+}
+
+
+// -----------------------------------------------------------------------------
+// round 18：单位 / 单位组真实缺口
+// -----------------------------------------------------------------------------
+
+bool CMLib_UnitHasBehaviorRaw(unit lp_unit, string lp_behavior) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return false;
+    }
+    if ((lp_behavior == "")) {
+        return false;
+    }
+    return UnitHasBehavior(lp_unit, lp_behavior);
+}
+
+fixed CMLib_UnitAbilChargeInfo(unit lp_unit, abilcmd lp_abil, int lp_type) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return 0.0;
+    }
+    if ((lp_abil == null)) {
+        return 0.0;
+    }
+    return UnitAbilityChargeInfo(lp_unit, lp_abil, lp_type);
+}
+
+void CMLib_UnitAbilReset(unit lp_unit, abilcmd lp_abil, int lp_location) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    if ((lp_abil == null)) {
+        return;
+    }
+    UnitAbilityReset(lp_unit, lp_abil, lp_location);
+}
+
+void CMLib_UnitTeamColor(unit lp_unit, int lp_index) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return;
+    }
+    UnitSetTeamColorIndex(lp_unit, lp_index);
+}
+
+int CMLib_UnitOrderCount(unit lp_unit) {
+    if ((CMLib_UnitOk(lp_unit) == false)) {
+        return 0;
+    }
+    return UnitOrderCount(lp_unit);
+}
+
+unitref CMLib_UnitRefFromVar(string lp_varName) {
+    if ((lp_varName == "")) {
+        return null;
+    }
+    return UnitRefFromVariable(lp_varName);
+}
+
+unitgroup CMLib_UGFilterRegion(unitgroup lp_group, region lp_region, int lp_maxCount) {
+    int lv_max;
+
+    if ((lp_group == null)) {
+        return UnitGroupEmpty();
+    }
+    if ((lp_region == null)) {
+        return lp_group;
+    }
+    lv_max = lp_maxCount;
+    if ((lv_max <= 0)) {
+        // 哨兵用 `c_noMaxCount`（natives.galaxy:4608，UnitGroup* 家族的 maxCount 专用）。
+        // 这里以前写的是 `c_unitCountAll` —— 那是 `UnitGroupCount` 的**计数类型**参数，
+        // 两者数值都是 0 所以行为碰巧一样，但语义完全不同，照抄会把下一个人带沟里。
+        lv_max = c_noMaxCount;
+    }
+    return UnitGroupFilterRegion(lp_group, lp_region, lv_max);
+}
+
+// =============================================================================
+// CMLib :: Round19 —— 实现
+// =============================================================================
+int CMLib_UnitTypeCost(string lp_unitType, int lp_costType) {
+    if (lp_unitType == "") { return 0; }
+    return UnitTypeGetCost(lp_unitType, lp_costType);
+}
+
+unitgroup CMLib_UnitCargoLastGroup() {
+    unitgroup lv_g;
+    lv_g = UnitCargoLastCreatedGroup();
+    if (lv_g == null) { return UnitGroupEmpty(); }
+    return lv_g;
+}
+
+string CMLib_AbilCmdAbility(abilcmd lp_cmd) {
+    string lv_s;
+    lv_s = AbilityCommandGetAbility(lp_cmd);
+    if (lv_s == null) { return ""; }
+    return lv_s;
+}
+
+// =============================================================================
+// CMLib :: Round20 —— 单位 / 建筑主线补完（实现）
+// =============================================================================
+
+void CMLib_UnitFlash(unit lp_unit, fixed lp_period) {
+    if (CMLib_UnitOk(lp_unit) == false) { return; }
+    if (lp_period < 0.0) { return; }
+    UnitFlashSelection(lp_unit, lp_period);
+}
+
+void CMLib_UGSelect(unitgroup lp_group, int lp_player, bool lp_select) {
+    if (lp_group == null) { return; }
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return; }
+    UnitGroupSelect(lp_group, lp_player, lp_select);
+}
+
+unitgroup CMLib_UGIdle(int lp_player, bool lp_workerOnly) {
+    unitgroup lv_g;
+
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return UnitGroupEmpty(); }
+    lv_g = UnitGroupIdle(lp_player, lp_workerOnly);
+    if (lv_g == null) { return UnitGroupEmpty(); }
+    return lv_g;
+}
+
+int CMLib_UGIdleCount(int lp_player, bool lp_workerOnly) {
+    return UnitGroupCount(CMLib_UGIdle(lp_player, lp_workerOnly), c_unitCountAll);
+}
+
+unitgroup CMLib_UnitCargo(unit lp_unit) {
+    unitgroup lv_g;
+
+    if (CMLib_UnitOk(lp_unit) == false) { return UnitGroupEmpty(); }
+    lv_g = UnitCargoGroup(lp_unit);
+    if (lv_g == null) { return UnitGroupEmpty(); }
+    return lv_g;
+}
+
+int CMLib_UnitCargoCount(unit lp_unit) {
+    return UnitGroupCount(CMLib_UnitCargo(lp_unit), c_unitCountAll);
+}
+
+void CMLib_UnitBuffDuration(unit lp_unit, string lp_behavior, fixed lp_duration) {
+    if (CMLib_UnitOk(lp_unit) == false) { return; }
+    if (lp_behavior == "") { return; }
+    if (lp_duration < 0.0) { return; }
+    UnitBehaviorSetDuration(lp_unit, lp_behavior, lp_duration);
+}
+
+unit CMLib_UnitBuffEffectUnit(unit lp_unit, string lp_behavior, int lp_location,
+                              int lp_index) {
+    if (CMLib_UnitOk(lp_unit) == false) { return null; }
+    if (lp_behavior == "") { return null; }
+    if (lp_index < 0) { return null; }
+    return UnitBehaviorEffectUnit(lp_unit, lp_behavior, lp_location, lp_index);
+}
+
+int CMLib_UnitPropInt(unit lp_unit, int lp_prop, bool lp_current) {
+    if (CMLib_UnitOk(lp_unit) == false) { return 0; }
+    return UnitGetPropertyInt(lp_unit, lp_prop, lp_current);
+}
+
+
+void CMLib_UnitAbilShow(unit lp_unit, string lp_abil, bool lp_show) {
+    if (CMLib_UnitOk(lp_unit) == false) { return; }
+    if (lp_abil == "") { return; }
+    UnitAbilityShow(lp_unit, lp_abil, lp_show);
+}
+
+bool CMLib_UnitAbilExists(unit lp_unit, string lp_abil) {
+    if (CMLib_UnitOk(lp_unit) == false) { return false; }
+    if (lp_abil == "") { return false; }
+    return UnitAbilityExists(lp_unit, lp_abil);
+}
+
+point CMLib_UnitTypePlaceNear(string lp_unitType, int lp_player, point lp_source,
+                              fixed lp_range) {
+    if (lp_unitType == "") { return null; }
+    if (lp_source == null) { return null; }
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return null; }
+    if (lp_range < 0.0) { return null; }
+    return UnitTypePlacementFromPoint(lp_unitType, lp_player, lp_source, lp_range);
+}
+
+point CMLib_UnitAttachPoint(unit lp_unit, string lp_attachment) {
+    if (CMLib_UnitOk(lp_unit) == false) { return null; }
+    if (lp_attachment == "") { return null; }
+    return UnitGetAttachmentPoint(lp_unit, lp_attachment);
+}
+
+int CMLib_UnitQueueProp(unit lp_unit, int lp_prop) {
+    if (CMLib_UnitOk(lp_unit) == false) { return 0; }
+    return UnitQueueGetProperty(lp_unit,
+                                CMLib_ClampInt(lp_prop, c_unitQueuePropertyAvailable,
+                                               c_unitQueuePropertyCount));
+}
+
+int CMLib_UnitQueueUsed(unit lp_unit) {
+    return CMLib_UnitQueueProp(lp_unit, c_unitQueuePropertyUsed);
+}
+
+int CMLib_UnitQueueFree(unit lp_unit) {
+    return CMLib_UnitQueueProp(lp_unit, c_unitQueuePropertyAvailable);
+}
+
+bool CMLib_UnitIsProducing(unit lp_unit) {
+    return (CMLib_UnitQueueUsed(lp_unit) > 0);
+}
+
+int CMLib_UnitQueueItemCount(unit lp_unit, int lp_slot) {
+    if (CMLib_UnitOk(lp_unit) == false) { return 0; }
+    if (lp_slot < 0) { return 0; }
+    return UnitQueueItemCount(lp_unit, lp_slot);
+}
+
+string CMLib_UnitQueueItemAt(unit lp_unit, int lp_item, int lp_slot) {
+    string lv_s;
+
+    if (CMLib_UnitOk(lp_unit) == false) { return ""; }
+    if ((lp_item < 0) || (lp_slot < 0)) { return ""; }
+    lv_s = UnitQueueItemGet(lp_unit, lp_item, lp_slot);
+    if (lv_s == null) { return ""; }
+    return lv_s;
+}
+
+bool CMLib_UnitQueueItemIs(unit lp_unit, int lp_item, int lp_type) {
+    if (CMLib_UnitOk(lp_unit) == false) { return false; }
+    if (lp_item < 0) { return false; }
+    return UnitQueueItemTypeCheck(lp_unit, lp_item, lp_type);
+}
+
+fixed CMLib_UnitQueueEta(unit lp_unit, int lp_item) {
+    if (CMLib_UnitOk(lp_unit) == false) { return 0.0; }
+    if (lp_item < 0) { return 0.0; }
+    return UnitQueueItemTime(lp_unit, c_unitQueueTimeRemaining, lp_item);
+}
+
+fixed CMLib_UnitQueueProgress(unit lp_unit, int lp_item) {
+    fixed lv_total;
+    fixed lv_elapsed;
+
+    if (CMLib_UnitOk(lp_unit) == false) { return 0.0; }
+    if (lp_item < 0) { return 0.0; }
+    lv_total = UnitQueueItemTime(lp_unit, c_unitQueueTimeTotal, lp_item);
+    if (lv_total <= 0.0) { return 0.0; }
+    lv_elapsed = UnitQueueItemTime(lp_unit, c_unitQueueTimeElapsed, lp_item);
+    return CMLib_ClampFixed((lv_elapsed / lv_total), 0.0, 1.0);
+}
+
+text CMLib_UnitCustomName(unit lp_unit) {
+    if (CMLib_UnitOk(lp_unit) == false) { return StringToText(""); }
+    return UnitGetName(lp_unit);
+}
+
+int CMLib_UnitWeaponCount(unit lp_unit) {
+    if (CMLib_UnitOk(lp_unit) == false) { return 0; }
+    return UnitWeaponCount(lp_unit);
+}
+
+fixed CMLib_UnitWeaponPeriod(unit lp_unit, int lp_index) {
+    if (CMLib_UnitOk(lp_unit) == false) { return 0.0; }
+    if (lp_index < 1) { return 0.0; }
+    if (lp_index > UnitWeaponCount(lp_unit)) { return 0.0; }
+    return UnitWeaponPeriod(lp_unit, lp_index);
+}
+
+fixed CMLib_UnitWeaponDamage(unit lp_unit, int lp_index, int lp_attribute,
+                             bool lp_maximum) {
+    if (CMLib_UnitOk(lp_unit) == false) { return 0.0; }
+    if (lp_index < 1) { return 0.0; }
+    if (lp_index > UnitWeaponCount(lp_unit)) { return 0.0; }
+    return UnitWeaponDamage(lp_unit, lp_index, lp_attribute, lp_maximum);
+}
+
+fixed CMLib_UnitWeaponDps(unit lp_unit, int lp_index) {
+    fixed lv_period;
+    fixed lv_damage;
+
+    lv_period = CMLib_UnitWeaponPeriod(lp_unit, lp_index);
+    if (lv_period <= 0.0) { return 0.0; }
+    lv_damage = CMLib_UnitWeaponDamage(lp_unit, lp_index, c_unitAttributeNone, false);
+    return (lv_damage / lv_period);
+}
+
+fixed CMLib_UnitDpsTotal(unit lp_unit) {
+    fixed lv_sum;
+    int   lv_i;
+    int   lv_n;
+
+    lv_sum = 0.0;
+    if (CMLib_UnitOk(lp_unit) == false) { return 0.0; }
+    lv_n = UnitWeaponCount(lp_unit);
+    lv_i = 1;
+    while (lv_i <= lv_n) {
+        lv_sum = (lv_sum + CMLib_UnitWeaponDps(lp_unit, lv_i));
+        lv_i = (lv_i + 1);
+    }
+    return lv_sum;
+}
+
+bool CMLib_UnitIsHarvesting(unit lp_unit, int lp_resource) {
+    if (CMLib_UnitOk(lp_unit) == false) { return false; }
+    return UnitIsHarvesting(lp_unit, lp_resource);
+}
+
+bool CMLib_OrderFlag(order lp_order, int lp_flag) {
+    if (lp_order == null) { return false; }
+    if (lp_flag < 0) { return false; }
+    return OrderGetFlag(lp_order, lp_flag);
+}
+
+int CMLib_OrderTargetType(order lp_order) {
+    if (lp_order == null) { return c_orderTargetNone; }
+    return OrderGetTargetType(lp_order);
+}
+
+point CMLib_OrderTargetPos(order lp_order) {
+    if (lp_order == null) { return null; }
+    if (OrderGetTargetType(lp_order) == c_orderTargetNone) { return null; }
+    return OrderGetTargetPosition(lp_order);
+}
+
+bool CMLib_OrderHasTarget(order lp_order) {
+    return (CMLib_OrderTargetType(lp_order) != c_orderTargetNone);
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round20b —— 单位 → 单元素单位组
+// -----------------------------------------------------------------------------
+
+unitgroup CMLib_UGOf(unit lp_unit) {
+    unitgroup lv_g;
+
+    lv_g = UnitGroupEmpty();
+    if (lp_unit == null) { return lv_g; }
+    UnitGroupAdd(lv_g, lp_unit);
+    return lv_g;
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round22 —— 单位主线补齐
+// -----------------------------------------------------------------------------
+
+void CMLib_UnitCtrlGroupAdd(unit lp_unit, int lp_player, int lp_group) {
+    if (CMLib_UnitOk(lp_unit) == false) { return; }
+    // 控制编队号是 1~10；越界值引擎行为无文档承诺，直接拒绝。
+    if (lp_group < 1) { return; }
+    if (lp_group > 10) { return; }
+    UnitControlGroupAddUnit(lp_player, lp_group, lp_unit);
+}
+
+int CMLib_UnitCargoValue(unit lp_unit, int lp_valueType) {
+    if (CMLib_UnitOk(lp_unit) == false) { return 0; }
+    if (lp_valueType < c_unitCargoUnitCount) { return 0; }
+    if (lp_valueType > c_unitCargoPosition) { return 0; }
+    return UnitCargoValue(lp_unit, lp_valueType);
+}
+
+void CMLib_UnitStatusBarGroup(unit lp_unit, int lp_group) {
+    if (CMLib_UnitOk(lp_unit) == false) { return; }
+    UnitStatusBarOverride(lp_unit, lp_group);
+}
+
+void CMLib_UnitSetScale(unit lp_unit, fixed lp_x, fixed lp_y, fixed lp_z) {
+    if (CMLib_UnitOk(lp_unit) == false) { return; }
+    UnitSetScale(lp_unit, lp_x, lp_y, lp_z);
+}
+
+void CMLib_UnitSetScaleUniform(unit lp_unit, fixed lp_scale) {
+    if (CMLib_UnitOk(lp_unit) == false) { return; }
+    // 0 或负缩放会让模型塌陷/翻面，属调用方笔误，拦掉而不是传给引擎。
+    if (lp_scale <= 0.0) { return; }
+    UnitSetScale(lp_unit, lp_scale, lp_scale, lp_scale);
+}
+
+int CMLib_UnitVeterancyLevel(unit lp_unit, string lp_veterancyBehavior) {
+    if (CMLib_UnitOk(lp_unit) == false) { return 0; }
+    if (lp_veterancyBehavior == "") { return 0; }
+    return UnitXPGetCurrentLevel(lp_unit, lp_veterancyBehavior);
+}
+
+// =============================================================================
+// Round27：Marker 族（单位标记）—— 生产端 4 + 消费端 7
+//
+// 本族存在的理由：cmlib_ai 的 AIFilterMarkerCount / AIFilterLifePerMarker 收
+// marker 形参已有两轮，但全库没有任何函数能产出 marker —— 调用方只能喂 null
+// 撞守门，那两个 API 一直是死的。生产端补上后整条链才真正可用。
+// =============================================================================
+marker CMLib_Marker(string lp_link) {
+    if (lp_link == "") { return null; }
+    return Marker(lp_link);
+}
+
+marker CMLib_MarkerForPlayer(string lp_link, int lp_player) {
+    if (lp_link == "") { return null; }
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return Marker(lp_link); }
+    return MarkerCastingPlayer(lp_link, lp_player);
+}
+
+marker CMLib_MarkerForUnit(string lp_link, unit lp_unit) {
+    if (lp_link == "") { return null; }
+    if (CMLib_UnitOk(lp_unit) == false) { return Marker(lp_link); }
+    return MarkerCastingUnit(lp_link, lp_unit);
+}
+
+marker CMLib_UnitMarkerAt(unit lp_unit, int lp_index) {
+    if (CMLib_UnitOk(lp_unit) == false) { return null; }
+    if (lp_index < 0) { return null; }
+    return UnitMarker(lp_unit, lp_index);
+}
+
+void CMLib_UnitMarkerAdd(unit lp_unit, marker lp_marker) {
+    if (CMLib_UnitOk(lp_unit) == false) { return; }
+    if (lp_marker == null) { return; }
+    UnitMarkerAdd(lp_unit, lp_marker);
+}
+
+int CMLib_UnitMarkerCount(unit lp_unit, marker lp_marker) {
+    if (CMLib_UnitOk(lp_unit) == false) { return 0; }
+    if (lp_marker == null) { return 0; }
+    return UnitMarkerCount(lp_unit, lp_marker);
+}
+
+void CMLib_UnitMarkerRemove(unit lp_unit, marker lp_marker) {
+    if (CMLib_UnitOk(lp_unit) == false) { return; }
+    if (lp_marker == null) { return; }
+    UnitMarkerRemove(lp_unit, lp_marker);
+}
+
+int CMLib_MarkerCastPlayer(marker lp_marker) {
+    if (lp_marker == null) { return 0; }
+    return MarkerGetCastingPlayer(lp_marker);
+}
+
+unit CMLib_MarkerCastUnit(marker lp_marker) {
+    if (lp_marker == null) { return null; }
+    return MarkerGetCastingUnit(lp_marker);
+}
+
+void CMLib_MarkerMatchFlag(marker lp_marker, int lp_flag, bool lp_state) {
+    if (lp_marker == null) { return; }
+    if (lp_flag < c_markerMatchId) { return; }
+    if (lp_flag > c_markerMatchCasterUnit) { return; }
+    MarkerSetMatchFlag(lp_marker, lp_flag, lp_state);
+}
+
+bool CMLib_MarkerHasMatchFlag(marker lp_marker, int lp_flag) {
+    if (lp_marker == null) { return false; }
+    if (lp_flag < c_markerMatchId) { return false; }
+    if (lp_flag > c_markerMatchCasterUnit) { return false; }
+    return MarkerGetMatchFlag(lp_marker, lp_flag);
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round26 —— order 对象补齐
+// -----------------------------------------------------------------------------
+
+int CMLib_OrderPlayer(order lp_order) {
+    if (lp_order == null) { return 0; }
+    return OrderGetPlayer(lp_order);
+}
+
+void CMLib_OrderSetPlayer(order lp_order, int lp_player) {
+    if (lp_order == null) { return; }
+    OrderSetPlayer(lp_order, lp_player);
+}
+
+unit CMLib_OrderTargetItem(order lp_order) {
+    if (lp_order == null) { return null; }
+    return OrderGetTargetItem(lp_order);
+}
+
+void CMLib_OrderSetTargetItem(order lp_order, unit lp_item) {
+    if (lp_order == null) { return; }
+    OrderSetTargetItem(lp_order, lp_item);
+}
+
+void CMLib_OrderSetAbilCmd(order lp_order, abilcmd lp_cmd) {
+    if (lp_order == null) { return; }
+    if (lp_cmd == null) { return; }
+    OrderSetAbilityCommand(lp_order, lp_cmd);
+}
+
+void CMLib_OrderSetFlag(order lp_order, int lp_flag, bool lp_value) {
+    if (lp_order == null) { return; }
+    if (lp_flag < 0) { return; }
+    OrderSetFlag(lp_order, lp_flag, lp_value);
+}
+
+void CMLib_OrderSetPassenger(order lp_order, unit lp_unit) {
+    if (lp_order == null) { return; }
+    // lp_unit 允许为 null —— 那是"清空乘客目标"的合法写法。
+    OrderSetTargetPassenger(lp_order, lp_unit);
+}
+
+bool CMLib_OrderSetPlacement(order lp_order, point lp_point, unit lp_placer,
+                             string lp_type) {
+    if (lp_order == null) { return false; }
+    if (lp_point == null) { return false; }
+    return OrderSetTargetPlacement(lp_order, lp_point, lp_placer, lp_type);
+}
+
+order CMLib_OrderOnItem(abilcmd lp_cmd, unit lp_item) {
+    if (lp_cmd == null) { return null; }
+    return OrderTargetingItem(lp_cmd, lp_item);
+}
+
+order CMLib_OrderAtRelative(abilcmd lp_cmd, point lp_point) {
+    if (lp_cmd == null) { return null; }
+    if (lp_point == null) { return null; }
+    return OrderTargetingRelativePoint(lp_cmd, lp_point);
+}
+
+order CMLib_OrderOnGroup(abilcmd lp_cmd, unitgroup lp_group) {
+    if (lp_cmd == null) { return null; }
+    if (lp_group == null) { return null; }
+    return OrderTargetingUnitGroup(lp_cmd, lp_group);
+}
+
+abilcmd CMLib_AbilCmdFromString(string lp_s) {
+    if (lp_s == "") { return null; }
+    return StringToAbilCmd(lp_s);
+}

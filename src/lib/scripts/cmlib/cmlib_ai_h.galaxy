@@ -1,0 +1,353 @@
+// =============================================================================
+// CMLib :: AI —— 电脑玩家波次编排 / 难度缩放 / 战术施法
+//
+// 来源：从 RevolutionOverdrive / CMRE / Reborn 各 mod 中 21,000+ 次
+//       AIAttackWave* / AISetDifficulty / AICast 调用里提炼的重复模式。
+//
+// 设计要点：
+//   * AI 波次是「隐式全局状态机」——AIAttackWaveAddUnits* 作用于 *当前正在
+//     构建的波次*，必须 Begin → Add* → Target* → Send 顺序调用。本模块用
+//     CMLib_AIWaveBegin/Send 把这个隐式协议显式化，并用 CMLIB_AIWAVE_* 状态
+//     量在误用时给出日志告警，而不是静默产出空波次。
+//   * 难度四档（Casual/Normal/Hard/Brutal）在原始 API 里是 4 个裸参数，
+//     极易写错顺序；这里提供「同量」「线性递增」「百分比缩放」三种语义化入口。
+//
+// 依赖：cmlib_core_h（日志 / 钳制 / 数值）
+//       TriggerLibs/AI —— 【必须】AIAttackWave* / AISetDifficulty 等原生 AI 接口
+//       **不在** natives.galaxy 里，而是定义在 core.sc2mod 的 TriggerLibs/AI.galaxy。
+//       该库不会被引擎自动挂载，缺少这行 include 会导致整个 MapScript
+//       **静默编译失败**（InitMap 被整体丢弃，无崩溃、无日志、无 ScriptError）。
+// =============================================================================
+
+include "TriggerLibs/AI"
+include "scripts/cmlib/cmlib_core_h"
+
+// ---- 难度档位（与 AIAttackWaveAddUnits4 的 4 个参数一一对应）-----------------
+const int CMLIB_DIFF_CASUAL = 0;
+const int CMLIB_DIFF_NORMAL = 1;
+const int CMLIB_DIFF_HARD   = 2;
+const int CMLIB_DIFF_BRUTAL = 3;
+const int CMLIB_DIFF_COUNT  = 4;
+
+// ---- 波次构建状态（内部用，暴露出来便于调用方断言）--------------------------
+const int CMLIB_AIWAVE_IDLE     = 0;
+const int CMLIB_AIWAVE_BUILDING = 1;
+
+// 当前正在构建波次的玩家；IDLE 时为 -1。
+//
+// 【严禁加 static】Galaxy 的 `static` 全局变量只在**声明它的那个文件**里可见，
+// include 不会把可见性带过去（和 C 的文本预处理不一样）。这三个变量声明在
+// 本 header、却要在 cmlib_ai.galaxy 里读写——一旦写成 static，真实引擎会判定
+// 未定义符号并**静默丢弃整个 MapScript**（InitMap 根本不执行，无报错无日志），
+// 而独立 checker 因为把 include 摊平成单编译单元，完全发现不了。
+// 这个坑实测花了十几轮真机二分才定位，别再踩。
+int CMLib_AIWaveOwner = -1;
+int CMLib_AIWaveState = CMLIB_AIWAVE_IDLE;
+// 本次波次累计加入的单位条目数，Send 时为 0 会告警。
+int CMLib_AIWaveEntries = 0;
+
+// ---- 波次生命周期 -----------------------------------------------------------
+// 开始为 lp_player 构建一个新波次。lp_gather 为集结点，传 null 表示不设置。
+// 若上一次波次未 Send 就再次 Begin，会记 WARN 并强制重置。
+void CMLib_AIWaveBegin(int lp_player, point lp_gather);
+// 是否正在构建波次。
+bool CMLib_AIWaveIsBuilding();
+// 当前波次已加入的单位条目数。
+int  CMLib_AIWaveEntryCount();
+
+// ---- 波次单位配额 -----------------------------------------------------------
+// 四档同量。
+void CMLib_AIWaveAdd(int lp_qty, string lp_unitType);
+// 四档分别指定（顺序：休闲 / 普通 / 困难 / 残酷）。
+void CMLib_AIWaveAdd4(int lp_casual, int lp_normal, int lp_hard, int lp_brutal, string lp_unitType);
+// 线性递增：休闲 = lp_base，每升一档 +lp_step。负数结果自动钳到 0。
+void CMLib_AIWaveAddRamp(int lp_base, int lp_step, string lp_unitType);
+// 百分比缩放：以 lp_base 为普通档基准，四档分别按 lp_pctCasual..lp_pctBrutal 缩放。
+void CMLib_AIWaveAddScaled(int lp_base, int lp_pctCasual, int lp_pctNormal, int lp_pctHard, int lp_pctBrutal, string lp_unitType);
+// 只在指定难度档投放（其余档为 0）。用于「残酷限定」精英单位。
+void CMLib_AIWaveAddAtDifficulty(int lp_difficulty, int lp_qty, string lp_unitType);
+
+// ---- 波次成员来源 -----------------------------------------------------------
+// 用已存在的单位组充当波次成员（不新造兵）。
+void CMLib_AIWaveUseGroup(int lp_player, unitgroup lp_group);
+void CMLib_AIWaveUseUnit(int lp_player, unit lp_unit);
+
+// ---- 波次目标 ---------------------------------------------------------------
+void CMLib_AIWaveTargetPlayers(int lp_player, playergroup lp_targets);
+void CMLib_AIWaveTargetPlayer(int lp_player, int lp_targetPlayer);
+void CMLib_AIWaveTargetPoint(int lp_player, point lp_target);
+void CMLib_AIWaveTargetUnit(int lp_player, unit lp_target);
+// 交给对战 AI 自行选目标。
+void CMLib_AIWaveTargetMelee(int lp_player);
+
+// ---- 波次路线 ---------------------------------------------------------------
+// 追加一个途经点；lp_useTransport 为 true 时允许用运输机跳过不可通行段。
+void CMLib_AIWaveWaypoint(int lp_player, point lp_waypoint, bool lp_useTransport);
+void CMLib_AIWaveClearWaypoints(int lp_player);
+
+// ---- 发送 -------------------------------------------------------------------
+// lp_delaySeconds 后发兵。返回引擎的波次句柄 id（失败为 0）。
+int  CMLib_AIWaveSend(int lp_player, int lp_delaySeconds, bool lp_wait);
+// 带随机抖动的发兵：实际延迟 = lp_delaySeconds ± lp_jitterSeconds，下限 0。
+// 用于避免多路 AI 完全同步进攻（各 mod 里大量出现的 "plusOrMinus90" 模式）。
+int  CMLib_AIWaveSendJittered(int lp_player, int lp_delaySeconds, int lp_jitterSeconds, bool lp_wait);
+// 取消最近创建的波次。
+void CMLib_AIWaveCancelLast();
+
+// ---- 一步式常用组合 ---------------------------------------------------------
+// 集结 → 单一兵种 → 目标玩家 → 发兵。覆盖最常见的「刷一波兵打某人」场景。
+int CMLib_AIWaveSimple(int lp_player, point lp_gather, string lp_unitType, int lp_qty,
+                       int lp_targetPlayer, int lp_delaySeconds);
+
+// ---- 难度 -------------------------------------------------------------------
+void CMLib_AISetDifficulty(int lp_player, int lp_difficulty, bool lp_state);
+// 按难度取值：从 4 个候选里挑一个，越界钳制。
+int  CMLib_AIPickByDifficulty(int lp_difficulty, int lp_v0, int lp_v1, int lp_v2, int lp_v3);
+// 按难度缩放：lp_base * (100 + lp_stepPercent * difficulty) / 100。
+int  CMLib_AIScaleByDifficulty(int lp_base, int lp_difficulty, int lp_stepPercent);
+
+// ---- 战术施法 ---------------------------------------------------------------
+// 让 AI 单位释放一个无目标技能。返回 AICast 的结果码。
+int CMLib_AICastSelf(unit lp_caster, string lp_ability, int lp_cmdIndex);
+// 对点施法。
+int CMLib_AICastAtPoint(unit lp_caster, string lp_ability, int lp_cmdIndex, point lp_target);
+// 对单位施法。
+int CMLib_AICastAtUnit(unit lp_caster, string lp_ability, int lp_cmdIndex, unit lp_target);
+// 冷却就绪才施法：技能仍在 CD 时直接返回 false，不浪费一次 AICast。
+bool CMLib_AICastIfReady(unit lp_caster, string lp_ability, int lp_cmdIndex, string lp_cooldownLink);
+
+// ---- 杂项 -------------------------------------------------------------------
+// 开关某区域内的「守卫兵」主动性（进攻前常用来解除定点站桩）。
+void CMLib_AIBulliesInRegion(int lp_player, region lp_region, bool lp_active);
+// 把单位交给触发器脚本独占控制（脱离 AI 大脑），或还给 AI。
+void CMLib_AIScriptControl(unit lp_unit, bool lp_scripted);
+void CMLib_AIScriptControlGroup(unitgroup lp_group, bool lp_scripted);
+
+// ---- 波次/计时/旗标/计数（合作任务 AI 高频原生封装）--------------------------
+// 单难度波次加兵（直接对标 mod 高频调用的 AIAttackWaveAddUnits）。
+void CMLib_AIAttackWaveAddUnits(int lp_difficulty, int lp_count, string lp_unitType);
+// 设置 AI 全局旗标（index 范围 1..128，见 AI.galaxy 注释）。
+void CMLib_AISetFlag(int lp_player, int lp_index, bool lp_state);
+// 读取 AI 全局时钟（fixed 秒）。
+fixed CMLib_AIGetTime();
+// 计数器单位配置：看到 seeWhat 时按系数补造 makeWhat（同科技/任意科技两套系数）。
+void CMLib_AICounterUnitSetup(int lp_player, string lp_seeWhat, fixed lp_factorSameTech,
+                              string lp_makeSameTech, fixed lp_factorAnyTech, string lp_makeAnyTech);
+
+
+// ---- round 18：AI 状态 / 自杀冲锋 / 子状态几率（真实缺口）-----------------------
+// 读 AI 状态槽。index 是**裸 int**：AI.galaxy 里并没有 c_ASState* 常量族，
+// 各战役脚本自己用字面量索引，不确定就传 0。
+int  CMLib_AIState(int lp_player, int lp_index);
+// 单位「自杀式冲锋」开关：开了之后 AI 不再考虑撤退保命。
+void CMLib_AIUnitSuicide(unit lp_unit, bool lp_enable);
+// 整组自杀式冲锋（比逐个单位设省一个循环）。
+void CMLib_AIGroupSuicide(unitgroup lp_group, bool lp_enable);
+// 整组「交给脚本控制」——注意与已有的 CMLib_AIScriptControlGroup 不同：
+// 后者逐单位调 `AISetUnitScriptControlled`，本函数直接用组原生，开销更低。
+void CMLib_AIGroupScriptControlled(unitgroup lp_group, bool lp_enable);
+// 设置某子状态被选中的几率（0..100，越界自动夹紧，负数会让 AI 行为诡异）。
+void CMLib_AISubStateChance(int lp_subState, int lp_chance);
+
+// =============================================================================
+// CMLib :: Round19 —— AI 计时暂停 / 科技树提示
+// =============================================================================
+// 暂停/恢复 AI 内部计时（过场动画期间冻结 AI 节奏的标准做法）。
+void CMLib_AITimePause(bool lp_pause);
+// 在科技树面板上显示/隐藏某单位（做渐进解锁时用）。
+void CMLib_TechTreeUnitHelp(int lp_player, string lp_unitType, bool lp_display);
+
+
+// =============================================================================
+// CMLib :: Round24 —— AI 战术过滤（aifilter 句柄族）
+// =============================================================================
+//
+// 【为什么 round12~23 一直没封装，round24 才封】
+//
+// 历轮写在案的理由是「AIFilter / AIGetFilterGroup 在 Tactical/TacticalAI.galaxy，
+// 非 core 默认 include，包了有真机静默编译失败风险」。round24 把它推翻了：
+//
+//   1. `aifilter` **不是 typedef，是引擎内建 handle 类型**。natives.galaxy 全文
+//      0 个 typedef，却在 1203/1204 行直接用它写 DataTableSetAIFilter /
+//      DataTableGetAIFilter —— 默认 include 链的核心文件自己就在用这个类型。
+//   2. 这一族在 NativeLib.TriggerLib 里全部带 <FlagNative/>（round22/23 已确立
+//      的权威判据：native 符号表是**引擎内建**的，.galaxy 声明只是 lint 元数据）。
+//   3. round24 真机探针（probe_aifilter.py）六档全 PASS，**且验到返回值**：
+//        decl    `aifilter lv_f;` 局部变量声明 -> 编译通过（类型名可用）
+//        call    只 include natives、不写任何 native 声明，**裸调即可用**
+//        value   AIFilter(1) 返回句柄 != null，AIGetFilterGroup 产出**非空组**
+//      注意 value 档是在**人类玩家 player 1** 上过的 —— 不需要该玩家挂 AI，
+//      这比预期宽松（原本担心会踩 round5 那个「AISetUserInt 只对已挂 AI 玩家
+//      有效」的坑）。
+//
+// 【为什么本模块不 include TriggerLibs/Tactical/TacticalAI】
+//
+// 因为探针实证**裸调可行**。而 TacticalAI.galaxy 里除 native 外还有一批普通
+// Galaxy 函数（AICampSkirDiffTest / AITacticalRetreat …），宿主地图若也
+// include 它，就有函数重定义的风险 —— 那是「SC2 静默丢弃整个 MapScript」
+// 最经典的诱因。能不 include 就不 include。
+//
+// 【本轮封装范围 = 真机拿到正向返回值证据的那些，一个不多】
+//
+// 已验可用（探针 value / callmid 档，AIGetFilterGroup 产出非空组）：
+//     AIFilter · AIGetFilterGroup · AISetFilterAlliance · AISetFilterBits ·
+//     AISetFilterPlane · AISetFilterLife · AISetFilterInCombat ·
+//     AISetFilterRange · AISetFilterLifeLost · AISetFilterLifePercent ·
+//     AISetFilterLifeSortReference · AISetFilterShields
+//     AIFilterProduction · AIFilterPathable
+//
+// round25 补测（逐符号隔离探针 probe_aifilter25.py，iso1~iso4 四档真机）：
+// 上面那份「未获正向证据」的清单**是探针设计缺陷造成的，不是符号缺陷**。
+// round24 的 callall 档把 7 个未知 setter 一次性全加，17 个条件是 AND 关系，
+// 任意一个掐空整档就空 —— 它拿不到任何可归因的结论。改成「一档只比基线多
+// 一个未知 setter」之后，原清单里 7 个当场转正：
+//     AISetFilterSelf · AISetFilterLifeMod · AISetFilterBehaviorCount ·
+//     AISetFilterValidPassenger · AISetFilterMarker · AISetFilterLifePerMarker ·
+//     AISetFilterCanAttackAlly
+// 外加一个历轮从台账上整个漏掉的（既不在已验列表也不在未封装列表）：
+//     AISetFilterMelee —— 而且它是唯一拿到**双向**证据的：
+//     want=false 不误杀（permissive）+ want=true 把远程兵筛空（restrictive）。
+//
+// 坐实语义不可预测、**拒绝封装**：
+//     AISetFilterCanAttackEnemy(filter, enemyGroundCount, enemyAirCount)
+//     单变量扫描（iso4，固定 Marine 源组，air 恒 0，只动 ground）实测：
+//         ground = 0 -> 空    ground = 1 -> 空
+//         ground = 5 -> 非空  ground = 99 -> 非空
+//     0→1→5 是 **空→空→非空** 的非单调响应。一个名字叫「敌人数量」的参数
+//     出现非单调跳变，说明它压根不是数量语义。更硬的一条：(ground=1,air=0)
+//     在 Marine 组和 Hellion 组上**同样为空** —— 这两种单位对地能力天差地别，
+//     却给出同一结果，证明这一点跟"打不打得到"无关。
+//     它不是不能调用（restrictive 判决项都命中了，不是平凡解），是**行为与
+//     文档化参数名不符**。把这种 API 封进通用库比不封装更危险：调用方会照着
+//     参数名去理解它，然后在最常见的取值 1 上拿到反直觉的空组。
+//     属 round23「可调用 ≠ 可用」的变种 —— 那个是恒返回 0，这个是语义骗人。
+//
+// 下面这行不是注释，是**机器可读的台账登记**：check_native_ledger.py 会要求
+// 每个 aifilter 族 native 要么被 CMLib 封装、要么在这里显式登记拒绝，二选一。
+// 漏掉一个就报 ghost（round25 的 AISetFilterMelee 就是这么漏了两轮的）。
+// @ledger-reject AISetFilterCanAttackEnemy ground 参数 0→1→5 呈空→空→非空的非单调响应，语义与参数名不符，封装比不封装更危险（round25 §12.2）
+//
+// 坐实不可用、**不封装**：
+//     AIUnitGroupGetValidOrder —— order2 档前提自查显示输入组非空、order
+//     构造成功，它仍返回 null。属 round23 那类「可调用不可用」。
+//
+// AIFilterCasters / AIFilterGathering 封装了，但只有「调用不中断」证据：
+// 测试环境里本来就没有施法单位和采矿单位，**空图上过滤出空组无法证伪**，
+// 强行断言等于自欺（round23 明确记过这个错）。用时请自行验证。
+// -----------------------------------------------------------------------------
+
+// 空/地平面。刻意**自己定义**而不是用 c_planeGround —— 后者在
+// GameData/Game.galaxy，不在 natives.galaxy，依赖它就多一条 include 假设。
+const int CMLIB_AIPLANE_GROUND = 0;
+const int CMLIB_AIPLANE_AIR    = 1;
+
+// ---- 句柄层：多条件组合时用（New -> 若干 Set -> Apply）----------------------
+// 建一个属于 lp_player 视角的过滤器。player 非法时返回 null，后续 Set/Apply
+// 全部安全短路（不会崩，只会得到空组）。
+aifilter  CMLib_AIFilterNew(int lp_player);
+// 阵营：c_playerGroupAlly / c_playerGroupEnemy / c_playerGroupAny。
+void      CMLib_AIFilterAlliance(aifilter lp_filter, int lp_playerGroup);
+// 单位类型位集，传 UnitFilter 串（如 "Ground,Light;Structure" 的编辑器语法）。
+void      CMLib_AIFilterTypes(aifilter lp_filter, string lp_filterStr);
+// 平面：CMLIB_AIPLANE_GROUND / CMLIB_AIPLANE_AIR。
+void      CMLib_AIFilterPlane(aifilter lp_filter, int lp_plane);
+// 绝对生命值区间。
+void      CMLib_AIFilterLife(aifilter lp_filter, fixed lp_min, fixed lp_max);
+// 生命值百分比区间（0..100，越界自动夹紧）。
+void      CMLib_AIFilterLifePercent(aifilter lp_filter, fixed lp_min, fixed lp_max);
+// 已损失生命值区间（找残血目标比 LifePercent 更直接）。
+void      CMLib_AIFilterLifeLost(aifilter lp_filter, fixed lp_min, fixed lp_max);
+// 护盾值区间（对无护盾单位，护盾恒为 0）。
+void      CMLib_AIFilterShields(aifilter lp_filter, fixed lp_min, fixed lp_max);
+// 以某单位为圆心的半径限制。lp_center 为 null 时直接忽略本条件。
+void      CMLib_AIFilterRange(aifilter lp_filter, unit lp_center, fixed lp_radius);
+// 是否要求处于战斗中。
+void      CMLib_AIFilterInCombat(aifilter lp_filter, bool lp_want);
+// 排序参考：按「生命值权重 / 距离权重」给结果排序，用于挑最优目标。
+void      CMLib_AIFilterSortByLife(aifilter lp_filter, fixed lp_life, fixed lp_distance);
+
+// ---- round25 新增：逐符号隔离探针转正的条件 ----------------------------------
+// 把某个单位排除在结果之外（典型用途：挑友军时别把施法者自己挑出来）。
+// lp_exclude 为 null 时忽略本条件（探针实证 null 不误杀，但跳过语义更省）。
+void      CMLib_AIFilterExcludeUnit(aifilter lp_filter, unit lp_exclude);
+// 生命值修正系数。lp_type 为引擎侧的修正类别，lp_mod 为倍率（1.0 = 不修正）。
+void      CMLib_AIFilterLifeMod(aifilter lp_filter, int lp_type, fixed lp_mod);
+// 要求单位身上某 Behavior 的层数落在 [min,max]。behavior 串为空时忽略本条件；
+// min > max 时同样忽略（与 CMLib_AIFilterLife 的守门口径保持一致）。
+void      CMLib_AIFilterBehaviorCount(aifilter lp_filter, int lp_min, int lp_max,
+                                      string lp_behavior);
+// 近战/远程。want=true 只留近战，false 只留远程。**这是本族唯一拿到双向
+// 证据的条件**（正反两个方向都在真机上验过），可放心用。
+void      CMLib_AIFilterMelee(aifilter lp_filter, bool lp_want);
+// 只留能登上 lp_transport 这个运输单位的乘客。transport 为 null 时忽略。
+void      CMLib_AIFilterValidPassenger(aifilter lp_filter, unit lp_transport);
+// 要求单位身上某 marker 的计数落在 [min,max]。marker 为 null 时忽略。
+void      CMLib_AIFilterMarkerCount(aifilter lp_filter, int lp_min, int lp_max,
+                                    marker lp_marker);
+// 按 marker 分摊生命值门槛（每个 marker 需要 lp_each 点生命）。
+// marker 为 null 或 each <= 0 时忽略。
+void      CMLib_AIFilterLifePerMarker(aifilter lp_filter, fixed lp_each, marker lp_marker);
+// 「能对付指定构成的友军威胁」：两个 bool 描述**要照顾的友军里有没有地面/空中**。
+// ⚠ 陷阱：两个都传 false **不是**「不限制」，而是「没有要照顾的目标 -> 谁都
+// 不符合 -> 空组」（真机实证）。本封装对 (false,false) 直接忽略并告警，
+// 免得调用方把"不限制"写成"全筛掉"。
+void      CMLib_AIFilterCanAttackAlly(aifilter lp_filter, bool lp_groundAllies,
+                                      bool lp_airAllies);
+// 应用过滤，返回新组。filter 或 src 为 null 时返回空组（不是 null）——
+// 调用方可以无脑接着做 UnitGroupCount / 循环，不用先判空。
+unitgroup CMLib_AIFilterApply(aifilter lp_filter, unitgroup lp_source);
+// 只要数量时用这个，省一次中间组。
+int       CMLib_AIFilterApplyCount(aifilter lp_filter, unitgroup lp_source);
+
+// ---- 一站式层：单条件场景一行搞定，覆盖绝大多数调用点 ------------------------
+// 命名用 AISelect* 而不是 AIPick* —— 后者已被 CMLib_AIPickByDifficulty
+// （按难度选数值）占用，语义完全不同，撞在一起会误导。
+// 挑敌方单位。
+unitgroup CMLib_AISelectEnemies(int lp_player, unitgroup lp_source);
+// 挑友方单位。
+unitgroup CMLib_AISelectAllies(int lp_player, unitgroup lp_source);
+// 挑某单位半径内的（不分敌我）。
+unitgroup CMLib_AISelectInRange(int lp_player, unitgroup lp_source,
+                                unit lp_center, fixed lp_radius);
+// 挑残血的（生命百分比 <= lp_maxLifePercent），并按血量排序，最残的在前。
+unitgroup CMLib_AISelectWounded(int lp_player, unitgroup lp_source,
+                                fixed lp_maxLifePercent);
+// 按 UnitFilter 串挑类型。
+unitgroup CMLib_AISelectByType(int lp_player, unitgroup lp_source,
+                               string lp_filterStr);
+// 挑地面 / 空中单位。
+unitgroup CMLib_AISelectGround(int lp_player, unitgroup lp_source);
+unitgroup CMLib_AISelectAir(int lp_player, unitgroup lp_source);
+
+// ---- 无句柄组过滤：直接 unitgroup -> unitgroup ------------------------------
+// 生产建筑（activeOnly=true 时只要正在生产的）。真机已验产出非空。
+unitgroup CMLib_AIGroupProduction(unitgroup lp_source, bool lp_activeOnly);
+// 从 lp_from 出发寻路可达的单位。真机已验产出非空。
+unitgroup CMLib_AIGroupPathable(unitgroup lp_source, point lp_from);
+// 有可施放技能的单位。⚠ 只有「调用不中断」证据，无正向产出证据。
+unitgroup CMLib_AIGroupCasters(unitgroup lp_source);
+// 正在采集指定资源的单位。⚠ 同上，无正向产出证据。
+unitgroup CMLib_AIGroupGathering(unitgroup lp_source, int lp_resource,
+                                 fixed lp_distance);
+
+
+// =============================================================================
+// CMLib :: Round26 —— AIFilter 能量档
+//
+// 与 Life / Shields 完全同构的区间过滤，之前纯粹是漏了。守门逻辑复用
+// CMLib_AIFilterRangeOk（filter 为 null、或 min > max 时空操作并告警）。
+// =============================================================================
+
+void CMLib_AIFilterEnergy(aifilter lp_filter, fixed lp_min, fixed lp_max);
+
+// ===========================================================================
+// 调用范围登记（check_call_scope.py R 层）
+// ---------------------------------------------------------------------------
+// AI filter 一族其余 24 个符号都是 TacticalAI.galaxy 里白纸黑字的官方 native
+// （B 层，不需要登记），唯独 AISetFilterEnergy 只出现在社区补录
+// natives_missing.galaxy 里 —— 极可能是官方声明遗漏而非符号不存在：
+// 它的签名形态、参数序、命名全部与同族 AISetFilterLife/AISetFilterShields 一致。
+// 接受风险的前提：它是 void 的 aifilter setter，没有返回值可依赖；
+// 万一引擎里真没这个符号，表现是过滤器少一个能量条件（结果集偏大），
+// 不会让任何调用点的控制流走错。
+// @scope-flagonly AISetFilterEnergy 同族24个都是TacticalAI官方native，仅此一个只在社区补录；void setter无返回值依赖

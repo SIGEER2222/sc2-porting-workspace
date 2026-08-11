@@ -1,0 +1,92 @@
+// =============================================================================
+// CMLib :: Bank —— 存档读写
+//
+// 来源：各 mod 中 3,100+ 次 Bank* 调用。观察到的最普遍缺陷是：
+//   * 直接 BankValueGetAsInt 而不先 BankKeyExists，键缺失时静默拿到 0，
+//     导致「首次进图进度被判为 0 分」这类 bug。RevolutionOverdrive 的
+//     LibWoLC 里已经手写了三份 "先判 exists 再取值" 的重复实现。
+//   * fixed 无原生 Bank 存取，各处自己用 string 转，精度/容错各写各的。
+//   * 忘记 BankSave，或每次写值都 Save 一次拖慢帧。
+//
+// 本模块统一：所有 Get* 强制带 fallback；提供 fixed 支持；提供「脏标记 +
+// 批量落盘」避免高频 Save。
+//
+// 依赖：cmlib_core_h
+// =============================================================================
+
+include "scripts/cmlib/cmlib_core_h"
+
+// ---- 打开 / 落盘 -------------------------------------------------------------
+// 打开（不存在则由引擎创建）指定玩家的存档。
+bank CMLib_BankOpen(string lp_name, int lp_player);
+// 立即落盘。
+void CMLib_BankFlush(bank lp_bank);
+// 标记为「有未保存改动」。配合 CMLib_BankFlushIfDirty 使用，
+// 可以在一帧里改 100 个键、只落盘一次。
+void CMLib_BankMarkDirty();
+bool CMLib_BankIsDirty();
+void CMLib_BankFlushIfDirty(bank lp_bank);
+
+// ---- 存在性 -----------------------------------------------------------------
+bool CMLib_BankHas(bank lp_bank, string lp_section, string lp_key);
+// 确保 section 存在（重复调用安全）。
+void CMLib_BankEnsureSection(bank lp_bank, string lp_section);
+
+// ---- 读（一律带 fallback，键缺失时不会静默返回 0/""）-------------------------
+int    CMLib_BankGetInt(bank lp_bank, string lp_section, string lp_key, int lp_fallback);
+string CMLib_BankGetString(bank lp_bank, string lp_section, string lp_key, string lp_fallback);
+bool   CMLib_BankGetBool(bank lp_bank, string lp_section, string lp_key, bool lp_fallback);
+// fixed 无原生支持，内部以 string 存储并用 CMLib_ParseFixed 容错解析。
+fixed  CMLib_BankGetFixed(bank lp_bank, string lp_section, string lp_key, fixed lp_fallback);
+
+// ---- 写 ---------------------------------------------------------------------
+void CMLib_BankSetInt(bank lp_bank, string lp_section, string lp_key, int lp_value);
+void CMLib_BankSetString(bank lp_bank, string lp_section, string lp_key, string lp_value);
+void CMLib_BankSetBool(bank lp_bank, string lp_section, string lp_key, bool lp_value);
+void CMLib_BankSetFixed(bank lp_bank, string lp_section, string lp_key, fixed lp_value);
+
+// ---- 常用复合操作 -----------------------------------------------------------
+// 累加并返回新值（击杀数、通关次数）。
+int  CMLib_BankBump(bank lp_bank, string lp_section, string lp_key, int lp_delta);
+// 只在更大时写入，返回当前记录值（最高分 / 最快通关）。
+int  CMLib_BankKeepMax(bank lp_bank, string lp_section, string lp_key, int lp_value);
+// 只在更小时写入（最短用时）。传入值 <= 0 视为无效，忽略。
+int  CMLib_BankKeepMin(bank lp_bank, string lp_section, string lp_key, int lp_value);
+// 一次性成就/解锁标记：未解锁则解锁并返回 true；已解锁返回 false。
+bool CMLib_BankUnlockOnce(bank lp_bank, string lp_section, string lp_key);
+// 键不存在时才写入默认值（存档结构升级时补新字段）。
+void CMLib_BankSeedInt(bank lp_bank, string lp_section, string lp_key, int lp_value);
+void CMLib_BankSeedBool(bank lp_bank, string lp_section, string lp_key, bool lp_value);
+
+// ---- 清理 -------------------------------------------------------------------
+void CMLib_BankClearKey(bank lp_bank, string lp_section, string lp_key);
+void CMLib_BankClearSection(bank lp_bank, string lp_section);
+
+// ---- 存档版本管理 -----------------------------------------------------------
+// 读取存档结构版本号（缺失视为 0）。用于决定是否需要迁移。
+int  CMLib_BankSchemaVersion(bank lp_bank);
+// 写入结构版本号并落盘。
+void CMLib_BankSetSchemaVersion(bank lp_bank, int lp_version);
+
+// ---- round 17：bank 底层查询（不经过 CMLib 托管句柄） ----------------------------
+// 最近一次 BankLoad 出来的 bank —— 原工程里 BankLastCreated 被调了 1367 次。
+bank CMLib_BankLast();
+// 存档文件是否已存在（不加载）。
+bool CMLib_BankExists(string lp_name, int lp_player);
+// 磁盘删除 + 内存释放。
+void CMLib_BankRemove(bank lp_bank);
+// 阻塞直到该 bank 落盘完成（存档后立刻读要用）。
+void CMLib_BankWait(bank lp_bank);
+// 签名校验开关 / 校验结果。
+void CMLib_BankOption(bank lp_bank, int lp_option, bool lp_enable);
+bool CMLib_BankOptionOn(bank lp_bank, int lp_option);
+bool CMLib_BankVerified(bank lp_bank);
+// 元信息。
+string CMLib_BankNameOf(bank lp_bank);
+int    CMLib_BankPlayerOf(bank lp_bank);
+// section / key 遍历（做存档迁移、清档统计时必需）。
+bool   CMLib_BankSectionExists(bank lp_bank, string lp_section);
+int    CMLib_BankSectionCount(bank lp_bank);
+string CMLib_BankSectionName(bank lp_bank, int lp_index);
+int    CMLib_BankKeyCount(bank lp_bank, string lp_section);
+string CMLib_BankKeyName(bank lp_bank, string lp_section, int lp_index);

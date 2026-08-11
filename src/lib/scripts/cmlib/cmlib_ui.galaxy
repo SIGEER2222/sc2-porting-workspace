@@ -1,0 +1,700 @@
+// =============================================================================
+// CMLib :: UI (实现)
+// 全部使用 core.sc2mod 原生 native，不依赖 NativeLib(libNtve_*)。
+// =============================================================================
+
+include "scripts/cmlib/cmlib_core_h"
+include "scripts/cmlib/cmlib_ui_h"
+
+// -----------------------------------------------------------------------------
+// 有效性
+// -----------------------------------------------------------------------------
+
+bool CMLib_UIValid(int lp_control) {
+    if ((lp_control == c_invalidDialogControlId)) {
+        return false;
+    }
+    return true;
+}
+
+// -----------------------------------------------------------------------------
+// 挂钩
+// -----------------------------------------------------------------------------
+
+int CMLib_UIHookup(int lp_parent, int lp_type, string lp_name) {
+    if ((CMLib_UIValid(lp_parent) == false)) {
+        CMLib_LogWarn("CMLib.UI", "Hookup skipped, invalid parent for '" + lp_name + "'");
+        return c_invalidDialogControlId;
+    }
+    DialogControlHookup(lp_parent, lp_type, lp_name);
+    return DialogControlLastCreated();
+}
+
+int CMLib_UIHookupIndexed(int lp_parent, int lp_type, string lp_prefix, int lp_index) {
+    return CMLib_UIHookup(lp_parent, lp_type, (lp_prefix + IntToString(lp_index)));
+}
+
+int CMLib_UIHookupStandard(int lp_type, string lp_name) {
+    DialogControlHookupStandard(lp_type, lp_name);
+    return DialogControlLastCreated();
+}
+
+int CMLib_UIHookupPanel(int lp_parent, string lp_name) {
+    return CMLib_UIHookup(lp_parent, c_triggerControlTypePanel, lp_name);
+}
+
+int CMLib_UIHookupButton(int lp_parent, string lp_name) {
+    return CMLib_UIHookup(lp_parent, c_triggerControlTypeButton, lp_name);
+}
+
+int CMLib_UIHookupLabel(int lp_parent, string lp_name) {
+    return CMLib_UIHookup(lp_parent, c_triggerControlTypeLabel, lp_name);
+}
+
+int CMLib_UIHookupImage(int lp_parent, string lp_name) {
+    return CMLib_UIHookup(lp_parent, c_triggerControlTypeImage, lp_name);
+}
+
+// -----------------------------------------------------------------------------
+// 创建
+// -----------------------------------------------------------------------------
+
+int CMLib_UICreateInPanel(int lp_parent, int lp_type) {
+    if ((CMLib_UIValid(lp_parent) == false)) {
+        CMLib_LogWarn("CMLib.UI", "CreateInPanel skipped, invalid parent");
+        return c_invalidDialogControlId;
+    }
+    DialogControlCreateInPanel(lp_parent, lp_type);
+    return DialogControlLastCreated();
+}
+
+int CMLib_UICreateFromTemplate(int lp_parent, int lp_type, string lp_template) {
+    if ((CMLib_UIValid(lp_parent) == false)) {
+        CMLib_LogWarn("CMLib.UI", "CreateFromTemplate skipped, invalid parent for '" + lp_template + "'");
+        return c_invalidDialogControlId;
+    }
+    DialogControlCreateInPanelFromTemplate(lp_parent, lp_type, lp_template);
+    return DialogControlLastCreated();
+}
+
+// -----------------------------------------------------------------------------
+// 属性设置
+// -----------------------------------------------------------------------------
+
+void CMLib_UISetText(int lp_control, playergroup lp_players, text lp_text) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    DialogControlSetPropertyAsText(lp_control, c_triggerControlPropertyText, lp_players, lp_text);
+}
+
+void CMLib_UISetTooltip(int lp_control, playergroup lp_players, text lp_text) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    DialogControlSetPropertyAsText(lp_control, c_triggerControlPropertyTooltip, lp_players, lp_text);
+}
+
+void CMLib_UISetImage(int lp_control, playergroup lp_players, string lp_image) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    DialogControlSetPropertyAsString(lp_control, c_triggerControlPropertyImage, lp_players, lp_image);
+}
+
+void CMLib_UISetColor(int lp_control, playergroup lp_players, color lp_color) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    DialogControlSetPropertyAsColor(lp_control, c_triggerControlPropertyColor, lp_players, lp_color);
+}
+
+void CMLib_UISetToggled(int lp_control, playergroup lp_players, bool lp_toggled) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    DialogControlSetPropertyAsBool(lp_control, c_triggerControlPropertyToggled, lp_players, lp_toggled);
+}
+
+void CMLib_UISetVisible(int lp_control, playergroup lp_players, bool lp_visible) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    DialogControlSetVisible(lp_control, lp_players, lp_visible);
+}
+
+void CMLib_UISetEnabled(int lp_control, playergroup lp_players, bool lp_enabled) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    DialogControlSetEnabled(lp_control, lp_players, lp_enabled);
+}
+
+void CMLib_UISetSize(int lp_control, playergroup lp_players, int lp_width, int lp_height) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    DialogControlSetSize(lp_control, lp_players, lp_width, lp_height);
+}
+
+void CMLib_UISetPosition(int lp_control, playergroup lp_players, int lp_anchor, int lp_offsetX, int lp_offsetY) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    DialogControlSetPosition(lp_control, lp_players, lp_anchor, lp_offsetX, lp_offsetY);
+}
+
+void CMLib_UISetPositionRelative(int lp_control, playergroup lp_players, int lp_anchor, int lp_relative, int lp_relativeAnchor, int lp_offsetX, int lp_offsetY) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    if ((CMLib_UIValid(lp_relative) == false)) {
+        return;
+    }
+    DialogControlSetPositionRelative(lp_control, lp_players, lp_anchor, lp_relative, lp_relativeAnchor, lp_offsetX, lp_offsetY);
+}
+
+void CMLib_UISetAnimationState(int lp_control, playergroup lp_players, string lp_stateGroup, string lp_state) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    DialogControlSetAnimationState(lp_control, lp_players, lp_stateGroup, lp_state);
+}
+
+void CMLib_UISetRenderPriority(int lp_control, playergroup lp_players, int lp_priority) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    DialogControlSetPropertyAsInt(lp_control, c_triggerControlPropertyRenderPriority, lp_players, lp_priority);
+}
+
+// -----------------------------------------------------------------------------
+// 组合操作
+// -----------------------------------------------------------------------------
+
+int CMLib_UICreatePlaced(int lp_parent, int lp_type, playergroup lp_players, int lp_anchor, int lp_offsetX, int lp_offsetY, int lp_width, int lp_height) {
+    int lv_control;
+
+    lv_control = CMLib_UICreateInPanel(lp_parent, lp_type);
+    if ((CMLib_UIValid(lv_control) == false)) {
+        return c_invalidDialogControlId;
+    }
+    DialogControlSetPosition(lv_control, lp_players, lp_anchor, lp_offsetX, lp_offsetY);
+    DialogControlSetSize(lv_control, lp_players, lp_width, lp_height);
+    return lv_control;
+}
+
+void CMLib_UISetActive(int lp_control, playergroup lp_players, bool lp_active) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    DialogControlSetVisible(lp_control, lp_players, lp_active);
+    DialogControlSetEnabled(lp_control, lp_players, lp_active);
+}
+
+void CMLib_UISetVisibleRange(arrayref<CMLib_UIControlArray> lp_controls, int lp_count, playergroup lp_players, bool lp_visible) {
+    int lv_i;
+    int lv_max;
+
+    lv_max = lp_count;
+    if ((lv_max > CMLIB_UI_ARRAY_MAX)) {
+        lv_max = CMLIB_UI_ARRAY_MAX;
+    }
+    lv_i = 0;
+    while ((lv_i < lv_max)) {
+        CMLib_UISetVisible(lp_controls[lv_i], lp_players, lp_visible);
+        lv_i += 1;
+    }
+}
+
+// -----------------------------------------------------------------------------
+// 列表控件
+// -----------------------------------------------------------------------------
+
+void CMLib_UIListClear(int lp_control, playergroup lp_players) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    DialogControlRemoveAllItems(lp_control, lp_players);
+}
+
+void CMLib_UIListAddItem(int lp_control, playergroup lp_players, text lp_value) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    DialogControlAddItem(lp_control, lp_players, lp_value);
+}
+
+void CMLib_UIListSelect(int lp_control, playergroup lp_players, int lp_index) {
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    if ((lp_index < 0)) {
+        return;
+    }
+    DialogControlSelectItem(lp_control, lp_players, lp_index);
+}
+
+// -----------------------------------------------------------------------------
+// 事件
+// -----------------------------------------------------------------------------
+
+bool CMLib_UIOnClick(trigger lp_trigger, int lp_control) {
+    if ((lp_trigger == null)) {
+        return false;
+    }
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return false;
+    }
+    TriggerAddEventDialogControl(lp_trigger, c_playerAny, lp_control, c_triggerControlEventTypeClick);
+    return true;
+}
+
+int CMLib_UIOnClickRange(trigger lp_trigger, arrayref<CMLib_UIControlArray> lp_controls, int lp_count) {
+    int lv_i;
+    int lv_registered;
+    int lv_max;
+
+    lv_max = lp_count;
+    if ((lv_max > CMLIB_UI_ARRAY_MAX)) {
+        lv_max = CMLIB_UI_ARRAY_MAX;
+    }
+    lv_i = 0;
+    lv_registered = 0;
+    while ((lv_i < lv_max)) {
+        if ((CMLib_UIOnClick(lp_trigger, lp_controls[lv_i]) == true)) {
+            lv_registered += 1;
+        }
+        lv_i += 1;
+    }
+    return lv_registered;
+}
+
+// -----------------------------------------------------------------------------
+// HUD 消息区
+// -----------------------------------------------------------------------------
+
+void CMLib_Msg(playergroup lp_players, int lp_area, text lp_message) {
+    playergroup lv_pg;
+
+    lv_pg = lp_players;
+    if ((lv_pg == null)) {
+        // 空组等于「没人看得到」——这是消息不显示最常见的原因，直接兜底为全员。
+        lv_pg = PlayerGroupAll();
+    }
+    UIDisplayMessage(lv_pg, lp_area, lp_message);
+}
+
+void CMLib_MsgAll(int lp_area, text lp_message) {
+    UIDisplayMessage(PlayerGroupAll(), lp_area, lp_message);
+}
+
+void CMLib_MsgPlayer(int lp_player, int lp_area, text lp_message) {
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return;
+    }
+    UIDisplayMessage(PlayerGroupSingle(lp_player), lp_area, lp_message);
+}
+
+void CMLib_MsgClear(playergroup lp_players, int lp_area) {
+    playergroup lv_pg;
+
+    lv_pg = lp_players;
+    if ((lv_pg == null)) {
+        lv_pg = PlayerGroupAll();
+    }
+    UIClearMessages(lv_pg, lp_area);
+}
+
+void CMLib_MsgClearAll() {
+    UIClearMessages(PlayerGroupAll(), c_messageAreaAll);
+}
+
+void CMLib_MsgObjective(playergroup lp_players, text lp_message) {
+    CMLib_Msg(lp_players, c_messageAreaObjective, lp_message);
+}
+
+void CMLib_MsgDirective(playergroup lp_players, text lp_message) {
+    CMLib_Msg(lp_players, c_messageAreaDirective, lp_message);
+}
+
+void CMLib_MsgError(playergroup lp_players, text lp_message) {
+    CMLib_Msg(lp_players, c_messageAreaError, lp_message);
+}
+
+void CMLib_MsgSubtitle(playergroup lp_players, text lp_message) {
+    CMLib_Msg(lp_players, c_messageAreaSubtitle, lp_message);
+}
+
+void CMLib_MsgWarning(playergroup lp_players, text lp_message) {
+    CMLib_Msg(lp_players, c_messageAreaWarning, lp_message);
+}
+
+// -----------------------------------------------------------------------------
+// 警报
+// -----------------------------------------------------------------------------
+
+void CMLib_AlertAtPoint(string lp_alert, int lp_player, text lp_message, string lp_icon, point lp_p) {
+    if ((lp_p == null)) {
+        CMLib_LogWarn("CMLib.UI", "AlertAtPoint skipped, null point");
+        return;
+    }
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return;
+    }
+    UIAlertPoint(lp_alert, lp_player, lp_message, lp_icon, lp_p);
+}
+
+void CMLib_AlertAtUnit(string lp_alert, int lp_player, text lp_message, string lp_icon, unit lp_unit) {
+    if ((lp_unit == null)) {
+        CMLib_LogWarn("CMLib.UI", "AlertAtUnit skipped, null unit");
+        return;
+    }
+    if ((CMLib_IsValidPlayerSlot(lp_player) == false)) {
+        return;
+    }
+    UIAlertUnit(lp_alert, lp_player, lp_message, lp_icon, lp_unit);
+}
+
+// -----------------------------------------------------------------------------
+// 透明度淡变 / 动画事件
+// -----------------------------------------------------------------------------
+
+void CMLib_UIFade(int lp_control, playergroup lp_players, fixed lp_seconds, fixed lp_targetTransparency) {
+    playergroup lv_pg;
+    fixed lv_secs;
+    fixed lv_target;
+
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    lv_pg = lp_players;
+    if ((lv_pg == null)) {
+        lv_pg = PlayerGroupAll();
+    }
+    lv_secs = lp_seconds;
+    if ((lv_secs < 0.0)) {
+        lv_secs = 0.0;
+    }
+    // 越界的 transparency 会被引擎当作未定义行为，先钳到 [0,1]。
+    lv_target = CMLib_ClampFixed(lp_targetTransparency, 0.0, 1.0);
+    DialogControlFadeTransparency(lp_control, lv_pg, lv_secs, lv_target);
+}
+
+void CMLib_UIFadeIn(int lp_control, playergroup lp_players, fixed lp_seconds) {
+    CMLib_UIFade(lp_control, lp_players, lp_seconds, 0.0);
+}
+
+void CMLib_UIFadeOut(int lp_control, playergroup lp_players, fixed lp_seconds) {
+    CMLib_UIFade(lp_control, lp_players, lp_seconds, 1.0);
+}
+
+void CMLib_UIAnimEvent(int lp_control, playergroup lp_players, string lp_eventName) {
+    playergroup lv_pg;
+
+    if ((CMLib_UIValid(lp_control) == false)) {
+        return;
+    }
+    if ((lp_eventName == "")) {
+        return;
+    }
+    lv_pg = lp_players;
+    if ((lv_pg == null)) {
+        lv_pg = PlayerGroupAll();
+    }
+    DialogControlSendAnimationEvent(lp_control, lv_pg, lp_eventName);
+}
+
+// -----------------------------------------------------------------------------
+// 原生 HUD 框架
+// -----------------------------------------------------------------------------
+
+void CMLib_HudFrame(playergroup lp_players, int lp_frameType, bool lp_visible) {
+    playergroup lv_pg;
+
+    lv_pg = lp_players;
+    if ((lv_pg == null)) {
+        lv_pg = PlayerGroupAll();
+    }
+    UISetFrameVisible(lv_pg, lp_frameType, lp_visible);
+}
+
+void CMLib_HudFrameAll(int lp_frameType, bool lp_visible) {
+    UISetFrameVisible(PlayerGroupAll(), lp_frameType, lp_visible);
+}
+
+int CMLib_HudFrameCSV(playergroup lp_players, string lp_frameSpec, bool lp_visible) {
+    int lv_count;
+    int lv_i;
+    int lv_applied;
+    string lv_tok;
+
+    if ((lp_frameSpec == "")) {
+        return 0;
+    }
+    lv_count = CMLib_SplitCount(lp_frameSpec, ",");
+    lv_i = 0;
+    lv_applied = 0;
+    while ((lv_i < lv_count)) {
+        lv_tok = CMLib_TrimSpaces(CMLib_SplitAt(lp_frameSpec, ",", lv_i));
+        if ((lv_tok != "")) {
+            CMLib_HudFrame(lp_players, CMLib_ParseInt(lv_tok, -1), lp_visible);
+            lv_applied += 1;
+        }
+        lv_i += 1;
+    }
+    return lv_applied;
+}
+
+void CMLib_HudCinematic(playergroup lp_players, bool lp_cinematicOn) {
+    bool lv_show;
+
+    lv_show = (lp_cinematicOn == false);
+    CMLib_HudFrame(lp_players, c_syncFrameTypeMenuBar, lv_show);
+    CMLib_HudFrame(lp_players, c_syncFrameTypeResourcePanel, lv_show);
+    CMLib_HudFrame(lp_players, c_syncFrameTypeSupply, lv_show);
+    CMLib_HudFrame(lp_players, c_syncFrameTypeMinimapPanel, lv_show);
+    CMLib_HudFrame(lp_players, c_syncFrameTypeCommandPanel, lv_show);
+    CMLib_HudFrame(lp_players, c_syncFrameTypeInfoPanel, lv_show);
+    CMLib_HudFrame(lp_players, c_syncFrameTypeConsolePanel, lv_show);
+    CMLib_HudFrame(lp_players, c_syncFrameTypeControlGroupPanel, lv_show);
+    CMLib_HudFrame(lp_players, c_syncFrameTypeIdleWorkerButton, lv_show);
+    CMLib_HudFrame(lp_players, c_syncFrameTypeArmyButton, lv_show);
+    CMLib_HudFrame(lp_players, c_syncFrameTypeObjectivePanel, lv_show);
+    CMLib_HudFrame(lp_players, c_syncFrameTypeAlertPanel, lv_show);
+}
+
+void CMLib_HudWorldVisible(playergroup lp_players, bool lp_visible) {
+    playergroup lv_pg;
+
+    lv_pg = lp_players;
+    if ((lv_pg == null)) {
+        lv_pg = PlayerGroupAll();
+    }
+    UISetWorldVisible(lv_pg, lp_visible);
+}
+
+// -----------------------------------------------------------------------------
+// round 17：UI 模式 / 按钮高亮 / 光标 / 选择方式
+// -----------------------------------------------------------------------------
+
+void CMLib_UISetMode(playergroup lp_players, int lp_mode, fixed lp_duration) {
+    fixed lv_dur;
+
+    if ((lp_players == null)) {
+        return;
+    }
+    if ((lp_mode < c_uiModeFullscreen) || (lp_mode > c_uiModeConsole)) {
+        CMLib_LogWarn("ui", "UISetMode: 未知的 UI 模式");
+        return;
+    }
+    lv_dur = lp_duration;
+    if ((lv_dur < 0.0)) {
+        lv_dur = 0.0;
+    }
+    UISetMode(lp_players, lp_mode, lv_dur);
+}
+
+void CMLib_UIMode(playergroup lp_players, int lp_mode) {
+    CMLib_UISetMode(lp_players, lp_mode, 0.0);
+}
+
+void CMLib_UIModeConsole(playergroup lp_players, fixed lp_duration) {
+    CMLib_UISetMode(lp_players, c_uiModeConsole, lp_duration);
+}
+
+void CMLib_UIModeLetterbox(playergroup lp_players, fixed lp_duration) {
+    CMLib_UISetMode(lp_players, c_uiModeLetterboxed, lp_duration);
+}
+
+void CMLib_UIModeFullscreen(playergroup lp_players, fixed lp_duration) {
+    CMLib_UISetMode(lp_players, c_uiModeFullscreen, lp_duration);
+}
+
+void CMLib_UIButtonHighlight(playergroup lp_players, string lp_ability,
+                             int lp_cmdIndex, bool lp_highlight) {
+    if ((lp_players == null) || (lp_ability == "")) {
+        return;
+    }
+    UISetButtonHighlighted(lp_players,
+                           AbilityCommand(lp_ability, lp_cmdIndex),
+                           lp_highlight);
+}
+
+void CMLib_UICursor(playergroup lp_players, bool lp_visible) {
+    if ((lp_players == null)) {
+        return;
+    }
+    UISetCursorVisible(lp_players, lp_visible);
+}
+
+void CMLib_UISelectionType(playergroup lp_players, int lp_selectionType, bool lp_enabled) {
+    if ((lp_players == null)) {
+        return;
+    }
+    UISetSelectionTypeEnabled(lp_players, lp_selectionType, lp_enabled);
+}
+
+
+// -----------------------------------------------------------------------------
+// round 18：Dialog 控件族
+// -----------------------------------------------------------------------------
+
+int CMLib_DlgCtrlCreate(int lp_dialog, int lp_type) {
+    if ((lp_dialog <= 0)) {
+        return 0;
+    }
+    return DialogControlCreate(lp_dialog, lp_type);
+}
+
+int CMLib_DlgCtrlCreateTpl(int lp_dialog, int lp_type, string lp_template) {
+    if ((lp_dialog <= 0)) {
+        return 0;
+    }
+    if ((lp_template == "")) {
+        return DialogControlCreate(lp_dialog, lp_type);
+    }
+    return DialogControlCreateFromTemplate(lp_dialog, lp_type, lp_template);
+}
+
+int CMLib_DlgCtrlSelectedItem(int lp_control, int lp_player) {
+    if ((lp_control <= 0)) {
+        return 0;
+    }
+    return DialogControlGetSelectedItem(lp_control, lp_player);
+}
+
+void CMLib_DlgCtrlFullDialog(int lp_control, playergroup lp_players, bool lp_full) {
+    playergroup lv_pg;
+
+    if ((lp_control <= 0)) {
+        return;
+    }
+    lv_pg = lp_players;
+    if ((lv_pg == null)) {
+        lv_pg = PlayerGroupAll();
+    }
+    DialogControlSetFullDialog(lp_control, lv_pg, lp_full);
+}
+
+void CMLib_DlgCtrlDestroy(int lp_control) {
+    if ((lp_control <= 0)) {
+        return;
+    }
+    DialogControlDestroy(lp_control);
+}
+
+void CMLib_UIFaceHighlight(playergroup lp_players, string lp_face, bool lp_highlight) {
+    playergroup lv_pg;
+
+    if ((lp_face == "")) {
+        return;
+    }
+    lv_pg = lp_players;
+    if ((lv_pg == null)) {
+        lv_pg = PlayerGroupAll();
+    }
+    UISetButtonFaceHighlighted(lv_pg, lp_face, lp_highlight);
+}
+
+// =============================================================================
+// CMLib :: Round20 —— 面板效果补完（实现）
+// =============================================================================
+
+bool CMLib_DlgCtrlVisible(int lp_control, int lp_player) {
+    if (lp_control <= c_invalidDialogControlId) { return false; }
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return false; }
+    return DialogControlIsVisible(lp_control, lp_player);
+}
+
+int CMLib_DlgCtrlDialog(int lp_control) {
+    if (lp_control <= c_invalidDialogControlId) { return c_invalidDialogControlId; }
+    return DialogControlGetDialog(lp_control);
+}
+
+int CMLib_DlgHookupUnitStatus(int lp_type, string lp_template, unit lp_unit) {
+    if (lp_template == "") { return c_invalidDialogControlId; }
+    if (CMLib_UnitOk(lp_unit) == false) { return c_invalidDialogControlId; }
+    return DialogControlHookupUnitStatus(lp_type, lp_template, lp_unit);
+}
+
+void CMLib_UICommandAllow(playergroup lp_players, int lp_option, bool lp_allow) {
+    if (lp_players == null) { return; }
+    UISetCommandAllowed(lp_players,
+                        CMLib_ClampInt(lp_option, c_uiCommandAllowButtons,
+                                       c_uiCommandAllowInventoryTargeting),
+                        lp_allow);
+}
+
+void CMLib_UICommandAllowAll(playergroup lp_players, bool lp_allow) {
+    int lv_i;
+
+    if (lp_players == null) { return; }
+    lv_i = c_uiCommandAllowButtons;
+    while (lv_i <= c_uiCommandAllowInventoryTargeting) {
+        UISetCommandAllowed(lp_players, lv_i, lp_allow);
+        lv_i = (lv_i + 1);
+    }
+}
+
+void CMLib_UITargetOrder(playergroup lp_players, unitgroup lp_units, order lp_order,
+                         bool lp_sticky) {
+    if (lp_players == null) { return; }
+    if (lp_units == null) { return; }
+    if (lp_order == null) { return; }
+    UISetTargetingOrder(lp_players, lp_units, lp_order, lp_sticky);
+}
+
+void CMLib_UIAlertClear(int lp_player) {
+    if (CMLib_IsValidPlayerSlot(lp_player) == false) { return; }
+    UIAlertClear(lp_player);
+}
+
+void CMLib_UIAlertClearAll() {
+    int lv_i;
+
+    lv_i = CMLIB_PLAYER_MIN;
+    while (lv_i <= CMLIB_PLAYER_MAX) {
+        UIAlertClear(lv_i);
+        lv_i = (lv_i + 1);
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// CMLib :: Round22 —— 面板主线补齐
+// -----------------------------------------------------------------------------
+
+void CMLib_UIAlertTypeVisible(playergroup lp_players, string lp_alert, bool lp_visible) {
+    if (lp_players == null) { return; }
+    if (lp_alert == "") { return; }
+    UISetAlertTypeVisible(lp_players, lp_alert, lp_visible);
+}
+
+void CMLib_UITextCrawlShow(playergroup lp_players, text lp_title, text lp_text,
+                           fixed lp_maxTime, soundlink lp_birth, soundlink lp_type) {
+    if (lp_players == null) { return; }
+    // 负时长会让滚屏永不结束（引擎按无限处理），夹到 0。
+    if (lp_maxTime < 0.0) { lp_maxTime = 0.0; }
+    UIShowTextCrawl(lp_players, lp_title, lp_text, lp_maxTime, lp_birth, lp_type);
+}
+
+void CMLib_UITextCrawlHide(playergroup lp_players) {
+    if (lp_players == null) { return; }
+    UIHideTextCrawl(lp_players);
+}
+
+void CMLib_UIGameMenuItemVisible(playergroup lp_players, int lp_menuItemType, bool lp_visible) {
+    if (lp_players == null) { return; }
+    UISetGameMenuItemVisible(lp_players, lp_menuItemType, lp_visible);
+}
+
+void CMLib_DCObservedType(int lp_control, int lp_observedType) {
+    if (lp_control == c_invalidDialogControlId) { return; }
+    DialogControlSetObservedType(lp_control, lp_observedType);
+}
+
+int CMLib_DCRelative(int lp_control, int lp_player) {
+    if (lp_control == c_invalidDialogControlId) { return c_invalidDialogControlId; }
+    return DialogControlGetRelativeControl(lp_control, lp_player);
+}

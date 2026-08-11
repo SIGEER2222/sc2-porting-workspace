@@ -1,0 +1,128 @@
+// =============================================================================
+// CMLib :: Game
+// 游戏级状态与世界环境：任务计时、游戏速度、昼夜与光照、胜负判定、
+// 视野/迷雾/揭示器、蔓延（Creep）。
+//
+// 缺口来源：全量 mod 扫描显示 game 领域 4305 次调用、覆盖率 0%；
+//           misc 桶里的 VisRevealArea(940) / CreepModify(745) 同样零覆盖。
+//
+// 依赖：cmlib_core（日志、钳制）；仅 core.sc2mod natives，无需额外 include。
+// =============================================================================
+
+// ---- 胜负类型（对应 c_gameOver*）--------------------------------------------
+const int CMLIB_END_VICTORY = 0;
+const int CMLIB_END_DEFEAT  = 1;
+const int CMLIB_END_TIE     = 2;
+
+// ---- 视野类型（对应 c_visType*）---------------------------------------------
+const int CMLIB_VIS_MASK = 0;   // 黑色迷雾（未探索）
+const int CMLIB_VIS_FOG  = 1;   // 战争迷雾（已探索但不可见）
+
+// ---- 蔓延速度类型（对应 c_creepSpeed*）---------------------------------------
+const int CMLIB_CREEP_GROWTH = 0;
+const int CMLIB_CREEP_DECAY  = 1;
+const int CMLIB_CREEP_BLEND  = 2;
+
+// ---- 作弊类别（对应 c_gameCheatCategory*）------------------------------------
+const int CMLIB_CHEAT_PUBLIC = 0;   // 玩家可用的作弊码
+const int CMLIB_CHEAT_DEV    = 1;   // 开发者作弊（战役 debug 分支的门槛）
+
+// ---- 任务计时 ---------------------------------------------------------------
+// 当前任务时间（秒）。等价 GameGetMissionTime()，但语义更明确。
+fixed CMLib_GameMissionTime();
+// 任务时间的「分:秒」拆解，便于自己拼 UI 文本。
+int   CMLib_GameMissionMinutes();
+int   CMLib_GameMissionSeconds();
+void  CMLib_GameMissionTimePause(bool lp_paused);
+bool  CMLib_GameMissionTimeIsPaused();
+// 距离某个目标秒数还剩多久；已超时返回 0（不会返回负数）。
+fixed CMLib_GameMissionTimeRemaining(fixed lp_deadlineSecs);
+// 任务时间是否已越过某刻度。常用于「第 N 分钟触发事件」。
+bool  CMLib_GameMissionTimePassed(fixed lp_secs);
+
+// ---- 游戏速度 / 时间缩放 -----------------------------------------------------
+void  CMLib_GameSpeedSet(int lp_speed);
+int   CMLib_GameSpeedGet();
+void  CMLib_GameSpeedLock(bool lp_locked);
+// 全局时间缩放，0.0 会被钳到 0.01 以免整局卡死。
+void  CMLib_GameTimeScaleSet(fixed lp_scale);
+fixed CMLib_GameTimeScaleGet();
+// 慢动作/子弹时间：设置缩放并在 lp_holdSecs 后自动恢复 1.0。
+// 注意：内部使用 Wait，必须在允许等待的触发器上下文里调用。
+void  CMLib_GameSlowMotion(fixed lp_scale, fixed lp_holdSecs);
+
+// ---- 昼夜与光照 -------------------------------------------------------------
+string CMLib_GameTimeOfDayGet();
+void   CMLib_GameTimeOfDaySet(string lp_time);
+void   CMLib_GameTimeOfDayPause(bool lp_paused);
+bool   CMLib_GameTimeOfDayIsPaused();
+void   CMLib_GameTimeOfDayLength(fixed lp_secs);
+// 切换光照方案；lp_blendSecs 为负会被钳到 0。
+void   CMLib_GameLightingSet(string lp_id, fixed lp_blendSecs);
+// 冻结昼夜循环并锁定到指定时刻 + 光照，做固定氛围的战役关卡常用。
+void   CMLib_GameLockAmbience(string lp_timeOfDay, string lp_lightingId);
+
+// ---- 胜负 -------------------------------------------------------------------
+// 单个玩家结算。lp_endType 用 CMLIB_END_*。
+void CMLib_GameEndForPlayer(int lp_player, int lp_endType, bool lp_showDialog,
+                            bool lp_showScore);
+// 对一组玩家统一结算。
+// 【硬约束】Galaxy 不支持数组形参（引擎无一例），一律用 playergroup 传玩家集合。
+// 用 CMLib_PGActive() / CMLib_PGAlliesOf() 等构造入参。
+void CMLib_GameEndForPlayers(playergroup lp_players, int lp_endType,
+                             bool lp_showDialog, bool lp_showScore);
+// 语义糖：胜利 / 失败。
+void CMLib_GameVictory(int lp_player);
+void CMLib_GameDefeat(int lp_player);
+// 所有仍在场的活跃玩家统一结算，常用于合作模式团灭/通关。
+void CMLib_GameEndAllActive(int lp_endType);
+
+// ---- 作弊 / 调试 -------------------------------------------------------------
+// 指定类别的作弊是否开启。lp_category 取 CMLIB_CHEAT_*。
+// 【注意】引擎 native GameCheatsEnabled 是带类别参数的，不存在无参版本。
+bool CMLib_GameCheatsOn(int lp_category);
+// 快捷：开发者作弊是否开启（战役 debug 分支的标准门槛）。
+bool CMLib_GameDevMode();
+// 仅在开发者作弊开启且该调试项被勾选时返回 true，用来给调试快捷键做门禁。
+bool CMLib_GameDebugAllowed(string lp_optionName, int lp_player);
+
+// ---- 视野 / 迷雾 -------------------------------------------------------------
+// 揭示区域。lp_durationSecs <= 0 表示永久。
+void CMLib_VisReveal(int lp_player, region lp_area, fixed lp_durationSecs);
+void CMLib_VisRevealPermanent(int lp_player, region lp_area);
+// 标记为已探索（保留战争迷雾，去掉黑色迷雾）。
+void CMLib_VisExplore(int lp_player, region lp_area, bool lp_explored);
+// 重新遮蔽：把区域填回黑色迷雾。
+void CMLib_VisHide(int lp_player, region lp_area);
+// 对一组玩家批量揭示（同上，playergroup 入参）。
+void CMLib_VisRevealForPlayers(playergroup lp_players, region lp_area,
+                               fixed lp_durationSecs);
+bool CMLib_VisIsVisible(int lp_player, point lp_pos);
+void CMLib_VisFogEnable(bool lp_enable);
+void CMLib_VisMaskEnable(bool lp_enable);
+// 一键全图开视野（含黑雾），常用于过场/调试。
+void CMLib_VisRevealMapForPlayer(int lp_player);
+
+// ---- 揭示器（可复用的持久视野对象）-------------------------------------------
+revealer CMLib_RevealerCreate(int lp_player, region lp_area);
+void     CMLib_RevealerEnable(revealer lp_r, bool lp_enable);
+void     CMLib_RevealerDestroy(revealer lp_r);
+// 区域尺寸变化后必须刷新，否则揭示范围仍是旧的。
+void     CMLib_RevealerRefresh(revealer lp_r);
+
+// ---- 蔓延（Creep）------------------------------------------------------------
+void CMLib_CreepAdd(point lp_pos, fixed lp_radius, bool lp_permanent);
+void CMLib_CreepRemove(point lp_pos, fixed lp_radius);
+bool CMLib_CreepAt(point lp_pos);
+void CMLib_CreepSpeedSet(int lp_speedType, fixed lp_percent);
+
+// =============================================================================
+// CMLib :: Round19 —— 场景背景 / 作弊开关 / 环境判定
+// =============================================================================
+// type 取 c_backgroundFixed(贴镜头，永远不动) / c_backgroundTerrain(贴地形，随镜头滚)。
+void CMLib_GameBackground(int lp_type, string lp_model, fixed lp_animSpeed);
+// cheat 取 c_gameCheat*，通常用于测试图开 God/FastBuild。
+void CMLib_GameCheat(int lp_cheat, bool lp_allow);
+bool CMLib_GameOnline();
+// inAuto=true 时把「编辑器一键测试」也算作测试图。
+bool CMLib_GameTestMap(bool lp_auto);

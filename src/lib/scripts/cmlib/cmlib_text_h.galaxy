@@ -1,0 +1,67 @@
+// =============================================================================
+// CMLib :: Text —— 本地化文本 / 数值格式化 / 颜色文本
+//
+// 来源：各 mod 中 StringExternal / TextExpression* / IntToText / FixedToText /
+//       TextWithColor 调用超 5,100 次，但普遍问题：
+//   * 本地化串直接硬编码中文（破坏 GameStrings 多语言机制）；
+//   * TextExpressionSetToken 的 code 与 Assemble 的 id 对不上、或忘记 Assemble；
+//   * 数字格式化自己 StringToText(IntToString(x))，丢失 GameData 的千分位/精度；
+//   * 颜色文本每次现拼 Color(255,0,0) + TextWithColor，没有语义化别名；
+//   * 单位显示名用 UnitGetType 直接拿内部 id 字符串而非目录 Name 字段。
+//
+// 本模块统一：本地化串读取；带令牌的格式化文本拼装；数值/定点格式化；
+// 颜色与「彩色文本」封装（含常用语义色）；单位显示名读取。
+//
+// 约定：所有面向玩家的可见文本都应经由本模块，保证可本地化与一致性。
+// 颜色分量取值 0.0 ~ 255.0（与 Color() 原生一致）。
+//
+// 依赖：cmlib_core_h（数值工具）、cmlib_catalog_h（单位名读取）
+// =============================================================================
+
+include "scripts/cmlib/cmlib_core_h"
+include "scripts/cmlib/cmlib_catalog_h"
+
+// ---- 本地化串 ---------------------------------------------------------------
+// 读取 GameStrings 里定义的本地化文本（替代硬编码中文串）。
+text CMLib_Loc(string lp_id);
+
+// ---- 带令牌的格式化文本 -----------------------------------------------------
+// 为 TextExpression (lp_id) 设置令牌 lp_code 的值为 lp_value。
+// 注意：SC2 的 TextExpression 是全局状态，多个表达式需逐条 SetToken 后 Assemble。
+void CMLib_FmtToken(string lp_id, string lp_code, text lp_value);
+// 拼装并返回 TextExpression (lp_id) 的最终文本。须在 SetToken 之后调用。
+text CMLib_FmtAssemble(string lp_id);
+
+// ---- 数值格式化 -------------------------------------------------------------
+// 整数 → 文本（走 GameData 默认格式，含千分位）。
+text CMLib_Int(int lp_value);
+// 定点数 → 文本，lp_precision 为小数位数。
+text CMLib_Fixed(fixed lp_value, int lp_precision);
+
+// ---- 颜色 -------------------------------------------------------------------
+// 构造颜色（分量 0.0 ~ 255.0）。带 Alpha 的版本 lp_alpha 同样 0.0 ~ 255.0。
+color CMLib_Color(fixed lp_r, fixed lp_g, fixed lp_b);
+color CMLib_ColorA(fixed lp_r, fixed lp_g, fixed lp_b, fixed lp_a);
+// 给文本上色。
+text  CMLib_TextColored(text lp_text, color lp_color);
+// 语义色文本：红 / 绿 / 蓝 / 黄 / 橙 / 白 / 灰。用于提示分级（错误/成功/信息）。
+text  CMLib_TextRed(text lp_text);
+text  CMLib_TextGreen(text lp_text);
+text  CMLib_TextBlue(text lp_text);
+text  CMLib_TextYellow(text lp_text);
+text  CMLib_TextOrange(text lp_text);
+text  CMLib_TextWhite(text lp_text);
+text  CMLib_TextGray(text lp_text);
+
+// ---- 单位名 ----------------------------------------------------------------
+// 读取单位的目录显示名（Catalog Name 字段），而非内部 type id。
+text CMLib_UnitName(unit lp_unit);
+
+// =============================================================================
+// CMLib :: Round19 —— 时间格式化 / 文本替换
+// =============================================================================
+// 秒数按 format 模板渲染（如 "mm:ss"）。负秒钳到 0，避免出现 "-01:-30"。
+text CMLib_TimeText(text lp_format, int lp_seconds);
+// 词替换。maxCount <= 0 表示全部替换。
+text CMLib_TextReplace(text lp_src, text lp_word, text lp_replace, int lp_maxCount,
+                       bool lp_caseSensitive);

@@ -1,0 +1,156 @@
+// =============================================================================
+// CMLib :: Stock
+// 电脑玩家的「经济与科技」层：建造库存（AI Stock）、科技树开关、AI 用户变量。
+//
+// 与 cmlib_ai 的分工：
+//   cmlib_ai    —— 打出去的部分：波次编排、难度缩放、战术施法。
+//   cmlib_stock —— 攒出来的部分：造什么、造多少、能不能造。
+//   两者函数名无重叠，可单独 include，也可同时使用。
+//
+// 缺口来源：全量 mod 扫描里 ai 领域 99,617 次调用、覆盖率仅 20.2%，
+//           且未覆盖部分几乎全是本模块的范畴：
+//           AISetStock(35,786) / AIAddToStockArmy(7,230) /
+//           AISetStockUnitNext(4,637) / AITechCount(3,002) /
+//           TechTreeAbilityAllow(2,621) / TechTreeUnitAllow(1,613)。
+//           单 AISetStock 一个符号就是全库第一大缺口。
+//
+// 设计要点：
+//   * 原生 AISetStock 是「设定目标存量」而非「增加」，极易被误当成 Add 用。
+//     本模块用 CMLib_StockSet / CMLib_StockAdd 把两种语义分开，Add 内部
+//     自己读当前科技计数再换算成目标值。
+//   * AITechCount 的 countMask 是 7 个裸常量，用错就查出完全不同的数。
+//     这里提供 Built / InProgress / Queued 三个语义化查询。
+//   * 科技树的 Allow/Restrict 是"三个独立开关"（requirements / restrictions /
+//     specific），实战里常常只关了其中一个就以为解锁了。CMLib_TechUnlockAll
+//     把三个一起处理。
+//
+// 依赖：cmlib_core_h（日志 / 钳制）
+//       TriggerLibs/AI —— 【必须】AISetStock* / AITechCount / AIGetUserInt 等
+//       定义在 core.sc2mod 的 TriggerLibs/AI.galaxy，不在 natives.galaxy 里。
+//       缺这行会让整个 MapScript 静默编译失败。
+// =============================================================================
+
+include "TriggerLibs/AI"
+include "scripts/cmlib/cmlib_core_h"
+
+// ---- 科技计数口径（对应 c_techCount*）----------------------------------------
+const int CMLIB_TECH_QUEUED       = 0;   // 仅排队中
+const int CMLIB_TECH_QUEUED_UP    = 1;   // 排队 + 建造中 + 已完成
+const int CMLIB_TECH_PROGRESS     = 2;   // 仅建造中
+const int CMLIB_TECH_PROGRESS_UP  = 3;   // 建造中 + 已完成
+const int CMLIB_TECH_COMPLETE     = 4;   // 仅已完成
+const int CMLIB_TECH_INCOMPLETE   = 5;   // 排队 + 建造中
+
+// 主基地城镇编号（对应 AI.galaxy 的 c_townMain）。
+const int CMLIB_TOWN_MAIN = -1;
+
+// ---- 库存：设定 / 增减 -------------------------------------------------------
+// 设定目标存量：AI 会一直补到 lp_count 个为止。
+void CMLib_StockSet(int lp_player, int lp_count, string lp_unitType);
+// 相对增减：读当前"已完成+建造中"数量再加上 lp_delta，结果不低于 0。
+void CMLib_StockAdd(int lp_player, int lp_delta, string lp_unitType);
+// 可选库存（资源富余时才造）。
+void CMLib_StockSetOpt(int lp_player, int lp_count, string lp_unitType);
+// 指定城镇的库存。lp_town 传 CMLIB_TOWN_MAIN 表示主基地。
+void CMLib_StockSetAtTown(int lp_player, int lp_town, int lp_count,
+                          string lp_unitType);
+// 条件性下一个：lp_when 为 true 时才把该单位排进下一个建造项。
+void CMLib_StockNextIf(int lp_player, int lp_count, string lp_unitType,
+                       bool lp_when);
+// 资源超过 lp_minMinerals 才追加的"额外"库存。
+void CMLib_StockExtra(int lp_player, int lp_count, string lp_unitType,
+                      int lp_minMinerals);
+// 农场/补给建筑自动补齐。lp_onlyNeeded=true 只在人口卡住时才造。
+void CMLib_StockSupply(int lp_player, string lp_supplyType, bool lp_onlyNeeded);
+// 农民上限管理。
+void CMLib_StockWorkers(int lp_player, int lp_max, string lp_workerType);
+// 让 AI 自行推进下一项科技。
+void CMLib_StockTechNext(int lp_player);
+// 主基地 + 气矿配套建立；返回是否成功。
+bool CMLib_StockTown(int lp_player, string lp_townHallType, string lp_gasType);
+// 开分矿；返回是否成功。
+bool CMLib_StockExpand(int lp_player, string lp_townHallType, int lp_count);
+
+// ---- 库存：军队组成 -----------------------------------------------------------
+// 往 AI 的"军队配方"里加/减某单位权重。
+void CMLib_StockArmyAdd(int lp_player, string lp_unitType, int lp_change);
+// 军队整体规模缩放（不改当前已有部队，只影响后续补充）。
+void CMLib_StockArmyScale(int lp_player, fixed lp_scale);
+// 用另一种单位替换配方里的某个单位。
+void CMLib_StockArmyReplace(int lp_player, string lp_unitType, int lp_replaceCount,
+                            string lp_replaceWith);
+// 批量下发军队配方。
+// 【硬约束】Galaxy 不支持数组形参（引擎无一例），批量入参一律走 CSV 规格串。
+// lp_spec 形如 "Marine:5,Marauder:2,Medivac:1"；冒号后缺失或非法时按 1 处理。
+void CMLib_StockArmyBatch(int lp_player, string lp_spec);
+
+// ---- 科技计数 ---------------------------------------------------------------
+// 按口径查 AI 的科技/单位计数。
+int  CMLib_TechCount(int lp_player, string lp_aliasType, int lp_countMask);
+// 语义化快捷查询。
+int  CMLib_TechBuilt(int lp_player, string lp_aliasType);
+int  CMLib_TechPending(int lp_player, string lp_aliasType);
+// 已完成数量是否达到阈值。
+bool CMLib_TechHas(int lp_player, string lp_aliasType, int lp_atLeast);
+
+// ---- 科技树：单位 / 升级 / 技能 / 行为 -----------------------------------------
+void CMLib_TechUnitAllow(int lp_player, string lp_unitType, bool lp_allow);
+bool CMLib_TechUnitAllowed(int lp_player, string lp_unitType);
+int  CMLib_TechUnitCount(int lp_player, string lp_unitType, int lp_countType);
+void CMLib_TechUpgradeAllow(int lp_player, string lp_upgradeType, bool lp_allow);
+bool CMLib_TechUpgradeAllowed(int lp_player, string lp_upgradeType);
+int  CMLib_TechUpgradeLevel(int lp_player, string lp_upgradeType);
+// 直接给玩家加若干级升级（跳过研究流程），战役给"剧情增益"常用。
+void CMLib_TechUpgradeGrant(int lp_player, string lp_upgradeType, int lp_levels);
+void CMLib_TechAbilityAllow(int lp_player, abilcmd lp_abilCmd, bool lp_allow);
+bool CMLib_TechAbilityAllowed(int lp_player, abilcmd lp_abilCmd);
+void CMLib_TechBehaviorAllow(int lp_player, string lp_behaviorType, bool lp_allow);
+// 批量放开/禁用一组单位。lp_unitTypesCsv 形如 "Marine,Marauder,Medivac"。
+void CMLib_TechUnitAllowBatch(int lp_player, string lp_unitTypesCsv, bool lp_allow);
+
+// ---- 科技树：全局开关 ---------------------------------------------------------
+void CMLib_TechRequirementsEnable(int lp_player, bool lp_enable);
+void CMLib_TechRestrictionsEnable(int lp_player, bool lp_enable);
+void CMLib_TechRequirementEnable(int lp_player, string lp_requirement,
+                                 bool lp_enable);
+// 一键"全解锁"：同时关掉需求判定与限制判定。调试与沙盒模式常用。
+void CMLib_TechUnlockAll(int lp_player);
+// 恢复正常科技树规则。
+void CMLib_TechRestoreRules(int lp_player);
+
+// ---- AI 用户变量（AI 脚本与触发器之间传状态的官方通道）------------------------
+//
+// 【前置条件·必读】底层 AISetUserInt / AIGetUserInt 只对**已挂载 AI 的玩家**有效：
+//   引擎在 AIStart(player, ...) 时才为该玩家分配 user-int 存储槽
+//   （见 core.sc2mod BaseAI.galaxy，全部 AISetUserInt 调用都在 AI 初始化之后）。
+// 对人类玩家或未启动 AI 的电脑玩家：Set 是空操作，Get 恒返回 0，不会报错也不会崩。
+// 2026-08-08 真机实测确认：单人测试局对玩家 1（人类）做读写往返必然失败。
+// => 只在电脑 AI 玩家上使用；需要给人类玩家存状态请改用 core 的 Data Table / bank。
+void CMLib_AIVarSet(int lp_player, int lp_index, int lp_value);
+int  CMLib_AIVarGet(int lp_player, int lp_index);
+// 累加并返回新值。
+int  CMLib_AIVarBump(int lp_player, int lp_index, int lp_delta);
+
+// ---- 库存总开关（AIEnableStock / AIClearStock 顶层封装）----------------------
+// 启用某玩家的 AI 自动库存系统（AISetStock* 的顶层开关）。
+void CMLib_AIEnableStock(int lp_player);
+// 清空某玩家的 AI 库存配置。
+void CMLib_AIClearStock(int lp_player);
+
+
+// =============================================================================
+// CMLib :: Round26 —— 库存别名 / 免费单位 / 科技解限
+//
+// 注意签名来源：AISetStockAlias / AISetStockFree 是 core.sc2mod 的 AI.galaxy
+// 里的**普通库函数**（内部转调 AISetStock + AITechCount），不是 native；
+// 编辑器元数据把 makeType 标成 gamelink，源码里其实是 string，以源码为准。
+// =============================================================================
+
+// 「已有 aliasType 的算进 makeType 的产能」——扩建同类建筑时避免重复下单。
+void CMLib_StockAlias(int lp_player, int lp_count, string lp_makeType,
+                      string lp_aliasType);
+// 只有当 prereq 科技已完成时才下 makeType 的库存单（免费单位/解锁兵种常用）。
+void CMLib_StockFree(int lp_player, int lp_count, string lp_makeType,
+                     string lp_prereq);
+// 下一档科技的矿/气解限阈值；负值按 0 处理。
+void CMLib_StockTechUncap(int lp_player, int lp_unCapMinerals, int lp_unCapGas);

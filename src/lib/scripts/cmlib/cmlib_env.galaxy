@@ -1,0 +1,236 @@
+// =============================================================================
+// CMLib :: Env —— 实现
+// =============================================================================
+
+include "scripts/cmlib/cmlib_env_h"
+
+// 内部：色值分量（0~100 百分比）转 Actor 消息用的 0~255 整数。
+static int CMLib_EnvColor255(color lp_color, int lp_component) {
+    return CMLib_ClampInt(Color255FromFixed(ColorGetComponent(lp_color, lp_component)), 0, 255);
+}
+
+// =============================================================================
+// Doodad
+// =============================================================================
+doodad CMLib_DoodadById(int lp_id) {
+    if (lp_id <= 0) { return null; }
+    return DoodadFromId(lp_id);
+}
+
+actor CMLib_DoodadActor(int lp_id) {
+    doodad lv_d = CMLib_DoodadById(lp_id);
+
+    if (lv_d == null) { return null; }
+    return ActorFromDoodad(lv_d);
+}
+
+actorscope CMLib_DoodadScope(int lp_id) {
+    actor lv_a = CMLib_DoodadActor(lp_id);
+
+    if (lv_a == null) { return null; }
+    return ActorScopeFromActor(lv_a);
+}
+
+bool CMLib_DoodadSend(int lp_id, string lp_msg) {
+    actor lv_a;
+
+    if (lp_msg == "") { return false; }
+    lv_a = CMLib_DoodadActor(lp_id);
+    if (lv_a == null) {
+        CMLib_LogWarn("ENV", "DoodadSend: 找不到 doodad " + IntToString(lp_id));
+        return false;
+    }
+    ActorSend(lv_a, lp_msg);
+    return true;
+}
+
+bool CMLib_DoodadSendText(int lp_id, text lp_msg) {
+    actor lv_a = CMLib_DoodadActor(lp_id);
+
+    if (lv_a == null) {
+        CMLib_LogWarn("ENV", "DoodadSendText: 找不到 doodad " + IntToString(lp_id));
+        return false;
+    }
+    ActorSendAsText(lv_a, lp_msg);
+    return true;
+}
+
+bool CMLib_DoodadShow(int lp_id, bool lp_visible) {
+    if (lp_visible == true) {
+        return CMLib_DoodadSend(lp_id, "SetVisibility 1");
+    }
+    return CMLib_DoodadSend(lp_id, "SetVisibility 0");
+}
+
+bool CMLib_DoodadAnim(int lp_id, string lp_animName) {
+    if (lp_animName == "") { return false; }
+    return CMLib_DoodadSend(lp_id, "AnimBracketStart Cmlib " + lp_animName);
+}
+
+bool CMLib_DoodadDestroyFx(int lp_id) {
+    // Doodad 的"被摧毁"表现走标准 Death 动画桥，配合 SetVisibility 收尾更稳。
+    return CMLib_DoodadSend(lp_id, "AnimBracketStart Death Death");
+}
+
+bool CMLib_DoodadTint(int lp_id, color lp_color, fixed lp_duration) {
+    return CMLib_DoodadSend(lp_id, "SetTintColor "
+        + IntToString(CMLib_EnvColor255(lp_color, c_colorComponentRed)) + ","
+        + IntToString(CMLib_EnvColor255(lp_color, c_colorComponentGreen)) + ","
+        + IntToString(CMLib_EnvColor255(lp_color, c_colorComponentBlue)) + " "
+        + FixedToString(CMLib_ClampFixed(lp_duration, 0.0, 60.0), 2));
+}
+
+bool CMLib_DoodadScale(int lp_id, fixed lp_scale, fixed lp_duration) {
+    fixed lv_s = CMLib_ClampFixed(lp_scale, 0.05, 20.0);
+
+    return CMLib_DoodadSend(lp_id, "SetScale "
+        + FixedToString(lv_s, 3) + ","
+        + FixedToString(lv_s, 3) + ","
+        + FixedToString(lv_s, 3) + " "
+        + FixedToString(CMLib_ClampFixed(lp_duration, 0.0, 60.0), 2));
+}
+
+int CMLib_DoodadSendRange(int lp_fromId, int lp_toId, string lp_msg) {
+    int lv_i;
+    int lv_lo;
+    int lv_hi;
+    int lv_ok;
+
+    lv_ok = 0;
+    if (lp_msg == "") { return 0; }
+    // 允许调用方把区间写反。
+    if (lp_fromId <= lp_toId) {
+        lv_lo = lp_fromId;
+        lv_hi = lp_toId;
+    }
+    else {
+        lv_lo = lp_toId;
+        lv_hi = lp_fromId;
+    }
+    if (lv_lo < 1) { lv_lo = 1; }
+    // 防呆：一次最多扫 4096 个 id，避免手滑写成 1..999999 卡死一帧。
+    if ((lv_hi - lv_lo) > 4096) { lv_hi = lv_lo + 4096; }
+
+    lv_i = lv_lo;
+    while (lv_i <= lv_hi) {
+        if (DoodadFromId(lv_i) != null) {
+            if (CMLib_DoodadSend(lv_i, lp_msg) == true) {
+                lv_ok = lv_ok + 1;
+            }
+        }
+        lv_i = lv_i + 1;
+    }
+    return lv_ok;
+}
+
+// =============================================================================
+// 地形
+// =============================================================================
+void CMLib_TerrainShow(region lp_area, bool lp_show) {
+    if (lp_area == null) {
+        CMLib_LogWarn("ENV", "TerrainShow: region 为 null");
+        return;
+    }
+    TerrainShowRegion(lp_area, lp_show);
+}
+
+string CMLib_TerrainTextureAt(point lp_pos) {
+    if (lp_pos == null) { return ""; }
+    return TerrainTexture(lp_pos);
+}
+
+bool CMLib_TerrainIsTexture(point lp_pos, string lp_texture) {
+    if ((lp_pos == null) || (lp_texture == "")) { return false; }
+    return CMLib_TerrainTextureAt(lp_pos) == lp_texture;
+}
+
+// =============================================================================
+// 水面
+// =============================================================================
+bool CMLib_WaterMorph(string lp_water, fixed lp_duration, int lp_morphType) {
+    fixed lv_d = lp_duration;
+
+    if (lp_water == "") {
+        CMLib_LogWarn("ENV", "WaterMorph: 水面名为空");
+        return false;
+    }
+    if (lv_d < CMLIB_ENV_WATER_MIN_DURATION) {
+        lv_d = CMLIB_ENV_WATER_MIN_DURATION;
+    }
+    WaterSetState(lp_water, lv_d, lp_morphType);
+    return true;
+}
+
+bool CMLib_WaterPause(string lp_water, bool lp_paused) {
+    if (lp_water == "") { return false; }
+    WaterPause(lp_water, lp_paused);
+    return true;
+}
+
+// =============================================================================
+// 大气雾
+// =============================================================================
+void CMLib_FogEnable(bool lp_enabled) {
+    FogSetEnabled(lp_enabled);
+}
+
+void CMLib_FogColor(color lp_color) {
+    FogSetColor(lp_color);
+}
+
+void CMLib_FogColorOver(color lp_color, fixed lp_time) {
+    FogSetColorOverTime(lp_color, CMLib_ClampFixed(lp_time, 0.0, 600.0));
+}
+
+void CMLib_FogDensity(fixed lp_density) {
+    FogSetDensity(CMLib_ClampFixed(lp_density, 0.0, 1.0));
+}
+
+void CMLib_FogDensityOver(fixed lp_density, fixed lp_time) {
+    FogSetDensityOverTime(CMLib_ClampFixed(lp_density, 0.0, 1.0),
+                          CMLib_ClampFixed(lp_time, 0.0, 600.0));
+}
+
+void CMLib_FogFallOff(fixed lp_fallOff) {
+    FogSetFallOff(lp_fallOff);
+}
+
+void CMLib_FogFallOffOver(fixed lp_fallOff, fixed lp_time) {
+    FogSetFallOffOverTime(lp_fallOff, CMLib_ClampFixed(lp_time, 0.0, 600.0));
+}
+
+void CMLib_FogStartHeight(fixed lp_height) {
+    FogSetStartHeight(lp_height);
+}
+
+void CMLib_FogStartHeightOver(fixed lp_height, fixed lp_time) {
+    FogSetStartHeightOverTime(lp_height, CMLib_ClampFixed(lp_time, 0.0, 600.0));
+}
+
+void CMLib_FogDisableAtUltra(bool lp_disable) {
+    FogSetDisableAtUltra(lp_disable);
+}
+
+void CMLib_FogPreset(color lp_color, fixed lp_density,
+                     fixed lp_startHeight, fixed lp_fallOff) {
+    CMLib_FogColor(lp_color);
+    CMLib_FogDensity(lp_density);
+    CMLib_FogStartHeight(lp_startHeight);
+    CMLib_FogFallOff(lp_fallOff);
+    CMLib_FogEnable(true);
+}
+
+void CMLib_FogPresetOver(color lp_color, fixed lp_density,
+                         fixed lp_startHeight, fixed lp_fallOff, fixed lp_time) {
+    // 先开启再渐变，否则 OverTime 会在关闭状态下空转。
+    CMLib_FogEnable(true);
+    CMLib_FogColorOver(lp_color, lp_time);
+    CMLib_FogDensityOver(lp_density, lp_time);
+    CMLib_FogStartHeightOver(lp_startHeight, lp_time);
+    CMLib_FogFallOffOver(lp_fallOff, lp_time);
+}
+
+void CMLib_FogClear() {
+    CMLib_FogDensity(0.0);
+    CMLib_FogEnable(false);
+}

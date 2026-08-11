@@ -1,0 +1,124 @@
+// =============================================================================
+// CMLib :: Text —— 实现
+// =============================================================================
+
+include "scripts/cmlib/cmlib_text_h"
+
+// =============================================================================
+// 本地化串
+// =============================================================================
+text CMLib_Loc(string lp_id) {
+    if (lp_id == "") { return StringExternal(""); }
+    return StringExternal(lp_id);
+}
+
+// =============================================================================
+// 带令牌的格式化文本
+// =============================================================================
+void CMLib_FmtToken(string lp_id, string lp_code, text lp_value) {
+    if ((lp_id == "") || (lp_code == "")) {
+        CMLib_LogWarn("TEXT", "FmtToken: 表达式 id 或令牌 code 为空。");
+        return;
+    }
+    TextExpressionSetToken(lp_id, lp_code, lp_value);
+}
+
+text CMLib_FmtAssemble(string lp_id) {
+    if (lp_id == "") {
+        CMLib_LogWarn("TEXT", "FmtAssemble: 表达式 id 为空。");
+        return StringExternal("");
+    }
+    return TextExpressionAssemble(lp_id);
+}
+
+// =============================================================================
+// 数值格式化
+// =============================================================================
+text CMLib_Int(int lp_value) {
+    return IntToText(lp_value);
+}
+
+text CMLib_Fixed(fixed lp_value, int lp_precision) {
+    if (lp_precision < 0) { lp_precision = 0; }
+    return FixedToText(lp_value, lp_precision);
+}
+
+// =============================================================================
+// 颜色
+// =============================================================================
+color CMLib_Color(fixed lp_r, fixed lp_g, fixed lp_b) {
+    return Color(lp_r, lp_g, lp_b);
+}
+
+color CMLib_ColorA(fixed lp_r, fixed lp_g, fixed lp_b, fixed lp_a) {
+    return ColorWithAlpha(lp_r, lp_g, lp_b, lp_a);
+}
+
+text CMLib_TextColored(text lp_text, color lp_color) {
+    // color 在 Galaxy 中是值类型，不可与 null 比较（checker: "Type 'null' is not
+    // comparable to type 'color'"），故此处只对 text 判空。
+    if (lp_text == null) { return null; }
+    return TextWithColor(lp_text, lp_color);
+}
+
+text CMLib_TextRed(text lp_text) {
+    return TextWithColor(lp_text, Color(255.0, 70.0, 70.0));
+}
+
+text CMLib_TextGreen(text lp_text) {
+    return TextWithColor(lp_text, Color(80.0, 220.0, 90.0));
+}
+
+text CMLib_TextBlue(text lp_text) {
+    return TextWithColor(lp_text, Color(80.0, 150.0, 255.0));
+}
+
+text CMLib_TextYellow(text lp_text) {
+    return TextWithColor(lp_text, Color(245.0, 220.0, 70.0));
+}
+
+text CMLib_TextOrange(text lp_text) {
+    return TextWithColor(lp_text, Color(245.0, 150.0, 50.0));
+}
+
+text CMLib_TextWhite(text lp_text) {
+    return TextWithColor(lp_text, Color(235.0, 235.0, 235.0));
+}
+
+text CMLib_TextGray(text lp_text) {
+    return TextWithColor(lp_text, Color(160.0, 160.0, 160.0));
+}
+
+// =============================================================================
+// 单位名
+// =============================================================================
+text CMLib_UnitName(unit lp_unit) {
+    string ltype;
+
+    if (lp_unit == null) { return StringExternal(""); }
+    ltype = UnitGetType(lp_unit);
+    if (ltype == "") { return StringExternal(""); }
+    // 目录 Name 字段存的是文本引用，需经 StringExternal 解析为本地化文本。
+    return StringExternal(CatalogFieldValueGet(c_gameCatalogUnit, ltype, "Name", 1));
+}
+
+// =============================================================================
+// CMLib :: Round19 —— 实现
+// =============================================================================
+text CMLib_TimeText(text lp_format, int lp_seconds) {
+    int lv_s;
+    lv_s = lp_seconds;
+    if (lv_s < 0) { lv_s = 0; }
+    return TextTimeFormat(lp_format, lv_s);
+}
+
+text CMLib_TextReplace(text lp_src, text lp_word, text lp_replace, int lp_maxCount,
+                       bool lp_caseSensitive) {
+    int lv_max;
+    lv_max = lp_maxCount;
+    // 2147483647 = int 上限，只能写字面量。Galaxy 引擎**没有**通用的整数最大值
+    // 常量（各领域只有自己的上限常量），凭记忆写一个就是未声明符号 -> 编译失败
+    // -> SC2 静默丢弃整个 MapScript。round19 三档矩阵全灭就死在这一行。
+    if (lv_max <= 0) { lv_max = 2147483647; }
+    return TextReplaceWord(lp_src, lp_word, lp_replace, lv_max, lp_caseSensitive);
+}

@@ -1,0 +1,365 @@
+// =============================================================================
+// CMLib :: UData —— 实现
+// =============================================================================
+
+// ---- 实例枚举 ---------------------------------------------------------------
+
+int CMLib_UDataCount(string lp_type) {
+    if (lp_type == "") {
+        return 0;
+    }
+    return UserDataInstanceCount(lp_type);
+}
+
+string CMLib_UDataAt(string lp_type, int lp_index) {
+    if (lp_type == "" || lp_index < 0) {
+        return "";
+    }
+    if (lp_index >= UserDataInstanceCount(lp_type)) {
+        return "";
+    }
+    return UserDataInstance(lp_type, lp_index);
+}
+
+int CMLib_UDataIndexOf(string lp_type, string lp_instance) {
+    int lv_n;
+    int lv_i;
+
+    if (lp_type == "" || lp_instance == "") {
+        return -1;
+    }
+    lv_n = UserDataInstanceCount(lp_type);
+    lv_i = 0;
+    while (lv_i < lv_n) {
+        if (UserDataInstance(lp_type, lv_i) == lp_instance) {
+            return lv_i;
+        }
+        lv_i = lv_i + 1;
+    }
+    return -1;
+}
+
+bool CMLib_UDataHas(string lp_type, string lp_instance) {
+    return CMLib_UDataIndexOf(lp_type, lp_instance) >= 0;
+}
+
+// ---- 字段元信息 -------------------------------------------------------------
+
+int CMLib_UDataFieldCount(string lp_type) {
+    if (lp_type == "") {
+        return 0;
+    }
+    return UserDataFieldCount(lp_type);
+}
+
+string CMLib_UDataFieldAt(string lp_type, int lp_index) {
+    if (lp_type == "" || lp_index < 0) {
+        return "";
+    }
+    if (lp_index >= UserDataFieldCount(lp_type)) {
+        return "";
+    }
+    return UserDataField(lp_type, lp_index);
+}
+
+bool CMLib_UDataFieldExists(string lp_type, string lp_field) {
+    int lv_n;
+    int lv_i;
+
+    if (lp_type == "" || lp_field == "") {
+        return false;
+    }
+    lv_n = UserDataFieldCount(lp_type);
+    lv_i = 0;
+    while (lv_i < lv_n) {
+        if (UserDataField(lp_type, lv_i) == lp_field) {
+            return true;
+        }
+        lv_i = lv_i + 1;
+    }
+    return false;
+}
+
+int CMLib_UDataFieldValues(string lp_type, string lp_field) {
+    if (!CMLib_UDataFieldExists(lp_type, lp_field)) {
+        return 0;
+    }
+    return UserDataFieldValueCount(lp_type, lp_field);
+}
+
+bool CMLib_UDataFieldWritable(string lp_type, string lp_field) {
+    if (!CMLib_UDataFieldExists(lp_type, lp_field)) {
+        return false;
+    }
+    return UserDataFieldIsModifiable(lp_type, lp_field);
+}
+
+// ---- 内部：读取前的统一校验 ---------------------------------------------------
+// 返回 true 表示「类型/实例/字段/下标」四项都合法，可以安全调 UserDataGet*。
+
+static bool CMLib_UDataReadable(string lp_type, string lp_instance, string lp_field,
+                         int lp_index) {
+    if (lp_type == "" || lp_instance == "" || lp_field == "") {
+        return false;
+    }
+    if (!CMLib_UDataFieldExists(lp_type, lp_field)) {
+        CMLib_LogWarn("udata",
+                      CMLib_Key3("字段不存在", lp_type, lp_field));
+        return false;
+    }
+    if (lp_index < 0 || lp_index >= UserDataFieldValueCount(lp_type, lp_field)) {
+        CMLib_LogWarn("udata",
+                      CMLib_Key3("下标越界", lp_field, IntToString(lp_index)));
+        return false;
+    }
+    return true;
+}
+
+// ---- 读取 -------------------------------------------------------------------
+
+int CMLib_UDataIntAt(string lp_type, string lp_instance, string lp_field,
+                     int lp_index, int lp_fallback) {
+    if (!CMLib_UDataReadable(lp_type, lp_instance, lp_field, lp_index)) {
+        return lp_fallback;
+    }
+    return UserDataGetInt(lp_type, lp_instance, lp_field, lp_index);
+}
+
+int CMLib_UDataInt(string lp_type, string lp_instance, string lp_field,
+                   int lp_fallback) {
+    return CMLib_UDataIntAt(lp_type, lp_instance, lp_field, 0, lp_fallback);
+}
+
+fixed CMLib_UDataFixedAt(string lp_type, string lp_instance, string lp_field,
+                         int lp_index, fixed lp_fallback) {
+    if (!CMLib_UDataReadable(lp_type, lp_instance, lp_field, lp_index)) {
+        return lp_fallback;
+    }
+    return UserDataGetFixed(lp_type, lp_instance, lp_field, lp_index);
+}
+
+fixed CMLib_UDataFixed(string lp_type, string lp_instance, string lp_field,
+                       fixed lp_fallback) {
+    return CMLib_UDataFixedAt(lp_type, lp_instance, lp_field, 0, lp_fallback);
+}
+
+string CMLib_UDataStringAt(string lp_type, string lp_instance, string lp_field,
+                           int lp_index, string lp_fallback) {
+    if (!CMLib_UDataReadable(lp_type, lp_instance, lp_field, lp_index)) {
+        return lp_fallback;
+    }
+    return UserDataGetString(lp_type, lp_instance, lp_field, lp_index);
+}
+
+string CMLib_UDataString(string lp_type, string lp_instance, string lp_field,
+                         string lp_fallback) {
+    return CMLib_UDataStringAt(lp_type, lp_instance, lp_field, 0, lp_fallback);
+}
+
+text CMLib_UDataText(string lp_type, string lp_instance, string lp_field) {
+    if (!CMLib_UDataReadable(lp_type, lp_instance, lp_field, 0)) {
+        return StringExternal("");
+    }
+    return UserDataGetText(lp_type, lp_instance, lp_field, 0);
+}
+
+string CMLib_UDataGameLink(string lp_type, string lp_instance, string lp_field) {
+    if (!CMLib_UDataReadable(lp_type, lp_instance, lp_field, 0)) {
+        return "";
+    }
+    return UserDataGetGameLink(lp_type, lp_instance, lp_field, 0);
+}
+
+string CMLib_UDataUnit(string lp_type, string lp_instance, string lp_field) {
+    if (!CMLib_UDataReadable(lp_type, lp_instance, lp_field, 0)) {
+        return "";
+    }
+    return UserDataGetUnit(lp_type, lp_instance, lp_field, 0);
+}
+
+// ---- 写入 -------------------------------------------------------------------
+
+void CMLib_UDataSetIntAt(string lp_type, string lp_instance, string lp_field,
+                         int lp_index, int lp_value) {
+    if (!CMLib_UDataReadable(lp_type, lp_instance, lp_field, lp_index)) {
+        return;
+    }
+    if (!UserDataFieldIsModifiable(lp_type, lp_field)) {
+        CMLib_LogWarn("udata", CMLib_Key2("字段只读", lp_field));
+        return;
+    }
+    UserDataSetInt(lp_type, lp_instance, lp_field, lp_index, lp_value);
+}
+
+void CMLib_UDataSetInt(string lp_type, string lp_instance, string lp_field,
+                       int lp_value) {
+    CMLib_UDataSetIntAt(lp_type, lp_instance, lp_field, 0, lp_value);
+}
+
+void CMLib_UDataSetFixed(string lp_type, string lp_instance, string lp_field,
+                         fixed lp_value) {
+    if (!CMLib_UDataReadable(lp_type, lp_instance, lp_field, 0)) {
+        return;
+    }
+    if (!UserDataFieldIsModifiable(lp_type, lp_field)) {
+        CMLib_LogWarn("udata", CMLib_Key2("字段只读", lp_field));
+        return;
+    }
+    UserDataSetFixed(lp_type, lp_instance, lp_field, 0, lp_value);
+}
+
+void CMLib_UDataSetString(string lp_type, string lp_instance, string lp_field,
+                          string lp_value) {
+    if (!CMLib_UDataReadable(lp_type, lp_instance, lp_field, 0)) {
+        return;
+    }
+    if (!UserDataFieldIsModifiable(lp_type, lp_field)) {
+        CMLib_LogWarn("udata", CMLib_Key2("字段只读", lp_field));
+        return;
+    }
+    UserDataSetString(lp_type, lp_instance, lp_field, 0, lp_value);
+}
+
+// ---- 便捷聚合 ---------------------------------------------------------------
+
+int CMLib_UDataSumInt(string lp_type, string lp_field) {
+    int lv_n;
+    int lv_i;
+    int lv_sum;
+
+    lv_sum = 0;
+    if (!CMLib_UDataFieldExists(lp_type, lp_field)) {
+        return 0;
+    }
+    lv_n = UserDataInstanceCount(lp_type);
+    lv_i = 0;
+    while (lv_i < lv_n) {
+        lv_sum = lv_sum + UserDataGetInt(lp_type,
+                                         UserDataInstance(lp_type, lv_i),
+                                         lp_field, 0);
+        lv_i = lv_i + 1;
+    }
+    return lv_sum;
+}
+
+int CMLib_UDataMaxInt(string lp_type, string lp_field) {
+    int lv_n;
+    int lv_i;
+    int lv_best;
+    int lv_cur;
+
+    lv_best = 0;
+    if (!CMLib_UDataFieldExists(lp_type, lp_field)) {
+        return 0;
+    }
+    lv_n = UserDataInstanceCount(lp_type);
+    lv_i = 0;
+    while (lv_i < lv_n) {
+        lv_cur = UserDataGetInt(lp_type, UserDataInstance(lp_type, lv_i),
+                                lp_field, 0);
+        if (lv_i == 0 || lv_cur > lv_best) {
+            lv_best = lv_cur;
+        }
+        lv_i = lv_i + 1;
+    }
+    return lv_best;
+}
+
+string CMLib_UDataFindByInt(string lp_type, string lp_field, int lp_value) {
+    int lv_n;
+    int lv_i;
+    string lv_inst;
+
+    if (!CMLib_UDataFieldExists(lp_type, lp_field)) {
+        return "";
+    }
+    lv_n = UserDataInstanceCount(lp_type);
+    lv_i = 0;
+    while (lv_i < lv_n) {
+        lv_inst = UserDataInstance(lp_type, lv_i);
+        if (UserDataGetInt(lp_type, lv_inst, lp_field, 0) == lp_value) {
+            return lv_inst;
+        }
+        lv_i = lv_i + 1;
+    }
+    return "";
+}
+
+string CMLib_UDataFindByString(string lp_type, string lp_field, string lp_value) {
+    int lv_n;
+    int lv_i;
+    string lv_inst;
+
+    if (!CMLib_UDataFieldExists(lp_type, lp_field)) {
+        return "";
+    }
+    lv_n = UserDataInstanceCount(lp_type);
+    lv_i = 0;
+    while (lv_i < lv_n) {
+        lv_inst = UserDataInstance(lp_type, lv_i);
+        if (UserDataGetString(lp_type, lv_inst, lp_field, 0) == lp_value) {
+            return lv_inst;
+        }
+        lv_i = lv_i + 1;
+    }
+    return "";
+}
+
+
+// -----------------------------------------------------------------------------
+// round 18：用户数据实例查询
+// -----------------------------------------------------------------------------
+
+string CMLib_UDataUserInstance(string lp_type, string lp_instance,
+                               string lp_field, int lp_index) {
+    int lv_i;
+
+    if ((lp_type == "")) {
+        return "";
+    }
+    if ((lp_field == "")) {
+        return "";
+    }
+    lv_i = lp_index;
+    if ((lv_i < 0)) {
+        lv_i = 0;
+    }
+    return UserDataGetUserInstance(lp_type, lp_instance, lp_field, lv_i);
+}
+
+// =============================================================================
+// CMLib :: Round19 —— 实现
+// =============================================================================
+string CMLib_UDataImagePath(string lp_type, string lp_instance, string lp_field,
+                            int lp_index) {
+    string lv_s;
+    if ((lp_type == "") || (lp_instance == "") || (lp_field == "")) { return ""; }
+    lv_s = UserDataGetImagePath(lp_type, lp_instance, lp_field, lp_index);
+    if (lv_s == null) { return ""; }
+    return lv_s;
+}
+
+// =============================================================================
+// CMLib :: Round20 —— UserData 补齐（实现）
+// =============================================================================
+
+void CMLib_UDataResetType(string lp_type) {
+    if (lp_type == "") { return; }
+    UserDataResetType(lp_type);
+}
+
+string CMLib_UDataUpgrade(string lp_type, string lp_instance, string lp_field, int lp_index) {
+    string lv_val;
+
+    if (lp_type == "") { return ""; }
+    if (lp_instance == "") { return ""; }
+    if (lp_field == "") { return ""; }
+    if (lp_index < 0) { return ""; }
+    lv_val = UserDataGetUpgrade(lp_type, lp_instance, lp_field, lp_index);
+    if (lv_val == null) { return ""; }
+    return lv_val;
+}
+
+string CMLib_UDataUpgrade0(string lp_type, string lp_instance, string lp_field) {
+    return CMLib_UDataUpgrade(lp_type, lp_instance, lp_field, 0);
+}
