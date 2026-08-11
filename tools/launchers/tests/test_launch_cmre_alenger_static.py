@@ -127,6 +127,23 @@ def test_launch_profile_carries_on_demand_runtime_inputs():
         assert key in profile_body
 
 
+def test_launch_profile_defaults_commanders_to_max_level_and_full_mastery():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    profile_body = _function_body(source, "Write-CmreLaunchProfile")
+
+    assert "Player|1|CommanderLevel" in profile_body
+    assert "Player|2|CommanderLevel" in profile_body
+    assert '$values[\'Player|1|CommanderLevel\'] = @("int", "15")' in profile_body
+    assert '$values[\'Player|2|CommanderLevel\'] = @("int", "15")' in profile_body
+    assert "MasteryLevel" in profile_body
+    assert "@(30, 30, 30, 30, 30, 30)" in profile_body
+    assert "Commander profile: level=15" in profile_body
+
+    commander_level_pos = profile_body.index("Player|1|CommanderLevel")
+    buff_patch_pos = profile_body.index("if ($EnableBuffPatch)")
+    assert commander_level_pos < buff_patch_pos
+
+
 def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
     overlay = OVERLAY.read_text(encoding="utf-8-sig")
@@ -156,6 +173,7 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
     assert '@{ Name = "GalaxyVibe"; Player = "1" }' in overlay
     assert 'Documents\\StarCraft II\\Banks' in overlay
     assert "gt_CmreOnDemandRuntimeListener_Init();" in observer_overlay_body
+
 
     assert "gt_CmreOnDemandRuntimeListener_Func" in map_glue
     assert "libMapModBridge_gf_StartHeartbeat();" in map_glue
@@ -269,6 +287,29 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
     assert "void cmre_on_demand_trigger_customscript_init()" in overlay
     assert 'LastIndexOf("</Library>"' in overlay
     assert 'LastIndexOf($documentClose' in overlay
+
+
+def test_malformed_vibe_bank_is_quarantined_only_when_sc2_is_not_running():
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+    body = _function_body(overlay, "Initialize-CmreRuntimeListenerBank")
+
+    assert '$vibeDocument.Load($vibeBankFile)' in body
+    assert 'Get-Process -Name "SC2_x64", "SC2", "SC2Switcher_x64", "SC2Switcher"' in body
+    assert 'GalaxyVibe bank is malformed but will not be repaired while SC2 is active' in body
+    assert '[System.IO.File]::Replace($replacementPath, $vibeBankFile, $backupPath)' in body
+    assert '[bank-recovery] quarantined malformed GalaxyVibe bank' in body
+    assert '$vibeBankFile.invalid-$stamp-' in body
+
+
+def test_launcher_never_auto_kills_unowned_sc2_processes():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    start = source.index("if (-not $NoLaunch -and -not $SecondaryClient)")
+    end = source.index("$sc2RuntimeLeaseSession", start)
+    preflight = source[start:end]
+
+    assert "WebUI performs its own fail-closed cleanup only after it validates" in preflight
+    assert 'throw (Format-Sc2RuntimeBusyMessage -Processes $existing -Lease $currentLease)' in preflight
+    assert 'Stop-Process -Id $p.Id -Force' not in preflight
 
 
 def test_player_mode_launches_direct_map_from_gamelog_signal():
@@ -413,6 +454,40 @@ def test_overlay_assets_hold_galaxy_fragments_outside_launcher():
     assert "gf_CmreOnDemandAliveCount" in initialization_gate
     assert "CMUIX_ReadyBeginCountdown();" in default_tail
     assert 'TriggerSendEvent("CU_CommChoiceEventClosed")' not in default_tail
+
+
+def test_initialization_gate_writes_honest_markers_not_a_tautology():
+    """EVAL-020: the gate must not restate one boolean as five green markers.
+
+    Before the fix, gt_CmreOnDemandInitializationGate_Func wrote
+    initialization_building_ready_p1/p2, initialization_units_ready_p1/p2 and
+    initialization_complete = 1 in one unconditional block. When the launch
+    profile omitted CreateStartingUnitsP1 / EnsurePreventDefeatP1 the readiness
+    helper skipped every P1 ownership check, so those markers asserted nothing
+    yet reported all-green - and Stage 6 attempt-3 ran 192k loops on an empty
+    faction. The honest gate must gate each marker on the check it stands for
+    and emit an explicit checks-skipped witness.
+    """
+
+    gate = (ASSETS / "startup" / "initialization-gate.galaxy").read_text(encoding="utf-8-sig")
+
+    # The per-check markers are now conditional on the profile int that decides
+    # whether the underlying check runs at all.
+    assert 'if (lv_ensureP1 != 0) {' in gate
+    assert 'if (lv_createP1 != 0) {' in gate
+    assert 'initialization_units_ready_p1", 0' in gate
+    assert 'initialization_building_ready_p1", 0' in gate
+
+    # The short-circuit is now observable instead of laundered into green.
+    assert "initialization_checks_skipped_p1" in gate
+    assert "initialization_checks_skipped_p2" in gate
+
+    # Regression guard: the old tautological block wrote units_ready_p1 = 1
+    # with no preceding profile-int guard. Make sure no marker is written 1
+    # without the guarding branch by checking the guards precede each write.
+    p1_units_one = gate.find('initialization_units_ready_p1", 1')
+    p1_create_guard = gate.find('if (lv_createP1 != 0) {')
+    assert p1_units_one > p1_create_guard > 0, "units_ready_p1=1 must sit inside the createP1 branch"
 
 
 def test_webui_preselected_startup_is_the_default_non_selection_path():
@@ -787,4 +862,3 @@ def test_launcher_repairs_generated_invoke_bundle_against_staged_closure():
     assert "Repair-CmreStagedInvokeBundle -MapPath $MapPath" in source
     assert '"tools\\galaxy-vibe\\mpq\\staged_map_doctor.py"' in source
     assert "& $python $doctor $MapPath --fix" in source
-

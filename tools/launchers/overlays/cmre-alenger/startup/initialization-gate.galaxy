@@ -102,16 +102,66 @@ bool gf_CmreOnDemandInitializationReady() {
 }
 
 bool gt_CmreOnDemandInitializationGate_Func(bool testConds, bool runActions) {
+    int lv_createP1 = 0;
+    int lv_createP2 = 0;
+    int lv_ensureP1 = 0;
+    int lv_ensureP2 = 0;
     if (testConds) { return true; }
     if (!runActions) { return true; }
     libMapModBridge_gf_WriteDebugBank("initialization_gate_started", 1);
     libMapModBridge_gf_WriteDebugBank("initialization_complete", 0);
     while (true) {
         if (gf_CmreOnDemandInitializationReady()) {
-            libMapModBridge_gf_WriteDebugBank("initialization_building_ready_p1", 1);
-            libMapModBridge_gf_WriteDebugBank("initialization_building_ready_p2", 1);
-            libMapModBridge_gf_WriteDebugBank("initialization_units_ready_p1", 1);
-            libMapModBridge_gf_WriteDebugBank("initialization_units_ready_p2", 1);
+            // EVAL-020 honest gate. gf_CmreOnDemandInitializationReady() only
+            // verifies P1/P2 ownership when the launch profile asked for it
+            // (EnsurePreventDefeat* gates the building check at lines 79-80,
+            // CreateStartingUnits* gates the owned-unit check at lines 84-91).
+            // Writing all five "ready" markers = 1 unconditionally turned one
+            // boolean into five restatements and let Stage 6 attempt-3 run
+            // 192k loops against a player that owned nothing. Write each marker
+            // to reflect the check that was actually performed, and publish an
+            // explicit "checks skipped" witness so a reader can distinguish
+            // "verified present" from "never checked". These are debug /
+            // observability markers only; gameplay and the readiness gate
+            // condition are unchanged.
+            lv_createP1 = gf_CmreOnDemandProfileInt("CreateStartingUnitsP1");
+            lv_createP2 = gf_CmreOnDemandProfileInt("CreateStartingUnitsP2");
+            lv_ensureP1 = gf_CmreOnDemandProfileInt("EnsurePreventDefeatP1");
+            lv_ensureP2 = gf_CmreOnDemandProfileInt("EnsurePreventDefeatP2");
+            if (lv_ensureP1 != 0) {
+                libMapModBridge_gf_WriteDebugBank("initialization_building_ready_p1", 1);
+            } else {
+                libMapModBridge_gf_WriteDebugBank("initialization_building_ready_p1", 0);
+            }
+            if (lv_ensureP2 != 0) {
+                libMapModBridge_gf_WriteDebugBank("initialization_building_ready_p2", 1);
+            } else {
+                libMapModBridge_gf_WriteDebugBank("initialization_building_ready_p2", 0);
+            }
+            if (lv_createP1 != 0) {
+                libMapModBridge_gf_WriteDebugBank("initialization_units_ready_p1", 1);
+            } else {
+                libMapModBridge_gf_WriteDebugBank("initialization_units_ready_p1", 0);
+            }
+            if (lv_createP2 != 0) {
+                libMapModBridge_gf_WriteDebugBank("initialization_units_ready_p2", 1);
+            } else {
+                libMapModBridge_gf_WriteDebugBank("initialization_units_ready_p2", 0);
+            }
+            // 1 == "no P1 ownership check was performed", so a green
+            // initialization_complete says nothing about whether P1 owns a
+            // faction. run_live_rl.faction_precondition_failures is the
+            // independent API-side witness for that case.
+            if ((lv_createP1 == 0) && (lv_ensureP1 == 0)) {
+                libMapModBridge_gf_WriteDebugBank("initialization_checks_skipped_p1", 1);
+            } else {
+                libMapModBridge_gf_WriteDebugBank("initialization_checks_skipped_p1", 0);
+            }
+            if ((lv_createP2 == 0) && (lv_ensureP2 == 0)) {
+                libMapModBridge_gf_WriteDebugBank("initialization_checks_skipped_p2", 1);
+            } else {
+                libMapModBridge_gf_WriteDebugBank("initialization_checks_skipped_p2", 0);
+            }
             libMapModBridge_gf_WriteDebugBank("initialization_complete", 1);
             libPortingObserver_gf_Publish("initialization_complete",
                 "CMRE map initialization complete; starting structures and workers are present", false);

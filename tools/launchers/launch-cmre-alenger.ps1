@@ -1421,60 +1421,61 @@ function Write-CmreLaunchProfile {
         $values['Player|1|VoicePack'] = @("string", $VoicePack)
         $values['Player|2|VoicePack'] = @("string", $VoicePack)
     }
+    # All launcher entry points use a max-level/full-mastery commander profile by
+    # default. These fields are consumed by
+    # CMUIX_LaunchProfileApplyCommanderCustomization; leaving CommanderLevel
+    # absent falls back to the saved profile (for example a level-7 Raynor).
+    $values['ProfileConfigLocked'] = @("int", "1")
+    $values['Player|1|CustomizationSaved'] = @("int", "1")
+    $values['Player|2|CustomizationSaved'] = @("int", "1")
+    $values['Player|1|CommanderLevel'] = @("int", "15")
+    $values['Player|2|CommanderLevel'] = @("int", "15")
+
+    # Mastery allocation is independent from the optional prestige buff patch.
+    # Known six-slot commanders default to 30 points in every slot. A caller may
+    # still provide -Masteries for an explicit diagnostic/custom profile.
+    $masteryRecord = Resolve-CommanderPowerCommanderRecord -Commander $Commander -WorkspaceRoot $LegacyRoot
+    $masteryIds = @()
+    if ($null -ne $masteryRecord -and $null -ne $masteryRecord.masteries) {
+        $masteryIds = @($masteryRecord.masteries | ForEach-Object { [string]$_.id })
+    }
+    if ($masteryIds.Count -eq 6) {
+        $masteryValues = @(30, 30, 30, 30, 30, 30)
+        if ($Masteries -ne "") {
+            $parsed = @($Masteries -split ',' | ForEach-Object { [int]$_.Trim() })
+            for ($i = 0; $i -lt 6 -and $i -lt $parsed.Count; $i++) {
+                $masteryValues[$i] = $parsed[$i]
+            }
+        }
+        $values['Player|1|MasteryCount'] = @("int", "6")
+        $values['Player|2|MasteryCount'] = @("int", "6")
+        $values['Player|1|MasteryLevel'] = @("int", "180")
+        $values['Player|2|MasteryLevel'] = @("int", "180")
+        for ($i = 0; $i -lt 6; $i++) {
+            $slot = $i + 1
+            $values["Player|1|Mastery|$slot|Id"] = @("string", $masteryIds[$i])
+            $values["Player|2|Mastery|$slot|Id"] = @("string", $masteryIds[$i])
+            $values["Player|1|Mastery|$slot|Value"] = @("int", [string]$masteryValues[$i])
+            $values["Player|2|Mastery|$slot|Value"] = @("int", [string]$masteryValues[$i])
+        }
+        Write-Host "Commander profile: level=15 masteries=$($masteryValues -join ',') ids=$($masteryIds -join ',')"
+    } else {
+        Write-Host "Commander profile: level=15; commander '$Commander' exposes $($masteryIds.Count) mastery slots (no six-slot override required)"
+    }
+
     # Buff 补丁：仅当 -EnableBuffPatch 启用时写入。
     # - Buffs: 逗号分隔的 "P1,P2,P3" 子集，编码为 bitmask (P1=1, P2=2, P3=4)
-    # - Masteries: 逗号分隔的 6 个 0..30 整数，覆盖原版精通设置
-    # galaxy 端通过 CMUIX_LaunchProfileApplyBuffs 读取并应用 supplement upgrade，
-    # 精通点数由 CMUIX_LaunchProfileApplyCommanderCustomization 的 mastery 循环读取
-    # （Player|N|Mastery|slot|Id + Value，slot 为 1..6 1-indexed）。
+    # galaxy 端通过 CMUIX_LaunchProfileApplyBuffs 读取并应用 supplement upgrade。
     if ($EnableBuffPatch) {
         $bonusMask = 0
         if ($Buffs -match "P1") { $bonusMask += 1 }
         if ($Buffs -match "P2") { $bonusMask += 2 }
         if ($Buffs -match "P3") { $bonusMask += 4 }
-        # CustomizationSaved 必须为 1，否则 CMUIX_LaunchProfileApplyCommanderCustomization
-        # 会在入口处 return，mastery 与 prestige 都不会被应用。
-        $values['ProfileConfigLocked'] = @("int", "1")
-        $values['Player|1|CustomizationSaved'] = @("int", "1")
-        $values['Player|2|CustomizationSaved'] = @("int", "1")
         $values['Player|1|EnableBuffPatch'] = @("int", "1")
         $values['Player|2|EnableBuffPatch'] = @("int", "1")
         $values['Player|1|PrestigeBonusMask'] = @("int", [string]$bonusMask)
         $values['Player|2|PrestigeBonusMask'] = @("int", [string]$bonusMask)
         Write-Host "BuffPatch: enabled, PrestigeBonusMask=$bonusMask (Buffs='$Buffs')"
-
-        # 精通点数覆盖：从 commander-power-metadata.json 读取 6 个 mastery id，
-        # 写入 Player|N|Mastery|slot|Id/Value（slot 1..6 1-indexed）+ MasteryCount + MasteryLevel。
-        # galaxy 端 CMUIX_LaunchProfileApplyCommanderCustomization 会读取这些字段并调用
-        # libCOOC_gf_CC_PlayerMasteryUpgradeLevelSet 应用精通。
-        $masteryRecord = Resolve-CommanderPowerCommanderRecord -Commander $Commander -WorkspaceRoot $LegacyRoot
-        $masteryIds = @()
-        if ($null -ne $masteryRecord -and $null -ne $masteryRecord.masteries) {
-            $masteryIds = @($masteryRecord.masteries | ForEach-Object { [string]$_.id })
-        }
-        if ($masteryIds.Count -eq 6) {
-            $masteryValues = @(30, 30, 30, 30, 30, 30)
-            if ($Masteries -ne "") {
-                $parsed = @($Masteries -split ',' | ForEach-Object { [int]$_.Trim() })
-                for ($i = 0; $i -lt 6 -and $i -lt $parsed.Count; $i++) {
-                    $masteryValues[$i] = $parsed[$i]
-                }
-            }
-            $values['Player|1|MasteryCount'] = @("int", "6")
-            $values['Player|2|MasteryCount'] = @("int", "6")
-            $values['Player|1|MasteryLevel'] = @("int", "180")
-            $values['Player|2|MasteryLevel'] = @("int", "180")
-            for ($i = 0; $i -lt 6; $i++) {
-                $slot = $i + 1
-                $values["Player|1|Mastery|$slot|Id"] = @("string", $masteryIds[$i])
-                $values["Player|2|Mastery|$slot|Id"] = @("string", $masteryIds[$i])
-                $values["Player|1|Mastery|$slot|Value"] = @("int", [string]$masteryValues[$i])
-                $values["Player|2|Mastery|$slot|Value"] = @("int", [string]$masteryValues[$i])
-            }
-            Write-Host "BuffPatch: masteries=$($masteryValues -join ',') ids=$($masteryIds -join ',')"
-        } else {
-            Write-Host "BuffPatch: WARN commander '$Commander' has $($masteryIds.Count) masteries in metadata, expected 6; skipping mastery override"
-        }
 
         # BuffExtras: 逗号分隔的 3 个整数（P1mask,P2mask,P3mask），每个是该威望下 extra 子选项的 bitmask。
         # 例如 "1,0,0" 表示 P1 的 extra[0] 勾选，P2/P3 无 extras 勾选。
@@ -2320,63 +2321,12 @@ try {
         $existing = @(Get-Sc2RuntimeProcesses)
         if ($existing.Count -gt 0) {
             $currentLease = Get-Sc2RuntimeLease
-            # 判断 lease 是否"仍然活着"：
-            # 1. 无 lease 文件 → 孤儿进程，可清理
-            # 2. 有 lease 但 ownerPid（前一个 launcher 的 PID）已退出 → 前一次 launcher 崩溃了，可清理
-            # 3. 有 lease 且 runtimePid>0 但该进程已退出 → SC2 已崩溃，可清理
-            # 4. 有 lease 且 ownerPid 和 runtimePid 都还活着 → 可能是玩家/另一个会话在跑，报错退出
-            $leaseOwnerAlive = $false
-            $leaseRuntimeAlive = $false
-            if ($null -ne $currentLease -and -not [string]::IsNullOrWhiteSpace($currentLease.ownerSessionId)) {
-                if ([int]$currentLease.ownerPid -gt 0) {
-                    try {
-                        $ownerProc = Get-Process -Id ([int]$currentLease.ownerPid) -ErrorAction Stop
-                        $leaseOwnerAlive = $null -ne $ownerProc
-                    } catch { $leaseOwnerAlive = $false }
-                }
-                if ([int]$currentLease.runtimePid -gt 0) {
-                    try {
-                        $rtProc = Get-Process -Id ([int]$currentLease.runtimePid) -ErrorAction Stop
-                        $leaseRuntimeAlive = $null -ne $rtProc
-                    } catch { $leaseRuntimeAlive = $false }
-                }
-            }
-            $leaseLooksAlive = ($null -ne $currentLease -and
-                               -not [string]::IsNullOrWhiteSpace($currentLease.ownerSessionId) -and
-                               ($leaseOwnerAlive -or $leaseRuntimeAlive))
-
-            if (-not $leaseLooksAlive) {
-                if ($null -ne $currentLease) {
-                    Write-Host "[cleanup] 发现过期 lease (ownerSession=$($currentLease.ownerSessionId), ownerPid=$($currentLease.ownerPid) alive=$leaseOwnerAlive, runtimePid=$($currentLease.runtimePid) alive=$leaseRuntimeAlive)，视为孤儿清理:"
-                } else {
-                    Write-Host "[cleanup] 检测到无 lease 的残留 SC2 进程，视为孤儿进程自动清理:"
-                }
-                foreach ($p in $existing) {
-                    $parent = "unknown"
-                    try {
-                        $ci = Get-CimInstance Win32_Process -Filter "ProcessId=$($p.Id)" -ErrorAction SilentlyContinue
-                        if ($ci) { $parent = [int]$ci.ParentProcessId }
-                    } catch { }
-                    Write-Host "[cleanup]   终止 PID=$($p.Id) Name=$($p.ProcessName) ParentPID=$parent"
-                    try { Stop-Process -Id $p.Id -Force -ErrorAction Stop } catch { }
-                }
-                # 清理过期 lease 文件，避免下一次启动被卡住
-                if ($null -ne $currentLease) {
-                    try { [System.IO.File]::Delete($script:Sc2RuntimeLeasePath) } catch { }
-                    Write-Host "[cleanup]   已删除过期 lease 文件: $($script:Sc2RuntimeLeasePath)"
-                }
-                # 等待进程退出
-                Start-Sleep -Seconds 2
-                # 再次检查是否还有残留
-                $remaining = @(Get-Sc2RuntimeProcesses)
-                if ($remaining.Count -gt 0) {
-                    Write-Host "[cleanup] 仍有 $($remaining.Count) 个 SC2 进程无法终止，报错退出"
-                    throw (Format-Sc2RuntimeBusyMessage -Processes $remaining -Lease $null)
-                }
-                Write-Host "[cleanup] 孤儿 SC2 进程已全部清理，继续启动流程"
-            } else {
-                throw (Format-Sc2RuntimeBusyMessage -Processes $existing -Lease $currentLease)
-            }
+            # A detached or missing lease cannot prove that the process belongs
+            # to this launcher. In particular, do not classify a player's game
+            # or a debugger session as an orphan just because its owner exited.
+            # WebUI performs its own fail-closed cleanup only after it validates
+            # its matching intent, lease, process identity, and map command line.
+            throw (Format-Sc2RuntimeBusyMessage -Processes $existing -Lease $currentLease)
         }
     }
     $sc2RuntimeLeaseSession = if ($lock) { [string]$lock.session_id } elseif ($SecondaryClient) { "secondary-$PID-$ListenPort" } else { "reuse-primary-$PID-$ListenPort" }

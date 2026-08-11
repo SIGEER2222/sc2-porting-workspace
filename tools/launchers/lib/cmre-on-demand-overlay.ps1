@@ -238,11 +238,45 @@ function Initialize-CmreRuntimeListenerBank {
             [System.IO.File]::WriteAllBytes($vibeBankFile, $vibeBytes)
             continue
         }
+
+        $vibeDocument = [System.Xml.XmlDocument]::new()
+        $vibeDocument.PreserveWhitespace = $true
+        try {
+            $vibeDocument.Load($vibeBankFile)
+        } catch {
+            # A malformed GalaxyVibe bank prevents the launcher from reaching
+            # the map. Recover only while no SC2-related process is running:
+            # an active game may be writing the same Bank at this instant.
+            $activeSc2 = @(Get-Process -Name "SC2_x64", "SC2", "SC2Switcher_x64", "SC2Switcher" -ErrorAction SilentlyContinue)
+            if ($activeSc2.Count -gt 0) {
+                $processes = ($activeSc2 | Sort-Object Id | ForEach-Object { "$($_.ProcessName):$($_.Id)" }) -join ", "
+                throw "GalaxyVibe bank is malformed but will not be repaired while SC2 is active ($processes): $vibeBankFile"
+            }
+
+            # File.Replace keeps a timestamped backup in the same directory and
+            # atomically publishes a validated replacement. Do not recurse into
+            # author-hash directories beyond this launcher's explicit targets.
+            $stamp = [DateTimeOffset]::UtcNow.ToString("yyyyMMddTHHmmssfffZ")
+            $backupPath = "$vibeBankFile.invalid-$stamp-$([Guid]::NewGuid().ToString('N')).bak"
+            $replacementPath = "$vibeBankFile.repair-$([Guid]::NewGuid().ToString('N')).tmp"
+            try {
+                [System.IO.File]::WriteAllBytes($replacementPath, $vibeBytes)
+                $replacementDocument = [System.Xml.XmlDocument]::new()
+                $replacementDocument.Load($replacementPath)
+                [System.IO.File]::Replace($replacementPath, $vibeBankFile, $backupPath)
+                Write-Host "[bank-recovery] quarantined malformed GalaxyVibe bank: $vibeBankFile -> $backupPath"
+            } finally {
+                if ([System.IO.File]::Exists($replacementPath)) {
+                    [System.IO.File]::Delete($replacementPath)
+                }
+            }
+            continue
+        }
+
         # BankValueSetFrom* can update existing sections, but an empty bank
         # produced by an earlier probe is not consistently writable on the
         # direct-map path. Seed the typed Vibe sections before SC2 loads it.
         try {
-            [xml]$vibeDocument = [System.IO.File]::ReadAllText($vibeBankFile, [System.Text.Encoding]::UTF8)
             foreach ($sectionName in @("index", "request", "response", "ally", "diag")) {
                 if (@($vibeDocument.Bank.Section | Where-Object { $_.name -eq $sectionName }).Count -eq 0) {
                     $section = $vibeDocument.CreateElement("Section")
