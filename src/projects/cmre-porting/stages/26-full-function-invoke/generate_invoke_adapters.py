@@ -939,8 +939,21 @@ def emit_common(map_name: str, funcref_candidates: list[str]) -> str:
         '    return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", code, "{\\"reason\\":\\"" + code + "\\",\\"detail\\":\\"" + libVibeInvoke_gf_JsonEscape(detail) + "\\"}");',
         "}",
         "",
+        # VIBE_INVOKE_010：valueExpr 必须先变成**合法 JSON 字面量**再拼进去。
+        # 历史缺陷：void 传 ""（拼出 `"return_value":`）、string/text/funcref 传未加引号
+        # 的裸文本（拼出 `"return_value":hello`）—— 两者都是非法 JSON，任何 json.loads
+        # 的消费方都会解析失败，把「函数其实跑成功了」误报成「调用失败」。
+        # 长期没暴露是因为 tier100 只探过 int/fixed/bool 返回，那三类裸字面量恰好合法。
+        # 在 gf_Ok 单点收口而非每个适配器各拼一遍：11676 个适配器，改一处比改一万处安全。
         "string libVibeInvoke_gf_Ok(string retKind, string valueExpr) {",
-        '    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\\"return_kind\\":\\"" + retKind + "\\",\\"return_value\\":" + valueExpr + "}");',
+        "    string lv_json;",
+        "    lv_json = valueExpr;",
+        '    if (retKind == "void") {',
+        '        lv_json = "null";',
+        '    } else if (retKind == "string" || retKind == "text" || retKind == "funcref") {',
+        '        lv_json = "\\"" + valueExpr + "\\"";',
+        "    }",
+        '    return libVibeKernel_gf_MakeResponse("result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "OK", "{\\"return_kind\\":\\"" + retKind + "\\",\\"return_value\\":" + lv_json + "}");',
         "}",
         "",
         "string libVibeInvoke_gf_OkHandle(string handleType, int handleId) {",
@@ -1210,6 +1223,26 @@ KERNEL001_WATCHDOG_FUNC = """\
 // Never calls Dispatch, so a faulting handler can never take this thread down.
 // Observes the PollLoop heartbeat (gv_bankPollCount); if it stops advancing for
 // ~4 seconds the PollLoop thread is presumed dead and gets restarted.
+//
+// ！！！铁律 VIBE-KERNEL-004（2026-08-10 静态归因 + 真机 A/B 取证）！！！
+// watchdog 的诊断写入**必须走模型库**（GalaxyVibeModel），绝不能碰 RPC 库。
+//
+// 机理：gf_WriteBankInt 内部是 BankSave(gv_bankHandle)，即把内核内存态整份刷回
+//       GalaxyVibe.SC2Bank。VIBE_KERNEL_002 已经把 **PollLoop 线程**的写入
+//       全部排到 pending_request_id 读取之后，正是为了避免抹掉 Host 刚落盘的请求；
+//       但 watchdog 是**同一个 Bank 上的第二个写者**，每 2.0s 一次、
+//       与 PollLoop 的读写顺序毫无协调 —— VIBE_KERNEL_002 那条纪律它一天也没遵守过。
+//
+// 后果：Host 写 pending_request_id 到 PollLoop 下一拍 ReloadBank 之间有 ~0~500ms
+//       危险窗；watchdog 周期 2000ms ⇒ 单请求碰撞率 ≈ 250/2000 = 12.5%
+//       （真机 n=100 实测 over_2s = 15%，吻合）。被抹掉的请求由 Host 的
+//       at-least-once 补发（reassert_sec=2.0）救回来 —— 于是缺陷不表现为「丢」
+//       而表现为**延迟按 ~2 秒量子阶梯化**（中位 684ms / p95 4904ms / max 7200ms
+//       ≈ 基线 + 1~3 次补发）。补发一直在**掩盖**这个 bug，不是在修它。
+//
+// 修法：心跳与重启计数改写模型库（VIBE_GEN_007 已做通道隔离，其 BankSave 只刷
+//       GalaxyVibeModel.SC2Bank，天然伤不到 RPC 库）。RPC 库的落盘时机仍由
+//       VIBE_KERNEL_005 首帧 flush + 各 handler 的响应写入保证，不依赖 watchdog。
 bool libVibeKernel_gt_Watchdog_Func(bool testConds, bool runActions) {
     int stalled;
     if (testConds) { return true; }
@@ -1224,12 +1257,12 @@ bool libVibeKernel_gt_Watchdog_Func(bool testConds, bool runActions) {
             stalled = 0;
             libVibeKernel_gv_watchdogLastSeen = libVibeKernel_gv_bankPollCount;
         }
-        libVibeKernel_gf_WriteBankInt("index", "watchdog_last_seen_poll", libVibeKernel_gv_watchdogLastSeen);
+        libVibeKernel_gf_WriteModelBankInt("index", "watchdog_last_seen_poll", libVibeKernel_gv_watchdogLastSeen);
         if (stalled >= 2) {
             stalled = 0;
             libVibeKernel_gv_watchdogRestarts += 1;
             libVibeKernel_gv_pollLoopRunning = false;
-            libVibeKernel_gf_WriteBankInt("index", "kernel_restart_count", libVibeKernel_gv_watchdogRestarts);
+            libVibeKernel_gf_WriteModelBankInt("index", "kernel_restart_count", libVibeKernel_gv_watchdogRestarts);
             if (libVibeKernel_gt_PollLoop != null) {
                 // 必须异步：同步调用会让 watchdog 自身被 PollLoop 的 while(true) 永久吞掉，
                 // 重启一次之后 watchdog 就再也不工作了（自废）。

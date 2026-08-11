@@ -20,7 +20,29 @@ MANUAL = ROOT / "artifacts/projects/cmre-porting/stage25-ai-ally-capability-comp
 
 class P1MachineLearningTests(unittest.TestCase):
     def test_real_manual_replay_keeps_unknown_out_of_training(self):
-        dataset = build_manual_dataset(MANUAL / "manual-runtime-observations.jsonl", MANUAL / "manual-p1-actions.jsonl")
+        # This gate is intentionally evidence-bound: it may only pass on real
+        # runtime capture, never on synthesised data. `artifacts/` is
+        # git-ignored, so the capture can disappear from a clean checkout.
+        # Fail loudly with the exact regeneration command instead of dying on
+        # an opaque FileNotFoundError deep inside pathlib (that opacity has
+        # already caused this gap to be mis-attributed once).
+        observations = MANUAL / "manual-runtime-observations.jsonl"
+        actions = MANUAL / "manual-p1-actions.jsonl"
+        missing = [path.name for path in (observations, actions) if not path.exists()]
+        if missing:
+            self.fail(
+                "Stage25 runtime evidence missing: "
+                + ", ".join(missing)
+                + f"\n  expected under: {MANUAL}"
+                + "\n  regenerate with a LIVE SC2 in API mode plus a human playing P1:"
+                + "\n    python -m vibe.manual_replay_capture --port 5000 \\"
+                + "\n      --map src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map \\"
+                + f"\n      --out {MANUAL}"
+                + "\n  (the capture sends no actions; P1 behaviour must come from the UI)"
+                + "\n  NOTE: this gate cannot be satisfied offline and must not be"
+                + " relaxed to a skip -- a red bar here is an honest evidence gap."
+            )
+        dataset = build_manual_dataset(observations, actions)
         self.assertEqual(dataset["evidence_type"], "runtime")
         self.assertGreater(dataset["action_count"], len(dataset["examples"]))
         self.assertGreater(dataset["label_audit"].get("unknown", 0), 0)

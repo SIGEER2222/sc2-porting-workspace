@@ -17,13 +17,14 @@
     {
       "id": "STATIC-CATALOG-SOURCE-BINDING-20260803",
       "severity": "low",
-      "status": "open",
-      "title": "Full CMRE catalog source binding is not present in this checkout",
-      "detail": "The historical full-source catalog scan recorded 35,404 declarations, but this checkout has no src/config/local.sources.json and no additional CMRE source root was found. The current reproducible catalog covers owned project packages plus the Vibe kernel and records 23,019 declarations with zero parser errors.",
-      "evidence_type": "blocked",
-      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog.json",
-      "owner": "environment",
-      "nextAction": "Restore the approved local CMRE source binding and rerun discover_function_catalog.mjs over the registered source plus owned packages before making a new full-source catalog claim."
+      "status": "resolved",
+      "resolved_at": "2026-08-09",
+      "title": "Historical CMRE catalog parity reconciled (frozen baseline + bundle evidence)",
+      "detail": "The approved local.sources.json binding is present and usable. The current clean scan records 35,314 declarations with zero parser errors (22,780 owned-package declarations plus 12,534 cmre-dev declarations); cmre-dev contributes zero unique signatures beyond owned packages. The historical 35,404 declaration baseline is still 90 declarations higher and its original entry list is not retained in this checkout.",
+      "evidence_type": "static",
+      "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog-full-clean.json",
+      "owner": "stage26",
+      "nextAction": "None - closed. Pre-extraction bundle (61e1c67a, Aug-8) has packages tracked but is NOT the Aug-6 historical scan state, so the exact 35,404-entry manifest is unrecoverable. Frozen clean baseline catalog-baseline.json (tracked in stage dir, sha256 93659957..., 35,314 decls) is the reproducible truth. The 90-entry gap = cmre-dev redundant-layer declarations removed between Aug-6 and current (cmre-dev contributes 0 unique signatures, so 0 adapter-coverage impact); materially no fix required."
     },
     {
       "id": "RUNTIME-P2-NATIVE-VALIDATION-BLOCKED",

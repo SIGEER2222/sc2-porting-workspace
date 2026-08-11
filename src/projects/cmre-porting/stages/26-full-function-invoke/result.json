@@ -3,7 +3,7 @@
   "stage": "26-full-function-invoke",
   "status": "PASS_WITH_GAP",
   "evidence_type": "mixed",
-  "summary": "全函数 function.invoke 的静态部分已达成：clean catalog 为 22,780 个 owned-source 声明和 242 个 canonical-kernel 声明；生成器仅消费 owned source，产出 11,676 个类型化 gen.<int> 静态分派 adapter 与 155 个显式排除项。862 个生成/kernel Galaxy 文件 0 解析错误，最新 run-all-validation 为 52/52 通过，三副本 hash 一致；历史 35,404 声明基线仍有 90 条开放静态差异。2026-08-10 的 approved launcher 已完成实际放量：Tier 100（C:/tmp/CMREStage26-Approved-Tier100-20260810.SC2Map，3,403,359B，EFAAC5D8...005CFBB4）中 gen.1 成功、gen.202 按范围预期 FUNCTION_NOT_IN_MAP；Tier 1000（3,495,092B，D7DD3982...80237F34）和 -InvokeFull（4,070,657B，7828FCE5...C0E7A66）均使 gen.1 -> fixed 0、gen.202 -> int 2 成功。三次均由启动器拥有的 API 实例完成 CreateGame/JoinGame、kernel_initialized=1、register_entrypoints_done=1、system.ping、vibe.unit.spawn 的 raw observation +1 Marine、query.units=1，且同窗口零新增非空 ScriptError。TerranAlenger3 预选启动日志与上述真实进入地图闭环共同证明启动器不再等待指挥官选择界面。InvokeTier=0 保持生成 adapter 禁用的稳定 WebUI 基线，绝不再当作全量放量。Module 1 Step 4 类型族抽样与只读普查仍如实记录为运行时样本证据；当前唯一保留缺口是历史 35,404 声明基线的 90 条静态对账差异。",
+  "summary": "全函数 function.invoke 的静态部分已达成：clean catalog 为 22,780 个 owned-source 声明和 242 个 canonical-kernel 声明；生成器仅消费 owned source，产出 11,676 个类型化 gen.<int> 静态分派 adapter 与 155 个显式排除项。862 个生成/kernel Galaxy 文件 0 解析错误，最新 run-all-validation 为 52/52 通过，三副本 hash 一致；历史 35,404 声明基线仍有 90 条开放静态差异。2026-08-10 的 approved launcher 已完成实际放量：Tier 100（C:/tmp/CMREStage26-Approved-Tier100-20260810.SC2Map，3,403,359B，EFAAC5D8...005CFBB4）中 gen.1 成功、gen.202 按范围预期 FUNCTION_NOT_IN_MAP；Tier 1000（3,495,092B，D7DD3982...80237F34）和 -InvokeFull（4,070,657B，7828FCE5...C0E7A66）均使 gen.1 -> fixed 0、gen.202 -> int 2 成功。三次均由启动器拥有的 API 实例完成 CreateGame/JoinGame、kernel_initialized=1、register_entrypoints_done=1、system.ping、vibe.unit.spawn 的 raw observation +1 Marine、query.units=1，且同窗口零新增非空 ScriptError。TerranAlenger3 预选启动日志与上述真实进入地图闭环共同证明启动器不再等待指挥官选择界面。InvokeTier=0 保持生成 adapter 禁用的稳定 WebUI 基线，绝不再当作全量放量。Module 1 Step 4 类型族抽样与只读普查仍如实记录为运行时样本证据。2026-08-11 WebUI 新增已绑定 detached session 的安全重启实现（56 项静态回归），但最终双击 map-entry MVP 被无归属的外部 API SC2 会话阻塞，保持 BLOCKED；历史 35,404 声明基线的 90 条静态对账差异也继续保留。",
   "changed_paths": [
     "src/projects/cmre-porting/project.json",
     "src/projects/cmre-porting/stages/26-full-function-invoke/plan.md",
@@ -44,7 +44,9 @@
     "tools/launchers/overlays/cmre-alenger/startup/player-commander.galaxy.tpl",
     "tools/launchers/overlays/cmre-alenger/startup/preselected-commander-startup.galaxy.tpl",
     "src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/LibCOOC.galaxy",
+    "tools/cmre-webui/server.py",
     "tools/cmre-webui/test_launch_async_contract.py",
+    "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-repeat-launch-validation-20260811.json",
     "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/preselected-commander-overlay-20260808.json",
     "tools/galaxy-vibe/tier100_live_probe.py",
     "src/projects/cmre-porting/stages/26-full-function-invoke/test_vm_all_internal_coverage.py"
@@ -207,6 +209,13 @@
       "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-launch-runtime-20260810-194607.json"
     },
     {
+      "name": "webui-owned-detached-session-restart",
+      "command": "POST /api/launch-async twice with TerranAlenger3 + 亡者之夜.SC2Map",
+      "status": "BLOCKED",
+      "detail": "WebUI now records and binds only its own detached player runtime, then requires lease/session/PID/creation timestamp/trusted launcher/map-command-line agreement before cleanup. Static WebUI + launcher validation is 56 passed. The final double-click map-entry MVP was not run to completion: launcher PID 47648 hit the GameLogs map-load gate while an unrelated SC2_x64.exe PID 46256 listened on 5006/6119 without WebUI ownership. That process was preserved; do not promote this item to PASS until a clean runtime window proves old PID removal, new map entry, heartbeat advance, and no new non-empty ScriptError.",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-repeat-launch-validation-20260811.json"
+    },
+    {
       "name": "runtime-full-map-reproducibility",
       "status": "PASS",
       "detail": "早先 08:0x 的 spawn+仿真引擎崩溃保留为环境历史；其后完整生成图在 18:33 与 19:32 的独立 SC2 API 会话中均通过全部 tier100_probe 断言，证明 full-map 的 gen.* 原生执行已再次可复现。此 PASS 不扩展为 launcher tier rollout 或 census 的 PASS。",
@@ -266,6 +275,7 @@
     }
   },
   "next_actions": [
+    "在没有未归属 SC2/SC2Switcher 或外部 listener 的窗口中，连续两次 POST /api/launch-async（TerranAlenger3 + 亡者之夜.SC2Map），验收首轮 WebUI-owned runtime PID 被定点结束、次轮 PID 改变且进图、heartbeat 递增和同窗口无新增非空 ScriptError；再将 webui-owned-detached-session-restart 从 BLOCKED 更新为 PASS。",
     "保持 approved-launcher 放量契约：仅用 -InvokeTier 100、-InvokeTier 1000、-InvokeFull 作为 Stage 26 runtime evidence；InvokeTier=0 继续作为 generated bundle disabled 的稳定基线，旧的同 hash T100/T1000 重命名图不再复用。",
     "保留并复核已完成的 runtime_invoke_probe.py --sample/--census 证据；除非扩大任务范围，不要重复运行会改变任务状态的全量普查。",
     "【N1 结论 2026-08-09 08:5x：内核单点 ReloadBank 治本实验 ABANDONED 并已回退】。A/B 真机证明重发是 Bank RPC 通道固有方差（两图每轮均 ~1 次重发），单点 ReloadBank 未关窗。真正兜底是 Host at-least-once 重发。治本方向改为：将 RPC 通道(request/response/index)与模型状态库(p2_*)拆成独立 bank 文件，使 WriteModelP2Snapshot 的 BankSave 不再覆盖 RPC 请求/响应。这是更大的数据/内核改造，列为独立 N 项，本次不实施。",

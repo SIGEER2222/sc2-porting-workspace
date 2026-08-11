@@ -27,6 +27,17 @@
       "nextAction": "保留 map-specific marker regression；新增地图时同步维护 map-requirements.json。"
     },
     {
+      "id": "WEBUI-OWNED-DETACHED-RESTART-RUNTIME",
+      "severity": "medium",
+      "status": "open",
+      "title": "WebUI repeat-launch ownership guard still needs an uncontended live MVP",
+      "detail": "WebUI now binds a detached player runtime only after its own async launcher exits and the intent, lease, runtime PID, creation timestamp, trusted launcher path, selected map/commander, SC2 executable identity, and command line all agree. The implementation is covered by 56 static WebUI/launcher tests, including UTF-16 command-line decoding for Chinese map names and fail-closed mismatch cases. The final double-click runtime check remains open because the latest WebUI launch PID 47648 hit the GameLogs map-load gate while an unrelated SC2_x64.exe PID 46256 (-listen 127.0.0.1 -port 5006 -debug) was active without WebUI ownership. That process was preserved.",
+      "evidence_type": "mixed",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-repeat-launch-validation-20260811.json",
+      "owner": "stage26",
+      "nextAction": "After all untracked SC2/SC2Switcher processes and foreign listeners have exited, run two POST /api/launch-async requests for TerranAlenger3 + 亡者之夜.SC2Map. Verify the original WebUI-owned runtime PID is gone, the second PID reaches the map, bridge_heartbeat advances, and no non-empty ScriptError is added."
+    },
+    {
       "id": "RUNTIME-LIVE-VALIDATION-BLOCKED",
       "severity": "medium",
       "status": "resolved",

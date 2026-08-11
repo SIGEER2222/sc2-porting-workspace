@@ -405,3 +405,30 @@
 - `runtime`：运行后的 `SC2_x64.exe` 命令行仍指向亡者之夜，lease 归属本次
   WebUI launcher。证据：
   `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-launch-runtime-20260810-194607.json`。
+
+### 2026-08-11 WebUI detached-session ownership restart (static pass, runtime blocked)
+
+- `static`：WebUI 现在在 `/api/launch-async` 后写入独立 intent；launcher 正常退出后，
+  intent 只在 `ownerPid`、`ownerSessionId`、`runtimePid`、runtime 创建时间、launcher
+  路径、map/commander 与 `sc2-runtime-lease.json` 全部一致时才绑定。下一次启动仅可
+  结束该已绑定的 `SC2_x64.exe`；缺 intent、PID/创建时间不一致、非 SC2、命令行地图
+  不一致或 launcher 路径不可信均 fail-closed，不会结束外部玩家/调试会话。
+- `static`：后台 WebUI 经 CIM 读取含中文地图名的命令行时会受到 PowerShell 输出编码
+  影响。现将该字段在 PowerShell 中编码为 UTF-16LE Base64，再由 Python 显式解码；
+  保持精确的地图命令行比较，不因编码问题放宽归属条件。失败 launcher 也会删除未绑定
+  intent，避免把未进入地图的启动伪装成可清理会话。
+- `static`：`python -m pytest -q tools/cmre-webui tools/launchers/tests/test_launch_cmre_alenger_static.py`
+  -> **56 passed**。覆盖已绑定 detached 会话清理、未跟踪会话保留、PID/地图命令行
+  fail-closed、中文命令行解码与失败 intent 清理；`python -m py_compile
+  tools/cmre-webui/server.py` 和 `git diff --check` 均通过。
+- `runtime/blocked`：用于最终“首次启动后第二次点击”MVP 的 WebUI launcher PID
+  `47648` 因 `GameLogs map-load gate failed: no new *Alert*.txt or *ScriptError*.txt
+  within 180 seconds` 退出。同期发现无当前 WebUI intent 或 detached lease 的外部
+  `SC2_x64.exe` PID `46256`（`-listen 127.0.0.1 -port 5006 -debug`，监听 5006/6119）。
+  未停止、未连接或复用该进程；因此不得把本轮作为 WebUI repeat-launch runtime PASS。
+- 证据：
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-repeat-launch-validation-20260811.json`。
+- 下一步：当没有未归属 SC2/SC2Switcher 或外部 listener 时，连续两次
+  `POST /api/launch-async`（`TerranAlenger3 + 亡者之夜.SC2Map`），确认首轮 runtime PID
+  被 WebUI 清理、次轮 runtime PID 不同且进入目标地图，并复核 heartbeat 递增和同窗口
+  无新增非空 ScriptError。
