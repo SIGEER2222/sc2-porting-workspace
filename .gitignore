@@ -157,22 +157,49 @@ src/projects/**/Triggers
 # === 构建/缓存/生成产物（本地派生，永不入库）===
 .cache/
 build/
-src/lib/
 stages/
 *.vibe-bak
 **/LibVibeInvokeDispatch_active.galaxy
+
+# === CMLib 通用库（src/lib）===
+# 曾整目录 `src/lib/` 排除，属误分类：scripts/cmlib/** 与 selftest/ 是手写源码、不可再生，
+# 一旦只存在于本地就会 clone 即缺失（同 N4 历史 catalog 丢失于 ignored 目录的教训）。
+# 现改为：只排除本地构建产物（CMLib.SC2Mod/、CMLib_out.SC2Mod、_*_build/、*.SC2Map、gap_scan*.json 等），
+# 库源码与工具链入库。
+src/lib/*
+!src/lib/scripts/
+!src/lib/selftest/
+!src/lib/*.py
+!src/lib/*.md
 
 # 项目阶段管理文件（plan/log/result/issues）需要入库
 !src/projects/*/stages/
 !src/projects/*/stages/**
 
-# === 一次性调试/探针脚本（p0/p1 探针、真机 vm sweep、临时 kernel fix）===
+# === 一次性调试/探针脚本（真机 vm sweep、临时 kernel fix）===
+# 判据：被**已跟踪文档**以可执行命令引用的探针必须入库，否则文档写的复现步骤在干净 clone 上
+# 必然失败（指向不存在的文件）。经引用扫描，docs/galaxy-vibe-p0-p1-breakthrough-20260808.md
+# 第 198/202/207 行直接 `$PY` 调用 p0_probe_v2 / p1_probe（含反向对照），第 97/117 行讲解
+# map_load_diag 的四层判定 —— 这三个已是 P0/P1 验收链的常驻件，故移出排除列表。
+# 其余仍为无引用（orphan）的一次性脚本，保持不入库。
 tools/galaxy-vibe/apply_kernel_001_fix.py
-tools/galaxy-vibe/map_load_diag.py
 tools/galaxy-vibe/p0_probe_switcher.py
-tools/galaxy-vibe/p0_probe_v2.py
 tools/galaxy-vibe/p0_probe_v3.py
-tools/galaxy-vibe/p1_probe.py
 tools/galaxy-vibe/real_machine_vm_live.py
 tools/galaxy-vibe/real_machine_vm_sweep.py
 tools/galaxy-vibe/real_machine_vm_sweep2.py
+
+# The stage-management exception above restores plan/log/result/issues, but
+# runtime evidence trees and Python bytecode remain local generated output.
+*.pyc
+src/projects/*/stages/**/__pycache__/
+src/projects/*/stages/**/evidence-bundles/
+src/projects/*/stages/**/evidence-stage*/
+src/projects/*/stages/**/runtime-*/
+src/projects/*/stages/**/launcher-*.txt
+src/projects/*/stages/**/simulator-*.stdout.txt
+src/projects/*/stages/**/simulator-*.stderr.txt
+src/projects/*/stages/**/debug-vm-visible-*.json
+src/projects/*/stages/**/catalog-baseline.json
+src/projects/*/stages/**/catalog-baseline-signatures.txt.gz
+*.packed.SC2Map
