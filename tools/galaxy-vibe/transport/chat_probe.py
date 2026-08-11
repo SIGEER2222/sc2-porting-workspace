@@ -10,14 +10,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "tools" / "galaxy-vibe"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from host.vibe_host import VibeHost  # noqa: E402
+# 复用 bank_probe 的结局分类器作为**单一事实源**，避免两份实现漂移。
+# 关键语义：`INTERNAL_ERROR` 只由 host 侧产生（内核 .galaxy 从不产生），
+# 因此它代表「没拿到裁决」，不可读作「内核给出了错误裁决」。
+from bank_probe import _classify_outcome  # noqa: E402
 
 
 def run_sequential_pings_chat(host: VibeHost, count: int = 20) -> dict:
@@ -33,10 +39,16 @@ def run_sequential_pings_chat(host: VibeHost, count: int = 20) -> dict:
             "error_code": resp.error_code,
             "latency_ms": round(latency_ms, 2),
             "is_ok": resp.is_ok,
+            "outcome": _classify_outcome(resp, latency_ms, 5.0),
         })
     ok_count = sum(1 for r in results if r["is_ok"])
+    timeout_count = sum(1 for r in results if r["outcome"] == "timeout")
     latencies = sorted(r["latency_ms"] for r in results)
-    p95 = latencies[int(len(latencies) * 0.95)] if latencies else 0
+    # 与 bank_probe 同步修正：原 `latencies[int(n*0.95)]` 在 n=20 时取 index 19 = 最大值（实为 p100）。
+    # 改用标准 nearest-rank p95，并记录 max/median/超阈样本；verdict 判据不放宽。
+    n = len(latencies)
+    p95 = latencies[min(n - 1, math.ceil(0.95 * n) - 1)] if n else 0
+    over_2s = [r["index"] for r in results if r["latency_ms"] > 2000]
     return {
         "test": "sequential_pings_chat",
         "count": count,
@@ -44,6 +56,14 @@ def run_sequential_pings_chat(host: VibeHost, count: int = 20) -> dict:
         "all_acked": ok_count == count,
         "p95_ms": round(p95, 2),
         "p95_within_2s": p95 <= 2000,
+        "timeout_count": timeout_count,
+        "p95_right_censored": timeout_count > 0,
+        "median_ms": round(latencies[n // 2], 2) if n else 0,
+        "max_ms": round(latencies[-1], 2) if n else 0,
+        "min_ms": round(latencies[0], 2) if n else 0,
+        "over_2s_count": len(over_2s),
+        "over_2s_indices": over_2s,
+        "p95_statistically_meaningful": n >= 100,
         "results": results,
     }
 
@@ -59,18 +79,29 @@ def run_illegal_requests_chat(host: VibeHost, count: int = 5) -> dict:
     ]
     results = []
     for i, (op, args) in enumerate(illegal_ops[:count]):
+        t0 = time.time()
         resp = host.request(op, args, transport="chat", timeout=3.0)
+        latency_ms = (time.time() - t0) * 1000
         results.append({
             "index": i,
             "operation": op,
             "error_code": resp.error_code,
+            "latency_ms": round(latency_ms, 2),
+            "outcome": _classify_outcome(resp, latency_ms, 3.0),
             "rejected": resp.error_code in ("UNKNOWN_OPERATION", "INVALID_ARGS",
                                             "COUNT_OUT_OF_RANGE", "PLAYER_OUT_OF_RANGE"),
         })
+    adjudicated = [r for r in results if r["outcome"] != "timeout"]
+    adjudication_complete = len(adjudicated) == len(results)
+    all_rejected_adjudicated = all(r["rejected"] for r in adjudicated)
     return {
         "test": "illegal_requests_chat",
         "count": count,
-        "all_rejected": all(r["rejected"] for r in results),
+        # 与旧口径严格等价，仅把失败原因拆得可读（详见 bank_probe 同名字段注释）。
+        "all_rejected": adjudication_complete and all_rejected_adjudicated,
+        "all_rejected_adjudicated": all_rejected_adjudicated,
+        "adjudication_complete": adjudication_complete,
+        "indeterminate_count": len(results) - len(adjudicated),
         "results": results,
     }
 

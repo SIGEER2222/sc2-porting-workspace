@@ -348,10 +348,30 @@ def write_bank_request(bank_name: str, request_id: str, request: RpcRequest, pla
     return len(paths) > 0
 
 
-def bank_request_landed(bank_name: str, request_id: str) -> bool:
-    """校验请求是否仍然存在于**所有**候选 Bank 文件上（Galaxy 端能读到）。
+def _active_candidate(bank_name: str) -> Path | None:
+    """返回 Galaxy 内核当前实际读取的候选 Bank 路径。
 
-    ！！！铁律 VIBE_GEN_007！！！
+    Galaxy 端从 ``Banks/<AuthorHash>/`` 下读取 ``pending_request_id`` 与
+    ``request`` 段，每次 `BankSave` 后该目录 mtime 最新。Python 侧
+    ``read_bank`` 也以 (含 index 段 + mtime 最大) 为优先级选取同一份，
+    故"active 候选"与 `read_bank` 返回的是同一物理文件。内核只读这一份。
+    """
+    best: Path | None = None
+    best_mtime = -1.0
+    for _, path in _iter_bank_candidates(bank_name):
+        parsed, mtime = _parse_bank_file(path)
+        if "index" not in parsed:
+            continue
+        if mtime > best_mtime:
+            best_mtime = mtime
+            best = path
+    return best
+
+
+def bank_request_landed(bank_name: str, request_id: str) -> bool:
+    """校验请求是否已落进 Galaxy 内核实际读取的那一份 Bank（active 候选）。
+
+    ！！！铁律 VIBE_GEN_007 + VIBE-KERNEL-005b！！！
     Bank 是"双写单文件"通道：Host 与 Galaxy 都以**全量覆盖**语义写同一个文件，
     没有任何锁。两类丢失都真机复现过：
 
@@ -368,20 +388,30 @@ def bank_request_landed(bank_name: str, request_id: str) -> bool:
     没有 HANDLER_ABORTED 兜底、state_version 也不 bump（因为内核压根没看见）。
     因此"写完即认为送达"是错的，必须回读校验 + 重发。
 
-    这里要求**每一个已存在的候选文件**都带有该请求：只要有一份陈旧/被抹除，
-    就可能正好是 Galaxy 端在读的那一份。
+    **判定口径（VIBE-KERNEL-005b 修正）**：只检查 **active 候选**的
+    ``request`` 段是否含该 ``request_id``，**不**要求 ``pending_request_id == rid``，
+    **不**要求所有候选都带请求。理由：
+
+      1. Galaxy 内核只读 active 候选（``Banks/<AuthorHash>/``）那一份；
+         16 个历史遗留数字子目录是不同会话的陈旧 Bank，内核永不读它们，
+         要求它们带请求只会制造**假性 False** 触发无谓重发。
+      2. 内核处理完请求后通常会清空/改写 active 候选的 ``pending_request_id``；
+         若还要求 `pending == rid` 通过，则响应一落盘就又判 False → 每请求每
+         ~2s 一次虚假重发循环，正是真机 16s 卡死样本的来源。
+      3. 一旦 ``request_id`` 写进 active 候选的 ``request`` 段，内核 PollLoop
+         必然读取并分发，故"已 landed"的正确判据就是该段含此 rid；丢失的判据
+         是 active 候选的 ``request`` 段**不含**此 rid（对应上述 (a)(b)）。
+
+    该修正消除两类虚假重发、且与内核只读单目录的事实一致；真丢失（active 候选
+    的 request 段缺 rid）仍被准确检测并触发重发。
     """
-    seen_any = False
-    for _, path in _iter_bank_candidates(bank_name):
-        parsed, _ = _parse_bank_file(path)
-        if not parsed:
-            continue
-        seen_any = True
-        has_req = request_id in parsed.get("request", {})
-        pending = str(parsed.get("index", {}).get("pending_request_id", ""))
-        if not has_req or pending != request_id:
-            return False
-    return seen_any
+    active = _active_candidate(bank_name)
+    if active is None:
+        return False
+    parsed, _ = _parse_bank_file(active)
+    if not parsed:
+        return False
+    return request_id in parsed.get("request", {})
 
 
 # ---- SC2API 连接（aiohttp + 后台 event loop 同步封装）----
@@ -521,15 +551,15 @@ class Sc2ApiClient:
             local_map.map_path = map_path
         else:
             raise ValueError("create_game 需要 map_data 或 map_path")
+        # 【2026-08-09 修】仅放 1 个 Participant（P1），与 tier100 真机探针一致。
+        # 之前放 Participant + Computer 双玩家会在 realtime 下让 AI 对手接管并
+        # 频繁触发内核 BankSave，放大 VIBE_GEN_007 有损通道对 pending_request_id
+        # 的覆盖概率；单玩家下内核 PollLoop/BankPoll 行为与被验证的 tier100 路径一致。
         req = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
             local_map=local_map,
             player_setup=[
                 sc_pb.PlayerSetup(
                     type=PLAYER_PARTICIPANT, race=RACE_TERRAN, player_name="P1",
-                ),
-                sc_pb.PlayerSetup(
-                    type=PLAYER_COMPUTER, race=RACE_TERRAN,
-                    difficulty=2, player_name="AI",
                 ),
             ],
             realtime=realtime,
@@ -646,6 +676,7 @@ class VibeHost:
         require_initialization: bool = False,
         realtime: bool = True,
         poll_step_count: int = 1,
+        fresh_bank: bool = False,
     ):
         self.sc2_port = sc2_port
         self.bank_name = bank_name
@@ -653,6 +684,7 @@ class VibeHost:
         self.require_initialization = require_initialization
         self.realtime = realtime
         self.poll_step_count = max(1, int(poll_step_count))
+        self.fresh_bank = fresh_bank
         self.initialization_complete = not require_initialization
         self.initialization_status: dict[str, Any] = {}
         self.initialization_error = ""
@@ -661,6 +693,20 @@ class VibeHost:
         self.client: Optional[Sc2ApiClient] = None
         self.requests_log: list[dict[str, Any]] = []
         self.responses_log: list[dict[str, Any]] = []
+        # VIBE-KERNEL-005b 诊断：每次 reassert 触发时记录 active 候选与哪些候选
+        # 缺请求，用于区分「active 目录真丢失（文件句柄竞争）」与「陈旧/stale 目录
+        # 导致 bank_request_landed 假性 False」。仅诊断用，不影响判定逻辑。
+        self.reassert_diags: list[dict[str, Any]] = []
+        # VIBE-KERNEL-006 诊断（观察-only）：读到 HANDLER_ABORTED 时继续观察 grace 秒，
+        # 记录该 rid 的 response 是否被真响应覆盖，用来区分「抢读悲观占位符」与
+        # 「handler 真的 abort」。> 0 才启用；**绝不改变 _poll_response 的返回值**，
+        # 因此不可能把红判据刷绿。仅在 legacy 模式（abort_is_terminal=True）下有意义。
+        self.aborted_grace_probe: float = 0.0
+        self.provisional_diags: list[dict[str, Any]] = []
+        # VIBE-KERNEL-006 修复开关。False（默认，正确语义）= HANDLER_ABORTED 视为
+        # **provisional**，继续轮询等真响应；True = 旧行为，读到即当终态立刻返回。
+        # 保留 True 分支是为了做反向对照（A/B 证明差异确实来自本修复）。
+        self.abort_is_terminal: bool = False
         self.artifacts_dir = artifacts_dir or (REPO_ROOT / "artifacts" / "galaxy-vibe")
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
 
@@ -708,6 +754,39 @@ class VibeHost:
                 print("[VibeHost] JoinGame 失败，LeaveGame 退出当前对局...", file=sys.stderr)
                 self.client.leave_game(timeout=15.0)
                 time.sleep(2.0)
+                # 【2026-08-09 修】fresh-bank：kernel_initialized 是 Bank 持久 key，
+                # 会跨地图加载残留。即便新地图 MapScript 被 SC2 静默丢弃（编译失败），
+                # 旧值仍在，导致“内核已注册”假阳性；更糟的是残留的 request/pending
+                # 会与本次请求在同一份 Bank 上竞争，放大 VIBE_GEN_007 有损通道的覆盖
+                # 概率。create_game 前把 GalaxyVibe.SC2Bank 移走，使“标记/响应出现”
+                # 成为“本次加载确实编译并运行了内核”的无歧义证据，并清空 stale 请求。
+                if self.fresh_bank:
+                    bp = DEFAULT_BANK_DIR / f"{self.bank_name}.SC2Bank"
+                    if bp.exists():
+                        arch = bp.with_suffix(f".SC2Bank.stale-{int(time.time())}")
+                        try:
+                            bp.replace(arch)
+                            print(f"[VibeHost] fresh-bank 归档旧 Bank: {arch}", file=sys.stderr)
+                        except OSError as exc:  # noqa: BLE001
+                            print(f"[VibeHost] fresh-bank 归档失败（忽略）: {exc}", file=sys.stderr)
+                    # VIBE-KERNEL-005b：历史会话遗留的 Banks/<digits>/GalaxyVibe.SC2Bank
+                    # 会让 bank_request_landed 的"全候选"旧口径假性 False，并让每次
+                    # write_bank_request 多写 ~16 份冗余文件。fresh-bank 须一并归档这些
+                    # 陈旧 author 目录的 GalaxyVibe.SC2Bank，使本次运行只留 root +
+                    # 新 CreateGame 生成的 active 目录两个候选，降低写竞争面。
+                    for sub in sorted(DEFAULT_BANK_DIR.iterdir()):
+                        if sub.is_dir() and sub.name.isdigit():
+                            stale = sub / f"{self.bank_name}.SC2Bank"
+                            if stale.exists():
+                                try:
+                                    stale.replace(
+                                        stale.with_suffix(f".SC2Bank.stale-{int(time.time())}")
+                                    )
+                                    print(f"[VibeHost] fresh-bank 归档陈旧候选 Bank: {stale}",
+                                          file=sys.stderr)
+                                except OSError as exc:  # noqa: BLE001
+                                    print(f"[VibeHost] fresh-bank 归档陈旧候选失败（忽略）: {exc}",
+                                          file=sys.stderr)
                 # CreateGame 加载新地图
                 if map_data:
                     print(f"[VibeHost] CreateGame with map_data ({len(map_data)} bytes)...", file=sys.stderr)
@@ -819,6 +898,7 @@ class VibeHost:
         args: Optional[dict[str, Any]] = None,
         timeout: float = 5.0,
         transport: str = "bank_poll",
+        reassert: bool = True,
     ) -> RpcResponse:
         """发送 RPC 请求并等待响应。
 
@@ -900,10 +980,14 @@ class VibeHost:
         # 非实时 SC2 不会因为 wall-clock sleep 自行推进；BankPoll
         # transport 必须在等待响应期间驱动 RequestStep，才能让 Galaxy PollLoop
         # 和 BankPoll 继续执行。实时会话中 step 失败时 _poll_response 仍会继续轮询。
+        # bank_poll 通道启用 at-least-once 重发（VIBE_GEN_007），其余 transport
+        # 不重发（map_command 的重发需连带重新 MapCommand 唤醒，语义不同）。
         response = self._poll_response(
             request.request_id,
             timeout,
             advance_frames=transport in ("map_command", "bank_poll"),
+            reassert=reassert and transport == "bank_poll",
+            original_request=request,
         )
         # Locally synthesized transport failures do not come from the Kernel
         # and therefore may omit protocol identity fields. Preserve the
@@ -969,24 +1053,153 @@ class VibeHost:
             print(f"[VibeHost] write_bank_request 异常: {e}", file=sys.stderr)
             return False
 
+    def _observe_aborted_supersede(self, request_id: str, raw_first: str) -> None:
+        """VIBE-KERNEL-006 取证：HANDLER_ABORTED 是"真 abort"还是"抢读占位符"？
+
+        内核 ``KERNEL001_PESSIMISTIC`` 在 handler 运行**之前**就写
+        ``response/<rid> = HANDLER_ABORTED``，而 ``gf_WriteBankKey`` 内部
+        （LibVibeKernel.galaxy:194-195）是 ``BankValueSetFromString`` + **立即
+        ``BankSave``**。于是磁盘上会短暂存在一个"看起来是终态"的悲观占位符。
+        Host 的 50ms 轮询若恰好落在 [占位符刷盘, 真响应刷盘) 这个窗口内，就会把
+        provisional 占位符当终态读走并立刻返回。
+
+        本函数**只取证不干预**：继续观察 ``aborted_grace_probe`` 秒，看同一 rid 的
+        response 是否被一份**不同的**内容覆盖。
+
+        - ``superseded=True``  → 抢读竞态成立，handler 根本没 abort（内核缺陷是
+          "provisional 与 terminal 不可区分"，不是 handler 崩了）
+        - ``superseded=False`` → HANDLER_ABORTED 是真裁决
+
+        无论结果如何都不修改 ``_poll_response`` 的返回值，判据一分不放宽。
+        """
+        diag: dict[str, Any] = {
+            "request_id": request_id,
+            "superseded": False,
+            "supersede_ms": None,
+            "final_error_code": "HANDLER_ABORTED",
+            "grace_s": self.aborted_grace_probe,
+        }
+        started = time.time()
+        deadline = started + self.aborted_grace_probe
+        try:
+            while time.time() < deadline:
+                time.sleep(0.02)
+                later = read_bank(self.bank_name).get("response", {}).get(request_id, "")
+                if later and later != raw_first:
+                    later_resp = RpcResponse.from_json(later)
+                    diag["superseded"] = True
+                    diag["supersede_ms"] = round((time.time() - started) * 1000, 2)
+                    diag["final_error_code"] = later_resp.error_code
+                    break
+        except Exception:  # noqa: BLE001 - 取证路径绝不允许影响主流程
+            diag["observe_error"] = True
+        self.provisional_diags.append(diag)
+
     def _poll_response(
         self,
         request_id: str,
         timeout: float,
         advance_frames: bool = False,
+        reassert: bool = False,
+        original_request: Optional[RpcRequest] = None,
     ) -> RpcResponse:
-        """轮询 Bank 等待响应，并按需推进非实时 SC2 帧。"""
+        """轮询 Bank 等待响应，并按需推进非实时 SC2 帧。
+
+        bank_poll 通道在 ``reassert=True`` 时启用 at-least-once 重发
+        （VIBE_GEN_007 真机取证）：Bank 是 Host 与 Galaxy 对同一文件全量覆盖、
+        无锁的有损通道，请求可能在内核 ReloadBank 之后、下次 BankSave 之前被
+        内核内存态整份抹掉。仅当请求确实已从所有候选 Bank 上消失
+        （``bank_request_landed`` 为假）时才用同一 ``request_id`` 重发；
+        rid 不变，内核靠 ``lastPolledRequestId`` 去重，重复投递不会重复执行。
+        """
         deadline = time.time() + timeout
+        last_assert = time.time()
+        self._poll_started = time.time()
+        reassert_sec = 2.0
+        # VIBE-KERNEL-006：provisional 占位符状态（见下方 if 分支的长注释）
+        provisional_resp: Optional[RpcResponse] = None
+        provisional_raw = ""
+        provisional_at = 0.0
         while time.time() < deadline:
             bank = read_bank(self.bank_name)
             resp_section = bank.get("response", {})
             raw = resp_section.get(request_id, "")
             if raw:
-                return RpcResponse.from_json(raw)
-            if advance_frames and self.client:
-                # RequestStep 在 realtime=true 会被 SC2 拒绝，但 client.step 已
-                # 将该失败收敛为 False。非实时 peer 断开时立即结束轮询，
-                # 否则每个请求都会在 websocket 已关闭后重复写入直到 timeout。
+                resp = RpcResponse.from_json(raw)
+                # VIBE-KERNEL-006：HANDLER_ABORTED 在内核里**只有一个产生点** ——
+                # KERNEL001_PESSIMISTIC（LibVibeKernel.galaxy:1483-1485）在 handler
+                # 运行**之前**就把它写进 response/<rid>，而 gf_WriteBankKey 内部立即
+                # BankSave。所以它天生是 provisional 占位符，不是裁决结果。
+                # Host 每 50ms 轮询，若恰好落在 [占位符刷盘, 真响应刷盘) 窗口内就会
+                # 误把它当终态读走 —— 真机取证（p0-transport-k006-forensic-rep2/rep3）
+                # 显示 7/7 个 HANDLER_ABORTED 都在 37~54ms 内被真 OK 覆盖，**零个真 abort**。
+                # 正确语义：继续轮询。占位符的原始设计意图（handler 真崩时 Host 不必
+                # 无从判断）完整保留 —— 见下方超时分支：超时后盘上仍是占位符，才判定
+                # 「dispatch 开始过但从未完成」并返回 HANDLER_ABORTED 终态。
+                # 这不是放宽判据：若假说是错的（真 abort 占多数），修复后延迟会暴涨到
+                # poll_timeout 且 all_acked 依然红 —— 修复自带证伪机制。
+                if resp.error_code == "HANDLER_ABORTED" and not self.abort_is_terminal:
+                    if provisional_resp is None:
+                        provisional_resp = resp
+                        provisional_raw = raw
+                        provisional_at = time.time()
+                    time.sleep(0.02)
+                    continue
+                if provisional_resp is not None and raw != provisional_raw:
+                    self.provisional_diags.append({
+                        "request_id": request_id,
+                        "superseded": True,
+                        "supersede_ms": round((time.time() - provisional_at) * 1000, 2),
+                        "final_error_code": resp.error_code,
+                        "mode": "poll_continue",
+                    })
+                if self.aborted_grace_probe > 0.0 and resp.error_code == "HANDLER_ABORTED":
+                    self._observe_aborted_supersede(request_id, raw)
+                return resp
+            # VIBE_GEN_007：仅在请求确已丢失时重发，避免无谓覆盖内核刚写的
+            # response（write_bank_request 现在以最新候选为基底，重发也不会回滚）。
+            now = time.time()
+            if reassert and original_request is not None and now - last_assert >= reassert_sec:
+                last_assert = now
+                if not bank_request_landed(self.bank_name, request_id):
+                    # VIBE-KERNEL-005b 诊断：记录触发重发时的候选明细，用于区分
+                    # "active 目录真丢失（文件句柄竞争）" 与 "陈旧目录导致假性 False"。
+                    try:
+                        diag = {
+                            "request_id": request_id,
+                            "t": round(now - self._poll_started, 3) if hasattr(self, "_poll_started") else None,
+                            "active": None,
+                            "active_has_req": None,
+                            "stale_without_req": [],
+                            "candidate_count": 0,
+                        }
+                        active = _active_candidate(self.bank_name)
+                        if active is not None:
+                            ap, _ = _parse_bank_file(active)
+                            diag["active"] = str(active)
+                            diag["active_has_req"] = request_id in ap.get("request", {})
+                        for tag, path in _iter_bank_candidates(self.bank_name):
+                            diag["candidate_count"] += 1
+                            if path == active:
+                                continue
+                            p, _ = _parse_bank_file(path)
+                            if p and request_id not in p.get("request", {}):
+                                diag["stale_without_req"].append(tag)
+                        self.reassert_diags.append(diag)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    write_bank_request(self.bank_name, request_id, original_request)
+            if advance_frames and self.client and not self.realtime:
+                # 仅非实时模式需要 RequestStep 推进 Galaxy PollLoop/BankPoll。
+                # 实时模式下 SC2 必然拒绝 RequestStep，但内核的 PollLoop/BankPoll
+                # 由游戏自身实时推进，step 失败是**预期**的，绝不能据此中止轮询
+                # —— 否则 realtime 下每个 bank_poll 请求都会在第一轮迭代即 INTERNAL_ERROR，
+                # 表现与 tier100 真机探针"只 sleep 不 step 即闭环"完全相反。
+                # （此前 Step 4 全量抽样 0/53 的真相：create_game 默认 realtime=true，
+                # _poll_response 第一轮 step 即被拒 → 立即 INTERNAL_ERROR，内核响应根本
+                # 没机会被读到，与"gen 分发失败"无关。）
+                # 非实时 peer 真正断开时 step 也返回 False，此时及早结束轮询以免
+                # 在已关闭的 websocket 上反复写入直到 timeout。
                 if not self.client.step(
                     count=self.poll_step_count,
                     timeout=min(5.0, max(0.1, timeout)),
@@ -1000,7 +1213,22 @@ class VibeHost:
                         payload={"reason": "request_step_failed"},
                     )
             time.sleep(0.05)  # 50ms 轮询
-        # 超时
+        # VIBE-KERNEL-006：整段观测窗口结束，盘上仍停在 provisional 占位符 ⇒ dispatch
+        # 确实开始过（内核写下了占位符）但从未完成 ⇒ 这才是**真的** handler abort。
+        # 此处返回 HANDLER_ABORTED 而非 INTERNAL_ERROR，正是占位符的原始设计意图：
+        # 让 Host 能区分「handler 崩了」与「内核根本没收到请求」（后者盘上无 response，
+        # 走下面的 INTERNAL_ERROR）。判据强度不变：真 abort 依旧计为 non-ok。
+        if provisional_resp is not None:
+            self.provisional_diags.append({
+                "request_id": request_id,
+                "superseded": False,
+                "supersede_ms": None,
+                "final_error_code": "HANDLER_ABORTED",
+                "mode": "poll_continue",
+                "waited_ms": round((time.time() - provisional_at) * 1000, 2),
+            })
+            return provisional_resp
+        # 超时且盘上无任何 response = host 侧超时（内核未产出裁决）
         return RpcResponse(
             kind="error", session_id=self.session_id,
             request_id=request_id, sequence=self.sequence,
@@ -1132,6 +1360,16 @@ class VibeHost:
         )
 
     # ---- 清理 ----
+
+    def leave_game(self, timeout: float = 30.0) -> bool:
+        """退出当前对局回到主菜单（委托给底层 SC2 API 客户端），用于善后避免孤儿 in-game 态。"""
+        if self.client is None:
+            return False
+        try:
+            return bool(self.client.leave_game(timeout=timeout))
+        except Exception as exc:  # noqa: BLE001
+            print(f"[VibeHost] leave_game 异常（忽略）: {exc}", file=sys.stderr)
+            return False
 
     def close(self) -> None:
         self.disconnect()

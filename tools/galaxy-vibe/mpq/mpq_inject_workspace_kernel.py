@@ -48,6 +48,14 @@ int    libVibeKernel_gv_tagCacheVersion = -1;
 // 打包的老地图 header 里没有；不补就是「未解析符号」→ SC2 静默丢整个 MapScript。
 const string libVibeKernel_gv_ModelBankName = "GalaxyVibeModel";
 bank   libVibeKernel_gv_modelBankHandle = null;
+
+// ---- VIBE_KERNEL watchdog / 首帧 flush 状态（随 VIBE_KERNEL 合并版一并注入）----
+// 当前内核 body 引用这 4 个全局；Jul31/Aug8 老地图 header 里没有，不补就是
+// 「未解析符号」→ SC2 静默丢整个 MapScript。2026-08-09 复盘补进声明表。
+trigger libVibeKernel_gt_Watchdog = null;
+int     libVibeKernel_gv_watchdogLastSeen = 0;
+int     libVibeKernel_gv_watchdogRestarts = 0;
+bool    libVibeKernel_gv_pollLoopFirstFlushed = false;
 """
 
 DECL_NAMES = [
@@ -57,6 +65,10 @@ DECL_NAMES = [
     "libVibeKernel_gv_tagCacheVersion",
     "libVibeKernel_gv_ModelBankName",
     "libVibeKernel_gv_modelBankHandle",
+    "libVibeKernel_gt_Watchdog",
+    "libVibeKernel_gv_watchdogLastSeen",
+    "libVibeKernel_gv_watchdogRestarts",
+    "libVibeKernel_gv_pollLoopFirstFlushed",
 ]
 
 GALAXY_IN_MPQ = [
@@ -66,6 +78,14 @@ GALAXY_IN_MPQ = [
     "Base.SC2Data\\LibMapModBridge.galaxy",
     "MapScript.galaxy",
 ]
+
+# ---- 基底血统判据（2026-08-10 事故治本）----
+# gen 血统 MapScript 是 VibeT4 血统的**严格超集**：多出的 267 行就是 VIBE_FORWARD_PROTOS。
+# 两者 include 集合完全相同 —— 即 VibeT4 也挂了 invoke 派发层却没有前向原型，
+# 这正是"能通过所有内核自检、却在真机静默丢图"的那类基底。
+INVOKE_INCLUDE_RE = re.compile(r'^\s*include\s+"LibVibeInvokeDispatch', re.M)
+FWD_BEGIN = "// ==== BEGIN VIBE_FORWARD_PROTOS ===="
+FWD_END = "// ==== END VIBE_FORWARD_PROTOS ===="
 
 
 def _count_code(text: str, token: str) -> int:
@@ -96,13 +116,81 @@ def defined_symbols(text: str) -> set[str]:
     return out
 
 
+USAGE = """用法: python mpq_inject_workspace_kernel.py <基底图> <产出图> [--allow-lineage-mismatch]
+
+  基底**必须显式给**，不再有默认值。两种合法用途：
+    - gen 图重建 : 基底须为 gen 血统（如 C:/tmp/VibeDeadOfNight-Gen-k004.SC2Map，5.4MB+）
+    - 纯内核测试 : C:/tmp/VibeT4.sc2map -> C:/tmp/VibeT5.sc2map
+
+  2026-08-10 事故：本脚本旧版默认基底写死 C:\\tmp\\VibeT4.sc2map（"生成 VibeT5"的原始用途），
+  被当成"重建 gen 图"用时静默产出 VibeT4 血统的图（4.65MB，gen 血统是 5.50MB），
+  16 项自检全绿、真机 kernel_registered=false 且 0 ScriptError，被误诊成 Bank 逻辑回归。
+  默认值在此类"一脚本两用途"场景里就是陷阱本身，故改为 fail closed。"""
+
+
+def check_map_lineage(mapscript: str) -> tuple[bool, str]:
+    """判定基底图是否具备**可编译的 invoke 挂载**结构。
+
+    2026-08-10 事故根因：VibeT4 血统的 MapScript 同样 `include "LibVibeInvokeDispatch_active"`，
+    却缺 `VIBE_FORWARD_PROTOS` 前向原型区 —— invoke 层引用的 MapScript 本体函数
+    （gf_* / auto_gf_*_TriggerFunc / gt_*_Func）全部无声明 → Galaxy 编译失败 →
+    **SC2 静默丢弃整个 MapScript**（不报错、不写日志、静态 lint 照样 0 错误）。
+    真机表现为 kernel_registered=false + 0 ScriptError，极易被误诊成 Bank / 内核逻辑回归。
+
+    判据必须覆盖"我要下的结论"（这张图能跑 tier100），而不是只覆盖"内核注入对不对"：
+    原 16 项自检全是内核**内部**性质，对基底血统完全无感——恰恰漏掉唯一致命的那项。
+
+    反向对照：`C:/tmp/VibeT4.sc2map` 必须**精确失败在本判据上**（而非崩溃/超时）。
+    """
+    m = INVOKE_INCLUDE_RE.search(mapscript)
+    if not m:
+        return True, "未挂载 invoke 派发层 → 血统判据不适用（纯内核图）"
+    if FWD_BEGIN not in mapscript or FWD_END not in mapscript:
+        return False, ("挂载了 LibVibeInvokeDispatch 却缺 VIBE_FORWARD_PROTOS 前向原型区 → "
+                       "invoke 层引用 MapScript 本体函数无声明 → 编译失败 → SC2 静默丢整个 MapScript")
+    if mapscript.index(FWD_END) > m.start():
+        return False, "VIBE_FORWARD_PROTOS 落在 invoke include 之后 → 声明太晚，等同于没有"
+    return True, "gen 血统（invoke 挂载 + 前向原型区位于挂载点之前）"
+
+
+def read_mapscript(dll, path: Path) -> str:
+    h = ctypes.c_void_p()
+    if not dll.SFileOpenArchive(str(path), 0, STREAM_FLAG_READ_ONLY, ctypes.byref(h)):
+        raise SystemExit(f"[FAIL] 打开归档失败: {path}")
+    try:
+        return mpq_read(dll, h, "MapScript.galaxy").decode("utf-8-sig").replace(CRLF, LF)
+    finally:
+        dll.SFileCloseArchive(h)
+
+
 def main() -> int:
-    src = Path(sys.argv[1] if len(sys.argv) > 1 else r"C:\tmp\VibeT4.sc2map")
-    dst = Path(sys.argv[2] if len(sys.argv) > 2 else r"C:\tmp\VibeT5.sc2map")
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    flags = {a for a in sys.argv[1:] if a.startswith("--")}
+    allow_mismatch = "--allow-lineage-mismatch" in flags
+    if len(args) < 2:
+        raise SystemExit(USAGE)
+    src = Path(args[0])
+    dst = Path(args[1])
     if not src.exists():
         raise SystemExit(f"[FAIL] 基线不存在: {src}")
     if not WS_KERNEL.exists():
         raise SystemExit(f"[FAIL] 工作区内核不存在: {WS_KERNEL}")
+
+    dll = load_storm()
+
+    # ---- 前置血统门禁：不产出坏图，fail fast ----
+    src_ms = read_mapscript(dll, src)
+    lineage_ok, lineage_why = check_map_lineage(src_ms)
+    print(f"[lineage] 基底 {src.name} ({src.stat().st_size} B): "
+          f"{'OK' if lineage_ok else 'FAIL'} — {lineage_why}")
+    if not lineage_ok and not allow_mismatch:
+        raise SystemExit(
+            f"[FAIL] 基底血统门禁未过：{lineage_why}\n"
+            f"       用这张基底产出的图，SC2 会**静默丢弃整个 MapScript**，真机表现为\n"
+            f"       kernel_registered=false 且 0 ScriptError，看起来像内核 bug，其实是基底错。\n"
+            f"       如确知在做纯内核实验，显式加 --allow-lineage-mismatch。\n\n{USAGE}")
+    if not lineage_ok:
+        print("[warn] --allow-lineage-mismatch 已显式放行：产出图预期无法在真机跑通 invoke 层")
 
     WORK.mkdir(parents=True, exist_ok=True)
     if dst.exists():
@@ -113,7 +201,6 @@ def main() -> int:
     body = WS_KERNEL.read_bytes().decode("utf-8-sig").replace(CRLF, LF)
     print(f"[read] 工作区内核 {len(body)} chars")
 
-    dll = load_storm()
     h = ctypes.c_void_p()
     if not dll.SFileOpenArchive(str(dst), 0, 0, ctypes.byref(h)):
         raise SystemExit(f"[FAIL] open {dst}: {ctypes.get_last_error()}")
@@ -206,6 +293,9 @@ def main() -> int:
         "无函数重定义": not dups,
         "未混入反向对照": "NEG_CTL_" not in b,
         "括号平衡": b.count("{") == b.count("}"),
+        # 后置血统断言：前置门禁管"别拿错基底"，这里管"产出的图本身成立"。
+        # 两层都要有——只做前置，任何绕过入口的改动都会重新打开同一个坑。
+        "产出图 invoke 血统成立": check_map_lineage(texts.get("MapScript.galaxy", ""))[0],
     }
     ok = True
     for k, v in checks.items():

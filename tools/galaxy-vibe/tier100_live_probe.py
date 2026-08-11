@@ -46,6 +46,7 @@ import aiohttp  # noqa: E402
 from host.vibe_host import (  # noqa: E402
     read_bank, write_bank_request, bank_request_landed, RpcRequest, DEFAULT_BANK_DIR,
 )
+from live_lock import LiveLock, LiveLockBusy  # noqa: E402
 
 BANK_NAME = "GalaxyVibe"
 DEFAULT_MAP = r"E:/SC2/SC2new/StarCraft II/Maps/VibeDeadOfNight.SC2Map"
@@ -456,8 +457,34 @@ def main() -> int:
                     help="输出文件名后缀，便于阶梯实验区分多次 run")
     ap.add_argument("--out-dir",
                     default=str(REPO_ROOT / "artifacts" / "galaxy-vibe"))
+    ap.add_argument("--lock-timeout", type=float, default=0.0,
+                    help="真机资源互斥锁等待上限秒（0=拿不到立刻退出，不排队）")
+    ap.add_argument("--no-lock", action="store_true",
+                    help="跳过真机互斥锁（仅用于明确知道自己独占时；默认加锁）")
     a = ap.parse_args()
-    res = asyncio.run(a_main(a))
+
+    lock = None
+    if not a.no_lock:
+        try:
+            lock = LiveLock(holder="tier100_live_probe", port=a.port,
+                            timeout=a.lock_timeout,
+                            note=f"map={Path(a.map).name} runs={a.runs}").acquire()
+            if lock.reclaimed:
+                print(f"[live-lock] 回收遗留锁：{lock.reclaimed}", file=sys.stderr)
+        except LiveLockBusy as exc:
+            print(f"[live-lock] {exc}", file=sys.stderr)
+            print(json.dumps({
+                "verdict": {"tier100_pass": False, "connect": False},
+                "error": "live_lock_busy",
+                "holder": getattr(exc, "holder_info", None),
+            }, ensure_ascii=False, indent=2))
+            raise SystemExit(3) from exc
+
+    try:
+        res = asyncio.run(a_main(a))
+    finally:
+        if lock is not None:
+            lock.release()
     res["map"] = str(a.map)
     res["fresh_bank"] = bool(a.fresh_bank)
     o = Path(a.out_dir)

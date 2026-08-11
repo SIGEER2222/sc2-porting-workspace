@@ -378,6 +378,7 @@ class TestVibeHostMocked(unittest.TestCase):
         mock_client = MagicMock()
         mock_client.step.return_value = True
         self.host.client = mock_client
+        self.host.realtime = False  # 该用例验证非实时帧推进路径（见 docstring）
         with patch("host.vibe_host.read_bank", return_value={}):
             response = self.host._poll_response("waiting", timeout=0.06, advance_frames=True)
         self.assertEqual(response.error_code, "INTERNAL_ERROR")
@@ -388,6 +389,7 @@ class TestVibeHostMocked(unittest.TestCase):
         mock_client = MagicMock()
         mock_client.step.return_value = True
         self.host.client = mock_client
+        self.host.realtime = False  # 该用例验证非实时帧推进路径（见 docstring）
         self.host.poll_step_count = 4
         with patch("host.vibe_host.read_bank", return_value={}):
             self.host._poll_response("batched", timeout=0.06, advance_frames=True)
@@ -399,6 +401,7 @@ class TestVibeHostMocked(unittest.TestCase):
         mock_client = MagicMock()
         mock_client.step.return_value = False
         self.host.client = mock_client
+        self.host.realtime = False  # 该用例验证非实时 peer 断开立即停止轮询
         with patch("host.vibe_host.read_bank", return_value={}):
             response = self.host._poll_response("disconnected", timeout=5.0, advance_frames=True)
         self.assertEqual(response.error_code, "INTERNAL_ERROR")

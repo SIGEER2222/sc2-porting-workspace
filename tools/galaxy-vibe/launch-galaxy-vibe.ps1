@@ -65,7 +65,8 @@ param(
     [string]$VisualRoi = "",
     [double]$VisualThreshold = 8.0,
     [int]$VisualSteady = 3,
-    [string]$Python = "python"
+    [string]$Python = "python",
+    [switch]$ForceRestart
 )
 
 $ErrorActionPreference = "Stop"
@@ -89,6 +90,27 @@ if (-not (Test-Path $Map))     { Write-Error "Map not found: $Map" }
 if ($ModPath -and -not (Test-Path $ModPath)) { Write-Error "Debug mod not found: $ModPath" }
 
 Write-Host "[1/4] Killing any running SC2 ..."
+# 预防层（live_lock）：别把别人正在飞的会话（如 :5974 的 live RL）重启打断
+# —— 历史事故 3v6 训练跑到一半被另一会话重启 SC2 打断，产出半截报告。
+# 锁只挡住"接入了 LiveLock 的入口"，但很多真机入口（run_live_rl 的 stage6 等）
+# 根本没接锁、对锁体系隐形；这里直接问端口：任何候选端口（含 5000/5974）上有
+# 他人 ESTABLISHED 连接就拒绝杀进程（宁可误报，漏报会毁数据）。
+$liveLockPy = Join-Path $repo "tools/galaxy-vibe/live_lock.py"
+$guardArgs = @("can-restart", "sc2-port-$Port", "--actor", "launch-galaxy-vibe")
+if ($ForceRestart) { $guardArgs += "--force" }
+$guardRc = 0
+try {
+    & $Python $liveLockPy @guardArgs
+    $guardRc = $LASTEXITCODE
+} catch {
+    # 探测本身失败（如 python 缺失）→ 宁可保守，按"被占用"处理，不杀。
+    Write-Warning "[guard] live_lock 探测异常（$_），保守按'被占用'处理，不杀 SC2。"
+    $guardRc = 4
+}
+if ($guardRc -eq 4) {
+    Write-Warning "[guard] 重启被 live_lock 预防层拦截：另一会话正占用 SC2（如 :5974 的 live RL），本启动器拒绝杀进程以免打断其训练数据。稍后重试，或确认对方已结束后加 -ForceRestart。"
+    exit 4
+}
 Get-Process -Name "SC2_x64", "SC2Switcher_x64" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
