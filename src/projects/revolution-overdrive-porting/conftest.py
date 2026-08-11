@@ -1,14 +1,14 @@
 # conftest.py — 起义狂潮移植项目 (revolution-overdrive-porting)
 #
-# Stage 09 (stages/09-ai-ally-runtime-retry) 是一次探索性延续，尝试用 *运行时观测*
-# 联盟契约去补证 RO-AI-001 的 18 条 residual。该思路已被显式废弃，改为「根因钉死 +
-# 审计闭环」方案（RO-AI-001：182 进合约 + 18 fail-closed = runtime_leader_identity，
-# 静态不可约，运行时观测无法补证）。
+# 治理判据（勿删）：**测试被配置静默排除 == 静默变绿**。
 #
-# 其写入 vibe/ai_ally.py 的实现在 C-lite 历史收口（git reset --hard origin/master）时被
-# 回退，但此未追踪测试文件幸存，且引用已不存在的符号，导致整项目 pytest collection 崩溃。
+# 历史教训（2026-08-09）：Stage 09 曾走「运行时观测联盟契约」路线，向 vibe/ai_ally.py 写入
+# RuntimeAllianceObservation / build_runtime_observed_ally_contract。该实现在 C-lite 收口
+# (git reset --hard origin/master) 时被回退，但其未跟踪的测试文件幸存并引用了已不存在的符号，
+# 导致整项目 pytest collection 崩溃。当时用 collect_ignore_glob 把它排除以恢复绿色——
+# 副作用是此后每一轮门禁都"32 passed"，而没有任何信号提示 Stage 09 的守卫其实压根没跑。
 #
-# 保留该文件留档，但将其排除出自动 collection，使正当的 Stage 04/08 回归套件保持绿色且诚实。
-collect_ignore_glob = [
-    "stages/09-ai-ally-runtime-retry/test_runtime_observed_contract.py",
-]
+# 现已删除该孤儿测试文件，排除列表清空。若未来再需要排除任何测试，必须同时：
+#   1. 在此列出路径与理由；
+#   2. 放宽下方 test_no_silent_test_exclusion 元守卫（迫使排除成为一次显式、可见的决定）。
+collect_ignore_glob: list[str] = []

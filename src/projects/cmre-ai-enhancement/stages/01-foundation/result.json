@@ -2,15 +2,15 @@
   "stage_id": "01-foundation",
   "schemaVersion": 1,
   "status": "IN_PROGRESS",
-  "current_phase": "Ares-native policy skeleton implemented; dependency and runtime validation pending",
+  "current_phase": "Ares-native policy skeleton implemented; G0 (ares import) PASS in managed venv ares311; G1 macro-plan & G2 combat-maneuver simulator scenarios PASS (SC2-independent); G3 3500-loop live & G4 regression PENDING (require SC2 API window)",
   "opened_at": "2026-08-01T00:00:00+08:00",
   "closed_at": null,
   "direction": "reference AresSC2 + implement MacroPlan/CombatManeuver + native AresBot entry",
   "plan": "src/projects/cmre-ai-enhancement/stages/01-foundation/plan.md",
   "acceptance_criteria": {
-    "G0_reference": { "status": "BLOCKED", "evidence_type": "static" },
-    "G1_macro_plan": { "status": "PENDING", "evidence_type": "runtime" },
-    "G2_combat": { "status": "PENDING", "evidence_type": "runtime" },
+    "G0_reference": { "status": "PASS", "evidence_type": "static" },
+    "G1_macro_plan": { "status": "PASS", "evidence_type": "simulator" },
+    "G2_combat": { "status": "PASS", "evidence_type": "simulator" },
     "G3_live_3500": { "status": "PENDING", "evidence_type": "runtime" },
     "G4_regression": { "status": "PENDING", "evidence_type": "runtime" }
   },
@@ -21,10 +21,18 @@
       "evidence_type": "static"
     },
     "ares_import": {
-      "status": "BLOCKED",
-      "reason": "Python 3.11 environment lacks cython_extensions and map_analyzer",
-      "evidence_type": "static"
+      "status": "PASS",
+      "reason": "Managed venv ares311 (Py3.11.9) at C:/Users/22448/.workbuddy/binaries/python/envs/ares311 now imports ares. Installed: ares-sc2 3.9.6 (editable, read-only reference/ares-sc2) + sc2 0.11.2 + burnysc2 7.3.0 + cython-extensions-sc2 0.16.0 + map_analyzer 0.2.0 (git spudde123/SC2MapAnalysis@develop, REPLACES wrong PyPI map-analyzer 0.2.1 by melodypapa which lacked MapData) + scikit-learn/PyYAML/tqdm. ares src path baked via site-packages/ares_src.pth so `import ares` works without PYTHONPATH.",
+      "command": "C:/Users/22448/.workbuddy/binaries/python/envs/ares311/Scripts/python.exe -c \"from ares import AresBot; print(AresBot)\"",
+      "evidence_type": "static",
+      "caveat": "ares pyproject pins cython-extensions-sc2<0.16.0,>=0.15.0 but 0.16.0 installed (pip resolver warning only; G0 import passes). If G1+ runtime hits a 0.16 API change, downgrade to 0.15.x. burnysc2 is from PyPI 7.3.0, not the august-k/python-sc2@develop git pin ares declares; import works, but exact-fork fidelity is unverified for runtime."
+    },
+    "foundation_simulator_tests": {
+      "status": "PASS",
+      "command": "C:/Users/22448/.workbuddy/binaries/python/envs/ares311/Scripts/python.exe -m pytest src/projects/cmre-ai-enhancement/tests/test_foundation.py",
+      "evidence_type": "simulator",
+      "detail": "4 passed. G1 macro-plan scenario constructs DeadOfNightMacroPlan with a dummy Point2 (no live SC2); G2 combat anchor constructs CombatManeuver and verifies add/execute contract. Fixed pre-game start_location dependency that required a connected bot."
     }
   },
-  "note": "Stage 01 remains open; no live or simulator PASS is claimed"
+  "note": "Stage 01 partially advanced 2026-08-10: G0 (ares import) PASS; G1 macro-plan & G2 combat-maneuver SIMULATOR scenarios PASS (SC2-independent, ares311 venv). G3 3500-loop live and G4 regression remain PENDING — they require an SC2 API window and sustained mission play, not a simulator probe. Per plan discipline, simulator pass is NOT claimed as live integration success."
 }

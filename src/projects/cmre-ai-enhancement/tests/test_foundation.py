@@ -5,6 +5,7 @@ from pathlib import Path
 
 import yaml
 from sc2.ids.unit_typeid import UnitTypeId
+from sc2.position import Point2
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -41,8 +42,10 @@ def test_project_config_and_build_order_are_valid_yaml() -> None:
 
 
 def test_macro_plan_uses_expansion_and_production_behaviors() -> None:
+    # Simulator scenario (G1): construct the macro plan without a live SC2 game.
+    # `start_location` requires a connected bot (game_info), so use a dummy base.
     bot = AresBot()
-    plan = DeadOfNightMacroPlan(bot, MacroConfig()).build(bot.start_location)
+    plan = DeadOfNightMacroPlan(bot, MacroConfig()).build(Point2((0.0, 0.0)))
 
     assert isinstance(plan, MacroPlan)
     assert [type(behavior) for behavior in plan.macros] == [
@@ -64,4 +67,9 @@ def test_bot_entrypoint_uses_native_ares_lifecycle() -> None:
 
 
 def test_combat_maneuver_is_an_ares_behavior() -> None:
-    assert issubclass(CombatManeuver, object)
+    # Simulator anchor (G2): the combat building block must construct in the ares
+    # runtime without a live game and expose the Behavior execution contract.
+    maneuver = CombatManeuver()
+    assert hasattr(maneuver, "add")
+    assert hasattr(maneuver, "execute")
+    assert maneuver.micros == []

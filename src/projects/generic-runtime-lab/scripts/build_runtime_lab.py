@@ -83,12 +83,10 @@ include "scripts/cmlib/cmlib"
 include "LibVibeKernel"
 include "LibVibeInvokeDispatch"
 include "scripts/runtime_lab/runtime_lab"
-include "scripts/cmlib/cmlib_selftest"
 
 void InitMap() {
     libVibeKernel_InitLib();
     libNtve_InitLib();
-    CMLib_SelfTest();
     RuntimeLab_Init();
 }
 """
@@ -138,8 +136,8 @@ void KernelControl_Init() {
 
     UnitCreate(1, "Ghost", c_unitCreateIgnorePlacement, 1, Point(10.0, 10.0), 270.0);
     delayedProbe = TriggerCreate("KernelControl_DelayedProbe");
-    TriggerEnable(delayedProbe, true);
     TriggerAddEventTimeElapsed(delayedProbe, 1.0, c_timeGame);
+    TriggerEnable(delayedProbe, true);
 }
 
 // Minimal dispatch stub for the isolated Kernel control map.

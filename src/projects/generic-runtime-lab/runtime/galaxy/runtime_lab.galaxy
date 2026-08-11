@@ -1,6 +1,6 @@
 // Map-owned fixture. It has no mission or commander dependency.
-trigger RuntimeLab_gt_StartTacticalArena = null;
 trigger RuntimeLab_gt_ControlPanel = null;
+trigger RuntimeLab_gt_KernelEntryPoints = null;
 trigger RuntimeLab_gt_ManagedUnitDied = null;
 
 unitgroup RuntimeLab_gv_ArenaUnits = null;
@@ -368,6 +368,18 @@ bool RuntimeLab_StartTacticalArena(bool testConds, bool runActions) {
     return true;
 }
 
+bool RuntimeLab_StartKernelEntryPoints(bool testConds, bool runActions) {
+    if (testConds) {
+        return true;
+    }
+    if (!runActions) {
+        return true;
+    }
+
+    libVibeKernel_gf_RegisterEntryPoints();
+    return true;
+}
+
 void RuntimeLab_Init() {
     RuntimeLab_EnsureGroups();
     RuntimeLab_WriteStatus("map_init", 1);
@@ -378,10 +390,18 @@ void RuntimeLab_Init() {
     RuntimeLab_WriteStatus("tactical_arena_scheduled", 1);
     RuntimeLab_RefreshStatus();
 
-    RuntimeLab_gt_StartTacticalArena = TriggerCreate("RuntimeLab_StartTacticalArena");
-    TriggerEnable(RuntimeLab_gt_StartTacticalArena, true);
-    TriggerAddEventTimeElapsed(RuntimeLab_gt_StartTacticalArena, 1.0, c_timeGame);
     RuntimeLab_gt_ManagedUnitDied = TriggerCreate("RuntimeLab_ManagedUnitDied");
-    TriggerEnable(RuntimeLab_gt_ManagedUnitDied, true);
     CMLib_TrigOnUnitDied(RuntimeLab_gt_ManagedUnitDied, null);
+    TriggerEnable(RuntimeLab_gt_ManagedUnitDied, true);
+
+    // Map game time does not reliably advance while API-driven setup is pending.
+    // This handler has no waits, so execute the tactical fixture synchronously.
+    RuntimeLab_StartTacticalArena(false, true);
+    RuntimeLab_WriteStatus("tactical_arena_started", 1);
+
+    // The Kernel's TimeElapsed(0.0) registration is not dispatched in this
+    // API-driven map. Fire it from a map-owned trigger after map init instead.
+    RuntimeLab_gt_KernelEntryPoints = TriggerCreate("RuntimeLab_StartKernelEntryPoints");
+    TriggerExecute(RuntimeLab_gt_KernelEntryPoints, false, false);
+    RuntimeLab_WriteStatus("runtime_vm_registration_requested", 1);
 }

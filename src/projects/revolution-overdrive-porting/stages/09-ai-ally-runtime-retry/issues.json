@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "RO-AI-001",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Eighteen dynamic PlayerGroupLoop alliance calls remain fail-closed because their owner endpoint is a runtime leader identity (libA9E65AFF_gv_player01) that no static expansion resolves.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/vibe/ai_ally.py",
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ro_ai_001_dynamic_alliance.py"
+      ],
+      "impact": "The adapter stays fail-closed for unresolved runtime identity and never infers a leader or ally from a library global. 182 concrete edges remain in contract; the 18 residuals are audited, not pending.",
+      "nextAction": "Do NOT treat the Stage 09 window as evidence for this issue: a rescue handover yields unit ownership, not PlayerGroupLoop leader identity. What Stage 09 did change is feasibility - a stable native window now exists and per-unit alliance is readable from the observing player, so a future binding attempt would at least have a real observation source instead of none. Any such attempt must re-derive the observation from inside the loop and must not resurrect the reverted symbols without tests that actually run."
+    },
+    {
+      "id": "RO-RUN-010",
+      "severity": "high",
+      "status": "resolved",
+      "summary": "Stage 09 obtained the stable native runtime window it previously lacked and observed the map-owned P2 handover end to end.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage09-ai-ally-runtime-retry/p2-handover-probe.json",
+        "artifacts/projects/revolution-overdrive-porting/stage09-ai-ally-runtime-retry/scripterror-scan.json",
+        "src/projects/revolution-overdrive-porting/stages/09-ai-ally-runtime-retry/test_stage09_runtime_evidence.py"
+      ],
+      "impact": "CreateGame, JoinGame, advancing observations, the P2 handover, and a clean same-window ScriptError verdict all exist now.",
+      "resolution": "Ran the unchanged no-debug p2_handover_probe.py on port 5000 against the packed thorner03 closure; verdict=passed_native_p2_handover_observed. The recorded blocker (an external SC2 port-5000 lease) was only the surface cause and was cleared under the 2026-08-09 user override permitting a game restart. The real cause was target selection: the probe is hard-coded for thorner03 (TychusCommando, Region 24 at 89.1628/41.6557, RescueUnit(UnitFromId(2), gv_p02_TYCHUS)) but had been pointed at the thanson03b folder map, which surfaced as create_game nested_error=2 (missing_mod) and sent two rounds of effort into copying a 604MB mod and its whole dependency chain."
+    },
+    {
+      "id": "RO-TEST-011",
+      "severity": "medium",
+      "status": "resolved",
+      "summary": "A Stage 09 guard was hidden from pytest collection, so the project suite reported green for several rounds while that guard never executed once.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/conftest.py",
+        "src/projects/revolution-overdrive-porting/stages/09-ai-ally-runtime-retry/test_collection_integrity.py"
+      ],
+      "impact": "Every gate run after the quarantine honestly reported '32 passed' - an honest count of an incomplete suite. A later round even recorded 'Stage 09 guard is green' when it had never run.",
+      "resolution": "Deleted the orphan test, emptied collect_ignore_glob, and added a meta-guard that fails on any non-empty ignore list or any unimportable test module. Verified with a positive control reproducing the exact pattern.",
+      "retracts": [
+        {
+          "retractedClaim": "The RO adapter binds unresolved runtime-leader alliance calls only from a matching native observation (relation, iterator direction, static group membership, leader endpoint).",
+          "retractedValidation": "python -m unittest .../09-ai-ally-runtime-retry/test_runtime_observed_contract.py -v -> 5/5 passed",
+          "reason": "The claim rested on test_runtime_observed_contract.py, which imported RuntimeAllianceObservation and build_runtime_observed_ally_contract from vibe.ai_ally. Both symbols were removed by the C-lite history reset (git reset --hard origin/master) and the untracked test file survived it, so the module could never be collected and those 5 tests never ran. The dead module was deleted and the claim is restated as plain fail-closed behaviour."
+        }
+      ]
+    }
+  ]
+}

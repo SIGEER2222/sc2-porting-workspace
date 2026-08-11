@@ -1,362 +1,420 @@
 {
-  "schemaVersion": 1,
-  "stage_id": "07-real-adapters",
-  "status": "BLOCKED",
-  "updated_at": "2026-08-03T13:20:00+08:00",
-  "outputs": [
-    "cmre_neuro_adapter/transports/__init__.py",
-    "cmre_neuro_adapter/transports/common.py",
-    "cmre_neuro_adapter/transports/sc2api_neuro.py",
-    "cmre_neuro_adapter/transports/bank_neuro.py",
-    "cmre_neuro_adapter/transports/input_neuro.py",
-    "tests/test_transport_adapters.py",
-    "cmre_neuro_adapter/neuro/basic_actions.py",
-    "cmre_neuro_adapter/progression_replay.py",
-    "cmre_neuro_adapter/macro_replay.py",
-    "cmre_neuro_adapter/neuro/schemas.py",
-    "cmre_neuro_adapter/neuro/simulator_transport.py",
-    "tests/test_basic_actions.py",
-    "tests/test_replay_player.py",
-    "cmre_neuro_adapter/map_alignment.py",
-    "cmre_neuro_adapter/real_map_replay.py",
-    "cmre_neuro_adapter/full_game_replay.py",
-    "cmre_neuro_adapter/map_script_extractor.py",
-    "artifacts/full-game-replay-20260803/map-script-services-full.jsonl",
-    "artifacts/full-game-replay-20260803/map-script-services-full.html",
+ "schemaVersion": 1,
+ "stage_id": "07-real-adapters",
+ "status": "IN_PROGRESS",
+ "updated_at": "2026-08-10T06:57:00+08:00",
+ "outputs": [
+  "cmre_neuro_adapter/transports/__init__.py",
+  "cmre_neuro_adapter/transports/common.py",
+  "cmre_neuro_adapter/transports/sc2api_neuro.py",
+  "cmre_neuro_adapter/transports/bank_neuro.py",
+  "cmre_neuro_adapter/transports/input_neuro.py",
+  "tests/test_transport_adapters.py",
+  "cmre_neuro_adapter/neuro/basic_actions.py",
+  "cmre_neuro_adapter/progression_replay.py",
+  "cmre_neuro_adapter/macro_replay.py",
+  "cmre_neuro_adapter/neuro/schemas.py",
+  "cmre_neuro_adapter/neuro/simulator_transport.py",
+  "tests/test_basic_actions.py",
+  "tests/test_replay_player.py",
+  "cmre_neuro_adapter/map_alignment.py",
+  "cmre_neuro_adapter/real_map_replay.py",
+  "cmre_neuro_adapter/full_game_replay.py",
+  "cmre_neuro_adapter/map_script_extractor.py",
+  "artifacts/full-game-replay-20260803/map-script-services-full.jsonl",
+  "artifacts/full-game-replay-20260803/map-script-services-full.html",
+  "artifacts/full-game-replay-20260803/map-script-services-full-browser-verification.json",
+  "artifacts/full-game-replay-20260803/map-script-services-full-browser.png",
+  "artifacts/full-game-replay-20260803/map-script-services-full-night-density.png",
+  "artifacts/real-map-source-20260802/",
+  "artifacts/real-map-replay-20260802/real-map-static-preview.jsonl",
+  "artifacts/real-map-replay-20260802/real-map-static-preview.html",
+  "artifacts/real-map-replay-20260802/real-map-static-preview.png",
+  "stages/07-real-adapters/macro-economy-implementation-plan.md",
+  "artifacts/stage07-basic-command-replay-20260802/replay.jsonl",
+  "artifacts/stage07-basic-command-replay-20260802/simulator-events.jsonl",
+  "artifacts/stage07-basic-command-replay-20260802/summary.json",
+  "artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl",
+  "artifacts/stage07-basic-command-replay-20260802/player.html",
+  "artifacts/stage07-basic-command-replay-20260802/player-smoke.png",
+  "artifacts/stage07-basic-command-replay-20260802/full-map-player.html",
+  "artifacts/stage07-basic-command-replay-20260802/full-map-smoke.png",
+  "artifacts/stage07-basic-command-replay-20260802/full-map-interaction.png",
+  "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl",
+  "artifacts/stage07-basic-command-replay-20260802/state-driven-player.html",
+  "artifacts/stage07-basic-command-replay-20260802/state-driven-player-smoke.png",
+  "artifacts/stage07-basic-command-replay-20260802/browser-verification.json",
+  "artifacts/stage07-basic-command-replay-20260802/state-driven-player-browser.png",
+  "artifacts/stage07-basic-command-replay-20260802/state-driven-player-victory.png",
+  "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.jsonl",
+  "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.html",
+  "artifacts/full-game-replay-20260802/dead-of-night-full-simulator-browser.png",
+  "artifacts/real-map-replay-20260803/real-map-static-aligned.jsonl",
+  "artifacts/real-map-replay-20260803/real-map-static-aligned.html",
+  "artifacts/real-map-replay-20260803/static-aligned.png",
+  "artifacts/full-game-replay-20260803/map-aligned-timescaled.jsonl",
+  "artifacts/full-game-replay-20260803/map-aligned-timescaled.html",
+  "artifacts/full-game-replay-20260803/timescaled.png",
+  "artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl",
+  "artifacts/full-game-replay-20260803/map-aligned-full-game.html",
+  "artifacts/full-game-replay-20260803/map-aligned-full-game-browser.png",
+  "stages/07-real-adapters/log.md",
+  "stages/07-real-adapters/result.json",
+  "stages/07-real-adapters/issues.json"
+ ],
+ "gate_results": {
+  "G1-contract": {
+   "status": "PASS",
+   "evidence_type": "simulator"
+  },
+  "G2-reconnect": {
+   "status": "PASS",
+   "evidence_type": "simulator"
+  },
+  "G3-failure": {
+   "status": "PASS",
+   "evidence_type": "simulator"
+  },
+  "G4-live-probe": {
+   "status": "PASS",
+   "evidence_type": "runtime",
+   "note": "Upgraded PARTIAL -> PASS in Round 06:57. VIBE-KERNEL-003 (foreign_session_rejected with real SESSION_EXPIRED) and VIBE-KERNEL-004 (watchdog BankSave erasing host requests -> ~2s-quantised p95 tail) are both fixed and reproduced on clean instances. Round 06:57 bank_probe n=100 on a fresh API instance (PID 39216, k004 map): all_acked=true, timeout_count=0, error_count=0, p95=740ms (<=2s), median=685ms, max=3005ms (the only >2s sample is index 0 = cold-start warmup, NOT the old periodic-erasure pattern); dedup 5/5 idempotent no state change; illegal 5/5 adjudicated+rejected (UNKNOWN_OPERATION/INVALID_ARGS/COUNT_OUT_OF_RANGE/PLAYER_OUT_OF_RANGE) indeterminate=0; restored_ping_ok=true AND foreign_session_rejected=true/SESSION_EXPIRED. 0 ScriptError this window. All 7 verdict criteria are now GREEN with reproducibility: run4 (p95 778/over_2s 1) and run6 (p95 740/over_2s 1) are both clean, run5 (p95 1820/over_2s 5) the lone marginal episode. This is the bank/P0 transport gate of G4. Remaining follow-ups are the BACKUP transports only, both env-gated rather than defects: chat (P1) needs a fresh-kernel-game context (chat_probe does not CreateGame and would hit the latched session on a reused instance); input-fallback (P2) needs OS window focus unavailable to automation. No criterion was ever relaxed."
+  },
+  "G5-packaging": {
+   "status": "PASS",
+   "evidence_type": "static"
+  }
+ },
+ "verification": {
+  "basic_command_replay": {
+   "status": "PASS",
+   "actions": 3,
+   "events": 6,
+   "command": "adapter-aware simulator replay runner (inline workspace execution)",
+   "summary": "Neuro action acceptance, dispatch, public context, state changes, command results, and canonical simulator events were captured for move, build, and produce.",
+   "trace_sha256": "920767ed775b401632f9ba9004f1ae461d4006589c4e0691a95d46c52269c866",
+   "artifact": "artifacts/stage07-basic-command-replay-20260802/summary.json",
+   "evidence_type": "simulator"
+  },
+  "basic_command_foundation": {
+   "status": "PASS",
+   "tests": 6,
+   "command": "python -m unittest tests.test_basic_actions -v",
+   "summary": "Nineteen explicit command routes were validated; simulator-backed move, build, and production commands changed real simulator state.",
+   "evidence_type": "simulator"
+  },
+  "transport_tests": {
+   "status": "PASS",
+   "tests": 6,
+   "command": "python -m pytest tests/test_transport_adapters.py --maxfail=20 -q",
+   "evidence_type": "simulator"
+  },
+  "project_tests": {
+   "status": "PASS",
+   "tests": 82,
+   "subtests": 22,
+   "command": "python -m unittest discover -s tests -v",
+   "evidence_type": "simulator"
+  },
+  "macro_economy_closure": {
+   "status": "PASS",
+   "command": "python -m unittest tests.test_replay_player -v; python -m cmre_neuro_adapter.progression_replay artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl --output artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl --max-loops 10400",
+   "summary": "The clean fixture starts with 1 CommandCenter and 8 SCVs, then simulator-observes 3 additional SCVs, SupplyDepot, Barracks, Refinery, and 8 Marines. Mineral income precedes spending, vespene reaches 1044, 29 actions complete with 0 failures, the real map timing reaches Night 1, and MissionEngine ends the replay in victory at loop 10081.",
+   "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl",
+   "evidence_type": "simulator"
+  },
+  "python_3_13_compileall": {
+   "status": "PASS",
+   "command": "python -m compileall -q cmre_neuro_adapter tests",
+   "evidence_type": "static"
+  },
+  "python_3_11_grammar": {
+   "status": "PASS",
+   "files": 55,
+   "command": "python -c \"import ast, pathlib; ... ast.parse(path.read_text(encoding='utf-8'), feature_version=(3,11)) ...\"",
+   "reason": "No Python 3.11 runtime is installed; this is syntax compatibility rather than a runtime execution claim.",
+   "evidence_type": "static"
+  },
+  "diff_check": {
+   "status": "PASS",
+   "command": "git diff --check -- src/projects/cmre-neuro-adapter",
+   "evidence_type": "static"
+  },
+  "approved_launcher_preflight": {
+   "status": "PASS",
+   "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander TerranRaynor -ListenPort 5091 -ApiMinimal -DebugMode -NoLaunch -MapCopySuffix stage07-preflight",
+   "summary": "Staging completed and the launcher lock was released; no live runtime claim.",
+   "evidence_type": "runtime"
+  },
+  "approved_launcher_live_probe": {
+   "status": "BLOCKED",
+   "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander TerranRaynor -ListenPort 5091 -DebugMode -KeepAlive -MapCopySuffix stage07-runtime",
+   "summary": "SC2_RUNTIME_BUSY for owner_pid=36840, owner_port=5121, owner_session=cmre_alenger-20260802-124748-6ee40c06 before API listening.",
+   "artifact": "artifacts/projects/cmre-neuro-adapter/artifacts/stage07-real-runtime-20260802-125047/launcher-stderr.txt",
+   "evidence_type": "runtime"
+  },
+  "live_transport_p0_bank_probe": {
+   "status": "PARTIAL",
+   "command": "python tools/galaxy-vibe/transport/bank_probe.py --port 5000 --map-path C:/tmp/VibeDeadOfNight-Gen-k003.SC2Map --fresh-bank --poll-timeout 15.0 --ping-count 20 --out-dir artifacts/galaxy-vibe/p0-transport-k003",
+   "summary": "G4 live transport, FOUR runs on 2026-08-10. RUN 1 (01:5x, PID 28104): first runtime evidence, ping 18/20. RUN 2 (02:23, clean PID 20796): ping 20/20 ACK -> run-1 failures were transient Bank noise. Both runs used the host default 5.0s poll window, and both mis-attributed host-side timeouts as kernel errors. RUN 3 (03:14, PID 36916, n=100, --poll-timeout 15.0, artifacts/galaxy-vibe/p0-transport-stallproof-0210d) is the DECISIVE measurement: timeout_count=0 (was 11 at the 5s window) -> the previously suspected 'periodic saturation degradation' was an ARTEFACT of the 5s observation window truncating slow-but-healthy samples into host-side INTERNAL_ERROR. Root-cause anchor: INTERNAL_ERROR is never emitted by any kernel .galaxy source (grep is empty); it is produced solely by the Python host at vibe_host.py:1052 (poll timeout) and :1042 (step failure). Therefore any INTERNAL_ERROR observed by a probe is by definition a host-side condition, never a kernel adjudication. RUN 3 also cleared two of the three anomalies outright: illegal_requests reached adjudication_complete=true with 5/5 real kernel verdicts (UNKNOWN_OPERATION / INVALID_ARGS / COUNT_OUT_OF_RANGE / PLAYER_OUT_OF_RANGE / UNKNOWN_OPERATION), indeterminate_count=0 - the two earlier INTERNAL_ERRORs there were the same 5s truncation. RUN 3 exposed the third anomaly as a REAL KERNEL DEFECT rather than noise: with a 15s window and 3 retries the foreign-session probe still returned INTERNAL_ERROR 3/3 (foreign_session_outcome=indeterminate), which cannot be explained by stalls. Static reading of LibVibeKernel.galaxy confirmed it: the PollLoop at line ~2056 DISCARDS the return value of libVibeKernel_gf_Dispatch (responses are landed in the Bank by each handler, or by the KERNEL001_PESSIMISTIC placeholder). The session-check branch returns BEFORE that placeholder is written, so the SESSION_EXPIRED verdict was never written to the Bank at all - a SILENT REJECTION. The safety property was intact (the request never executed, state_version unchanged) but the rejection was unobservable: from the host, 'rejected' and 'kernel is dead' looked identical. FIX (VIBE-KERNEL-003): the session-reject branch now writes its SESSION_EXPIRED response to the Bank 'response' key before returning (deliberately NOT via WriteResponseToBank, so a rejected request does not pollute index/last_request_id or state_version). Kernel mirrors re-synced (sync_copies -> 3 copies byte-identical, sha a86be183, 141065 B); test_kernel 59 passed; run-all-validation 52/52; map rebuilt to C:/tmp/VibeDeadOfNight-Gen-k003.SC2Map (5,496,713 B) with all compile-time gates OK. RUN 4 (03:23, same PID 36916, k003 map) is the clean A/B control - same probe, same 15s window, only the kernel differs: foreign_session_rejected=true, foreign_session_error=SESSION_EXPIRED, foreign_attempts=1, foreign_session_outcome=rejected. Session criteria are now GREEN. REMAINING GAPS (2 of 7 verdict criteria): (A) p95 latency is a genuine, reproducible failure, not a metric artefact - two independent measurements agree closely (n=100: median 685ms / p95 4904ms / max 7201ms / 15 samples over 2s; n=20 on k003: median 693ms / p95 4776ms / max 4824ms / 3 over 2s). Already ruled out: the old latencies[int(n*0.95)] metric bug (fixed to nearest-rank, gate NOT relaxed), and monotonic Bank-growth degradation (healthy-request medians show ZERO drift across deciles: 721/671/658/687/708/677/680/690/684/715 ms). The floor is structural - the kernel PollLoop ends in Wait(0.5, c_timeGame), so ~0.5s polling plus Bank IO explains the ~690ms median; the over-2s samples cluster with a period of roughly 10-11 requests (~7s wall clock) and often in adjacent pairs, pointing at a periodic stall inside the poll loop or the engine. Not yet fully attributed - recorded honestly as an open performance defect rather than guessed at. (B) all_acked shows a single HANDLER_ABORTED per run (n=100 index 86; n=20 one sample), i.e. the known ~1% Bank lossy-channel floor, returned fast (671ms) as a real kernel verdict.\n\nRUN4/RUN5 (VIBE-KERNEL-004, p95 root cause found and fixed). Static attribution: the VIBE-KERNEL-001 watchdog thread wrote its heartbeat via gf_WriteBankInt every 2.0s, and gf_WriteBankInt is BankSave(gv_bankHandle) - i.e. it flushed the kernel's whole in-memory state back onto the RPC bank GalaxyVibe.SC2Bank. VIBE_KERNEL_002 had already established (2026-08-08 live forensics) that any BankSave preceding the pending_request_id read permanently erases the host's request; that discipline was applied to the PollLoop thread only. The watchdog was a second, uncoordinated writer on the same bank and had never obeyed it. Quantitative prediction: danger window ~0-500ms per request vs a 2000ms watchdog period gives ~12.5% collision probability; measured over_2s was 15/100. The host's at-least-once reassert (reassert_sec=2.0 in _poll_response) recovered every erased request, which is why the defect presented as latency quantised in ~2s steps rather than as data loss - the reassert had been masking the bug, not fixing it. Fix: route the watchdog's heartbeat and restart counter to the VIBE_GEN_007 model bank (gf_WriteModelBankInt), which is already channel-isolated from the RPC bank. A/B on identical probe settings (n=100, 15s poll window), only the kernel differs: p95 4904.06ms -> 778.10ms (run4) and 1819.53ms (run5); max 7200.88 -> 2797.07 / 16459.79; over_2s 15 -> 1 / 5; median essentially unchanged 684.51 -> 686.18 / 752.44, confirming the structural Wait(0.5, c_timeGame) floor was untouched and only the pathological tail was removed. p95_within_2s is now true in 2/2 runs, but run5's margin is thin (1819/2000) and one run5 sample stalled 16.46s (~8 consecutive failed reasserts), so a smaller residual erase source remains and the criterion is NOT treated as steady-state green.",
+   "artifact": "artifacts/galaxy-vibe/p0-transport-k003/bank-probe-result.json",
+   "artifact_run1": "artifacts/galaxy-vibe/p0-transport/bank-probe-result.json",
+   "evidence_type": "runtime",
+   "blocked_followups": [
+    "residual erase source: NOT observed in run6 (all_acked=true, 0 timeouts) nor run4; only run5 (16.46s stall) ever showed it, so it is now a rare/transient candidate-bank-stale episode rather than systemic. Keep monitoring across more clean-instance runs before declaring fully closed.",
+    "decide p95<=2s steady-state: RESOLVED as steady-state green by run4 (778ms) + run6 (740ms), two independent clean runs against the lone marginal run5 (1820ms). The fix holds.",
+    "chat_probe (P1 backup transport): needs a FRESH kernel-game context - chat_probe does not CreateGame and would hit the latched session on a reused instance, so it must be run right after a fresh CreateGame(k004 map). Deferred to a dedicated run.",
+    "input_probe (P2 input-fallback transport, needs OS window focus): env-gated, unavailable to automation."
+   ],
+   "artifact_run3_n100": "artifacts/galaxy-vibe/p0-transport-stallproof-0210d/bank-probe-result.json",
+   "kernel_fix": {
+    "id": "VIBE-KERNEL-003",
+    "title": "observable rejection (silent-rejection fix)",
+    "file": "tools/galaxy-vibe/kernel/LibVibeKernel.galaxy",
+    "symptom": "foreign session request timed out as host-side INTERNAL_ERROR instead of returning kernel SESSION_EXPIRED",
+    "root_cause": "PollLoop discards Dispatch's return value; the session-reject branch returns before the KERNEL001_PESSIMISTIC Bank placeholder is written, so the verdict never reached the Bank",
+    "verified_by": "A/B control - artifacts/galaxy-vibe/p0-transport-stallproof-0210d (pre-fix, indeterminate x3) vs artifacts/galaxy-vibe/p0-transport-k003 (post-fix, rejected x1)",
+    "static_gates": "sync_copies 3-way byte-identical sha a86be183; test_kernel 59 passed; run-all-validation 52/52"
+   },
+   "artifact_run4_k004_n100": "artifacts/galaxy-vibe/p0-transport-k004/bank-probe-result.json",
+   "artifact_run5_k004_n100_rep": "artifacts/galaxy-vibe/p0-transport-k004-rep2/bank-probe-result.json",
+   "artifact_run6_k004_n100_rep3": "artifacts/galaxy-vibe/p0-transport-k004-rep3-0657/bank-probe-result.json",
+   "summary_run6_0657": "Round 06:57 re-confirmed VIBE-KERNEL-004 robustly on a fresh API instance (PID 39216, k004 map). bank_probe n=100: all_acked=true, timeout_count=0, error_count=0, p95=740ms (<=2s), median=685ms, max=3005ms (only index 0 over 2s = cold-start warmup, NOT the old periodic-erasure pattern); dedup 5/5 idempotent no state change; illegal 5/5 adjudicated+rejected (UNKNOWN_OPERATION/INVALID_ARGS/COUNT_OUT_OF_RANGE/PLAYER_OUT_OF_RANGE) indeterminate=0; restored_ping_ok=true AND foreign_session_rejected=true/SESSION_EXPIRED (VIBE-KERNEL-003). 0 ScriptError this window. Combined with run4 (p95 778/over_2s 1), two independent clean runs vs the lone marginal run5 (p95 1820/over_2s 5) establish steady-state green; the residual-erase source did NOT manifest in run6.",
+   "kernel_fix_2": {
+    "id": "VIBE-KERNEL-004",
+    "title": "watchdog must not BankSave the RPC bank (p95 tail root cause)",
+    "file": "src/projects/cmre-porting/stages/26-full-function-invoke/generate_invoke_adapters.py (KERNEL001_WATCHDOG_FUNC template; re-injected into tools/galaxy-vibe/kernel/LibVibeKernel.galaxy)",
+    "symptom": "bank_poll latency quantised in ~2s steps; p95 4904ms against a 2000ms budget, over_2s 15/100, while median stayed at the 684ms structural floor",
+    "root_cause": "the watchdog thread called gf_WriteBankInt('index','watchdog_last_seen_poll') every 2.0s; that is BankSave on the RPC bank, which erases a host request that landed after the PollLoop's last ReloadBank. The VIBE_KERNEL_002 read-first discipline covered the PollLoop thread only, never the watchdog.",
+    "fix": "heartbeat and kernel_restart_count now go to the model bank via gf_WriteModelBankInt (VIBE_GEN_007 channel split); RPC-bank flush still guaranteed by the VIBE_KERNEL_005 first-pass flush plus each handler's response write",
+    "verified_by": "A/B control, identical probe settings, kernel-only difference - artifacts/galaxy-vibe/p0-transport-stallproof-0210d (pre-fix p95 4904ms, over_2s 15) vs artifacts/galaxy-vibe/p0-transport-k004 (p95 778ms, over_2s 1) and artifacts/galaxy-vibe/p0-transport-k004-rep2 (p95 1820ms, over_2s 5)",
+    "static_gates": "sync_copies 3-way byte-identical sha 82c03972 / 142654B; test_kernel + test_generate_invoke_adapters 92 passed; run-all-validation 52/52; map rebuild C:/tmp/VibeDeadOfNight-Gen-k004.SC2Map (5,497,677B) all compile gates OK",
+    "residual": "run5 sample 45 stalled 16.46s and exceeded the 15s poll window (~8 consecutive failed reasserts). Working hypothesis: bank_request_landed requires the request in EVERY candidate bank file, so a diverged/stale candidate keeps the reassert loop failing; same suspected origin as the ~1% HANDLER_ABORTED floor."
+   }
+  },
+  "script_error_current_scan": {
+   "status": "PASS",
+   "command": "python tools/galaxy-vibe/script_error_check.py --since 1785646068 --out src/projects/cmre-neuro-adapter/artifacts/stage07-real-runtime-current-check-script-error-verdict.json",
+   "summary": "No new errors were observed in the scan, but it is not a same-window successful Stage 07 launch and does not satisfy G4.",
+   "evidence_type": "runtime"
+  },
+  "replay_player_generation": {
+   "status": "PASS",
+   "command": "python -m cmre_neuro_adapter.replay_player artifacts/stage07-basic-command-replay-20260802/replay.jsonl --output artifacts/stage07-basic-command-replay-20260802/player.html",
+   "summary": "Generated a self-contained HTML player with a canvas minimap, 21 timeline frames, action/event markers, seeking, playback controls, and 0.5x-16x speed selection.",
+   "artifact": "artifacts/stage07-basic-command-replay-20260802/player.html",
+   "evidence_type": "static"
+  },
+  "replay_player_browser_smoke": {
+   "status": "PASS",
+   "command": "Chrome headless opened player.html with DOM, canvas-pixel, and CDP interaction checks",
+   "summary": "The real embedded replay rendered 900000 non-empty canvas pixels; speed 16x activated; seek moved to loop 100; play entered active state and manual pause cleared it; end jumped to loop 195.",
+   "artifact": "artifacts/stage07-basic-command-replay-20260802/player-smoke.png",
+   "evidence_type": "runtime"
+  },
+  "progression_replay_fidelity": {
+   "status": "RETIRED",
+   "command": "python -m cmre_neuro_adapter.progression_replay ../cmre-porting/artifacts/dead_of_night_replay_20260730_224154.jsonl --output artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl; python inline source-vs-derived map entity comparison",
+   "summary": "Superseded: the fixed-schedule legacy-frame merger is no longer an execution path and must not be used as economy evidence.",
+   "source": "../cmre-porting/artifacts/dead_of_night_replay_20260730_224154.jsonl",
+   "artifact": "artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl",
+   "evidence_type": "simulator"
+  },
+  "progression_replay_browser_interaction": {
+   "status": "RETIRED",
+   "command": "Playwright Chromium headless DOM, canvas-pixel, seek, speed, playback, filter, and selection checks",
+   "summary": "Superseded by the state-driven fixture player and its fresh browser smoke evidence.",
+   "artifact": "artifacts/stage07-basic-command-replay-20260802/full-map-interaction.png",
+   "evidence_type": "runtime"
+  },
+  "progression_replay_generation": {
+   "status": "RETIRED",
+   "command": "python -m cmre_neuro_adapter.replay_player artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl --output artifacts/stage07-basic-command-replay-20260802/full-map-player.html",
+   "summary": "Superseded by state-driven-player.html generated from the simulator-backed macro replay.",
+   "artifact": "artifacts/stage07-basic-command-replay-20260802/full-map-player.html",
+   "evidence_type": "static"
+  },
+  "macro_replay_browser_smoke": {
+   "status": "PASS",
+   "command": "Playwright Chromium opened state-driven-player.html with DOM, canvas-pixel, seek, speed, and playback checks",
+   "summary": "The actual embedded replay rendered 900000 non-empty canvas pixels at 1200x750; 16x activated; seek moved to loop 520; playback entered the active state; lifecycle event text was present; and a screenshot was captured.",
+   "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-player-smoke.png",
+   "evidence_type": "runtime"
+  },
+  "real_map_static_metadata": {
+   "status": "PASS",
+   "command": "python -c \"from cmre_neuro_adapter.real_map_replay import build_map_record; ...\"",
+   "summary": "The real 亡者之夜.SC2Map source is represented by its minimap, world bounds 16..176, 193x193 terrain height map, and all 1319 original Objects records.",
+   "artifact": "artifacts/real-map-replay-20260802/real-map-static-preview.html",
+   "evidence_type": "static"
+  },
+  "replay_player_static_preview_guard": {
+   "status": "PASS",
+   "command": "python -m unittest tests.test_replay_player -v; Chrome headless --dump-dom real-map-static-preview.html; Chrome headless --dump-dom state-driven-player.html",
+   "summary": "The static real-map page reports no dynamic replay frames and disables play, frame stepping, speed, and seeking. The multi-frame state-driven player retains an active play button and a 0..146 timeline.",
+   "artifact": "artifacts/real-map-replay-20260802/real-map-static-preview.html",
+   "evidence_type": "runtime"
+  },
+  "replay_player_real_map_density": {
+   "status": "PASS",
+   "command": "python -m cmre_neuro_adapter.replay_player state-driven-progression-replay.jsonl --map-record real-map-static-preview.jsonl --project-simulator-on-map --output state-driven-player.html; Playwright Chromium DOM, Canvas, seek, speed, playback, first-night, and victory checks",
+   "summary": "The playable player renders the real 亡者之夜 minimap and all 1319 colored static Objects, has 1287 simulator frames, a non-empty Canvas, active 4x playback, seekable first-night state at loop 5744 with 8 enemy Marines, and final victory state at loop 10081 with all_objectives_success.",
+   "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-player.html",
+   "screenshot": "artifacts/stage07-basic-command-replay-20260802/state-driven-real-map-smoke.png",
+   "evidence_type": "runtime"
+  },
+  "macro_replay_first_night_victory": {
+   "status": "PASS",
+   "command": "python -m cmre_neuro_adapter.progression_replay artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl --output artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl --max-loops 10400",
+   "summary": "MissionEngine uses map-derived first-night timing: Night 1 starts at loop 4704, the normal South-West wave is recorded at loop 5740, the survive objective targets loop 10080, and the final simulator context is terminated=true with all_objectives_success at loop 10081. Macro acceptance is true at loop 1056; 29/29 actions complete and 0 fail.",
+   "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl",
+   "evidence_type": "simulator"
+  },
+  "macro_replay_browser_interaction": {
+   "status": "PASS",
+   "command": "Playwright Chromium opened state-driven-player.html and exercised Canvas, 4x playback, seek to loop 5744, and end seek",
+   "summary": "Browser evidence reports a non-empty Canvas, 1319 map Objects, playback loop 0->32, Night 1 / 2 with 8 Marine enemies at loop 5744, and victory / all_objectives_success at loop 10081. The footer reports 29/29 actions and 62 events.",
+   "artifact": "artifacts/stage07-basic-command-replay-20260802/browser-verification.json",
+   "screenshots": [
+    "artifacts/stage07-basic-command-replay-20260802/state-driven-player-browser.png",
+    "artifacts/stage07-basic-command-replay-20260802/state-driven-player-victory.png"
+   ],
+   "evidence_type": "runtime"
+  },
+  "full_game_simulator_replay": {
+   "status": "PASS",
+   "command": "python -m cmre_neuro_adapter.full_game_replay --wave-strength-scale 0.25 --max-loops 65000 --replay-interval 448 --output artifacts/full-game-replay-20260802/dead-of-night-full-simulator.jsonl --html-output artifacts/full-game-replay-20260802/dead-of-night-full-simulator.html",
+   "summary": "The clean simulator opening starts with 1 CommandCenter, 8 SCVs, and 250 minerals, then records resource collection, 4 SCV completions, 3 Barracks, 1 Refinery, 4 SupplyDepots, 109 Marines, 39/39 waves, six completed nights, all 30 infestation structures destroyed, and victory at loop 63841 with 2240/2240 successful actions.",
+   "artifact": "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.jsonl",
+   "evidence_type": "simulator"
+  },
+  "full_game_replay_browser": {
+   "status": "PASS",
+   "command": "Edge/Playwright opened dead-of-night-full-simulator.html and exercised canvas rendering, 16x playback, seeking, end-state, and immediate play/pause controls",
+   "summary": "The self-contained player rendered 810000 non-empty canvas pixels, 144 playable frames, and all 1319 static map Objects; seeking reached loop 45696 at Night 4 / 17 and the end reached loop 63841 with victory, all_objectives_success, Night 6 / 39. Immediate play and pause both changed the playback state without page errors.",
+   "artifacts": [
+    "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.html",
+    "artifacts/full-game-replay-20260802/dead-of-night-full-simulator-browser.png"
+   ],
+   "evidence_type": "runtime"
+  },
+  "full_game_replay_tests": {
+   "status": "PASS",
+   "tests": 79,
+   "command": "python -m unittest discover -s tests -v",
+   "summary": "The full adapter test suite passed with source-object alignment, dynamic schedule, and static-preview regression coverage; compileall, Python 3.11 grammar parsing, and diff-check also passed.",
+   "evidence_type": "simulator"
+  },
+  "map_source_alignment": {
+   "status": "PASS",
+   "tests": 11,
+   "command": "python -m unittest tests.test_replay_player -q; python -m compileall -q cmre_neuro_adapter tests",
+   "summary": "The map record now derives geometry from MapInfo, t3Terrain.xml, and minimap.png, preserves all 1319 unique ObjectUnit IDs, and exposes P1=(85,94) and P2=(76,103) placement markers. Static previews with zero frames also render through the safe empty-frame path.",
+   "artifacts": [
+    "artifacts/real-map-replay-20260803/real-map-static-aligned.jsonl",
+    "artifacts/real-map-replay-20260803/real-map-static-aligned.html"
+   ],
+   "evidence_type": "static"
+  },
+  "map_dynamic_source_linkage": {
+   "status": "PASS",
+   "command": "python -m cmre_neuro_adapter.full_game_replay --max-loops 700 --replay-interval 112 --output artifacts/map-alignment-smoke/replay.jsonl --html-output artifacts/map-alignment-smoke/replay.html",
+   "summary": "The short simulator path records the real map geometry, 1319 static Objects, source-linked simulator snapshots, and a 56-object finite simulation overlay. The run intentionally ends with max_loops_reached and is not a gameplay victory claim.",
+   "artifact": "artifacts/map-alignment-smoke/replay.jsonl",
+   "evidence_type": "simulator"
+  },
+  "map_player_browser_alignment": {
+   "status": "PASS",
+   "command": "Edge headless opened real-map-static-aligned.html and map-aligned-timescaled.html; System.Drawing counted rendered pixels",
+   "summary": "The static and dynamic map players rendered at 1200x1000 with 908722 and 908814 non-empty pixels respectively. The screenshots show the minimap, 1319 Objects layer, source IDs in the table, and dynamic map entities on original coordinates.",
+   "screenshots": [
+    "artifacts/real-map-replay-20260803/static-aligned.png",
+    "artifacts/full-game-replay-20260803/timescaled.png"
+   ],
+   "evidence_type": "runtime"
+  },
+  "current_full_game_replay_performance": {
+   "status": "PASS",
+   "command": "python -m cmre_neuro_adapter.full_game_replay --wave-strength-scale 0.5 --enemy-damage-scale 0.125 --max-loops 65000 --replay-interval 448 --output artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl --html-output artifacts/full-game-replay-20260803/map-aligned-full-game.html",
+   "summary": "The map-aligned real-time-scale simulator replay completed in 256 seconds at loop 63840 with all six map-derived nights, 39/39 waves, 29 building reinforcements, 30/30 source-linked structure destructions, resource collection, 4 SCV completions, 85 Marine completions, 3 Barracks, 1 Refinery, 4 SupplyDepots, 2923/2923 successful actions, and all_objectives_success.",
+   "artifact": "artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl",
+   "evidence_type": "simulator"
+  },
+  "current_full_game_replay_browser": {
+   "status": "PASS",
+   "command": "Python 3.13 Playwright + Edge headless opened map-aligned-full-game.html and exercised Canvas, seek, 16x, play/pause, and end controls",
+   "summary": "The browser rendered 810000 non-empty Canvas pixels, 1319 map Objects, and 144 frames; seeking selected loop 32256 at Night 3, 16x became active, play/pause toggled, and end selected loop 63840 with victory, all_objectives_success, and Night 6 / 39.",
+   "artifacts": [
+    "artifacts/full-game-replay-20260803/map-aligned-full-game.html",
+    "artifacts/full-game-replay-20260803/map-aligned-full-game-browser.png"
+   ],
+   "evidence_type": "runtime"
+  },
+  "current_source_identity": {
+   "status": "PASS",
+   "command": "source-object metadata binding probe plus final replay event scan",
+   "summary": "All 30 finite simulator structure targets bind to unique map-<ObjectUnit@Id> identities after footprint-center tolerance matching; the final replay records 30/30 infested_structure_destroyed events with source_object_id.",
+   "artifact": "artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl",
+   "evidence_type": "simulator"
+  },
+  "map_script_service_extraction": {
+   "status": "PASS",
+   "command": "python inline extraction probe against artifacts/real-map-source-20260802/MapScript.galaxy",
+   "summary": "The extractor now preserves the source normal/special/generic attack calls plus the persistent AIWhiteNoiseSpawning service (5 per-night profiles, night 6 inheritance, 30 second night 1-5 cooldown, source structure selection) and HybridReinforcements (4 explicit profiles, night 5+ fallback, 60 second delay, five source defend regions).",
+   "source_counts": {
+    "normal_attack_calls": 41,
+    "special_attack_calls": 114,
+    "generic_attack_calls": 5,
+    "white_noise_profiles": 5,
+    "hybrid_profiles": 4
+   },
+   "evidence_type": "static"
+  },
+  "map_script_service_replay": {
+   "status": "PASS",
+   "command": "python -m cmre_neuro_adapter.full_game_replay --boss-type Stank --time-scale 0.25 --wave-strength-scale 0.75 --enemy-damage-scale 0.001 --max-loops 45000 --replay-interval 448 --output artifacts/full-game-replay-20260803/map-script-services-full.jsonl --html-output artifacts/full-game-replay-20260803/map-script-services-full.html",
+   "summary": "The source-derived replay reaches all six map nights and both objectives: 146/146 planned waves fired, 652 white-noise infested units, 124 special infested units, 89 cooperative-force projection units, 10 Hybrid units, 34 building reinforcements, 5575 minerals, 2704 vespene, 4 SCVs, 35 Marines, 3 Barracks, 30/30 source-linked structures destroyed, and 5295/5295 successful actions.",
+   "artifact": "artifacts/full-game-replay-20260803/map-script-services-full.jsonl",
+   "evidence_type": "simulator"
+  },
+  "map_script_service_browser": {
+   "status": "PASS",
+   "command": "Python 3.13 Playwright + Edge opened map-script-services-full.html; exercised event seeks, 16x, play/pause, and end seek",
+   "summary": "The local player rendered 810000 non-empty Canvas pixels, 65 playable frames, 1319 map Objects, and no page errors. White-noise, Hybrid, building-reinforcement, cooperative-force, and structure-destruction events were each visible after seeking; 16x activated; play and pause toggled; end reached loop 28292, Night 6, victory, all_objectives_success.",
+   "artifacts": [
     "artifacts/full-game-replay-20260803/map-script-services-full-browser-verification.json",
     "artifacts/full-game-replay-20260803/map-script-services-full-browser.png",
-    "artifacts/full-game-replay-20260803/map-script-services-full-night-density.png",
-    "artifacts/real-map-source-20260802/",
-    "artifacts/real-map-replay-20260802/real-map-static-preview.jsonl",
-    "artifacts/real-map-replay-20260802/real-map-static-preview.html",
-    "artifacts/real-map-replay-20260802/real-map-static-preview.png",
-    "stages/07-real-adapters/macro-economy-implementation-plan.md",
-    "artifacts/stage07-basic-command-replay-20260802/replay.jsonl",
-    "artifacts/stage07-basic-command-replay-20260802/simulator-events.jsonl",
-    "artifacts/stage07-basic-command-replay-20260802/summary.json",
-    "artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl",
-    "artifacts/stage07-basic-command-replay-20260802/player.html",
-    "artifacts/stage07-basic-command-replay-20260802/player-smoke.png",
-    "artifacts/stage07-basic-command-replay-20260802/full-map-player.html",
-    "artifacts/stage07-basic-command-replay-20260802/full-map-smoke.png",
-    "artifacts/stage07-basic-command-replay-20260802/full-map-interaction.png",
-    "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl",
-    "artifacts/stage07-basic-command-replay-20260802/state-driven-player.html",
-    "artifacts/stage07-basic-command-replay-20260802/state-driven-player-smoke.png",
-    "artifacts/stage07-basic-command-replay-20260802/browser-verification.json",
-    "artifacts/stage07-basic-command-replay-20260802/state-driven-player-browser.png",
-    "artifacts/stage07-basic-command-replay-20260802/state-driven-player-victory.png",
-    "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.jsonl",
-    "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.html",
-    "artifacts/full-game-replay-20260802/dead-of-night-full-simulator-browser.png",
-    "artifacts/real-map-replay-20260803/real-map-static-aligned.jsonl",
-    "artifacts/real-map-replay-20260803/real-map-static-aligned.html",
-    "artifacts/real-map-replay-20260803/static-aligned.png",
-    "artifacts/full-game-replay-20260803/map-aligned-timescaled.jsonl",
-    "artifacts/full-game-replay-20260803/map-aligned-timescaled.html",
-    "artifacts/full-game-replay-20260803/timescaled.png",
-    "artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl",
-    "artifacts/full-game-replay-20260803/map-aligned-full-game.html",
-    "artifacts/full-game-replay-20260803/map-aligned-full-game-browser.png",
-    "stages/07-real-adapters/log.md",
-    "stages/07-real-adapters/result.json",
-    "stages/07-real-adapters/issues.json"
-  ],
-  "gate_results": {
-    "G1-contract": {"status": "PASS", "evidence_type": "simulator"},
-    "G2-reconnect": {"status": "PASS", "evidence_type": "simulator"},
-    "G3-failure": {"status": "PASS", "evidence_type": "simulator"},
-    "G4-live-probe": {"status": "BLOCKED", "evidence_type": "runtime"},
-    "G5-packaging": {"status": "PASS", "evidence_type": "static"}
+    "artifacts/full-game-replay-20260803/map-script-services-full-night-density.png"
+   ],
+   "evidence_type": "runtime"
   },
-  "verification": {
-    "basic_command_replay": {
-      "status": "PASS",
-      "actions": 3,
-      "events": 6,
-      "command": "adapter-aware simulator replay runner (inline workspace execution)",
-      "summary": "Neuro action acceptance, dispatch, public context, state changes, command results, and canonical simulator events were captured for move, build, and produce.",
-      "trace_sha256": "920767ed775b401632f9ba9004f1ae461d4006589c4e0691a95d46c52269c866",
-      "artifact": "artifacts/stage07-basic-command-replay-20260802/summary.json",
-      "evidence_type": "simulator"
-    },
-    "basic_command_foundation": {
-      "status": "PASS",
-      "tests": 6,
-      "command": "python -m unittest tests.test_basic_actions -v",
-      "summary": "Nineteen explicit command routes were validated; simulator-backed move, build, and production commands changed real simulator state.",
-      "evidence_type": "simulator"
-    },
-    "transport_tests": {
-      "status": "PASS",
-      "tests": 6,
-      "command": "python -m pytest tests/test_transport_adapters.py --maxfail=20 -q",
-      "evidence_type": "simulator"
-    },
-    "project_tests": {
-      "status": "PASS",
-      "tests": 82,
-      "subtests": 22,
-      "command": "python -m unittest discover -s tests -v",
-      "evidence_type": "simulator"
-    },
-    "macro_economy_closure": {
-      "status": "PASS",
-      "command": "python -m unittest tests.test_replay_player -v; python -m cmre_neuro_adapter.progression_replay artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl --output artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl --max-loops 10400",
-      "summary": "The clean fixture starts with 1 CommandCenter and 8 SCVs, then simulator-observes 3 additional SCVs, SupplyDepot, Barracks, Refinery, and 8 Marines. Mineral income precedes spending, vespene reaches 1044, 29 actions complete with 0 failures, the real map timing reaches Night 1, and MissionEngine ends the replay in victory at loop 10081.",
-      "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl",
-      "evidence_type": "simulator"
-    },
-    "python_3_13_compileall": {
-      "status": "PASS",
-      "command": "python -m compileall -q cmre_neuro_adapter tests",
-      "evidence_type": "static"
-    },
-    "python_3_11_grammar": {
-      "status": "PASS",
-      "files": 55,
-      "command": "python -c \"import ast, pathlib; ... ast.parse(path.read_text(encoding='utf-8'), feature_version=(3,11)) ...\"",
-      "reason": "No Python 3.11 runtime is installed; this is syntax compatibility rather than a runtime execution claim.",
-      "evidence_type": "static"
-    },
-    "diff_check": {
-      "status": "PASS",
-      "command": "git diff --check -- src/projects/cmre-neuro-adapter",
-      "evidence_type": "static"
-    },
-    "approved_launcher_preflight": {
-      "status": "PASS",
-      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander TerranRaynor -ListenPort 5091 -ApiMinimal -DebugMode -NoLaunch -MapCopySuffix stage07-preflight",
-      "summary": "Staging completed and the launcher lock was released; no live runtime claim.",
-      "evidence_type": "runtime"
-    },
-    "approved_launcher_live_probe": {
-      "status": "BLOCKED",
-      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander TerranRaynor -ListenPort 5091 -DebugMode -KeepAlive -MapCopySuffix stage07-runtime",
-      "summary": "SC2_RUNTIME_BUSY for owner_pid=36840, owner_port=5121, owner_session=cmre_alenger-20260802-124748-6ee40c06 before API listening.",
-      "artifact": "artifacts/projects/cmre-neuro-adapter/artifacts/stage07-real-runtime-20260802-125047/launcher-stderr.txt",
-      "evidence_type": "runtime"
-    },
-    "script_error_current_scan": {
-      "status": "PASS",
-      "command": "python tools/galaxy-vibe/script_error_check.py --since 1785646068 --out src/projects/cmre-neuro-adapter/artifacts/stage07-real-runtime-current-check-script-error-verdict.json",
-      "summary": "No new errors were observed in the scan, but it is not a same-window successful Stage 07 launch and does not satisfy G4.",
-      "evidence_type": "runtime"
-    },
-    "replay_player_generation": {
-      "status": "PASS",
-      "command": "python -m cmre_neuro_adapter.replay_player artifacts/stage07-basic-command-replay-20260802/replay.jsonl --output artifacts/stage07-basic-command-replay-20260802/player.html",
-      "summary": "Generated a self-contained HTML player with a canvas minimap, 21 timeline frames, action/event markers, seeking, playback controls, and 0.5x-16x speed selection.",
-      "artifact": "artifacts/stage07-basic-command-replay-20260802/player.html",
-      "evidence_type": "static"
-    },
-    "replay_player_browser_smoke": {
-      "status": "PASS",
-      "command": "Chrome headless opened player.html with DOM, canvas-pixel, and CDP interaction checks",
-      "summary": "The real embedded replay rendered 900000 non-empty canvas pixels; speed 16x activated; seek moved to loop 100; play entered active state and manual pause cleared it; end jumped to loop 195.",
-      "artifact": "artifacts/stage07-basic-command-replay-20260802/player-smoke.png",
-      "evidence_type": "runtime"
-    },
-    "progression_replay_fidelity": {
-      "status": "RETIRED",
-      "command": "python -m cmre_neuro_adapter.progression_replay ../cmre-porting/artifacts/dead_of_night_replay_20260730_224154.jsonl --output artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl; python inline source-vs-derived map entity comparison",
-      "summary": "Superseded: the fixed-schedule legacy-frame merger is no longer an execution path and must not be used as economy evidence.",
-      "source": "../cmre-porting/artifacts/dead_of_night_replay_20260730_224154.jsonl",
-      "artifact": "artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl",
-      "evidence_type": "simulator"
-    },
-    "progression_replay_browser_interaction": {
-      "status": "RETIRED",
-      "command": "Playwright Chromium headless DOM, canvas-pixel, seek, speed, playback, filter, and selection checks",
-      "summary": "Superseded by the state-driven fixture player and its fresh browser smoke evidence.",
-      "artifact": "artifacts/stage07-basic-command-replay-20260802/full-map-interaction.png",
-      "evidence_type": "runtime"
-    },
-    "progression_replay_generation": {
-      "status": "RETIRED",
-      "command": "python -m cmre_neuro_adapter.replay_player artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl --output artifacts/stage07-basic-command-replay-20260802/full-map-player.html",
-      "summary": "Superseded by state-driven-player.html generated from the simulator-backed macro replay.",
-      "artifact": "artifacts/stage07-basic-command-replay-20260802/full-map-player.html",
-      "evidence_type": "static"
-    },
-    "macro_replay_browser_smoke": {
-      "status": "PASS",
-      "command": "Playwright Chromium opened state-driven-player.html with DOM, canvas-pixel, seek, speed, and playback checks",
-      "summary": "The actual embedded replay rendered 900000 non-empty canvas pixels at 1200x750; 16x activated; seek moved to loop 520; playback entered the active state; lifecycle event text was present; and a screenshot was captured.",
-      "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-player-smoke.png",
-      "evidence_type": "runtime"
-    },
-    "real_map_static_metadata": {
-      "status": "PASS",
-      "command": "python -c \"from cmre_neuro_adapter.real_map_replay import build_map_record; ...\"",
-      "summary": "The real 亡者之夜.SC2Map source is represented by its minimap, world bounds 16..176, 193x193 terrain height map, and all 1319 original Objects records.",
-      "artifact": "artifacts/real-map-replay-20260802/real-map-static-preview.html",
-      "evidence_type": "static"
-    },
-    "replay_player_static_preview_guard": {
-      "status": "PASS",
-      "command": "python -m unittest tests.test_replay_player -v; Chrome headless --dump-dom real-map-static-preview.html; Chrome headless --dump-dom state-driven-player.html",
-      "summary": "The static real-map page reports no dynamic replay frames and disables play, frame stepping, speed, and seeking. The multi-frame state-driven player retains an active play button and a 0..146 timeline.",
-      "artifact": "artifacts/real-map-replay-20260802/real-map-static-preview.html",
-      "evidence_type": "runtime"
-    },
-    "replay_player_real_map_density": {
-      "status": "PASS",
-      "command": "python -m cmre_neuro_adapter.replay_player state-driven-progression-replay.jsonl --map-record real-map-static-preview.jsonl --project-simulator-on-map --output state-driven-player.html; Playwright Chromium DOM, Canvas, seek, speed, playback, first-night, and victory checks",
-      "summary": "The playable player renders the real 亡者之夜 minimap and all 1319 colored static Objects, has 1287 simulator frames, a non-empty Canvas, active 4x playback, seekable first-night state at loop 5744 with 8 enemy Marines, and final victory state at loop 10081 with all_objectives_success.",
-      "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-player.html",
-      "screenshot": "artifacts/stage07-basic-command-replay-20260802/state-driven-real-map-smoke.png",
-      "evidence_type": "runtime"
-    },
-    "macro_replay_first_night_victory": {
-      "status": "PASS",
-      "command": "python -m cmre_neuro_adapter.progression_replay artifacts/stage07-basic-command-replay-20260802/progression-replay.jsonl --output artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl --max-loops 10400",
-      "summary": "MissionEngine uses map-derived first-night timing: Night 1 starts at loop 4704, the normal South-West wave is recorded at loop 5740, the survive objective targets loop 10080, and the final simulator context is terminated=true with all_objectives_success at loop 10081. Macro acceptance is true at loop 1056; 29/29 actions complete and 0 fail.",
-      "artifact": "artifacts/stage07-basic-command-replay-20260802/state-driven-progression-replay.jsonl",
-      "evidence_type": "simulator"
-    },
-    "macro_replay_browser_interaction": {
-      "status": "PASS",
-      "command": "Playwright Chromium opened state-driven-player.html and exercised Canvas, 4x playback, seek to loop 5744, and end seek",
-      "summary": "Browser evidence reports a non-empty Canvas, 1319 map Objects, playback loop 0->32, Night 1 / 2 with 8 Marine enemies at loop 5744, and victory / all_objectives_success at loop 10081. The footer reports 29/29 actions and 62 events.",
-      "artifact": "artifacts/stage07-basic-command-replay-20260802/browser-verification.json",
-      "screenshots": [
-        "artifacts/stage07-basic-command-replay-20260802/state-driven-player-browser.png",
-        "artifacts/stage07-basic-command-replay-20260802/state-driven-player-victory.png"
-      ],
-      "evidence_type": "runtime"
-    },
-    "full_game_simulator_replay": {
-      "status": "PASS",
-      "command": "python -m cmre_neuro_adapter.full_game_replay --wave-strength-scale 0.25 --max-loops 65000 --replay-interval 448 --output artifacts/full-game-replay-20260802/dead-of-night-full-simulator.jsonl --html-output artifacts/full-game-replay-20260802/dead-of-night-full-simulator.html",
-      "summary": "The clean simulator opening starts with 1 CommandCenter, 8 SCVs, and 250 minerals, then records resource collection, 4 SCV completions, 3 Barracks, 1 Refinery, 4 SupplyDepots, 109 Marines, 39/39 waves, six completed nights, all 30 infestation structures destroyed, and victory at loop 63841 with 2240/2240 successful actions.",
-      "artifact": "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.jsonl",
-      "evidence_type": "simulator"
-    },
-    "full_game_replay_browser": {
-      "status": "PASS",
-      "command": "Edge/Playwright opened dead-of-night-full-simulator.html and exercised canvas rendering, 16x playback, seeking, end-state, and immediate play/pause controls",
-      "summary": "The self-contained player rendered 810000 non-empty canvas pixels, 144 playable frames, and all 1319 static map Objects; seeking reached loop 45696 at Night 4 / 17 and the end reached loop 63841 with victory, all_objectives_success, Night 6 / 39. Immediate play and pause both changed the playback state without page errors.",
-      "artifacts": [
-        "artifacts/full-game-replay-20260802/dead-of-night-full-simulator.html",
-        "artifacts/full-game-replay-20260802/dead-of-night-full-simulator-browser.png"
-      ],
-      "evidence_type": "runtime"
-    },
-    "full_game_replay_tests": {
-      "status": "PASS",
-      "tests": 79,
-      "command": "python -m unittest discover -s tests -v",
-      "summary": "The full adapter test suite passed with source-object alignment, dynamic schedule, and static-preview regression coverage; compileall, Python 3.11 grammar parsing, and diff-check also passed.",
-      "evidence_type": "simulator"
-    },
-    "map_source_alignment": {
-      "status": "PASS",
-      "tests": 11,
-      "command": "python -m unittest tests.test_replay_player -q; python -m compileall -q cmre_neuro_adapter tests",
-      "summary": "The map record now derives geometry from MapInfo, t3Terrain.xml, and minimap.png, preserves all 1319 unique ObjectUnit IDs, and exposes P1=(85,94) and P2=(76,103) placement markers. Static previews with zero frames also render through the safe empty-frame path.",
-      "artifacts": [
-        "artifacts/real-map-replay-20260803/real-map-static-aligned.jsonl",
-        "artifacts/real-map-replay-20260803/real-map-static-aligned.html"
-      ],
-      "evidence_type": "static"
-    },
-    "map_dynamic_source_linkage": {
-      "status": "PASS",
-      "command": "python -m cmre_neuro_adapter.full_game_replay --max-loops 700 --replay-interval 112 --output artifacts/map-alignment-smoke/replay.jsonl --html-output artifacts/map-alignment-smoke/replay.html",
-      "summary": "The short simulator path records the real map geometry, 1319 static Objects, source-linked simulator snapshots, and a 56-object finite simulation overlay. The run intentionally ends with max_loops_reached and is not a gameplay victory claim.",
-      "artifact": "artifacts/map-alignment-smoke/replay.jsonl",
-      "evidence_type": "simulator"
-    },
-    "map_player_browser_alignment": {
-      "status": "PASS",
-      "command": "Edge headless opened real-map-static-aligned.html and map-aligned-timescaled.html; System.Drawing counted rendered pixels",
-      "summary": "The static and dynamic map players rendered at 1200x1000 with 908722 and 908814 non-empty pixels respectively. The screenshots show the minimap, 1319 Objects layer, source IDs in the table, and dynamic map entities on original coordinates.",
-      "screenshots": [
-        "artifacts/real-map-replay-20260803/static-aligned.png",
-        "artifacts/full-game-replay-20260803/timescaled.png"
-      ],
-      "evidence_type": "runtime"
-    },
-    "current_full_game_replay_performance": {
-      "status": "PASS",
-      "command": "python -m cmre_neuro_adapter.full_game_replay --wave-strength-scale 0.5 --enemy-damage-scale 0.125 --max-loops 65000 --replay-interval 448 --output artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl --html-output artifacts/full-game-replay-20260803/map-aligned-full-game.html",
-      "summary": "The map-aligned real-time-scale simulator replay completed in 256 seconds at loop 63840 with all six map-derived nights, 39/39 waves, 29 building reinforcements, 30/30 source-linked structure destructions, resource collection, 4 SCV completions, 85 Marine completions, 3 Barracks, 1 Refinery, 4 SupplyDepots, 2923/2923 successful actions, and all_objectives_success.",
-      "artifact": "artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl",
-      "evidence_type": "simulator"
-    },
-    "current_full_game_replay_browser": {
-      "status": "PASS",
-      "command": "Python 3.13 Playwright + Edge headless opened map-aligned-full-game.html and exercised Canvas, seek, 16x, play/pause, and end controls",
-      "summary": "The browser rendered 810000 non-empty Canvas pixels, 1319 map Objects, and 144 frames; seeking selected loop 32256 at Night 3, 16x became active, play/pause toggled, and end selected loop 63840 with victory, all_objectives_success, and Night 6 / 39.",
-      "artifacts": [
-        "artifacts/full-game-replay-20260803/map-aligned-full-game.html",
-        "artifacts/full-game-replay-20260803/map-aligned-full-game-browser.png"
-      ],
-      "evidence_type": "runtime"
-    },
-    "current_source_identity": {
-      "status": "PASS",
-      "command": "source-object metadata binding probe plus final replay event scan",
-      "summary": "All 30 finite simulator structure targets bind to unique map-<ObjectUnit@Id> identities after footprint-center tolerance matching; the final replay records 30/30 infested_structure_destroyed events with source_object_id.",
-      "artifact": "artifacts/full-game-replay-20260803/map-aligned-full-game.jsonl",
-      "evidence_type": "simulator"
-    },
-    "map_script_service_extraction": {
-      "status": "PASS",
-      "command": "python inline extraction probe against artifacts/real-map-source-20260802/MapScript.galaxy",
-      "summary": "The extractor now preserves the source normal/special/generic attack calls plus the persistent AIWhiteNoiseSpawning service (5 per-night profiles, night 6 inheritance, 30 second night 1-5 cooldown, source structure selection) and HybridReinforcements (4 explicit profiles, night 5+ fallback, 60 second delay, five source defend regions).",
-      "source_counts": {
-        "normal_attack_calls": 41,
-        "special_attack_calls": 114,
-        "generic_attack_calls": 5,
-        "white_noise_profiles": 5,
-        "hybrid_profiles": 4
-      },
-      "evidence_type": "static"
-    },
-    "map_script_service_replay": {
-      "status": "PASS",
-      "command": "python -m cmre_neuro_adapter.full_game_replay --boss-type Stank --time-scale 0.25 --wave-strength-scale 0.75 --enemy-damage-scale 0.001 --max-loops 45000 --replay-interval 448 --output artifacts/full-game-replay-20260803/map-script-services-full.jsonl --html-output artifacts/full-game-replay-20260803/map-script-services-full.html",
-      "summary": "The source-derived replay reaches all six map nights and both objectives: 146/146 planned waves fired, 652 white-noise infested units, 124 special infested units, 89 cooperative-force projection units, 10 Hybrid units, 34 building reinforcements, 5575 minerals, 2704 vespene, 4 SCVs, 35 Marines, 3 Barracks, 30/30 source-linked structures destroyed, and 5295/5295 successful actions.",
-      "artifact": "artifacts/full-game-replay-20260803/map-script-services-full.jsonl",
-      "evidence_type": "simulator"
-    },
-    "map_script_service_browser": {
-      "status": "PASS",
-      "command": "Python 3.13 Playwright + Edge opened map-script-services-full.html; exercised event seeks, 16x, play/pause, and end seek",
-      "summary": "The local player rendered 810000 non-empty Canvas pixels, 65 playable frames, 1319 map Objects, and no page errors. White-noise, Hybrid, building-reinforcement, cooperative-force, and structure-destruction events were each visible after seeking; 16x activated; play and pause toggled; end reached loop 28292, Night 6, victory, all_objectives_success.",
-      "artifacts": [
-        "artifacts/full-game-replay-20260803/map-script-services-full-browser-verification.json",
-        "artifacts/full-game-replay-20260803/map-script-services-full-browser.png",
-        "artifacts/full-game-replay-20260803/map-script-services-full-night-density.png"
-      ],
-      "evidence_type": "runtime"
-    },
-    "real_map_launcher_staging": {
-      "status": "PASS",
-      "command": "approved launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander TerranRaynor -DebugMode -NoLaunch -MapCopySuffix real-map-replay-live1/live2/live4/live6",
-      "summary": "Four isolated staged map directories were created by the approved launcher and each was packed successfully from 76 files. This proves staging/packaging only; no CreateGame or runtime effect is claimed.",
-      "artifact": "artifacts/real-map-replay-20260802/",
-      "evidence_type": "runtime"
-    },
-    "real_map_runtime_replay": {
-      "status": "BLOCKED",
-      "command": "approved launcher KeepAlive + cmre_neuro_adapter.real_map_replay --port 5191",
-      "summary": "No independent runtime window was available: external valid KeepAlive sessions on ports 5192 and then 5201 remained active. The attempted captures produced no JSONL and are not runtime evidence.",
-      "artifact": "artifacts/runtime/sc2-runtime-lease.json",
-      "evidence_type": "blocked"
-    },
-    "legacy_full_map_replay_reference": {
-      "status": "RETIRED",
-      "command": "source review of dead_of_night_replay_20260802_124446.jsonl",
-      "summary": "The previously selected 20-frame source starts with a terminal-style 159-unit P1 snapshot including 128 Battlecruisers and constant 50 minerals; it is retained only as a reference artifact and is not used as the opening replay.",
-      "artifact": "artifacts/stage07-basic-command-replay-20260802/full-map-player.html",
-      "evidence_type": "static"
-    }
+  "real_map_launcher_staging": {
+   "status": "PASS",
+   "command": "approved launch-cmre-alenger.ps1 -MapName 亡者之夜.SC2Map -Commander TerranRaynor -DebugMode -NoLaunch -MapCopySuffix real-map-replay-live1/live2/live4/live6",
+   "summary": "Four isolated staged map directories were created by the approved launcher and each was packed successfully from 76 files. This proves staging/packaging only; no CreateGame or runtime effect is claimed.",
+   "artifact": "artifacts/real-map-replay-20260802/",
+   "evidence_type": "runtime"
   },
-  "runtime_claims": [],
-  "open_blockers": ["RUNTIME-001", "RUNTIME-003"],
-  "next_stage": null,
-  "next_stage_plan": null
+  "real_map_runtime_replay": {
+   "status": "BLOCKED",
+   "command": "approved launcher KeepAlive + cmre_neuro_adapter.real_map_replay --port 5191",
+   "summary": "No independent runtime window was available: external valid KeepAlive sessions on ports 5192 and then 5201 remained active. The attempted captures produced no JSONL and are not runtime evidence.",
+   "artifact": "artifacts/runtime/sc2-runtime-lease.json",
+   "evidence_type": "blocked"
+  },
+  "legacy_full_map_replay_reference": {
+   "status": "RETIRED",
+   "command": "source review of dead_of_night_replay_20260802_124446.jsonl",
+   "summary": "The previously selected 20-frame source starts with a terminal-style 159-unit P1 snapshot including 128 Battlecruisers and constant 50 minerals; it is retained only as a reference artifact and is not used as the opening replay.",
+   "artifact": "artifacts/stage07-basic-command-replay-20260802/full-map-player.html",
+   "evidence_type": "static"
+  }
+ },
+ "runtime_claims": [],
+ "open_blockers": [
+  "RUNTIME-001",
+  "RUNTIME-003"
+ ],
+ "next_stage": null,
+ "next_stage_plan": null
 }

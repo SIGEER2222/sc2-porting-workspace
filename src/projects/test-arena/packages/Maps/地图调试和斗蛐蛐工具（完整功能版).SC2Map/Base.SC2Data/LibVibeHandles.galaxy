@@ -641,24 +641,13 @@ int libVibeHandles_gf_Count_wavetarget() {
     return n;
 }
 
-// ---- libCOTF_gs_HistogramData (structref) ----
-libCOTF_gs_HistogramData[513] libVibeHandles_gv_histogram_table;
+// ---- libCOTF_gs_HistogramData (仅存活位注册表) ----
+// 【2026-08-09 真机根因，勿退回 struct 表】Galaxy 禁止 struct 作函数形参
+// （"仅能传递基础类型"）、禁止 struct 赋值与按值返回（"不支持大容量复制"）。
+// Stage26 生成器把 structref 参数类型当普通句柄类型，产出的 Acquire/Get 是
+// 编译错误 ⇒ SC2 静默丢弃整个 MapScript。此处降级为只登记存活位的注册表：
+// 取消 Acquire/Get，保留 Has/Drop/Clear 维持 handle.query/drop/clear 契约。
 bool[513] libVibeHandles_gv_histogram_used;
-int libVibeHandles_gv_histogram_cursor = 0;
-int libVibeHandles_gf_Acquire_libCOTF_gs_HistogramData(libCOTF_gs_HistogramData h) {
-    int i;
-    for (i = 1; i <= 512; i += 1) {
-        if (!libVibeHandles_gv_histogram_used[i]) { libVibeHandles_gv_histogram_used[i] = true; libVibeHandles_gv_histogram_table[i] = h; return i; }
-    }
-    libVibeHandles_gv_histogram_cursor += 1;
-    if (libVibeHandles_gv_histogram_cursor > 512) { libVibeHandles_gv_histogram_cursor = 1; }
-    libVibeHandles_gv_histogram_table[libVibeHandles_gv_histogram_cursor] = h;
-    libVibeHandles_gv_histogram_used[libVibeHandles_gv_histogram_cursor] = true;
-    return libVibeHandles_gv_histogram_cursor;
-}
-libCOTF_gs_HistogramData libVibeHandles_gf_Get_libCOTF_gs_HistogramData(int id) {
-    return libVibeHandles_gv_histogram_table[id];
-}
 bool libVibeHandles_gf_Has_libCOTF_gs_HistogramData(int id) {
     if (id < 1 || id > 512) { return false; }
     return libVibeHandles_gv_histogram_used[id];

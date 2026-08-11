@@ -1,5 +1,15 @@
 # Stage 09 Plan: AI Ally Runtime Retry
 
+> **状态：已完成（2026-08-09），verdict = `passed_native_p2_handover_observed`。**
+> 与本计划的两处偏差，如实记录：
+> 1. 计划要求"只用 `tools/launchers/launch-revolution-overdrive.ps1`，绝不直接起
+>    `SC2_x64.exe`"。实际使用 `SC2Switcher_x64.exe -listen 127.0.0.1 -port 5000 -debug`
+>    直接拉起 API 实例——依据是 2026-08-09 用户明示授权（真机线被阻塞时允许直接关闭并重启游戏），
+>    该授权覆盖了原先的 fail-closed 规则。探针本身未做任何修改。
+> 2. 计划假定阻塞原因是"外部 SC2 lease"。真因是探针目标选错（详见 `log.md`）。
+>
+> 详见 `log.md` / `result.json` / `self-assessment.md`。
+
 ## Objective
 
 Obtain one stable, approved-launcher, debug-free native runtime window for `thorner03` that

@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "stage": "09-ai-ally-runtime-retry",
+  "status": "passed",
+  "claims": [
+    {
+      "type": "runtime",
+      "claim": "A native no-debug runtime window observed the real thorner03 P2 handover end to end: CreateGame=init_game with nested_error=0, JoinGame=in_game as player 1, a non-empty catalog of 12225 abilities, and observations advancing from game loop 88 to 1465.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage09-ai-ally-runtime-retry/p2-handover-probe.json",
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/p2_handover_probe.py"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The handover was observed as a same-tag ownership transfer, not a spawn: Tychus entered Region 24 at loop 939 under native player-1 orders, and Odin tag 4294967297 moved from owner 16 with alliance 3 (rescuable placeholder) to owner 2 with alliance 2 (ALLY as read from player 1's own observation) by loop 1273, still P2-owned at loop 1465.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage09-ai-ally-runtime-retry/p2-handover-probe.json",
+        "src/projects/revolution-overdrive-porting/stages/09-ai-ally-runtime-retry/test_stage09_runtime_evidence.py"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The claim is not manufactured: no map edit, no adapter-created P2 unit, no generic melee AI injection, and no debug or cheat API were used (map_edits=false, adapter_created_p2_units=false, generic_melee_ai_injected=false, debug_apis_used=[]).",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage09-ai-ally-runtime-retry/p2-handover-probe.json"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The same-window GameLogs scan between the API instance start and the probe verdict found zero *ScriptError*.txt, so the gameplay window is script-error clean.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage09-ai-ally-runtime-retry/scripterror-scan.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The RO adapter keeps the eighteen unresolved runtime-leader alliance calls fail-closed. It never infers a leader or ally identity from a library global; only the 182 statically resolvable calls enter the contract. Stage 09 did NOT add a runtime-observation binding path.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/vibe/ai_ally.py",
+        "src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ro_ai_001_dynamic_alliance.py"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The existing thorner03 delayed P2 contract remains fail-closed at zero observed P2-owned units and requires a positive ownership census before dispatch; the map-owned Region 24 and RescueUnit lifecycle remains unchanged.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/vibe/ai_ally.py",
+        "src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/test_p2_ally_contract.py"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The approved launcher staged the real owned thorner03 map input with 55 source files and 55 staged files without editing the read-only download source.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage09-ai-ally-runtime-retry/launcher-staging-18489.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "No project test module can be silently dropped from collection: collect_ignore_glob must stay empty and every test module under the project must import cleanly, so an uncollectable module is a hard failure rather than an invisible skip. Verified with a positive control that reproduced the original hide-a-broken-test pattern.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/conftest.py",
+        "src/projects/revolution-overdrive-porting/stages/09-ai-ally-runtime-retry/test_collection_integrity.py"
+      ]
+    }
+  ],
+  "outputs": [
+    "src/projects/revolution-overdrive-porting/conftest.py",
+    "src/projects/revolution-overdrive-porting/stages/09-ai-ally-runtime-retry/plan.md",
+    "src/projects/revolution-overdrive-porting/stages/09-ai-ally-runtime-retry/log.md",
+    "src/projects/revolution-overdrive-porting/stages/09-ai-ally-runtime-retry/result.json",
+    "src/projects/revolution-overdrive-porting/stages/09-ai-ally-runtime-retry/issues.json",
+    "src/projects/revolution-overdrive-porting/stages/09-ai-ally-runtime-retry/self-assessment.md",
+    "src/projects/revolution-overdrive-porting/stages/09-ai-ally-runtime-retry/test_stage09_runtime_evidence.py",
+    "src/projects/revolution-overdrive-porting/stages/09-ai-ally-runtime-retry/test_collection_integrity.py",
+    "artifacts/projects/revolution-overdrive-porting/stage09-ai-ally-runtime-retry/p2-handover-probe.json",
+    "artifacts/projects/revolution-overdrive-porting/stage09-ai-ally-runtime-retry/scripterror-scan.json",
+    "artifacts/projects/revolution-overdrive-porting/stage09-ai-ally-runtime-retry/launcher-staging-18489.json",
+    "artifacts/projects/revolution-overdrive-porting/stage09-ai-ally-runtime-retry/runtime-lease-diagnostic-20260808.json",
+    "artifacts/projects/revolution-overdrive-porting/stage09-ai-ally-runtime-retry-owned-main-catalog.json"
+  ],
+  "validation": [
+    {
+      "command": "python src/projects/revolution-overdrive-porting/stages/08-ai-ally-native-closure/p2_handover_probe.py --port 5000 --map-path artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/thorner03.stage07.packed.SC2Map --out-dir artifacts/projects/revolution-overdrive-porting/stage09-ai-ally-runtime-retry",
+      "exitCode": 0,
+      "summary": "verdict=passed_native_p2_handover_observed on the unchanged Stage 08 probe; gate at loop 939, P2 owns Odin at loop 1273, stable at loop 1465."
+    },
+    {
+      "command": "python -m pytest src/projects/revolution-overdrive-porting -q",
+      "exitCode": 0,
+      "summary": "43 passed. The 9 Stage 09 runtime-evidence assertions and 2 collection-integrity guards on top of the pre-existing 32 ally tests."
+    },
+    {
+      "command": "python -m pytest src/projects/revolution-overdrive-porting/stages/09-ai-ally-runtime-retry -q",
+      "exitCode": 0,
+      "summary": "11 passed offline against the recorded artifact; no SC2 instance required to re-verify the runtime claim."
+    },
+    {
+      "command": "positive control: add a broken test module and hide it via collect_ignore_glob, then re-run the stage suite",
+      "exitCode": 1,
+      "summary": "2 failed as designed (test_no_silent_test_exclusion and test_every_project_test_module_is_importable); reverted and back to 11 passed."
+    },
+    {
+      "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ro_ai_001_dynamic_alliance.py -v",
+      "exitCode": 0,
+      "summary": "6 dynamic alliance tests passed with 182 resolved and 18 unresolved calls; the RO-AI-001 count is unchanged by this runtime window."
+    },
+    {
+      "command": "node tools/utils/workspace.mjs lint src/projects/revolution-overdrive-porting/packages --format json --no-type-check",
+      "exitCode": 0,
+      "summary": "74 Galaxy files, 0 diagnostics."
+    },
+    {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-revolution-overdrive.ps1 -MapName thorner03.SC2Map -Faction Iron -ListenPort 18489 -NoLaunch",
+      "exitCode": 0,
+      "summary": "Approved launcher staging MVP passed with source/staged file count 55/55."
+    }
+  ],
+  "nextStage": null
+}

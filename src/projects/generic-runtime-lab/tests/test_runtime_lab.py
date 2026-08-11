@@ -25,19 +25,19 @@ def test_runtime_lab_build_wires_the_three_suites():
     assert 'include "TriggerLibs/NativeLib"' in module.MAPSCRIPT
     assert 'include "scripts/cmlib/cmlib"' in module.MAPSCRIPT
     assert 'include "scripts/runtime_lab/runtime_lab"' in module.MAPSCRIPT
+    assert 'include "scripts/cmlib/cmlib_selftest"' not in module.MAPSCRIPT
     assert "LibVibeInvokeDispatch.galaxy" in module.ROOT_RUNTIME_FILES
     assert '<Bank Name="GalaxyVibe" Player="1"/>' in module.BANK_LIST
     assert '<Bank Name="GalaxyVibe" Player="2"/>' in module.BANK_LIST
     assert "CMRE" not in module.DOCUMENT_INFO
     assert "Campaigns/Void.SC2Campaign" in module.DOCUMENT_INFO
-    assert "CMLib_SelfTest();" in module.MAPSCRIPT
+    assert "CMLib_SelfTest();" not in module.MAPSCRIPT
     assert "libVibeKernel_InitLib();" in module.MAPSCRIPT
     assert "libNtve_InitLib();" in module.MAPSCRIPT
     assert "RuntimeLab_Init();" in module.MAPSCRIPT
     assert "libVibeKernel_gf_RegisterEntryPoints();" not in module.MAPSCRIPT
     assert module.MAPSCRIPT.index("libVibeKernel_InitLib();") < module.MAPSCRIPT.index("libNtve_InitLib();")
-    assert module.MAPSCRIPT.index("libNtve_InitLib();") < module.MAPSCRIPT.index("CMLib_SelfTest();")
-    assert module.MAPSCRIPT.index("CMLib_SelfTest();") < module.MAPSCRIPT.index("RuntimeLab_Init();")
+    assert module.MAPSCRIPT.index("libNtve_InitLib();") < module.MAPSCRIPT.index("RuntimeLab_Init();")
 
 
 def test_cmlib_control_stays_isolated_from_runtime_lab():
@@ -167,11 +167,19 @@ def test_runtime_lab_tactical_fixture_is_observable():
 
 def test_runtime_lab_control_panel_has_deterministic_actions():
     text = (PROJECT / "runtime" / "galaxy" / "runtime_lab.galaxy").read_text(encoding="utf-8")
+    init_body = text.split("void RuntimeLab_Init()", 1)[1].split("\n}", 1)[0]
     assert "RuntimeLab_CreateControlPanel" in text
     assert "RuntimeLab_ControlPanelClicked" in text
     assert '"Reset 6v12"' in text
     assert '"P2 Zergling +8"' in text
     assert '"Refresh Status"' in text
     assert '"control_panel_ready"' in text
-    assert "TriggerEnable(RuntimeLab_gt_StartTacticalArena, true);" in text
     assert "TriggerEnable(RuntimeLab_gt_ManagedUnitDied, true);" in text
+    assert "TriggerAddEventTimeElapsed(RuntimeLab_gt_StartTacticalArena" not in text
+    assert "RuntimeLab_StartTacticalArena(false, true);" in init_body
+    assert 'RuntimeLab_WriteStatus("tactical_arena_started", 1);' in init_body
+    assert "RuntimeLab_StartKernelEntryPoints" in text
+    assert "libVibeKernel_gf_RegisterEntryPoints();" in text
+    assert "TriggerExecute(RuntimeLab_gt_KernelEntryPoints, false, false);" in init_body
+    assert 'RuntimeLab_WriteStatus("runtime_vm_registration_requested", 1);' in init_body
+    assert text.index("CMLib_TrigOnUnitDied(RuntimeLab_gt_ManagedUnitDied") < text.index("TriggerEnable(RuntimeLab_gt_ManagedUnitDied")
