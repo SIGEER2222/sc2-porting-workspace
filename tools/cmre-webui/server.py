@@ -10,6 +10,7 @@
 
 import asyncio
 import atexit
+import base64
 import csv
 import json
 import os
@@ -41,6 +42,10 @@ ALENGER_MODS_JSON = CONFIG_DIR / "alenger-mods.json"
 REBORN_COMMANDERS_JSON = CONFIG_DIR / "reborn-commanders.json"
 LAUNCH_SCRIPT = Path(__file__).resolve().parents[1] / "launchers" / "launch-cmre-alenger.ps1"
 REPO_ROOT = SCRIPT_DIR.parents[1]
+SC2_RUNTIME_LEASE_PATH = REPO_ROOT / "artifacts" / "runtime" / "sc2-runtime-lease.json"
+# This is written only by /api/launch-async. It lets a later WebUI request
+# distinguish its own detached player session from an unrelated launcher run.
+WEBUI_SESSION_LEASE_PATH = REPO_ROOT / "artifacts" / "runtime" / "cmre-webui-session.json"
 REVOLUTION_PACKAGE_ROOT = REPO_ROOT / "src" / "projects" / "revolution-overdrive-porting" / "packages"
 REVOLUTION_COMMANDER_JSON = REVOLUTION_PACKAGE_ROOT / "Commander" / "revolution-overdrive-commander.json"
 REVOLUTION_MAPS_JSON = REVOLUTION_PACKAGE_ROOT / "maps.json"
@@ -1196,6 +1201,8 @@ def _wait_for_process(proc, reader_threads=None, output_tail=None, tail_lock=Non
         code = -1
     for reader in reader_threads:
         reader.join()
+    if not _bind_webui_runtime_lease(getattr(proc, "pid", 0)):
+        _discard_unbound_webui_launch_intent(getattr(proc, "pid", 0))
     if code != 0 and output_tail is not None:
         if tail_lock is None:
             stderr_tail = list(output_tail.get("stderr", []))[-40:]
@@ -1267,6 +1274,251 @@ def _list_game_processes():
     return processes
 
 
+def _read_json_object(path):
+    """Read a small runtime ownership record; malformed files are untrusted."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _write_json_object(path, payload):
+    """Atomically persist a small runtime ownership record."""
+    temp_path = path.with_name(f".{path.name}.{os.getpid()}.{time.time_ns()}.tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temp_path, path)
+        return True
+    except OSError as exc:
+        _append_log(f"[webui] 写入运行时归属记录失败: {exc}")
+        return False
+    finally:
+        try:
+            if temp_path.exists():
+                temp_path.unlink()
+        except OSError:
+            pass
+
+
+def _remove_runtime_record(path):
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        _append_log(f"[webui] 删除运行时归属记录失败: {exc}")
+
+
+def _get_process_info(pid):
+    """Return the Windows process identity needed for fail-closed lease cleanup."""
+    if os.name != "nt":
+        return None
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return None
+    if pid <= 0:
+        return None
+
+    command = (
+        "$p = Get-CimInstance -ClassName Win32_Process "
+        f"-Filter 'ProcessId = {pid}' -ErrorAction SilentlyContinue; "
+        "if ($null -ne $p) { "
+        "[pscustomobject]@{ProcessId=$p.ProcessId;Name=$p.Name;"
+        "CommandLineUtf16=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes([string]$p.CommandLine));"
+        "CreationDate=$p.CreationDate} | "
+        "ConvertTo-Json -Compress }"
+    )
+    try:
+        completed = subprocess.run(
+            [_resolve_powershell_executable(), "-NoProfile", "-NonInteractive", "-Command", command],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    raw = completed.stdout.lstrip("\ufeff").strip()
+    if not raw:
+        return None
+    try:
+        info = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(info, dict):
+        return None
+    try:
+        command_line_utf16 = info.pop("CommandLineUtf16", "")
+        info["CommandLine"] = base64.b64decode(command_line_utf16).decode("utf-16-le")
+    except (TypeError, ValueError, UnicodeDecodeError):
+        return None
+    return info
+
+
+def _lease_pid(record, key):
+    try:
+        pid = int(record.get(key, 0))
+    except (AttributeError, TypeError, ValueError):
+        return 0
+    return pid if pid > 0 else 0
+
+
+def _same_path(recorded_path, expected_path):
+    if not isinstance(recorded_path, str) or not recorded_path:
+        return False
+    try:
+        return os.path.normcase(os.path.abspath(recorded_path)) == os.path.normcase(
+            os.path.abspath(str(expected_path))
+        )
+    except OSError:
+        return False
+
+
+def _record_webui_launch_intent(proc, ctx):
+    """Record launch provenance before the detached runtime lease is available."""
+    if ctx.get("kind") != "cmre":
+        return
+    _write_json_object(
+        WEBUI_SESSION_LEASE_PATH,
+        {
+            "schemaVersion": 1,
+            "webuiPid": os.getpid(),
+            "launcherPid": proc.pid,
+            "launcher": str(LAUNCH_SCRIPT),
+            "mapName": ctx["map_name"],
+            "commander": ctx["commander"],
+            "createdAt": time.time(),
+        },
+    )
+
+
+def _bind_webui_runtime_lease(launcher_pid):
+    """Bind a successful WebUI launch intent to the exact detached SC2 PID."""
+    intent = _read_json_object(WEBUI_SESSION_LEASE_PATH)
+    lease = _read_json_object(SC2_RUNTIME_LEASE_PATH)
+    if not intent or not lease:
+        return False
+    if intent.get("launcherPid") != launcher_pid:
+        return False
+    if lease.get("state") != "detached" or _lease_pid(lease, "ownerPid") != launcher_pid:
+        return False
+    if not _same_path(intent.get("launcher"), LAUNCH_SCRIPT):
+        return False
+    if not _same_path(lease.get("launcher"), LAUNCH_SCRIPT):
+        return False
+    if lease.get("mapName") != intent.get("mapName") or lease.get("commander") != intent.get("commander"):
+        return False
+
+    runtime_pid = _lease_pid(lease, "runtimePid")
+    runtime_info = _get_process_info(runtime_pid)
+    if not runtime_info:
+        return False
+    intent.update(
+        {
+            "leaseOwnerSessionId": lease.get("ownerSessionId", ""),
+            "runtimePid": runtime_pid,
+            "runtimeCreationDate": runtime_info.get("CreationDate", ""),
+            "boundAt": time.time(),
+        }
+    )
+    return _write_json_object(WEBUI_SESSION_LEASE_PATH, intent)
+
+
+def _discard_unbound_webui_launch_intent(launcher_pid):
+    """Do not retain a failed launch intent as if it owned a live SC2 session."""
+    intent = _read_json_object(WEBUI_SESSION_LEASE_PATH)
+    if intent and intent.get("launcherPid") == launcher_pid and not intent.get("runtimePid"):
+        _remove_runtime_record(WEBUI_SESSION_LEASE_PATH)
+
+
+def _skip_detached_session_cleanup(reason):
+    _append_log(f"[webui] detached SC2 cleanup skipped: {reason}")
+    return []
+
+
+def _cleanup_webui_detached_session():
+    """Stop only a detached SC2 instance explicitly linked to this WebUI launch.
+
+    A launcher lease by itself is insufficient: manually launched sessions create the
+    same file. The WebUI intent must match the lease, runtime PID, process creation
+    timestamp, executable, and map command line before taskkill is allowed.
+    """
+    intent = _read_json_object(WEBUI_SESSION_LEASE_PATH)
+    lease = _read_json_object(SC2_RUNTIME_LEASE_PATH)
+    if not intent or not lease or lease.get("state") != "detached":
+        return []
+
+    launcher_pid = _lease_pid(intent, "launcherPid")
+    owner_pid = _lease_pid(lease, "ownerPid")
+    runtime_pid = _lease_pid(lease, "runtimePid")
+    if not launcher_pid or launcher_pid != owner_pid:
+        return _skip_detached_session_cleanup("launcher PID does not match detached lease")
+    if intent.get("runtimePid") != runtime_pid:
+        return _skip_detached_session_cleanup("runtime PID does not match detached lease")
+    if not intent.get("runtimeCreationDate"):
+        return _skip_detached_session_cleanup("runtime creation timestamp is missing")
+    if intent.get("leaseOwnerSessionId") != lease.get("ownerSessionId"):
+        return _skip_detached_session_cleanup("launcher session does not match detached lease")
+    if lease.get("mapName") != intent.get("mapName") or lease.get("commander") != intent.get("commander"):
+        return _skip_detached_session_cleanup("map or commander does not match detached lease")
+    if not _same_path(intent.get("launcher"), LAUNCH_SCRIPT):
+        return _skip_detached_session_cleanup("WebUI launcher path is not trusted")
+    if not _same_path(lease.get("launcher"), LAUNCH_SCRIPT):
+        return _skip_detached_session_cleanup("detached lease launcher path is not trusted")
+    # The original launcher must be gone. A reused owner PID is treated as untrusted.
+    if _get_process_info(owner_pid) is not None:
+        return _skip_detached_session_cleanup("original launcher PID is still live or reused")
+
+    runtime_info = _get_process_info(runtime_pid)
+    if not runtime_info:
+        return _skip_detached_session_cleanup("detached runtime PID is not live")
+    process_name = str(runtime_info.get("Name", "")).lower()
+    command_line = str(runtime_info.get("CommandLine", ""))
+    map_name = intent.get("mapName")
+    if process_name not in {"sc2.exe", "sc2_x64.exe"}:
+        return _skip_detached_session_cleanup("runtime PID is not an SC2 game process")
+    if not isinstance(map_name, str) or not map_name or map_name.casefold() not in command_line.casefold():
+        # WMI can briefly return an empty CommandLine while SC2 is switching its
+        # window state. Re-read once; any stable mismatch still fails closed.
+        runtime_info = _get_process_info(runtime_pid) or runtime_info
+        command_line = str(runtime_info.get("CommandLine", ""))
+        if map_name.casefold() not in command_line.casefold():
+            return _skip_detached_session_cleanup(
+                f"runtime command line does not match leased map (expected={map_name!r}, actual={command_line!r})"
+            )
+    if runtime_info.get("CreationDate") != intent.get("runtimeCreationDate"):
+        return _skip_detached_session_cleanup("runtime creation timestamp does not match")
+
+    if not _force_kill_process_tree(runtime_pid):
+        return _skip_detached_session_cleanup(f"taskkill failed for PID {runtime_pid}")
+    _remove_runtime_record(SC2_RUNTIME_LEASE_PATH)
+    _remove_runtime_record(WEBUI_SESSION_LEASE_PATH)
+    return [f"sc2:{runtime_pid}"]
+
+
+def _has_live_bound_webui_session():
+    """Prevent a failed cleanup from overwriting the prior WebUI ownership record."""
+    intent = _read_json_object(WEBUI_SESSION_LEASE_PATH)
+    lease = _read_json_object(SC2_RUNTIME_LEASE_PATH)
+    if not intent or not lease or lease.get("state") != "detached":
+        return False
+    runtime_pid = _lease_pid(lease, "runtimePid")
+    return (
+        intent.get("runtimePid") == runtime_pid
+        and bool(intent.get("runtimeCreationDate"))
+        and intent.get("leaseOwnerSessionId") == lease.get("ownerSessionId")
+        and _get_process_info(runtime_pid) is not None
+    )
+
+
 def _force_kill_process_tree(pid):
     """强制终止 pid 及其子树；非 Windows 测试环境回退到无操作。"""
     if os.name != "nt":
@@ -1288,7 +1540,7 @@ def _force_kill_process_tree(pid):
 
 
 def _force_stop_current_game():
-    """终止当前 WebUI 跟踪的 launcher，而不影响外部 SC2 会话。"""
+    """终止当前 launcher，并只清理已绑定的 WebUI detached SC2 会话。"""
     global _launcher_process
 
     with _launcher_lock:
@@ -1309,6 +1561,8 @@ def _force_stop_current_game():
             tracked_launcher.wait(timeout=5)
         except (OSError, subprocess.TimeoutExpired):
             pass
+
+    killed.extend(_cleanup_webui_detached_session())
 
     if killed:
         _append_log(f"[webui] 强制重启: 已结束旧进程 {', '.join(killed)}")
@@ -1798,6 +2052,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             "masteries": masteries,
             "listen_port": listen_port,
             "commander": commander,
+            "map_name": map_name,
         }
 
     def _handle_revolution_launch(self, ctx):
@@ -1920,6 +2175,32 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if ctx is None:
             return
         _force_stop_current_game()
+        if _has_live_bound_webui_session():
+            self._send_json(
+                {
+                    "success": False,
+                    "error": "WebUI 未能安全结束上一轮已跟踪的 SC2，会话归属记录已保留，未启动新游戏。",
+                },
+                409,
+            )
+            return
+        # Do not begin staging just to discover an unrelated game later in the
+        # launcher. A remaining SC2/SC2Switcher process has no WebUI ownership
+        # proof at this point, so preserve it and surface a synchronous busy
+        # response to the caller.
+        remaining_processes = _list_game_processes()
+        if remaining_processes:
+            process_summary = ", ".join(f"{name}:{pid}" for pid, name in remaining_processes)
+            _append_log(f"[webui] launch refused: unowned SC2 runtime is still active ({process_summary})")
+            self._send_json(
+                {
+                    "success": False,
+                    "error": "检测到未由 WebUI 归属的 SC2 会话，未启动新游戏。请先结束该会话后重试。",
+                    "processes": [{"pid": pid, "name": name} for pid, name in remaining_processes],
+                },
+                409,
+            )
+            return
         args = ctx["args"]
         commander = ctx["commander"]
 
@@ -1943,6 +2224,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
 
         with _launcher_lock:
             _launcher_process = proc
+        _record_webui_launch_intent(proc, ctx)
 
         _append_log(f"[webui] 异步启动 launcher, pid={proc.pid}, commander={commander}")
         _append_log(f"[webui] args: {' '.join(args)}")
