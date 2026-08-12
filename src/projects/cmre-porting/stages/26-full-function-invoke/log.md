@@ -432,3 +432,24 @@
   `POST /api/launch-async`（`TerranAlenger3 + 亡者之夜.SC2Map`），确认首轮 runtime PID
   被 WebUI 清理、次轮 runtime PID 不同且进入目标地图，并复核 heartbeat 递增和同窗口
   无新增非空 ScriptError。
+
+### 2026-08-12 stage 26 evidence reconciliation (no runtime rerun)
+
+- `static`：按 Stage 25 已解决 issue
+  `STATIC-CATALOG-SOURCE-BINDING-20260803` 对账，当前冻结基线为
+  `35,314` declarations（owned `22,780` + cmre-dev `12,534`），
+  `catalog-baseline.json` SHA-256 前缀为 `93659957...`。历史 `35,404` 原始 entry list
+  已不可恢复；差异的 90 条属于扫描期间移除的 cmre-dev redundant layer declarations，
+  cmre-dev 对 owned source 新增 unique signature 为 0，因此不影响 adapter coverage，
+  不再作为待修复或待重复测试项。Stage 26 的 `CMRE-FULL-SOURCE-BINDING` 已同步为
+  resolved，生成器的 owned-source 输入边界保持不变。
+- `static`：重新读取
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/invoke-plan.json`，
+  `structref` return producer 数为 0；仅有两个参数函数为
+  `gen.9746/libCOTF_gf_HistogramHorizontalCreate` 和
+  `gen.9747/libCOTF_gf_HistogramVerticalCreate`。此前 issues.json 中的
+  `gen.9785/gen.9786` 为记录错误，已更正。生成器保持 structref adapter fail-closed，
+  不伪造 handle 或 runtime PASS；`STRUCTREF-NO-PRODUCER` 已作为已验证设计限制关闭。
+- `blocked/runtime`：没有启动 SC2，也没有重跑任何已通过的 approved-launcher、WebUI
+  单次启动、sample/census 或其他成功场景。`WEBUI-OWNED-DETACHED-RESTART-RUNTIME`
+  仍保持 `open/BLOCKED`，因为双击重启 MVP 仍缺少无外部 listener 的干净运行窗口。

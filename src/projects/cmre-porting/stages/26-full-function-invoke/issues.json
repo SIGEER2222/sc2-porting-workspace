@@ -88,13 +88,15 @@
     {
       "id": "STRUCTREF-NO-PRODUCER",
       "severity": "low",
-      "status": "open",
-      "title": "No cataloged function returns a structref, so structref-argument calls cannot succeed",
-      "detail": "目录中无函数返回 structref 类型；仅有的 2 个 structref 参数函数 gen.9785/gen.9786（libCOTF_gf_HistogramHorizontalCreate 等，histogram 句柄）的入参只能来自其他调用返回值，当前必然返回 HANDLE_NOT_FOUND。按计划如实标注、结构化拒绝，不伪装成功。",
+      "status": "resolved",
+      "title": "Structref arguments are explicitly fail-closed because the catalog has no producer",
+      "resolved_at": "2026-08-12",
+      "detail": "invoke-plan.json 复核确认目录中无函数返回 structref；仅有的 2 个 structref 参数函数是 gen.9746/libCOTF_gf_HistogramHorizontalCreate 和 gen.9747/libCOTF_gf_HistogramVerticalCreate，二者的 histogram 入参只能来自其他调用返回值。生成器已对该参数族 fail-closed，未知句柄返回 HANDLE_NOT_FOUND，不伪装运行时成功。",
       "evidence_type": "static",
       "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/invoke-plan.json",
       "owner": "stage26",
-      "nextAction": "完整 CMRE 源绑定恢复后复查是否存在 structref 生产者；若确无，考虑在目录中显式标注该 2 函数为不可成功调用。"
+      "resolution": "src/projects/cmre-porting/stages/26-full-function-invoke/generate_invoke_adapters.py",
+      "nextAction": "None - closed as a verified catalog limitation; keep the generated adapters fail-closed and do not fabricate structref handles."
     },
     {
       "id": "AMBIGUOUS-OVERLOADS-EXCLUDED",
@@ -110,13 +112,15 @@
     {
       "id": "CMRE-FULL-SOURCE-BINDING",
       "severity": "low",
-      "status": "open",
-      "title": "Historical CMRE declaration parity is 90 declarations short",
-      "detail": "当前 local.sources.json 绑定可用。清洁扫描得到 35,314 条声明（owned packages 22,780 + cmre-dev 12,534），全部 0 parse errors；cmre-dev 相对 owned source 新增 0 个唯一签名。与历史 35,404 声明基线仍差 90 条，尚未具备宣称历史全量完全一致的证据。",
+      "status": "resolved",
+      "title": "Historical CMRE declaration difference is explained by the frozen clean baseline",
+      "resolved_at": "2026-08-12",
+      "detail": "Stage 25 已冻结当前可复现基线 catalog-baseline.json（35,314 declarations，SHA-256 前缀 93659957...）。清洁扫描包含 owned packages 22,780 条和 cmre-dev 12,534 条，0 parse errors；cmre-dev 相对 owned source 新增 0 个 unique signature。历史 35,404 原始 entry list 不可恢复，差异的 90 条属于扫描期间移除的 cmre-dev redundant layer declarations，对 adapter coverage 无影响，因此无需代码修复或继续寻找缺失函数。",
       "evidence_type": "static",
       "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog-full-clean.json",
       "owner": "stage26",
-      "nextAction": "对照历史 35,404 清单定位剩余 90 条声明；在差异有来源解释前保持 open，不改变当前生成器的 owned-source 输入边界。"
+      "resolution": "src/projects/cmre-porting/stages/25-ai-ally-capability-completion/issues.json::STATIC-CATALOG-SOURCE-BINDING-20260803",
+      "nextAction": "None - closed. Keep catalog-baseline.json as the reproducible declaration baseline and do not change the owned-source generator boundary."
     },
     {
       "id": "INVOKE-TIER-LAUNCHER-PASSTHROUGH",

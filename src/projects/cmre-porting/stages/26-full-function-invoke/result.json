@@ -3,7 +3,7 @@
   "stage": "26-full-function-invoke",
   "status": "PASS_WITH_GAP",
   "evidence_type": "mixed",
-  "summary": "全函数 function.invoke 的静态部分已达成：clean catalog 为 22,780 个 owned-source 声明和 242 个 canonical-kernel 声明；生成器仅消费 owned source，产出 11,676 个类型化 gen.<int> 静态分派 adapter 与 155 个显式排除项。862 个生成/kernel Galaxy 文件 0 解析错误，最新 run-all-validation 为 52/52 通过，三副本 hash 一致；历史 35,404 声明基线仍有 90 条开放静态差异。2026-08-10 的 approved launcher 已完成实际放量：Tier 100（C:/tmp/CMREStage26-Approved-Tier100-20260810.SC2Map，3,403,359B，EFAAC5D8...005CFBB4）中 gen.1 成功、gen.202 按范围预期 FUNCTION_NOT_IN_MAP；Tier 1000（3,495,092B，D7DD3982...80237F34）和 -InvokeFull（4,070,657B，7828FCE5...C0E7A66）均使 gen.1 -> fixed 0、gen.202 -> int 2 成功。三次均由启动器拥有的 API 实例完成 CreateGame/JoinGame、kernel_initialized=1、register_entrypoints_done=1、system.ping、vibe.unit.spawn 的 raw observation +1 Marine、query.units=1，且同窗口零新增非空 ScriptError。TerranAlenger3 预选启动日志与上述真实进入地图闭环共同证明启动器不再等待指挥官选择界面。InvokeTier=0 保持生成 adapter 禁用的稳定 WebUI 基线，绝不再当作全量放量。Module 1 Step 4 类型族抽样与只读普查仍如实记录为运行时样本证据。2026-08-11 WebUI 新增已绑定 detached session 的安全重启实现（56 项静态回归），但最终双击 map-entry MVP 被无归属的外部 API SC2 会话阻塞，保持 BLOCKED；历史 35,404 声明基线的 90 条静态对账差异也继续保留。",
+  "summary": "全函数 function.invoke 的静态部分已达成：clean catalog 为 22,780 个 owned-source 声明和 242 个 canonical-kernel 声明；生成器仅消费 owned source，产出 11,676 个类型化 gen.<int> 静态分派 adapter 与 155 个显式排除项。862 个生成/kernel Galaxy 文件 0 解析错误，最新 run-all-validation 为 52/52 通过，三副本 hash 一致；历史 35,404 与当前 35,314 的 90 条差异已由 Stage 25 冻结基线解释为 cmre-dev 冗余层，对 adapter coverage 无影响。2026-08-10 的 approved launcher 已完成实际放量：Tier 100（C:/tmp/CMREStage26-Approved-Tier100-20260810.SC2Map，3,403,359B，EFAAC5D8...005CFBB4）中 gen.1 成功、gen.202 按范围预期 FUNCTION_NOT_IN_MAP；Tier 1000（3,495,092B，D7DD3982...80237F34）和 -InvokeFull（4,070,657B，7828FCE5...C0E7A66）均使 gen.1 -> fixed 0、gen.202 -> int 2 成功。三次均由启动器拥有的 API 实例完成 CreateGame/JoinGame、kernel_initialized=1、register_entrypoints_done=1、system.ping、vibe.unit.spawn 的 raw observation +1 Marine、query.units=1，且同窗口零新增非空 ScriptError。TerranAlenger3 预选启动日志与上述真实进入地图闭环共同证明启动器不再等待指挥官选择界面。InvokeTier=0 保持生成 adapter 禁用的稳定 WebUI 基线，绝不再当作全量放量。Module 1 Step 4 类型族抽样与只读普查仍如实记录为运行时样本证据。2026-08-11 WebUI 新增已绑定 detached session 的安全重启实现（56 项静态回归），但最终双击 map-entry MVP 被无归属的外部 API SC2 会话阻塞，保持 BLOCKED；structref 参数族已确认无 producer，继续 fail-closed。",
   "changed_paths": [
     "src/projects/cmre-porting/project.json",
     "src/projects/cmre-porting/stages/26-full-function-invoke/plan.md",
@@ -98,7 +98,7 @@
       "name": "catalog-source-boundary-and-reconciliation",
       "command": "node src/projects/cmre-porting/stages/25-ai-ally-capability-completion/discover_function_catalog.mjs --out artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog-full-clean.json --source cmre-owned-project=src/projects/cmre-porting/packages --source cmre-dev=<approved-local-binding>",
       "status": "PASS",
-      "detail": "35,314 clean declarations, 0 parse errors; owned source contributes 22,780 declarations, cmre-dev contributes 12,534, and the combined unique-signature set adds 0 beyond owned source. Historical 35,404 parity remains an open 90-declaration reconciliation item.",
+      "detail": "35,314 clean declarations, 0 parse errors; owned source contributes 22,780 declarations, cmre-dev contributes 12,534, and the combined unique-signature set adds 0 beyond owned source. Stage 25 froze this as catalog-baseline.json (SHA-256 prefix 93659957...); the historical 90-entry difference is explained as removed cmre-dev redundant-layer declarations and has no adapter-coverage impact.",
       "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog-full-clean.json"
     },
     {
@@ -106,6 +106,13 @@
       "command": "python -m pytest -q src/projects/cmre-porting/stages/26-full-function-invoke/test_generate_invoke_adapters.py",
       "status": "PASS",
       "detail": "新鲜合并回归为 92 passed（Stage 26 生成器 33 + kernel 59）：调用计划 11,676 个 callable adapter、id 1..11676 连续无重复、每参数编解码方案齐全、funcref/structref 标注、注册表契约（11,676 gen + 20 手写、debug_only/generated）、whitelist handle.*、产物齐全、顶层路由与片内成员一致、tier 变体、整数 id 优先、strategy 拒绝、DebugVm 整数 id 一致、fake-bridge 基础类型/句柄往返/未知句柄/FUNCREF 拒绝"
+    },
+    {
+      "name": "structref-producer-audit",
+      "command": "node -e \"const fs=require('fs'); const x=JSON.parse(fs.readFileSync('artifacts/projects/cmre-porting/stage26-full-function-invoke/invoke-plan.json','utf8')); const returns=x.functions.filter(e=>e.return_class==='structref'); const params=x.functions.filter(e=>e.params.some(p=>p.class==='structref')); if(returns.length!==0 || params.map(e=>e.id).join(',')!=='9746,9747') process.exit(1); console.log(JSON.stringify({structref_returns:returns.length,structref_parameter_ids:params.map(e=>e.id)}));\"",
+      "status": "PASS",
+      "detail": "invoke-plan.json 中 structref return=0；仅 gen.9746/libCOTF_gf_HistogramHorizontalCreate 与 gen.9747/libCOTF_gf_HistogramVerticalCreate 含 structref 参数。生成器对该族保持 fail-closed，不伪造 producer 或 runtime success。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/invoke-plan.json"
     },
     {
       "name": "galaxy-static-parse-gate",
@@ -243,6 +250,9 @@
     "galaxy_files_parsed": 862,
     "parse_errors": 0,
     "excluded_total": 155,
+    "structref_return_functions": 0,
+    "structref_parameter_functions": 2,
+    "structref_parameter_ids": [9746, 9747],
     "excluded_breakdown": {
       "unsupported_type": 29,
       "ambiguous_overloads": 7,
@@ -279,7 +289,7 @@
     "保持 approved-launcher 放量契约：仅用 -InvokeTier 100、-InvokeTier 1000、-InvokeFull 作为 Stage 26 runtime evidence；InvokeTier=0 继续作为 generated bundle disabled 的稳定基线，旧的同 hash T100/T1000 重命名图不再复用。",
     "保留并复核已完成的 runtime_invoke_probe.py --sample/--census 证据；除非扩大任务范围，不要重复运行会改变任务状态的全量普查。",
     "【N1 结论 2026-08-09 08:5x：内核单点 ReloadBank 治本实验 ABANDONED 并已回退】。A/B 真机证明重发是 Bank RPC 通道固有方差（两图每轮均 ~1 次重发），单点 ReloadBank 未关窗。真正兜底是 Host at-least-once 重发。治本方向改为：将 RPC 通道(request/response/index)与模型状态库(p2_*)拆成独立 bank 文件，使 WriteModelP2Snapshot 的 BankSave 不再覆盖 RPC 请求/响应。这是更大的数据/内核改造，列为独立 N 项，本次不实施。",
-    "对照历史 35,404 声明清单解释当前 clean scan 的 90 条差异；CMRE-dev 当前未贡献 owned source 之外的唯一签名",
+    "保持 catalog-baseline.json（35,314 declarations，SHA-256 前缀 93659957...）作为可复现基线；历史 90 条差异已解释为 cmre-dev 冗余层，对 adapter coverage 无影响，不再重复寻找缺失条目",
     "【N1 后继·真正治本 2026-08-09 08:5x】将 VIBE_GEN_007 的根因（Bank 双写单文件全量覆盖无锁）通过**架构级改造**消除：把 RPC 通道(request/response/index)与模型状态库(p2_*)拆成两个独立 bank 文件，使 WriteModelP2Snapshot 的 BankSave 只写 p2_* 库、绝不再覆盖 Host 写入的 RPC 请求/响应。实现点：① Data Editor 新增独立 Bank 名（如 GalaxyVibeRPC / GalaxyVibeModel）；② Host 侧 write_bank_request / read_bank 按通道分库读写；③ 内核 PollLoop 仅对 p2_* 库做 BankSave，RPC 库只读（ReloadBank 拉请求）不写覆盖。改造后 Host at-least-once 重发可降级为 best-effort（去重仍保留）。需重打包两张图 + 真机复验 reasserts 趋 0。"
   ]
 }
