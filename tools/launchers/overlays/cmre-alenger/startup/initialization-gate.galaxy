@@ -91,12 +91,9 @@ bool gf_CmreOnDemandInitializationReady() {
     }
     if ((!lv_unitsP1) || (!lv_unitsP2)) { return false; }
 
-    // Reborn Zerg performs an additional SwarmSetup phase after the adapter
-    // creates the basic base/workers. Wait for its mission buildings too.
-    if ((lv_rebornHandled != 0) && (lv_commanderRace == "Zerg")) {
-        if (gf_CmreOnDemandDebugInt("zerg_starting_buildings_created_p1") == 0) { return false; }
-        if ((lv_ensureP2 != 0) && (gf_CmreOnDemandDebugInt("zerg_starting_buildings_created_p2") == 0)) { return false; }
-    }
+    // Reborn Zerg no longer receives a synthetic tech-building bundle. The
+    // adapter owns only the map-declared base/workers and PreventDefeat unit;
+    // native Reborn SwarmSetup remains responsible for commander abilities.
     if ((lv_rebornHandled != 0) && (gf_CmreOnDemandDebugInt("reborn_adapter_initialized") == 0)) { return false; }
     return true;
 }

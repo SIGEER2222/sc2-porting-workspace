@@ -133,6 +133,30 @@
       "owner": "stage26",
       "resolution": "tools/launchers/launch-cmre-alenger.ps1",
       "nextAction": "后续放量顺序必须是 -InvokeTier 100、-InvokeTier 1000、-InvokeFull；普通 WebUI/InvokeTier=0 维持稳定禁用生成 bundle。"
+    },
+    {
+      "id": "WEBUI-MAP-DISPLAY-LOCALIZATION",
+      "severity": "low",
+      "status": "resolved",
+      "title": "地图列表不能把英文内部文件名作为用户可见名称",
+      "detail": "WebUI 地图 API 现由显式中文注册表为 CMRE、虫心和起义狂潮的 66 张地图提供 name；内部 id 仅用于启动参数和预设持久化。虫心与起义狂潮分别使用 [虫心]、[起义狂潮] 前缀区分来源。",
+      "evidence_type": "mixed",
+      "evidence": "tools/cmre-webui/server.py::MAP_DISPLAY_NAMES; tools/cmre-webui/webui/app.js::renderMaps/updateFooter/renderPresetList; 2026-08-12 GET /api/maps MVP; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-browser-20260812/maps-tab-dom.json; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-browser-20260812/maps-tab.png",
+      "owner": "stage26",
+      "resolution": "已完成显式中文名称登记、前端显示路径替换和回归测试。",
+      "nextAction": "后续新增地图必须先登记中文显示名；未知地图应保持 fail-closed，不得回退展示原始文件名。2026-08-12 已补充真实浏览器点击地图页、DOM 断言和截图证据。"
+    },
+    {
+      "id": "REBORN-ZERG-SYNTHETIC-TECH-BUNDLE",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Reborn Zerg commanders received an unintended synthetic starting tech bundle",
+      "detail": "Reborn SwarmSetup previously called libRebornAdapter_gf_CreateZergStartingBuildings for every Zerg commander, creating extra tech structures, workers, Overlord, HunterKiller and Queen at game start. The launcher now removes that call and the initialization gate no longer waits for its completion markers. Static coverage confirms all seven Reborn Zerg commanders: Abathur, Dehaka, Izsha, Kerrigan, Naktul, Stukov and Zagara. A real packed Abathur map produced the expected 24 Drone, 2 Hatchery, 6 Larva and 1 Overlord baseline with zero synthetic extra Zerg buildings; P1 raw observation plus Kernel spawn/query validation passed and no new ScriptError was observed.",
+      "evidence_type": "mixed",
+      "evidence": "tools/launchers/tests/test_launch_cmre_alenger_static.py::test_reborn_zerg_startup_does_not_inject_synthetic_tech_bundle; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/reborn-abathur-opening-census-20260812.json",
+      "owner": "stage26",
+      "resolution": "tools/launchers/launch-cmre-alenger.ps1; tools/launchers/overlays/cmre-alenger/startup/initialization-gate.galaxy",
+      "nextAction": "Keep the seven-commander static regression and do not restore the synthetic tech-bundle call without a new commander-specific contract."
     }
   ]
 }

@@ -453,3 +453,129 @@
 - `blocked/runtime`：没有启动 SC2，也没有重跑任何已通过的 approved-launcher、WebUI
   单次启动、sample/census 或其他成功场景。`WEBUI-OWNED-DETACHED-RESTART-RUNTIME`
   仍保持 `open/BLOCKED`，因为双击重启 MVP 仍缺少无外部 listener 的干净运行窗口。
+
+### 2026-08-12 WebUI cross-category matrix: reborn x Alenger PASS
+
+- `runtime`：只执行未通过的矩阵格 `虫心/Reborn × CMRE/Alenger`，请求为
+  `POST http://127.0.0.1:8767/api/launch-async`，参数明确为
+  `mapPackage=reborn`、`commanderPackage=cmre`、`mapName=zexpedition03.SC2Map`、
+  `commander=TerranAlenger3`；未传 `rebornCommander`，因此实际测试指挥官没有被替换成
+  Reborn 原生指挥官。
+- `runtime`：本轮真实 SC2 PID `32964` 的命令行指向
+  `zexpedition03.SC2Map`。Bank marker 为 `map_init_entered=1`、
+  `runtime_listener_ready=1`、`initialization_complete=1`、
+  `reborn_adapter_initialized=1`、`preselected_commander_startup=1`，
+  `world_cover_dialog_visible_p1=0`；heartbeat 采样从 46 增至 73。
+- `runtime`：从本轮 launcher 启动时间起扫描 GameLogs，没有新增非空
+  `*ScriptError*.txt`。完成后通过 WebUI `/api/stop` 精确结束 `SC2_x64.exe` PID 32964，
+  当前无 SC2/SC2Switcher 残留。
+- 结论：本格 `PASS`，矩阵从 `4/9` 更新为 `5/9`。独立证据：
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-matrix-20260812/reborn-zexpedition03-TerranAlenger3-PASS-20260812.json`；
+  Bank 快照 SHA-256 为 `567AA12C2B840218E1F814F253FD24BEE1C2FD620E177DC955D6B53969926106`。
+
+### 2026-08-12 WebUI cross-category matrix: reborn x Reborn commander PASS
+
+- `runtime`：只执行未通过的矩阵格 `虫心/Reborn × Reborn`，请求为
+  `POST http://127.0.0.1:8767/api/launch-async`，参数明确为
+  `mapPackage=reborn`、`commanderPackage=cmre`、`mapName=zexpedition03.SC2Map`、
+  `commander=ZergAbathur`、`enableReborn=true`、`rebornCommander=Abathur`。
+- `runtime`：本轮真实 SC2 PID `34632` 的命令行指向 `zexpedition03.SC2Map`；
+  `cryswarmcoop.SC2Bank` 的 `Commanders/Commander` 读取为 `Abathur`，证明本格实际
+  使用 Reborn commander，而不是官方同名 Abathur。Bank marker 为
+  `map_init_entered=1`、`runtime_listener_ready=1`、`initialization_complete=1`、
+  `reborn_adapter_initialized=1`、`preselected_commander_startup=1`，
+  `world_cover_dialog_visible_p1=0`；heartbeat 采样从 1 增至 38。
+- `runtime`：本轮新增 Alerts=1；从 launcher 启动时间起没有新增非空
+  `*ScriptError*.txt`。完成后通过 WebUI `/api/stop` 精确结束 `SC2_x64.exe` PID 34632，
+  当前无 SC2/SC2Switcher 残留。
+- 结论：本格 `PASS`，矩阵从 `5/9` 更新为 `6/9`。独立证据：
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-matrix-20260812/reborn-zexpedition03-RebornZergAbathur-PASS-20260812.json`；
+  runtime Bank SHA-256 为 `B5FC5AE5C8990EB8B3C378A4FC149C5C68F7E1E77D822B82E512C5CFABC3F6C9`，
+  commander Bank SHA-256 为 `ACE8C9AEE93A50608DE56534715627EE9498442C830823A09847AAB68FC270E6`。
+
+### 2026-08-12 WebUI map display localization PASS
+
+- `static`：在 `tools/cmre-webui/server.py` 增加显式 `MAP_DISPLAY_NAMES` 注册表，覆盖
+  当前三个地图源的全部 66 张地图（CMRE 15、虫心 20、起义狂潮 31）。虫心显示名统一使用
+  `[虫心]` 前缀，起义狂潮显示名统一使用 `[起义狂潮]` 前缀；启动器仍接收原始
+  `.SC2Map` `id`，显示层不再从文件名生成名称。
+- `static`：`tools/cmre-webui/webui/app.js` 的地图卡片、图片替代文本、页脚摘要和预设提示
+  均读取 API 返回的中文 `name`；`mapName` 仅保留为内部启动/预设键。
+- `runtime`：实际启动 `server.py --port 8797 --no-browser`（`CMRE_WEBUI_DRY_RUN=1`），
+  请求 `GET /api/maps` 返回分组 `[15, 20, 31]`、总数 66；所有条目的 `id` 以
+  `.SC2Map` 结尾、`name` 非空且不含英文字母，并确认虫心和起义狂潮名称前缀正确。
+- `static`：`python -m pytest -q tools/cmre-webui/test_launch_async_contract.py` ->
+  19 passed；`node --check tools/cmre-webui/webui/app.js`、`python -m py_compile
+  tools/cmre-webui/server.py`、`git diff --check` 通过。针对性 MVP：
+  `python -m pytest -q tools/cmre-webui/test_revolution_overdrive.py` -> 2 passed，
+  `python -m pytest -q tools/cmre-webui/test_runtime_contract.py` -> 1 passed。
+- `verification-gap`：旧 `tools/cmre-webui/test_smoke.py` 本轮为 33/37；失败项为既有
+  指挥官数量/额外 Mod 过滤/旧 HTML 容器断言，与本次地图显示名改动无关；其地图 15 张
+  API 检查通过。未将该旧冒烟结果包装为全绿。
+
+### 2026-08-12 Reborn Zerg opening bundle correction PASS
+
+- `static`：确认 Reborn Zerg 指挥官集合为 `Abathur`、`Dehaka`、`Izsha`、`Kerrigan`、
+  `Naktul`、`Stukov`、`Zagara`。launcher 已移除统一调用
+  `libRebornAdapter_gf_CreateZergStartingBuildings`，保留基础基地/工蜂、PreventDefeat、
+  Zerg 科技解锁和原生英雄替换；初始化 gate 不再等待 synthetic tech-bundle marker。
+- `static`：`python -m pytest -q tools/launchers/tests`
+  -> `79 passed`；Python compile 与 `git diff --check` 通过。静态回归覆盖 7 个 Zerg
+  指挥官，防止任意一个分支恢复额外建筑包。
+- `runtime`：approved launcher 产出并打包实际地图
+  `E:\SC2\SC2new\StarCraft II\Maps\reborn-abathur-no-techbundle-20260812.SC2Map`，
+  3,980,547 bytes，SHA-256=`AB84EF43D197F483DEF46330DF214ADAC6C2ADCB33B4419985BFC5598FC4D515`。
+  同一独占 API 会话 `127.0.0.1:5021` 完成 CreateGame/JoinGame、`kernel_initialized=1`，
+  且 raw observation 的 P1 baseline 为 35 个单位：`Drone=24`、`Hatchery=2`、
+  `Larva=6`、`Overlord=1`、`CoopCasterAbathur=1`、`ACHeroSpawnPlacement=1`。
+  额外 synthetic Zerg 建筑为 0；注入 Marine 后全量 delta 仅为 `Marine +1`。
+- `runtime`：P1-A/P1-B/P1-C 均 PASS（Kernel spawn 返回 OK、SC2 raw observation
+  独立观测 +1、Kernel query 一致）；证据为
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/reborn-abathur-opening-census-20260812.json`。
+  同一地图的 tier100 基线 probe 也通过 CreateGame/JoinGame、内核注册、spawn/query 和
+  `no_new_nonempty` ScriptError gate；`InvokeTier=0` 下 `gen.*` 返回
+  `FUNCTION_NOT_IN_MAP` 是预期的 generated-adapter disabled 基线，不影响本次开局验证。
+
+### 2026-08-12 WebUI map localization browser MVP PASS
+
+- `runtime/browser`：启动 `CMRE_WEBUI_DRY_RUN=1 python tools/cmre-webui/server.py --port 8795 --no-browser`，
+  使用本机 Playwright Chromium 通过 CDP 打开 `http://127.0.0.1:8795/`，实际点击
+  `button[data-tab="maps"]` 后读取页面 DOM。地图页可见卡片数为 66，分组前缀计数为
+  `[虫心]` 20、`[起义狂潮]` 31；其余 CMRE 地图 15 张也全部有中文显示名。
+- `runtime/browser`：DOM 检查确认所有 66 个 `.map-item-name` 均为显式中文名称；可见文本
+  不含 `zchar01`、`thorner03`、`亡者之夜.SC2Map`、`Dead of Night`、`Void Launch` 或
+  `Miner Evacuation`；浏览器 `window.error` 与 `unhandledrejection` 均为空。
+- `runtime/browser`：实际页面截图已保存到
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-browser-20260812/maps-tab.png`，
+  DOM 断言结果保存到同目录 `maps-tab-dom.json`；截图显示地图标签处于激活状态、卡片均正常布局。
+- `static`：本次浏览器验证不改变地图内部启动键；页面显示使用 API 的 `name`，启动和预设仍使用
+  内部 `id`。本次由“只验证 API”提升为真实浏览器交互证据，地图中文化验证缺口关闭。
+
+### 2026-08-13 WebUI browser evidence reconciliation
+
+- `verification`：首次把三个 WebUI 测试文件并发启动时，`test_runtime_contract.py` 的
+  `/api/vibe/sessions` 请求出现一次超时；该批次同时启动多个临时 WebUI/Bank 读取，不能作为
+  稳定测试结论。未据此修改生产代码。
+- `runtime/static`：停止本次验证专属 WebUI 与 Chromium 后，单独复现
+  `/api/vibe/sessions` 返回 HTTP 200，耗时约 733ms；随后按依赖顺序串行执行：
+  `test_launch_async_contract.py` 19 passed、`test_revolution_overdrive.py` 2 passed、
+  `test_runtime_contract.py` 1 passed。`py_compile`、`node --check`、`git diff --check`
+  也通过，8795/8811/9223 验证端口已释放。
+- `runtime/browser`：保留并重新断言既有 CDP 证据，`maps-tab-dom.json` 的 cardCount=66、
+  `[虫心]`=20、`[起义狂潮]`=31、forbiddenVisible=[]、browserErrors=[]；地图中文化浏览器
+  MVP 结论保持 PASS。
+
+### 2026-08-13 WebUI 8767 live instance localization correction PASS
+
+- `runtime/browser`：直接检查用户指定的 `http://127.0.0.1:8767/`。原监听进程 PID 26260
+  创建于 2026-08-12，页面实际渲染 66 张卡片但仍显示 `虫心：zchar01`、`thorner03` 等
+  内部 ID；原实例结果为 FAIL，不能用 8795 的结果替代。
+- `runtime`：确认当前工作树 `server.py::MAP_DISPLAY_NAMES` 已登记显式中文后，停止并按原端口
+  重启 8767 WebUI，API 复核为 15/20/31，共 66 张且异常名称数为 0。没有修改地图内部 id。
+- `runtime/browser`：在同一 `http://127.0.0.1:8767/` 上重新导航并实际点击地图标签；浏览器 DOM
+  断言为 cardCount=66、CMRE=15、`[虫心]`=20、`[起义狂潮]`=31，原始 ID/英文文件名不可见，
+  `window.error` 与 `unhandledrejection` 均为空。证据保存于
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-browser-20260813-8767/maps-tab-dom-after-restart.json`
+  和同目录 `maps-tab-after-restart.png`。
+- `runtime/browser`：8767 当前服务保留运行，说明用户打开同一 URL 时会加载修复后的中文页面；本次
+  启动的 Chromium 调试实例已停止。
