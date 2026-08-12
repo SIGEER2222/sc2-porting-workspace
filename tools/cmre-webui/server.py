@@ -33,6 +33,27 @@ DATA_DIR = SCRIPT_DIR / "data"
 MUTATORS_JSON = DATA_DIR / "mutators.json"
 # DDS → PNG 转换缓存目录。首次请求某 DDS 时转 PNG 存这里，后续直接返回。
 ASSETS_CACHE_DIR = WEBUI_DIR / "assets_cache"
+# 官方地图加载画面转换缓存。生成缓存放到阶段 artifacts，不写回外部地图包。
+MAP_PREVIEW_CACHE_DIR = (
+    SCRIPT_DIR.parents[1]
+    / "artifacts"
+    / "projects"
+    / "cmre-porting"
+    / "stage26-full-function-invoke"
+    / "runtime"
+    / "webui-map-preview-cache"
+)
+# Official wide mission/loading art extracted from the local SC2 CASC store.
+# The extraction manifest and files live in stage artifacts; source maps remain read-only.
+MAP_PREVIEW_ASSET_ROOT = (
+    SCRIPT_DIR.parents[1]
+    / "artifacts"
+    / "projects"
+    / "cmre-porting"
+    / "stage26-full-function-invoke"
+    / "runtime"
+    / "map-preview-assets"
+)
 # 预导出的真实图标缓存（从起义狂潮 web-launcher 复制过来）
 ASSETS_CACHE_COMMANDERS = WEBUI_DIR / "assets-cache" / "commanders"
 ASSETS_CACHE_MUTATORS = WEBUI_DIR / "assets-cache" / "mutators"
@@ -40,6 +61,7 @@ ASSETS_CACHE_MUTATORS = WEBUI_DIR / "assets-cache" / "mutators"
 CONFIG_DIR = SCRIPT_DIR.parents[1] / "src" / "config"
 ALENGER_MODS_JSON = CONFIG_DIR / "alenger-mods.json"
 REBORN_COMMANDERS_JSON = CONFIG_DIR / "reborn-commanders.json"
+LOCAL_SOURCES_JSON = CONFIG_DIR / "local.sources.json"
 LAUNCH_SCRIPT = Path(__file__).resolve().parents[1] / "launchers" / "launch-cmre-alenger.ps1"
 REPO_ROOT = SCRIPT_DIR.parents[1]
 SC2_RUNTIME_LEASE_PATH = REPO_ROOT / "artifacts" / "runtime" / "sc2-runtime-lease.json"
@@ -49,6 +71,7 @@ WEBUI_SESSION_LEASE_PATH = REPO_ROOT / "artifacts" / "runtime" / "cmre-webui-ses
 REVOLUTION_PACKAGE_ROOT = REPO_ROOT / "src" / "projects" / "revolution-overdrive-porting" / "packages"
 REVOLUTION_COMMANDER_JSON = REVOLUTION_PACKAGE_ROOT / "Commander" / "revolution-overdrive-commander.json"
 REVOLUTION_MAPS_JSON = REVOLUTION_PACKAGE_ROOT / "maps.json"
+REVOLUTION_MAPS_ROOT = REVOLUTION_PACKAGE_ROOT / "Maps"
 REVOLUTION_LAUNCH_SCRIPT = Path(__file__).resolve().parents[1] / "launchers" / "launch-revolution-overdrive.ps1"
 GALAXY_VIBE_ROOT = REPO_ROOT / "tools" / "galaxy-vibe"
 VIBE_FUNCTION_REGISTRY = GALAXY_VIBE_ROOT / "kernel" / "function-registry.json"
@@ -69,7 +92,7 @@ CMRE_RUNTIME_ROOT = SC2VIBE_ROOT / "cmre-runtime"
 MAPS_CMRE_DIR = CMRE_RUNTIME_ROOT / "Maps" / "CMRE"
 COMMANDER_METADATA_JSON = CMRE_RUNTIME_ROOT / "Shared" / "CommanderPower" / "commander-power-metadata.json"
 COMMANDERS_REGISTRY_JSON = CMRE_RUNTIME_ROOT / "Shared" / "Commanders" / "_registry.json"
-MODS_7VS1_PACKAGES_DIR = SC2VIBE_ROOT / "sc2-porting-workspace" / "src" / "projects" / "cmre-porting" / "packages" / "Mods" / "7vs1"
+COMMANDER_PACKAGE_MODS_DIR = REPO_ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Mods" / "Commanders"
 CMRE_MODS_DIR = CMRE_RUNTIME_ROOT / "Mods" / "CMRE"
 MUTATORS_USERDATA_XML = CMRE_MODS_DIR / "CMRE_Core_Triggers.SC2Mod" / "Base.SC2Data" / "GameData" / "UserData.xml"
 # SC2 GameData 的 ConfigData.xml 是 VoicePack catalog 的可选项清单；
@@ -127,6 +150,91 @@ FACTORS_DATA = {
     ],
 }
 
+# 地图显示名必须显式登记，内部 id 只用于启动器和预设传输，不能直接展示给用户。
+# 虫心和起义狂潮使用系列前缀，避免与 CMRE 或彼此之间的同名任务混淆。
+MAP_DISPLAY_NAMES = {
+    "cmre": {
+        "黑暗杀星.SC2Map": "黑暗杀星",
+        "机会渺茫.SC2Map": "机会渺茫",
+        "净网行动.SC2Map": "净网行动",
+        "聚铁成兵.SC2Map": "聚铁成兵",
+        "克哈裂痕.SC2Map": "克哈裂痕",
+        "熔火危机.SC2Map": "熔火危机",
+        "升格之链.SC2Map": "升格之链",
+        "死亡摇篮.SC2Map": "死亡摇篮",
+        "天界封锁.SC2Map": "天界封锁",
+        "亡者之夜.SC2Map": "亡者之夜",
+        "往日神庙.SC2Map": "往日神庙",
+        "虚空降临.SC2Map": "虚空降临",
+        "虚空撕裂.SC2Map": "虚空撕裂",
+        "湮灭快车.SC2Map": "湮灭快车",
+        "营救矿工.SC2Map": "营救矿工",
+    },
+    "reborn": {
+        "zchar01.SC2Map": "[虫心] 支配",
+        "zchar02.SC2Map": "[虫心] 天火燎原",
+        "zchar03.SC2Map": "[虫心] 老兵不死",
+        "zexpedition01.SC2Map": "[虫心] 收割悲鸣",
+        "zexpedition02.SC2Map": "[虫心] 杀死信使",
+        "zexpedition03.SC2Map": "[虫心] 合相",
+        "zhybrid01.SC2Map": "[虫心] 感染",
+        "zhybrid02.SC2Map": "[虫心] 黑暗之手",
+        "zhybrid03.SC2Map": "[虫心] 虚空魅影",
+        "zkorhal01.SC2Map": "[虫心] 行星坠落",
+        "zkorhal02.SC2Map": "[虫心] 死亡从天而降",
+        "zkorhal03.SC2Map": "[虫心] 清算",
+        "zlab01.SC2Map": "[虫心] 实验室老鼠",
+        "zlab02.SC2Map": "[虫心] 重整旗鼓",
+        "zlab03.SC2Map": "[虫心] 会合",
+        "zspace01.SC2Map": "[虫心] 有这样的朋友……",
+        "zspace02.SC2Map": "[虫心] 信念",
+        "zzerus01.SC2Map": "[虫心] 唤醒远古",
+        "zzerus02.SC2Map": "[虫心] 熔炉",
+        "zzerus03.SC2Map": "[虫心] 至高",
+    },
+    "revolution-overdrive": {
+        "tarcade.SC2Map": "[起义狂潮] 街机大厅",
+        "thanson01.SC2Map": "[起义狂潮] 大撤离",
+        "thanson02.SC2Map": "[起义狂潮] 大爆发",
+        "thanson03a.SC2Map": "[起义狂潮] 拯救海文",
+        "thanson03b.SC2Map": "[起义狂潮] 海文的陷落",
+        "thorner01.SC2Map": "[起义狂潮] 火车大劫案",
+        "thorner02.SC2Map": "[起义狂潮] 博弈",
+        "thorner03.SC2Map": "[起义狂潮] 毁灭引擎",
+        "thorner04.SC2Map": "[起义狂潮] 媒体轰炸",
+        "thorner05s.SC2Map": "[起义狂潮] 揭露黑幕",
+        "traynor01.SC2Map": "[起义狂潮] 自由日",
+        "traynor02.SC2Map": "[起义狂潮] 不法之徒",
+        "traynor03.SC2Map": "[起义狂潮] 零点行动",
+        "tstory01.SC2Map": "[起义狂潮] 自由之翼",
+        "ttosh01.SC2Map": "[起义狂潮] 恶魔游乐场",
+        "ttosh02.SC2Map": "[起义狂潮] 欢迎来到丛林",
+        "ttosh03a.SC2Map": "[起义狂潮] 营救",
+        "ttosh03b.SC2Map": "[起义狂潮] 幽灵一击",
+        "ttychus01.SC2Map": "[起义狂潮] 来之不易",
+        "ttychus02.SC2Map": "[起义狂潮] 挖宝行动",
+        "ttychus03.SC2Map": "[起义狂潮] 莫比斯代理人",
+        "ttychus04.SC2Map": "[起义狂潮] 超新星",
+        "ttychus05.SC2Map": "[起义狂潮] 虚空巨口",
+        "tvalerian01.SC2Map": "[起义狂潮] 地狱之门",
+        "tvalerian02a.SC2Map": "[起义狂潮] 野兽之腹",
+        "tvalerian02b.SC2Map": "[起义狂潮] 天崩地坼",
+        "tvalerian03.SC2Map": "[起义狂潮] 背水一战",
+        "tzeratul01.SC2Map": "[起义狂潮] 末日密语",
+        "tzeratul02.SC2Map": "[起义狂潮] 恶兆",
+        "tzeratul03.SC2Map": "[起义狂潮] 未来回响",
+        "tzeratul04.SC2Map": "[起义狂潮] 究极黑暗",
+    },
+}
+
+
+def _map_display_name(map_id: str, package_id: str) -> str:
+    """Return the explicit Chinese UI name; never expose a raw map filename."""
+    try:
+        return MAP_DISPLAY_NAMES[package_id][map_id]
+    except KeyError as exc:
+        raise RuntimeError(f"地图未登记中文显示名: {package_id}/{map_id}") from exc
+
 
 def _find_map_preview(map_dir: Path) -> str:
     """在地图目录中查找预览图。
@@ -143,10 +251,118 @@ def _find_map_preview(map_dir: Path) -> str:
                 return dds.relative_to(MAPS_CMRE_DIR.parent).as_posix()
         for dds in sorted(textures_dir.glob("ui_loading_*.dds")):
             return dds.relative_to(MAPS_CMRE_DIR.parent).as_posix()
-    # 2. 回退到 bnet_*.png（大部分地图都有，Battle.net 地图预览图）
-    for png in sorted(map_dir.glob("bnet_*.png")):
-        return png.relative_to(MAPS_CMRE_DIR.parent).as_posix()
+    # 2. 回退到 bnet_*.png/tga（Battle.net 地图预览图）
+    for preview in sorted(map_dir.glob("bnet_*.png")):
+        return preview.relative_to(MAPS_CMRE_DIR.parent).as_posix()
+    for preview in sorted(map_dir.glob("bnet_*.tga")):
+        return preview.relative_to(MAPS_CMRE_DIR.parent).as_posix()
     return ""
+
+
+REBORN_MAP_LOADING_ASSETS = {
+    "zchar01.SC2Map": "ui_hots_loading_missionselect_zchar01.dds",
+    "zchar02.SC2Map": "ui_hots_loading_missionselect_zchar03.dds",
+    "zchar03.SC2Map": "ui_hots_loading_missionselect_zchar03.dds",
+    "zexpedition01.SC2Map": "ui_hots_loading_missionselect_zexpedition01.dds",
+    "zexpedition02.SC2Map": "ui_hots_loading_planetviewkaldir.dds",
+    "zexpedition03.SC2Map": "ui_hots_loading_missionselect_zkaldir01.dds",
+    "zhybrid01.SC2Map": "ui_hots_loading_missionselect_zhybrid01.dds",
+    "zhybrid02.SC2Map": "ui_hots_loading_missionselect_zhybrid01.dds",
+    "zhybrid03.SC2Map": "ui_hots_loading_missionselect_zhybrid03.dds",
+    "zkorhal01.SC2Map": "ui_hots_loading_missionselect_zkorhal01.dds",
+    "zkorhal02.SC2Map": "ui_hots_loading_missionselect_zkorhal02.dds",
+    "zkorhal03.SC2Map": "ui_hots_loading_missionselect_zkorhal03.dds",
+    "zlab01.SC2Map": "ui_hots_loading_introscreen.dds",
+    "zlab02.SC2Map": "loading-valhalla.dds",
+    "zlab03.SC2Map": "ui_hots_loading_missionselect_zlab03.dds",
+    "zspace01.SC2Map": "ui_hots_loading_missionselect_zspace01.dds",
+    "zspace02.SC2Map": "ui_hots_loading_missionselect_zspace02.dds",
+    "zzerus01.SC2Map": "ui_hots_loading_missionselect_zzerus01.dds",
+    "zzerus02.SC2Map": "ui_hots_loading_missionselect_zzerus02.dds",
+    "zzerus03.SC2Map": "ui_hots_loading_missionselect_zzerus03.dds",
+}
+
+# Revolution Overdrive reuses the original campaign's scene art. These are
+# deliberately named by mission family so the UI never falls back to Minimap.tga.
+REVOLUTION_MAP_LOADING_ASSETS = {
+    "tarcade.SC2Map": "loading-lostviking.dds",
+    "thanson01.SC2Map": "loading-haven.dds",
+    "thanson02.SC2Map": "loading-haven.dds",
+    "thanson03a.SC2Map": "loading-haven.dds",
+    "thanson03b.SC2Map": "loading-haven.dds",
+    "thorner01.SC2Map": "loading-tyrador.dds",
+    "thorner02.SC2Map": "loading-tyrador.dds",
+    "thorner03.SC2Map": "loading-tyrador.dds",
+    "thorner04.SC2Map": "loading-tyrador.dds",
+    "thorner05s.SC2Map": "loading-tyrador.dds",
+    "traynor01.SC2Map": "loading-marsarabarexterior.dds",
+    "traynor02.SC2Map": "loading-marsarabarexterior.dds",
+    "traynor03.SC2Map": "loading-marsarabarexterior.dds",
+    "tstory01.SC2Map": "loading-marsarabarexterior.dds",
+    "ttosh01.SC2Map": "loading-agria.dds",
+    "ttosh02.SC2Map": "loading-agria.dds",
+    "ttosh03a.SC2Map": "loading-agria.dds",
+    "ttosh03b.SC2Map": "loading-agria.dds",
+    "ttychus01.SC2Map": "loading-char.dds",
+    "ttychus02.SC2Map": "loading-char.dds",
+    "ttychus03.SC2Map": "loading-char.dds",
+    "ttychus04.SC2Map": "loading-char.dds",
+    "ttychus05.SC2Map": "loading-char.dds",
+    "tvalerian01.SC2Map": "loading-char.dds",
+    "tvalerian02a.SC2Map": "loading-char.dds",
+    "tvalerian02b.SC2Map": "loading-char.dds",
+    "tvalerian03.SC2Map": "loading-char.dds",
+    "tzeratul01.SC2Map": "loading-aiur.dds",
+    "tzeratul02.SC2Map": "loading-aiur.dds",
+    "tzeratul03.SC2Map": "loading-aiur.dds",
+    "tzeratul04.SC2Map": "loading-aiur.dds",
+}
+
+
+def _find_extracted_loading_preview(map_id: str, package_id: str) -> tuple[str, str]:
+    """Return a stage-artifact preview path and its provenance label."""
+    filename = (
+        REBORN_MAP_LOADING_ASSETS.get(map_id)
+        if package_id == "reborn"
+        else REVOLUTION_MAP_LOADING_ASSETS.get(map_id)
+    )
+    if not filename:
+        return "", ""
+    candidates = [
+        MAP_PREVIEW_ASSET_ROOT / "mods" / "liberty.sc2mod" / "base.sc2assets" / "assets" / "textures" / filename,
+        MAP_PREVIEW_ASSET_ROOT / "mods" / "core.sc2mod" / "base.sc2assets" / "assets" / "textures" / filename,
+        MAP_PREVIEW_ASSET_ROOT / "campaigns" / "liberty.sc2campaign" / "base.sc2assets" / "assets" / "textures" / filename,
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return f"MapPreview/{package_id}/{map_id}/{filename}", "official-loading-art"
+    return "", ""
+
+
+def _find_bound_map_preview(map_dir: Path, package_id: str) -> tuple[str, str]:
+    """Return the official wide preview and its provenance, never a minimap."""
+    return _find_extracted_loading_preview(map_dir.name, package_id)
+
+
+def _load_local_source_binding(source_id: str) -> Path | None:
+    """Resolve a machine-local source binding without leaking it into committed data."""
+    try:
+        data = json.loads(LOCAL_SOURCES_JSON.read_text(encoding="utf-8-sig"))
+        raw = data.get("bindings", {}).get(source_id, "")
+        path = Path(raw).expanduser() if raw else None
+        return path if path and path.is_dir() else None
+    except (OSError, json.JSONDecodeError, TypeError):
+        return None
+
+
+def _map_record(map_id: str, name: str, package_id: str, preview: str = "") -> dict:
+    return {
+        "id": map_id,
+        "name": name,
+        "preview": preview,
+        "packageId": package_id,
+        "mapCategory": package_id,
+    }
 
 
 def load_maps():
@@ -164,10 +380,34 @@ def load_maps():
         if entry.is_dir() and entry.name.endswith(".SC2Map"):
             preview = _find_map_preview(entry)
             maps.append({
-                "id": entry.name,
-                "name": entry.name[:-len(".SC2Map")],
-                "preview": preview,
+                **_map_record(
+                    entry.name,
+                    _map_display_name(entry.name, "cmre"),
+                    "cmre",
+                    preview,
+                ),
             })
+    return maps
+
+
+def load_reborn_maps():
+    """Scan the locally bound Reborn Heart of the Swarm campaign maps."""
+    root = _load_local_source_binding("reborn-hots-071")
+    if not root:
+        print(f"[warn] Reborn source binding is unavailable: {LOCAL_SOURCES_JSON}")
+        return []
+    maps = []
+    for entry in sorted(root.iterdir()):
+        if entry.is_dir() and entry.name.endswith(".SC2Map"):
+            map_id = entry.name
+            preview, preview_source = _find_bound_map_preview(entry, "reborn")
+            maps.append(_map_record(
+                map_id,
+                _map_display_name(map_id, "reborn"),
+                "reborn",
+                preview,
+            ))
+            maps[-1]["previewSource"] = preview_source
     return maps
 
 
@@ -180,16 +420,24 @@ def load_revolution_maps():
     except (OSError, json.JSONDecodeError) as exc:
         print(f"[warn] unable to load Revolution Overdrive map registry: {exc}")
         return []
-    return [
-        {
-            "id": entry["id"],
-            "name": entry.get("name", entry["id"].removesuffix(".SC2Map")),
-            "preview": "",
-            "packageId": "revolution-overdrive",
-        }
-        for entry in entries
-        if isinstance(entry, dict) and entry.get("id")
-    ]
+    maps = []
+    for entry in entries:
+        if not isinstance(entry, dict) or not entry.get("id"):
+            continue
+        map_id = entry["id"]
+        preview, preview_source = _find_bound_map_preview(
+            REVOLUTION_MAPS_ROOT / map_id, "revolution-overdrive"
+        )
+        maps.append({
+            **_map_record(
+                map_id,
+                _map_display_name(map_id, "revolution-overdrive"),
+                "revolution-overdrive",
+                preview,
+            ),
+            "previewSource": preview_source,
+        })
+    return maps
 
 
 def load_revolution_commanders():
@@ -221,14 +469,14 @@ def load_revolution_commanders():
 
 
 def load_extra_mods(bank_commander=""):
-    """扫描 packages/Mods/7vs1/ 目录，返回 [{id, name}]。
+    """扫描 CMRE commander adapter packages，返回 [{id, name}]。
 
     若提供 bank_commander（如 "Alenger6"），从 alenger-mods.json 的
     commanderToAlenger[bank_commander] 查出该指挥官会自动加载的 mod 包，
     从结果中排除它们。id = name = 目录名去掉 .SC2Mod 后缀。按 name 排序。
     """
-    if not MODS_7VS1_PACKAGES_DIR.exists():
-        print(f"[warn] 7vs1 mod 包目录不存在: {MODS_7VS1_PACKAGES_DIR}")
+    if not COMMANDER_PACKAGE_MODS_DIR.exists():
+        print(f"[warn] commander mod 包目录不存在: {COMMANDER_PACKAGE_MODS_DIR}")
         return []
 
     excluded = set()
@@ -242,7 +490,7 @@ def load_extra_mods(bank_commander=""):
             print(f"[warn] 读取 alenger-mods.json 失败（extra-mods 过滤跳过）: {exc}")
 
     mods = []
-    for entry in sorted(MODS_7VS1_PACKAGES_DIR.iterdir()):
+    for entry in sorted(COMMANDER_PACKAGE_MODS_DIR.iterdir()):
         if entry.is_dir() and entry.name.endswith(".SC2Mod"):
             mod_id = entry.name[:-len(".SC2Mod")]
             if mod_id in excluded:
@@ -740,7 +988,25 @@ def find_asset_file(rel_path: str) -> Path | None:
         candidate = root / normalized
         if candidate.is_file():
             return candidate
-    # 地图预览图路径（如 CMRE/xxx/...，相对于 cmre-runtime/Maps/）
+    # Stage-extracted official wide loading art. Do not expose local CASC paths.
+    if normalized.startswith("MapPreview/"):
+        parts = normalized.split("/")
+        if len(parts) != 4 or any(part in {"", ".", ".."} for part in parts):
+            return None
+        _, package_id, map_name, filename = parts
+        if package_id not in {"reborn", "revolution-overdrive"}:
+            return None
+        expected, _ = _find_extracted_loading_preview(map_name, package_id)
+        if expected != normalized:
+            return None
+        candidates = [
+            MAP_PREVIEW_ASSET_ROOT / "mods" / "liberty.sc2mod" / "base.sc2assets" / "assets" / "textures" / filename,
+            MAP_PREVIEW_ASSET_ROOT / "mods" / "core.sc2mod" / "base.sc2assets" / "assets" / "textures" / filename,
+            MAP_PREVIEW_ASSET_ROOT / "campaigns" / "liberty.sc2campaign" / "base.sc2assets" / "assets" / "textures" / filename,
+        ]
+        return next((candidate for candidate in candidates if candidate.is_file()), None)
+
+    # CMRE 地图预览图路径（相对于 cmre-runtime/Maps/）
     maps_root = MAPS_CMRE_DIR.parent  # cmre-runtime/Maps
     candidate = maps_root / normalized
     if candidate.is_file():
@@ -761,6 +1027,22 @@ def convert_dds_to_png(dds_path: Path, png_path: Path) -> bool:
         return True
     except Exception as exc:
         print(f"[warn] DDS 转 PNG 失败: {dds_path} -> {png_path}: {exc}")
+        return False
+
+
+def convert_image_to_png(source_path: Path, png_path: Path) -> bool:
+    """Convert a browser-incompatible map image (currently TGA) to PNG."""
+    try:
+        from PIL import Image
+
+        with Image.open(source_path) as img:
+            if img.mode not in ("RGBA", "RGB"):
+                img = img.convert("RGBA")
+            png_path.parent.mkdir(parents=True, exist_ok=True)
+            img.save(png_path, "PNG")
+        return True
+    except Exception as exc:
+        print(f"[warn] 地图预览图转换失败: {source_path} -> {png_path}: {exc}")
         return False
 
 
@@ -1202,7 +1484,11 @@ def _wait_for_process(proc, reader_threads=None, output_tail=None, tail_lock=Non
     for reader in reader_threads:
         reader.join()
     if not _bind_webui_runtime_lease(getattr(proc, "pid", 0)):
-        _discard_unbound_webui_launch_intent(getattr(proc, "pid", 0))
+        # A direct-map launcher may have left its SC2 child in staging after a
+        # map-load failure. Try the exact staging ownership gate before dropping
+        # the intent that is needed to identify that child safely.
+        if not _cleanup_webui_staging_session():
+            _discard_unbound_webui_launch_intent(getattr(proc, "pid", 0))
     if code != 0 and output_tail is not None:
         if tail_lock is None:
             stderr_tail = list(output_tail.get("stderr", []))[-40:]
@@ -1499,6 +1785,57 @@ def _cleanup_webui_detached_session():
 
     if not _force_kill_process_tree(runtime_pid):
         return _skip_detached_session_cleanup(f"taskkill failed for PID {runtime_pid}")
+    if not _wait_for_process_exit(runtime_pid):
+        return _skip_detached_session_cleanup(f"taskkill accepted but PID {runtime_pid} is still live")
+    _remove_runtime_record(SC2_RUNTIME_LEASE_PATH)
+    _remove_runtime_record(WEBUI_SESSION_LEASE_PATH)
+    return [f"sc2:{runtime_pid}"]
+
+
+def _cleanup_webui_staging_session():
+    """Stop a WebUI-owned SC2 child left behind while staging failed.
+
+    Direct-map launches can start SC2 through SC2Switcher before the launcher
+    reaches its normal detached lease transition. If the launcher then exits on
+    a map-load error, keep the same fail-closed identity checks used for a
+    detached session and clean only the exact map process created by this intent.
+    """
+    intent = _read_json_object(WEBUI_SESSION_LEASE_PATH)
+    lease = _read_json_object(SC2_RUNTIME_LEASE_PATH)
+    if not intent or not lease or lease.get("state") != "staging":
+        return []
+    launcher_pid = _lease_pid(intent, "launcherPid")
+    if not launcher_pid or _get_process_info(launcher_pid) is not None:
+        return _skip_detached_session_cleanup("staging launcher is still live or PID was reused")
+    if lease.get("ownerPid") != launcher_pid:
+        return _skip_detached_session_cleanup("staging launcher PID does not match lease")
+    if not _same_path(intent.get("launcher"), LAUNCH_SCRIPT) or not _same_path(lease.get("launcher"), LAUNCH_SCRIPT):
+        return _skip_detached_session_cleanup("staging launcher path is not trusted")
+    if lease.get("mapName") != intent.get("mapName") or lease.get("commander") != intent.get("commander"):
+        return _skip_detached_session_cleanup("staging map or commander does not match lease")
+
+    expected_map = str(intent.get("mapName", ""))
+    started_at = intent.get("createdAt", lease.get("startedAt", ""))
+    candidates = []
+    for pid, process_name in _list_game_processes():
+        info = _get_process_info(pid)
+        if not info or str(process_name).lower() not in {"sc2.exe", "sc2_x64.exe"}:
+            continue
+        command_line = str(info.get("CommandLine", ""))
+        if not expected_map or expected_map.casefold() not in command_line.casefold():
+            continue
+        if started_at and str(info.get("CreationDate", "")) < str(started_at):
+            continue
+        candidates.append((pid, info))
+    if len(candidates) != 1:
+        return _skip_detached_session_cleanup(
+            f"staging SC2 identity is ambiguous (expected one, found {len(candidates)})"
+        )
+    runtime_pid, runtime_info = candidates[0]
+    if not _force_kill_process_tree(runtime_pid):
+        return _skip_detached_session_cleanup(f"taskkill failed for staging PID {runtime_pid}")
+    if not _wait_for_process_exit(runtime_pid):
+        return _skip_detached_session_cleanup(f"taskkill accepted but staging PID {runtime_pid} is still live")
     _remove_runtime_record(SC2_RUNTIME_LEASE_PATH)
     _remove_runtime_record(WEBUI_SESSION_LEASE_PATH)
     return [f"sc2:{runtime_pid}"]
@@ -1539,6 +1876,16 @@ def _force_kill_process_tree(pid):
         return False
 
 
+def _wait_for_process_exit(pid, timeout=15.0):
+    """Wait until a killed runtime disappears from the process table."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if _get_process_info(pid) is None:
+            return True
+        time.sleep(0.25)
+    return _get_process_info(pid) is None
+
+
 def _force_stop_current_game():
     """终止当前 launcher，并只清理已绑定的 WebUI detached SC2 会话。"""
     global _launcher_process
@@ -1563,6 +1910,7 @@ def _force_stop_current_game():
             pass
 
     killed.extend(_cleanup_webui_detached_session())
+    killed.extend(_cleanup_webui_staging_session())
 
     if killed:
         _append_log(f"[webui] 强制重启: 已结束旧进程 {', '.join(killed)}")
@@ -1637,6 +1985,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/maps":
             self._send_json({
                 "maps": load_maps(),
+                "rebornMaps": load_reborn_maps(),
                 "revolutionMaps": load_revolution_maps(),
             })
             return
@@ -1702,13 +2051,15 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                 self.send_error(500, f"read png failed: {exc}")
             return
 
-        # DDS 文件：转 PNG 缓存
+        # DDS/TGA 文件：转 PNG 缓存
         cache_key = hashlib.md5(rel_path.encode("utf-8")).hexdigest()[:16]
-        png_path = ASSETS_CACHE_DIR / f"{cache_key}.png"
+        cache_root = MAP_PREVIEW_CACHE_DIR if rel_path.startswith("MapPreview/") else ASSETS_CACHE_DIR
+        png_path = cache_root / f"{cache_key}.png"
 
         if not png_path.is_file():
-            if not convert_dds_to_png(asset_path, png_path):
-                self.send_error(500, f"DDS conversion failed: {rel_path}")
+            converter = convert_image_to_png if asset_path.suffix.lower() == ".tga" else convert_dds_to_png
+            if not converter(asset_path, png_path):
+                self.send_error(500, f"Image conversion failed: {rel_path}")
                 return
 
         # 返回 PNG 文件
@@ -1867,11 +2218,44 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                         buffs, masteries, listen_port, commander}；
         失败时发送错误 JSON 响应并返回 None。
         """
-        if body.get("packageId") == "revolution-overdrive":
+        # Keep the native Revolution launcher only for its own faction presets.
+        # Cross-category matrix cells use the CMRE adapter launcher so the selected
+        # official/Alenger/Reborn commander remains the actual commander under test.
+        commander_package = body.get("commanderPackage", "")
+        if (
+            body.get("packageId") == "revolution-overdrive"
+            and (
+                commander_package == "revolution-overdrive"
+                or (
+                    not commander_package
+                    and str(body.get("commander", "")).startswith("RevolutionOverdrive")
+                )
+            )
+        ):
             return self._build_revolution_launch_args(body)
 
         commander = body.get("commander", "TerranAlenger3")
         map_name = body.get("mapName", "亡者之夜.SC2Map")
+        map_package = body.get("mapPackage", "cmre") or "cmre"
+        if map_package not in {"cmre", "reborn", "revolution-overdrive"}:
+            self._send_json({"success": False, "error": f"未知地图类别: {map_package}"}, 400)
+            return None
+        map_source_override = ""
+        map_dependency_root = ""
+        if map_package == "reborn":
+            reborn_root = _load_local_source_binding("reborn-hots-071")
+            map_source_override = str(reborn_root / map_name) if reborn_root else ""
+        elif map_package == "revolution-overdrive":
+            map_source_override = str(REVOLUTION_MAPS_ROOT / map_name)
+            map_dependency_root = str(REVOLUTION_PACKAGE_ROOT)
+        if map_package != "cmre" and (
+            not map_source_override or not Path(map_source_override).is_dir()
+        ):
+            self._send_json(
+                {"success": False, "error": f"地图源不存在或未绑定: {map_package}/{map_name}"},
+                400,
+            )
+            return None
         mode = int(body.get("mode", 1))
         difficulty_base = int(body.get("difficultyBase", 0))
         difficulty_plus = int(body.get("difficultyPlus", 0))
@@ -1889,7 +2273,10 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         # 重生虫心指挥官：WebUI 透传 enableReborn + rebornCommander，
         # launcher 据此追加 -EnableReborn -RebornCommander <Name> 加载 5 个 Reborn mod 并应用
         # K5Kerrigan 替换逻辑。commander 形如 "ZergAbathur"，rebornCommander 为 "Abathur"。
-        enable_reborn = bool(body.get("enableReborn", False))
+        # A Reborn campaign map must load its own Reborn closure even when the
+        # commander under test is official or Alenger. Only a Reborn commander
+        # selection writes the cryswarmcoop commander preset.
+        enable_reborn = bool(body.get("enableReborn", False)) or map_package == "reborn"
         reborn_commander = body.get("rebornCommander", "") or ""
         # Buff 补丁：仅对原版 18 指挥官生效。
         enable_buff_patch = bool(body.get("enableBuffPatch", False))
@@ -2014,12 +2401,17 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                 args.extend(["-ExtraMods", extra_str])
         if listen_port > 0:
             args.extend(["-ListenPort", str(listen_port)])
+        if map_source_override:
+            args.extend(["-MapSourceOverride", map_source_override])
+        if map_dependency_root:
+            args.extend(["-MapDependencyRootOverride", map_dependency_root])
         if api_minimal:
             args.append("-ApiMinimal")
         # 重生虫心参数透传：launcher 据此加载 5 个 Reborn mod 包并应用 K5Kerrigan 替换逻辑。
         # reborn_commander 必须是 reborn-commanders.json 中的 id（如 "Abathur"）。
-        if enable_reborn and reborn_commander:
+        if enable_reborn:
             args.append("-EnableReborn")
+        if enable_reborn and reborn_commander:
             args.extend(["-RebornCommander", reborn_commander])
         # Buff 补丁参数透传：launcher 据此写 bank 字段，galaxy 端读取后应用。
         if enable_buff_patch:
@@ -2053,6 +2445,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             "listen_port": listen_port,
             "commander": commander,
             "map_name": map_name,
+            "map_package": map_package,
         }
 
     def _handle_revolution_launch(self, ctx):

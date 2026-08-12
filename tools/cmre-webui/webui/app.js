@@ -195,8 +195,10 @@ function syncUI() {
 function updateFooter() {
   const s = state.selected;
   const cmd = state.commanders.find(c => c.id === s.commander);
+  const map = state.maps.find(m => m.id === s.mapName && (!s.mapPackage || m.packageId === s.mapPackage))
+    || state.maps.find(m => m.id === s.mapName);
   const parts = [];
-  parts.push(s.mapName.replace(/\.SC2Map$/, ""));
+  parts.push(map ? map.name : "未选择地图");
   parts.push(cmd ? cmd.label : s.commander);
   const diff = DIFFICULTY_BASE_NAMES[s.difficultyBase] + (s.difficultyPlus > 0 ? "+" + s.difficultyPlus : "");
   parts.push(diff);
@@ -231,7 +233,7 @@ async function loadFactors() {
 
 async function loadMaps() {
   const data = await fetch(API.maps).then(r => r.json());
-  state.maps = [...(data.maps || []), ...(data.revolutionMaps || [])];
+  state.maps = [...(data.maps || []), ...(data.rebornMaps || []), ...(data.revolutionMaps || [])];
   const selectedMap = state.maps.find(m => m.id === state.selected.mapName && m.packageId === state.selected.mapPackage)
     || state.maps.find(m => m.id === state.selected.mapName);
   if (selectedMap) state.selected.mapPackage = selectedMap.packageId || "cmre";
@@ -1076,7 +1078,9 @@ function renderPresetList() {
     div.className = "preset-item";
     const cmdr = state.commanders.find(c => c.id === p.commander);
     const cmdrLabel = cmdr ? cmdr.label : p.commander;
-    const mapLabel = (p.mapName || "").replace(/\.SC2Map$/, "");
+    const presetMap = state.maps.find(m => m.id === p.mapName && (!p.mapPackage || m.packageId === p.mapPackage))
+      || state.maps.find(m => m.id === p.mapName);
+    const mapLabel = presetMap ? presetMap.name : "未选择地图";
     div.innerHTML = `
       <span class="preset-item-name" title="地图:${esc(mapLabel)} 指挥官:${esc(cmdrLabel)} 因子:${(p.mutators||[]).length}">${esc(p.name)}</span>
       <span class="preset-item-info">${(p.mutators||[]).length}因子</span>
@@ -1144,17 +1148,13 @@ async function launchGame() {
   showStatus("正在启动 SC2...", "info");
 
   const body = {
-    commander: s.commander, mapName: s.mapName, mode: s.mode,
+    commander: s.commander, commanderPackage: s.commanderPackage,
+    mapName: s.mapName, mapPackage: s.mapPackage, mode: s.mode,
     difficultyBase: s.difficultyBase, difficultyPlus: s.difficultyPlus,
     enemy: s.enemy, mutators: s.mutators,
     voicePack: s.voicePack, extraMods: s.extraMods,
   };
-  if (s.mapPackage === "revolution-overdrive" || s.commanderPackage === "revolution-overdrive") {
-    if (s.mapPackage !== "revolution-overdrive" || s.commanderPackage !== "revolution-overdrive") {
-      showStatus("起义狂潮地图必须搭配起义狂潮阵营预设", "warn");
-      btn.disabled = false; btn.textContent = "启动游戏";
-      return;
-    }
+  if (s.mapPackage === "revolution-overdrive" && s.commanderPackage === "revolution-overdrive") {
     body.packageId = "revolution-overdrive";
     body.faction = s.faction;
   }

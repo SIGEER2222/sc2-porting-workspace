@@ -52,6 +52,120 @@ def test_cmre_launch_args_preserve_webui_map_and_commander(monkeypatch):
     assert context["commander"] == "ZergAlenger6"
 
 
+def test_maps_and_extra_mods_use_all_owned_package_roots():
+    cmre = server.load_maps()
+    reborn = server.load_reborn_maps()
+    revolution = server.load_revolution_maps()
+
+    assert any(item["id"] == "亡者之夜.SC2Map" and item["packageId"] == "cmre" for item in cmre)
+    assert any(item["id"] == "zexpedition03.SC2Map" and item["packageId"] == "reborn" for item in reborn)
+    assert any(item["id"] == "thorner03.SC2Map" and item["packageId"] == "revolution-overdrive" for item in revolution)
+    assert any(item["id"] == "AbathurAlenger" for item in server.load_extra_mods("Alenger3"))
+
+
+def test_all_current_map_display_names_are_explicit_chinese_and_ids_stay_internal():
+    maps = server.load_maps() + server.load_reborn_maps() + server.load_revolution_maps()
+
+    assert len(maps) == 66
+    assert all(item["id"].endswith(".SC2Map") for item in maps)
+    assert all(item["name"] for item in maps)
+    assert all(not any("A" <= char <= "Z" or "a" <= char <= "z" for char in item["name"]) for item in maps)
+    assert server._map_display_name("zexpedition03.SC2Map", "reborn") == "[虫心] 合相"
+    assert server._map_display_name("thorner03.SC2Map", "revolution-overdrive") == "[起义狂潮] 毁灭引擎"
+
+
+def test_all_current_maps_expose_real_preview_sources():
+    maps = server.load_maps() + server.load_reborn_maps() + server.load_revolution_maps()
+
+    assert len(maps) == 66
+    assert all(item["preview"] for item in maps)
+    assert sum(item["packageId"] == "cmre" for item in maps) == 15
+    assert sum(item["packageId"] == "reborn" for item in maps) == 20
+    assert sum(item["packageId"] == "revolution-overdrive" for item in maps) == 31
+    assert all(item["preview"].startswith("MapPreview/reborn/") for item in maps if item["packageId"] == "reborn")
+    assert all(item["preview"].startswith("MapPreview/revolution-overdrive/") for item in maps if item["packageId"] == "revolution-overdrive")
+    assert all(item["previewSource"] == "official-loading-art" for item in maps if item["packageId"] != "cmre")
+    assert all(not item["preview"].endswith("Minimap.tga") for item in maps)
+
+
+def test_bound_map_preview_paths_resolve_to_read_only_sources():
+    reborn = server.load_reborn_maps()[0]
+    revolution = server.load_revolution_maps()[0]
+
+    reborn_path = server.find_asset_file(reborn["preview"])
+    revolution_path = server.find_asset_file(revolution["preview"])
+    assert reborn_path and reborn_path.suffix.lower() == ".dds"
+    assert revolution_path and revolution_path.suffix.lower() == ".dds"
+    assert reborn_path.name == "ui_hots_loading_missionselect_zchar01.dds"
+    assert revolution_path.name == "loading-lostviking.dds"
+
+
+def test_minimap_preview_paths_are_rejected():
+    assert server.find_asset_file("MapPreview/reborn/zchar01.SC2Map/Minimap.tga") is None
+    assert server.find_asset_file("MapPreview/revolution-overdrive/thanson01.SC2Map/Minimap.tga") is None
+
+
+def test_map_preview_conversion_writes_only_to_artifact_cache(tmp_path):
+    source = server.find_asset_file(server.load_reborn_maps()[0]["preview"])
+    target = tmp_path / "preview.png"
+
+    assert source is not None
+    assert server.convert_image_to_png(source, target)
+    assert target.is_file() and target.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+
+
+def test_map_display_registry_covers_every_owned_map_source():
+    assert set(server.MAP_DISPLAY_NAMES["cmre"]) == {
+        item["id"] for item in server.load_maps()
+    }
+    assert set(server.MAP_DISPLAY_NAMES["reborn"]) == {
+        item["id"] for item in server.load_reborn_maps()
+    }
+    assert set(server.MAP_DISPLAY_NAMES["revolution-overdrive"]) == {
+        item["id"] for item in server.load_revolution_maps()
+    }
+
+
+def test_cross_category_matrix_args_preserve_map_and_commander_identity(monkeypatch):
+    monkeypatch.setattr(server, "_resolve_powershell_executable", lambda: "powershell.exe")
+    handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)
+
+    reborn_map = handler._build_launch_args({
+        "mapPackage": "reborn",
+        "mapName": "zexpedition03.SC2Map",
+        "commander": "TerranRaynor",
+        "commanderPackage": "cmre",
+    })
+    reborn_args = reborn_map["args"]
+    assert "-MapSourceOverride" in reborn_args
+    assert "-EnableReborn" in reborn_args
+    assert "-RebornCommander" not in reborn_args
+
+    revolution_map = handler._build_launch_args({
+        "mapPackage": "revolution-overdrive",
+        "mapName": "thorner03.SC2Map",
+        "commander": "TerranAlenger3",
+        "commanderPackage": "cmre",
+    })
+    revolution_args = revolution_map["args"]
+    assert revolution_args[revolution_args.index("-MapDependencyRootOverride") + 1].endswith(
+        "src\\projects\\revolution-overdrive-porting\\packages"
+    )
+    assert revolution_args[revolution_args.index("-Commander") + 1] == "TerranAlenger3"
+
+    reborn_commander = handler._build_launch_args({
+        "mapPackage": "revolution-overdrive",
+        "mapName": "thorner03.SC2Map",
+        "commander": "ZergAbathur",
+        "commanderPackage": "cmre",
+        "enableReborn": True,
+        "rebornCommander": "Abathur",
+    })
+    reborn_commander_args = reborn_commander["args"]
+    assert reborn_commander_args.count("-EnableReborn") == 1
+    assert reborn_commander_args[reborn_commander_args.index("-RebornCommander") + 1] == "Abathur"
+
+
 def test_webui_defaults_to_player_map_launch(monkeypatch):
     monkeypatch.setattr(server, "_resolve_powershell_executable", lambda: "powershell.exe")
     handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)
@@ -158,6 +272,7 @@ def test_force_stop_cleans_only_bound_webui_detached_session(monkeypatch, tmp_pa
         },
     )
     monkeypatch.setattr(server, "_force_kill_process_tree", lambda pid: killed.append(pid) or True)
+    monkeypatch.setattr(server, "_wait_for_process_exit", lambda pid: True)
 
     assert server._force_stop_current_game() == ["sc2:202"]
     assert killed == [202]
@@ -222,6 +337,84 @@ def test_force_stop_refuses_mismatched_map_command_line(monkeypatch, tmp_path):
     assert killed == []
     assert runtime_lease.exists()
     assert webui_lease.exists()
+
+
+def test_force_stop_cleans_failed_webui_staging_child(monkeypatch, tmp_path):
+    runtime_lease = tmp_path / "sc2-runtime-lease.json"
+    webui_lease = tmp_path / "cmre-webui-session.json"
+    lease = {
+        "schemaVersion": 1,
+        "ownerPid": 101,
+        "ownerSessionId": "cmre_alenger-webui-staging-test",
+        "state": "staging",
+        "mapName": "zexpedition03.SC2Map",
+        "commander": "TerranRaynor",
+        "launcher": str(server.LAUNCH_SCRIPT),
+        "startedAt": "2026-08-12T12:26:08.097244+08:00",
+    }
+    intent = {
+        "schemaVersion": 1,
+        "launcherPid": 101,
+        "launcher": str(server.LAUNCH_SCRIPT),
+        "mapName": "zexpedition03.SC2Map",
+        "commander": "TerranRaynor",
+        "createdAt": 1775964368.0,
+    }
+    _write_record(runtime_lease, lease)
+    _write_record(webui_lease, intent)
+    killed = []
+    monkeypatch.setattr(server, "SC2_RUNTIME_LEASE_PATH", runtime_lease)
+    monkeypatch.setattr(server, "WEBUI_SESSION_LEASE_PATH", webui_lease)
+    monkeypatch.setattr(server, "_get_process_info", lambda pid: {
+        101: None,
+        303: {
+            "Name": "SC2_x64.exe",
+            "CommandLine": '"E:/SC2/SC2_x64.exe" "E:/SC2/Maps/zexpedition03.SC2Map"',
+            "CreationDate": "2026-08-12T12:26:14.000000+08:00",
+        },
+    }.get(pid))
+    monkeypatch.setattr(server, "_list_game_processes", lambda: [(303, "SC2_x64.exe")])
+    monkeypatch.setattr(server, "_force_kill_process_tree", lambda pid: killed.append(pid) or True)
+    monkeypatch.setattr(server, "_wait_for_process_exit", lambda pid: True)
+
+    assert server._force_stop_current_game() == ["sc2:303"]
+    assert killed == [303]
+    assert not runtime_lease.exists()
+    assert not webui_lease.exists()
+
+
+def test_force_stop_waits_for_killed_runtime_before_removing_lease(monkeypatch, tmp_path):
+    runtime_lease = tmp_path / "sc2-runtime-lease.json"
+    webui_lease = tmp_path / "cmre-webui-session.json"
+    lease, intent = _detached_records()
+    _write_record(runtime_lease, lease)
+    _write_record(webui_lease, intent)
+    state = {"killed": False, "checks": 0}
+    process_info = {
+        "Name": "SC2_x64.exe",
+        "CommandLine": '"E:/SC2/SC2_x64.exe" "E:/SC2/Maps/亡者之夜.SC2Map"',
+        "CreationDate": "2026-08-10T19:45:10.141267+08:00",
+    }
+
+    def get_process_info(pid):
+        if pid == 101:
+            return None
+        if pid != 202:
+            return None
+        if not state["killed"]:
+            return process_info
+        state["checks"] += 1
+        return process_info if state["checks"] == 1 else None
+
+    monkeypatch.setattr(server, "SC2_RUNTIME_LEASE_PATH", runtime_lease)
+    monkeypatch.setattr(server, "WEBUI_SESSION_LEASE_PATH", webui_lease)
+    monkeypatch.setattr(server, "_get_process_info", get_process_info)
+    monkeypatch.setattr(server, "_force_kill_process_tree", lambda pid: state.update(killed=True) or True)
+
+    assert server._force_stop_current_game() == ["sc2:202"]
+    assert state["checks"] == 2
+    assert not runtime_lease.exists()
+    assert not webui_lease.exists()
 
 
 def test_process_info_decodes_utf16_command_line_from_powershell(monkeypatch):
