@@ -43,6 +43,8 @@ const state = {
   voicePacks: [],
   buffMetadata: [],
   extraMods: [],
+  extraModsLoadedFor: null,
+  extraModsRequestId: 0,
   cmdrFilter: "all",
   activeTab: "commanders",
   presets: [],
@@ -172,7 +174,7 @@ function applyPreset(preset) {
   renderCommanderCard();
   renderMaps();
   renderMutators();
-  loadExtraMods();
+  if (isExtraModsPanelOpen()) loadExtraMods(true);
   updateFooter();
   updateMutatorCount();
 }
@@ -274,11 +276,40 @@ async function loadVoicePacks() {
   sel.value = state.selected.voicePack;
 }
 
-async function loadExtraMods() {
+function isExtraModsPanelOpen() {
+  return !$('advanced-body').hidden;
+}
+
+function resetExtraModsForCommander() {
+  state.selected.extraMods = [];
+  state.extraMods = [];
+  state.extraModsLoadedFor = null;
+  state.extraModsRequestId += 1;
+  renderExtraMods("切换指挥官后，点击‘读取列表’加载可选 Mod");
+  if (isExtraModsPanelOpen()) loadExtraMods();
+}
+
+async function loadExtraMods(force = false) {
   const bank = state.selected.commanderBank;
+  if (!force && state.extraModsLoadedFor === bank) return;
+  const requestId = ++state.extraModsRequestId;
+  const loadBtn = $("load-extra-mods");
+  if (loadBtn) { loadBtn.disabled = true; loadBtn.textContent = "读取中..."; }
+  renderExtraMods("正在读取当前指挥官的可选 Mod...");
+  try {
   const data = await fetch(API.extraMods(bank)).then(r => r.json());
+  if (requestId !== state.extraModsRequestId || bank !== state.selected.commanderBank) return;
   state.extraMods = data.extraMods || [];
+  state.extraModsLoadedFor = bank;
   renderExtraMods();
+  } catch (e) {
+    if (requestId !== state.extraModsRequestId || bank !== state.selected.commanderBank) return;
+    state.extraMods = [];
+    state.extraModsLoadedFor = null;
+    renderExtraMods(`读取失败：${e.message}`);
+  } finally {
+    if (loadBtn) { loadBtn.disabled = false; loadBtn.textContent = "重新读取"; }
+  }
 }
 
 /* === Buff 补丁元数据 === */
@@ -728,10 +759,28 @@ function initRuntimeConsole() {
 function renderMaps() {
   const grid = $("map-list");
   grid.innerHTML = "";
+  const groups = new Map();
   for (const m of state.maps) {
+    const key = m.packageId || "cmre";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(m);
+  }
+  const groupLabels = { cmre: "CMRE 地图", reborn: "虫心战役地图", "revolution-overdrive": "起义狂潮地图" };
+  for (const [groupId, maps] of groups) {
+    const section = document.createElement("section");
+    section.className = "map-group";
+    const heading = document.createElement("div");
+    heading.className = "map-group-heading";
+    heading.innerHTML = `<h2>${esc(groupLabels[groupId] || groupId)}</h2><span>${maps.length} 张</span>`;
+    const groupGrid = document.createElement("div");
+    groupGrid.className = "map-grid";
+    section.appendChild(heading);
+    section.appendChild(groupGrid);
+    grid.appendChild(section);
+    for (const m of maps) {
     const div = document.createElement("div");
     div.className = "map-item";
-    if (m.id === state.selected.mapName) div.classList.add("selected");
+    if (m.id === state.selected.mapName && (m.packageId || "cmre") === state.selected.mapPackage) div.classList.add("selected");
     const previewPath = m.preview ? API.asset(m.preview) : "";
     const previewDiv = document.createElement("div");
     previewDiv.className = "map-item-preview";
@@ -765,7 +814,8 @@ function renderMaps() {
       $$(".map-item").forEach(el => el.classList.toggle("selected", el === div));
       updateFooter();
     };
-    grid.appendChild(div);
+    groupGrid.appendChild(div);
+    }
   }
 }
 
@@ -784,7 +834,26 @@ function renderCommanderGrid() {
   const filtered = state.commanders.filter(c => filter === "all" || c.group === filter);
   const countEl = $("cmdr-count");
   if (countEl) countEl.textContent = `${filtered.length} / ${state.commanders.length} 位指挥官`;
+  const groups = new Map();
   for (const c of filtered) {
+    const key = c.group || "official";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(c);
+  }
+  const groupOrder = ["official", "alenger", "reborn", "revolution-overdrive"];
+  const orderedGroups = [...groups.entries()].sort((a, b) => groupOrder.indexOf(a[0]) - groupOrder.indexOf(b[0]));
+  for (const [groupId, commanders] of orderedGroups) {
+    const section = document.createElement("section");
+    section.className = "commander-group";
+    const heading = document.createElement("div");
+    heading.className = "commander-group-heading";
+    heading.innerHTML = `<h2>${esc(GROUP_LABELS[groupId] || groupId)}</h2><span>${commanders.length} 位</span>`;
+    const groupGrid = document.createElement("div");
+    groupGrid.className = "commander-grid-big";
+    section.appendChild(heading);
+    section.appendChild(groupGrid);
+    grid.appendChild(section);
+    for (const c of commanders) {
     const race = c.race || raceOf(c.id);
     const rc = RACE_CONFIG[race] || RACE_CONFIG.Unknown;
     const div = document.createElement("div");
@@ -824,10 +893,12 @@ function renderCommanderGrid() {
       state.selected.commanderBank = c.bank;
       state.selected.commanderPortrait = c.portrait;
       state.selected.commanderCachedImage = c.cachedImage || "";
+      resetExtraModsForCommander();
       $$(".cmdr-grid-item").forEach(el => el.classList.toggle("selected", el === div));
       renderCommanderCard();
     };
-    grid.appendChild(div);
+    groupGrid.appendChild(div);
+    }
   }
 }
 
@@ -864,7 +935,6 @@ function renderCommanderCard() {
   const bankEl = $("commander-bank-large");
   bankEl.innerHTML = `<span style="color:${rc.color}">${rc.abbr}</span> ${rc.name}${groupLabel ? ' · <span class="group-tag">' + esc(groupLabel) + '</span>' : ""} · ${esc(c.bank)}`;
   updateFooter();
-  loadExtraMods();
   if (state.buffMetadata.length > 0) renderBuffPatch();
 }
 
@@ -1038,9 +1108,13 @@ function renderEnemies(enemies) {
 }
 
 /* === 额外Mod渲染 === */
-function renderExtraMods() {
+function renderExtraMods(message = "展开高级选项后按需读取") {
   const list = $("extra-mods-list");
   list.innerHTML = "";
+  if (state.extraModsLoadedFor === null && state.extraMods.length === 0) {
+    list.innerHTML = `<p class="hint">${esc(message)}</p>`;
+    return;
+  }
   if (state.extraMods.length === 0) {
     list.innerHTML = '<p class="hint">当前指挥官已自动加载所需mod，无额外可选</p>';
     return;
@@ -1296,7 +1370,9 @@ function resetSelection() {
   renderCommanderGrid();
   renderCommanderCard();
   renderMutators();
-  loadExtraMods();
+  state.extraMods = [];
+  state.extraModsLoadedFor = null;
+  renderExtraMods();
   renderBuffPatch();
   updateFooter();
   updateMutatorCount();
@@ -1311,7 +1387,11 @@ function initCollapsible() {
       const targetId = head.dataset.target;
       const body = $(targetId);
       const icon = head.querySelector(".toggle-icon");
-      if (body.hidden) { body.hidden = false; if (icon) icon.textContent = "▼"; }
+      if (body.hidden) {
+        body.hidden = false;
+        if (icon) icon.textContent = "▼";
+        if (targetId === "advanced-body") loadExtraMods();
+      }
       else { body.hidden = true; if (icon) icon.textContent = "▶"; }
     };
   });
@@ -1385,6 +1465,7 @@ async function init() {
     state.selected.buffPatch.enabled = e.target.checked;
     updateBuffStatus();
   };
+  $("load-extra-mods").onclick = () => loadExtraMods(true);
 
   initCollapsible();
   initTabs();

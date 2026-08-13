@@ -178,6 +178,30 @@ def test_webui_defaults_to_player_map_launch(monkeypatch):
     assert WEBUI_APP.read_text(encoding="utf-8").count("apiMode: false") == 2
 
 
+def test_webui_groups_commanders_and_maps_and_loads_extra_mods_on_demand():
+    app = WEBUI_APP.read_text(encoding="utf-8")
+    html = (WEBUI_APP.parent / "index.html").read_text(encoding="utf-8")
+    styles = (WEBUI_APP.parent / "styles.css").read_text(encoding="utf-8")
+
+    assert 'class="commander-groups" id="commander-grid"' in html
+    assert 'class="map-groups" id="map-list"' in html
+    assert 'id="load-extra-mods"' in html
+    assert 'data-group="revolution-overdrive"' in html
+    assert 'className = "commander-group"' in app
+    assert 'className = "map-group"' in app
+    assert 'if (targetId === "advanced-body") loadExtraMods();' in app
+    assert 'if (isExtraModsPanelOpen()) loadExtraMods(true);' in app
+    assert '.commander-groups, .map-groups' in styles
+
+    init_start = app.index("async function init()")
+    init_end = app.index("init();", init_start)
+    init_block = app[init_start:init_end]
+    assert "loadExtraMods()" not in init_block
+    card_start = app.index("function renderCommanderCard()")
+    card_end = app.index("/* === 突变因子列表渲染 === */", card_start)
+    assert "loadExtraMods()" not in app[card_start:card_end]
+
+
 def _detached_records(runtime_pid=202):
     launcher = str(server.LAUNCH_SCRIPT)
     lease = {

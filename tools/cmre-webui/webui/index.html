@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CMRE 启动器 - 合作指挥官起义狂潮</title>
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=13">
 </head>
 <body>
   <header class="topbar">
@@ -82,10 +82,13 @@
             </div>
           </div>
           <div class="advanced-section">
-            <label>额外 Mod</label>
-            <p class="hint tip">勾选要额外挂载的 7vs1 模组包（当前指挥官自带的模组已自动排除）</p>
+            <div class="advanced-section-head">
+              <label>额外 Mod</label>
+              <button type="button" id="load-extra-mods" class="btn-tiny" title="按当前指挥官读取可选 Mod">读取列表</button>
+            </div>
+            <p class="hint tip">只在读取列表后显示可选包；当前指挥官自带的模组会自动排除</p>
             <div class="extra-mods-list" id="extra-mods-list">
-              <p class="hint">加载中...</p>
+              <p class="hint">展开高级选项后按需读取</p>
             </div>
           </div>
         </div>
@@ -107,10 +110,11 @@
             <button type="button" class="cmdr-tab" data-group="official">官方</button>
             <button type="button" class="cmdr-tab" data-group="alenger">起义</button>
             <button type="button" class="cmdr-tab" data-group="reborn">重生</button>
+            <button type="button" class="cmdr-tab" data-group="revolution-overdrive">起义狂潮</button>
           </div>
           <span class="cmdr-count" id="cmdr-count"></span>
         </div>
-        <div class="commander-grid-big" id="commander-grid"></div>
+        <div class="commander-groups" id="commander-grid"></div>
 
         <div class="buff-panel" id="buff-panel">
           <div class="buff-panel-head card-head-toggle" data-target="buff-panel-body">
@@ -133,7 +137,7 @@
       </div>
 
       <div class="tab-content" id="tab-maps" hidden>
-        <div class="map-grid" id="map-list"></div>
+        <div class="map-groups" id="map-list"></div>
       </div>
 
       <div class="tab-content" id="tab-mutators" hidden>
@@ -269,6 +273,6 @@
     <div class="footer-summary" id="footer-summary">加载中...</div>
   </footer>
 
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>
