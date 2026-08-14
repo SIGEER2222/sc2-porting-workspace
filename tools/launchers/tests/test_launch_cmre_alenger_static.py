@@ -100,7 +100,7 @@ def test_reborn_deferred_startup_waits_for_required_start_locations():
     assert 'libMapModBridge_gf_WriteDebugBank("reborn_adapter_deferred_entered", 1);' in deferred
     assert "gv_CmreRebornDeferredStartupStarted" in deferred
     assert 'libMapModBridge_gf_WriteDebugBank("reborn_adapter_start_locations_waiting", 1);' in deferred
-    assert "TriggerExecute(lib48DF4533_gt_SwarmSetup, false, true);" in deferred
+    assert "TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);" in deferred
     assert "TriggerAddEventTimePeriodic(gt_CmreRebornDeferredStartup, 1.0, c_timeReal);" in deferred
 
 
@@ -678,6 +678,37 @@ def test_reborn_library_keeps_native_map_init_and_swarm_setup_path():
     assert "TriggerAddEventTimePeriodic(gt_CmreRebornDeferredStartup, 1.0, c_timeReal);" in source
 
 
+def test_startup_contract_is_fail_closed_and_protects_map_owned_player_objects():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "map-startup-contract.json" in source
+    assert "Startup contract hash mismatch" in source
+    assert "Startup contract has no record" in source
+    assert "$protectedMapUnitTypes = @($startupRecord.adaptation.protectedPlayerUnitTypes)" in source
+    assert "$vanillaRemovals = @($vanillaRemovals | Where-Object" in source
+
+
+def test_reborn_commander_start_receives_transient_source_units():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "CMRE_PATCH_K5KERRIGAN_SOURCE_HELPER_V3" in source
+    assert "lib48DF4533_gf_CMREProvisionCommanderStartSources" in source
+    assert "wired source helper before CommanderStart" in source
+    assert "K5Kerrigan injection skipped" not in source
+    assert "c_targetFilterPreventDefeat" in source
+    assert 'UnitGroup("Hatchery", lv_player' in source
+    assert 'k5kerrigan_source_provisioned_p' in source
+
+
+def test_reborn_commander_start_is_contract_driven():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "rebornReplacementContract" in source
+    assert "rebornReplacementTargetTypes" in source
+    assert "Startup contract has no Reborn CommanderStart replacement contract" in source
+    assert "Startup contract has no Reborn CommanderStart target unit types" in source
+
+
 def test_reborn_deferred_start_only_requires_start_points_for_created_units():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
     assert "$requiredStartPlayers = @($mapStartingUnitsPlayers | Sort-Object -Unique)" in source
@@ -688,6 +719,19 @@ def test_reborn_deferred_start_uses_existing_prevent_defeat_as_start_witness():
     assert "lv_p1PreventDefeat" in source
     assert "c_targetFilterPreventDefeat" in source
     assert "UnitGetPosition(lv_existingStartUnit)" in source
+
+
+def test_reborn_adapter_runs_after_native_swarm_setup():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    assert "TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);" in source
+    assert "libRebornAdapter_gf_InitializeBeforeSwarmSetup(" in source
+    assert "adapter can reuse its base/workers" in source
+
+
+def test_reborn_overlay_disables_cmre_p2_melee_fallback():
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+    assert "(-not $EnableReborn)" in overlay
+    assert "Running CMRE's fallback MeleeInitUnitsForPlayer(2)" in overlay
 
 
 def test_reborn_overlay_patches_bridge_start_point_fallback():
@@ -962,7 +1006,7 @@ def test_non_cmre_maps_skip_cmre_owned_computer_ally_economy():
     body = _function_body(overlay, "Install-CmreObserverOverlay")
 
     assert '$cmreMapSource = Join-Path $WorkspaceRoot "src\\projects\\cmre-porting\\packages\\Maps\\$MapName"' in body
-    assert "$enableCmreComputerAllyEconomy = Test-Path -LiteralPath $cmreMapSource -PathType Container" in body
+    assert "$enableCmreComputerAllyEconomy = (-not $EnableReborn) -and" in body
     assert 'CMRE computer ally economy: skipped for non-CMRE map' in body
     assert 'gt_CmreOnDemandComputerAllyReady_Init();' in body
 
@@ -973,6 +1017,46 @@ def test_reborn_k5_structures_guard_rejects_invalid_event_player():
     assert "CMRE_PATCH_REBORN_K5_STRUCTURES_PLAYER_GUARD_V1" in source
     assert "if (EventPlayer() < 1 || EventPlayer() > 15)" in source
     assert "K5StructuresComplete player guard anchor not found" in source
+
+
+def test_reborn_commander_start_commits_transient_source_units_before_consuming_them():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "CMREProvisionCommanderStartSources();" in source
+    assert "Wait(0.1, c_timeGame);" in source
+    assert 'UnitCreate(1, "K5Kerrigan", c_unitCreateIgnorePlacement' in source
+    assert "k5kerrigan_source_count_before_commander_start" in source
+    assert "k5kerrigan_source_count_after_commander_start" in source
+    assert "source-unit commit wait before CommanderStart" in source
+
+    # Both the source-sync patch and the staged-map repair must preserve the
+    # same ordering: create source -> yield to the game -> CommanderStart.
+    assert source.count("$sourceCommitWait = '    Wait(0.1, c_timeGame);'") == 2
+    assert source.count("$sourceHelperCall + $newline + $sourceCommitWait") == 2
+
+
+def test_reborn_commander_start_targets_ignore_placement_and_preserves_hunterkiller():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "function Patch-RebornCommanderStartUnitHandling" in source
+    assert "c_unitCreateIgnorePlacement" in source
+    assert "function Patch-RebornReplaceExistingUnits" in source
+    assert "CMRE_PATCH_REBORN_EXCLUDE_HUNTERKILLER_FROM_HYDRALISK_V1" in source
+    assert "Patch-RebornReplaceExistingUnits -Content $content" in source
+    assert "hunterkiller_count_after_commander_start" in source
+    assert "hunterkiller_count_after_replace_existing_units" in source
+    assert "hydraliskimpaler_count_after_replace_existing_units" in source
+
+
+def test_reborn_deferred_startup_locks_before_adapter_and_swarmsetup():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    deferred = source[source.index("CMRE_PATCH_REBORN_DEFERRED_STARTUP_V5") :]
+
+    guard = deferred.index("gv_CmreRebornDeferredStartupStarted = true;")
+    call = deferred.index("libRebornAdapter_gf_InitializeBeforeSwarmSetup(")
+    swarm = deferred.index("TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);")
+    assert guard < swarm < call
+    assert 'reborn_adapter_initialize_call_count", 1' in deferred
 
 
 def test_observer_overlay_keeps_stage26_bundle_out_of_default_webui_launches():

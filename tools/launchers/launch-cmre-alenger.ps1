@@ -223,6 +223,96 @@ if (-not (Test-Path -LiteralPath (Join-Path $mapSource "MapScript.galaxy"))) {
 }
 Write-Host "Map source: $mapSource"
 
+# Stage 26 startup contract: the original map's Objects and MapScript are the
+# source of truth for player-owned preplaced units and startup dependencies.
+# Fail closed before copying if the selected source is not one of the scanned
+# maps, any required source hash changed, or TriggerData analysis is incomplete.
+$startupContractPath = Join-Path $WorkspaceRoot "artifacts\projects\cmre-porting\stage26-full-function-invoke\map-startup-contract.json"
+$startupContract = $null
+if (Test-Path -LiteralPath $startupContractPath -PathType Leaf) {
+    $startupContract = Get-Content -LiteralPath $startupContractPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $startupRecord = @($startupContract.maps | Where-Object { $_.map -eq $MapName }) | Select-Object -First 1
+    if ($null -eq $startupRecord) {
+        throw "Startup contract has no record for ${MapName}: $startupContractPath"
+    }
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        foreach ($entry in @(
+            @{ Name = "Objects"; Path = (Join-Path $mapSource "Objects") },
+            @{ Name = "MapScript.galaxy"; Path = (Join-Path $mapSource "MapScript.galaxy") },
+            @{ Name = "Triggers"; Path = (Join-Path $mapSource "Triggers") }
+        )) {
+            if (-not (Test-Path -LiteralPath $entry.Path -PathType Leaf)) {
+                throw "Startup contract source file missing: $($entry.Path)"
+            }
+            $actualHash = ([System.BitConverter]::ToString($sha256.ComputeHash([System.IO.File]::ReadAllBytes($entry.Path)))).Replace('-', '').ToLowerInvariant()
+            $expectedHash = [string]$startupRecord.sourceFiles.($entry.Name).sha256
+            if ($actualHash -ne $expectedHash) {
+                throw "Startup contract hash mismatch for $MapName/$($entry.Name): expected $expectedHash actual $actualHash"
+            }
+        }
+    } finally {
+        $sha256.Dispose()
+    }
+    if ($null -eq $startupRecord.analysis -or
+        [string]$startupRecord.analysis.contractStatus -ne "ready" -or
+        [string]$startupRecord.analysis.triggerStatus -ne "complete") {
+        throw "Startup contract TriggerData analysis is incomplete for $MapName; refusing to stage"
+    }
+    if ($null -eq $startupRecord.analysis.startingGameQ -or
+        [string]::IsNullOrWhiteSpace([string]$startupRecord.analysis.startingGameQ.id)) {
+        throw "Startup contract has no Starting Game Q trigger for $MapName"
+    }
+    $protectedMapUnitTypes = @($startupRecord.adaptation.protectedPlayerUnitTypes)
+    $rebornReplacementContract = $startupRecord.adaptation.rebornReplacementSource
+    if ($EnableReborn -and $RebornCommander -ne "") {
+        if ($null -eq $rebornReplacementContract -or -not $rebornReplacementContract.enabled) {
+            throw "Startup contract has no Reborn CommanderStart replacement contract for $MapName"
+        }
+        $rebornReplacementTargetTypes = @($rebornReplacementContract.targetUnitTypes)
+        if ($rebornReplacementTargetTypes.Count -eq 0) {
+            throw "Startup contract has no Reborn CommanderStart target unit types for $MapName"
+        }
+        Write-Host "Startup contract verified: Reborn CommanderStart targets=$($rebornReplacementTargetTypes -join ',')"
+    } else {
+        $rebornReplacementTargetTypes = @()
+    }
+    Write-Host "Startup contract verified: $MapName; protected P1/P2 object types=$($protectedMapUnitTypes -join ',')"
+} else {
+    $scanner = Join-Path $WorkspaceRoot "src\projects\cmre-porting\stages\26-full-function-invoke\scan_map_startup_contract.py"
+    $sourceRoot = Join-Path $LegacyRoot "Maps\CMRE"
+    if (-not (Test-Path -LiteralPath $scanner -PathType Leaf)) { throw "Startup contract scanner missing: $scanner" }
+    if (-not (Test-Path -LiteralPath $sourceRoot -PathType Container)) { throw "Startup contract source root missing: $sourceRoot" }
+    $scannerArgs = @($scanner, "--source-root", $sourceRoot, "--out", (Join-Path $WorkspaceRoot "artifacts\projects\cmre-porting\stage26-full-function-invoke\map-startup-contract.full.json"), "--launcher-out", $startupContractPath)
+    $rebornDependency = Join-Path $LegacyRoot "Mods\reborn\crys_the_swarm_reborn.SC2Mod\Base.SC2Data\Lib48DF4533.galaxy"
+    if (Test-Path -LiteralPath $rebornDependency -PathType Leaf) { $scannerArgs += @("--dependency-file", $rebornDependency) }
+    $python = (Get-Command python -ErrorAction Stop).Source
+    Write-Host "Startup contract missing; generating from original CMRE maps before staging"
+    & $python @scannerArgs
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $startupContractPath -PathType Leaf)) {
+        throw "Startup contract generation failed: $startupContractPath"
+    }
+    $startupContract = Get-Content -LiteralPath $startupContractPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $startupRecord = @($startupContract.maps | Where-Object { $_.map -eq $MapName }) | Select-Object -First 1
+    if ($null -eq $startupRecord) { throw "Generated startup contract has no record for $MapName" }
+}
+$protectedMapUnitTypes = @($startupRecord.adaptation.protectedPlayerUnitTypes)
+$rebornReplacementContract = $startupRecord.adaptation.rebornReplacementSource
+if ($EnableReborn -and $RebornCommander -ne "") {
+    if ($null -eq $rebornReplacementContract -or -not $rebornReplacementContract.enabled) {
+        throw "Startup contract has no Reborn CommanderStart replacement contract for $MapName"
+    }
+    $rebornReplacementTargetTypes = @($rebornReplacementContract.targetUnitTypes)
+    if ($rebornReplacementTargetTypes.Count -eq 0) {
+        throw "Startup contract has no Reborn CommanderStart target unit types for $MapName"
+    }
+    Write-Host "Startup contract verified: Reborn CommanderStart targets=$($rebornReplacementTargetTypes -join ',')"
+} else {
+    $rebornReplacementTargetTypes = @()
+}
+$vanillaRemovals = @($vanillaRemovals | Where-Object { $protectedMapUnitTypes -notcontains [string]$_ })
+Write-Host "Startup contract verified: $MapName; protected P1/P2 object types=$($protectedMapUnitTypes -join ',')"
+
 if ($MapDependencyRootOverride -ne "") {
     $MapDependencyRootOverride = (Resolve-Path -LiteralPath $MapDependencyRootOverride).Path
     $mapDependencyModsRoot = Join-Path $MapDependencyRootOverride "Commander\Mods"
@@ -486,6 +576,57 @@ function Enable-CmrePreselectedCommanderStartup {
     )
     Install-CmrePreselectedCommanderStartupOverlay -MapPath $MapPath -Commander $Commander -SkipCountdown:$SkipCountdown -ApiMinimal:$ApiMinimal -SkipPause:$SkipPause -KeepPlayer1Vanilla:$KeepPlayer1Vanilla
 }
+
+function Patch-RebornCommanderStartUnitHandling {
+    param(
+        [Parameter(Mandatory = $true)][string]$Content,
+        [Parameter(Mandatory = $true)][string]$Context
+    )
+
+    $commanderStartPattern = '(?s)(bool lib48DF4533_gt_CommanderStart_Func\s*\(.*?)(?=\r?\n//-{20,}\r?\n)'
+    $matches = [regex]::Matches($Content, $commanderStartPattern)
+    if ($matches.Count -ne 1) {
+        throw "Patch-RebornCommanderStartUnitHandling: expected one CommanderStart function in $Context, found $($matches.Count)"
+    }
+    $body = $matches[0].Groups[1].Value
+
+    # Reborn's generated helper uses the third argument as placement flags.
+    # CommanderStart runs on a staged CMRE map, so every replacement target
+    # must use the explicit ignore-placement path instead of the default 0.
+    $body = [regex]::Replace(
+        $body,
+        'libNtve_gf_CreateUnitsWithDefaultFacing\(([^\r\n;]*?),\s*0,\s*(auto[0-9A-F]+_var),',
+        'libNtve_gf_CreateUnitsWithDefaultFacing($1, c_unitCreateIgnorePlacement, $2,')
+
+    return $Content.Substring(0, $matches[0].Index) + $body + $Content.Substring($matches[0].Index + $matches[0].Length)
+}
+
+function Patch-RebornReplaceExistingUnits {
+    param(
+        [Parameter(Mandatory = $true)][string]$Content,
+        [Parameter(Mandatory = $true)][string]$Context
+    )
+
+    # HunterKiller is the Abathur CommanderStart product, not a normal
+    # Hydralisk evolution. Do not feed it into ReplaceExistingUnits, where a
+    # later Hydralisk evolution pass can rewrite it to HydraliskImpaler.
+    if ($Content.Contains('CMRE_PATCH_REBORN_EXCLUDE_HUNTERKILLER_FROM_HYDRALISK_V1')) { return $Content }
+    $replaceFunctionPattern = '(?s)(bool auto_lib48DF4533_gf_ReplaceExistingUnits_TriggerFunc\s*\(.*?)(?=\r?\n//-{20,}\r?\n)'
+    $replaceFunctionMatches = [regex]::Matches($Content, $replaceFunctionPattern)
+    if ($replaceFunctionMatches.Count -ne 1) {
+        throw "Patch-RebornReplaceExistingUnits: expected one ReplaceExistingUnits function in $Context, found $($replaceFunctionMatches.Count)"
+    }
+    $replaceBody = $replaceFunctionMatches[0].Groups[1].Value
+    $hydraliskGroupPattern = '(?m)^([ \t]*)UnitGroupAddUnitGroup\(lv_units, UnitGroup\("HunterKiller",[^\r\n]*\);\r?\n'
+    $hydraliskGroupMatches = [regex]::Matches($replaceBody, $hydraliskGroupPattern)
+    if ($hydraliskGroupMatches.Count -ne 1) {
+        throw "Patch-RebornReplaceExistingUnits: expected one HunterKiller Hydralisk group in $Context, found $($hydraliskGroupMatches.Count)"
+    }
+    $replacement = '$1// CMRE_PATCH_REBORN_EXCLUDE_HUNTERKILLER_FROM_HYDRALISK_V1' + "`r`n"
+    $replaceBody = [regex]::Replace($replaceBody, $hydraliskGroupPattern, $replacement, 1)
+    return $Content.Substring(0, $replaceFunctionMatches[0].Index) + $replaceBody + $Content.Substring($replaceFunctionMatches[0].Index + $replaceFunctionMatches[0].Length)
+}
+
 function Patch-RebornK5KerriganSpawn {
     <#
     .SYNOPSIS
@@ -514,6 +655,7 @@ function Patch-RebornK5KerriganSpawn {
         $bytes = $bytes[3..($bytes.Length - 1)]
     }
     $content = [System.Text.Encoding]::UTF8.GetString($bytes)
+    $newline = if ($content.Contains("`r`n")) { "`r`n" } else { "`n" }
 
     # 在 SwarmSetup_Func 中 CommanderStart 调用前注入 K5Kerrigan 创建代码。
     # 不在 Initialization_Func 中注入，因为那可能导致库编译顺序问题。
@@ -523,16 +665,144 @@ function Patch-RebornK5KerriganSpawn {
         return
     }
 
-    # 2026-07-29: 移除 K5Kerrigan 注入逻辑（用户要求"不需要 k5keerigen"）。
-    # 只保留 BOM 剥离 + 清理旧注入（保证幂等，避免残留 K5Kerrigan 代码导致编译错误）。
+    # 清理旧版本的直接注入块，然后安装一个有明确边界的临时源单位供应器。
+    # CommanderStart 是 Reborn 的原生替换触发器：它只会把 K5Kerrigan /
+    # K5KerriganBurrowed 替换成选定指挥官的开局单位。源单位在替换后由原生
+    # CommanderStart 移除，不会成为玩家最终编制。
     $oldPatchPattern = '(?ms)    // CMRE_PATCH_K5KERRIGAN_SPAWN[^\r\n]*\r?\n.*?libNtve_gf_CreateUnitsWithDefaultFacing\(1, "K5Kerrigan".*?\}\r?\n'
     $strippedCount = ([regex]::Matches($content, $oldPatchPattern)).Count
     if ($strippedCount -gt 0) {
         $content = [regex]::Replace($content, $oldPatchPattern, '')
-        Write-Host "Patch-RebornK5KerriganSpawn: stripped $strippedCount old K5Kerrigan patch block(s) (disabled by user request)"
+        Write-Host "Patch-RebornK5KerriganSpawn: stripped $strippedCount old K5Kerrigan patch block(s)"
     } else {
-        Write-Host "Patch-RebornK5KerriganSpawn: no old K5Kerrigan patch found, BOM stripped only (injection disabled)"
+        Write-Host "Patch-RebornK5KerriganSpawn: no old K5Kerrigan patch found"
     }
+
+    $helperMarker = 'CMRE_PATCH_K5KERRIGAN_SOURCE_HELPER_V3'
+    $helperFunction = 'void lib48DF4533_gf_CMREProvisionCommanderStartSources()'
+    $legacyHelperPattern = '(?ms)^// CMRE_PATCH_K5KERRIGAN_SOURCE_HELPER_V2\r?\n.*?^}\r?\n'
+    if ($content.Contains('CMRE_PATCH_K5KERRIGAN_SOURCE_HELPER_V2')) {
+        $legacyHelperMatches = [regex]::Matches($content, $legacyHelperPattern)
+        if ($legacyHelperMatches.Count -ne 1) {
+            throw "Patch-RebornK5KerriganSpawn: expected exactly one legacy CommanderStart source helper, found $($legacyHelperMatches.Count)"
+        }
+        $content = [regex]::Replace($content, $legacyHelperPattern, '')
+        Write-Host "Patch-RebornK5KerriganSpawn: replaced legacy CommanderStart source helper"
+    }
+    if (-not $content.Contains($helperMarker)) {
+        $helper = @'
+// CMRE_PATCH_K5KERRIGAN_SOURCE_HELPER_V3
+// CommanderStart only replaces the campaign hero source unit. Provision it
+// transiently for players whose selected Reborn commander is not Kerrigan.
+// CMRE maps may not expose PlayerStartLocation for the Reborn player slot;
+// use a live PreventDefeat/base witness after the adapter creates the opening.
+void lib48DF4533_gf_CMREProvisionCommanderStartSources() {
+    playergroup lv_players;
+    int lv_player;
+    point lv_start;
+    unitgroup lv_witnesses;
+    unit lv_witness;
+    unitgroup lv_k5;
+    unitgroup lv_k5Burrowed;
+    string lv_commander;
+    lv_players = lib48DF4533_gv_coop_group;
+    lv_player = -1;
+    while (true) {
+        lv_player = PlayerGroupNextPlayer(lv_players, lv_player);
+        if (lv_player < 0) { break; }
+        BankLoad("cryswarmcoop", lv_player);
+        lv_commander = "";
+        if (BankLastCreated() != null) {
+            lv_commander = BankValueGetAsString(BankLastCreated(), "Commanders", "Commander");
+        }
+        if ((lv_commander != "") && (lv_commander != "Kerrigan")) {
+            lv_k5 = UnitGroup("K5Kerrigan", lv_player, RegionEntireMap(),
+                UnitFilter(0, 0, (1 << c_targetFilterMissile),
+                    (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+            lv_k5Burrowed = UnitGroup("K5KerriganBurrowed", lv_player, RegionEntireMap(),
+                UnitFilter(0, 0, (1 << c_targetFilterMissile),
+                (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+            if ((UnitGroupCount(lv_k5, c_unitCountAlive) == 0) &&
+                (UnitGroupCount(lv_k5Burrowed, c_unitCountAlive) == 0)) {
+                lv_start = PlayerStartLocation(lv_player);
+                if (lv_start == null) {
+                    lv_witnesses = UnitGroup(null, lv_player, RegionEntireMap(),
+                        UnitFilter((1 << c_targetFilterPreventDefeat), 0, 0,
+                            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+                    lv_witness = UnitGroupUnit(lv_witnesses, 1);
+                    if (lv_witness != null) { lv_start = UnitGetPosition(lv_witness); }
+                }
+                if (lv_start == null) {
+                    lv_witnesses = UnitGroup("Hatchery", lv_player, RegionEntireMap(),
+                        UnitFilter(0, 0, (1 << c_targetFilterMissile),
+                            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1);
+                    lv_witness = UnitGroupUnit(lv_witnesses, 1);
+                    if (lv_witness != null) { lv_start = UnitGetPosition(lv_witness); }
+                }
+                if (lv_start != null) {
+                    // Use the same ignore-placement path as the Reborn adapter's
+                    // verified starting-unit creator. CommanderStart must see a
+                    // real live source unit in its replacement group.
+                    UnitCreate(1, "K5Kerrigan", c_unitCreateIgnorePlacement, lv_player, lv_start, 270.0);
+                    libMapModBridge_gf_WriteDebugBank("k5kerrigan_source_provisioned_p" + IntToString(lv_player), 1);
+                    libMapModBridge_gf_WriteDebugBank(
+                        "k5kerrigan_source_count_p" + IntToString(lv_player),
+                        UnitGroupCount(UnitGroup("K5Kerrigan", lv_player, RegionEntireMap(),
+                            UnitFilter(0, 0, (1 << c_targetFilterMissile),
+                                (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0),
+                            c_unitCountAll));
+                }
+            }
+        }
+    }
+}
+'@
+        $swarmSetupHeader = '// Trigger: Swarm Setup'
+        if (-not $content.Contains($swarmSetupHeader)) { throw "Patch-RebornK5KerriganSpawn: Swarm Setup header not found" }
+        $helper = ($helper -replace "`r`n", "`n" -replace "`n", $newline).TrimEnd() + $newline + $newline
+        $content = $content.Replace($swarmSetupHeader, $helper + $swarmSetupHeader)
+        Write-Host "Patch-RebornK5KerriganSpawn: installed transient CommanderStart source helper"
+    }
+    if (-not $content.Contains($helperFunction)) { throw "Patch-RebornK5KerriganSpawn: source helper was not installed" }
+    $legacySourceCreate = 'libNtve_gf_CreateUnitsWithDefaultFacing(1, "K5Kerrigan", 0, lv_player, lv_start);'
+    $verifiedSourceCreate = 'UnitCreate(1, "K5Kerrigan", c_unitCreateIgnorePlacement, lv_player, lv_start, 270.0);'
+    if ($content.Contains($legacySourceCreate)) {
+        $content = $content.Replace($legacySourceCreate, $verifiedSourceCreate)
+        Write-Host "Patch-RebornK5KerriganSpawn: upgraded existing source helper to ignore-placement UnitCreate"
+    }
+    $sourceCall = '    lib48DF4533_gf_CMREProvisionCommanderStartSources();'
+    $sourceCommitWait = '    Wait(0.1, c_timeGame);'
+    $sourceDebugBefore = @'
+    libMapModBridge_gf_WriteDebugBank("k5kerrigan_source_count_before_commander_start",
+        UnitGroupCount(UnitGroup("K5Kerrigan", 1, RegionEntireMap(),
+            UnitFilter(0, 0, (1 << c_targetFilterMissile),
+                (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0),
+            c_unitCountAll));
+'@
+    $sourceDebugAfter = @'
+    libMapModBridge_gf_WriteDebugBank("k5kerrigan_source_count_after_commander_start",
+        UnitGroupCount(UnitGroup("K5Kerrigan", 1, RegionEntireMap(),
+            UnitFilter(0, 0, (1 << c_targetFilterMissile),
+                (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0),
+            c_unitCountAll));
+    libMapModBridge_gf_WriteDebugBank("hunterkiller_count_after_commander_start",
+        UnitGroupCount(UnitGroup("HunterKiller", 1, RegionEntireMap(),
+            UnitFilter(0, 0, (1 << c_targetFilterMissile),
+                (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0),
+            c_unitCountAlive));
+'@
+    $sourceDebugBefore = ($sourceDebugBefore -replace "`r`n", "`n" -replace "`n", $newline).TrimEnd()
+    $sourceDebugAfter = ($sourceDebugAfter -replace "`r`n", "`n" -replace "`n", $newline).TrimEnd()
+    if (-not $content.Contains($sourceCall)) {
+        $content = $content.Replace($marker, $sourceCall + $newline + $sourceCommitWait + $newline + $sourceDebugBefore + $newline + $marker + $newline + $sourceDebugAfter)
+        Write-Host "Patch-RebornK5KerriganSpawn: wired source helper before CommanderStart"
+    } elseif (-not $content.Contains($sourceCall + $newline + $sourceDebugBefore)) {
+        $content = $content.Replace($sourceCall + $newline + $sourceCommitWait + $newline + $marker, $sourceCall + $newline + $sourceCommitWait + $newline + $sourceDebugBefore + $newline + $marker + $newline + $sourceDebugAfter)
+        Write-Host "Patch-RebornK5KerriganSpawn: added source-unit commit wait before CommanderStart"
+    }
+
+    $content = Patch-RebornCommanderStartUnitHandling -Content $content -Context $libPath
+    $content = Patch-RebornReplaceExistingUnits -Content $content -Context $libPath
 
     # 写回时显式用 BOM-less UTF8 编码转换为字节，再用 WriteAllBytes 写入（绕过 WriteAllText
     # 在某些 PowerShell 版本中可能默认带 BOM 的行为）。
@@ -780,10 +1050,23 @@ function Patch-RebornLibraryInit {
         Write-Host "Patch-RebornLibraryInit: stripped $strippedCount old K5Kerrigan patch block(s) before re-applying"
     }
 
-    # 2026-07-29: 移除 K5Kerrigan 注入（用户要求"不需要 k5keerigen"）。
-    # 保留 CommanderStart marker 行不注入任何 K5Kerrigan 创建代码。
-    # CommanderStart 仍会执行，但找不到 K5Kerrigan 会跳过替换逻辑。
-    Write-Host "Patch-RebornLibraryInit: K5Kerrigan injection skipped (disabled by user request)"
+    # The source helper is deliberately kept in the staged copy. It provides
+    # the transient K5Kerrigan source immediately before CommanderStart, and
+    # CommanderStart removes it after creating the selected unit.
+    $sourceHelperMarker = 'CMRE_PATCH_K5KERRIGAN_SOURCE_HELPER_V3'
+    $sourceHelperCall = '    lib48DF4533_gf_CMREProvisionCommanderStartSources();'
+    $sourceCommitWait = '    Wait(0.1, c_timeGame);'
+    if (-not $content.Contains($sourceHelperMarker) -or -not $content.Contains($sourceHelperCall)) {
+        throw "Patch-RebornLibraryInit: CommanderStart source helper missing from staged Reborn library"
+    }
+    if (-not $content.Contains($sourceHelperCall + $newline + $sourceCommitWait)) {
+        $content = $content.Replace($sourceHelperCall + $newline + $marker, $sourceHelperCall + $newline + $sourceCommitWait + $newline + $marker)
+        Write-Host "Patch-RebornLibraryInit: added source-unit commit wait before CommanderStart"
+    }
+    Write-Host "Patch-RebornLibraryInit: retained transient CommanderStart source helper"
+
+    $content = Patch-RebornCommanderStartUnitHandling -Content $content -Context $libPath
+    $content = Patch-RebornReplaceExistingUnits -Content $content -Context $libPath
 
     # === 3b. 保留 Reborn 的原生 MapInit 初始化入口 ===
     # 加载确认属于战役前端输入层，不能通过推迟 Galaxy 初始化来替代。
@@ -869,8 +1152,8 @@ $adapterAfterMapInitBlock = @"
         }
         $content = $content.Replace(
             $swarmSetupTriggerAnchor,
-            $adapterAfterMapInitBlock + $swarmSetupTriggerAnchor)
-        Write-Host "Patch-RebornLibraryInit: deferred Reborn adapter until native Initialization after MapInit"
+            $adapterAfterMapInitBlock)
+        Write-Host "Patch-RebornLibraryInit: deferred Reborn startup until MapInit; native SwarmSetup is owned by the deferred transaction"
 
         # PreventDefeat can be satisfied by an existing campaign structure;
         # only players for whom this adapter creates starting units require a
@@ -935,12 +1218,19 @@ bool gt_CmreRebornDeferredStartup_Func(bool testConds, bool runActions) {
         libMapModBridge_gf_WriteDebugBank("reborn_adapter_start_locations_waiting", 1);
         return true;
     }
+    // Lock the startup before calling either adapter or SwarmSetup. InitMap
+    // and native Reborn Initialization can both submit this trigger; the
+    // first ready invocation owns the whole startup transaction.
+    gv_CmreRebornDeferredStartupStarted = true;
+    libMapModBridge_gf_WriteDebugBank("reborn_adapter_initialize_call_count", 1);
+    // The Reborn library owns the native opening path. Run it first so the
+    // adapter can reuse its base/workers instead of creating a parallel
+    // opening that the native path will later duplicate.
+    TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);
     libRebornAdapter_gf_InitializeBeforeSwarmSetup(
         "$startingStructure", "$startingWorker", $workerCount,
         $ensureP1PreventDefeat, $ensureP2PreventDefeat,
         $createP1StartingUnits, $createP2StartingUnits);
-    TriggerExecute(lib48DF4533_gt_SwarmSetup, false, true);
-    gv_CmreRebornDeferredStartupStarted = true;
     return true;
 }
 
@@ -992,6 +1282,8 @@ void gt_CmreRebornDeferredStartup_Init() {
     BankValueSetFromInt(BankLastCreated(), "debug", "warpig_p1_count", UnitGroupCount(UnitGroup("WarPig", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
     BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_p1_count", UnitGroupCount(UnitGroup("HunterKiller", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
     BankValueSetFromInt(BankLastCreated(), "debug", "hydraliskimpaler_p1_count", UnitGroupCount(UnitGroup("HydraliskImpaler", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "hunterkiller_count_after_replace_existing_units", UnitGroupCount(UnitGroup("HunterKiller", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0), c_unitCountAlive));
+    BankValueSetFromInt(BankLastCreated(), "debug", "hydraliskimpaler_count_after_replace_existing_units", UnitGroupCount(UnitGroup("HydraliskImpaler", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0), c_unitCountAlive));
     // 14 个未测指挥官的替换单位检测（2026-07-27 批量验证）
     BankValueSetFromInt(BankLastCreated(), "debug", "primalhydralisk2_p1_count", UnitGroupCount(UnitGroup("PrimalHydralisk2", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
     BankValueSetFromInt(BankLastCreated(), "debug", "primaligniter_p1_count", UnitGroupCount(UnitGroup("PrimalIgniter", 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 1), c_unitCountAlive));
@@ -1841,6 +2133,9 @@ function Reset-CmreRuntimeListenerBank {
             "reborn_adapter_initialized",
             "reborn_adapter_start_locations_ready", "reborn_adapter_start_locations_timeout",
             "reborn_adapter_start_locations_waiting", "reborn_adapter_deferred_entered",
+            "reborn_adapter_initialize_call_count", "hunterkiller_count_after_commander_start",
+            "hunterkiller_count_after_replace_existing_units",
+            "hydraliskimpaler_count_after_replace_existing_units",
             "zerg_starting_buildings_created_p1", "zerg_starting_buildings_created_p2",
             # Reborn library patch markers (previously not reset, causing stale
             # initlib_patch_ran=1 / black_screen_fix_ran=1 / deep_debug_ran=1

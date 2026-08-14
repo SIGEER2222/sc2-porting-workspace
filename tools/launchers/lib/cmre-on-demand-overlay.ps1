@@ -827,10 +827,19 @@ function Install-CmreRebornCampaignIntroSkipOverlay {
         # Keep map-owned setup/cleanup, but do not wait for the campaign
         # cinematic and transmission queue in API or PlayerMode sessions.
         $anchor = '    TriggerExecute(gt_IntroCinematic, true, true);' + [Environment]::NewLine + '    TriggerExecute(gt_IntroCinematicEnd, true, true);'
+        # Reborn maps do not share one generated intro state declaration. Some
+        # maps expose gv_introCinematicCompleted, while zexpedition03 only has
+        # gv_introMusicCompleted. Never inject an undeclared Galaxy symbol into
+        # a staged map just to skip an optional cinematic.
+        $introStateAssignment = if ($content -match '(?m)^\s*bool\s+gv_introCinematicCompleted\s*;') {
+            '    gv_introCinematicCompleted = false;'
+        } else {
+            '    // CMRE_REBORN_SKIP_CAMPAIGN_INTRO: map has no intro completion state to reset'
+        }
         $replacement = @"
     // $marker
     // Preserve campaign setup and cleanup; skip only the interactive cinematic.
-    gv_introCinematicCompleted = false;
+${introStateAssignment}
     // $marker
 "@
         if ($content.Contains($anchor)) {
@@ -888,11 +897,62 @@ function Install-CmreRebornCampaignFrontendGuardOverlay {
             $neutralized++
         }
     }
+    # Reborn mission maps pass their own campaign id (for example
+    # "ZExpedition3"), so the fixed ZChar1 literal above is not sufficient.
+    # Remove any standalone campaign-data load call in the map initialization
+    # script; the copied SwarmCampaignLib still supplies the mission helpers.
+    $campaignDataPattern = '(?m)^\s*libSwaC_gf_ULoadCampaignData\("[^"]+"\);\s*$'
+    if ([regex]::IsMatch($content, $campaignDataPattern)) {
+        $content = [regex]::Replace(
+            $content,
+            $campaignDataPattern,
+            "    // ${marker}: campaign data load isolated for standalone/API sessions",
+            1)
+        $neutralized++
+    }
     if ($neutralized -eq 0) {
         Write-Host "Reborn campaign frontend guard anchors not present in MapScript; no frontend guard required: $path"
     }
     Write-CmreUtf8NoBom -Path $path -Content $content
     Write-Host "Reborn campaign frontend calls isolated in staged MapScript: $path"
+}
+
+function Install-CmreRebornStandaloneCatalogGuard {
+    param(
+        [Parameter(Mandatory = $true)][string]$MapPath
+    )
+    $path = Join-Path $MapPath "MapScript.galaxy"
+    if (-not (Test-Path -LiteralPath $path)) {
+        throw "Reborn standalone catalog guard MapScript not found: $path"
+    }
+    $content = Read-CmreUtf8 -Path $path
+    $marker = "CMRE_REBORN_STANDALONE_CATALOG_PLAYER_GUARD"
+    if ($content.Contains($marker)) {
+        Write-Host "Reborn standalone catalog player guard already present"
+        return
+    }
+
+    # zexpedition03 invokes these catalog writes from map initialization, where
+    # EventPlayer() resolves to the invalid sentinel 16. Keep the mission's
+    # intended P1 standalone behavior and avoid changing the read-only source.
+    $anchors = @(
+        '    CatalogFieldValueSet(c_gameCatalogWeapon, "StoneZealot", "Range", EventPlayer(), "5");',
+        '    CatalogFieldValueSet(c_gameCatalogWeapon, "StoneZealotEyeBlast", "Range", EventPlayer(), "6");'
+    )
+    $patched = 0
+    foreach ($anchor in $anchors) {
+        if ($content.Contains($anchor)) {
+            $replacement = $anchor.Replace('EventPlayer()', '1') + " // $marker"
+            $content = $content.Replace($anchor, $replacement)
+            $patched++
+        }
+    }
+    if ($patched -gt 0) {
+        Write-CmreUtf8NoBom -Path $path -Content $content
+        Write-Host "Reborn standalone catalog player guard applied: $patched call(s)"
+    } else {
+        Write-Host "Reborn standalone catalog player guard not required: $path"
+    }
 }
 
 function Install-CmreObserverOverlay {
@@ -937,6 +997,50 @@ function Install-CmreObserverOverlay {
         )
     }
     Copy-CmreOverlayFiles -Files $files -DestinationRoot $baseData
+    if ($EnableReborn) {
+        $bridgePath = Join-Path $baseData "LibMapModBridge.galaxy"
+        $bridgeContent = Read-CmreUtf8 -Path $bridgePath
+        $bridgeMarker = "// CMRE_REBORN_START_POINT_FALLBACK_V1"
+        if (-not $bridgeContent.Contains($bridgeMarker)) {
+            $bridgeAnchor = '    int lv_reused = 0;'
+            if (-not $bridgeContent.Contains($bridgeAnchor)) {
+                throw "Reborn start-point fallback declaration anchor not found in LibMapModBridge.galaxy"
+            }
+            # Galaxy requires local declarations to precede executable statements.
+            # Keep the fallback declarations at function entry, then add the
+            # position probe after the function's complete declaration block.
+            $bridgeFunctionAnchor = 'void libMapModBridge_gf_CreateStartingUnits(int player, string structureType, string workerType, int workerCount) ' + [char]123
+            if (-not $bridgeContent.Contains($bridgeFunctionAnchor)) {
+                throw "Reborn start-point fallback function anchor not found in LibMapModBridge.galaxy"
+            }
+            $bridgeFallbackDeclarations = @"
+    $bridgeMarker
+    // Standalone campaign maps may expose a preplaced PreventDefeat structure
+    // before PlayerStartLocation is available. Use its live position as the
+    // commander opening point, preserving the map-owned structure.
+    unitgroup lv_preventDefeatUnits;
+    unit lv_preventDefeatUnit;
+"@
+            $bridgeFallbackProbe = @"
+    lv_preventDefeatUnits = UnitGroup(null, player, RegionEntireMap(),
+        UnitFilter((1 << c_targetFilterPreventDefeat), 0, 0,
+            (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    lv_preventDefeatUnit = UnitGroupUnit(lv_preventDefeatUnits, 1);
+    if ((lv_start == null) && (lv_preventDefeatUnit != null)) {
+        lv_start = UnitGetPosition(lv_preventDefeatUnit);
+        libMapModBridge_gf_WriteDebugBank("reborn_start_point_fallback_p" + IntToString(player), 1);
+    }
+"@
+            $bridgeDeclarations = $bridgeFallbackDeclarations.TrimEnd() + [Environment]::NewLine
+            $bridgeContent = $bridgeContent.Replace(
+                $bridgeFunctionAnchor,
+                $bridgeFunctionAnchor + [Environment]::NewLine + $bridgeDeclarations.TrimEnd())
+            $bridgeFallback = $bridgeFallbackProbe.TrimEnd() + [Environment]::NewLine
+            $bridgeContent = $bridgeContent.Replace($bridgeAnchor, $bridgeAnchor + [Environment]::NewLine + $bridgeFallback)
+            Write-CmreUtf8NoBom -Path $bridgePath -Content $bridgeContent
+            Write-Host "Reborn start-point fallback applied to staged LibMapModBridge"
+        }
+    }
     # The Vibe kernel is project-owned runtime code. Dead of Night keeps a
     # compatibility mirror for its historical map package, while generic CMRE
     # maps use the registered project kernel when they do not carry a mirror.
@@ -1035,6 +1139,15 @@ function Install-CmreObserverOverlay {
     $mapScriptPath = Join-Path $MapPath "MapScript.galaxy"
     $mapScript = Read-CmreUtf8 -Path $mapScriptPath
     $isRebornZChar01 = $EnableReborn -and ($MapName -match '(?i)^zchar01_reborn_port(?:\.SC2Map)?$')
+    # The ally economy fragment is mission-owned CMRE behavior. Reborn and
+    # Revolution maps use their own campaign/mission startup and must only get
+    # the shared listener/initialization bridge from this overlay.
+    $cmreMapSource = Join-Path $WorkspaceRoot "src\projects\cmre-porting\packages\Maps\$MapName"
+    # Reborn campaign startup already owns the Computer-slot melee opening.
+    # Running CMRE's fallback MeleeInitUnitsForPlayer(2) as well creates a
+    # second P2 base/worker set. Keep the fallback for native CMRE maps only.
+    $enableCmreComputerAllyEconomy = (-not $EnableReborn) -and
+        (Test-Path -LiteralPath $cmreMapSource -PathType Container)
     # The map-owned Vibe kernel is a source library, not an external TriggerLib
     # dependency. The header-only include leaves the generated compilation unit
     # with declarations but no implementations, so InitMap never links.
@@ -1160,7 +1273,22 @@ bool gv_CmreOnDemandInitMapEntered = false;
     # 修复：InitTriggers() 之后 bank 已就绪，无条件补写一次。
     # 注意：Add-CmreLinesAfter 以整行文本判重，故此行必须与首行那句**文本不同**
     #（保留尾部 // CMRE_REASSERT 注释），否则会被当成已存在而被过滤掉。
-    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    InitTriggers();' -Lines @('    libVibeKernel_gf_WriteBankInt("index", "stage16_after_vibe", 160801);', '    libVibeKernel_gf_RegisterEntryPoints();', '    libMapModBridge_gf_WriteDebugBank("stage16_after_vibe", 1);', '    libMapModBridge_gf_WriteDebugBank("map_init_entered", 1); // CMRE_REASSERT', '    libDeadOfNightObserver_InitLib();', '    gt_CmreOnDemandRuntimeListener_Init();', '    gt_CmreOnDemandDeadOfNightPoll_Init();', '    gt_CmreOnDemandCommanderStartingUnits_Init();', '    gt_CmreOnDemandAllyChat_Init();', '    gt_CmreOnDemandComputerAllyReady_Init();', '    gt_CmreOnDemandInitializationGate_Init();')
+    $initTriggerLines = @('    libVibeKernel_gf_WriteBankInt("index", "stage16_after_vibe", 160801);', '    libVibeKernel_gf_RegisterEntryPoints();', '    libMapModBridge_gf_WriteDebugBank("stage16_after_vibe", 1);', '    libMapModBridge_gf_WriteDebugBank("map_init_entered", 1); // CMRE_REASSERT', '    libDeadOfNightObserver_InitLib();', '    gt_CmreOnDemandRuntimeListener_Init();', '    gt_CmreOnDemandDeadOfNightPoll_Init();', '    gt_CmreOnDemandCommanderStartingUnits_Init();', '    gt_CmreOnDemandAllyChat_Init();')
+    if ($enableCmreComputerAllyEconomy) {
+        $initTriggerLines += '    gt_CmreOnDemandComputerAllyReady_Init();'
+        Write-Host "CMRE computer ally economy: enabled for owned CMRE map $MapName"
+    } else {
+        Write-Host "CMRE computer ally economy: skipped for non-CMRE map $MapName"
+    }
+    if ($EnableReborn) {
+        # Reborn campaign maps may load Lib48DF4533 without dispatching its
+        # native Initialization event. InitMap is the reliable post-bootstrap owner.
+        # The trigger was created by InitLibs. Probe it before the gate below;
+        # the gate waits for reborn_adapter_initialized.
+        $initTriggerLines += '    TriggerExecute(gt_CmreRebornDeferredStartup, false, true);'
+    }
+    $initTriggerLines += '    gt_CmreOnDemandInitializationGate_Init();'
+    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    InitTriggers();' -Lines $initTriggerLines
     if ($isRebornZChar01) {
         $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor '    gt_CmreOnDemandComputerAllyReady_Init();' -Lines @('    gt_CmreRebornZChar01AllyGuard_Init();')
         $zcharTargetMarker = "CMRE_REBORN_ZCHAR01_SCRIPTED_TARGET_PATCH_V1"
