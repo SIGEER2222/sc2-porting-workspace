@@ -1,3 +1,4 @@
+import json
 import re
 from pathlib import Path
 
@@ -73,6 +74,44 @@ def test_launcher_accepts_an_explicit_read_only_map_source():
     assert '[string]$MapSourceOverride = ""' in source
     assert "Resolve-Path -LiteralPath $MapSourceOverride" in source
     assert 'Join-Path $mapSource "MapScript.galaxy"' in source
+
+
+def test_reborn_bank_authorization_covers_profile_runtime_and_debug_banks():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    body = _function_body(source, "Patch-RebornBankAuthorization")
+    assert "$bankListXml = [xml]$content" in body
+    assert "CMCoopLaunchProfile" in body
+    assert "cryswarmcoop" in body
+    assert "CMRERebornDebug" in body
+    assert "Players = @(1, 2)" in body
+    assert "Players = @(1, 2, 14)" in body
+    assert "all required bank authorizations already present" in body
+
+
+def test_reborn_deferred_startup_waits_for_required_start_locations():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    assert "CMRE_PATCH_REBORN_DEFERRED_STARTUP_V5" in source
+    deferred = source[source.index("CMRE_PATCH_REBORN_DEFERRED_STARTUP_V5") :]
+    assert "point lv_p1Start;" in deferred
+    assert "point lv_p2Start;" in deferred
+    assert "PlayerStartLocation(1)" in deferred
+    assert "PlayerStartLocation(2)" in deferred
+    assert "reborn_adapter_start_locations_ready" in deferred
+    assert 'libMapModBridge_gf_WriteDebugBank("reborn_adapter_deferred_entered", 1);' in deferred
+    assert "gv_CmreRebornDeferredStartupStarted" in deferred
+    assert 'libMapModBridge_gf_WriteDebugBank("reborn_adapter_start_locations_waiting", 1);' in deferred
+    assert "TriggerExecute(lib48DF4533_gt_SwarmSetup, false, true);" in deferred
+    assert "TriggerAddEventTimePeriodic(gt_CmreRebornDeferredStartup, 1.0, c_timeReal);" in deferred
+
+
+def test_reborn_loading_confirm_prefers_process_main_window():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    body = _function_body(source, "Send-CmreRebornLoadingConfirm")
+    assert "Prefer the process-reported shell" in body
+    assert "if ($process.MainWindowHandle -ne [IntPtr]::Zero)" in body
+    assert "FindInputWindow" in body
+    assert "score = 400" in body
+    assert "score = IsWindowVisible(hWnd) ? 200 : 100" in body
 
 
 def test_overlay_supports_reborn_generated_map_library_anchors():
@@ -362,6 +401,14 @@ def test_direct_map_api_mode_attaches_before_runtime_listener_gate():
     assert "function Send-CmreRebornLoadingConfirm" in source
     assert "sent Enter to SC2" in source
     assert "Send-CmreRebornLoadingConfirm -ProcessId $runtimePid" in source
+    assert "-Attempts 6 -RetryDelayMilliseconds 2000 -StopWhenRuntimeListenerStarts" in source
+    assert "[int]$Attempts = 1" in source
+    assert "Get-CmreRuntimeBankInt -Key \"runtime_listener_started\"" in source
+    assert "Get-CmreRuntimeBankInt -Key \"initialization_complete\"" in source
+    assert "keep clicking until the full initialization gate is complete" in source
+    assert "if ($attempt -gt 1 -and $listenerStarted -gt 0" in source
+    assert "initialization complete after confirmation input" in source
+    assert "stopping retries" in source
     assert "GetForegroundWindow" in source
     assert "public static uint SendEnter()" in source
     assert "SendEnter()" in source
@@ -370,9 +417,15 @@ def test_direct_map_api_mode_attaches_before_runtime_listener_gate():
     assert "sent Space to SC2" in source
     assert "public ulong unionPadding" in source
     assert "SendLoadingClick" in source
+    assert "FindWindowByClass" in source
+    assert '"D3DProxyWindow"' in source
+    assert "sent same-process D3D proxy input" in source
     assert "mouse_event" in source
     assert "PostMessage" in source
     assert "clicked continuation strip" in source
+    assert "hidden top-level D3DProxyWindow" in source
+    assert "(!IsWindowVisible(hWnd) && !isD3DProxy)" in source
+    assert "score = IsWindowVisible(hWnd) ? 200 : 100;" in source
 
 
 def test_reborn_loading_patch_preserves_mission_kind_and_only_disables_wait():
@@ -590,6 +643,8 @@ def test_reborn_headless_path_skips_only_campaign_cinematic():
     assert "TriggerExecute(gt_IntroCinematic, true, true);" in overlay
     assert "TriggerExecute(gt_IntroCinematicEnd, true, true);" in overlay
     assert "gv_introCinematicCompleted = false;" in overlay
+    assert "map has no intro completion state to reset" in overlay
+    assert "bool\\s+gv_introCinematicCompleted" in overlay
     assert "Preserve campaign setup and cleanup" in overlay
     assert "CMRE_REBORN_DEFER_PLAYABLE_STARTUP" not in overlay
     assert "TriggerAddEventTimeElapsed(gt_IntroQ, 0.0, c_timeGame);" not in overlay
@@ -599,6 +654,11 @@ def test_reborn_headless_path_skips_only_campaign_cinematic():
     assert 'libSwaC_gf_ULoadCampaignData("ZChar1");' in overlay
     assert 'libSwaC_gf_PurchaseStorymodeTech();' in overlay
     assert "CampaignMode/CampaignProgress UI services" in overlay
+    assert "campaignDataPattern" in overlay
+    assert "function Install-CmreRebornStandaloneCatalogGuard" in overlay
+    assert "CMRE_REBORN_STANDALONE_CATALOG_PLAYER_GUARD" in overlay
+    assert "EventPlayer()" in overlay
+    assert "Install-CmreRebornStandaloneCatalogGuard -MapPath $liveMap" in source
 
 
 def test_reborn_library_black_screen_patch_uses_declared_swarm_api():
@@ -614,7 +674,35 @@ def test_reborn_library_keeps_native_map_init_and_swarm_setup_path():
     assert "CMRE_PATCH_DEFERRED_INITIALIZATION" not in source
     assert "TriggerAddEventTimeElapsed(lib48DF4533_gt_Initialization, 0.0, c_timeGame);" not in source
     assert "TriggerAddEventMapInit(lib48DF4533_gt_Initialization);" in source
-    assert "TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);" in source
+    assert "CMRE_PATCH_REBORN_DEFERRED_STARTUP_V5" in source
+    assert "TriggerAddEventTimePeriodic(gt_CmreRebornDeferredStartup, 1.0, c_timeReal);" in source
+
+
+def test_reborn_deferred_start_only_requires_start_points_for_created_units():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    assert "$requiredStartPlayers = @($mapStartingUnitsPlayers | Sort-Object -Unique)" in source
+
+
+def test_reborn_deferred_start_uses_existing_prevent_defeat_as_start_witness():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    assert "lv_p1PreventDefeat" in source
+    assert "c_targetFilterPreventDefeat" in source
+    assert "UnitGetPosition(lv_existingStartUnit)" in source
+
+
+def test_reborn_overlay_patches_bridge_start_point_fallback():
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    assert "CMRE_REBORN_START_POINT_FALLBACK_V1" in overlay
+    assert "Reborn start-point fallback applied to staged LibMapModBridge" in overlay
+    assert "Galaxy requires local declarations to precede executable statements." in overlay
+    assert "$bridgeFunctionAnchor = 'void libMapModBridge_gf_CreateStartingUnits" in overlay
+    assert "+ [char]123" in overlay
+    assert "$bridgeAnchor = '    int lv_reused = 0;'" in overlay
+    assert "$bridgeFallbackDeclarations" in overlay
+    assert "$bridgeFallbackProbe" in overlay
+    assert "TriggerExecute(gt_CmreRebornDeferredStartup, false, true);" in source
+    assert "gt_CmreRebornDeferredStartup_Init();" in source
 
 
 def test_reborn_library_init_matches_crlf_swarm_setup_tail():
@@ -625,6 +713,34 @@ def test_reborn_library_init_matches_crlf_swarm_setup_tail():
     assert "[regex]::Matches($content, $swarmSetupEndPattern)" in source
     assert "expected exactly one SwarmSetup_Func end marker" in source
     assert "Contains($swarmSetupEndMarker)" not in source
+
+
+def test_reborn_zerg_startup_does_not_inject_synthetic_tech_bundle():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    gate = (ASSETS / "startup" / "initialization-gate.galaxy").read_text(encoding="utf-8-sig")
+    commanders = json.loads(
+        (ROOT / "src" / "config" / "reborn-commanders.json").read_text(encoding="utf-8-sig")
+    )["commanders"]
+    zerg_commanders = {
+        commander["id"]
+        for commander in commanders
+        if commander.get("race") == "Zerg"
+    }
+
+    assert zerg_commanders == {
+        "Abathur",
+        "Dehaka",
+        "Izsha",
+        "Kerrigan",
+        "Naktul",
+        "Stukov",
+        "Zagara",
+    }
+    assert "libRebornAdapter_gf_CreateZergStartingBuildings" not in source
+    assert "zerg_starting_buildings_created_p1" not in gate
+    assert "zerg_starting_buildings_created_p2" not in gate
+    assert "libRebornAdapter_gf_UnlockAllZergUnits(1);" in source
+    assert "libRebornAdapter_gf_UnlockAllZergUnits(2);" in source
 
 
 def test_staged_invoke_bundle_disables_the_optional_funcref_table():
@@ -827,6 +943,36 @@ def test_observer_overlay_mounts_invoke_bundle_with_rollout_tiers():
     assert "LibVibeInvokeDispatch_tier" in body
     assert "Invoke tier $InvokeTier dispatch variant missing" in body
     assert "if (-not $InvokeFull -and ((([int]$Matches[1] - 1) * 400) + 1) -gt $InvokeTier) { continue }" in body
+
+
+def test_reborn_observer_overlay_triggers_deferred_startup_from_initmap():
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+    body = _function_body(overlay, "Install-CmreObserverOverlay")
+
+    assert "$initTriggerLines = @(" in body
+    assert "if ($EnableReborn)" in body
+    assert "TriggerExecute(gt_CmreRebornDeferredStartup, false, true);" in body
+    assert "InitMap is the reliable post-bootstrap owner" in body
+    assert "gt_CmreOnDemandInitializationGate_Init();" in body
+    assert body.index("TriggerExecute(gt_CmreRebornDeferredStartup, false, true);") < body.index("gt_CmreOnDemandInitializationGate_Init();")
+
+
+def test_non_cmre_maps_skip_cmre_owned_computer_ally_economy():
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+    body = _function_body(overlay, "Install-CmreObserverOverlay")
+
+    assert '$cmreMapSource = Join-Path $WorkspaceRoot "src\\projects\\cmre-porting\\packages\\Maps\\$MapName"' in body
+    assert "$enableCmreComputerAllyEconomy = Test-Path -LiteralPath $cmreMapSource -PathType Container" in body
+    assert 'CMRE computer ally economy: skipped for non-CMRE map' in body
+    assert 'gt_CmreOnDemandComputerAllyReady_Init();' in body
+
+
+def test_reborn_k5_structures_guard_rejects_invalid_event_player():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "CMRE_PATCH_REBORN_K5_STRUCTURES_PLAYER_GUARD_V1" in source
+    assert "if (EventPlayer() < 1 || EventPlayer() > 15)" in source
+    assert "K5StructuresComplete player guard anchor not found" in source
 
 
 def test_observer_overlay_keeps_stage26_bundle_out_of_default_webui_launches():

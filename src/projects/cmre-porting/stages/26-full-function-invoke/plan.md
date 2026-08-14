@@ -15,10 +15,12 @@ handle registry. No runtime reflection is introduced.
 - `arbitrary_reflection: false` remains true. Dispatch is a statically
   generated integer dispatch table; function IDs are assigned by the generator
   and recorded in `invoke-plan.json`.
-- Historical declaration parity remains an open reconciliation item: the current
-  clean scan contains 35,314 declarations (22,780 owned-package declarations
-  plus 12,534 CMRE-dev declarations) versus the historical 35,404 baseline.
-  CMRE-dev contributes zero unique signatures beyond the owned source. Stage 26
+- Historical declaration parity is explained by the frozen Stage 25 baseline:
+  the current clean scan contains 35,314 declarations (22,780 owned-package
+  declarations plus 12,534 CMRE-dev declarations) versus the historical 35,404
+  baseline. The missing 90 entries are CMRE-dev redundant-layer declarations
+  removed between scans; CMRE-dev contributes zero unique signatures beyond the
+  owned source, so the difference has no adapter-coverage impact. Stage 26
   therefore consumes the reproducible 22,780 owned declarations and emits
   11,676 callable adapters with 155 explicit exclusions; 603 funcref candidates
   remain after excluding uncallable and MapScript-local targets.

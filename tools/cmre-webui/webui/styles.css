@@ -215,6 +215,9 @@ body { display: flex; flex-direction: column; }
 .advanced-section { margin-bottom: 10px; }
 .advanced-section:last-child { margin-bottom: 0; }
 .advanced-section > label { display: block; color: var(--text-secondary); font-size: 11px; margin-bottom: 4px; }
+.advanced-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.advanced-section-head > label { margin-bottom: 0; }
+.advanced-section-head .btn-tiny { padding: 3px 8px; font-size: 10px; }
 .tip { font-size: 10px !important; color: var(--text-muted) !important; line-height: 1.4; margin: 2px 0 4px; padding: 0 !important; }
 
 /* === 敌方 === */
@@ -271,6 +274,25 @@ body { display: flex; flex-direction: column; }
   gap: 6px;
   width: 100%;
   align-content: start;
+}
+.commander-groups, .map-groups { display: flex; flex-direction: column; gap: 18px; }
+.commander-group, .map-group { min-width: 0; }
+.commander-group-heading, .map-group-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0 0 6px;
+  border-bottom: 1px solid rgba(37,107,169,0.45);
+}
+.commander-group-heading h2, .map-group-heading h2 {
+  color: var(--accent-blue);
+  font-size: 13px;
+  font-weight: bold;
+}
+.commander-group-heading span, .map-group-heading span {
+  color: var(--text-muted);
+  font-size: 10px;
 }
 .cmdr-grid-item {
   display: flex;
@@ -350,7 +372,8 @@ body { display: flex; flex-direction: column; }
 .map-item:hover { border-color: var(--border-hover); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
 .map-item.selected { border-color: var(--accent-blue); box-shadow: 0 0 8px rgba(141,208,255,0.3); }
 .map-item-preview {
-  height: 110px;
+  aspect-ratio: 16 / 9;
+  height: auto;
   background: var(--bg-deep);
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;

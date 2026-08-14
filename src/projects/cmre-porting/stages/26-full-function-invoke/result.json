@@ -3,7 +3,7 @@
   "stage": "26-full-function-invoke",
   "status": "PASS_WITH_GAP",
   "evidence_type": "mixed",
-  "summary": "全函数 function.invoke 的静态部分已达成：clean catalog 为 22,780 个 owned-source 声明和 242 个 canonical-kernel 声明；生成器仅消费 owned source，产出 11,676 个类型化 gen.<int> 静态分派 adapter 与 155 个显式排除项。862 个生成/kernel Galaxy 文件 0 解析错误，最新 run-all-validation 为 52/52 通过，三副本 hash 一致；历史 35,404 声明基线仍有 90 条开放静态差异。2026-08-10 的 approved launcher 已完成实际放量：Tier 100（C:/tmp/CMREStage26-Approved-Tier100-20260810.SC2Map，3,403,359B，EFAAC5D8...005CFBB4）中 gen.1 成功、gen.202 按范围预期 FUNCTION_NOT_IN_MAP；Tier 1000（3,495,092B，D7DD3982...80237F34）和 -InvokeFull（4,070,657B，7828FCE5...C0E7A66）均使 gen.1 -> fixed 0、gen.202 -> int 2 成功。三次均由启动器拥有的 API 实例完成 CreateGame/JoinGame、kernel_initialized=1、register_entrypoints_done=1、system.ping、vibe.unit.spawn 的 raw observation +1 Marine、query.units=1，且同窗口零新增非空 ScriptError。TerranAlenger3 预选启动日志与上述真实进入地图闭环共同证明启动器不再等待指挥官选择界面。InvokeTier=0 保持生成 adapter 禁用的稳定 WebUI 基线，绝不再当作全量放量。Module 1 Step 4 类型族抽样与只读普查仍如实记录为运行时样本证据。2026-08-11 WebUI 新增已绑定 detached session 的安全重启实现（56 项静态回归），但最终双击 map-entry MVP 被无归属的外部 API SC2 会话阻塞，保持 BLOCKED；历史 35,404 声明基线的 90 条静态对账差异也继续保留。",
+  "summary": "全函数 function.invoke 的静态部分已达成：clean catalog 为 22,780 个 owned-source 声明和 242 个 canonical-kernel 声明；生成器仅消费 owned source，产出 11,676 个类型化 gen.<int> 静态分派 adapter 与 155 个显式排除项。862 个生成/kernel Galaxy 文件 0 解析错误，最新 run-all-validation 为 52/52 通过，三副本 hash 一致；历史 35,404 与当前 35,314 的 90 条差异已由 Stage 25 冻结基线解释为 cmre-dev 冗余层，对 adapter coverage 无影响。2026-08-10 的 approved launcher 已完成实际放量：Tier 100（C:/tmp/CMREStage26-Approved-Tier100-20260810.SC2Map，3,403,359B，EFAAC5D8...005CFBB4）中 gen.1 成功、gen.202 按范围预期 FUNCTION_NOT_IN_MAP；Tier 1000（3,495,092B，D7DD3982...80237F34）和 -InvokeFull（4,070,657B，7828FCE5...C0E7A66）均使 gen.1 -> fixed 0、gen.202 -> int 2 成功。三次均由启动器拥有的 API 实例完成 CreateGame/JoinGame、kernel_initialized=1、register_entrypoints_done=1、system.ping、vibe.unit.spawn 的 raw observation +1 Marine、query.units=1，且同窗口零新增非空 ScriptError。TerranAlenger3 预选启动日志与上述真实进入地图闭环共同证明启动器不再等待指挥官选择界面。InvokeTier=0 保持生成 adapter 禁用的稳定 WebUI 基线，绝不再当作全量放量。2026-08-12 已补充真实浏览器点击 WebUI 地图标签的证据：66 张地图卡片均为中文显示名，虫心 20 张、起义狂潮 31 张，原始英文 ID/文件名不可见且浏览器无错误；截图和 DOM 证据已归档。2026-08-13 串行复跑 WebUI 回归为 19+2+1 全部通过；并发批次的一次 Bank 读取超时不作为结论。Module 1 Step 4 类型族抽样与只读普查仍如实记录为运行时样本证据。2026-08-11 WebUI 新增已绑定 detached session 的安全重启实现（56 项静态回归），但最终双击 map-entry MVP 被无归属的外部 API SC2 会话阻塞，保持 BLOCKED；structref 参数族已确认无 producer，继续 fail-closed。",
   "changed_paths": [
     "src/projects/cmre-porting/project.json",
     "src/projects/cmre-porting/stages/26-full-function-invoke/plan.md",
@@ -46,6 +46,9 @@
     "src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map/Base.SC2Data/LibCOOC.galaxy",
     "tools/cmre-webui/server.py",
     "tools/cmre-webui/test_launch_async_contract.py",
+    "tools/cmre-webui/webui/app.js",
+    "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-browser-20260812/maps-tab-dom.json",
+    "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-browser-20260812/maps-tab.png",
     "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-repeat-launch-validation-20260811.json",
     "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/preselected-commander-overlay-20260808.json",
     "tools/galaxy-vibe/tier100_live_probe.py",
@@ -98,7 +101,7 @@
       "name": "catalog-source-boundary-and-reconciliation",
       "command": "node src/projects/cmre-porting/stages/25-ai-ally-capability-completion/discover_function_catalog.mjs --out artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog-full-clean.json --source cmre-owned-project=src/projects/cmre-porting/packages --source cmre-dev=<approved-local-binding>",
       "status": "PASS",
-      "detail": "35,314 clean declarations, 0 parse errors; owned source contributes 22,780 declarations, cmre-dev contributes 12,534, and the combined unique-signature set adds 0 beyond owned source. Historical 35,404 parity remains an open 90-declaration reconciliation item.",
+      "detail": "35,314 clean declarations, 0 parse errors; owned source contributes 22,780 declarations, cmre-dev contributes 12,534, and the combined unique-signature set adds 0 beyond owned source. Stage 25 froze this as catalog-baseline.json (SHA-256 prefix 93659957...); the historical 90-entry difference is explained as removed cmre-dev redundant-layer declarations and has no adapter-coverage impact.",
       "evidence": "artifacts/projects/cmre-porting/stage25-ai-ally-capability-completion/discovery/function-catalog-full-clean.json"
     },
     {
@@ -106,6 +109,13 @@
       "command": "python -m pytest -q src/projects/cmre-porting/stages/26-full-function-invoke/test_generate_invoke_adapters.py",
       "status": "PASS",
       "detail": "新鲜合并回归为 92 passed（Stage 26 生成器 33 + kernel 59）：调用计划 11,676 个 callable adapter、id 1..11676 连续无重复、每参数编解码方案齐全、funcref/structref 标注、注册表契约（11,676 gen + 20 手写、debug_only/generated）、whitelist handle.*、产物齐全、顶层路由与片内成员一致、tier 变体、整数 id 优先、strategy 拒绝、DebugVm 整数 id 一致、fake-bridge 基础类型/句柄往返/未知句柄/FUNCREF 拒绝"
+    },
+    {
+      "name": "structref-producer-audit",
+      "command": "node -e \"const fs=require('fs'); const x=JSON.parse(fs.readFileSync('artifacts/projects/cmre-porting/stage26-full-function-invoke/invoke-plan.json','utf8')); const returns=x.functions.filter(e=>e.return_class==='structref'); const params=x.functions.filter(e=>e.params.some(p=>p.class==='structref')); if(returns.length!==0 || params.map(e=>e.id).join(',')!=='9746,9747') process.exit(1); console.log(JSON.stringify({structref_returns:returns.length,structref_parameter_ids:params.map(e=>e.id)}));\"",
+      "status": "PASS",
+      "detail": "invoke-plan.json 中 structref return=0；仅 gen.9746/libCOTF_gf_HistogramHorizontalCreate 与 gen.9747/libCOTF_gf_HistogramVerticalCreate 含 structref 参数。生成器对该族保持 fail-closed，不伪造 producer 或 runtime success。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/invoke-plan.json"
     },
     {
       "name": "galaxy-static-parse-gate",
@@ -209,6 +219,52 @@
       "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-launch-runtime-20260810-194607.json"
     },
     {
+      "name": "webui-matrix-reborn-alenger",
+      "command": "POST /api/launch-async with mapPackage=reborn, commanderPackage=cmre, commander=TerranAlenger3, then poll CMRERebornDebug.SC2Bank and stop via /api/stop",
+      "status": "PASS",
+      "detail": "虫心 zexpedition03 × CMRE/Alenger TerranAlenger3。实际 SC2 命令行指向 zexpedition03.SC2Map；map_init_entered=1、runtime_listener_ready=1、initialization_complete=1、reborn_adapter_initialized=1、world_cover_dialog_visible_p1=0；heartbeat 46 -> 73 持续递增；本轮无新增非空 ScriptError。WebUI stop 精确结束本轮 PID 32964。矩阵累计 5/9。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-matrix-20260812/reborn-zexpedition03-TerranAlenger3-PASS-20260812.json"
+    },
+    {
+      "name": "webui-matrix-reborn-reborn-commander",
+      "command": "POST /api/launch-async with mapPackage=reborn, commanderPackage=cmre, commander=ZergAbathur, rebornCommander=Abathur, then poll CMRERebornDebug.SC2Bank and cryswarmcoop.SC2Bank",
+      "status": "PASS",
+      "detail": "虫心 zexpedition03 × Reborn Abathur。实际命令行指向 zexpedition03.SC2Map；cryswarmcoop.SC2Bank/Commanders/Commander=Abathur；map_init_entered=1、runtime_listener_ready=1、initialization_complete=1、reborn_adapter_initialized=1、world_cover_dialog_visible_p1=0；heartbeat 1 -> 38 持续递增；本轮无新增非空 ScriptError。WebUI stop 精确结束本轮 PID 34632。矩阵累计 6/9。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-matrix-20260812/reborn-zexpedition03-RebornZergAbathur-PASS-20260812.json"
+    },
+    {
+      "name": "webui-map-display-localization",
+      "command": "CMRE_WEBUI_DRY_RUN=1 python server.py --port 8797 --no-browser; GET /api/maps",
+      "status": "PASS",
+      "detail": "真实 HTTP API 返回 CMRE/虫心/起义狂潮分组 15/20/31，共 66 张地图；所有内部 id 保留 .SC2Map 文件键，所有用户可见 name 均为显式中文，且系列前缀分别为 [虫心] 与 [起义狂潮]。页面地图卡片、页脚和预设提示读取 name。",
+      "evidence": "tools/cmre-webui/test_launch_async_contract.py::test_all_current_map_display_names_are_explicit_chinese_and_ids_stay_internal; tools/cmre-webui/test_launch_async_contract.py::test_map_display_registry_covers_every_owned_map_source; 2026-08-12 HTTP /api/maps MVP output",
+      "owner": "stage26"
+    },
+    {
+      "name": "webui-map-localization-targeted-regressions",
+      "command": "python -m pytest -q tools/cmre-webui/test_launch_async_contract.py tools/cmre-webui/test_revolution_overdrive.py tools/cmre-webui/test_runtime_contract.py",
+      "status": "PASS",
+      "detail": "按依赖顺序串行执行后 19+2+1 全部通过；Python/JavaScript syntax checks 与 git diff --check 通过。旧 test_smoke.py 仍为 33/37，剩余 4 项为既有非地图基线失败，已在 stage log 记录，地图 API 检查本身通过。",
+      "evidence": "stage log 2026-08-12/13 WebUI map display localization and browser reconciliation PASS",
+      "owner": "stage26"
+    },
+    {
+      "name": "webui-map-localization-browser-dom",
+      "command": "CMRE_WEBUI_DRY_RUN=1 python tools/cmre-webui/server.py --port 8795 --no-browser; Playwright Chromium CDP 导航 http://127.0.0.1:8795/ 并点击 button[data-tab=maps]，读取 #map-list DOM 后截图",
+      "status": "PASS",
+      "detail": "真实浏览器页面点击地图标签后渲染 66 个地图卡片；[虫心] 20 张、[起义狂潮] 31 张、CMRE 15 张。所有 .map-item-name 为中文，页面可见文本不含原始英文 ID/文件名，window.error 与 unhandledrejection 均为空；截图确认地图页激活且卡片布局正常。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-browser-20260812/maps-tab-dom.json; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-browser-20260812/maps-tab.png",
+      "owner": "stage26"
+    },
+    {
+      "name": "webui-8767-live-instance-map-localization",
+      "command": "检查并重启 http://127.0.0.1:8767/ 的旧 WebUI 进程；Playwright Chromium CDP 导航同一 URL，点击 button[data-tab=maps]，读取 DOM 并截图",
+      "status": "PASS",
+      "detail": "旧实例实际暴露 zchar01/thorner03，已确认是 2026-08-12 启动的缓存旧进程。按原端口重启后，真实浏览器页面渲染 66 张地图卡片：CMRE 15、[虫心] 20、[起义狂潮] 31；原始 ID/英文文件名不可见，浏览器无错误。8767 当前服务保持运行。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-browser-20260813-8767/maps-tab-dom-after-restart.json; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-browser-20260813-8767/maps-tab-after-restart.png",
+      "owner": "stage26"
+    },
+    {
       "name": "webui-owned-detached-session-restart",
       "command": "POST /api/launch-async twice with TerranAlenger3 + 亡者之夜.SC2Map",
       "status": "BLOCKED",
@@ -221,6 +277,14 @@
       "detail": "早先 08:0x 的 spawn+仿真引擎崩溃保留为环境历史；其后完整生成图在 18:33 与 19:32 的独立 SC2 API 会话中均通过全部 tier100_probe 断言，证明 full-map 的 gen.* 原生执行已再次可复现。此 PASS 不扩展为 launcher tier rollout 或 census 的 PASS。",
       "evidence": "artifacts/galaxy-vibe/tier100-live-verdict-1829.json, artifacts/galaxy-vibe/tier100-live-verdict-1924.json",
       "owner": "environment"
+    },
+    {
+      "name": "runtime-reborn-zerg-opening-census",
+      "command": "python tools/galaxy-vibe/p1_probe.py --map E:/SC2/SC2new/StarCraft II/Maps/reborn-abathur-no-techbundle-20260812.SC2Map --unit-type Marine --count 1 --player 1 --wait 90 --rpc-wait 20",
+      "status": "PASS",
+      "detail": "同一打包地图在独占 SC2 API :5021 完成 CreateGame/JoinGame、kernel_initialized=1 与 P1-A/P1-B/P1-C。P1 baseline 共 35 单位：Drone=24、Hatchery=2、Larva=6、Overlord=1、CoopCasterAbathur=1、ACHeroSpawnPlacement=1；无额外 synthetic Zerg 建筑。注入 Marine 后 raw observation 全量 delta 仅为 Marine +1，query.units=1 与观测一致。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/reborn-abathur-opening-census-20260812.json",
+      "owner": "stage26"
     },
     {
       "id": "n1-gen007-kernel-fix",
@@ -243,6 +307,9 @@
     "galaxy_files_parsed": 862,
     "parse_errors": 0,
     "excluded_total": 155,
+    "structref_return_functions": 0,
+    "structref_parameter_functions": 2,
+    "structref_parameter_ids": [9746, 9747],
     "excluded_breakdown": {
       "unsupported_type": 29,
       "ambiguous_overloads": 7,
@@ -271,7 +338,26 @@
       "fresh_bank": true,
       "env_verdict": "ok",
       "script_error_new": 0,
-      "determinism": "3s vs 10s 超时两次采样一致"
+      "determinism": "3s vs 10s 超时两次采样一致",
+      "reborn_zerg_opening_census": {
+        "tested_commander": "Abathur",
+        "covered_static_commanders": ["Abathur", "Dehaka", "Izsha", "Kerrigan", "Naktul", "Stukov", "Zagara"],
+        "baseline_total_units": 35,
+        "baseline_counts": {
+          "Drone": 24,
+          "Hatchery": 2,
+          "Larva": 6,
+          "Overlord": 1,
+          "CoopCasterAbathur": 1,
+          "ACHeroSpawnPlacement": 1
+        },
+        "synthetic_extra_zerg_buildings": 0,
+        "post_probe_delta": {"Marine": 1},
+        "map_sha256": "AB84EF43D197F483DEF46330DF214ADAC6C2ADCB33B4419985BFC5598FC4D515",
+        "map_bytes": 3980547,
+        "p1_pass": true,
+        "script_error_new": 0
+      }
     }
   },
   "next_actions": [
@@ -279,7 +365,7 @@
     "保持 approved-launcher 放量契约：仅用 -InvokeTier 100、-InvokeTier 1000、-InvokeFull 作为 Stage 26 runtime evidence；InvokeTier=0 继续作为 generated bundle disabled 的稳定基线，旧的同 hash T100/T1000 重命名图不再复用。",
     "保留并复核已完成的 runtime_invoke_probe.py --sample/--census 证据；除非扩大任务范围，不要重复运行会改变任务状态的全量普查。",
     "【N1 结论 2026-08-09 08:5x：内核单点 ReloadBank 治本实验 ABANDONED 并已回退】。A/B 真机证明重发是 Bank RPC 通道固有方差（两图每轮均 ~1 次重发），单点 ReloadBank 未关窗。真正兜底是 Host at-least-once 重发。治本方向改为：将 RPC 通道(request/response/index)与模型状态库(p2_*)拆成独立 bank 文件，使 WriteModelP2Snapshot 的 BankSave 不再覆盖 RPC 请求/响应。这是更大的数据/内核改造，列为独立 N 项，本次不实施。",
-    "对照历史 35,404 声明清单解释当前 clean scan 的 90 条差异；CMRE-dev 当前未贡献 owned source 之外的唯一签名",
+    "保持 catalog-baseline.json（35,314 declarations，SHA-256 前缀 93659957...）作为可复现基线；历史 90 条差异已解释为 cmre-dev 冗余层，对 adapter coverage 无影响，不再重复寻找缺失条目",
     "【N1 后继·真正治本 2026-08-09 08:5x】将 VIBE_GEN_007 的根因（Bank 双写单文件全量覆盖无锁）通过**架构级改造**消除：把 RPC 通道(request/response/index)与模型状态库(p2_*)拆成两个独立 bank 文件，使 WriteModelP2Snapshot 的 BankSave 只写 p2_* 库、绝不再覆盖 Host 写入的 RPC 请求/响应。实现点：① Data Editor 新增独立 Bank 名（如 GalaxyVibeRPC / GalaxyVibeModel）；② Host 侧 write_bank_request / read_bank 按通道分库读写；③ 内核 PollLoop 仅对 p2_* 库做 BankSave，RPC 库只读（ReloadBank 拉请求）不写覆盖。改造后 Host at-least-once 重发可降级为 best-effort（去重仍保留）。需重打包两张图 + 真机复验 reasserts 趋 0。"
   ]
 }
