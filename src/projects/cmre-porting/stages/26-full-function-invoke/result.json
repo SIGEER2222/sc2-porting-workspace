@@ -3,7 +3,7 @@
   "stage": "26-full-function-invoke",
   "status": "PASS_WITH_GAP",
   "evidence_type": "mixed",
-  "summary": "全函数 function.invoke 的静态部分已达成：clean catalog 为 22,780 个 owned-source 声明和 242 个 canonical-kernel 声明；生成器仅消费 owned source，产出 11,676 个类型化 gen.<int> 静态分派 adapter 与 155 个显式排除项。862 个生成/kernel Galaxy 文件 0 解析错误，最新 run-all-validation 为 52/52 通过，三副本 hash 一致；历史 35,404 与当前 35,314 的 90 条差异已由 Stage 25 冻结基线解释为 cmre-dev 冗余层，对 adapter coverage 无影响。2026-08-10 的 approved launcher 已完成实际放量：Tier 100（C:/tmp/CMREStage26-Approved-Tier100-20260810.SC2Map，3,403,359B，EFAAC5D8...005CFBB4）中 gen.1 成功、gen.202 按范围预期 FUNCTION_NOT_IN_MAP；Tier 1000（3,495,092B，D7DD3982...80237F34）和 -InvokeFull（4,070,657B，7828FCE5...C0E7A66）均使 gen.1 -> fixed 0、gen.202 -> int 2 成功。三次均由启动器拥有的 API 实例完成 CreateGame/JoinGame、kernel_initialized=1、register_entrypoints_done=1、system.ping、vibe.unit.spawn 的 raw observation +1 Marine、query.units=1，且同窗口零新增非空 ScriptError。TerranAlenger3 预选启动日志与上述真实进入地图闭环共同证明启动器不再等待指挥官选择界面。InvokeTier=0 保持生成 adapter 禁用的稳定 WebUI 基线，绝不再当作全量放量。2026-08-12 已补充真实浏览器点击 WebUI 地图标签的证据：66 张地图卡片均为中文显示名，虫心 20 张、起义狂潮 31 张，原始英文 ID/文件名不可见且浏览器无错误；截图和 DOM 证据已归档。2026-08-13 串行复跑 WebUI 回归为 19+2+1 全部通过；并发批次的一次 Bank 读取超时不作为结论。Module 1 Step 4 类型族抽样与只读普查仍如实记录为运行时样本证据。2026-08-11 WebUI 新增已绑定 detached session 的安全重启实现（56 项静态回归），但最终双击 map-entry MVP 被无归属的外部 API SC2 会话阻塞，保持 BLOCKED；structref 参数族已确认无 producer，继续 fail-closed。",
+  "summary": "全函数 function.invoke 的静态部分已达成：clean catalog 为 22,780 个 owned-source 声明和 242 个 canonical-kernel 声明；生成器仅消费 owned source，产出 11,676 个类型化 gen.<int> 静态分派 adapter 与 155 个显式排除项。862 个生成/kernel Galaxy 文件 0 解析错误，最新 run-all-validation 为 52/52 通过，三副本 hash 一致；历史 35,404 与当前 35,314 的 90 条差异已由 Stage 25 冻结基线解释为 cmre-dev 冗余层，对 adapter coverage 无影响。2026-08-10 的 approved launcher 已完成实际放量：Tier 100（C:/tmp/CMREStage26-Approved-Tier100-20260810.SC2Map，3,403,359B，EFAAC5D8...005CFBB4）中 gen.1 成功、gen.202 按范围预期 FUNCTION_NOT_IN_MAP；Tier 1000（3,495,092B，D7DD3982...80237F34）和 -InvokeFull（4,070,657B，7828FCE5...C0E7A66）均使 gen.1 -> fixed 0、gen.202 -> int 2 成功。三次均由启动器拥有的 API 实例完成 CreateGame/JoinGame、kernel_initialized=1、register_entrypoints_done=1、system.ping、vibe.unit.spawn 的 raw observation +1 Marine、query.units=1，且同窗口零新增非空 ScriptError。TerranAlenger3 预选启动日志与上述真实进入地图闭环共同证明启动器不再等待指挥官选择界面。InvokeTier=0 保持生成 adapter 禁用的稳定 WebUI 基线，绝不再当作全量放量。2026-08-12 已补充真实浏览器点击 WebUI 地图标签的证据：66 张地图卡片均为中文显示名，虫心 20 张、起义狂潮 31 张，原始英文 ID/文件名不可见且浏览器无错误；截图和 DOM 证据已归档。2026-08-13 串行复跑 WebUI 回归为 19+2+1 全部通过；并发批次的一次 Bank 读取超时不作为结论。Module 1 Step 4 类型族抽样与只读普查仍如实记录为运行时样本证据。2026-08-11 WebUI 新增已绑定 detached session 的安全重启实现（56 项静态回归），但最终双击 map-entry MVP 被无归属的外部 API SC2 会话阻塞，保持 BLOCKED；structref 参数族已确认无 producer，继续 fail-closed。2026-08-13 新增 Reborn Abathur Larva card parity gate：原版基线含 28 个卡牌命令和精确产物；有效 approved-launcher 真机先启用 all_resources、tech_tree、fast_build，再在 79 次 loop 19..974、P1 Larva 6..17 的 readiness 样本中只公开 LarvaTrain,2，与基线交集为 0；fresh controlled Larva 同样缺失全部 28 命令。P1/P2 的 Drone/Hatchery/Larva/Overlord census 与同窗口零新增非空 ScriptError 已记录，但不能掩盖该高优先级 runtime FAIL。",
   "changed_paths": [
     "src/projects/cmre-porting/project.json",
     "src/projects/cmre-porting/stages/26-full-function-invoke/plan.md",
@@ -47,12 +47,27 @@
     "tools/cmre-webui/server.py",
     "tools/cmre-webui/test_launch_async_contract.py",
     "tools/cmre-webui/webui/app.js",
+    "tools/cmre-webui/webui/index.html",
+    "tools/cmre-webui/webui/styles.css",
+    "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-grouped-mod-on-demand-20260813/verify-webui-grouped-mods.mjs",
+    "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-grouped-mod-on-demand-20260813/grouped-mod-on-demand.json",
+    "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-grouped-mod-on-demand-20260813/grouped-mod-on-demand.png",
+    "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-map-preview-cache/**",
+    "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-map-preview-20260813/maps-tab-images-dom.json",
+    "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-map-preview-20260813/maps-tab-with-previews.png",
     "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-browser-20260812/maps-tab-dom.json",
     "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-browser-20260812/maps-tab.png",
     "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-repeat-launch-validation-20260811.json",
     "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/preselected-commander-overlay-20260808.json",
     "tools/galaxy-vibe/tier100_live_probe.py",
     "src/projects/cmre-porting/stages/26-full-function-invoke/test_vm_all_internal_coverage.py"
+    ,"src/projects/cmre-porting/stages/26-full-function-invoke/generate_reborn_abathur_baseline.py"
+    ,"src/projects/cmre-porting/stages/26-full-function-invoke/reborn_abathur_check.py"
+    ,"src/projects/cmre-porting/stages/26-full-function-invoke/reborn_abathur_runtime_probe.py"
+    ,"src/projects/cmre-porting/stages/26-full-function-invoke/test_reborn_abathur_check.py"
+    ,"src/projects/cmre-porting/stages/26-full-function-invoke/archive/log-2026-08-13.md"
+    ,"artifacts/projects/cmre-porting/stage26-full-function-invoke/reborn-abathur-baseline.json"
+    ,"artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/reborn-abathur-larva-runtime-20260813-011000-final.json"
   ],
   "verification": [
     {
@@ -265,6 +280,22 @@
       "owner": "stage26"
     },
     {
+      "name": "webui-8767-map-preview-images",
+      "command": "重启 http://127.0.0.1:8767/；Playwright Chromium CDP 点击地图标签，逐卡片滚动触发 lazy 图片加载并检查 naturalWidth",
+      "status": "PASS",
+      "detail": "66 张地图均返回真实 preview；浏览器实际加载 66/66 张图片，全部 complete 且 naturalWidth>0，占位块 0，Minimap 路径 0。虫心和起义狂潮 51/51 使用从本机 SC2 CASC 提取的官方宽幅加载画面 DDS；三段实际地图列表滚动截图已人工复核为任务场景/星球/战役画面，CMRE 继续使用已有预览图。",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-map-preview-wide-20260813/maps-tab-wide-dom.json; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-map-preview-wide-20260813/maps-tab-top.png; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-map-preview-wide-20260813/maps-tab-middle.png; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-map-preview-wide-20260813/maps-tab-bottom.png; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-map-preview-wide-20260813/verify-webui-map-previews.mjs",
+      "owner": "stage26"
+    },
+    {
+      "name": "webui-commander-map-grouping-and-mod-on-demand",
+      "command": "python -m pytest -q tools/cmre-webui; node --check tools/cmre-webui/webui/app.js; isolated Edge CDP navigate http://127.0.0.1:8767/, inspect grouped DOM, click advanced-body",
+      "status": "PASS",
+      "detail": "27 WebUI tests passed. Fresh browser DOM showed 4 commander groups (official/alenger/reborn/revolution-overdrive), 50 commander cards, 3 map groups, and 66 map cards. Initial /api/extra-mods requests=0; after clicking Advanced Options, /api/extra-mods?commander=Raynor was requested and 34 optional Mod items rendered. Cache versions were app.js/styles.css v13.",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-grouped-mod-on-demand-20260813/grouped-mod-on-demand.json; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-grouped-mod-on-demand-20260813/grouped-mod-on-demand.png; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-grouped-mod-on-demand-20260813/verify-webui-grouped-mods.mjs",
+      "owner": "stage26"
+    },
+    {
       "name": "webui-owned-detached-session-restart",
       "command": "POST /api/launch-async twice with TerranAlenger3 + 亡者之夜.SC2Map",
       "status": "BLOCKED",
@@ -284,6 +315,14 @@
       "status": "PASS",
       "detail": "同一打包地图在独占 SC2 API :5021 完成 CreateGame/JoinGame、kernel_initialized=1 与 P1-A/P1-B/P1-C。P1 baseline 共 35 单位：Drone=24、Hatchery=2、Larva=6、Overlord=1、CoopCasterAbathur=1、ACHeroSpawnPlacement=1；无额外 synthetic Zerg 建筑。注入 Marine 后 raw observation 全量 delta 仅为 Marine +1，query.units=1 与观测一致。",
       "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/reborn-abathur-opening-census-20260812.json",
+      "owner": "stage26"
+    },
+    {
+      "name": "runtime-reborn-abathur-larva-card-parity",
+      "command": "approved launch-cmre-alenger.ps1 with Reborn Abathur + CreateGame/JoinGame; python src/projects/cmre-porting/stages/26-full-function-invoke/reborn_abathur_runtime_probe.py --map-path artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/reborn-abathur-cardcheck-20260813-011000.packed.SC2Map --port 5098 --script-error-since 1786554820",
+      "status": "FAIL",
+      "detail": "The original Reborn baseline contains 28 unique Larva card commands with exact CAbilTrain products. This valid probe enabled RequestDebug(all_resources, tech_tree, fast_build) before measuring runtime behavior. Across 79 readiness samples at game loop 19 -> 974, P1 Larva grew 6 -> 17, exposed only LarvaTrain,2 (id 1344), and had zero baseline commands available. Fresh controlled Larva independently rejected all 28 baseline commands before action (LarvaTrain=4, LarvaTrainSwarm=3, LarvaTrainSwarm2=21). P1/P2 census recorded original Drone/Larva/Overlord units and Hatchery building; no new non-empty ScriptError was observed. The earlier 005800 pre-tech-tree probe is inconclusive and is not used for this parity verdict.",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/reborn-abathur-larva-runtime-20260813-011000-final.json; artifacts/projects/cmre-porting/stage26-full-function-invoke/reborn-abathur-baseline.json",
       "owner": "stage26"
     },
     {
@@ -357,6 +396,20 @@
         "map_bytes": 3980547,
         "p1_pass": true,
         "script_error_new": 0
+      },
+      "reborn_abathur_larva_card_parity": {
+        "baseline_command_count": 28,
+        "runtime_expected_ability_missing": 28,
+        "native_larva_initial": 6,
+        "native_larva_final": 17,
+        "native_available_abilities": ["LarvaTrain,2"],
+        "baseline_intersection": 0,
+        "runtime_status": "FAIL",
+        "script_error_new": 0,
+        "readiness_sample_count": 79,
+        "controlled_commands_available": 0,
+        "controlled_commands_checked": 28,
+        "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/reborn-abathur-larva-runtime-20260813-011000-final.json"
       }
     }
   },
@@ -367,5 +420,6 @@
     "【N1 结论 2026-08-09 08:5x：内核单点 ReloadBank 治本实验 ABANDONED 并已回退】。A/B 真机证明重发是 Bank RPC 通道固有方差（两图每轮均 ~1 次重发），单点 ReloadBank 未关窗。真正兜底是 Host at-least-once 重发。治本方向改为：将 RPC 通道(request/response/index)与模型状态库(p2_*)拆成独立 bank 文件，使 WriteModelP2Snapshot 的 BankSave 不再覆盖 RPC 请求/响应。这是更大的数据/内核改造，列为独立 N 项，本次不实施。",
     "保持 catalog-baseline.json（35,314 declarations，SHA-256 前缀 93659957...）作为可复现基线；历史 90 条差异已解释为 cmre-dev 冗余层，对 adapter coverage 无影响，不再重复寻找缺失条目",
     "【N1 后继·真正治本 2026-08-09 08:5x】将 VIBE_GEN_007 的根因（Bank 双写单文件全量覆盖无锁）通过**架构级改造**消除：把 RPC 通道(request/response/index)与模型状态库(p2_*)拆成两个独立 bank 文件，使 WriteModelP2Snapshot 的 BankSave 只写 p2_* 库、绝不再覆盖 Host 写入的 RPC 请求/响应。实现点：① Data Editor 新增独立 Bank 名（如 GalaxyVibeRPC / GalaxyVibeModel）；② Host 侧 write_bank_request / read_bank 按通道分库读写；③ 内核 PollLoop 仅对 p2_* 库做 BankSave，RPC 库只读（ReloadBank 拉请求）不写覆盖。改造后 Host at-least-once 重发可降级为 best-effort（去重仍保留）。需重打包两张图 + 真机复验 reasserts 趋 0。"
+    ,"修复 REBORN-ABATHUR-LARVA-CARD-PARITY：保持 reborn-abathur-baseline.json 的 28 条原版 Larva 卡牌命令及其精确产物，修复 commander-map adapter/Catalog 继承链使 runtime Larva 公开并能实际执行每条命令；经 approved launcher 重跑 reborn_abathur_runtime_probe.py，要求 28/28 exact product PASS、P1/P2 census 存在且同窗口无新增非空 ScriptError。"
   ]
 }

@@ -147,6 +147,18 @@
       "nextAction": "后续新增地图必须先登记中文显示名；未知地图应保持 fail-closed，不得回退展示原始文件名。2026-08-12 已补充真实浏览器点击地图页、DOM 断言和截图证据。"
     },
     {
+      "id": "WEBUI-MAP-PREVIEW-ASSETS",
+      "severity": "low",
+      "status": "resolved",
+      "title": "虫心和起义狂潮地图卡片缺少真实预览图片",
+      "detail": "地图 API 过去只为 CMRE 地图提供 preview，虫心和起义狂潮卡片显示文字占位；中间版本曾错误接入地图目录内的 Minimap.tga，已被本方案取代。现改为使用从本机 SC2 CASC 提取并登记的官方宽幅加载画面 DDS；CMRE 继续使用已有 Battle.net/加载预览图。",
+      "evidence_type": "mixed",
+      "evidence": "tools/cmre-webui/server.py::REBORN_MAP_LOADING_ASSETS/REVOLUTION_MAP_LOADING_ASSETS/find_asset_file; tools/cmre-webui/test_launch_async_contract.py::test_all_current_maps_expose_real_preview_sources/test_minimap_preview_paths_are_rejected; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-map-preview-wide-20260813/maps-tab-wide-dom.json; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-map-preview-wide-20260813/maps-tab-top.png; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-map-preview-wide-20260813/maps-tab-middle.png; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/webui-map-preview-wide-20260813/maps-tab-bottom.png",
+      "owner": "stage26",
+      "resolution": "66 张地图均返回真实 preview；8767 浏览器实测 66/66 图片加载成功、占位 0、Minimap 路径 0；虫心和起义狂潮 51/51 使用官方宽幅加载画面。缓存只写阶段 artifacts，不改外部地图源。",
+      "nextAction": "后续新增地图必须登记官方宽幅加载画面或明确批准的任务预览资产；不得回退到 Minimap.tga。"
+    },
+    {
       "id": "REBORN-ZERG-SYNTHETIC-TECH-BUNDLE",
       "severity": "high",
       "status": "resolved",
@@ -157,6 +169,17 @@
       "owner": "stage26",
       "resolution": "tools/launchers/launch-cmre-alenger.ps1; tools/launchers/overlays/cmre-alenger/startup/initialization-gate.galaxy",
       "nextAction": "Keep the seven-commander static regression and do not restore the synthetic tech-bundle call without a new commander-specific contract."
+    },
+    {
+      "id": "REBORN-ABATHUR-LARVA-CARD-PARITY",
+      "severity": "high",
+      "status": "open",
+      "title": "CMRE Reborn Abathur Larva exposes none of the 28 original card commands",
+      "detail": "The valid approved-launcher CMRE run first enabled RequestDebug(all_resources, tech_tree, fast_build), then completed CreateGame/JoinGame. Across 79 readiness samples at loop 19..974, P1 Larva grew 6 to 17 yet exposed only LarvaTrain,2 (ability id 1344), with zero intersection with the 28 original Reborn Larva commands. All 28 commands were unavailable again on fresh DebugCreateUnit Larva, so the fail-closed probe reports EXPECTED_ABILITY_MISSING=28 (LarvaTrain=4, LarvaTrainSwarm=3, LarvaTrainSwarm2=21). P1/P2 raw census confirms the opening Drone/Hatchery/Larva/Overlord roster; the same ScriptError window has no new non-empty file. The earlier 005800 run without tech_tree debug is retained only as an inconclusive precondition diagnostic.",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/reborn-abathur-larva-runtime-20260813-011000-final.json; artifacts/projects/cmre-porting/stage26-full-function-invoke/reborn-abathur-baseline.json",
+      "owner": "stage26",
+      "nextAction": "Repair the Reborn commander-map adapter or its staged Catalog dependency so runtime Larva exposes every command in reborn-abathur-baseline.json with the exact CAbilTrain product counts. Then rerun reborn_abathur_runtime_probe.py through the approved launcher; do not change the original 28-command baseline to suppress the failure."
     }
   ]
 }
