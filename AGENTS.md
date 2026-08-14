@@ -84,6 +84,13 @@ At the end of every agent session that changed repository files:
 - Do not leave verified, in-scope work only in the working tree; either commit it, or document why it is intentionally left uncommitted.
 - Do not commit external read-only sources, local caches, or bulky generated artifacts unless the active stage explicitly requires them.
 
+## Challenge-Driven Verification
+
+- When the user questions whether a task was actually tested, completed, or verified, treat the question as a verification trigger rather than a request for a status explanation.
+- Re-check the claim against fresh evidence immediately. If the evidence is weaker than the claim, perform the missing validation or corrective action in the same turn whenever it is safe and within scope.
+- Do not stop at describing what was previously done. Report the new action, observed result, remaining gap, and exact evidence path.
+- Keep evidence layers distinct: API/static checks do not count as browser/UI interaction, process startup does not count as runtime readiness, and source inspection does not count as execution.
+
 ## Lore Commit Protocol
 
 Every commit message is a concise decision record using git-native trailers. This section is the
