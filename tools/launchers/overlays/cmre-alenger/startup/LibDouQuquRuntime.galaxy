@@ -279,17 +279,21 @@ string libDouQuquRuntime_gf_Kill(string argsJson) {
     if (killer == null || victim == null || killerTag == victimTag || UnitGetOwner(killer) == UnitGetOwner(victim)) { return libDouQuquRuntime_gf_Error("douququ.kill", "INVALID_ARGS", "killer_victim"); }
     position = UnitGetPosition(victim);
     victimType = UnitGetType(victim);
-    UnitKill(victim);
     spawned = "[]";
     broodlings = "[]";
     scarab = "{\"triggered\":false}";
     healed = 0.0;
-    if (victimType == "Vulture") {
-        spawned = libDouQuquRuntime_gf_SpawnList("SpiderMine", UnitGetOwner(victim), position, 3);
-        libDouQuquRuntime_gf_Event("vulture_death_mines");
-    }
+    // Resolve the fatal Scarab roll while the victim is still a live unit
+    // handle; apply the death immediately after the impact side effect.
     if (UnitGetType(killer) == "Reaver") {
         scarab = libDouQuquRuntime_gf_ReaverImpactJson(killer, victim, true, PointGetX(position), PointGetY(position));
+    }
+    UnitKill(victim);
+    if (victimType == "Vulture") {
+        // Spawn the final burrowed catalog state so the runtime response and
+        // snapshot describe the mine that remains in the game.
+        spawned = libDouQuquRuntime_gf_SpawnList("SpiderMineBurrowed", UnitGetOwner(victim), position, 3);
+        libDouQuquRuntime_gf_Event("vulture_death_mines");
     }
     if (UnitGetType(killer) == "Hydralisk") {
         life = UnitGetPropertyFixed(killer, c_unitPropLife, true);
@@ -416,11 +420,15 @@ int libDouQuquRuntime_gf_Count(string unitType) {
     return UnitGroupCount(units, c_unitCountAlive);
 }
 
+int libDouQuquRuntime_gf_MineCount() {
+    return libDouQuquRuntime_gf_Count("SpiderMine") + libDouQuquRuntime_gf_Count("SpiderMineBurrowed");
+}
+
 string libDouQuquRuntime_gf_Snapshot(string argsJson) {
     int events;
     string lastEvent;
     events = libDouQuquRuntime_gf_Int("DouQuquRuntimeEventCount", 0);
     lastEvent = "";
     if (DataTableValueExists(true, "DouQuquRuntimeLastEvent")) { lastEvent = DataTableGetString(true, "DouQuquRuntimeLastEvent"); }
-    return libDouQuquRuntime_gf_Result("douququ.snapshot", "{\"function_id\":\"douququ.snapshot\",\"events\":" + IntToString(events) + ",\"lastEvent\":\"" + lastEvent + "\",\"zealotCount\":" + IntToString(libDouQuquRuntime_gf_Count("Zealot")) + ",\"mineCount\":" + IntToString(libDouQuquRuntime_gf_Count("SpiderMine")) + ",\"marineCount\":" + IntToString(libDouQuquRuntime_gf_Count("Marine")) + ",\"banelingCount\":" + IntToString(libDouQuquRuntime_gf_Count("Baneling")) + ",\"broodlingCount\":" + IntToString(libDouQuquRuntime_gf_Count("KerriganInfestBroodling")) + "}", false);
+    return libDouQuquRuntime_gf_Result("douququ.snapshot", "{\"function_id\":\"douququ.snapshot\",\"events\":" + IntToString(events) + ",\"lastEvent\":\"" + lastEvent + "\",\"zealotCount\":" + IntToString(libDouQuquRuntime_gf_Count("Zealot")) + ",\"mineCount\":" + IntToString(libDouQuquRuntime_gf_MineCount()) + ",\"marineCount\":" + IntToString(libDouQuquRuntime_gf_Count("Marine")) + ",\"banelingCount\":" + IntToString(libDouQuquRuntime_gf_Count("Baneling")) + ",\"broodlingCount\":" + IntToString(libDouQuquRuntime_gf_Count("KerriganInfestBroodling")) + "}", false);
 }

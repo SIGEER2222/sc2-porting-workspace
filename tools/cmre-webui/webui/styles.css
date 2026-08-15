@@ -395,6 +395,113 @@ body { display: flex; flex-direction: column; }
 }
 .map-item.selected .map-item-name { color: var(--accent-blue); font-weight: bold; }
 
+/* === 地图静态详情 === */
+.map-detail-panel {
+  margin-top: 16px;
+  border-top: 1px solid var(--border-blue);
+  padding-top: 14px;
+}
+.map-detail-head,
+.map-detail-section-head,
+.map-detail-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.map-detail-head { justify-content: space-between; margin-bottom: 10px; }
+.map-detail-title { color: var(--accent-blue); font-size: 16px; font-weight: bold; }
+.map-detail-subtitle { color: var(--text-muted); font-size: 10px; margin-top: 3px; font-family: "Consolas", monospace; }
+.map-detail-status { color: var(--success); font-size: 11px; white-space: nowrap; }
+.map-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(100px, 1fr));
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.map-detail-summary > div {
+  background: var(--bg-deep);
+  border: 1px solid rgba(37,107,169,0.35);
+  padding: 7px 9px;
+  min-width: 0;
+}
+.map-detail-summary span { display: block; color: var(--text-muted); font-size: 10px; }
+.map-detail-summary strong { display: block; color: var(--accent-gold); font-size: 14px; margin-top: 2px; overflow-wrap: anywhere; }
+.map-detail-toolbar { margin-bottom: 8px; }
+.map-detail-toolbar .field-select { width: 145px; flex: 0 0 145px; }
+.map-detail-search {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  border: 1px solid var(--border-blue);
+  padding: 6px 10px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: inherit;
+}
+.map-detail-search:focus { outline: none; border-color: var(--border-hover); }
+.map-detail-workspace,
+.map-detail-lower-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.map-detail-lower-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.map-detail-section {
+  min-width: 0;
+  background: rgba(0,0,0,0.16);
+  border: 1px solid var(--border-blue);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.map-detail-section-head {
+  min-height: 32px;
+  padding: 6px 9px;
+  background: rgba(0,0,0,0.22);
+  border-bottom: 1px solid rgba(37,107,169,0.35);
+}
+.map-detail-section-head h3 { color: var(--accent-blue); font-size: 12px; }
+.map-detail-section-head span { margin-left: auto; color: var(--text-muted); font-size: 10px; font-family: "Consolas", monospace; }
+.map-detail-table-scroll { max-height: 420px; overflow: auto; }
+.map-detail-small-scroll { max-height: 260px; }
+.map-detail-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.map-detail-table th,
+.map-detail-table td {
+  padding: 6px 7px;
+  border-bottom: 1px solid rgba(37,107,169,0.2);
+  text-align: left;
+  vertical-align: top;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.map-detail-table th { position: sticky; top: 0; z-index: 1; color: var(--text-muted); background: var(--bg-card); font-weight: normal; }
+.map-timeline-section .map-detail-table th:nth-child(1) { width: 142px; }
+.map-timeline-section .map-detail-table th:nth-child(2) { width: 72px; }
+.map-timeline-section .map-detail-table th:nth-child(5) { width: 150px; }
+.map-detail-table tr.map-detail-row { cursor: pointer; }
+.map-detail-table tr.map-detail-row:hover { background: rgba(141,208,255,0.05); }
+.map-detail-table tr.map-detail-row.selected { background: rgba(141,208,255,0.12); }
+.map-detail-table code,
+.map-selected-record code,
+.map-adapter-detail {
+  color: var(--text-muted);
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+.map-detail-location { color: var(--accent-gold); }
+.map-selected-record { padding: 9px; max-height: 420px; overflow: auto; }
+.map-record-kind { color: var(--accent-gold); font-size: 11px; font-weight: bold; margin-bottom: 7px; }
+.map-record-field { padding: 5px 0; border-bottom: 1px solid rgba(37,107,169,0.2); line-height: 1.45; overflow-wrap: anywhere; }
+.map-record-field:last-child { border-bottom: 0; }
+.map-record-field > span { display: block; color: var(--text-muted); font-size: 10px; margin-bottom: 2px; }
+.map-record-field strong { color: var(--text-primary); font-weight: normal; }
+.map-record-field pre { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-secondary); }
+.map-adapter-section { margin-bottom: 8px; }
+.map-adapter-detail { margin: 0; padding: 9px; max-height: 220px; overflow: auto; white-space: pre-wrap; line-height: 1.45; }
+.map-detail-error { color: var(--danger); }
+
 /* === 突变因子 Tab === */
 .mutator-toolbar {
   display: flex;
@@ -956,6 +1063,18 @@ input[type="range"]::-moz-range-thumb {
   font-size: 10px;
   word-break: break-all;
 }
+.runtime-live-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 0 9px 6px;
+}
+.runtime-live-head h3 { margin: 0; color: var(--accent-blue); font-size: 11px; }
+.runtime-observation-scroll { max-height: 210px; overflow: auto; margin: 0 9px 9px; }
+.runtime-observation-table th:nth-child(1) { width: 92px; }
+.runtime-observation-table th:nth-child(3) { width: 42px; }
+.runtime-observation-table th:nth-child(4),
+.runtime-observation-table th:nth-child(5) { width: 86px; }
 .runtime-workspace {
   display: grid;
   grid-template-columns: minmax(220px, 0.75fr) minmax(360px, 1.25fr);
@@ -1070,6 +1189,9 @@ input[type="range"]::-moz-range-thumb {
   .runtime-workspace { flex: 0 0 auto; }
   .runtime-catalog-panel { min-height: 220px; }
   .runtime-trace-layout { flex: 1 1 360px; }
+  .map-detail-summary { grid-template-columns: repeat(3, minmax(100px, 1fr)); }
+  .map-detail-workspace,
+  .map-detail-lower-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
   .runtime-session-grid { grid-template-columns: 1fr; }
@@ -1077,6 +1199,10 @@ input[type="range"]::-moz-range-thumb {
   .runtime-title { font-size: 14px; }
   .runtime-panel-actions { flex-wrap: wrap; }
   .runtime-panel-head { align-items: flex-start; flex-wrap: wrap; }
+  .map-detail-head { align-items: flex-start; flex-direction: column; }
+  .map-detail-summary { grid-template-columns: repeat(2, minmax(100px, 1fr)); }
+  .map-detail-toolbar { align-items: stretch; flex-direction: column; }
+  .map-detail-toolbar .field-select { width: 100%; flex-basis: auto; }
 }
 @media (prefers-reduced-motion: reduce) {
   .runtime-function-item { transition: none; }

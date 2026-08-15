@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """回归测试：异步 launcher 失败时先保留真实输出，再记录退出码。"""
 
+import asyncio
 from collections import deque
 import base64
 import io
 import json
 import threading
+import inspect
 from pathlib import Path
 
 import server
@@ -177,7 +179,106 @@ def test_webui_defaults_to_player_map_launch(monkeypatch):
     command = " ".join(context["args"])
     assert "-PlayerMode" in command
     assert "-ListenPort" not in command
-    assert WEBUI_APP.read_text(encoding="utf-8").count("apiMode: false") == 2
+    app = WEBUI_APP.read_text(encoding="utf-8")
+    assert 'mapPackage: "dou-ququ"' in app
+    assert 'apiMode: true' in app
+    assert 'preferAiOpponent: state.selected.mapPackage === "dou-ququ"' in app
+    assert 'id="runtime-join-wait"' in (WEBUI_APP.parent / "index.html").read_text(encoding="utf-8")
+    assert 'joinWait: Math.max(0, Math.min(120, parseFloat($("runtime-join-wait").value) || 15))' in app
+    assert 'loadRuntimeSessions();' in app
+    assert 'm.runtimeMapPath || m.runtimeSource || ""' in app
+    assert 'const latest = sessions[0];' not in app
+
+
+def test_runtime_session_candidates_do_not_treat_sequence_as_recency():
+    source = inspect.getsource(server.RuntimeConsole.sessions)
+    assert 'key=lambda item: item["session_id"]' in source
+    assert 'item["sequence"], reverse=True' not in source
+
+
+def test_runtime_connect_probes_expired_session_before_accepting_current_one(monkeypatch):
+    attempts = []
+
+    class FakeRepl:
+        def __init__(self, port, resolve, name_lookup, **kwargs):
+            self.rpc_session_id = kwargs.get("rpc_session_id") or "repl_new"
+            self.rpc_sequence = 0
+
+        async def connect(self):
+            return True
+
+        async def close(self):
+            return None
+
+        async def invoke_function_request(self, function_id, args):
+            attempts.append(self.rpc_session_id)
+            if self.rpc_session_id == "dou-ququ-runtime-stale":
+                return {"error_code": "SESSION_EXPIRED"}
+            return {"error_code": "OK", "payload": {"active": True}}
+
+    console = server.RuntimeConsole()
+    monkeypatch.setattr(
+        console,
+        "_imports",
+        lambda: (FakeRepl, lambda: object(), lambda: object(), None, None, None),
+    )
+    monkeypatch.setattr(
+        console,
+        "sessions",
+        lambda: [
+            {"session_id": "dou-ququ-runtime-stale", "sequence": 39},
+            {"session_id": "repl_current", "sequence": 7},
+        ],
+    )
+
+    result = asyncio.run(console._connect({"port": 5896, "rpc_session_id": "dou-ququ-runtime-stale"}))
+
+    assert result["status"] == "connected"
+    assert result["session_id"] == "repl_current"
+    assert attempts[:2] == ["dou-ququ-runtime-stale", "repl_current"]
+    assert result["session_recovery"] == [
+        {"session_id": "dou-ququ-runtime-stale", "error_code": "SESSION_EXPIRED"},
+        {"session_id": "repl_current", "error_code": "OK", "accepted": True},
+    ]
+
+
+def test_dou_ququ_launch_mounts_live_runtime_module(monkeypatch, tmp_path):
+    monkeypatch.setattr(server, "_resolve_powershell_executable", lambda: "powershell.exe")
+    source = tmp_path / "dou-ququ.SC2Map"
+    source.mkdir()
+    monkeypatch.setattr(server, "DOU_QUQU_MAP_SOURCE", source)
+    monkeypatch.setattr(server, "_dou_ququ_map_root", lambda: source)
+    handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)
+
+    context = handler._build_launch_args({
+        "mapPackage": "dou-ququ",
+        "mapName": "dou-ququ.SC2Map",
+        "commander": "ProtossAlarak",
+        "listenPort": 5896,
+    })
+
+    assert "-EnableDouQuquBehavior" not in context["args"]
+    assert "-EnableDouQuquRuntime" in context["args"]
+    assert context["enable_douququ_runtime"] is True
+    assert context["api_minimal"] is True
+
+
+def test_dou_ququ_map_name_recovers_runtime_package_when_payload_omits_package(monkeypatch, tmp_path):
+    monkeypatch.setattr(server, "_resolve_powershell_executable", lambda: "powershell.exe")
+    source = tmp_path / "地图调试和斗蛐蛐工具（完整功能版).SC2Map"
+    source.mkdir()
+    monkeypatch.setattr(server, "DOU_QUQU_MAP_SOURCE", source)
+    monkeypatch.setattr(server, "_dou_ququ_map_root", lambda: source)
+    handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)
+
+    context = handler._build_launch_args({
+        "mapName": source.name,
+        "commander": "ProtossAlarak",
+        "listenPort": 5896,
+    })
+
+    assert context["map_package"] == "dou-ququ"
+    assert "-EnableDouQuquRuntime" in context["args"]
 
 
 def test_webui_api_launch_keeps_runtime_alive(monkeypatch):

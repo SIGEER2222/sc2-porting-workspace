@@ -21,6 +21,7 @@ import subprocess
 import sys
 import time
 import threading
+import uuid
 import webbrowser
 import xml.etree.ElementTree as ET
 from collections import deque
@@ -30,6 +31,12 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 WEBUI_DIR = SCRIPT_DIR / "webui"
 DATA_DIR = SCRIPT_DIR / "data"
+VIBE_PROJECT_ROOT = SCRIPT_DIR.parents[1] / "src" / "projects" / "cmre-porting" / "vibe"
+if str(VIBE_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(VIBE_PROJECT_ROOT))
+
+from map_commander_adapter import load_adapter_config, resolve_adapter  # noqa: E402
+from map_event_extractor import MapEventExtractor  # noqa: E402
 MUTATORS_JSON = DATA_DIR / "mutators.json"
 # DDS → PNG 转换缓存目录。首次请求某 DDS 时转 PNG 存这里，后续直接返回。
 ASSETS_CACHE_DIR = WEBUI_DIR / "assets_cache"
@@ -136,6 +143,11 @@ DOU_QUQU_ARTIFACT_ROOT = (
     / "webui-map-source"
 )
 DOU_QUQU_EXTRACTOR = REPO_ROOT / "tools" / "mpq" / "scripts" / "extract_mpq.py"
+DOU_QUQU_RUNTIME_PACKED_MAP = (
+    DOU_QUQU_ARTIFACT_ROOT.parent / "dou-ququ-runtime-vm.packed.SC2Map"
+)
+MAP_ADAPTER_CONFIG = VIBE_PROJECT_ROOT / "map_commander_adapters.json"
+_MAP_DETAIL_CACHE: dict[tuple[str, str], tuple[tuple[int, int], dict]] = {}
 
 
 def _dou_ququ_map_root() -> Path | None:
@@ -146,9 +158,16 @@ def _dou_ququ_map_root() -> Path | None:
         return None
     source = source.resolve()
     if source.is_dir():
-        if not (source / "MapScript.galaxy").is_file():
-            raise RuntimeError(f"斗蛐蛐地图目录缺少 MapScript.galaxy: {source}")
-        return source
+        if (source / "MapScript.galaxy").is_file():
+            return source
+        nested = [
+            child for child in source.iterdir()
+            if child.is_dir() and child.name.casefold().endswith(".sc2map")
+            and (child / "MapScript.galaxy").is_file()
+        ]
+        if len(nested) == 1:
+            return nested[0]
+        raise RuntimeError(f"斗蛐蛐地图目录缺少 MapScript.galaxy: {source}")
     if source.suffix.casefold() != ".sc2map" or not source.is_file():
         raise RuntimeError(f"斗蛐蛐地图必须是 .SC2Map 或解包目录: {source}")
     target = DOU_QUQU_ARTIFACT_ROOT / "extracted" / source.stem
@@ -170,6 +189,125 @@ def _dou_ququ_map_root() -> Path | None:
             raise RuntimeError(f"斗蛐蛐地图解包失败 (exit={completed.returncode}): {detail}")
     DOU_QUQU_EXTRACTED_SOURCE = target
     return target
+
+
+def _resolve_map_detail_source(map_name: str, package_id: str) -> tuple[Path, Path]:
+    """Resolve a registered map to a read-only source directory and root."""
+
+    if package_id == "cmre":
+        source_root = MAPS_CMRE_DIR.parent
+        source = MAPS_CMRE_DIR / map_name
+    elif package_id == "reborn":
+        source_root = _load_local_source_binding("reborn-hots-071")
+        if not source_root:
+            raise FileNotFoundError("重生虫心地图源未绑定")
+        source = source_root / map_name
+    elif package_id == "revolution-overdrive":
+        source_root = REVOLUTION_MAPS_ROOT.parent
+        source = REVOLUTION_MAPS_ROOT / map_name
+    elif package_id == "dou-ququ":
+        source = _dou_ququ_map_root()
+        if source is None:
+            raise FileNotFoundError("斗蛐蛐地图未绑定")
+        source_root = source.parent
+    else:
+        raise ValueError(f"未知地图类别: {package_id}")
+    source = source.resolve()
+    source_root = source_root.resolve()
+    try:
+        source.relative_to(source_root)
+    except ValueError as exc:
+        raise ValueError("地图路径不在登记的地图源目录内") from exc
+    if not source.is_dir():
+        raise FileNotFoundError(f"地图源不存在: {package_id}/{map_name}")
+    return source, source_root
+
+
+def _map_detail_stamp(source: Path) -> tuple[int, int]:
+    paths = [source / name for name in ("MapScript.galaxy", "Objects", "Regions")]
+    stamp = []
+    for path in paths:
+        try:
+            stat = path.stat()
+        except OSError:
+            stamp.append((0, 0))
+        else:
+            stamp.append((stat.st_mtime_ns, stat.st_size))
+    return (max(item[0] for item in stamp), sum(item[1] for item in stamp))
+
+
+def _map_detail_localization_roots(source: Path) -> list[Path]:
+    roots = [source, SC2VIBE_ROOT / "cmre-runtime", REPO_ROOT / "reference" / "sc2mapster" / "SC2GameData"]
+    if source.name.endswith(".SC2Map") and source.parent.name.lower() == "maps":
+        bound = _load_local_source_binding("cmre-dev-package")
+        if bound:
+            roots.append(bound)
+    return roots
+
+
+def load_map_details(map_name: str, package_id: str = "cmre", commander_id: str = "TerranAlenger3") -> dict:
+    """Return traceable static map details for the WebUI detail pane."""
+
+    source, source_root = _resolve_map_detail_source(map_name, package_id)
+    cache_key = (package_id, source.as_posix())
+    stamp = _map_detail_stamp(source)
+    cached = _MAP_DETAIL_CACHE.get(cache_key)
+    if cached and cached[0] == stamp:
+        extracted = cached[1]
+    else:
+        extracted = MapEventExtractor(
+            source,
+            source_root=source_root,
+            localization_roots=_map_detail_localization_roots(source),
+        ).extract()
+        _MAP_DETAIL_CACHE[cache_key] = (stamp, extracted)
+
+    try:
+        adapter = resolve_adapter(
+            load_adapter_config(MAP_ADAPTER_CONFIG),
+            map_name=map_name,
+            commander_id=commander_id or "TerranAlenger3",
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        adapter = {"error": f"适配层未加载: {exc}"}
+
+    timeline = [
+        {**item, "record_type": "unit_event"}
+        for item in extracted.get("events", [])
+    ] + [
+        {**item, "record_type": "timing"}
+        for item in extracted.get("timings", [])
+    ]
+    timeline.sort(key=lambda item: (item.get("line") is None, item.get("line") or 0))
+    map_record = next(
+        (
+            item
+            for item in load_maps() + load_reborn_maps() + load_revolution_maps()
+            if item.get("id") == map_name and item.get("packageId") == package_id
+        ),
+        {"id": map_name, "name": extracted.get("map_metadata", {}).get("name_zh", map_name)},
+    )
+    return {
+        "schema_version": "cmre-map-details.v1",
+        "evidence_type": "static",
+        "runtime_claim": "none; details are static source analysis",
+        "map": {
+            "id": map_name,
+            "packageId": package_id,
+            "name": map_record.get("name", map_name),
+            "sourcePath": extracted.get("map_path", source.name),
+            "metadata": extracted.get("map_metadata", {}),
+        },
+        "summary": extracted.get("summary", {}),
+        "preplaced": extracted.get("preplaced", []),
+        "events": extracted.get("events", []),
+        "timings": extracted.get("timings", []),
+        "timeline": timeline,
+        "regions": extracted.get("regions", []),
+        "eventDeclarations": extracted.get("event_declarations", []),
+        "unitCatalog": extracted.get("unit_catalog", []),
+        "adapter": adapter,
+    }
 
 
 def _resolve_powershell_executable() -> str:
@@ -504,6 +642,11 @@ def load_maps():
                 "",
             ),
             "runtimeSource": str(dou_ququ_root),
+            "runtimeMapPath": (
+                str(DOU_QUQU_RUNTIME_PACKED_MAP)
+                if DOU_QUQU_RUNTIME_PACKED_MAP.is_file()
+                else ""
+            ),
             "readOnlySource": str(source),
             "runtimeOnly": True,
         })
@@ -1275,6 +1418,7 @@ class RuntimeConsole:
         self._error = ""
         self._port = None
         self._session_id = ""
+        self._session_recovery = []
         self._trace = []
         self._running = ""
 
@@ -1352,7 +1496,9 @@ class RuntimeConsole:
                 current["sequence"], int(response.get("sequence", 0) or 0)
             )
             current["operation"] = response.get("operation", current["operation"])
-        return sorted(sessions.values(), key=lambda item: item["sequence"], reverse=True)[:20]
+        # sequence only increases within one session. It is not a timestamp and
+        # must not be used to guess which session belongs to the current game.
+        return sorted(sessions.values(), key=lambda item: item["session_id"])[:20]
 
     async def _connect(self, payload):
         VibeREPL, resolve, name_lookup, _, _, _ = self._imports()
@@ -1360,8 +1506,14 @@ class RuntimeConsole:
         map_path = str(payload.get("map_path", "") or "")
         join_wait = float(payload.get("join_wait", 0) or 0)
         rpc_session_id = str(payload.get("rpc_session_id", "") or "")
+        available_sessions = self.sessions()
         if self._repl is not None:
             await self._repl.close()
+        with self._lock:
+            self._repl = None
+            self._port = None
+            self._session_id = ""
+            self._session_recovery = []
         repl = VibeREPL(
             port,
             resolve(),
@@ -1369,12 +1521,57 @@ class RuntimeConsole:
             map_path=map_path,
             join_wait=join_wait,
             rpc_session_id=rpc_session_id,
+            prefer_ai_opponent=bool(payload.get("prefer_ai_opponent", False)),
         )
         with self._lock:
             self._status = "connecting"
             self._error = ""
         try:
             await repl.connect()
+            # The bank can contain responses from older SC2 processes. Probe the
+            # session through the live kernel before exposing it as connected.
+            # Reuse this already joined socket for every candidate so a failed
+            # stale-session probe never recreates the map or resets the game.
+            candidates = []
+            if rpc_session_id:
+                candidates.append(rpc_session_id)
+            else:
+                candidates.append(repl.rpc_session_id)
+            for item in available_sessions:
+                candidate = str(item.get("session_id", "") or "")
+                if candidate and candidate not in candidates:
+                    candidates.append(candidate)
+            if rpc_session_id:
+                fresh_id = f"repl_{uuid.uuid4().hex[:12]}"
+                if fresh_id not in candidates:
+                    candidates.append(fresh_id)
+
+            accepted_session = ""
+            attempted_sessions = []
+            probe_error = ""
+            for candidate in candidates:
+                repl.rpc_session_id = candidate
+                # Session switching happens on the same joined game. Starting
+                # at sequence 0 is valid because the kernel validates identity,
+                # while request_id remains globally unique.
+                repl.rpc_sequence = 0
+                probe = await repl.invoke_function_request("douququ.runtime.status", {})
+                error_code = str(probe.get("error_code", "") or "")
+                attempt = {"session_id": candidate, "error_code": error_code}
+                if error_code == "SESSION_EXPIRED":
+                    attempted_sessions.append(attempt)
+                    probe_error = f"{candidate}: SESSION_EXPIRED"
+                    continue
+                attempt["accepted"] = True
+                attempted_sessions.append(attempt)
+                accepted_session = candidate
+                break
+            if not accepted_session:
+                raise RuntimeError(
+                    "没有可用的当前 Vibe session；已探测候选: "
+                    + ", ".join(candidates)
+                    + (f"；最后错误: {probe_error}" if probe_error else "")
+                )
         except Exception as exc:
             with self._lock:
                 self._status = "error"
@@ -1384,7 +1581,8 @@ class RuntimeConsole:
         with self._lock:
             self._repl = repl
             self._port = port
-            self._session_id = repl.rpc_session_id
+            self._session_id = accepted_session
+            self._session_recovery = attempted_sessions
             self._status = "connected"
             self._error = ""
             self._trace = []
@@ -1563,6 +1761,7 @@ class RuntimeConsole:
                 "error": self._error,
                 "port": self._port,
                 "session_id": self._session_id,
+                "session_recovery": list(self._session_recovery),
                 "running": self._running,
                 "trace": list(self._trace),
             }
@@ -2195,12 +2394,34 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/buff-metadata":
             self._send_json(load_buff_metadata())
             return
+        if self.path.startswith("/api/map-details"):
+            from urllib.parse import parse_qs, urlparse
+            query = parse_qs(urlparse(self.path).query)
+            map_name = query.get("mapName", [""])[0]
+            package_id = query.get("mapPackage", ["cmre"])[0] or "cmre"
+            commander_id = query.get("commander", ["TerranAlenger3"])[0]
+            if not map_name:
+                self._send_json({"error": "mapName 不能为空"}, 400)
+                return
+            try:
+                self._send_json(load_map_details(map_name, package_id, commander_id))
+            except (FileNotFoundError, RuntimeError, ValueError, OSError) as exc:
+                self._send_json({
+                    "schema_version": "cmre-map-details.v1",
+                    "evidence_type": "static",
+                    "status": "not_scanned",
+                    "error": str(exc),
+                }, 404)
+            return
         if self.path == "/api/maps":
-            self._send_json({
-                "maps": load_maps(),
-                "rebornMaps": load_reborn_maps(),
-                "revolutionMaps": load_revolution_maps(),
-            })
+            try:
+                self._send_json({
+                    "maps": load_maps(),
+                    "rebornMaps": load_reborn_maps(),
+                    "revolutionMaps": load_revolution_maps(),
+                })
+            except (OSError, RuntimeError) as exc:
+                self._send_json({"error": str(exc)}, 400)
             return
         if self.path == "/api/logs/stream":
             self._handle_logs_stream()
@@ -2325,6 +2546,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                 "map_path": body.get("mapPath", ""),
                 "join_wait": body.get("joinWait", 0),
                 "rpc_session_id": body.get("rpcSessionId", ""),
+                "prefer_ai_opponent": body.get("preferAiOpponent", False),
             })
             self._send_json({"success": True, **result})
         except Exception as exc:
@@ -2450,6 +2672,10 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         commander = body.get("commander", "TerranAlenger3")
         map_name = body.get("mapName", "亡者之夜.SC2Map")
         map_package = body.get("mapPackage", "cmre") or "cmre"
+        # Keep the user-provided 斗蛐蛐 map self-identifying even when an older
+        # frontend omits mapPackage from its launch payload.
+        if re.search(r"斗蛐蛐|dou[-_ ]?ququ", str(map_name), re.IGNORECASE):
+            map_package = "dou-ququ"
         if map_package not in {"cmre", "reborn", "revolution-overdrive", "dou-ququ"}:
             self._send_json({"success": False, "error": f"未知地图类别: {map_package}"}, 400)
             return None
@@ -2497,10 +2723,12 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         # 推进 SC2 从 Launched → in_game。用于 CMRE Coop 地图在 API 模式下避免 UI 阻塞。
         api_minimal = bool(body.get("apiMinimal", False))
         enable_douququ = bool(body.get("enableDouQuquBehavior", False))
+        enable_douququ_runtime = bool(body.get("enableDouQuquRuntime", False))
         if map_package == "dou-ququ":
-            # The behavior library is a runtime-loaded dependency for this map,
-            # never a source-map write. It is always enabled in this package.
-            enable_douququ = True
+            # The map package is a runtime development surface. Keep the
+            # source map read-only and stage only the live VM by default;
+            # static behavior/Catalog patching remains an explicit opt-in.
+            enable_douququ_runtime = True
             api_minimal = True
         # 重生虫心指挥官：WebUI 透传 enableReborn + rebornCommander，
         # launcher 据此追加 -EnableReborn -RebornCommander <Name> 加载 5 个 Reborn mod 并应用
@@ -2647,6 +2875,8 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             args.append("-ApiMinimal")
         if enable_douququ:
             args.append("-EnableDouQuquBehavior")
+        if enable_douququ_runtime:
+            args.append("-EnableDouQuquRuntime")
         # 重生虫心参数透传：launcher 据此加载 5 个 Reborn mod 包并应用 K5Kerrigan 替换逻辑。
         # reborn_commander 必须是 reborn-commanders.json 中的 id（如 "Abathur"）。
         if enable_reborn:
@@ -2685,6 +2915,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             "listen_port": listen_port,
             "map_source_override": map_source_override,
             "enable_douququ": enable_douququ,
+            "enable_douququ_runtime": enable_douququ_runtime,
             "commander": commander,
             "map_name": map_name,
             "map_package": map_package,

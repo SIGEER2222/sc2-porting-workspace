@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CMRE 启动器 - 合作指挥官起义狂潮</title>
-  <link rel="stylesheet" href="styles.css?v=13">
+  <link rel="stylesheet" href="styles.css?v=14">
 </head>
 <body>
   <header class="topbar">
@@ -138,6 +138,48 @@
 
       <div class="tab-content" id="tab-maps" hidden>
         <div class="map-groups" id="map-list"></div>
+        <section class="map-detail-panel" id="map-detail-panel" hidden>
+          <div class="map-detail-head">
+            <div>
+              <div class="map-detail-title" id="map-detail-title">地图详情</div>
+              <div class="map-detail-subtitle" id="map-detail-subtitle"></div>
+            </div>
+            <div class="map-detail-status" id="map-detail-status" aria-live="polite">尚未扫描</div>
+          </div>
+          <div class="map-detail-summary" id="map-detail-summary"></div>
+          <div class="map-detail-toolbar">
+            <select id="map-detail-kind" class="field-select">
+              <option value="all">全部记录</option>
+              <option value="unit_event">单位事件</option>
+              <option value="timing">时间与触发器</option>
+            </select>
+            <input type="search" id="map-detail-search" class="map-detail-search" placeholder="搜索单位、函数、区域或源码..." autocomplete="off">
+          </div>
+          <div class="map-detail-workspace">
+            <section class="map-detail-section map-timeline-section">
+              <div class="map-detail-section-head"><h3>事件时间线</h3><span id="map-detail-count"></span></div>
+              <div class="map-detail-table-scroll" id="map-detail-timeline"></div>
+            </section>
+            <section class="map-detail-section map-selected-section">
+              <div class="map-detail-section-head"><h3>选中记录</h3></div>
+              <div class="map-selected-record" id="map-selected-record"><p class="hint">选择左侧记录查看详情</p></div>
+            </section>
+          </div>
+          <div class="map-detail-lower-grid">
+            <section class="map-detail-section">
+              <div class="map-detail-section-head"><h3>预置单位与坐标</h3><span id="map-detail-preplaced-count"></span></div>
+              <div class="map-detail-table-scroll map-detail-small-scroll" id="map-detail-preplaced"></div>
+            </section>
+            <section class="map-detail-section">
+              <div class="map-detail-section-head"><h3>区域与随机点</h3><span id="map-detail-region-count"></span></div>
+              <div class="map-detail-table-scroll map-detail-small-scroll" id="map-detail-regions"></div>
+            </section>
+          </div>
+          <section class="map-detail-section map-adapter-section">
+            <div class="map-detail-section-head"><h3>当前指挥官适配</h3></div>
+            <pre class="map-adapter-detail" id="map-adapter-detail"></pre>
+          </section>
+        </section>
       </div>
 
       <div class="tab-content" id="tab-mutators" hidden>
@@ -176,6 +218,7 @@
             <label>已有 session<select id="runtime-session-select" class="field-select"><option value="">新建或手动填写</option></select></label>
             <label>session_id<input type="text" id="runtime-session-id" class="field-select" placeholder="例如 repl_34e8e64dcfd7"></label>
             <label>地图路径（新建时可选）<input type="text" id="runtime-map-path" class="field-select" placeholder="留空表示只连接当前游戏"></label>
+            <label>初始化等待（秒）<input type="number" id="runtime-join-wait" class="field-select" min="0" max="120" step="1" value="15"></label>
           </div>
           <div class="runtime-session-meta" id="runtime-session-meta">连接后显示端口、session 和运行状态。</div>
           <div class="runtime-live-head">
@@ -221,8 +264,14 @@
   "vm": "vibe-debug/1",
   "mode": "debug",
   "steps": [
-    {"op": "call", "fn": "vibe.test.ping", "args": {}, "save": "ping"},
-    {"op": "assert", "source": "$vars.ping", "path": "payload.result", "equals": "pong"}
+    {"op": "call", "fn": "douququ.runtime.status", "args": {}, "save": "runtime"},
+    {"op": "assert", "source": "$vars.runtime", "path": "active", "equals": true},
+    {"op": "call", "fn": "douququ.unit.spawn", "args": {"unit_type": "Vulture", "owner": 1, "x": 50.0, "y": 48.0}, "save": "vulture"},
+    {"op": "call", "fn": "douququ.vulture.consume", "args": {"unit_tag": "$vars.vulture.tag", "count": 2}},
+    {"op": "call", "fn": "douququ.player.set_minerals", "args": {"owner": 1, "minerals": 50}},
+    {"op": "call", "fn": "douququ.vulture.refill", "args": {"unit_tag": "$vars.vulture.tag"}, "save": "refill"},
+    {"op": "assert", "source": "$vars.refill", "path": "status", "equals": "refilled"},
+    {"op": "call", "fn": "douququ.snapshot", "args": {}, "save": "snapshot"}
   ]
 }</textarea></label>
           </section>
@@ -283,6 +332,6 @@
     <div class="footer-summary" id="footer-summary">加载中...</div>
   </footer>
 
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>

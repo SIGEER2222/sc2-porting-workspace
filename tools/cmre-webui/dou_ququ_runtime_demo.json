@@ -1,0 +1,20 @@
+{
+  "vm": "vibe-debug/1",
+  "mode": "debug",
+  "steps": [
+    {"op": "call", "fn": "douququ.runtime.status", "args": {}, "save": "runtime"},
+    {"op": "assert", "source": "$vars.runtime", "path": "active", "equals": true},
+    {"op": "call", "fn": "douququ.reset", "args": {"seed": 42}},
+    {"op": "call", "fn": "douququ.unit.spawn", "args": {"unit_type": "Vulture", "owner": 1, "x": 50.0, "y": 48.0}, "save": "vulture"},
+    {"op": "call", "fn": "douququ.vulture.consume", "args": {"unit_tag": "$vars.vulture.tag", "count": 2}},
+    {"op": "call", "fn": "douququ.player.set_minerals", "args": {"owner": 1, "minerals": 50}},
+    {"op": "call", "fn": "douququ.vulture.refill", "args": {"unit_tag": "$vars.vulture.tag"}, "save": "refill"},
+    {"op": "assert", "source": "$vars.refill", "path": "status", "equals": "refilled"},
+    {"op": "call", "fn": "douququ.unit.spawn", "args": {"unit_type": "InfestedBanshee", "owner": 1, "x": 54.0, "y": 48.0}, "save": "banshee"},
+    {"op": "call", "fn": "douququ.unit.set_energy", "args": {"unit_tag": "$vars.banshee.tag", "energy": 20.0}},
+    {"op": "call", "fn": "douququ.tick", "args": {"seconds": 10.0}, "save": "hatch"},
+    {"op": "assert", "source": "$vars.hatch", "path": "spawned.0", "exists": true},
+    {"op": "call", "fn": "douququ.snapshot", "args": {}, "save": "snapshot"},
+    {"op": "assert", "source": "$vars.snapshot", "path": "marineCount", "gte": 1}
+  ]
+}

@@ -224,6 +224,41 @@ def _resume_sequence_from_bank(session_id: str, bank_path: Path = DEFAULT_RPC_BA
     return highest
 
 
+def _archive_stale_rpc_bank(bank_path: Path = DEFAULT_RPC_BANK) -> list[Path]:
+    """Archive stale RPC Banks before this REPL creates a fresh SC2 game.
+
+    Galaxy loads the first pending request it sees while the map initializes.
+    Keeping a previous ``GalaxyVibe`` Bank therefore lets an old session claim
+    the new map before the REPL sends its first request.  Archive root and
+    numeric author-directory candidates together; the next ``write_bank_request``
+    will recreate the active candidates from an empty state.
+    """
+    bank_dir = bank_path.parent
+    candidates = [bank_path]
+    if bank_dir.is_dir():
+        candidates.extend(
+            child / bank_path.name
+            for child in sorted(bank_dir.iterdir())
+            if child.is_dir() and child.name.isdigit()
+        )
+
+    archived: list[Path] = []
+    stamp = int(time.time())
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
+        archive = candidate.with_suffix(f"{candidate.suffix}.stale-{stamp}")
+        try:
+            candidate.replace(archive)
+        except OSError:
+            # The active author Bank can still be held briefly by SC2 after
+            # LeaveGame.  Preserve the existing behavior and let the first
+            # request report the real kernel/session error if it remains stale.
+            continue
+        archived.append(archive)
+    return archived
+
+
 async def wait_bank_run_id(bank_path: Path, run_id: str, timeout: float = 5.0, poll: float = 0.1):
     t0 = time.time()
     while time.time() - t0 < timeout:
@@ -284,6 +319,7 @@ class VibeREPL:
         join_wait: float = 15.0,
         rpc_session_id: str = "",
         realtime: bool = False,
+        prefer_ai_opponent: bool = False,
     ):
         self.port = port
         self.resolve = resolve
@@ -291,6 +327,7 @@ class VibeREPL:
         self.map_path = map_path
         self.join_wait = join_wait
         self.realtime = realtime
+        self.prefer_ai_opponent = prefer_ai_opponent
         self.map_center = common_pb.Point2D(x=50.0, y=50.0)
         self._have_map = False
         self._resume_requested = bool(rpc_session_id)
@@ -329,13 +366,19 @@ class VibeREPL:
         except Exception:
             pass
 
-        player_sets = [
-            [sc_pb.PlayerSetup(type=1, race=1, player_name="P1")],
-            [
-                sc_pb.PlayerSetup(type=1, race=1, player_name="P1"),
-                sc_pb.PlayerSetup(type=2, race=1, difficulty=2, player_name="AI"),
-            ],
+        if not self._resume_requested:
+            _archive_stale_rpc_bank()
+
+        solo_player = [sc_pb.PlayerSetup(type=1, race=1, player_name="P1")]
+        player_plus_ai = [
+            sc_pb.PlayerSetup(type=1, race=1, player_name="P1"),
+            sc_pb.PlayerSetup(type=2, race=1, difficulty=2, player_name="AI"),
         ]
+        player_sets = (
+            [player_plus_ai, solo_player]
+            if self.prefer_ai_opponent
+            else [solo_player, player_plus_ai]
+        )
         created = False
         last_error = ""
         for setup in player_sets:

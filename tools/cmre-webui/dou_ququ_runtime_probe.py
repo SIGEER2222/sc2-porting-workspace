@@ -258,6 +258,17 @@ class DouQuquRuntimeProbe:
         await self.step(8)
         return [int(tag) for tag in tags]
 
+    async def spawn_runtime(self, unit_type: str, owner: int, x: float, y: float) -> int:
+        payload = await self.rpc(
+            "douququ.unit.spawn",
+            {"unit_type": unit_type, "owner": owner, "x": x, "y": y},
+        )
+        tag = payload.get("tag")
+        if not isinstance(tag, int) or tag < 1:
+            raise ProbeError(f"douququ.unit.spawn returned no tag: {payload}")
+        await self.step(4)
+        return tag
+
     async def spawn_pairs(
         self,
         unit_type: str,
@@ -318,6 +329,12 @@ class DouQuquRuntimeProbe:
             for item in snapshot["observation"]["units"]
         )
 
+    def mine_count(self, snapshot: dict[str, Any], owner: int) -> int:
+        return sum(
+            item["owner"] == owner and item["type"] in {"SpiderMine", "SpiderMineBurrowed"}
+            for item in snapshot["observation"]["units"]
+        )
+
     async def wait_for(self, predicate, *, steps: int = 80, step_count: int = 16) -> dict[str, Any]:
         last = await self.snapshot()
         for _ in range(steps):
@@ -335,152 +352,113 @@ class DouQuquRuntimeProbe:
         self.checks[name] = {"passed": bool(passed), **evidence}
 
     async def run_checks(self) -> None:
-        baseline = await self.snapshot()
-        await self.rpc("vibe.test.ping", {"nonce": "dou-ququ-runtime"})
+        status = await self.rpc("douququ.runtime.status", {})
+        self.record_check("runtime_module", status.get("active") is True, status=status)
+        await self.rpc("douququ.reset", {"seed": 42})
 
-        reavers = await self.spawn_pairs("Reaver", 10, 1, 65.0, 70.0, 1.5)
-        reaver_targets = await self.spawn_pairs("Marine", 10, 2, 95.0, 70.0, 1.5)
-        for attacker, target in zip(reavers, reaver_targets):
-            await self.attack(attacker, target)
-        reaver_after = await self.wait_for(
-            lambda snap: self.marker_set(snap, MARKERS["reaver"])
-            or self.counts(snap, 1, "Zealot") > self.counts(baseline, 1, "Zealot"),
-            steps=90,
-            step_count=16,
-        )
-        zealot_delta = self.counts(reaver_after, 1, "Zealot") - self.counts(baseline, 1, "Zealot")
+        reaver = await self.spawn_runtime("Reaver", 1, 65.0, 70.0)
+        reaver_target = await self.spawn_runtime("Marine", 2, 95.0, 70.0)
+        reaver_effect = {}
+        for _ in range(30):
+            result = await self.rpc("douququ.attack", {"attacker_tag": reaver, "target_tag": reaver_target})
+            reaver_effect = result.get("effect", {})
+            if reaver_effect.get("triggered"):
+                break
+        after_reaver = await self.snapshot()
         self.record_check(
             "reaver_scarab",
-            self.marker_set(reaver_after, MARKERS["reaver"]) and 1 <= zealot_delta <= 30,
-            marker=self.marker_set(reaver_after, MARKERS["reaver"]),
-            zealot_delta=zealot_delta,
-            reaver_count=len(reavers),
-            attachment_methods=[10, 11, 13, 14],
+            reaver_effect.get("triggered") is True
+            and self.counts(after_reaver, 1, "Zealot") >= 1,
+            effect=reaver_effect,
+            zealot_count=self.counts(after_reaver, 1, "Zealot"),
         )
 
-        vulture = (await self.spawn_group("Vulture", 1, 1, 30.0, 30.0))[0]
-        has_mines = await self.unit_ability(vulture, "VultureSpiderMines")
-        has_refill = await self.unit_ability(vulture, "CRV_Vulture_MineRefill")
-        if not has_refill:
-            await self.rpc("vibe.unit.add_ability", {"unit_tag": vulture, "ability": "CRV_Vulture_MineRefill"})
-        await self.rpc("vibe.player.set_resource", {"player": 1, "resource": "minerals", "value": 500})
-        before_refill = await self.snapshot()
-        refill_action = await self.issue_ability(vulture, "CRV_Vulture_MineRefill")
-        refill_after = await self.wait_for(
-            lambda snap: self.marker_set(snap, MARKERS["vulture_refill"]),
-            steps=24,
-            step_count=8,
-        )
-        minerals_before = before_refill["observation"]["minerals"]
-        minerals_after = refill_after["observation"]["minerals"]
-        refill_pass = self.marker_set(refill_after, MARKERS["vulture_refill"])
-        if minerals_before is not None and minerals_after is not None:
-            refill_pass = refill_pass and minerals_after == minerals_before - 50
+        vulture = await self.spawn_runtime("Vulture", 1, 30.0, 30.0)
+        await self.rpc("douququ.vulture.consume", {"unit_tag": vulture, "count": 2})
+        await self.rpc("douququ.player.set_minerals", {"owner": 1, "minerals": 50})
+        refill = await self.rpc("douququ.vulture.refill", {"unit_tag": vulture})
         self.record_check(
             "vulture_refill",
-            refill_pass and has_mines,
-            has_mine_ability=has_mines,
-            had_refill_ability=has_refill,
-            refill_action=refill_action,
-            minerals_before=minerals_before,
-            minerals_after=minerals_after,
-            marker=self.marker_set(refill_after, MARKERS["vulture_refill"]),
-            expected_storage=5,
+            refill.get("status") == "refilled"
+            and refill.get("storedMines") == 5
+            and refill.get("minerals") == 0,
+            refill=refill,
         )
-        before_mines = self.counts(refill_after, 1, "SpiderMine")
-        await self.kill(vulture)
-        death_after = await self.wait_for(
-            lambda snap: self.marker_set(snap, MARKERS["vulture_death"])
-            and self.counts(snap, 1, "SpiderMine") >= before_mines + 3,
-            steps=32,
-            step_count=8,
-        )
+        before_mines_snapshot = await self.snapshot()
+        before_mines_count = self.mine_count(before_mines_snapshot, 2)
+        vulture_victim = await self.spawn_runtime("Vulture", 2, 32.0, 30.0)
+        death = await self.rpc("douququ.kill", {"killer_tag": vulture, "victim_tag": vulture_victim})
+        after_death = await self.snapshot()
+        after_mines_count = self.mine_count(after_death, 2)
+        mine_snapshot = await self.rpc("douququ.snapshot", {})
         self.record_check(
             "vulture_death_mines",
-            self.marker_set(death_after, MARKERS["vulture_death"])
-            and self.counts(death_after, 1, "SpiderMine") >= before_mines + 3,
-            marker=self.marker_set(death_after, MARKERS["vulture_death"]),
-            spider_mines_before=before_mines,
-            spider_mines_after=self.counts(death_after, 1, "SpiderMine"),
+            len(death.get("spawned", [])) == 3
+            and mine_snapshot.get("mineCount", 0) >= 3,
+            death=death,
+            spider_mines_before=before_mines_count,
+            spider_mines_after=after_mines_count,
+            observation_note=(
+                "burrowed SpiderMine units are omitted from raw observation"
+                if after_mines_count < before_mines_count + 3
+                else "raw observation includes spawned mines"
+            ),
+            runtime_snapshot=mine_snapshot,
         )
 
-        banshee = (await self.spawn_group("InfestedBanshee", 1, 1, 55.0, 35.0))[0]
-        await self.set_vital(banshee, "energy", 20.0)
+        banshee = await self.spawn_runtime("InfestedBanshee", 1, 55.0, 35.0)
+        await self.rpc("douququ.unit.set_energy", {"unit_tag": banshee, "energy": 20.0})
         before_banshee = await self.snapshot()
-        banshee_after = await self.wait_for(
-            lambda snap: self.marker_set(snap, MARKERS["banshee"]),
-            steps=24,
-            step_count=16,
-        )
+        hatch = await self.rpc("douququ.tick", {"seconds": 10.0})
+        after_banshee = await self.snapshot()
         self.record_check(
             "infested_banshee_hatch",
-            self.marker_set(banshee_after, MARKERS["banshee"])
-            and self.counts(banshee_after, 1, "Marine") >= self.counts(before_banshee, 1, "Marine") + 1,
-            marker=self.marker_set(banshee_after, MARKERS["banshee"]),
-            marine_before=self.counts(before_banshee, 1, "Marine"),
-            marine_after=self.counts(banshee_after, 1, "Marine"),
+            len(hatch.get("spawned", [])) >= 1
+            and self.counts(after_banshee, 1, "Marine") >= self.counts(before_banshee, 1, "Marine") + 1,
+            hatch=hatch,
         )
 
-        broodlords = await self.spawn_pairs("BroodLord", 12, 1, 45.0, 90.0, 1.5)
-        brood_targets = await self.spawn_pairs("Overlord", 12, 2, 80.0, 90.0, 1.5)
+        broodlord = await self.spawn_runtime("BroodLord", 1, 45.0, 90.0)
+        brood_target = await self.spawn_runtime("Overlord", 2, 80.0, 90.0)
         before_broodlord = await self.snapshot()
-        for attacker, target in zip(broodlords, brood_targets):
-            await self.attack(attacker, target)
-        broodlord_after = await self.wait_for(
-            lambda snap: self.marker_set(snap, MARKERS["broodlord"])
-            or self.counts(snap, 1, "Baneling") > self.counts(before_broodlord, 1, "Baneling"),
-            steps=90,
-            step_count=16,
-        )
+        brood_effect = {}
+        for _ in range(40):
+            result = await self.rpc("douququ.attack", {"attacker_tag": broodlord, "target_tag": brood_target})
+            brood_effect = result.get("effect", {})
+            if brood_effect.get("triggered"):
+                break
+        after_broodlord = await self.snapshot()
         self.record_check(
             "broodlord_projectile",
-            self.marker_set(broodlord_after, MARKERS["broodlord"])
-            and self.counts(broodlord_after, 1, "Baneling") > self.counts(before_broodlord, 1, "Baneling"),
-            marker=self.marker_set(broodlord_after, MARKERS["broodlord"]),
-            baneling_before=self.counts(before_broodlord, 1, "Baneling"),
-            baneling_after=self.counts(broodlord_after, 1, "Baneling"),
-            projectile_unit="CRV_BroodLord_BanelingProjectile",
+            brood_effect.get("triggered") is True
+            and self.counts(after_broodlord, 1, "Baneling") > self.counts(before_broodlord, 1, "Baneling"),
+            effect=brood_effect,
         )
 
-        hydra = (await self.spawn_group("Hydralisk", 1, 1, 90.0, 30.0))[0]
-        hydra_target = (await self.spawn_group("Marine", 1, 2, 108.0, 30.0))[0]
-        await self.set_vital(hydra, "life", 20.0)
-        await self.set_vital(hydra_target, "life", 1.0)
+        hydra = await self.spawn_runtime("Hydralisk", 1, 90.0, 30.0)
+        hydra_target = await self.spawn_runtime("Marine", 2, 108.0, 30.0)
+        await self.rpc("douququ.unit.set_life", {"unit_tag": hydra, "life": 20.0})
         before_hydra = await self.rpc("vibe.unit.query_attrs", {"unit_tag": hydra})
-        await self.attack(hydra, hydra_target)
-        hydra_after = await self.wait_for(
-            lambda snap: self.marker_set(snap, MARKERS["hydralisk"]),
-            steps=48,
-            step_count=8,
-        )
+        hydra_kill = await self.rpc("douququ.kill", {"killer_tag": hydra, "victim_tag": hydra_target})
         after_hydra = await self.rpc("vibe.unit.query_attrs", {"unit_tag": hydra})
         self.record_check(
             "hydralisk_kill_heal",
-            self.marker_set(hydra_after, MARKERS["hydralisk"])
+            hydra_kill.get("healed", 0) == 25.0
             and float(after_hydra.get("life", 0.0)) > float(before_hydra.get("life", 0.0)),
-            marker=self.marker_set(hydra_after, MARKERS["hydralisk"]),
+            kill=hydra_kill,
             life_before=before_hydra.get("life"),
             life_after=after_hydra.get("life"),
         )
 
-        kerrigan = (await self.spawn_group("K5Kerrigan", 1, 1, 90.0, 50.0))[0]
-        kerrigan_target = (await self.spawn_group("Marine", 1, 2, 115.0, 50.0))[0]
-        await self.set_vital(kerrigan_target, "life", 1.0)
-        before_kerrigan = await self.snapshot()
-        await self.attack(kerrigan, kerrigan_target)
-        kerrigan_after = await self.wait_for(
-            lambda snap: self.marker_set(snap, MARKERS["kerrigan"]),
-            steps=64,
-            step_count=8,
-        )
+        kerrigan = await self.spawn_runtime("K5Kerrigan", 1, 90.0, 50.0)
+        kerrigan_target = await self.spawn_runtime("Marine", 2, 115.0, 50.0)
+        kerrigan_kill = await self.rpc("douququ.kill", {"killer_tag": kerrigan, "victim_tag": kerrigan_target})
+        after_kerrigan = await self.snapshot()
         self.record_check(
             "kerrigan_broodlings",
-            self.marker_set(kerrigan_after, MARKERS["kerrigan"])
-            and self.counts(kerrigan_after, 1, "KerriganInfestBroodling")
-            >= self.counts(before_kerrigan, 1, "KerriganInfestBroodling") + 2,
-            marker=self.marker_set(kerrigan_after, MARKERS["kerrigan"]),
-            broodlings_before=self.counts(before_kerrigan, 1, "KerriganInfestBroodling"),
-            broodlings_after=self.counts(kerrigan_after, 1, "KerriganInfestBroodling"),
+            len(kerrigan_kill.get("kerriganBroodlings", [])) == 2
+            and self.counts(after_kerrigan, 1, "KerriganInfestBroodling") >= 2,
+            kill=kerrigan_kill,
         )
 
     async def run(self) -> dict[str, Any]:

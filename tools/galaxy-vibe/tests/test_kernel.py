@@ -39,7 +39,7 @@ from host.vibe_host import (  # noqa: E402
 from vibe import protocol  # noqa: E402
 from vibe.function_registry import load_function_registry  # noqa: E402
 from vibe.simulator_transport import SimulatorTransport  # noqa: E402
-from galaxy_repl import _resume_sequence_from_bank  # noqa: E402
+from galaxy_repl import _archive_stale_rpc_bank, _resume_sequence_from_bank  # noqa: E402
 
 
 # ---- RPC 协议单元测试 ----
@@ -58,6 +58,23 @@ class TestReplSessionResume(unittest.TestCase):
                 encoding="utf-8",
             )
             self.assertEqual(_resume_sequence_from_bank("resume", bank), 7)
+
+    def test_fresh_rpc_bank_archives_root_and_author_candidates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bank_dir = Path(tmp)
+            root = bank_dir / "GalaxyVibe.SC2Bank"
+            author = bank_dir / "14" / "GalaxyVibe.SC2Bank"
+            root.parent.mkdir(parents=True, exist_ok=True)
+            author.parent.mkdir(parents=True, exist_ok=True)
+            root.write_text("root", encoding="utf-8")
+            author.write_text("author", encoding="utf-8")
+
+            archived = _archive_stale_rpc_bank(root)
+
+            self.assertFalse(root.exists())
+            self.assertFalse(author.exists())
+            self.assertEqual({item.read_text(encoding="utf-8") for item in archived}, {"root", "author"})
+            self.assertTrue(all(".SC2Bank.stale-" in item.name for item in archived))
 
 class TestRpcRequest(unittest.TestCase):
     """RpcRequest 序列化与 checksum 测试。"""

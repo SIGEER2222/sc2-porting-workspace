@@ -153,8 +153,10 @@ def stage_map(source: Path, output: Path, kernel_root: Path = DEFAULT_KERNEL_ROO
     output.parent.mkdir(parents=True, exist_ok=True)
     source_dir, extracted = _extract_if_needed(source, output.parent)
     map_label = source_dir.name
-    if (enable_dou_ququ_features or enable_dou_ququ_runtime) and not re.search(r"斗蛐蛐|dou[-_ ]?ququ", map_label, re.IGNORECASE):
-        raise StagingError("斗蛐蛐 options are restricted to the 斗蛐蛐 map")
+    if enable_dou_ququ_features and not re.search(r"斗蛐蛐|dou[-_ ]?ququ", map_label, re.IGNORECASE):
+        raise StagingError("--enable-dou-ququ-features is restricted to the 斗蛐蛐 map")
+    if enable_dou_ququ_runtime and not re.search(r"斗蛐蛐|dou[-_ ]?ququ", map_label, re.IGNORECASE):
+        raise StagingError("--enable-dou-ququ-runtime is restricted to the 斗蛐蛐 map")
     shutil.copytree(source_dir, output)
     map_script = output / "MapScript.galaxy"
     document_info = output / "DocumentInfo"
@@ -200,7 +202,7 @@ def stage_map(source: Path, output: Path, kernel_root: Path = DEFAULT_KERNEL_ROO
     _write_bank_list(output / "BankList.xml")
     manifest = {
         "schemaVersion": 1,
-        "stage": "27-dou-ququ-behavior-plugin" if enable_dou_ququ_features else "26-full-function-invoke",
+        "stage": "27-dou-ququ-behavior-plugin" if (enable_dou_ququ_features or enable_dou_ququ_runtime) else "26-full-function-invoke",
         "mapLabel": map_label,
         "sourceMap": str(source),
         "sourceMapSha256": sha256(source) if source.is_file() else None,

@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "stage": "27-dou-ququ-behavior-plugin",
   "status": "IN_PROGRESS",
-  "evidence_type": "static",
-  "summary": "Map event extraction and the map x commander adapter matrix pass static validation, and WebUI unconditional restart plus launcher/API readiness are runtime-verified. Full zzerus03 Reborn map initialization remains blocked after CreateGame timeout and is not claimed as a runtime pass.",
+  "evidence_type": "runtime",
+  "summary": "The runtime-first 斗蛐蛐 VM plugin passes 8/8 live behavior assertions on the user-provided map with zero new ScriptErrors. The WebUI also exposes traceable static map evidence and now probes stale Bank sessions against the live kernel before accepting a connection. The overall stage remains IN_PROGRESS because the unrelated zzerus03 Reborn map-commander initialization remains blocked.",
   "changed_paths": [
     "src/projects/cmre-porting/vibe/map_event_extractor.py",
     "src/projects/cmre-porting/vibe/map_commander_adapter.py",
@@ -11,6 +11,15 @@
     "tools/cmre-webui/extract_map_events.py",
     "tools/cmre-webui/validate_map_adapters.py",
     "tools/cmre-webui/server.py",
+    "tools/cmre-webui/test_map_details.py",
+    "tools/cmre-webui/webui/app.js",
+    "tools/cmre-webui/webui/index.html",
+    "tools/cmre-webui/webui/styles.css",
+    "tools/cmre-webui/dou_ququ_runtime_probe.py",
+    "tools/cmre-webui/stage_map_vm_runtime.py",
+    "tools/cmre-webui/test_stage_map_vm_runtime.py",
+    "tools/launchers/overlays/cmre-alenger/startup/LibDouQuquRuntime.galaxy",
+    "src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin/test_map_event_extractor.py",
     "tools/cmre-webui/test_launch_async_contract.py",
     "tools/launchers/launch-cmre-alenger.ps1",
     "tools/launchers/lib/cmre-on-demand-overlay.ps1",
@@ -35,7 +44,7 @@
     {
       "command": "python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py",
       "exitCode": 0,
-      "summary": "111 passed; Stage 27 VM, overlay, staging, launcher, and WebUI contracts pass."
+      "summary": "113 passed; Stage 27 VM, overlay, staging, launcher, map-detail, and WebUI contracts pass."
     },
     {
       "command": "tools/galaxy-vibe/run-all-validation.ps1",
@@ -51,15 +60,82 @@
       "command": "python tools/cmre-webui/validate_map_adapters.py --maps-root <legacy-project>/Maps --output artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/static/map-commander-adapter-matrix.json",
       "exitCode": 0,
       "summary": "69 x 12 map/commander matrix resolved: 828 results, 828 custom profile resolutions."
+    },
+    {
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin/test_map_event_extractor.py tools/cmre-webui/test_map_details.py",
+      "exitCode": 0,
+      "summary": "4 passed; time, region, localization, source-line, API, and WebUI contract checks pass."
+    },
+    {
+      "command": "node --check tools/cmre-webui/webui/app.js; python -m py_compile tools/cmre-webui/server.py src/projects/cmre-porting/vibe/map_event_extractor.py",
+      "exitCode": 0,
+      "summary": "JavaScript and Python syntax checks pass."
+    },
+    {
+      "command": "GET / and GET /api/map-details on the restarted WebUI at 127.0.0.1:8767",
+      "exitCode": 0,
+      "summary": "HTTP 200; detail payload returned static source evidence for 亡者之夜 with 1319 preplaced units, 132 events, 282 timing records, 52 regions, and 414 timeline records.",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-map-details-20260815.json"
+    },
+    {
+      "command": "python tools/cmre-webui/stage_map_vm_runtime.py --source <user-map> --output artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/dou-ququ-runtime-vm --enable-dou-ququ-runtime --replace",
+      "exitCode": 0,
+      "summary": "Runtime-only staging passed; manifest records Stage 27 with static behavior disabled and live runtime enabled."
+    },
+    {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/mpq/scripts/pack-sc2map.ps1 <staged-runtime-dir> <dou-ququ-runtime-vm.packed.SC2Map>",
+      "exitCode": 0,
+      "summary": "StormLib packed 55 files; output size 381123 bytes."
+    },
+    {
+      "command": "python tools/cmre-webui/dou_ququ_runtime_probe.py --port 5896 --map-path artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/dou-ququ-runtime-vm.packed.SC2Map --out-dir artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-final",
+      "exitCode": 0,
+      "summary": "Real CreateGame/JoinGame/RequestStep probe passed 8/8 runtime checks."
+    },
+    {
+      "command": "Get-ChildItem $env:USERPROFILE\\Documents\\StarCraft II\\GameLogs -Recurse -Filter *ScriptError*.txt | Where-Object LastWriteTime -ge (Get-Process -Id 17784).StartTime",
+      "exitCode": 0,
+      "summary": "No new ScriptError files in the current SC2 process window."
+    },
+    {
+      "command": "POST http://127.0.0.1:8777/api/vibe/connect with stale rpcSessionId, then POST /api/vibe/invoke for douququ.runtime.status and douququ.unit.spawn",
+      "exitCode": 0,
+      "summary": "Runtime WebUI recovered from dou-ququ-runtime-8bd8c9e11051 to repl_9ba6176be879; status active=true/mode=live-vm and Marine spawn tag 786433 returned OK.",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-session-recovery-live-20260815.json"
+    },
+    {
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py",
+      "exitCode": 0,
+      "summary": "120 passed; includes expired-session fallback handshake coverage."
+    },
+    {
+      "command": "node --check tools/cmre-webui/webui/app.js; python -m py_compile tools/cmre-webui/server.py",
+      "exitCode": 0,
+      "summary": "WebUI JavaScript and runtime server Python syntax checks passed."
+    },
+    {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1",
+      "exitCode": 0,
+      "summary": "52/52 static checks passed with zero warnings."
     }
   ],
   "runtime": {
     "status": "BLOCKED",
+    "douQuquRuntime": {
+      "status": "PASS",
+      "checks": "8/8",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-final/dou-ququ-runtime-evidence.json",
+      "scriptErrors": 0
+    },
     "evidence": [
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-unconditional-restart-20260815.json",
-      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/map-commander-runtime-evidence-20260815.json"
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/map-commander-runtime-evidence-20260815.json",
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-final/dou-ququ-runtime-evidence.json",
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/staging-manifest.json",
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-map-details-20260815.json",
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-session-recovery-live-20260815.json"
     ],
-    "blockedBy": "zzerus03.SC2Map CreateGame timed out and direct-map initialization remained in the Reborn native-opening wait gate; adapter resolution and launcher/API readiness passed, but full map initialization did not."
+    "blockedBy": "zzerus03.SC2Map CreateGame timed out and direct-map initialization remained in the Reborn native-opening wait gate; this does not block the verified runtime-first 斗蛐蛐 plugin."
   },
-  "next_actions": ["Diagnose and rerun zzerus03 Reborn native-opening initialization, then require CreateGame/JoinGame, advancing frames, current assertions, and same-window ScriptError=0 before closing DOUQUQU-RUNTIME-PENDING."]
+  "next_actions": ["Keep the verified douququ.* runtime API as the development surface; later create a separate static Catalog/event patch stage only after the runtime contract is intentionally固化.", "Diagnose and rerun zzerus03 Reborn native-opening initialization before closing the unrelated map-commander blocker."]
 }

@@ -8,6 +8,7 @@
 const API = {
   factors: "/api/factors",
   maps: "/api/maps",
+  mapDetails: (mapName, mapPackage, commander) => `/api/map-details?mapName=${encodeURIComponent(mapName)}&mapPackage=${encodeURIComponent(mapPackage)}&commander=${encodeURIComponent(commander)}`,
   mutators: "/api/mutators",
   voicePacks: "/api/voice-packs",
   buffMetadata: "/api/buff-metadata",
@@ -47,13 +48,23 @@ const state = {
   extraMods: [],
   extraModsLoadedFor: null,
   extraModsRequestId: 0,
+  mapDetail: {
+    mapKey: "",
+    data: null,
+    loading: false,
+    error: "",
+    kind: "all",
+    search: "",
+    selectedIndex: null,
+    requestId: 0,
+  },
   cmdrFilter: "all",
   activeTab: "commanders",
   presets: [],
   presetListOpen: false,
   selected: {
-    mapName: "亡者之夜.SC2Map",
-    mapPackage: "cmre",
+    mapName: "",
+    mapPackage: "dou-ququ",
     commander: "TerranRaynor",
     commanderPackage: "cmre",
     faction: "",
@@ -67,7 +78,7 @@ const state = {
     mutators: [],
     voicePack: "",
     extraMods: [],
-    apiMode: false,
+    apiMode: true,
     listenPort: 5000,
     // Buff 补丁：仅对原版 18 指挥官生效。
     // - enabled: 是否启用补丁
@@ -244,14 +255,15 @@ async function loadMaps() {
     state.selected.mapName = douQuqu.id;
     state.selected.mapPackage = "dou-ququ";
     state.selected.apiMode = true;
-    if ($("runtime-map-path") && douQuqu.runtimeSource) {
-      $("runtime-map-path").value = douQuqu.runtimeSource;
+    if ($("runtime-map-path") && douQuqu.runtimeMapPath) {
+      $("runtime-map-path").value = douQuqu.runtimeMapPath;
     }
   }
   const selectedMap = state.maps.find(m => m.id === state.selected.mapName && m.packageId === state.selected.mapPackage)
     || state.maps.find(m => m.id === state.selected.mapName);
   if (selectedMap) state.selected.mapPackage = selectedMap.packageId || "cmre";
   renderMaps();
+  loadMapDetailsForSelection();
 }
 
 async function loadCommanders() {
@@ -715,13 +727,14 @@ async function loadRuntimeSessions() {
     const data = await runtimeRequest(API.vibeSessions);
     const select = $("runtime-session-select");
     select.innerHTML = '<option value="">新建或手动填写</option>';
-    for (const session of data.sessions || []) {
+    const sessions = data.sessions || [];
+    for (const session of sessions) {
       const option = document.createElement("option");
       option.value = session.session_id;
       option.textContent = `${session.session_id} · seq ${session.sequence} · ${session.operation || "未知"}`;
       select.appendChild(option);
     }
-    showStatus(`发现 ${(data.sessions || []).length} 个可恢复 session`, "success");
+    showStatus(`发现 ${sessions.length} 个 session 候选；连接时会自动探测当前有效会话`, "success");
   } catch (e) { showStatus(`读取 session 失败: ${e.message}`, "error"); }
 }
 
@@ -730,6 +743,7 @@ async function connectRuntime() {
   button.disabled = true;
   syncRuntimeStatus({ status: "connecting" });
   try {
+    if (!$("runtime-session-id").value.trim()) await loadRuntimeSessions();
     const data = await runtimeRequest(API.vibeConnect, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -737,7 +751,8 @@ async function connectRuntime() {
         port: parseInt($("runtime-port").value, 10) || 5000,
         rpcSessionId: $("runtime-session-id").value.trim(),
         mapPath: $("runtime-map-path").value.trim(),
-        joinWait: 0,
+        joinWait: Math.max(0, Math.min(120, parseFloat($("runtime-join-wait").value) || 15)),
+        preferAiOpponent: state.selected.mapPackage === "dou-ququ",
       }),
     });
     syncRuntimeStatus(data);
@@ -799,8 +814,173 @@ function initRuntimeConsole() {
   $("runtime-run-vm").onclick = runRuntimeVm;
   $("runtime-session-select").onchange = e => { $("runtime-session-id").value = e.target.value; };
   loadRuntimeCatalog();
+  loadRuntimeSessions();
   pollRuntimeStatus();
   if (!runtimeState.pollTimer) runtimeState.pollTimer = window.setInterval(pollRuntimeStatus, 1000);
+}
+
+/* === 地图静态详情 === */
+function mapDetailSource(record) {
+  const source = record && record.source ? record.source : record || {};
+  return `${source.file || record.source_file || "未知源码"}:${source.line || record.line || "?"}`;
+}
+
+function mapDetailLocation(location) {
+  if (!location) return "位置未解析";
+  const region = location.region || {};
+  const regionName = region.name_zh || region.name || (region.id !== undefined ? `区域 ${region.id}` : "");
+  if (location.kind === "region_random_point") return `${regionName || location.region_expression || "未知区域"}内随机点`;
+  if (location.kind === "region") return regionName || location.expression || "区域";
+  if (location.coordinates) return `(${location.coordinates.join(", ")})`;
+  return location.expression || "位置表达式";
+}
+
+function mapDetailUnits(record) {
+  const names = record.unit_names_zh || {};
+  return (record.unit_types || []).map(id => `${names[id] || id}（${id}）`).join("、") || "无单位记录";
+}
+
+function mapDetailKind(record) {
+  if (record.record_type === "timing") return "时间/触发";
+  const labels = { airdrop: "空投", wave: "波次", spawn: "生成", mission: "任务", initialization: "初始化", objective: "目标", event: "事件", script_create: "脚本创建" };
+  return labels[record.event_kind] || record.event_kind || "单位事件";
+}
+
+function mapDetailMatches(record) {
+  const filter = state.mapDetail.kind;
+  if (filter !== "all" && record.record_type !== filter) return false;
+  const query = state.mapDetail.search.trim().toLowerCase();
+  return !query || JSON.stringify(record).toLowerCase().includes(query);
+}
+
+function mapDetailField(label, value) {
+  return `<div class="map-record-field"><span>${esc(label)}</span><div>${value}</div></div>`;
+}
+
+function renderSelectedMapRecord(record) {
+  const target = $("map-selected-record");
+  if (!target) return;
+  if (!record) {
+    target.innerHTML = '<p class="hint">选择左侧记录查看详情</p>';
+    return;
+  }
+  const timing = record.timing || {};
+  const location = record.location;
+  const region = location && location.region;
+  const regionShapes = region && region.shapes ? `<pre>${esc(JSON.stringify(region.shapes, null, 2))}</pre>` : "";
+  let html = "";
+  html += `<div class="map-record-kind">${esc(mapDetailKind(record))}</div>`;
+  if (record.content_zh) html += mapDetailField("事件内容", `<strong>${esc(record.content_zh)}</strong>`);
+  if (record.time_text_zh || timing.text_zh) html += mapDetailField("时间", esc(record.time_text_zh || timing.text_zh));
+  html += mapDetailField("触发函数", `<strong>${esc(record.trigger_point?.function_zh || record.symbol_zh || record.symbol || "未解析")}</strong><br><code>${esc(record.trigger_point?.function || record.symbol || "")}</code>`);
+  html += mapDetailField("调用", `<code>${esc(record.call || "")}</code>`);
+  if (record.unit_types && record.unit_types.length) html += mapDetailField("单位", esc(mapDetailUnits(record)));
+  html += mapDetailField("地图位置", `${esc(record.location_text_zh || mapDetailLocation(location))}${location?.expression ? `<br><code>${esc(location.expression)}</code>` : ""}`);
+  if (region) html += mapDetailField("区域形状", `<strong>${esc(region.name_zh || region.name || `区域 ${region.id}`)}</strong>${regionShapes}`);
+  html += mapDetailField("源码位置", `<code>${esc(mapDetailSource(record))}</code>`);
+  if (record.evidence) html += mapDetailField("源码证据", `<pre>${esc(record.evidence)}</pre>`);
+  target.innerHTML = html;
+}
+
+function renderMapDetailTables(data) {
+  const timelineTarget = $("map-detail-timeline");
+  const records = (data.timeline || []).map((record, index) => ({ record, index })).filter(item => mapDetailMatches(item.record));
+  $("map-detail-count").textContent = `${records.length} / ${(data.timeline || []).length}`;
+  if (!records.length) {
+    timelineTarget.innerHTML = '<p class="hint">没有匹配的静态记录</p>';
+  } else {
+    timelineTarget.innerHTML = `<table class="map-detail-table"><thead><tr><th>时间</th><th>类型</th><th>触发器 / 函数</th><th>单位与位置</th><th>源码</th></tr></thead><tbody>${records.map(({ record, index }) => {
+      const time = record.record_type === "timing" ? (record.timing?.text_zh || "时间事件") : (record.time_text_zh || "未确定");
+      const trigger = record.trigger_point?.function_zh || record.symbol_zh || record.symbol || "未解析";
+      const units = record.record_type === "timing" ? (record.timing?.trigger ? `触发器 ${record.timing.trigger}` : "计时器") : mapDetailUnits(record);
+      const location = record.record_type === "timing" ? "" : mapDetailLocation(record.location);
+      return `<tr class="map-detail-row${state.mapDetail.selectedIndex === index ? " selected" : ""}" data-record-index="${index}"><td>${esc(time)}</td><td>${esc(mapDetailKind(record))}</td><td><strong>${esc(trigger)}</strong><br><code>${esc(record.trigger_point?.function || record.symbol || "")}</code></td><td>${esc(units)}${location ? `<br><span class="map-detail-location">${esc(location)}</span>` : ""}</td><td><code>${esc(mapDetailSource(record))}</code></td></tr>`;
+    }).join("")}</tbody></table>`;
+    $$(".map-detail-row", timelineTarget).forEach(row => {
+      row.onclick = () => {
+        state.mapDetail.selectedIndex = Number(row.dataset.recordIndex);
+        renderMapDetailTables(data);
+        renderSelectedMapRecord(data.timeline[state.mapDetail.selectedIndex]);
+      };
+    });
+  }
+  const preplaced = data.preplaced || [];
+  $("map-detail-preplaced-count").textContent = `${preplaced.length} 个`;
+  $("map-detail-preplaced").innerHTML = preplaced.length
+    ? `<table class="map-detail-table"><thead><tr><th>单位</th><th>玩家</th><th>坐标</th><th>源码</th></tr></thead><tbody>${preplaced.map(item => `<tr><td><strong>${esc(item.unit_name_zh || item.unit_type)}</strong><br><code>${esc(item.unit_type)}</code></td><td>${esc(item.player_id)}</td><td>(${esc(item.x)}, ${esc(item.y)})</td><td><code>${esc(mapDetailSource(item))}</code></td></tr>`).join("")}</tbody></table>`
+    : '<p class="hint">未发现 Objects 预置单位</p>';
+  const regions = data.regions || [];
+  $("map-detail-region-count").textContent = `${regions.length} 个`;
+  $("map-detail-regions").innerHTML = regions.length
+    ? `<table class="map-detail-table"><thead><tr><th>区域</th><th>中心 / 半径</th><th>源码</th></tr></thead><tbody>${regions.map(region => `<tr><td><strong>${esc(region.name_zh || region.name || `区域 ${region.id}`)}</strong><br><code>ID ${esc(region.id)}</code></td><td>${(region.shapes || []).map(shape => shape.center ? `(${shape.center.join(", ")})${shape.radius !== undefined ? ` / r=${shape.radius}` : ""}` : (shape.type || "形状")).join("<br>") || "未解析"}</td><td><code>${esc(mapDetailSource(region))}</code></td></tr>`).join("")}</tbody></table>`
+    : '<p class="hint">未发现 Regions 定义</p>';
+}
+
+function renderMapDetail(data, statusText = "静态扫描完成") {
+  const panel = $("map-detail-panel");
+  if (!panel) return;
+  panel.hidden = false;
+  $("map-detail-title").textContent = data.map?.name || data.map?.id || "地图详情";
+  $("map-detail-subtitle").textContent = `${data.map?.sourcePath || ""} · ${data.evidence_type || "static"}`;
+  $("map-detail-status").textContent = statusText;
+  const summary = data.summary || {};
+  $("map-detail-summary").innerHTML = [
+    ["预置单位", summary.preplaced_count || 0],
+    ["脚本事件", summary.scripted_event_count || 0],
+    ["时间记录", summary.timing_count || 0],
+    ["地图区域", summary.region_count || 0],
+    ["适配模式", data.adapter?.map_unit_policy?.mode || "未解析"],
+  ].map(([label, value]) => `<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("");
+  const adapter = data.adapter || {};
+  $("map-adapter-detail").textContent = adapter.error ? adapter.error : JSON.stringify({
+    mapRule: adapter.evidence?.map_rule,
+    commanderRule: adapter.evidence?.commander_rule,
+    startup: adapter.startup,
+    mapUnitPolicy: adapter.map_unit_policy,
+    eventUnitReplacements: adapter.event_unit_replacements,
+  }, null, 2);
+  renderMapDetailTables(data);
+  renderSelectedMapRecord(data.timeline?.[state.mapDetail.selectedIndex ?? 0]);
+}
+
+async function loadMapDetailsForSelection(force = false) {
+  const map = state.maps.find(item => item.id === state.selected.mapName && (item.packageId || "cmre") === state.selected.mapPackage);
+  if (!map) return;
+  const key = `${map.packageId || "cmre"}/${map.id}/${state.selected.commander}`;
+  if (!force && state.mapDetail.mapKey === key && state.mapDetail.data) {
+    renderMapDetail(state.mapDetail.data);
+    return;
+  }
+  const requestId = ++state.mapDetail.requestId;
+  state.mapDetail.mapKey = key;
+  state.mapDetail.loading = true;
+  state.mapDetail.data = null;
+  const panel = $("map-detail-panel");
+  panel.hidden = false;
+  $("map-detail-title").textContent = map.name || map.id;
+  $("map-detail-subtitle").textContent = "正在读取静态源码...";
+  $("map-detail-status").textContent = "扫描中";
+  $("map-detail-summary").innerHTML = '<p class="hint">正在读取 MapScript.galaxy、Objects、Regions 和本地化文本</p>';
+  try {
+    const response = await fetch(API.mapDetails(map.id, map.packageId || "cmre", state.selected.commander));
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "地图尚未扫描");
+    if (requestId !== state.mapDetail.requestId) return;
+    state.mapDetail.data = data;
+    state.mapDetail.loading = false;
+    state.mapDetail.error = "";
+    state.mapDetail.selectedIndex = null;
+    renderMapDetail(data);
+  } catch (error) {
+    if (requestId !== state.mapDetail.requestId) return;
+    state.mapDetail.loading = false;
+    state.mapDetail.error = error.message;
+    $("map-detail-status").textContent = "尚未扫描";
+    $("map-detail-summary").innerHTML = `<p class="hint map-detail-error">详情读取失败：${esc(error.message)}</p>`;
+    $("map-detail-timeline").innerHTML = "";
+    $("map-detail-preplaced").innerHTML = "";
+    $("map-detail-regions").innerHTML = "";
+  }
 }
 
 /* === 地图渲染 === */
@@ -861,10 +1041,11 @@ function renderMaps() {
       state.selected.mapPackage = m.packageId || "cmre";
       if (m.packageId === "dou-ququ") {
         state.selected.apiMode = true;
-        if ($("runtime-map-path") && m.runtimeSource) $("runtime-map-path").value = m.runtimeSource;
+        if ($("runtime-map-path")) $("runtime-map-path").value = m.runtimeMapPath || m.runtimeSource || "";
       }
       $$(".map-item").forEach(el => el.classList.toggle("selected", el === div));
       updateFooter();
+      loadMapDetailsForSelection();
     };
     groupGrid.appendChild(div);
     }
@@ -948,6 +1129,7 @@ function renderCommanderGrid() {
       resetExtraModsForCommander();
       $$(".cmdr-grid-item").forEach(el => el.classList.toggle("selected", el === div));
       renderCommanderCard();
+      loadMapDetailsForSelection(true);
     };
     groupGrid.appendChild(div);
     }
@@ -1406,9 +1588,10 @@ async function stopGame() {
 
 function resetSelection() {
   const c0 = state.commanders.find(c => c.group === "official") || state.commanders[0] || {};
+  const douQuqu = state.maps.find(m => m.packageId === "dou-ququ");
   state.selected = {
-    mapName: "亡者之夜.SC2Map",
-    mapPackage: "cmre",
+    mapName: douQuqu ? douQuqu.id : "",
+    mapPackage: douQuqu ? "dou-ququ" : "cmre",
     commander: c0.id || "TerranRaynor",
     commanderPackage: c0.packageId || "cmre",
     faction: c0.faction || "",
@@ -1417,7 +1600,7 @@ function resetSelection() {
     commanderCachedImage: c0.cachedImage || "",
     mode: 1, difficultyBase: 0, difficultyPlus: 0, enemy: "",
     mutators: [], voicePack: "", extraMods: [],
-    apiMode: false, listenPort: 5000,
+    apiMode: Boolean(douQuqu), listenPort: 5000,
     buffPatch: { enabled: false, buffs: [], masteries: {}, extras: { P1: new Set(), P2: new Set(), P3: new Set() }, _lastCommander: "" },
   };
   syncUI();
@@ -1522,6 +1705,14 @@ async function init() {
     updateBuffStatus();
   };
   $("load-extra-mods").onclick = () => loadExtraMods(true);
+  $("map-detail-kind").onchange = event => {
+    state.mapDetail.kind = event.target.value;
+    if (state.mapDetail.data) renderMapDetailTables(state.mapDetail.data);
+  };
+  $("map-detail-search").oninput = event => {
+    state.mapDetail.search = event.target.value;
+    if (state.mapDetail.data) renderMapDetailTables(state.mapDetail.data);
+  };
 
   initCollapsible();
   initTabs();

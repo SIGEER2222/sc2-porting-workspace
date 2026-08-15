@@ -85,3 +85,101 @@ Validation and runtime evidence will be appended after implementation.
   Reborn map initialization is therefore still open and must not be reported
   as a runtime pass. Evidence:
   `runtime/map-commander-runtime-evidence-20260815.json`.
+
+## 2026-08-15 Traceable map details in WebUI
+
+- `static`: `MapEventExtractor` now emits schema `cmre-map-unit-events.v2`
+  with source objects (`file`, `line`) for `MapScript.galaxy`, `Objects`,
+  `Regions`, and GameData XML. It resolves `Wait`, `TimerStart`, and time-
+  trigger calls, region references/random points, shape centers/radii, Chinese
+  unit names, translated event text, trigger function context, and raw source
+  evidence.
+- `static`: The extractor rejects trigger/function symbols such as `gt_*`,
+  `gf_*`, `gv_*`, `lib*`, `obj*`, and `*_Func` when they appear as string
+  literals, so `TriggerCreate` is not reported as a unit.
+- `runtime`: `GET /api/map-details` was exercised through the restarted
+  WebUI. The endpoint returned `cmre-map-details.v1`, `evidence_type=static`,
+  1319 preplaced units, 132 script events, 282 timing records, 52 regions,
+  and 414 timeline records for `亡者之夜.SC2Map`. Evidence:
+  `artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-map-details-20260815.json`.
+- `runtime`: The map tab now exposes the full timeline, event filters/search,
+  selected-record detail, preplaced unit coordinates, region shapes, and the
+  selected commander adapter. Failed source scans remain explicitly marked
+  `尚未扫描`; no placeholder results are generated.
+- `validation`: Stage 27 plus launcher/WebUI tests -> `113 passed`; focused
+  extractor/API tests -> `4 passed`; JavaScript `node --check` and Python
+  compilation passed.
+
+## 2026-08-15 Runtime-first live verification
+
+- `static`: Re-staged the read-only user map with only the live runtime module:
+  `python tools/cmre-webui/stage_map_vm_runtime.py --source <user-map> --output artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/dou-ququ-runtime-vm --enable-dou-ququ-runtime --replace`.
+  The manifest now records `stage=27-dou-ququ-behavior-plugin`,
+  `douQuquBehavior.enabled=false`, and `douQuquRuntime.enabled=true`.
+- `static`: StormLib packed the staged directory into
+  `artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/dou-ququ-runtime-vm.packed.SC2Map`.
+- `runtime`: Using the existing approved SC2 API session on `127.0.0.1:5896`
+  (SC2 PID `17784`), `CreateGame + JoinGame + RequestStep` drove the real map
+  through `douququ.*`. The final probe returned `8/8 PASS`:
+  runtime module active; Reaver Zealot chance; Vulture +2 storage and 50-mineral
+  refill; three death mines; Infested Banshee energy hatch; Brood Lord Baneling
+  chance; Hydralisk +25 heal; and Kerrigan two Broodlings.
+- `runtime`: The death-mine check returned three real SC2 unit tags and the
+  in-game `douququ.snapshot` returned `mineCount=3`. Raw observation omits the
+  burrowed mine units, which is recorded as a protocol note rather than treated
+  as a failed game-state assertion.
+- `runtime`: From the SC2 process start window, the GameLogs ScriptError gate
+  found no new `*ScriptError*.txt` files. API listener remained on port `5896`.
+- `validation`: `python -m pytest -q tools/cmre-webui/test_stage_map_vm_runtime.py src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin` -> `26 passed`.
+- `validation`: `python -m pytest -q tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin` -> `117 passed`.
+- `validation`: `python -m py_compile tools/cmre-webui/dou_ququ_runtime_probe.py tools/cmre-webui/stage_map_vm_runtime.py src/projects/cmre-porting/vibe/dou_ququ_behavior.py` -> passed.
+- `runtime evidence`: `artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-final/dou-ququ-runtime-evidence.json`.
+
+The Stage 27 overall result remains `IN_PROGRESS` only because the unrelated
+zzerus03/Reborn map-commander initialization issue is still open; the runtime-first
+斗蛐蛐 plugin itself is no longer pending.
+
+## 2026-08-15 Map-detail extraction correction
+
+- `static`: Rebuilt `reference-map-unit-events.json` from the 69 read-only
+  reference maps using `cmre-map-unit-events.v2`: 54,199 preplaced units,
+  11,692 unit-producing events, 8,882 time/trigger records, and 3,591 region
+  definitions. The earlier v1 event count is superseded by this stricter pass.
+- `static`: The direct-create classifier now excludes all `Trigger*` event
+  registration calls. Full-artifact validation found `0` `Trigger*` calls with
+  a reported unit, preventing button/ability ids and unit-event filters from
+  being presented as spawned units.
+- `runtime`: After the final WebUI restart, `/` returned HTTP `200` and
+  `/api/map-details` returned 132 unit events, 282 time records, 52 regions,
+  and 414 timeline rows for `亡者之夜.SC2Map`; the sampled record links
+  `MapScript.galaxy:728` to a translated random-point event in the northwest
+  barricade destroyer spawn region. Evidence:
+  `runtime/webui-map-details-20260815.json`.
+
+## 2026-08-15 Runtime session recovery
+
+- `static`: `RuntimeConsole` no longer treats the largest Bank `sequence` as
+  the current session. Bank entries are presented as candidates, and the
+  connection handshake probes each candidate with the side-effect-free
+  `douququ.runtime.status` call. `SESSION_EXPIRED` candidates are skipped;
+  the same joined WebSocket is reused so fallback does not recreate the map.
+- `static`: The WebUI no longer writes `sessions[0]` into the session input.
+  Users can still select a candidate manually, while an empty input lets the
+  backend try a fresh session and known Bank candidates. `/api/vibe/status`
+  now exposes `session_recovery` for auditability.
+- `runtime`: On WebUI `8777`, an explicit stale request for
+  `dou-ququ-runtime-8bd8c9e11051` returned `status=connected` with the live
+  session `repl_9ba6176be879`. The recovered connection then returned
+  `douququ.runtime.status` with `active=true, mode=live-vm`, and a real
+  `douququ.unit.spawn` created Marine tag `786433`, both with `error_code=OK`.
+  Evidence:
+  `runtime/webui-session-recovery-live-20260815.json`.
+- `runtime`: The follow-up attempt after restarting the WebUI could not open a
+  second SC2 WebSocket because the existing long-lived SC2 process had closed
+  new client connections. The earlier recovery and mutation evidence remains
+  valid; no SC2 process was forcibly terminated during this check. This is a
+  runtime boundary note, not a plugin behavior failure.
+- `validation`: `python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py` -> `120 passed`.
+- `validation`: `node --check tools/cmre-webui/webui/app.js` and
+  `python -m py_compile tools/cmre-webui/server.py` -> passed.
+- `validation`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` -> `52/52` passed, `0` warnings.

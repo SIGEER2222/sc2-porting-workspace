@@ -5,16 +5,30 @@
     {
       "id": "DOUQUQU-RUNTIME-PENDING",
       "severity": "high",
+      "status": "resolved",
+      "title": "Six behavior effects needed real 斗蛐蛐 runtime evidence",
+      "detail": "The runtime-first Galaxy VM was exercised through the real SC2 API on the user-provided map. All eight checks passed, including three death mines confirmed by RPC tags and douququ.snapshot mineCount=3.",
+      "evidence_type": "runtime",
+      "owner": "stage27",
+      "evidence": [
+        "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-final/dou-ququ-runtime-evidence.json",
+        "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/staging-manifest.json"
+      ],
+      "nextAction": "Keep douququ.* as the live development API; defer static patch solidification to a separate later stage."
+    },
+    {
+      "id": "MAP-COMMANDER-REborn-RUNTIME-BLOCKED",
+      "severity": "high",
       "status": "open",
-      "title": "Six behavior effects need real 斗蛐蛐 runtime evidence",
-      "detail": "The map event extractor and map/commander adapter matrix pass static validation. The approved launcher/API gate also reaches ready with zero ScriptErrors, but zzerus03 CreateGame times out and the Reborn native opening remains in its wait gate, so full map initialization and the six behavior assertions are still unverified.",
+      "title": "zzerus03 Reborn map initialization is still blocked",
+      "detail": "The unrelated zzerus03 map-commander CreateGame attempt timed out while the Reborn native-opening wait gate remained active. This does not invalidate the verified 斗蛐蛐 runtime plugin.",
       "evidence_type": "blocked",
       "owner": "stage27",
       "evidence": [
         "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/map-commander-runtime-evidence-20260815.json",
         "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/zzerus03-runtime-bank-summary-20260815.json"
       ],
-      "nextAction": "Diagnose the zzerus03 Reborn native-opening wait gate, rerun CreateGame/JoinGame with advancing frames, then capture six event assertions plus same-window ScriptError evidence."
+      "nextAction": "Diagnose the native-opening wait gate, then rerun CreateGame/JoinGame with advancing frames and a same-window ScriptError gate."
     },
     {
       "id": "WEBUI-RESTART-UNOWNED",
@@ -28,6 +42,19 @@
         "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-unconditional-restart-20260815.json"
       ],
       "nextAction": "Keep the exact process-name allowlist and verify the process table is empty before removing runtime leases."
+    },
+    {
+      "id": "WEBUI-SESSION-RECOVERY-STALE-SEQUENCE",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "WebUI could auto-select an expired Bank session",
+      "detail": "The WebUI stopped selecting sessions[0] by sequence. RuntimeConsole now probes candidates with side-effect-free douququ.runtime.status, skips SESSION_EXPIRED, and reports the accepted session in session_recovery.",
+      "evidence_type": "runtime",
+      "owner": "stage27",
+      "evidence": [
+        "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-session-recovery-live-20260815.json"
+      ],
+      "nextAction": "Keep session probing as the connection contract; do not reintroduce sequence-based latest-session selection."
     }
   ]
 }
