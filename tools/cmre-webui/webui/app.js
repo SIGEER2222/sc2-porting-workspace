@@ -991,7 +991,15 @@ async function loadMapDetailsForSelection(force = false) {
       cache: "no-store",
       signal: abortController.signal,
     });
-    const data = await response.json();
+    const raw = await response.text();
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      const contentType = response.headers.get("content-type") || "未知类型";
+      const snippet = raw.replace(/\s+/g, " ").trim().slice(0, 160);
+      throw new Error(`详情接口返回非 JSON（HTTP ${response.status}，${contentType}）：${snippet || "空响应"}`);
+    }
     if (!response.ok) throw new Error(data.error || "地图尚未扫描");
     if (requestId !== state.mapDetail.requestId) return;
     state.mapDetail.selectedIndex = null;

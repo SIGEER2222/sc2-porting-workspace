@@ -25,6 +25,19 @@ def test_map_detail_contains_time_location_translation_and_source():
     json.dumps(payload, ensure_ascii=False)
 
 
+def test_revolution_map_detail_accepts_ui_display_name():
+    payload = server.load_map_details(
+        "[起义狂潮] 欢迎来到丛林",
+        "revolution-overdrive",
+        "TerranAlenger3",
+    )
+
+    assert payload["map"]["id"] == "ttosh02.SC2Map"
+    assert payload["map"]["name"] == "[起义狂潮] 欢迎来到丛林"
+    assert payload["summary"]["preplaced_count"] == 814
+    assert payload["timeline"]
+
+
 def test_map_detail_http_endpoint_and_ui_contract():
     httpd = server.ThreadingHTTPServer(("127.0.0.1", 0), server.CmreWebUIHandler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)

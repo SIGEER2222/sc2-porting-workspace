@@ -211,3 +211,11 @@ zzerus03/Reborn map-commander initialization issue is still open; the runtime-fi
 - `validation`: `python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_map_details.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py` -> `128 passed`.
 - `validation`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` -> `52/52 passed`, `0 warnings`.
 - `validation`: `python -m py_compile tools/cmre-webui/server.py tools/cmre-webui/stage_map_vm_runtime.py`, `node --check tools/cmre-webui/webui/app.js`, and `git diff --check` -> passed.
+
+## 2026-08-15 起义狂潮地图详情兼容修复
+
+- `static`: 地图详情 API 现在同时接受持久化地图 ID 和 UI 显示名；`[起义狂潮] 欢迎来到丛林` 会规范化为 `ttosh02.SC2Map`，不再依赖旧前端必须传文件名。
+- `static`: 前端详情请求先读取响应文本再解析 JSON；若错误端口或旧服务返回 HTML，面板会显示 HTTP 状态、Content-Type 和响应片段，而不是只显示 `Unexpected token '<'`。
+- `runtime`: 8767 和 8777 两个重启后的 WebUI 对显示名请求均返回 HTTP `200`、`no-store`，并返回 `ttosh02.SC2Map` 的 814 个预置单位、346 个脚本事件、498 条时间线和 67 个区域。
+- `runtime`: Edge 无头浏览器实际点击 `[起义狂潮] 欢迎来到丛林` 后显示“静态扫描完成”，渲染 498 条时间线、814 条预置单位和 67 条区域，无错误提示。
+- `validation`: `python -m pytest -q tools/cmre-webui/test_map_details.py` -> `4 passed`；`node --check tools/cmre-webui/webui/app.js` 和 `python -m py_compile tools/cmre-webui/server.py` -> passed。

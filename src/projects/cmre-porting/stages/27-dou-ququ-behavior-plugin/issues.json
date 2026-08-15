@@ -97,6 +97,20 @@
         "tools/cmre-webui/test_map_details.py"
       ],
       "nextAction": "Keep map-detail API and editable WebUI resources non-cacheable while this local development server serves live source analysis."
+    },
+    {
+      "id": "WEBUI-REVOLUTION-DISPLAY-NAME",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Revolution Overdrive map details rejected the UI display name",
+      "detail": "The map-detail API now resolves both [起义狂潮] 欢迎来到丛林 and ttosh02.SC2Map to the same source map. The frontend also reports non-JSON responses with their HTTP metadata and a bounded response snippet.",
+      "evidence_type": "runtime",
+      "owner": "stage27",
+      "evidence": [
+        "src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin/log.md",
+        "tools/cmre-webui/test_map_details.py"
+      ],
+      "nextAction": "Keep display-name normalization for map-detail requests when supporting older saved presets or frontend clients."
     }
   ]
 }

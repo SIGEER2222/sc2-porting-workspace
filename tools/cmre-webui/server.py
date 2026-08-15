@@ -249,6 +249,7 @@ def _map_detail_localization_roots(source: Path) -> list[Path]:
 def load_map_details(map_name: str, package_id: str = "cmre", commander_id: str = "TerranAlenger3") -> dict:
     """Return traceable static map details for the WebUI detail pane."""
 
+    map_name = _canonical_map_detail_name(map_name, package_id)
     source, source_root = _resolve_map_detail_source(map_name, package_id)
     cache_key = (package_id, source.as_posix())
     stamp = _map_detail_stamp(source)
@@ -476,6 +477,25 @@ def _map_display_name(map_id: str, package_id: str) -> str:
         return MAP_DISPLAY_NAMES[package_id][map_id]
     except KeyError as exc:
         raise RuntimeError(f"地图未登记中文显示名: {package_id}/{map_id}") from exc
+
+
+def _canonical_map_detail_name(map_name: str, package_id: str) -> str:
+    """Accept both the persisted map id and the human-facing UI name."""
+    candidate = str(map_name or "").strip()
+    if not candidate:
+        return candidate
+    names = MAP_DISPLAY_NAMES.get(package_id, {})
+    candidate_key = candidate.casefold()
+    for map_id, display_name in names.items():
+        aliases = {
+            map_id,
+            map_id.removesuffix(".SC2Map"),
+            display_name,
+            display_name.split("] ", 1)[-1] if "] " in display_name else display_name,
+        }
+        if any(candidate_key == alias.casefold() for alias in aliases):
+            return map_id
+    return candidate
 
 
 def _find_map_preview(map_dir: Path) -> str:

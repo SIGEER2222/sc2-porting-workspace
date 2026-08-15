@@ -167,6 +167,16 @@
       "command": "GameLogs scan after SC2 PID 5460 start time",
       "exitCode": 0,
       "summary": "Zero new *ScriptError*.txt files."
+    },
+    {
+      "command": "python -m pytest -q tools/cmre-webui/test_map_details.py; node --check tools/cmre-webui/webui/app.js; python -m py_compile tools/cmre-webui/server.py",
+      "exitCode": 0,
+      "summary": "4 map-detail tests passed; display-name alias resolution, non-JSON diagnostics, and syntax checks pass."
+    },
+    {
+      "command": "GET /api/map-details with UI display name on WebUI ports 8767 and 8777; headless Edge click on 欢迎来到丛林",
+      "exitCode": 0,
+      "summary": "Both ports returned HTTP 200 for [起义狂潮] 欢迎来到丛林; browser scan completed with 498 timeline rows, 814 preplaced-unit rows, 67 region rows, and no error."
     }
   ],
   "runtime": {
