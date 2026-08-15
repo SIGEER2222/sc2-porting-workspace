@@ -1,0 +1,21 @@
+include "LibVibeKernel_h"
+
+// Fail-closed implementation used when the live VM module was not requested.
+string libDouQuquRuntimeDisabled_gf_Reject(string functionId) {
+    return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "PLUGIN_DISABLED", "{\"function_id\":\"" + functionId + "\",\"reason\":\"use -EnableDouQuquRuntime\"}");
+}
+
+string libDouQuquRuntime_gf_Status(string argsJson) { return libDouQuquRuntimeDisabled_gf_Reject("douququ.runtime.status"); }
+string libDouQuquRuntime_gf_Reset(string argsJson) { return libDouQuquRuntimeDisabled_gf_Reject("douququ.reset"); }
+string libDouQuquRuntime_gf_UnitSpawn(string argsJson) { return libDouQuquRuntimeDisabled_gf_Reject("douququ.unit.spawn"); }
+string libDouQuquRuntime_gf_UnitSetEnergy(string argsJson) { return libDouQuquRuntimeDisabled_gf_Reject("douququ.unit.set_energy"); }
+string libDouQuquRuntime_gf_UnitSetLife(string argsJson) { return libDouQuquRuntimeDisabled_gf_Reject("douququ.unit.set_life"); }
+string libDouQuquRuntime_gf_PlayerSetMinerals(string argsJson) { return libDouQuquRuntimeDisabled_gf_Reject("douququ.player.set_minerals"); }
+string libDouQuquRuntime_gf_Attack(string argsJson) { return libDouQuquRuntimeDisabled_gf_Reject("douququ.attack"); }
+string libDouQuquRuntime_gf_ReaverScarabImpact(string argsJson) { return libDouQuquRuntimeDisabled_gf_Reject("douququ.reaver.scarab_impact"); }
+string libDouQuquRuntime_gf_Kill(string argsJson) { return libDouQuquRuntimeDisabled_gf_Reject("douququ.kill"); }
+string libDouQuquRuntime_gf_BansheeHatch(string argsJson) { return libDouQuquRuntimeDisabled_gf_Reject("douququ.banshee.hatch"); }
+string libDouQuquRuntime_gf_Tick(string argsJson) { return libDouQuquRuntimeDisabled_gf_Reject("douququ.tick"); }
+string libDouQuquRuntime_gf_VultureRefill(string argsJson) { return libDouQuquRuntimeDisabled_gf_Reject("douququ.vulture.refill"); }
+string libDouQuquRuntime_gf_VultureConsume(string argsJson) { return libDouQuquRuntimeDisabled_gf_Reject("douququ.vulture.consume"); }
+string libDouQuquRuntime_gf_Snapshot(string argsJson) { return libDouQuquRuntimeDisabled_gf_Reject("douququ.snapshot"); }

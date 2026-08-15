@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""CMRE 亡者之夜 WebUI 后端服务
+"""CMRE / 斗蛐蛐 WebUI 后端服务
 
 提供因子（Mode/Difficulty/Enemy/Mutators）选择界面和启动游戏的 HTTP API。
 仅使用 Python 标准库，无第三方依赖。
 
 用法:
-    python server.py [--port 8767] [--host 127.0.0.1]
+    python server.py [--port 8767] [--host 127.0.0.1] [--dou-ququ-map <path>]
 """
 
 import asyncio
@@ -122,6 +122,55 @@ COMMANDER_RACES = ["Terran", "Zerg", "Protoss"]
 DEFAULT_LEGACY_ROOT = str(CMRE_RUNTIME_ROOT)
 LEGACY_ROOT = os.environ.get("CMRE_LEGACY_ROOT", DEFAULT_LEGACY_ROOT)
 
+# Optional user-owned map input.  The archive/directory is read-only; archives
+# are extracted into artifacts before the approved launcher stages its live map.
+DOU_QUQU_MAP_SOURCE: Path | None = None
+DOU_QUQU_EXTRACTED_SOURCE: Path | None = None
+DOU_QUQU_ARTIFACT_ROOT = (
+    REPO_ROOT
+    / "artifacts"
+    / "projects"
+    / "cmre-porting"
+    / "stage27-dou-ququ-behavior-plugin"
+    / "runtime"
+    / "webui-map-source"
+)
+DOU_QUQU_EXTRACTOR = REPO_ROOT / "tools" / "mpq" / "scripts" / "extract_mpq.py"
+
+
+def _dou_ququ_map_root() -> Path | None:
+    """Return an unpacked, artifacts-only 斗蛐蛐 source for the launcher."""
+    global DOU_QUQU_EXTRACTED_SOURCE
+    source = DOU_QUQU_MAP_SOURCE
+    if source is None:
+        return None
+    source = source.resolve()
+    if source.is_dir():
+        if not (source / "MapScript.galaxy").is_file():
+            raise RuntimeError(f"斗蛐蛐地图目录缺少 MapScript.galaxy: {source}")
+        return source
+    if source.suffix.casefold() != ".sc2map" or not source.is_file():
+        raise RuntimeError(f"斗蛐蛐地图必须是 .SC2Map 或解包目录: {source}")
+    target = DOU_QUQU_ARTIFACT_ROOT / "extracted" / source.stem
+    if not (target / "MapScript.galaxy").is_file():
+        if not DOU_QUQU_EXTRACTOR.is_file():
+            raise RuntimeError(f"地图解包工具不存在: {DOU_QUQU_EXTRACTOR}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        completed = subprocess.run(
+            [sys.executable, str(DOU_QUQU_EXTRACTOR), str(source), str(target), "*"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        if completed.returncode != 0 or not (target / "MapScript.galaxy").is_file():
+            detail = (completed.stdout + "\n" + completed.stderr).strip()[-2000:]
+            raise RuntimeError(f"斗蛐蛐地图解包失败 (exit={completed.returncode}): {detail}")
+    DOU_QUQU_EXTRACTED_SOURCE = target
+    return target
+
 
 def _resolve_powershell_executable() -> str:
     """Use the PowerShell host required by the launcher on Windows."""
@@ -130,6 +179,60 @@ def _resolve_powershell_executable() -> str:
         if resolved:
             return resolved
     return "pwsh"
+
+
+def _startup_contract_candidates() -> list[Path]:
+    """Return current-stage and legacy startup-contract artifacts in priority order."""
+    artifacts_root = REPO_ROOT / "artifacts" / "projects" / "cmre-porting"
+    candidates: list[Path] = []
+    project_path = REPO_ROOT / "src" / "projects" / "cmre-porting" / "project.json"
+    try:
+        project = json.loads(project_path.read_text(encoding="utf-8-sig"))
+        current_stage = str(project.get("currentStage", "")).strip()
+    except (OSError, json.JSONDecodeError):
+        current_stage = ""
+    if current_stage:
+        stage_names = [current_stage]
+        stage_number = re.match(r"^(\d+)-", current_stage)
+        if stage_number:
+            stage_names.insert(0, f"stage{stage_number.group(1)}-{current_stage[stage_number.end():]}")
+        for stage_name in stage_names:
+            stage_root = artifacts_root / stage_name
+            candidates.append(stage_root / "map-startup-contract.json")
+            if stage_root.is_dir():
+                contract_files = sorted(
+                    stage_root.rglob("*startup-contract*.json"),
+                    key=lambda path: (path.name.endswith(".full.json"), str(path)),
+                )
+                candidates.extend(contract_files)
+    # Stage 26 remains the fallback for the original CMRE map set.
+    candidates.append(artifacts_root / "stage26-full-function-invoke" / "map-startup-contract.json")
+
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        key = str(candidate.resolve()).casefold()
+        if key not in seen:
+            seen.add(key)
+            unique.append(candidate)
+    return unique
+
+
+def _find_startup_contract(map_name: str) -> Path | None:
+    """Find the first readable contract that explicitly contains ``map_name``."""
+    for candidate in _startup_contract_candidates():
+        if not candidate.is_file():
+            continue
+        try:
+            payload = json.loads(candidate.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        maps = payload.get("maps", []) if isinstance(payload, dict) else []
+        if isinstance(maps, list) and any(
+            isinstance(record, dict) and record.get("map") == map_name for record in maps
+        ):
+            return candidate.resolve()
+    return None
 
 # 因子元数据
 FACTORS_DATA = {
@@ -366,27 +469,44 @@ def _map_record(map_id: str, name: str, package_id: str, preview: str = "") -> d
 
 
 def load_maps():
-    """扫描 cmre-runtime/Maps/CMRE/ 目录，返回 [{id, name, preview}]。
+    """扫描 CMRE 与可选 斗蛐蛐输入，返回 [{id, name, preview}]。
 
     id = 文件名（含 .SC2Map），name = 去掉 .SC2Map 扩展名的显示名。
     preview = 地图预览图相对路径（Maps/CMRE/<map>/Assets/Textures/ui_loading_xxx.dds），
               找不到为空字符串。按 name 排序。
     """
+    maps = []
     if not MAPS_CMRE_DIR.exists():
         print(f"[warn] CMRE 地图目录不存在: {MAPS_CMRE_DIR}")
-        return []
-    maps = []
-    for entry in sorted(MAPS_CMRE_DIR.iterdir()):
-        if entry.is_dir() and entry.name.endswith(".SC2Map"):
-            preview = _find_map_preview(entry)
-            maps.append({
-                **_map_record(
-                    entry.name,
-                    _map_display_name(entry.name, "cmre"),
-                    "cmre",
-                    preview,
-                ),
-            })
+    else:
+        for entry in sorted(MAPS_CMRE_DIR.iterdir()):
+            if entry.is_dir() and entry.name.endswith(".SC2Map"):
+                preview = _find_map_preview(entry)
+                maps.append({
+                    **_map_record(
+                        entry.name,
+                        _map_display_name(entry.name, "cmre"),
+                        "cmre",
+                        preview,
+                    ),
+                })
+    dou_ququ_root = _dou_ququ_map_root()
+    if dou_ququ_root is not None:
+        source = DOU_QUQU_MAP_SOURCE.resolve()
+        map_id = source.name if source.is_file() else dou_ququ_root.name
+        if not map_id.casefold().endswith(".sc2map"):
+            map_id += ".SC2Map"
+        maps.append({
+            **_map_record(
+                map_id,
+                "斗蛐蛐",
+                "dou-ququ",
+                "",
+            ),
+            "runtimeSource": str(dou_ququ_root),
+            "readOnlySource": str(source),
+            "runtimeOnly": True,
+        })
     return maps
 
 
@@ -1335,6 +1455,62 @@ class RuntimeConsole:
     def step(self, loops):
         return self._submit(self._step(loops), timeout=15)
 
+    async def _observe(self):
+        if self._repl is None:
+            raise RuntimeError("未连接 SC2 Vibe session")
+        from galaxy_repl import send_request
+        from s2clientprotocol import sc2api_pb2 as sc_pb
+
+        response = await send_request(
+            self._repl.ws,
+            sc_pb.Request(observation=sc_pb.RequestObservation()),
+            timeout=15.0,
+        )
+        if response.error:
+            return {
+                "kind": "error",
+                "error_code": "OBSERVE_FAILED",
+                "payload": {"errors": list(response.error)},
+            }
+        observation = response.observation.observation
+        raw = observation.raw_data
+        units = []
+        if raw is not None:
+            for unit in raw.units:
+                units.append({
+                    "tag": int(unit.tag),
+                    "unit_type_id": int(unit.unit_type),
+                    "unit_type": self._repl.name_lookup(int(unit.unit_type)),
+                    "owner": int(unit.owner),
+                    "x": round(float(unit.pos.x), 3),
+                    "y": round(float(unit.pos.y), 3),
+                    "life": round(float(unit.health), 3),
+                    "max_life": round(float(unit.health_max), 3),
+                    "shields": round(float(unit.shield), 3),
+                    "energy": round(float(unit.energy), 3),
+                    "orders": [int(order.ability_id) for order in unit.orders],
+                })
+        player = observation.player_common
+        return {
+            "kind": "result",
+            "error_code": "OK",
+            "payload": {
+                "game_loop": int(observation.game_loop),
+                "player": {
+                    "id": int(player.player_id),
+                    "minerals": int(player.minerals),
+                    "vespene": int(player.vespene),
+                    "food_used": int(player.food_used),
+                    "food_cap": int(player.food_cap),
+                },
+                "units": units[:500],
+                "unit_count": len(units),
+            },
+        }
+
+    def observe(self):
+        return self._submit(self._observe(), timeout=20)
+
     async def _run_vm(self, program):
         if self._repl is None:
             raise RuntimeError("未连接 SC2 Vibe session")
@@ -1731,15 +1907,17 @@ def _skip_detached_session_cleanup(reason):
 
 
 def _cleanup_webui_detached_session():
-    """Stop only a detached SC2 instance explicitly linked to this WebUI launch.
+    """Stop only an SC2 instance explicitly linked to this WebUI launch.
 
     A launcher lease by itself is insufficient: manually launched sessions create the
     same file. The WebUI intent must match the lease, runtime PID, process creation
-    timestamp, executable, and map command line before taskkill is allowed.
+    timestamp, and executable before taskkill is allowed. Direct-map detached
+    sessions also carry the map in the command line; API KeepAlive sessions do not.
     """
     intent = _read_json_object(WEBUI_SESSION_LEASE_PATH)
     lease = _read_json_object(SC2_RUNTIME_LEASE_PATH)
-    if not intent or not lease or lease.get("state") != "detached":
+    lease_state = lease.get("state") if lease else ""
+    if not intent or not lease or lease_state not in {"detached", "keepalive", "ready", "api_listening"}:
         return []
 
     launcher_pid = _lease_pid(intent, "launcherPid")
@@ -1747,18 +1925,16 @@ def _cleanup_webui_detached_session():
     runtime_pid = _lease_pid(lease, "runtimePid")
     if not launcher_pid or launcher_pid != owner_pid:
         return _skip_detached_session_cleanup("launcher PID does not match detached lease")
-    if intent.get("runtimePid") != runtime_pid:
-        return _skip_detached_session_cleanup("runtime PID does not match detached lease")
-    if not intent.get("runtimeCreationDate"):
-        return _skip_detached_session_cleanup("runtime creation timestamp is missing")
-    if intent.get("leaseOwnerSessionId") != lease.get("ownerSessionId"):
-        return _skip_detached_session_cleanup("launcher session does not match detached lease")
+    if intent.get("runtimePid") and intent.get("runtimePid") != runtime_pid:
+        return _skip_detached_session_cleanup("runtime PID does not match WebUI lease")
+    if intent.get("leaseOwnerSessionId") and intent.get("leaseOwnerSessionId") != lease.get("ownerSessionId"):
+        return _skip_detached_session_cleanup("launcher session does not match WebUI lease")
     if lease.get("mapName") != intent.get("mapName") or lease.get("commander") != intent.get("commander"):
         return _skip_detached_session_cleanup("map or commander does not match detached lease")
     if not _same_path(intent.get("launcher"), LAUNCH_SCRIPT):
         return _skip_detached_session_cleanup("WebUI launcher path is not trusted")
     if not _same_path(lease.get("launcher"), LAUNCH_SCRIPT):
-        return _skip_detached_session_cleanup("detached lease launcher path is not trusted")
+        return _skip_detached_session_cleanup("WebUI lease launcher path is not trusted")
     # The original launcher must be gone. A reused owner PID is treated as untrusted.
     if _get_process_info(owner_pid) is not None:
         return _skip_detached_session_cleanup("original launcher PID is still live or reused")
@@ -1768,19 +1944,21 @@ def _cleanup_webui_detached_session():
         return _skip_detached_session_cleanup("detached runtime PID is not live")
     process_name = str(runtime_info.get("Name", "")).lower()
     command_line = str(runtime_info.get("CommandLine", ""))
-    map_name = intent.get("mapName")
     if process_name not in {"sc2.exe", "sc2_x64.exe"}:
         return _skip_detached_session_cleanup("runtime PID is not an SC2 game process")
-    if not isinstance(map_name, str) or not map_name or map_name.casefold() not in command_line.casefold():
+    api_session = lease_state in {"keepalive", "ready", "api_listening"} and _lease_pid(lease, "port") > 0
+    map_name = intent.get("mapName")
+    if not api_session and (not isinstance(map_name, str) or not map_name or map_name.casefold() not in command_line.casefold()):
         # WMI can briefly return an empty CommandLine while SC2 is switching its
         # window state. Re-read once; any stable mismatch still fails closed.
         runtime_info = _get_process_info(runtime_pid) or runtime_info
         command_line = str(runtime_info.get("CommandLine", ""))
-        if map_name.casefold() not in command_line.casefold():
+        if not isinstance(map_name, str) or not map_name or map_name.casefold() not in command_line.casefold():
             return _skip_detached_session_cleanup(
                 f"runtime command line does not match leased map (expected={map_name!r}, actual={command_line!r})"
             )
-    if runtime_info.get("CreationDate") != intent.get("runtimeCreationDate"):
+    expected_creation = intent.get("runtimeCreationDate")
+    if expected_creation and runtime_info.get("CreationDate") != expected_creation:
         return _skip_detached_session_cleanup("runtime creation timestamp does not match")
 
     if not _force_kill_process_tree(runtime_pid):
@@ -2007,6 +2185,12 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             return
         if self.path == "/api/vibe/status":
             self._send_json(_runtime_console.status())
+            return
+        if self.path == "/api/vibe/observe":
+            try:
+                self._send_json({"success": True, "result": _runtime_console.observe()})
+            except Exception as exc:
+                self._send_json({"success": False, "error": str(exc)}, 502)
             return
         if self.path == "/api/buff-metadata":
             self._send_json(load_buff_metadata())
@@ -2266,7 +2450,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         commander = body.get("commander", "TerranAlenger3")
         map_name = body.get("mapName", "亡者之夜.SC2Map")
         map_package = body.get("mapPackage", "cmre") or "cmre"
-        if map_package not in {"cmre", "reborn", "revolution-overdrive"}:
+        if map_package not in {"cmre", "reborn", "revolution-overdrive", "dou-ququ"}:
             self._send_json({"success": False, "error": f"未知地图类别: {map_package}"}, 400)
             return None
         map_source_override = ""
@@ -2277,6 +2461,19 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         elif map_package == "revolution-overdrive":
             map_source_override = str(REVOLUTION_MAPS_ROOT / map_name)
             map_dependency_root = str(REVOLUTION_PACKAGE_ROOT)
+        elif map_package == "dou-ququ":
+            try:
+                dou_ququ_root = _dou_ququ_map_root()
+            except RuntimeError as exc:
+                self._send_json({"success": False, "error": str(exc)}, 400)
+                return None
+            if dou_ququ_root is None:
+                self._send_json(
+                    {"success": False, "error": "未配置斗蛐蛐地图，请用 start-dou-ququ-runtime.ps1 -Map 指定原图"},
+                    400,
+                )
+                return None
+            map_source_override = str(dou_ququ_root)
         if map_package != "cmre" and (
             not map_source_override or not Path(map_source_override).is_dir()
         ):
@@ -2299,6 +2496,12 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         # ApiMinimal: 跳过 commander UI/setup 但调用 libCOOC_gf_CC_CustomStartupLaunch()
         # 推进 SC2 从 Launched → in_game。用于 CMRE Coop 地图在 API 模式下避免 UI 阻塞。
         api_minimal = bool(body.get("apiMinimal", False))
+        enable_douququ = bool(body.get("enableDouQuquBehavior", False))
+        if map_package == "dou-ququ":
+            # The behavior library is a runtime-loaded dependency for this map,
+            # never a source-map write. It is always enabled in this package.
+            enable_douququ = True
+            api_minimal = True
         # 重生虫心指挥官：WebUI 透传 enableReborn + rebornCommander，
         # launcher 据此追加 -EnableReborn -RebornCommander <Name> 加载 5 个 Reborn mod 并应用
         # K5Kerrigan 替换逻辑。commander 形如 "ZergAbathur"，rebornCommander 为 "Abathur"。
@@ -2430,12 +2633,20 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                 args.extend(["-ExtraMods", extra_str])
         if listen_port > 0:
             args.extend(["-ListenPort", str(listen_port)])
+            # API clients attach after launcher readiness; keep the launcher
+            # alive so SC2 remains protected by the runtime mutex and lease.
+            args.append("-KeepAlive")
         if map_source_override:
             args.extend(["-MapSourceOverride", map_source_override])
         if map_dependency_root:
             args.extend(["-MapDependencyRootOverride", map_dependency_root])
+        startup_contract = _find_startup_contract(map_name)
+        if startup_contract is not None:
+            args.extend(["-StartupContractOverride", str(startup_contract)])
         if api_minimal:
             args.append("-ApiMinimal")
+        if enable_douququ:
+            args.append("-EnableDouQuquBehavior")
         # 重生虫心参数透传：launcher 据此加载 5 个 Reborn mod 包并应用 K5Kerrigan 替换逻辑。
         # reborn_commander 必须是 reborn-commanders.json 中的 id（如 "Abathur"）。
         if enable_reborn:
@@ -2472,6 +2683,8 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             "buffs": buffs,
             "masteries": masteries,
             "listen_port": listen_port,
+            "map_source_override": map_source_override,
+            "enable_douququ": enable_douququ,
             "commander": commander,
             "map_name": map_name,
             "map_package": map_package,
@@ -2714,15 +2927,27 @@ def open_browser_delayed(url, delay=1.0):
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="CMRE 亡者之夜 WebUI 后端服务")
+    global DOU_QUQU_MAP_SOURCE
+    parser = argparse.ArgumentParser(description="CMRE / 斗蛐蛐 WebUI 后端服务")
     parser.add_argument("--port", type=int, default=8767, help="监听端口")
     parser.add_argument("--host", default="127.0.0.1", help="监听地址")
     parser.add_argument("--no-browser", action="store_true", help="不自动打开浏览器")
+    parser.add_argument(
+        "--dou-ququ-map",
+        default=os.environ.get("DOU_QUQU_MAP", ""),
+        help="用户斗蛐蛐 .SC2Map 原图或解包目录；仅读，运行时副本写入 artifacts",
+    )
     args = parser.parse_args()
+    if args.dou_ququ_map:
+        DOU_QUQU_MAP_SOURCE = Path(args.dou_ququ_map).expanduser().resolve()
+        if not DOU_QUQU_MAP_SOURCE.exists():
+            parser.error(f"斗蛐蛐地图不存在: {DOU_QUQU_MAP_SOURCE}")
 
     server = ThreadingHTTPServer((args.host, args.port), CmreWebUIHandler)
     url = f"http://{args.host}:{args.port}"
-    print(f"CMRE 亡者之夜 WebUI 服务已启动: {url}")
+    print(f"CMRE / 斗蛐蛐 WebUI 服务已启动: {url}")
+    if DOU_QUQU_MAP_SOURCE is not None:
+        print(f"斗蛐蛐只读输入: {DOU_QUQU_MAP_SOURCE}")
     print(f"WebUI 目录: {WEBUI_DIR}")
     print(f"Mutator 数据: {MUTATORS_JSON}")
     print(f"启动脚本: {LAUNCH_SCRIPT}")

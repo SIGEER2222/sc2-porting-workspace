@@ -1,0 +1,241 @@
+include "LibDouQuquBehavior_h"
+
+const int libDouQuquBehavior_gv_VultureMaxMines = 5;
+const int libDouQuquBehavior_gv_VultureRefillCost = 50;
+const fixed libDouQuquBehavior_gv_ReaverOrdinaryChance = 20.0;
+const fixed libDouQuquBehavior_gv_ReaverKillChance = 30.0;
+const fixed libDouQuquBehavior_gv_BroodLordChance = 15.0;
+const fixed libDouQuquBehavior_gv_BansheeInterval = 10.0;
+const fixed libDouQuquBehavior_gv_BansheeEnergyCost = 20.0;
+const fixed libDouQuquBehavior_gv_HydraliskHeal = 25.0;
+
+trigger libDouQuquBehavior_gt_Attacked;
+trigger libDouQuquBehavior_gt_ScarabDamaged;
+trigger libDouQuquBehavior_gt_Died;
+trigger libDouQuquBehavior_gt_Tick;
+trigger libDouQuquBehavior_gt_VultureRefill;
+trigger libDouQuquBehavior_gt_Created;
+bool libDouQuquBehavior_gv_Initialized = false;
+bank libDouQuquBehavior_gv_DebugBank;
+
+void libDouQuquBehavior_gf_Write(string lp_key) {
+    if (libDouQuquBehavior_gv_DebugBank == null) {
+        libDouQuquBehavior_gv_DebugBank = BankLoad("CMRERebornDebug", 1);
+        if (libDouQuquBehavior_gv_DebugBank != null) {
+            BankWait(libDouQuquBehavior_gv_DebugBank);
+        }
+    }
+    if (libDouQuquBehavior_gv_DebugBank == null) { return; }
+    BankValueSetFromInt(libDouQuquBehavior_gv_DebugBank, "debug", lp_key, 1);
+    BankSave(libDouQuquBehavior_gv_DebugBank);
+}
+
+void libDouQuquBehavior_gf_SpawnReaverZealot(unit lp_reaver, point lp_position) {
+    unit lv_zealot;
+    int lv_active;
+    string lv_activeKey;
+    if (lp_reaver == null) { return; }
+    lv_activeKey = "CRV_ReaverActive_" + IntToString(UnitGetTag(lp_reaver));
+    lv_active = DataTableGetInt(true, lv_activeKey);
+    if (lv_active >= 3) { return; }
+    UnitCreate(1, "Zealot", c_unitCreateIgnorePlacement, UnitGetOwner(lp_reaver), lp_position, libNtve_gf_RandomAngle());
+    lv_zealot = UnitLastCreated();
+    if (lv_zealot == null) { return; }
+    DataTableSetInt(true, lv_activeKey, lv_active + 1);
+    DataTableSetUnit(true, "CRV_ReaverForZealot_" + IntToString(UnitGetTag(lv_zealot)), lp_reaver);
+    libDouQuquBehavior_gf_Write("douququ_reaver_scarab_impact");
+}
+
+void libDouQuquBehavior_gf_SpawnAt(string lp_type, int lp_owner, point lp_position, int lp_count) {
+    int lv_index;
+    for (lv_index = 1; lv_index <= lp_count; lv_index += 1) {
+        UnitCreate(1, lp_type, c_unitCreateIgnorePlacement, lp_owner, lp_position, libNtve_gf_RandomAngle());
+    }
+}
+
+void libDouQuquBehavior_gf_ConfigureVultureCatalog() {
+    int lv_player;
+    for (lv_player = 1; lv_player <= 15; lv_player += 1) {
+        CatalogFieldValueSet(c_gameCatalogAbil, "VultureSpiderMines", "Cost[0].Charge.CountMax", lv_player, "5");
+        CatalogFieldValueSet(c_gameCatalogAbil, "VultureSpiderMines", "Cost[0].Charge.CountStart", lv_player, "5");
+    }
+}
+
+bool libDouQuquBehavior_gt_Attacked_Func(bool testConds, bool runActions) {
+    unit lv_attacker;
+    unit lv_target;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    lv_attacker = EventUnitTarget();
+    lv_target = EventUnit();
+    if ((lv_attacker == null) || (lv_target == null) || !UnitIsAlive(lv_attacker)) { return true; }
+    if ((UnitGetType(lv_attacker) == "BroodLord") &&
+        (UnitGetOwner(lv_attacker) != UnitGetOwner(lv_target)) &&
+        (RandomInt(1, 100) <= FixedToInt(libDouQuquBehavior_gv_BroodLordChance))) {
+        UnitCreateEffectUnit(lv_attacker, "CRV_BroodLord_BanelingLaunch", lv_target);
+        libDouQuquBehavior_gf_Write("douququ_broodlord_projectile");
+    }
+    return true;
+}
+
+bool libDouQuquBehavior_gt_ScarabDamaged_Func(bool testConds, bool runActions) {
+    unit lv_attacker;
+    unit lv_target;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    lv_attacker = EventUnitDamageSourceUnit();
+    lv_target = EventUnit();
+    if ((lv_attacker == null) || (lv_target == null) || !UnitIsAlive(lv_target)) { return true; }
+    if ((UnitGetType(lv_attacker) == "Reaver") &&
+        (UnitGetOwner(lv_attacker) != UnitGetOwner(lv_target)) &&
+        (RandomInt(1, 100) <= FixedToInt(libDouQuquBehavior_gv_ReaverOrdinaryChance))) {
+        libDouQuquBehavior_gf_SpawnReaverZealot(lv_attacker, UnitGetPosition(lv_target));
+    }
+    return true;
+}
+
+bool libDouQuquBehavior_gt_Died_Func(bool testConds, bool runActions) {
+    unit lv_victim;
+    unit lv_killer;
+    unit lv_reaver;
+    string lv_type;
+    string lv_key;
+    string lv_activeKey;
+    point lv_position;
+    fixed lv_life;
+    fixed lv_lifeMax;
+    int lv_active;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    lv_victim = EventUnit();
+    if (lv_victim == null) { return true; }
+    lv_type = UnitGetType(lv_victim);
+    lv_position = UnitGetPosition(lv_victim);
+
+    if (lv_type == "Zealot") {
+        lv_key = "CRV_ReaverForZealot_" + IntToString(UnitGetTag(lv_victim));
+        lv_reaver = DataTableGetUnit(true, lv_key);
+        if (lv_reaver != null) {
+            lv_activeKey = "CRV_ReaverActive_" + IntToString(UnitGetTag(lv_reaver));
+            lv_active = DataTableGetInt(true, lv_activeKey);
+            DataTableSetInt(true, lv_activeKey, MaxI(lv_active - 1, 0));
+        }
+        DataTableValueRemove(true, lv_key);
+    }
+
+    if (lv_type == "Vulture") {
+        libDouQuquBehavior_gf_SpawnAt("SpiderMine", UnitGetOwner(lv_victim), lv_position, 3);
+        libDouQuquBehavior_gf_Write("douququ_vulture_death_mines");
+    }
+
+    lv_killer = libNtve_gf_KillingUnit();
+    if ((lv_killer == null) || (UnitGetOwner(lv_killer) == UnitGetOwner(lv_victim))) { return true; }
+
+    if (UnitGetType(lv_killer) == "Reaver") {
+        if (RandomInt(1, 100) <= FixedToInt(libDouQuquBehavior_gv_ReaverKillChance)) {
+            libDouQuquBehavior_gf_SpawnReaverZealot(lv_killer, lv_position);
+        }
+    }
+
+    if (UnitGetType(lv_killer) == "Hydralisk") {
+        lv_life = UnitGetPropertyFixed(lv_killer, c_unitPropLife, c_unitPropCurrent);
+        lv_lifeMax = UnitGetPropertyFixed(lv_killer, c_unitPropLifeMax, c_unitPropCurrent);
+        UnitSetPropertyFixed(lv_killer, c_unitPropLife, MinF(lv_lifeMax, lv_life + libDouQuquBehavior_gv_HydraliskHeal));
+        libDouQuquBehavior_gf_Write("douququ_hydralisk_heal");
+    }
+
+    lv_type = UnitGetType(lv_killer);
+    if ((lv_type == "K5Kerrigan") || (lv_type == "K5KerriganBurrowed")) {
+        libDouQuquBehavior_gf_SpawnAt("KerriganInfestBroodling", UnitGetOwner(lv_killer), lv_position, 2);
+        libDouQuquBehavior_gf_Write("douququ_kerrigan_broodlings");
+    }
+    return true;
+}
+
+bool libDouQuquBehavior_gt_Tick_Func(bool testConds, bool runActions) {
+    unit lv_banshee;
+    unitgroup lv_banshees;
+    fixed lv_energy;
+    fixed lv_elapsed;
+    int lv_index;
+    int lv_count;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    lv_banshees = UnitGroup(null, c_playerAny, RegionEntireMap(), UnitFilter(0, 0, 0, (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    lv_count = UnitGroupCount(lv_banshees, c_unitCountAlive);
+    for (lv_index = 1; lv_index <= lv_count; lv_index += 1) {
+        lv_banshee = UnitGroupUnit(lv_banshees, lv_index);
+        if ((lv_banshee == null) || (UnitGetType(lv_banshee) != "InfestedBanshee")) { continue; }
+        lv_elapsed = DataTableGetFixed(true, "CRV_BansheeTimer_" + IntToString(UnitGetTag(lv_banshee))) + 1.0;
+        if (lv_elapsed >= libDouQuquBehavior_gv_BansheeInterval) {
+            lv_elapsed -= libDouQuquBehavior_gv_BansheeInterval;
+            lv_energy = UnitGetPropertyFixed(lv_banshee, c_unitPropEnergy, c_unitPropCurrent);
+            if (lv_energy >= libDouQuquBehavior_gv_BansheeEnergyCost) {
+                UnitSetPropertyFixed(lv_banshee, c_unitPropEnergy, lv_energy - libDouQuquBehavior_gv_BansheeEnergyCost);
+                UnitCreate(1, "Marine", c_unitCreateIgnorePlacement, UnitGetOwner(lv_banshee), UnitGetPosition(lv_banshee), libNtve_gf_RandomAngle());
+                libDouQuquBehavior_gf_Write("douququ_banshee_hatch");
+            }
+        }
+        DataTableSetFixed(true, "CRV_BansheeTimer_" + IntToString(UnitGetTag(lv_banshee)), lv_elapsed);
+    }
+    return true;
+}
+
+bool libDouQuquBehavior_gt_VultureRefill_Func(bool testConds, bool runActions) {
+    unit lv_vulture;
+    fixed lv_charges;
+    int lv_owner;
+    int lv_missing;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    lv_vulture = EventPlayerEffectUsedUnit(c_effectUnitCaster);
+    if ((lv_vulture == null) || (UnitGetType(lv_vulture) != "Vulture") || !UnitAbilityExists(lv_vulture, "VultureSpiderMines")) { return true; }
+    lv_charges = UnitAbilityChargeInfo(lv_vulture, AbilityCommand("VultureSpiderMines", 0), c_unitAbilChargeCountLeft);
+    lv_missing = libDouQuquBehavior_gv_VultureMaxMines - FixedToInt(lv_charges);
+    lv_owner = UnitGetOwner(lv_vulture);
+    if ((lv_missing > 0) && (PlayerGetPropertyInt(lv_owner, c_playerPropMinerals) >= libDouQuquBehavior_gv_VultureRefillCost)) {
+        PlayerModifyPropertyInt(lv_owner, c_playerPropMinerals, c_playerPropOperSubtract, libDouQuquBehavior_gv_VultureRefillCost);
+        UnitAbilityAddChargeUsed(lv_vulture, "VultureSpiderMines", "Abil/VultureSpiderMines", -IntToFixed(lv_missing));
+        libDouQuquBehavior_gf_Write("douququ_vulture_refill");
+    }
+    return true;
+}
+
+bool libDouQuquBehavior_gt_Created_Func(bool testConds, bool runActions) {
+    unit lv_created;
+    fixed lv_charges;
+    int lv_missing;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    lv_created = EventUnit();
+    if (lv_created == null) { return true; }
+    if (UnitGetType(lv_created) == "InfestedBanshee") {
+        DataTableSetFixed(true, "CRV_BansheeTimer_" + IntToString(UnitGetTag(lv_created)), 0.0);
+        return true;
+    }
+    if ((UnitGetType(lv_created) != "Vulture") || !UnitAbilityExists(lv_created, "VultureSpiderMines")) { return true; }
+    lv_charges = UnitAbilityChargeInfo(lv_created, AbilityCommand("VultureSpiderMines", 0), c_unitAbilChargeCountLeft);
+    lv_missing = libDouQuquBehavior_gv_VultureMaxMines - FixedToInt(lv_charges);
+    if (lv_missing > 0) {
+        UnitAbilityAddChargeUsed(lv_created, "VultureSpiderMines", "Abil/VultureSpiderMines", -IntToFixed(lv_missing));
+    }
+    return true;
+}
+
+void libDouQuquBehavior_InitLib() {
+    if (libDouQuquBehavior_gv_Initialized) { return; }
+    libDouQuquBehavior_gv_Initialized = true;
+    libDouQuquBehavior_gf_ConfigureVultureCatalog();
+    libDouQuquBehavior_gt_Attacked = TriggerCreate("libDouQuquBehavior_gt_Attacked_Func");
+    libDouQuquBehavior_gt_ScarabDamaged = TriggerCreate("libDouQuquBehavior_gt_ScarabDamaged_Func");
+    libDouQuquBehavior_gt_Died = TriggerCreate("libDouQuquBehavior_gt_Died_Func");
+    libDouQuquBehavior_gt_Tick = TriggerCreate("libDouQuquBehavior_gt_Tick_Func");
+    libDouQuquBehavior_gt_VultureRefill = TriggerCreate("libDouQuquBehavior_gt_VultureRefill_Func");
+    libDouQuquBehavior_gt_Created = TriggerCreate("libDouQuquBehavior_gt_Created_Func");
+    TriggerAddEventUnitAttacked2(libDouQuquBehavior_gt_Attacked, null, null);
+    TriggerAddEventUnitDamaged(libDouQuquBehavior_gt_ScarabDamaged, null, c_unitDamageTypeAny, c_unitDamageEither, "ScarabExplodeTargetDamage");
+    TriggerAddEventUnitDied(libDouQuquBehavior_gt_Died, null);
+    TriggerAddEventTimePeriodic(libDouQuquBehavior_gt_Tick, 1.0, c_timeGame);
+    TriggerAddEventPlayerEffectUsed(libDouQuquBehavior_gt_VultureRefill, c_playerAny, "CRV_Vulture_MineRefill");
+    TriggerAddEventUnitCreated(libDouQuquBehavior_gt_Created, null, null, null);
+}

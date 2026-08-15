@@ -178,6 +178,79 @@ function Add-CmreBlockBefore {
     return $Content.Replace($Anchor, ($Block.TrimEnd() + [Environment]::NewLine + [Environment]::NewLine + $Anchor))
 }
 
+function Install-CmreDouQuquStandaloneMapOverlay {
+    param(
+        [Parameter(Mandatory = $true)][string]$WorkspaceRoot,
+        [Parameter(Mandatory = $true)][string]$MapPath,
+        [switch]$EnableDouQuquBehavior,
+        [switch]$EnableDouQuquRuntime
+    )
+
+    $mapScriptPath = Join-Path $MapPath "MapScript.galaxy"
+    $mapScript = Read-CmreUtf8 -Path $mapScriptPath
+    $standaloneSignature = 'void\s+InitMap\s*\(\)\s*\{\s*lllAtg\(\)\s*;\s*lllNAn\(\)\s*;\s*lllnIs\(\s*\)\s*;'
+    if (-not [regex]::IsMatch($mapScript, $standaloneSignature)) {
+        throw "斗蛐蛐 standalone MapScript signature not found: $mapScriptPath"
+    }
+
+    $baseData = Join-Path $MapPath "Base.SC2Data"
+    $douQuquRuntimeInclude = if ($EnableDouQuquRuntime) { "LibDouQuquRuntime" } else { "LibDouQuquRuntimeDisabled" }
+    $includeNames = @("LibVibeKernel", "LibVibeInvokeDisabled", "LibMapModBridge", $douQuquRuntimeInclude)
+    if ($EnableDouQuquBehavior) { $includeNames += "LibDouQuquBehavior" }
+    $mapScript = [regex]::Replace(
+        $mapScript,
+        '(?m)^[ \t]*include "LibVibe(?:Kernel|Kernel_h|Handles|Invoke[^\"]*)"\r?\n',
+        "")
+    foreach ($includeName in @("LibMapModBridge", "LibDouQuquBehavior", "LibDouQuquRuntime", "LibDouQuquRuntimeDisabled")) {
+        $mapScript = [regex]::Replace(
+            $mapScript,
+            '(?m)^[ \t]*include "' + [regex]::Escape($includeName) + '"\r?\n',
+            "")
+    }
+    $douQuquRoot = Join-Path $WorkspaceRoot "tools\launchers\overlays\cmre-alenger\startup"
+    Get-ChildItem -LiteralPath $baseData -Filter "LibDouQuquRuntime*.galaxy" -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force -ErrorAction Stop
+    Copy-CmreOverlayFiles -Files @(
+        @{ Source = Join-Path $douQuquRoot ($douQuquRuntimeInclude + ".galaxy"); Name = ($douQuquRuntimeInclude + ".galaxy") }
+    ) -DestinationRoot $baseData
+    $includeLines = $includeNames | ForEach-Object { 'include "' + $_ + '"' }
+    $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor 'include "TriggerLibs/NativeLib"' -Lines $includeLines
+
+    $mapGluePath = Join-Path (Get-CmreOverlayRoot) "map-glue.dou-ququ-standalone.galaxy"
+    $mapGlue = Read-CmreUtf8 -Path $mapGluePath
+    $mapGlueMarker = "// CMRE_DOUQUQU_STANDALONE_RUNTIME_GLUE"
+    $mapScript = [regex]::Replace($mapScript, '(?s)\r?\n// CMRE_DOUQUQU_STANDALONE_RUNTIME_GLUE.*?// CMRE_DOUQUQU_STANDALONE_RUNTIME_GLUE_END\r?\n', "`n")
+    $mapScript = Add-CmreBlockBefore -Content $mapScript -Anchor 'void InitMap(){' -Marker $mapGlueMarker -Block $mapGlue
+
+    if (-not $mapScript.Contains("CMRE_DOUQUQU_STANDALONE_LIB_INIT")) {
+        $libInitPattern = 'void\s+lllAtg\s*\(\)\s*\{\s*(?:libNtve_InitLib\(\);|libVibeKernel_InitLib\(\);\s*libNtve_InitLib\(\);)\s*\}'
+        if (-not [regex]::IsMatch($mapScript, $libInitPattern)) {
+            throw "斗蛐蛐 standalone library init anchor not found: $mapScriptPath"
+        }
+        $libInitReplacement = "// CMRE_DOUQUQU_STANDALONE_LIB_INIT`nvoid lllAtg(){libNtve_InitLib();libVibeKernel_InitLib();libMapModBridge_InitLib();}"
+        $mapScript = [regex]::Replace($mapScript, $libInitPattern, $libInitReplacement, 1)
+    }
+
+    $initMapBodyPattern = 'void\s+InitMap\s*\(\)\s*\{\s*lllAtg\(\)\s*;\s*lllNAn\(\)\s*;\s*lllnIs\(\s*\)\s*;'
+    $initMapBodyMatch = [regex]::Match($mapScript, $initMapBodyPattern)
+    if (-not $initMapBodyMatch.Success) {
+        throw "斗蛐蛐 standalone InitMap body anchor not found: $mapScriptPath"
+    }
+    $initLines = @(
+        '    libVibeKernel_gf_RegisterEntryPoints();',
+        '    libMapModBridge_gf_WriteDebugBank("map_init_entered", 1);',
+        '    gt_CmreDouQuquStandaloneRuntimeListener_Init();'
+    )
+    if ($EnableDouQuquBehavior) { $initLines += '    libDouQuquBehavior_InitLib();' }
+    if (-not $mapScript.Contains('gt_CmreDouQuquStandaloneRuntimeListener_Init();')) {
+        $initBlock = ($initLines -join [Environment]::NewLine) + [Environment]::NewLine
+        $insertIndex = $initMapBodyMatch.Index + $initMapBodyMatch.Length
+        $mapScript = $mapScript.Substring(0, $insertIndex) + [Environment]::NewLine + $initBlock + $mapScript.Substring($insertIndex)
+    }
+    Write-CmreUtf8NoBom -Path $mapScriptPath -Content $mapScript
+    Write-Host "斗蛐蛐 standalone CMRE overlay applied: static=$EnableDouQuquBehavior runtime=$EnableDouQuquRuntime"
+}
+
 function Replace-CmreBlockBetweenMarkers {
     param(
         [Parameter(Mandatory = $true)][string]$Content,
@@ -653,7 +726,15 @@ function Install-CmreTriggerCustomScriptOverlay {
     param([Parameter(Mandatory = $true)][string]$MapPath)
 
     $path = Join-Path $MapPath "Triggers"
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        Write-Host "CMRE trigger custom-script overlay skipped: optional Triggers source is absent"
+        return
+    }
     $content = Read-CmreUtf8 -Path $path
+    if ($content -notmatch '<Root>') {
+        Write-Host "CMRE trigger custom-script overlay skipped: optional Triggers source has no map Root"
+        return
+    }
     $marker = "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_V1"
     $previousVersionMarker = "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_V2"
     $versionMarker = "CMRE_ON_DEMAND_TRIGGER_CUSTOM_SCRIPT_V3"
@@ -967,10 +1048,13 @@ function Install-CmreObserverOverlay {
         [string]$RebornCommander = "",
         [string]$VibeKernelOverride = "",
         [int]$InvokeTier = 0,
-        [switch]$InvokeFull
+        [switch]$InvokeFull,
+        [switch]$EnableDouQuquBehavior,
+        [switch]$EnableDouQuquRuntime
     )
     if ($AdapterLibPrefix -ne "") { Assert-CmreGalaxyToken -Value $AdapterLibPrefix -Name "AdapterLibPrefix" }
     $baseData = Join-Path $MapPath "Base.SC2Data"
+    $douQuquRoot = Join-Path $WorkspaceRoot "tools\launchers\overlays\cmre-alenger\startup"
     $neuroRoot = Join-Path $WorkspaceRoot "reference\SC2-Neuro-API-Integration"
     $observerRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\runtime"
     $adapterRoot = Join-Path $WorkspaceRoot "src\projects\cmre-porting\adapters\dead-of-night"
@@ -1123,6 +1207,43 @@ function Install-CmreObserverOverlay {
     }
     Install-CmreTriggerCustomScriptOverlay -MapPath $MapPath
 
+    if ($EnableDouQuquBehavior) {
+        $douQuquGameData = Join-Path $baseData "GameData"
+        New-Item -ItemType Directory -Force -Path $douQuquGameData | Out-Null
+        Copy-CmreOverlayFiles -Files @(
+            @{ Source = Join-Path $douQuquRoot "LibDouQuquBehavior_h.galaxy"; Name = "LibDouQuquBehavior_h.galaxy" },
+            @{ Source = Join-Path $douQuquRoot "LibDouQuquBehavior.galaxy"; Name = "LibDouQuquBehavior.galaxy" }
+        ) -DestinationRoot $baseData
+        Copy-CmreOverlayFiles -Files @(
+            @{ Source = Join-Path $douQuquRoot "AttachMethodData.xml"; Name = "AttachMethodData.xml" },
+            @{ Source = Join-Path $douQuquRoot "EffectData.xml"; Name = "EffectData.xml" },
+            @{ Source = Join-Path $douQuquRoot "AbilData.xml"; Name = "AbilData.xml" },
+            @{ Source = Join-Path $douQuquRoot "UnitData.xml"; Name = "UnitData.xml" },
+            @{ Source = Join-Path $douQuquRoot "ActorData.xml"; Name = "ActorData.xml" },
+            @{ Source = Join-Path $douQuquRoot "ButtonData.xml"; Name = "ButtonData.xml" }
+        ) -DestinationRoot $douQuquGameData
+        Write-Host "斗蛐蛐 behavior plugin: copied opt-in Galaxy and Data overlays"
+    } else {
+        Get-ChildItem -LiteralPath $baseData -Filter "LibDouQuquBehavior*.galaxy" -File -ErrorAction SilentlyContinue |
+            Remove-Item -Force -ErrorAction Stop
+        $douQuquGameData = Join-Path $baseData "GameData"
+        foreach ($douQuquDataName in @("AttachMethodData.xml", "EffectData.xml", "AbilData.xml", "UnitData.xml", "ActorData.xml", "ButtonData.xml")) {
+            $douQuquDataPath = Join-Path $douQuquGameData $douQuquDataName
+            if (Test-Path -LiteralPath $douQuquDataPath -PathType Leaf) {
+                Remove-Item -LiteralPath $douQuquDataPath -Force -ErrorAction Stop
+            }
+        }
+        Write-Host "斗蛐蛐 behavior plugin: disabled and stale files removed"
+    }
+
+    $douQuquRuntimeInclude = if ($EnableDouQuquRuntime) { "LibDouQuquRuntime" } else { "LibDouQuquRuntimeDisabled" }
+    Get-ChildItem -LiteralPath $baseData -Filter "LibDouQuquRuntime*.galaxy" -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force -ErrorAction Stop
+    Copy-CmreOverlayFiles -Files @(
+        @{ Source = Join-Path $douQuquRoot ($douQuquRuntimeInclude + ".galaxy"); Name = ($douQuquRuntimeInclude + ".galaxy") }
+    ) -DestinationRoot $baseData
+    Write-Host "斗蛐蛐 live VM module: $douQuquRuntimeInclude"
+
     $efaPath = Join-Path $baseData "LibEFA54406.galaxy"
     $efa = Read-CmreUtf8 -Path $efaPath
     $efa = Add-CmreLinesAfter -Content $efa -Anchor 'include "LibEFA54406_h"' -Lines @('include "LibPortingObserver_h"')
@@ -1138,6 +1259,14 @@ function Install-CmreObserverOverlay {
 
     $mapScriptPath = Join-Path $MapPath "MapScript.galaxy"
     $mapScript = Read-CmreUtf8 -Path $mapScriptPath
+    $isDouQuquStandaloneMap = ($MapName -match '(?i)斗蛐蛐|dou[-_ ]?ququ') -and
+        $mapScript.Contains('lllAtg();lllNAn();lllnIs(')
+    if ($isDouQuquStandaloneMap) {
+        Install-CmreDouQuquStandaloneMapOverlay -WorkspaceRoot $WorkspaceRoot -MapPath $MapPath -EnableDouQuquBehavior:$EnableDouQuquBehavior -EnableDouQuquRuntime:$EnableDouQuquRuntime
+        return
+    }
+    $mapScript = [regex]::Replace($mapScript, '(?m)^[ \t]*include "LibDouQuquBehavior"\r?\n', '')
+    $mapScript = [regex]::Replace($mapScript, '(?m)^[ \t]*libDouQuquBehavior_InitLib\(\);\r?\n', '')
     $isRebornZChar01 = $EnableReborn -and ($MapName -match '(?i)^zchar01_reborn_port(?:\.SC2Map)?$')
     # The ally economy fragment is mission-owned CMRE behavior. Reborn and
     # Revolution maps use their own campaign/mission startup and must only get
@@ -1180,6 +1309,7 @@ function Install-CmreObserverOverlay {
     # implementation. Otherwise a prior tiered launch leaves MapScript with
     # references to files removed by the cleanup above.
     $mapScript = [regex]::Replace($mapScript, '(?m)^[ \t]*include "LibVibe(?:Handles|Invoke(?:Common|_[^"]*|Dispatch|Disabled))"\r?\n', '')
+    $mapScript = [regex]::Replace($mapScript, '(?m)^[ \t]*include "LibDouQuquRuntime(?:Disabled)?"\r?\n', '')
     $vibeInvokeBundleDir = Join-Path $baseData "LibVibeInvokeDispatch.galaxy"
     if ($mountGeneratedInvokeBundle -and (Test-Path -LiteralPath $vibeInvokeBundleDir)) {
         $vibeInvokeIncludes = @('include "LibVibeHandles"', 'include "LibVibeInvokeCommon"')
@@ -1197,7 +1327,8 @@ function Install-CmreObserverOverlay {
         }
         $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor 'include "LibVibeKernel"' -Lines @('include "LibVibeInvokeDisabled"')
     }
-    $includeLines = @('include "LibEFA54406"', 'include "LibNeuroCommandBridge"', 'include "LibPortingObserver"', 'include "LibDeadOfNightObserver"', 'include "LibMapModBridge"')
+    $includeLines = @('include "LibEFA54406"', 'include "LibNeuroCommandBridge"', 'include "LibPortingObserver"', 'include "LibDeadOfNightObserver"', 'include "LibMapModBridge"', ('include "' + $douQuquRuntimeInclude + '"'))
+    if ($EnableDouQuquBehavior) { $includeLines += 'include "LibDouQuquBehavior"' }
     if ($IsAlengerCommander -and $AdapterLibPrefix -ne "") { $includeLines += ('include "Lib' + $AdapterLibPrefix + '"') }
     $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $mapIncludeAnchor -Lines $includeLines
     $mapInitAnchor = Select-CmreExistingAnchor -Content $mapScript -Candidates @(
@@ -1210,6 +1341,7 @@ function Install-CmreObserverOverlay {
         '    libNtve_InitLib();'
     ) -Name 'map library init'
     $initLibLines = @('    libEFA54406_InitLib();', '    libNeuroCommandBridge_InitLib();', '    libPortingObserver_InitLib();', '    libMapModBridge_InitLib();')
+    if ($EnableDouQuquBehavior) { $initLibLines += '    libDouQuquBehavior_InitLib();' }
     if ($IsAlengerCommander -and $AdapterLibPrefix -ne "") { $initLibLines += ('    lib' + $AdapterLibPrefix + '_InitLib();') }
     $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $mapInitAnchor -Lines $initLibLines
     # Windows PowerShell can decode this UTF-8-no-BOM script with the active

@@ -3,11 +3,18 @@
   "stage": "27-dou-ququ-behavior-plugin",
   "status": "IN_PROGRESS",
   "evidence_type": "static",
-  "summary": "Stage opened for an opt-in 斗蛐蛐 behavior plugin. The WebUI unconditional-restart contract is verified; Python VM, Galaxy overlay, and six behavior effects remain pending.",
+  "summary": "Map event extraction and the map x commander adapter matrix pass static validation, and WebUI unconditional restart plus launcher/API readiness are runtime-verified. Full zzerus03 Reborn map initialization remains blocked after CreateGame timeout and is not claimed as a runtime pass.",
   "changed_paths": [
+    "src/projects/cmre-porting/vibe/map_event_extractor.py",
+    "src/projects/cmre-porting/vibe/map_commander_adapter.py",
+    "src/projects/cmre-porting/vibe/map_commander_adapters.json",
+    "tools/cmre-webui/extract_map_events.py",
+    "tools/cmre-webui/validate_map_adapters.py",
     "tools/cmre-webui/server.py",
     "tools/cmre-webui/test_launch_async_contract.py",
-    "src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin/plan.md"
+    "tools/launchers/launch-cmre-alenger.ps1",
+    "tools/launchers/lib/cmre-on-demand-overlay.ps1",
+    "src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin"
   ],
   "validation": [
     {
@@ -24,13 +31,35 @@
       "command": "POST /api/launch-async with an externally running thorner03 session",
       "exitCode": 0,
       "summary": "HTTP 200; old external SC2 PID was terminated and thanson01/Coverts reached ready=true with zero ScriptErrors."
+    },
+    {
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py",
+      "exitCode": 0,
+      "summary": "111 passed; Stage 27 VM, overlay, staging, launcher, and WebUI contracts pass."
+    },
+    {
+      "command": "tools/galaxy-vibe/run-all-validation.ps1",
+      "exitCode": 0,
+      "summary": "52/52 static checks passed; Python compilation passed."
+    },
+    {
+      "command": "python tools/cmre-webui/extract_map_events.py --maps-root <legacy-project>/Maps --output artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/static/reference-map-unit-events.json",
+      "exitCode": 0,
+      "summary": "69 maps and 54,199 preplaced units inventoried; airdrop and scripted event categories recorded."
+    },
+    {
+      "command": "python tools/cmre-webui/validate_map_adapters.py --maps-root <legacy-project>/Maps --output artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/static/map-commander-adapter-matrix.json",
+      "exitCode": 0,
+      "summary": "69 x 12 map/commander matrix resolved: 828 results, 828 custom profile resolutions."
     }
   ],
   "runtime": {
-    "status": "PASS",
+    "status": "BLOCKED",
     "evidence": [
-      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-unconditional-restart-20260815.json"
-    ]
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-unconditional-restart-20260815.json",
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/map-commander-runtime-evidence-20260815.json"
+    ],
+    "blockedBy": "zzerus03.SC2Map CreateGame timed out and direct-map initialization remained in the Reborn native-opening wait gate; adapter resolution and launcher/API readiness passed, but full map initialization did not."
   },
-  "next_actions": ["Implement the VM plugin, overlay, static tests, and approved-launcher runtime evidence."]
+  "next_actions": ["Diagnose and rerun zzerus03 Reborn native-opening initialization, then require CreateGame/JoinGame, advancing frames, current assertions, and same-window ScriptError=0 before closing DOUQUQU-RUNTIME-PENDING."]
 }

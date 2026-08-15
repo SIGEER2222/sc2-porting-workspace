@@ -76,6 +76,17 @@ def test_launcher_accepts_an_explicit_read_only_map_source():
     assert 'Join-Path $mapSource "MapScript.galaxy"' in source
 
 
+def test_launcher_supports_explicit_startup_contract_overrides_with_optional_sources():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    assert '[string]$StartupContractOverride = ""' in source
+    assert "Resolve-Path -LiteralPath $StartupContractOverride" in source
+    assert "Startup contract override:" in source
+    assert "optionalSource" in source
+    assert "Startup contract optional source is absent" in source
+    assert "requireAnalysisReady" in source
+    assert "requireStartingGameQ" in source
+
+
 def test_reborn_bank_authorization_covers_profile_runtime_and_debug_banks():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
     body = _function_body(source, "Patch-RebornBankAuthorization")
@@ -90,8 +101,8 @@ def test_reborn_bank_authorization_covers_profile_runtime_and_debug_banks():
 
 def test_reborn_deferred_startup_waits_for_required_start_locations():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
-    assert "CMRE_PATCH_REBORN_DEFERRED_STARTUP_V5" in source
-    deferred = source[source.index("CMRE_PATCH_REBORN_DEFERRED_STARTUP_V5") :]
+    assert "CMRE_PATCH_REBORN_DEFERRED_STARTUP_V6" in source
+    deferred = source[source.index("CMRE_PATCH_REBORN_DEFERRED_STARTUP_V6") :]
     assert "point lv_p1Start;" in deferred
     assert "point lv_p2Start;" in deferred
     assert "PlayerStartLocation(1)" in deferred
@@ -102,6 +113,26 @@ def test_reborn_deferred_startup_waits_for_required_start_locations():
     assert 'libMapModBridge_gf_WriteDebugBank("reborn_adapter_start_locations_waiting", 1);' in deferred
     assert "TriggerExecute(lib48DF4533_gt_SwarmSetup, false, false);" in deferred
     assert "TriggerAddEventTimePeriodic(gt_CmreRebornDeferredStartup, 1.0, c_timeReal);" in deferred
+
+
+def test_reborn_deferred_startup_waits_for_native_opening_before_adapter_fallback():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+    deferred = source[source.index("CMRE_PATCH_REBORN_DEFERRED_STARTUP_V6") :]
+
+    assert "gv_CmreRebornNativeOpeningWaitTicks" in deferred
+    assert 'libMapModBridge_gf_AliveUnitCount("$startingStructure", 1)' in deferred
+    assert 'libMapModBridge_gf_AliveUnitCount("$startingStructure", 2)' in deferred
+    assert 'libMapModBridge_gf_AliveUnitCount("$startingWorker", 1)' in deferred
+    assert 'libMapModBridge_gf_AliveUnitCount("$startingWorker", 2)' in deferred
+    assert 'reborn_adapter_native_opening_waiting' in deferred
+    assert 'reborn_adapter_native_opening_wait_ticks' in deferred
+    assert 'if (gv_CmreRebornNativeOpeningWaitTicks < 5)' in deferred
+    assert 'reborn_adapter_native_opening_fallback' in deferred
+
+    wait = deferred.index('reborn_adapter_native_opening_waiting')
+    guard = deferred.index("gv_CmreRebornDeferredStartupStarted = true;")
+    adapter = deferred.index("libRebornAdapter_gf_InitializeBeforeSwarmSetup(")
+    assert wait < guard < adapter
 
 
 def test_reborn_loading_confirm_prefers_process_main_window():
@@ -207,6 +238,7 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
     assert "CMRERebornDebug" in overlay
     assert "sourceMapDependencies" in source
     assert "Merge-CmreMapDependencies" in source
+    assert "[AllowEmptyCollection()][string[]]$SourceDependencies" in source
     assert "file:Mods/reborn/crys_the_swarm_reborn.SC2Mod" in source
     assert "SwarmStory" in source
     assert '@{ Name = "GalaxyVibe"; Player = "1" }' in overlay
@@ -217,6 +249,7 @@ def test_launcher_requires_runtime_listener_and_broad_script_error_gate():
     assert "gt_CmreOnDemandRuntimeListener_Func" in map_glue
     assert "libMapModBridge_gf_StartHeartbeat();" in map_glue
     assert "runtime_listener_ready" in map_glue
+    assert 'optional Triggers source has no map Root' in overlay
     # The launcher must select the Dead of Night fragment from an ASCII
     # MapScript signature, because the Chinese map filename is not reliable
     # after Windows PowerShell code-page conversion.
@@ -674,7 +707,7 @@ def test_reborn_library_keeps_native_map_init_and_swarm_setup_path():
     assert "CMRE_PATCH_DEFERRED_INITIALIZATION" not in source
     assert "TriggerAddEventTimeElapsed(lib48DF4533_gt_Initialization, 0.0, c_timeGame);" not in source
     assert "TriggerAddEventMapInit(lib48DF4533_gt_Initialization);" in source
-    assert "CMRE_PATCH_REBORN_DEFERRED_STARTUP_V5" in source
+    assert "CMRE_PATCH_REBORN_DEFERRED_STARTUP_V6" in source
     assert "TriggerAddEventTimePeriodic(gt_CmreRebornDeferredStartup, 1.0, c_timeReal);" in source
 
 
@@ -1050,7 +1083,7 @@ def test_reborn_commander_start_targets_ignore_placement_and_preserves_hunterkil
 
 def test_reborn_deferred_startup_locks_before_adapter_and_swarmsetup():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
-    deferred = source[source.index("CMRE_PATCH_REBORN_DEFERRED_STARTUP_V5") :]
+    deferred = source[source.index("CMRE_PATCH_REBORN_DEFERRED_STARTUP_V6") :]
 
     guard = deferred.index("gv_CmreRebornDeferredStartupStarted = true;")
     call = deferred.index("libRebornAdapter_gf_InitializeBeforeSwarmSetup(")

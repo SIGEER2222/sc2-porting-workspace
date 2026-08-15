@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "pluginId": "cmre.dou-ququ.behavior",
+  "enabledByDefault": false,
+  "mapSelector": "地图调试和斗蛐蛐工具",
+  "initialMinerals": 500,
+  "units": {
+    "Reaver": {"lifeMax": 100.0, "energyMax": 0.0},
+    "Zealot": {"lifeMax": 100.0, "energyMax": 0.0},
+    "Vulture": {"lifeMax": 100.0, "energyMax": 0.0},
+    "SpiderMine": {"lifeMax": 30.0, "energyMax": 0.0},
+    "InfestedBanshee": {"lifeMax": 140.0, "energyMax": 100.0},
+    "BroodLord": {"lifeMax": 225.0, "energyMax": 0.0},
+    "Baneling": {"lifeMax": 30.0, "energyMax": 0.0},
+    "Hydralisk": {"lifeMax": 90.0, "energyMax": 0.0},
+    "Zergling": {"lifeMax": 35.0, "energyMax": 0.0},
+    "Mutalisk": {"lifeMax": 120.0, "energyMax": 0.0},
+    "K5Kerrigan": {"lifeMax": 1000.0, "energyMax": 200.0},
+    "K5KerriganBurrowed": {"lifeMax": 1000.0, "energyMax": 200.0},
+    "KerriganInfestBroodling": {"lifeMax": 30.0, "energyMax": 0.0},
+    "Marine": {"lifeMax": 45.0, "energyMax": 0.0}
+  },
+  "rules": {
+    "reaverAttack": {"sourceUnit": "Reaver", "ordinaryChancePercent": 20, "killChancePercent": 30, "spawnUnit": "Zealot", "spawnCount": 1, "maxActiveGenerated": 3, "impactSource": "ScarabExplode"},
+    "vultureStorage": {"sourceUnit": "Vulture", "baseStorage": 3, "storageBonus": 2, "refillCost": 50},
+    "vultureDeath": {"sourceUnit": "Vulture", "spawnUnit": "SpiderMine", "spawnCount": 3},
+    "infestedBansheeHatch": {"sourceUnit": "InfestedBanshee", "intervalSeconds": 10.0, "energyCost": 20.0, "spawnUnit": "Marine", "spawnCount": 1},
+    "broodLordAttack": {"sourceUnit": "BroodLord", "chancePercent": 15, "projectileUnit": "CRV_BroodLord_BanelingProjectile", "launchEffect": "CRV_BroodLord_BanelingLaunch", "impactEffect": "CRV_BroodLord_BanelingImpact"},
+    "hydraliskKill": {"sourceUnit": "Hydralisk", "healAmount": 25.0},
+    "kerriganKill": {"killerWhitelist": ["K5Kerrigan", "K5KerriganBurrowed"], "spawnUnit": "KerriganInfestBroodling", "spawnCount": 2}
+  },
+  "functions": {
+    "douququ.reset": {"debug_only": true, "args": {"seed": {"type": "integer", "required": false, "default": 42, "min": 0}}},
+    "douququ.unit.spawn": {"debug_only": true, "args": {"unit_type": {"type": "string", "required": true, "maxLength": 64}, "owner": {"type": "integer", "required": true, "min": 0, "max": 15}, "x": {"type": "fixed", "required": false, "default": 0.0}, "y": {"type": "fixed", "required": false, "default": 0.0}}},
+    "douququ.unit.set_energy": {"debug_only": true, "args": {"unit_tag": {"type": "integer", "required": true, "min": 1}, "energy": {"type": "fixed", "required": true, "min": 0.0}}},
+    "douququ.unit.set_life": {"debug_only": true, "args": {"unit_tag": {"type": "integer", "required": true, "min": 1}, "life": {"type": "fixed", "required": true, "min": 0.0}}},
+    "douququ.player.set_minerals": {"debug_only": true, "args": {"owner": {"type": "integer", "required": true, "min": 0, "max": 15}, "minerals": {"type": "integer", "required": true, "min": 0}}},
+    "douququ.attack": {"debug_only": true, "args": {"attacker_tag": {"type": "integer", "required": true, "min": 1}, "target_tag": {"type": "integer", "required": true, "min": 1}}},
+    "douququ.reaver.scarab_impact": {"debug_only": true, "args": {"attacker_tag": {"type": "integer", "required": true, "min": 1}, "victim_tag": {"type": "integer", "required": true, "min": 1}, "fatal": {"type": "boolean", "required": false, "default": false}, "impact_x": {"type": "fixed", "required": true}, "impact_y": {"type": "fixed", "required": true}}},
+    "douququ.kill": {"debug_only": true, "args": {"killer_tag": {"type": "integer", "required": true, "min": 1}, "victim_tag": {"type": "integer", "required": true, "min": 1}}},
+    "douququ.banshee.hatch": {"debug_only": true, "args": {"unit_tag": {"type": "integer", "required": true, "min": 1}, "requested_energy": {"type": "integer", "required": false, "min": 20, "max": 80}, "requested_count": {"type": "integer", "required": false, "min": 1, "max": 4}}},
+    "douququ.tick": {"debug_only": true, "args": {"seconds": {"type": "fixed", "required": true, "min": 0.0, "max": 3600.0}}},
+    "douququ.vulture.refill": {"debug_only": true, "args": {"unit_tag": {"type": "integer", "required": true, "min": 1}}},
+    "douququ.vulture.consume": {"debug_only": true, "args": {"unit_tag": {"type": "integer", "required": true, "min": 1}, "count": {"type": "integer", "required": false, "default": 1, "min": 1, "max": 5}}},
+    "douququ.snapshot": {"debug_only": true, "args": {}}
+  }
+}

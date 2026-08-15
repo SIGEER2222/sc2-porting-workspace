@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "description": "Map-owned starting units and scripted event replacement hints. Static findings are supplied by map_event_extractor; runtime startup consumes only the explicit startup and map_unit_policy fields.",
+  "defaults": {
+    "startup": {
+      "startingStructure": "CommandCenter",
+      "startingWorker": "SCV",
+      "workerCount": 5,
+      "vanillaRemovals": []
+    },
+    "map_unit_policy": {
+      "mode": "preserve_native",
+      "removeUnitTypes": [],
+      "protectedUnitTypes": [],
+      "anchorUnitTypes": []
+    }
+  },
+  "commander_rules": [
+    {
+      "id": "terran",
+      "pattern": "^Terran",
+      "startup": {
+        "startingStructure": "CommandCenter",
+        "startingWorker": "SCV"
+      }
+    },
+    {
+      "id": "zerg",
+      "pattern": "^Zerg",
+      "startup": {
+        "startingStructure": "Hatchery",
+        "startingWorker": "Drone"
+      }
+    },
+    {
+      "id": "protoss",
+      "pattern": "^Protoss",
+      "startup": {
+        "startingStructure": "Nexus",
+        "startingWorker": "Probe"
+      }
+    }
+  ],
+  "map_rules": [
+    {
+      "id": "reborn-zerg-campaign",
+      "pattern": "^(zchar|zexpedition|zevolution|zhybrid|zkorhal|zlab|zspace|zzerus).*\\.SC2Map$",
+      "map_unit_policy": {
+        "mode": "replace_native_zerg_for_non_zerg",
+        "removeUnitTypes": [
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "GreaterSpire",
+          "SpawningPool",
+          "Extractor",
+          "EvolutionChamber",
+          "RoachWarren",
+          "HydraliskDen",
+          "BanelingNest",
+          "Spire",
+          "InfestationPit",
+          "UltraliskCavern",
+          "Drone",
+          "Overlord"
+        ],
+        "anchorUnitTypes": ["Hatchery", "Lair", "Hive"]
+      },
+      "event_unit_replacements": {
+        "native_zerg_worker": "commander.startingWorker",
+        "native_zerg_townhall": "commander.startingStructure"
+      }
+    },
+    {
+      "id": "dead-of-night-native-opening",
+      "pattern": "^亡者之夜\\.SC2Map$",
+      "map_unit_policy": {
+        "mode": "preserve_native",
+        "protectedUnitTypes": ["ACHeroSpawnPlacement"]
+      }
+    },
+    {
+      "id": "generic-cmre",
+      "pattern": ".*\\.SC2Map$",
+      "map_unit_policy": {
+        "mode": "preserve_native"
+      }
+    }
+  ]
+}

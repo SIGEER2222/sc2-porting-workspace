@@ -1,10 +1,12 @@
 ﻿[CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [string]$MapSourceOverride = "", [string]$MapDependencyRootOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$DirectMapApi, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "", [int]$InvokeTier = 0, [switch]$InvokeFull)
+param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $true)][string]$Commander, [switch]$DryRun, [switch]$NoLaunch, [int]$ListenPort = 0, [string]$LegacyRootOverride = "", [string]$MapSourceOverride = "", [string]$MapDependencyRootOverride = "", [string]$StartupContractOverride = "", [int]$Mode = 1, [int]$DifficultyBase = 0, [int]$DifficultyPlus = 0, [string]$Enemy = "", [string]$Mutators = "", [string]$ChaosMutators = "", [string]$VoicePack = "", [string]$ExtraMods = "", [switch]$SkipCountdown, [switch]$ApiMinimal, [switch]$DirectMapApi, [switch]$EnableReborn, [string]$RebornCommander = "", [int]$RebornDifficulty = 5, [int]$RebornSpeed = 5, [switch]$PlayerMode, [switch]$DebugMode, [string]$Buffs = "", [string]$Masteries = "", [string]$BuffExtras = "", [switch]$EnableBuffPatch, [switch]$EnableDouQuquBehavior, [switch]$EnableDouQuquRuntime, [string]$MapCopySuffix = "", [switch]$KeepAlive, [string]$VibeKernelOverride = "", [switch]$SecondaryClient, [switch]$ReuseStagedMap, [string]$DataDirOverride = "", [int]$InvokeTier = 0, [switch]$InvokeFull)
 # -MapCopySuffix: 可选的地图副本后缀，用于避免多会话同时操作同一 live 地图导致 DocumentInfo 冲突。
 # 例如 -MapCopySuffix "reborn" 会使用 Maps\亡者之夜.SC2Map.reborn\ 作为 live 地图。
 # 不指定时使用原始路径（向后兼容）。
 # -InvokeTier: Stage 26 全函数 invoke 分档放量开关（0=禁用，100/1000=挂载对应低 id 分片）。
 # -InvokeFull: 挂载全量 generated bundle；不能与 -InvokeTier 同时使用。
+# -EnableDouQuquBehavior: 仅对斗蛐蛐地图注入 stage 27 behavior plugin。
+# -EnableDouQuquRuntime: 仅挂载可由 Vibe VM 即时调用的 douququ.* live module；不注册地图事件。
 $ErrorActionPreference = "Stop"
 
 # 强制 PowerShell 输出编码为 UTF-8，确保 Python 端（subprocess.Popen encoding="utf-8"）
@@ -44,6 +46,12 @@ trap {
 # 模式校验：PlayerMode 和 DebugMode 互斥；DebugMode 自动启用 ApiMinimal 并要求 ListenPort
 if ($PlayerMode -and $DebugMode) { throw "-PlayerMode 和 -DebugMode 互斥，不能同时使用" }
 if ($InvokeFull -and $InvokeTier -gt 0) { throw "-InvokeFull cannot be combined with -InvokeTier > 0" }
+if ($EnableDouQuquBehavior -and $MapName -notmatch '(?i)斗蛐蛐|dou[-_ ]?ququ') {
+    throw "-EnableDouQuquBehavior is restricted to the 斗蛐蛐 map"
+}
+if ($EnableDouQuquRuntime -and $MapName -notmatch '(?i)斗蛐蛐|dou[-_ ]?ququ') {
+    throw "-EnableDouQuquRuntime is restricted to the 斗蛐蛐 map"
+}
 if ($DebugMode) {
     if ($ListenPort -le 0) { throw "-DebugMode 必须配合 -ListenPort <port> 使用" }
     $ApiMinimal = $true
@@ -117,6 +125,26 @@ $mapStartingUnitsPlayers = @()
 if ($mapRequirement.preventDefeat.required) { $mapPreventDefeatPlayers = @($mapRequirement.preventDefeat.players) }
 if ($mapRequirement.startingUnits.required) { $mapStartingUnitsPlayers = @($mapRequirement.startingUnits.players) }
 Write-Host "Map requirements ($MapName): preventDefeat=$($mapRequirement.preventDefeat.required) players=$($mapPreventDefeatPlayers -join ','); startingUnits=$($mapRequirement.startingUnits.required) players=$($mapStartingUnitsPlayers -join ',')"
+# Map-owned startup/event adapter data is separate from commander package
+# profiles. It is resolved before the launch bank is written so the existing
+# Galaxy glue receives one effective unit/building policy.
+$mapAdapterConfigPath = Join-Path $WorkspaceRoot "src\projects\cmre-porting\vibe\map_commander_adapters.json"
+if (-not (Test-Path -LiteralPath $mapAdapterConfigPath -PathType Leaf)) {
+    throw "Map commander adapter config not found: $mapAdapterConfigPath"
+}
+$mapAdapterConfig = Get-Content -LiteralPath $mapAdapterConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
+function Select-CmreMapAdapterRule {
+    param(
+        [Parameter(Mandatory = $true)][object[]]$Rules,
+        [Parameter(Mandatory = $true)][string]$Value
+    )
+    foreach ($rule in @($Rules)) {
+        if ($null -ne $rule.pattern -and $Value -match [string]$rule.pattern) {
+            return $rule
+        }
+    }
+    return $null
+}
 $isAlengerCommander = $false
 # alengerId 始终是 alenger-mods.json 中 commanderToAlenger / commanderProfiles 的命名键
 # （如 TalDarim、Empire）。WebUI 传入的 runtime_commander 形如 ProtossAlenger4，
@@ -216,6 +244,58 @@ if ($EnableReborn -and $RebornCommander -ne "") {
 } elseif ($commanderRace) {
     Write-Host "Alenger mode with Reborn library: commanderRace=$commanderRace (for Zerg unit unlock injection)"
 }
+$mapAdapterRule = Select-CmreMapAdapterRule -Rules @($mapAdapterConfig.map_rules) -Value $MapName
+$mapAdapterCommanderRule = Select-CmreMapAdapterRule -Rules @($mapAdapterConfig.commander_rules) -Value $Commander
+$mapAdapterId = if ($null -ne $mapAdapterRule.id) { [string]$mapAdapterRule.id } else { "generic" }
+$mapAdapterMode = "preserve_native"
+$mapAdapterRemovalTypes = @()
+$mapAdapterProtectedTypes = @()
+$mapAdapterAnchorTypes = @()
+$mapAdapterEventReplacements = @()
+if ($null -ne $mapAdapterRule.map_unit_policy) {
+    if ($null -ne $mapAdapterRule.map_unit_policy.mode -and $mapAdapterRule.map_unit_policy.mode -ne "") {
+        $mapAdapterMode = [string]$mapAdapterRule.map_unit_policy.mode
+    }
+    if ($null -ne $mapAdapterRule.map_unit_policy.removeUnitTypes) {
+        $mapAdapterRemovalTypes = @($mapAdapterRule.map_unit_policy.removeUnitTypes)
+    }
+    if ($null -ne $mapAdapterRule.map_unit_policy.protectedUnitTypes) {
+        $mapAdapterProtectedTypes = @($mapAdapterRule.map_unit_policy.protectedUnitTypes)
+    }
+    if ($null -ne $mapAdapterRule.map_unit_policy.anchorUnitTypes) {
+        $mapAdapterAnchorTypes = @($mapAdapterRule.map_unit_policy.anchorUnitTypes)
+    }
+}
+# Race defaults are used only when the commander has no custom profile. A
+# named Alenger profile remains authoritative for its custom unit/building IDs.
+if ($null -eq $profile -and $null -ne $mapAdapterCommanderRule.startup) {
+    $ruleStartup = $mapAdapterCommanderRule.startup
+    if ($null -ne $ruleStartup.startingStructure -and $ruleStartup.startingStructure -ne "") { $startingStructure = [string]$ruleStartup.startingStructure }
+    if ($null -ne $ruleStartup.startingWorker -and $ruleStartup.startingWorker -ne "") { $startingWorker = [string]$ruleStartup.startingWorker }
+}
+if ($null -ne $mapAdapterRule.startup) {
+    if ($null -ne $mapAdapterRule.startup.startingStructure -and $mapAdapterRule.startup.startingStructure -ne "") { $startingStructure = [string]$mapAdapterRule.startup.startingStructure }
+    if ($null -ne $mapAdapterRule.startup.startingWorker -and $mapAdapterRule.startup.startingWorker -ne "") { $startingWorker = [string]$mapAdapterRule.startup.startingWorker }
+    if ($null -ne $mapAdapterRule.startup.workerCount) { $workerCount = [int]$mapAdapterRule.startup.workerCount }
+}
+if ($null -ne $mapAdapterRule.event_unit_replacements) {
+    foreach ($property in $mapAdapterRule.event_unit_replacements.PSObject.Properties) {
+        $replacementTarget = [string]$property.Value
+        switch ($replacementTarget) {
+            'commander.startingStructure' { $replacementTarget = [string]$startingStructure }
+            'commander.startingWorker' { $replacementTarget = [string]$startingWorker }
+        }
+        $mapAdapterEventReplacements += [pscustomobject]@{
+            From = [string]$property.Name
+            To = $replacementTarget
+        }
+    }
+}
+$mapAdapterProtectedSet = @($mapAdapterProtectedTypes | Sort-Object -Unique)
+$vanillaRemovals = @($vanillaRemovals | Where-Object { $mapAdapterProtectedSet -notcontains [string]$_ })
+$vanillaRemovals += @($mapAdapterRemovalTypes | Where-Object { $mapAdapterProtectedSet -notcontains [string]$_ })
+$vanillaRemovals = @($vanillaRemovals | Sort-Object -Unique)
+Write-Host "Map commander adapter ($MapName/$Commander): id=$mapAdapterId mode=$mapAdapterMode start=$startingStructure/$startingWorker removals=$($mapAdapterRemovalTypes.Count) eventReplacements=$($mapAdapterEventReplacements.Count)"
 $mapSource = if ($MapSourceOverride -ne "") { (Resolve-Path -LiteralPath $MapSourceOverride).Path } else { Join-Path $LegacyRoot "Maps\CMRE\$MapName" }
 if (-not (Test-Path -LiteralPath $mapSource)) { throw "CMRE map source not found: $mapSource" }
 if (-not (Test-Path -LiteralPath (Join-Path $mapSource "MapScript.galaxy"))) {
@@ -228,6 +308,14 @@ Write-Host "Map source: $mapSource"
 # Fail closed before copying if the selected source is not one of the scanned
 # maps, any required source hash changed, or TriggerData analysis is incomplete.
 $startupContractPath = Join-Path $WorkspaceRoot "artifacts\projects\cmre-porting\stage26-full-function-invoke\map-startup-contract.json"
+if (-not [string]::IsNullOrWhiteSpace($StartupContractOverride)) {
+    $resolvedStartupContract = Resolve-Path -LiteralPath $StartupContractOverride -ErrorAction Stop
+    if (-not (Test-Path -LiteralPath $resolvedStartupContract.Path -PathType Leaf)) {
+        throw "Startup contract override is not a file: $($resolvedStartupContract.Path)"
+    }
+    $startupContractPath = $resolvedStartupContract.Path
+    Write-Host "Startup contract override: $startupContractPath"
+}
 $startupContract = $null
 if (Test-Path -LiteralPath $startupContractPath -PathType Leaf) {
     $startupContract = Get-Content -LiteralPath $startupContractPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -242,11 +330,21 @@ if (Test-Path -LiteralPath $startupContractPath -PathType Leaf) {
             @{ Name = "MapScript.galaxy"; Path = (Join-Path $mapSource "MapScript.galaxy") },
             @{ Name = "Triggers"; Path = (Join-Path $mapSource "Triggers") }
         )) {
+            $sourceContract = $startupRecord.sourceFiles.($entry.Name)
+            $optionalSource = $null -ne $sourceContract -and $null -ne $sourceContract.optional -and [bool]$sourceContract.optional
             if (-not (Test-Path -LiteralPath $entry.Path -PathType Leaf)) {
+                if ($optionalSource) {
+                    Write-Host "Startup contract optional source is absent: $($entry.Path)"
+                    continue
+                }
                 throw "Startup contract source file missing: $($entry.Path)"
             }
             $actualHash = ([System.BitConverter]::ToString($sha256.ComputeHash([System.IO.File]::ReadAllBytes($entry.Path)))).Replace('-', '').ToLowerInvariant()
-            $expectedHash = [string]$startupRecord.sourceFiles.($entry.Name).sha256
+            $expectedHash = [string]$sourceContract.sha256
+            if ([string]::IsNullOrWhiteSpace($expectedHash)) {
+                if ($optionalSource) { continue }
+                throw "Startup contract has no source hash for $MapName/$($entry.Name)"
+            }
             if ($actualHash -ne $expectedHash) {
                 throw "Startup contract hash mismatch for $MapName/$($entry.Name): expected $expectedHash actual $actualHash"
             }
@@ -254,13 +352,21 @@ if (Test-Path -LiteralPath $startupContractPath -PathType Leaf) {
     } finally {
         $sha256.Dispose()
     }
+    $requireAnalysisReady = $true
+    if ($null -ne $startupRecord.launcherPolicy -and $null -ne $startupRecord.launcherPolicy.requireAnalysisReady) {
+        $requireAnalysisReady = [bool]$startupRecord.launcherPolicy.requireAnalysisReady
+    }
     if ($null -eq $startupRecord.analysis -or
-        [string]$startupRecord.analysis.contractStatus -ne "ready" -or
+        ($requireAnalysisReady -and [string]$startupRecord.analysis.contractStatus -ne "ready") -or
         [string]$startupRecord.analysis.triggerStatus -ne "complete") {
         throw "Startup contract TriggerData analysis is incomplete for $MapName; refusing to stage"
     }
-    if ($null -eq $startupRecord.analysis.startingGameQ -or
-        [string]::IsNullOrWhiteSpace([string]$startupRecord.analysis.startingGameQ.id)) {
+    $requireStartingGameQ = $true
+    if ($null -ne $startupRecord.launcherPolicy -and $null -ne $startupRecord.launcherPolicy.requireStartingGameQ) {
+        $requireStartingGameQ = [bool]$startupRecord.launcherPolicy.requireStartingGameQ
+    }
+    if ($requireStartingGameQ -and ($null -eq $startupRecord.analysis.startingGameQ -or
+        [string]::IsNullOrWhiteSpace([string]$startupRecord.analysis.startingGameQ.id))) {
         throw "Startup contract has no Starting Game Q trigger for $MapName"
     }
     $protectedMapUnitTypes = @($startupRecord.adaptation.protectedPlayerUnitTypes)
@@ -336,7 +442,7 @@ if (Test-Path -LiteralPath $sourceMapInfoPath) {
 function Merge-CmreMapDependencies {
     param(
         [Parameter(Mandatory = $true)][string[]]$BaseDependencies,
-        [Parameter(Mandatory = $true)][string[]]$SourceDependencies
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$SourceDependencies
     )
 
     $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -1163,20 +1269,27 @@ $adapterAfterMapInitBlock = @"
         $requiresP2Start = ($requiredStartPlayers -contains 2).ToString().ToLower()
         $deferredStartupFuncBlock = @"
 
-// CMRE_PATCH_REBORN_DEFERRED_STARTUP_V5
+// CMRE_PATCH_REBORN_DEFERRED_STARTUP_V6
 // PlayerStartLocation is not guaranteed to be populated during the native
-// Initialization event. Probe once per real-time tick without blocking the
-// native map startup, then start the adapter and Reborn setup when ready.
+// Initialization event. Let the engine create its native opening first, then
+// reuse that base/workers. A bounded fallback preserves maps without one.
 bool gv_CmreRebornDeferredStartupStarted = false;
+int gv_CmreRebornNativeOpeningWaitTicks = 0;
 
 bool gt_CmreRebornDeferredStartup_Func(bool testConds, bool runActions) {
     int lv_startLocationsReadyMarker;
+    int lv_p1StructureCount;
+    int lv_p2StructureCount;
+    int lv_p1WorkerCount;
+    int lv_p2WorkerCount;
     unitgroup lv_p1PreventDefeat;
     unitgroup lv_p2PreventDefeat;
     point lv_p1Start;
     point lv_p2Start;
     unit lv_existingStartUnit;
     bool lv_startLocationsReady;
+    bool lv_nativeOpeningReady;
+    bool lv_nativeOpeningFallback;
     if (testConds) { return true; }
     if (!runActions) { return true; }
     if (gv_CmreRebornDeferredStartupStarted) { return true; }
@@ -1217,6 +1330,44 @@ bool gt_CmreRebornDeferredStartup_Func(bool testConds, bool runActions) {
     if (lv_startLocationsReady == false) {
         libMapModBridge_gf_WriteDebugBank("reborn_adapter_start_locations_waiting", 1);
         return true;
+    }
+    // SC2's engine-owned melee opening is created after MapInit. Starting the
+    // adapter as soon as a start point exists races that creation and leaves
+    // two bases (and, for P1, two worker groups). Wait for the declared
+    // structure/workers, then let the bridge reuse them. Maps with no native
+    // opening get the existing bridge fallback after five real-time ticks.
+    lv_p1StructureCount = libMapModBridge_gf_AliveUnitCount("$startingStructure", 1);
+    lv_p2StructureCount = libMapModBridge_gf_AliveUnitCount("$startingStructure", 2);
+    lv_p1WorkerCount = libMapModBridge_gf_AliveUnitCount("$startingWorker", 1);
+    lv_p2WorkerCount = libMapModBridge_gf_AliveUnitCount("$startingWorker", 2);
+    lv_nativeOpeningReady = true;
+    if (($createP1StartingUnits || $ensureP1PreventDefeat) && (lv_p1StructureCount == 0)) {
+        lv_nativeOpeningReady = false;
+    }
+    if (($createP2StartingUnits || $ensureP2PreventDefeat) && (lv_p2StructureCount == 0)) {
+        lv_nativeOpeningReady = false;
+    }
+    if ($createP1StartingUnits && (lv_p1WorkerCount < $workerCount)) {
+        lv_nativeOpeningReady = false;
+    }
+    if ($createP2StartingUnits && (lv_p2WorkerCount < $workerCount)) {
+        lv_nativeOpeningReady = false;
+    }
+    lv_nativeOpeningFallback = false;
+    if (lv_nativeOpeningReady == false) {
+        gv_CmreRebornNativeOpeningWaitTicks += 1;
+        libMapModBridge_gf_WriteDebugBank("reborn_adapter_native_opening_waiting", 1);
+        libMapModBridge_gf_WriteDebugBank("reborn_adapter_native_opening_wait_ticks", gv_CmreRebornNativeOpeningWaitTicks);
+        if (gv_CmreRebornNativeOpeningWaitTicks < 5) {
+            return true;
+        }
+        lv_nativeOpeningFallback = true;
+    }
+    libMapModBridge_gf_WriteDebugBank("reborn_adapter_native_opening_ready", 1);
+    if (lv_nativeOpeningFallback) {
+        libMapModBridge_gf_WriteDebugBank("reborn_adapter_native_opening_fallback", 1);
+    } else {
+        libMapModBridge_gf_WriteDebugBank("reborn_adapter_native_opening_fallback", 0);
     }
     // Lock the startup before calling either adapter or SwarmSetup. InitMap
     // and native Reborn Initialization can both submit this trigger; the
@@ -1697,7 +1848,7 @@ function Install-CmreGalaxyHostOverlay {
 function Install-CmreDynamicObserver {
     param([Parameter(Mandatory = $true)][string]$MapPath)
 
-    Install-CmreObserverOverlay -WorkspaceRoot $WorkspaceRoot -MapPath $MapPath -MapName $MapName -IsAlengerCommander $isAlengerCommander -AdapterLibPrefix $adapterLibPrefix -AdapterFiles $adapterFiles -EnableReborn $EnableReborn -RebornCommander $RebornCommander -VibeKernelOverride $VibeKernelOverride -InvokeTier $InvokeTier -InvokeFull:$InvokeFull
+    Install-CmreObserverOverlay -WorkspaceRoot $WorkspaceRoot -MapPath $MapPath -MapName $MapName -IsAlengerCommander $isAlengerCommander -AdapterLibPrefix $adapterLibPrefix -AdapterFiles $adapterFiles -EnableReborn $EnableReborn -RebornCommander $RebornCommander -VibeKernelOverride $VibeKernelOverride -InvokeTier $InvokeTier -InvokeFull:$InvokeFull -EnableDouQuquBehavior:$EnableDouQuquBehavior -EnableDouQuquRuntime:$EnableDouQuquRuntime
     Repair-CmreStagedInvokeBundle -MapPath $MapPath
 }
 
@@ -1823,10 +1974,23 @@ function Write-CmreLaunchProfile {
         EnsurePreventDefeatP2 = @("int", $ensurePreventDefeatP2);
         RebornStartingUnitsHandled = @("int", $rebornStartingUnitsHandled);
         CommanderRace = @("string", $commanderRace);
-        VanillaRemovalCount = @("int", [string]$vanillaRemovals.Count)
+        VanillaRemovalCount = @("int", [string]$vanillaRemovals.Count);
+        MapAdapterId = @("string", $mapAdapterId);
+        MapAdapterMode = @("string", $mapAdapterMode);
+        MapAdapterRemovalCount = @("int", [string]$mapAdapterRemovalTypes.Count);
+        MapAdapterProtectedCount = @("int", [string]$mapAdapterProtectedTypes.Count);
+        MapAdapterAnchorCount = @("int", [string]$mapAdapterAnchorTypes.Count);
+        MapAdapterEventReplacementCount = @("int", [string]$mapAdapterEventReplacements.Count)
     }
     for ($vr = 0; $vr -lt $vanillaRemovals.Count; $vr++) {
         $values["VanillaRemoval|$($vr + 1)|Type"] = @("string", [string]$vanillaRemovals[$vr])
+    }
+    for ($ar = 0; $ar -lt $mapAdapterAnchorTypes.Count; $ar++) {
+        $values["MapAdapter|Anchor|$($ar + 1)|Type"] = @("string", [string]$mapAdapterAnchorTypes[$ar])
+    }
+    for ($er = 0; $er -lt $mapAdapterEventReplacements.Count; $er++) {
+        $values["MapAdapter|EventReplacement|$($er + 1)|From"] = @("string", [string]$mapAdapterEventReplacements[$er].From)
+        $values["MapAdapter|EventReplacement|$($er + 1)|To"] = @("string", [string]$mapAdapterEventReplacements[$er].To)
     }
     if ($Enemy -ne "") { $values['Enemy'] = @("string", $Enemy) }
     # 解析 Mutators 参数：逗号分隔的 id 列表，可选 ":enhanced" 后缀
@@ -2128,12 +2292,16 @@ function Reset-CmreRuntimeListenerBank {
             "initialization_building_ready_p1", "initialization_building_ready_p2",
             "initialization_units_ready_p1", "initialization_units_ready_p2",
             "bridge_starting_units_created_p1", "bridge_starting_units_created_p2",
+            "bridge_starting_units_removed_vanilla_p1", "bridge_starting_units_removed_vanilla_p2",
+            "bridge_starting_units_reused_p1", "bridge_starting_units_reused_p2",
             "bridge_prevent_defeat_p1", "bridge_prevent_defeat_p2",
             "bridge_prevent_defeat_created_p1", "bridge_prevent_defeat_created_p2",
             "reborn_adapter_initialized",
             "reborn_adapter_start_locations_ready", "reborn_adapter_start_locations_timeout",
             "reborn_adapter_start_locations_waiting", "reborn_adapter_deferred_entered",
-            "reborn_adapter_initialize_call_count", "hunterkiller_count_after_commander_start",
+            "reborn_adapter_initialize_call_count", "reborn_adapter_native_opening_ready",
+            "reborn_adapter_native_opening_waiting", "reborn_adapter_native_opening_wait_ticks",
+            "reborn_adapter_native_opening_fallback", "hunterkiller_count_after_commander_start",
             "hunterkiller_count_after_replace_existing_units",
             "hydraliskimpaler_count_after_replace_existing_units",
             "zerg_starting_buildings_created_p1", "zerg_starting_buildings_created_p2",

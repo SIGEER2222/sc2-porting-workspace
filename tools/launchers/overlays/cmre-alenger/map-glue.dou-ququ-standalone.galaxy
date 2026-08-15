@@ -1,0 +1,19 @@
+// CMRE_DOUQUQU_STANDALONE_RUNTIME_GLUE
+trigger gt_CmreDouQuquStandaloneRuntimeListener;
+
+bool gt_CmreDouQuquStandaloneRuntimeListener_Func(bool testConds, bool runActions) {
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    libMapModBridge_gf_WriteDebugBank("runtime_listener_started", 1);
+    libMapModBridge_gf_WriteDebugBank("runtime_listener_ready", 1);
+    libMapModBridge_gf_WriteDebugBank("initialization_complete", 1);
+    libMapModBridge_gf_WriteDebugBank("world_cover_dialog_visible_p1", 0);
+    libMapModBridge_gf_StartHeartbeat();
+    return true;
+}
+
+void gt_CmreDouQuquStandaloneRuntimeListener_Init() {
+    gt_CmreDouQuquStandaloneRuntimeListener = TriggerCreate("gt_CmreDouQuquStandaloneRuntimeListener_Func");
+    TriggerExecute(gt_CmreDouQuquStandaloneRuntimeListener, false, true);
+}
+// CMRE_DOUQUQU_STANDALONE_RUNTIME_GLUE_END

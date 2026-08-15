@@ -138,6 +138,8 @@ def test_cross_category_matrix_args_preserve_map_and_commander_identity(monkeypa
     })
     reborn_args = reborn_map["args"]
     assert "-MapSourceOverride" in reborn_args
+    assert "-StartupContractOverride" in reborn_args
+    assert not reborn_args[reborn_args.index("-StartupContractOverride") + 1].endswith(".full.json")
     assert "-EnableReborn" in reborn_args
     assert "-RebornCommander" not in reborn_args
 
@@ -176,6 +178,22 @@ def test_webui_defaults_to_player_map_launch(monkeypatch):
     assert "-PlayerMode" in command
     assert "-ListenPort" not in command
     assert WEBUI_APP.read_text(encoding="utf-8").count("apiMode: false") == 2
+
+
+def test_webui_api_launch_keeps_runtime_alive(monkeypatch):
+    monkeypatch.setattr(server, "_resolve_powershell_executable", lambda: "powershell.exe")
+    handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)
+
+    context = handler._build_launch_args({
+        "mapName": "亡者之夜.SC2Map",
+        "commander": "TerranAlenger3",
+        "listenPort": 5015,
+        "apiMinimal": True,
+    })
+
+    args = context["args"]
+    assert args[args.index("-ListenPort") + 1] == "5015"
+    assert "-KeepAlive" in args
 
 
 def test_webui_groups_commanders_and_maps_and_loads_extra_mods_on_demand():
@@ -438,6 +456,44 @@ def test_force_stop_cleans_failed_webui_staging_child(monkeypatch, tmp_path):
 
     assert server._force_stop_current_game() == ["sc2:303"]
     assert killed == [303]
+    assert not runtime_lease.exists()
+    assert not webui_lease.exists()
+
+
+def test_force_stop_cleans_webui_keepalive_api_session(monkeypatch, tmp_path):
+    runtime_lease = tmp_path / "sc2-runtime-lease.json"
+    webui_lease = tmp_path / "cmre-webui-session.json"
+    launcher = str(server.LAUNCH_SCRIPT)
+    _write_record(runtime_lease, {
+        "schemaVersion": 1,
+        "ownerPid": 101,
+        "ownerSessionId": "cmre_alenger-webui-keepalive-test",
+        "runtimePid": 202,
+        "port": 5015,
+        "state": "keepalive",
+        "mapName": "zzerus03.SC2Map",
+        "commander": "TerranAlenger3",
+        "launcher": launcher,
+    })
+    _write_record(webui_lease, {
+        "schemaVersion": 1,
+        "launcherPid": 101,
+        "launcher": launcher,
+        "mapName": "zzerus03.SC2Map",
+        "commander": "TerranAlenger3",
+    })
+    killed = []
+    monkeypatch.setattr(server, "SC2_RUNTIME_LEASE_PATH", runtime_lease)
+    monkeypatch.setattr(server, "WEBUI_SESSION_LEASE_PATH", webui_lease)
+    monkeypatch.setattr(server, "_get_process_info", lambda pid: {
+        101: None,
+        202: {"Name": "SC2_x64.exe", "CommandLine": '"E:/SC2/SC2_x64.exe" -listen 127.0.0.1 -port 5015'},
+    }.get(pid))
+    monkeypatch.setattr(server, "_force_kill_process_tree", lambda pid: killed.append(pid) or True)
+    monkeypatch.setattr(server, "_wait_for_process_exit", lambda pid: True)
+
+    assert server._force_stop_current_game() == ["sc2:202"]
+    assert killed == [202]
     assert not runtime_lease.exists()
     assert not webui_lease.exists()
 

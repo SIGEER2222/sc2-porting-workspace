@@ -24,6 +24,7 @@ const API = {
   vibeDisconnect: "/api/vibe/disconnect",
   vibeInvoke: "/api/vibe/invoke",
   vibeRunVm: "/api/vibe/run-vm",
+  vibeObserve: "/api/vibe/observe",
   asset: (relPath) => `/api/assets/dds?path=${encodeURIComponent(relPath)}`,
 };
 
@@ -34,6 +35,7 @@ const runtimeState = {
   selectedTrace: null,
   trace: [],
   pollTimer: null,
+  observation: null,
 };
 
 const state = {
@@ -102,6 +104,7 @@ const GROUP_LABELS = {
   alenger: "起义",
   reborn: "重生",
   "revolution-overdrive": "起义狂潮",
+  "dou-ququ": "斗蛐蛐（runtime）",
 };
 
 function $(id) { return document.getElementById(id); }
@@ -236,6 +239,15 @@ async function loadFactors() {
 async function loadMaps() {
   const data = await fetch(API.maps).then(r => r.json());
   state.maps = [...(data.maps || []), ...(data.rebornMaps || []), ...(data.revolutionMaps || [])];
+  const douQuqu = state.maps.find(m => m.packageId === "dou-ququ");
+  if (douQuqu) {
+    state.selected.mapName = douQuqu.id;
+    state.selected.mapPackage = "dou-ququ";
+    state.selected.apiMode = true;
+    if ($("runtime-map-path") && douQuqu.runtimeSource) {
+      $("runtime-map-path").value = douQuqu.runtimeSource;
+    }
+  }
   const selectedMap = state.maps.find(m => m.id === state.selected.mapName && m.packageId === state.selected.mapPackage)
     || state.maps.find(m => m.id === state.selected.mapName);
   if (selectedMap) state.selected.mapPackage = selectedMap.packageId || "cmre";
@@ -647,8 +659,44 @@ function syncRuntimeStatus(status) {
   }
 }
 
+function renderRuntimeObservation(result) {
+  const payload = result?.payload || {};
+  const units = Array.isArray(payload.units) ? payload.units : [];
+  const body = $("runtime-observation-body");
+  const player = payload.player || {};
+  $("runtime-observation-meta").textContent = result?.error_code && result.error_code !== "OK"
+    ? `${result.error_code}`
+    : `loop=${payload.game_loop ?? "-"} · units=${payload.unit_count ?? units.length} · P${player.id ?? "-"} 矿物=${player.minerals ?? "-"} 气=${player.vespene ?? "-"}`;
+  if (!units.length) {
+    body.innerHTML = '<tr><td colspan="6" class="runtime-empty">当前观测没有可见单位。</td></tr>';
+    return;
+  }
+  body.innerHTML = units.map(unit => `<tr>
+    <td>${esc(unit.tag)}</td>
+    <td class="runtime-trace-function">${esc(unit.unit_type || unit.unit_type_id)}</td>
+    <td>${esc(unit.owner)}</td>
+    <td>${esc(`${unit.life}/${unit.max_life}`)}</td>
+    <td>${esc(unit.energy)}</td>
+    <td>${esc(`${unit.x}, ${unit.y}`)}</td>
+  </tr>`).join("");
+}
+
+async function pollRuntimeObservation() {
+  if ($("runtime-status")?.dataset.state !== "connected") return;
+  try {
+    const data = await runtimeRequest(API.vibeObserve);
+    if (data.success) renderRuntimeObservation(data.result);
+  } catch (e) {
+    $("runtime-observation-meta").textContent = `观测失败: ${e.message}`;
+  }
+}
+
 async function pollRuntimeStatus() {
-  try { syncRuntimeStatus(await runtimeRequest(API.vibeStatus)); }
+  try {
+    const status = await runtimeRequest(API.vibeStatus);
+    syncRuntimeStatus(status);
+    if (status.status === "connected") await pollRuntimeObservation();
+  }
   catch (e) { $("runtime-session-meta").textContent = `调试服务不可用: ${e.message}`; }
 }
 
@@ -765,7 +813,7 @@ function renderMaps() {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(m);
   }
-  const groupLabels = { cmre: "CMRE 地图", reborn: "虫心战役地图", "revolution-overdrive": "起义狂潮地图" };
+  const groupLabels = { cmre: "CMRE 地图", reborn: "虫心战役地图", "revolution-overdrive": "起义狂潮地图", "dou-ququ": "斗蛐蛐（runtime）" };
   for (const [groupId, maps] of groups) {
     const section = document.createElement("section");
     section.className = "map-group";
@@ -811,6 +859,10 @@ function renderMaps() {
     div.onclick = () => {
       state.selected.mapName = m.id;
       state.selected.mapPackage = m.packageId || "cmre";
+      if (m.packageId === "dou-ququ") {
+        state.selected.apiMode = true;
+        if ($("runtime-map-path") && m.runtimeSource) $("runtime-map-path").value = m.runtimeSource;
+      }
       $$(".map-item").forEach(el => el.classList.toggle("selected", el === div));
       updateFooter();
     };
@@ -1231,6 +1283,10 @@ async function launchGame() {
   if (s.mapPackage === "revolution-overdrive" && s.commanderPackage === "revolution-overdrive") {
     body.packageId = "revolution-overdrive";
     body.faction = s.faction;
+  }
+  if (s.mapPackage === "dou-ququ") {
+    body.enableDouQuquBehavior = true;
+    body.apiMinimal = true;
   }
   if (s.apiMode) { body.listenPort = s.listenPort; body.apiMinimal = true; }
   // 重生虫心指挥官：透传 reborn 标志和指挥官名，server.py 据此追加 -EnableReborn -RebornCommander
