@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "stage": "27-dou-ququ-behavior-plugin",
+  "issues": [
+    {
+      "id": "DOUQUQU-RUNTIME-PENDING",
+      "severity": "high",
+      "status": "open",
+      "title": "Six behavior effects need real 斗蛐蛐 runtime evidence",
+      "detail": "The Python VM contract and Galaxy patch are not a runtime pass until the approved launcher observes the events in the staged map and the same-window ScriptError gate remains clean.",
+      "evidence_type": "inference",
+      "owner": "stage27",
+      "nextAction": "Run the launcher with -EnableDouQuquBehavior and capture API/event/ScriptError evidence."
+    },
+    {
+      "id": "WEBUI-RESTART-UNOWNED",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "WebUI refused to restart an externally owned SC2 session",
+      "detail": "The launch paths now terminate the exact SC2/SC2Switcher process set unconditionally before starting the requested launcher.",
+      "evidence_type": "runtime",
+      "owner": "stage27",
+      "evidence": [
+        "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-unconditional-restart-20260815.json"
+      ],
+      "nextAction": "Keep the exact process-name allowlist and verify the process table is empty before removing runtime leases."
+    }
+  ]
+}

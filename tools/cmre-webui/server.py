@@ -1919,6 +1919,35 @@ def _force_stop_current_game():
     return killed
 
 
+def _force_stop_all_game_processes():
+    """Unconditionally stop every SC2 process before a WebUI restart.
+
+    The restart action is explicitly user-authorized to replace an existing
+    game, including one started outside this WebUI. Restrict the operation to
+    the exact SC2 executable names and clear stale ownership records only after
+    the process table is empty.
+    """
+    killed = []
+    for pid, process_name in _list_game_processes():
+        if not _force_kill_process_tree(pid):
+            _append_log(f"[webui] 强制重启: 结束 {process_name}:{pid} 失败")
+            continue
+        if not _wait_for_process_exit(pid):
+            _append_log(f"[webui] 强制重启: {process_name}:{pid} 仍在运行")
+            continue
+        killed.append(f"{process_name}:{pid}")
+
+    if not _list_game_processes():
+        _remove_runtime_record(SC2_RUNTIME_LEASE_PATH)
+        _remove_runtime_record(WEBUI_SESSION_LEASE_PATH)
+
+    if killed:
+        _append_log(f"[webui] 无条件重启: 已结束旧进程 {', '.join(killed)}")
+    else:
+        _append_log("[webui] 无条件重启: 未发现 SC2/SC2Switcher 进程")
+    return killed
+
+
 class CmreWebUIHandler(SimpleHTTPRequestHandler):
     """处理 WebUI 的 HTTP 请求。"""
 
@@ -2490,6 +2519,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if ctx is None:
             return
         _force_stop_current_game()
+        _force_stop_all_game_processes()
         if ctx.get("kind") == "revolution-overdrive":
             self._handle_revolution_launch(ctx)
             return
@@ -2568,32 +2598,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if ctx is None:
             return
         _force_stop_current_game()
-        if _has_live_bound_webui_session():
-            self._send_json(
-                {
-                    "success": False,
-                    "error": "WebUI 未能安全结束上一轮已跟踪的 SC2，会话归属记录已保留，未启动新游戏。",
-                },
-                409,
-            )
-            return
-        # Do not begin staging just to discover an unrelated game later in the
-        # launcher. A remaining SC2/SC2Switcher process has no WebUI ownership
-        # proof at this point, so preserve it and surface a synchronous busy
-        # response to the caller.
-        remaining_processes = _list_game_processes()
-        if remaining_processes:
-            process_summary = ", ".join(f"{name}:{pid}" for pid, name in remaining_processes)
-            _append_log(f"[webui] launch refused: unowned SC2 runtime is still active ({process_summary})")
-            self._send_json(
-                {
-                    "success": False,
-                    "error": "检测到未由 WebUI 归属的 SC2 会话，未启动新游戏。请先结束该会话后重试。",
-                    "processes": [{"pid": pid, "name": name} for pid, name in remaining_processes],
-                },
-                409,
-            )
-            return
+        _force_stop_all_game_processes()
         args = ctx["args"]
         commander = ctx["commander"]
 

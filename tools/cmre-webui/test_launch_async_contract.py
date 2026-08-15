@@ -251,9 +251,42 @@ def test_force_stop_leaves_untracked_sc2_sessions_alone(monkeypatch, tmp_path):
         server._launcher_process = previous_launcher
 
 
-def test_launch_async_rejects_unowned_sc2_before_starting_launcher(monkeypatch):
+def test_force_stop_all_game_processes_kills_untracked_sc2_sessions(monkeypatch):
+    calls = []
+    process_lists = iter([[(321, "SC2_x64.exe")], []])
+    monkeypatch.setattr(server, "_list_game_processes", lambda: next(process_lists))
+    monkeypatch.setattr(server, "_force_kill_process_tree", lambda pid: calls.append(pid) or True)
+    monkeypatch.setattr(server, "_wait_for_process_exit", lambda pid: True)
+
+    assert server._force_stop_all_game_processes() == ["SC2_x64.exe:321"]
+    assert calls == [321]
+
+
+def test_launch_async_kills_unowned_sc2_before_starting_launcher(monkeypatch):
     handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)
     response = {}
+    stopped = []
+    previous_launcher = server._launcher_process
+
+    class _Pipe:
+        def __iter__(self):
+            return iter(())
+
+        def close(self):
+            pass
+
+    class _Process:
+        pid = 456
+        stdout = _Pipe()
+        stderr = _Pipe()
+
+    class _NoopThread:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def start(self):
+            pass
+
     handler._read_body = lambda: {}
     handler._build_launch_args = lambda body: {
         "args": ["powershell.exe", "-File", "launcher.ps1"],
@@ -262,19 +295,21 @@ def test_launch_async_rejects_unowned_sc2_before_starting_launcher(monkeypatch):
     handler._send_json = lambda data, status=200: response.update(data=data, status=status)
 
     monkeypatch.setattr(server, "_force_stop_current_game", lambda: [])
-    monkeypatch.setattr(server, "_has_live_bound_webui_session", lambda: False)
-    monkeypatch.setattr(server, "_list_game_processes", lambda: [(321, "SC2_x64.exe")])
     monkeypatch.setattr(
-        server.subprocess,
-        "Popen",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("launcher must not start")),
+        server,
+        "_force_stop_all_game_processes",
+        lambda: stopped.append(True) or ["SC2_x64.exe:321"],
     )
+    monkeypatch.setattr(server.subprocess, "Popen", lambda *args, **kwargs: _Process())
+    monkeypatch.setattr(server.threading, "Thread", _NoopThread)
+    try:
+        handler._handle_launch_async()
+    finally:
+        server._launcher_process = previous_launcher
 
-    handler._handle_launch_async()
-
-    assert response["status"] == 409
-    assert response["data"]["success"] is False
-    assert response["data"]["processes"] == [{"pid": 321, "name": "SC2_x64.exe"}]
+    assert stopped == [True]
+    assert response["status"] == 200
+    assert response["data"]["success"] is True
 
 
 def test_force_stop_cleans_only_bound_webui_detached_session(monkeypatch, tmp_path):

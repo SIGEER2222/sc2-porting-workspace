@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "stage": "27-dou-ququ-behavior-plugin",
+  "status": "IN_PROGRESS",
+  "evidence_type": "static",
+  "summary": "Stage opened for an opt-in 斗蛐蛐 behavior plugin. The WebUI unconditional-restart contract is verified; Python VM, Galaxy overlay, and six behavior effects remain pending.",
+  "changed_paths": [
+    "tools/cmre-webui/server.py",
+    "tools/cmre-webui/test_launch_async_contract.py",
+    "src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin/plan.md"
+  ],
+  "validation": [
+    {
+      "command": "python -m pytest -q tools/cmre-webui/test_launch_async_contract.py",
+      "exitCode": 0,
+      "summary": "25 passed."
+    },
+    {
+      "command": "python -m pytest -q tools/cmre-webui/test_runtime_contract.py tools/cmre-webui/test_revolution_overdrive.py",
+      "exitCode": 0,
+      "summary": "3 passed."
+    },
+    {
+      "command": "POST /api/launch-async with an externally running thorner03 session",
+      "exitCode": 0,
+      "summary": "HTTP 200; old external SC2 PID was terminated and thanson01/Coverts reached ready=true with zero ScriptErrors."
+    }
+  ],
+  "runtime": {
+    "status": "PASS",
+    "evidence": [
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-unconditional-restart-20260815.json"
+    ]
+  },
+  "next_actions": ["Implement the VM plugin, overlay, static tests, and approved-launcher runtime evidence."]
+}
