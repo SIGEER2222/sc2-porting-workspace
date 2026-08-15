@@ -33,6 +33,13 @@
     },
     {
       "type": "runtime",
+      "claim": "A fresh direct-map launch of thanson01.SC2Map with the Coverts faction reaches ready=true through the approved launcher and has no same-window ScriptErrors after the SC2 child startup grace period.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json"
+      ]
+    },
+    {
+      "type": "runtime",
       "claim": "Native AI ally behavior remains blocked after strict P1 participant plus P2 Computer setup and accepted ordinary native actions: Tychus dies before Region 24, P2-owned units remain absent, no P1-visible P2 ally appears, and no P2 command acknowledgement exists. The observed owner 16 units are Neutral.",
       "evidence": [
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/native-census.json",
@@ -103,6 +110,11 @@
       "command": "approved launcher port 18156 + strict SC2API P1 participant/P2 Computer action census",
       "exitCode": 0,
       "summary": "CreateGame=init_game and JoinGame=in_game; attack-move and move returned ActionResult=1; Tychus died before Region 24; P2-owned units=0, P1-visible P2 ally=0, owner 16 remained Neutral, P2 acknowledgement=false; same-window ScriptError count=0. Verdict remains blocked."
+    },
+    {
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-revolution-overdrive.ps1 -MapName thanson01.SC2Map -Faction Coverts -ReadyTimeoutSeconds 90 -NoCheats",
+      "exitCode": 0,
+      "summary": "Real approved direct-map launch passed after the SC2 child startup grace: ready=true, ScriptErrors=0, and SC2 remained running."
     }
   ],
   "nextStage": "ai-ally-native-closure"

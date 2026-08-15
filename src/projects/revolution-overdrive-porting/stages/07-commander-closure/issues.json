@@ -54,6 +54,18 @@
       ],
       "impact": "Strict response-state checks now prevent a listener or launched-only state from being reported as a playable runtime pass.",
       "nextAction": "Keep strict CreateGame/JoinGame/RequestStep assertions in every future native run."
+    },
+    {
+      "id": "RO-RUN-006",
+      "severity": "high",
+      "status": "resolved",
+      "summary": "The direct-map Revolution Overdrive launcher could exit before SC2_x64 became visible after SC2Switcher returned.",
+      "evidence": [
+        "tools/launchers/launch-revolution-overdrive.ps1",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json"
+      ],
+      "impact": "WebUI launches could be reported as ready-timeout failures even though SC2 was still starting and later produced the map-load log.",
+      "nextAction": "Keep the bounded startup grace and same-window Alert/ScriptError gates in future direct-map launcher changes."
     }
   ]
 }

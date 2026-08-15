@@ -1,5 +1,27 @@
 # Stage 07 Log: Commander Closure
 
+## 2026-08-15 WebUI thanson01 direct-map startup race
+
+- `static`: `tools/launchers/launch-revolution-overdrive.ps1` previously exited on
+  the first poll when `SC2Switcher_x64.exe` had not yet exposed its `SC2_x64`
+  child. The launcher then wrote `ready=false` within seconds, while SC2
+  continued loading in the background and the WebUI reported a misleading
+  180-second ready timeout.
+- `static`: The direct-map wait now allows a bounded 30-second SC2 child startup
+  window, still exits early after an observed child disappears, and preserves
+  the existing Alert and same-window ScriptError gates.
+- `runtime`: `pwsh -NoProfile -ExecutionPolicy Bypass -File
+  tools/launchers/launch-revolution-overdrive.ps1 -MapName thanson01.SC2Map
+  -Faction Coverts -ReadyTimeoutSeconds 90 -NoCheats` -> exit `0`; the launcher
+  emitted `Revolution Overdrive ready: thanson01.SC2Map / Coverts`.
+- `runtime`: `artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json`
+  records `ready=true`, `scriptErrors=[]`, and `scriptErrorFree=true`; SC2
+  remained running after the check. The WebUI itself remained reachable at
+  `http://127.0.0.1:8767/` with HTTP `200`, 45 commander records, and 15 maps.
+- `validation`: PowerShell parser passed; `python -m pytest -q
+  tools/launchers/tests/test_launch_cmre_alenger_static.py` passed `62`; the
+  focused WebUI/RO contract tests passed `26`.
+
 ## Scope and decision
 
 - Stage plan: `src/projects/revolution-overdrive-porting/stages/07-commander-closure/plan.md`.

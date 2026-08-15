@@ -367,9 +367,18 @@ if ($ListenPort -gt 0) {
     $evidence.ready = Wait-ApiReady -Port $ListenPort -TimeoutSeconds $ReadyTimeoutSeconds
 } else {
     $deadline = [DateTime]::UtcNow.AddSeconds($ReadyTimeoutSeconds)
+    # SC2Switcher returns before its SC2 child is visible. Give that child a
+    # bounded startup window instead of treating the first empty process query
+    # as a failed launch.
+    $startupDeadline = [DateTime]::UtcNow.AddSeconds([Math]::Min(30, $ReadyTimeoutSeconds))
+    $sc2Observed = $false
     while ([DateTime]::UtcNow -lt $deadline) {
         if (Get-ChildItem -LiteralPath $gameLogsRoot -Recurse -File -Filter "*Alert*.txt" -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $startedAt }) { $evidence.ready = $true; break }
-        if (-not (Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue)) { break }
+        if (Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue) {
+            $sc2Observed = $true
+        } elseif ($sc2Observed -or [DateTime]::UtcNow -ge $startupDeadline) {
+            break
+        }
         Start-Sleep -Seconds 1
     }
 }
