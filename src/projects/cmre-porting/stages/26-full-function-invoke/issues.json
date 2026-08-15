@@ -180,6 +180,19 @@
       "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/reborn-abathur-larva-runtime-20260813-011000-final.json; artifacts/projects/cmre-porting/stage26-full-function-invoke/reborn-abathur-baseline.json",
       "owner": "stage26",
       "nextAction": "Repair the Reborn commander-map adapter or its staged Catalog dependency so runtime Larva exposes every command in reborn-abathur-baseline.json with the exact CAbilTrain product counts. Then rerun reborn_abathur_runtime_probe.py through the approved launcher; do not change the original 28-command baseline to suppress the failure."
+    },
+    {
+      "id": "DEBUG-MOD-SHIM-WINDOWS-COPY",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "按需 debug-mod shim 复制在 Windows 深层 generated 路径失败",
+      "resolved_at": "2026-08-15",
+      "detail": "完整 copytree 会在 generated/<中文地图名>/LibVibeInvokeDispatch_tier100*.galaxy 备用 dispatch 文件上失败，导致 WebUI 无法准备本次会话。主 dispatch 不引用这两个备用文件；shim 复制器现在保留核心 kernel、handle registry 和 generated adapters，只跳过 tier100/tier1000 备用文件，并以 RuntimeConfigError 报告其他复制错误。",
+      "evidence_type": "mixed",
+      "evidence": "tools/cmre-webui/test_debug_map_runtime.py; artifacts/projects/cmre-porting/stage26-full-function-invoke/map-debug-runtime/sessions/20260815T032954Z-4515307b/session.json",
+      "owner": "stage26",
+      "resolution": "tools/cmre-webui/debug_map_runtime.py::_copy_debug_mod",
+      "nextAction": "保留复制回归；如未来需要 tier rollout dispatch，改用显式 staging 方案并重新取得 Windows/SC2 runtime 证据。"
     }
   ]
 }

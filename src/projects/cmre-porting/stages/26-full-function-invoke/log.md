@@ -72,3 +72,23 @@ the rotation required by the stage evidence policy.
   三脚本 `python -m py_compile`、JSON parse 和 `git diff --check` 通过。将 `011000` artifact
   再送入比较器仍得 `FAIL / 28`，P1 正确分类为单位 `Drone/Larva/Overlord`、建筑 `Hatchery`。
   验证完成后仅停止本轮 launcher 所有的 SC2 PID 30372；launcher PID 30268 和 API 5098 已释放。
+
+## 2026-08-15
+
+### 用户地图解包与按需 Mod WebUI PASS
+
+- `static`：用户提供的 `.SC2Map` 已保留原始副本
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/input-map-original.SC2Map`，SHA-256 为
+  `056F548F4D53B5F130595AB777D28AA10EFB6D59A61F2676A7522A6BBD8AD20`；脚本首次读取压缩包时自动解包到
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/map-debug-runtime/extracted/input-map-original.SC2Map`。
+  `DocumentInfo` 声明 `Campaigns/Void.SC2Campaign` 与 `Mods/WarCoop/WarClassicSystem.SC2Mod`，地图输入标记为只读。
+- `static`：`python -m pytest tools/cmre-webui/test_debug_map_runtime.py -q` -> `3 passed`；
+  `python -m py_compile tools/cmre-webui/debug_map_runtime.py`、`node --check tools/cmre-webui/webui/debug-map.js`、
+  PowerShell 启动脚本解析和 `git diff --check` 通过。shim 复制会保留核心 kernel 和 generated adapters，跳过未被主 dispatch 引用且在 Windows 深层中文目录复制不稳定的 `LibVibeInvokeDispatch_tier100*.galaxy` 备用文件。
+- `runtime`：在 `http://127.0.0.1:8773/` 上实际调用首页、`/api/manifest`、`/api/mods`、`/api/prepare`；首页 HTTP 200，Mod 清单 74 项，所选 `EmpireAlenger` 与 `EmpireAlengerAdapter` 均 installed，prepare 返回会话 shim 和两项 `file:Mods/Commanders/*.SC2Mod` 依赖。API 证据为
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/map-debug-runtime/webui-smoke/api-evidence.json`。
+- `runtime`：通过 WebUI `/api/launch` 启动 approved `tools/galaxy-vibe/launch-galaxy-vibe.ps1`，会话
+  `20260815T032954Z-4515307b` 的 launcher stdout 完成 SC2 API ready、CreateGame、JoinGame、2/2 断言；
+  `artifacts/galaxy-vibe/vibe-verdict.json` 为 `PASS`，`assert-results.json` 为 `2/2`，
+  `script-error-verdict.json` 为 `has_new_errors=false,count=0`。会话详情和 launcher 日志位于
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/map-debug-runtime/sessions/20260815T032954Z-4515307b/`。
