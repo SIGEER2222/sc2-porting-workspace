@@ -115,3 +115,31 @@ the rotation required by the stage evidence policy.
   `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/dou-ququ-vm-20260815-register/dou-ququ-vm-runtime-evidence.json`；
   P0=`p0-probe-v3-dou-ququ-vm-20260815-register-launcher5265.json`；Tier=`tier100-live-verdict-dou-ququ-vm-20260815-register-launcher5265.json`；
   legacy=`legacy-repl-assert-results-launcher5267.json`；ScriptError=`script-error-verdict-launcher5267.json`。
+
+### 斗蛐蛐地图自定义能力真机验证 PASS_WITH_GAP
+
+- `static`：探针从用户提供的斗蛐蛐地图 staging 中读取 13 个自定义能力
+  `fangzhidanwei`、`heal`、`BeamCaster1..11`，未读取或启动亡者之夜；SC2 Data API
+  返回 13 个稳定 ability id，catalog 共发现 26,467 个 ability 和 5,146 个 unit type。
+- `runtime`：通过批准的 `tools/galaxy-vibe/launch-galaxy-vibe.ps1` 在端口 `5286` 完成
+  API ready、CreateGame/JoinGame 和干净 Bank；`fangzhidanwei` raw action 返回 `Success`，
+  并触发地图自身 `PlayerEffectUsed` 链，使 Marine 数量真实增加 1。`heal` 与
+  `BeamCaster1..11` 的 raw action 均返回 `Error`，因此当前地图运行时只实证接受
+  `fangzhidanwei`，不能把 catalog 可见误报为能力可执行。
+- `runtime`：同一 staging 通过批准 launcher 在端口 `5287` 完成 VM 注册、system.ping、
+  `unit.spawn`/`query.units` 和 `gen.1`/`gen.202` 请求；后两者按当前
+  `invoke-disabled.galaxy` 基线返回 `FUNCTION_NOT_IN_MAP`。两窗口新增非空 ScriptError
+  均为 0。
+- `runtime evidence`：
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/dou-ququ-ability-probe-20260815/dou-ququ-custom-ability-runtime.json`；
+  `.../tier100-live-verdict-dou-ququ-ability-probe-20260815.json`；
+  `.../script-error-verdict-launcher5286.json`；`.../script-error-verdict-launcher5287.json`。
+
+### 收口验证
+
+- `validation`：`python -m pytest -q tools/cmre-webui` -> `33 passed`；
+  `python -m py_compile tools/cmre-webui/dou_ququ_ability_probe.py tools/cmre-webui/stage_map_vm_runtime.py`、
+  `node --check tools/cmre-webui/webui/app.js`、Stage 26 结果/问题及运行时证据 JSON 解析、
+  `git diff --check` 均通过。
+- `cleanup`：已按可执行路径、端口 `5287` 和创建时间复核并停止本轮 launcher-owned
+  `SC2_x64.exe` PID `27892`；复核后无 SC2 进程残留。未停止或修改其他地图/会话。
