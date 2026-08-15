@@ -67,9 +67,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-va
 ```
 
 Runtime verification uses the approved `tools/launchers/launch-cmre-alenger.ps1`
-launcher with the staged Dead of Night map: type-family sample probes, a
+launcher with the user-provided staged 斗蛐蛐 map: type-family sample probes, a
 bounded read-only census of the safe subset, and the same-window ScriptError
-gate. Exact artifact paths are recorded in `log.md` as evidence accrues.
+gate. The current runtime input is fixed to 斗蛐蛐; exact artifact paths are
+recorded in `log.md` as evidence accrues.
 
 ## Risks and mitigations
 
@@ -85,6 +86,6 @@ gate. Exact artifact paths are recorded in `log.md` as evidence accrues.
 ## Write scope
 
 See `project.json` writeScope additions for stage 26: stage directory,
-`tools/galaxy-vibe/kernel/**` including `generated/`, debug-mod and Dead of
-Night kernel copies, overlay library and tests, `vibe/debug_vm.py`,
+`tools/galaxy-vibe/kernel/**` including `generated/`, debug-mod and selected-map
+kernel copies, overlay library and tests, `vibe/debug_vm.py`,
 `tools/galaxy-vibe/host/vibe_host.py`, and stage 26 artifacts.

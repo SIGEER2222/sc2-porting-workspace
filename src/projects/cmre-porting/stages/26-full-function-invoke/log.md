@@ -92,3 +92,26 @@ the rotation required by the stage evidence policy.
   `artifacts/galaxy-vibe/vibe-verdict.json` 为 `PASS`，`assert-results.json` 为 `2/2`，
   `script-error-verdict.json` 为 `has_new_errors=false,count=0`。会话详情和 launcher 日志位于
   `artifacts/projects/cmre-porting/stage26-full-function-invoke/map-debug-runtime/sessions/20260815T032954Z-4515307b/`。
+
+### 斗蛐蛐地图 VM 运行时验证 PASS_WITH_GAP
+
+- `static`：当前运行时输入固定为用户提供的斗蛐蛐地图；原图只读，源图 SHA-256 为
+  `056F548F4D53B5F130595AB777D28AA10EFB6D59A61F2676A7522A6BBD8AD20E`，staging 后打包图
+  `dou-ququ-vm-register.SC2Map` SHA-256 为
+  `65982BE2E6AC384695DD2760BBE3A16024F54697DB17EE2863DBCE09C00CF23D`。manifest 明确登记
+  `mapLabel=斗蛐蛐`、`forbiddenMap=亡者之夜`，并将 `LibVibeKernel`、`LibVibeHandles`、
+  `LibVibeInvokeDispatch_active` 与 `libVibeKernel_gf_RegisterEntryPoints` 注入 staged map。
+- `runtime`：通过批准的 `tools/galaxy-vibe/launch-galaxy-vibe.ps1` 在 `5265` 完成
+  CreateGame/JoinGame、P0 内核注册、`kernel_initialized=1`、`register_entrypoints_done=1`、
+  `diag/pollorder_fix=2` 与 `system.ping -> PONG`。随后同一斗蛐蛐打包图完成
+  `vibe.unit.spawn` 的 Marine raw observation `+1`、`vibe.query.units=count=1`。
+- `runtime`：干净 Bank 下通过批准 launcher 在 `5267` 执行 legacy `function.invoke`，
+  斗蛐蛐图的 5/5 SC2 assertions 全部通过；同窗口 ScriptError verdict 为
+  `has_new_errors=false,count=0`。这证明斗蛐蛐核心 VM 与 legacy invoke 可用。
+- `runtime`：当前 staging 使用 `invoke-disabled.galaxy`，因此 `gen.1` 与 `gen.202` 均如实返回
+  `FUNCTION_NOT_IN_MAP`。该响应证明请求已抵达真实 VM，但 generated adapter 原生执行尚未在斗蛐蛐
+  图上达成；不得将本轮标记为全量 generated invoke PASS。
+- `runtime evidence`：
+  `artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/dou-ququ-vm-20260815-register/dou-ququ-vm-runtime-evidence.json`；
+  P0=`p0-probe-v3-dou-ququ-vm-20260815-register-launcher5265.json`；Tier=`tier100-live-verdict-dou-ququ-vm-20260815-register-launcher5265.json`；
+  legacy=`legacy-repl-assert-results-launcher5267.json`；ScriptError=`script-error-verdict-launcher5267.json`。

@@ -193,6 +193,17 @@
       "owner": "stage26",
       "resolution": "tools/cmre-webui/debug_map_runtime.py::_copy_debug_mod",
       "nextAction": "保留复制回归；如未来需要 tier rollout dispatch，改用显式 staging 方案并重新取得 Windows/SC2 runtime 证据。"
+    },
+    {
+      "id": "DOU-QUQU-GENERATED-ADAPTER-BUNDLE-MISSING",
+      "severity": "medium",
+      "status": "open",
+      "title": "斗蛐蛐地图尚未挂载 generated function.invoke adapter bundle",
+      "detail": "当前斗蛐蛐 staging 已挂载核心 VM、handle registry 和 active dispatch 入口，并通过真机 P0、system.ping、unit.spawn/query、legacy function.invoke 及 ScriptError gate；但为保持稳定基线，本轮注入的是 invoke-disabled.galaxy。真实 VM 对 gen.1 与 gen.202 返回 FUNCTION_NOT_IN_MAP，说明请求已进入 VM 但 generated adapter 尚未在斗蛐蛐地图执行。",
+      "evidence_type": "runtime",
+      "evidence": "artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/dou-ququ-vm-20260815-register/dou-ququ-vm-runtime-evidence.json; artifacts/projects/cmre-porting/stage26-full-function-invoke/runtime/dou-ququ-vm-20260815-register/tier100-live-verdict-dou-ququ-vm-20260815-register-launcher5265.json",
+      "owner": "stage26",
+      "nextAction": "在仍使用斗蛐蛐地图的前提下，按 -InvokeTier 100、-InvokeTier 1000、-InvokeFull 顺序生成并挂载对应 adapter bundle，经 approved launcher 重跑 P0、Marine raw observation、query.units、gen.1/gen.202 和同窗口 ScriptError gate；不得用其他地图替代本验证。"
     }
   ]
 }
