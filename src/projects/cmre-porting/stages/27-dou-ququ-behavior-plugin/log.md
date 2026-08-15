@@ -212,6 +212,22 @@ zzerus03/Reborn map-commander initialization issue is still open; the runtime-fi
 - `validation`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` -> `52/52 passed`, `0 warnings`.
 - `validation`: `python -m py_compile tools/cmre-webui/server.py tools/cmre-webui/stage_map_vm_runtime.py`, `node --check tools/cmre-webui/webui/app.js`, and `git diff --check` -> passed.
 
+## 2026-08-15 Final runtime gate and validation closeout
+
+- `runtime`: The approved same-window ScriptError gate was rerun with the real
+  SC2 PID `5460` start time (`2026-08-15T21:56:18.2356109+08:00`) as the
+  boundary. `script_error_check.py` returned exit code `0`, `count=0`, and an
+  empty file list. Evidence:
+  `artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-verdict-20260815.json`.
+- `validation`: `python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_map_details.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py` -> `129 passed`.
+- `validation`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` -> `52/52 passed`, `0` warnings.
+- `validation`: Python compilation, `node --check tools/cmre-webui/webui/app.js`,
+  and `git diff --check` -> passed.
+- `runtime`: The 斗蛐蛐 runtime-first plugin remains `8/8 PASS` on the real
+  staged user map. The only open issue in this stage is the unrelated
+  `zzerus03` Reborn map-commander initialization blocker; it is kept separate
+  from the verified `douququ.*` development surface.
+
 ## 2026-08-15 起义狂潮地图详情兼容修复
 
 - `static`: 地图详情 API 现在同时接受持久化地图 ID 和 UI 显示名；`[起义狂潮] 欢迎来到丛林` 会规范化为 `ttosh02.SC2Map`，不再依赖旧前端必须传文件名。
