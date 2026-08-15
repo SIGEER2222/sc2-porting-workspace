@@ -82,6 +82,7 @@ class DouQuquWorld:
         self.minerals: dict[int, int] = {}
         self.generated_zealots_by_reaver: dict[int, int] = {}
         self.banshee_elapsed: dict[int, float] = {}
+        self.proc_chance_overrides: dict[str, int] = {}
         self.events: list[dict[str, Any]] = []
         self.reset(seed=self.seed)
 
@@ -97,6 +98,7 @@ class DouQuquWorld:
         self.minerals = {1: initial_minerals, 2: initial_minerals}
         self.generated_zealots_by_reaver = {}
         self.banshee_elapsed = {}
+        self.proc_chance_overrides = {}
         self.events = []
         return self.snapshot()
 
@@ -200,10 +202,36 @@ class DouQuquWorld:
         self.version += 1
         return unit.snapshot()
 
-    def _chance(self, rule: Mapping[str, Any], key: str) -> tuple[int, int, bool]:
+    def _chance(self, rule: Mapping[str, Any], key: str, override_key: str | None = None) -> tuple[int, int, bool]:
         roll = self.rng.randint(1, 100)
-        chance = int(rule.get(key, 0))
+        chance = self.proc_chance_overrides.get(override_key or "", int(rule.get(key, 0)))
         return roll, chance, roll <= chance
+
+    def proc_chances(self) -> dict[str, int]:
+        reaver = self.config["rules"].get("reaverAttack", {})
+        brood_lord = self.config["rules"].get("broodLordAttack", {})
+        return {
+            "reaverOrdinaryPercent": self.proc_chance_overrides.get("reaver_ordinary_percent", int(reaver.get("ordinaryChancePercent", 20))),
+            "reaverKillPercent": self.proc_chance_overrides.get("reaver_kill_percent", int(reaver.get("killChancePercent", 30))),
+            "broodLordPercent": self.proc_chance_overrides.get("broodlord_percent", int(brood_lord.get("chancePercent", 15))),
+        }
+
+    def set_proc_chances(self, reaver_ordinary_percent: int, reaver_kill_percent: int, broodlord_percent: int) -> dict[str, int]:
+        values = {
+            "reaver_ordinary_percent": int(reaver_ordinary_percent),
+            "reaver_kill_percent": int(reaver_kill_percent),
+            "broodlord_percent": int(broodlord_percent),
+        }
+        if any(value < 0 or value > 100 for value in values.values()):
+            raise DouQuquError("CHANCE_PERCENT_INVALID", str(values))
+        self.proc_chance_overrides = values
+        self._touch("proc_chances_set", **self.proc_chances())
+        return self.proc_chances()
+
+    def reset_proc_chances(self) -> dict[str, int]:
+        self.proc_chance_overrides = {}
+        self._touch("proc_chances_reset", **self.proc_chances())
+        return self.proc_chances()
 
     def _spawn_at(
         self,
@@ -261,7 +289,8 @@ class DouQuquWorld:
             self._touch("scarab_impact_ignored", **result)
             return result
         chance_key = "killChancePercent" if fatal else "ordinaryChancePercent"
-        roll, chance, triggered = self._chance(rule, chance_key)
+        override_key = "reaver_kill_percent" if fatal else "reaver_ordinary_percent"
+        roll, chance, triggered = self._chance(rule, chance_key, override_key)
         result.update({"roll": roll, "chancePercent": chance, "triggered": triggered})
         if triggered:
             current = self.generated_zealots_by_reaver.get(attacker.tag, 0)
@@ -305,7 +334,7 @@ class DouQuquWorld:
         if attacker.unit_type != rule.get("sourceUnit") or attacker.owner == target.owner:
             self._touch("attack_ignored", **result)
             return result
-        roll, chance, triggered = self._chance(rule, "chancePercent")
+        roll, chance, triggered = self._chance(rule, "chancePercent", "broodlord_percent")
         result.update({"roll": roll, "chancePercent": chance, "triggered": triggered})
         if triggered:
             # This is metadata for the real CEffectLaunchMissile chain. The VM
@@ -490,6 +519,8 @@ class DouQuquVmBridge:
         self.world = DouQuquWorld(config, seed=seed)
         self._dispatch = {
             "douququ.reset": self._reset,
+            "douququ.runtime.set_proc_chances": self._set_proc_chances,
+            "douququ.runtime.reset_proc_chances": self._reset_proc_chances,
             "douququ.unit.spawn": self._spawn,
             "douququ.unit.set_energy": self._set_energy,
             "douququ.unit.set_life": self._set_life,
@@ -506,6 +537,17 @@ class DouQuquVmBridge:
 
     def _reset(self, args: dict[str, Any]) -> Any:
         return self.world.reset(seed=int(args.get("seed", self.world.seed)))
+
+    def _set_proc_chances(self, args: dict[str, Any]) -> Any:
+        return self.world.set_proc_chances(
+            args["reaver_ordinary_percent"],
+            args["reaver_kill_percent"],
+            args["broodlord_percent"],
+        )
+
+    def _reset_proc_chances(self, args: dict[str, Any]) -> Any:
+        del args
+        return self.world.reset_proc_chances()
 
     def _spawn(self, args: dict[str, Any]) -> Any:
         return self.world.spawn(args["unit_type"], args["owner"], args.get("x", 0.0), args.get("y", 0.0)).snapshot()

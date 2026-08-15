@@ -122,6 +122,31 @@ class DouQuquBehaviorTests(unittest.TestCase):
         self.assertEqual(result["projectile"]["target"], {"x": 30.0, "y": 31.0})
         self.assertEqual(self.units(self.call("douququ.snapshot"), "Baneling"), [])
 
+    def test_runtime_proc_chance_override_is_deterministic_and_resets(self):
+        configured = self.call(
+            "douququ.runtime.set_proc_chances",
+            reaver_ordinary_percent=100,
+            reaver_kill_percent=100,
+            broodlord_percent=100,
+        )
+        self.assertEqual(configured, {
+            "reaverOrdinaryPercent": 100,
+            "reaverKillPercent": 100,
+            "broodLordPercent": 100,
+        })
+        reaver = self.spawn("Reaver")
+        reaver_target = self.spawn("Marine", owner=2)
+        self.assertTrue(self.call("douququ.attack", attacker_tag=reaver, target_tag=reaver_target)["triggered"])
+        brood_lord = self.spawn("BroodLord")
+        brood_target = self.spawn("Marine", owner=2)
+        self.assertTrue(self.call("douququ.attack", attacker_tag=brood_lord, target_tag=brood_target)["triggered"])
+        restored = self.call("douququ.runtime.reset_proc_chances")
+        self.assertEqual(restored, {
+            "reaverOrdinaryPercent": 20,
+            "reaverKillPercent": 30,
+            "broodLordPercent": 15,
+        })
+
     def test_hydralisk_heals_only_after_kill_by_twenty_five(self):
         hydra = self.spawn("Hydralisk")
         target = self.spawn("Marine", owner=2)
@@ -169,7 +194,8 @@ class DouQuquBehaviorTests(unittest.TestCase):
     def test_config_and_dispatch_are_explicit(self):
         metadata = load_function_metadata()
         expected = {
-            "douququ.reset", "douququ.unit.set_energy", "douququ.unit.set_life", "douququ.player.set_minerals",
+            "douququ.reset", "douququ.runtime.set_proc_chances", "douququ.runtime.reset_proc_chances",
+            "douququ.unit.set_energy", "douququ.unit.set_life", "douququ.player.set_minerals",
             "douququ.attack", "douququ.reaver.scarab_impact", "douququ.kill", "douququ.banshee.hatch",
             "douququ.tick", "douququ.vulture.refill", "douququ.vulture.consume", "douququ.snapshot",
             "douququ.unit.spawn",

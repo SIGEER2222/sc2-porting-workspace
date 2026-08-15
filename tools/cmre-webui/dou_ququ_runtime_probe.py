@@ -351,13 +351,139 @@ class DouQuquRuntimeProbe:
     def record_check(self, name: str, passed: bool, **evidence: Any) -> None:
         self.checks[name] = {"passed": bool(passed), **evidence}
 
+    async def attack_until_triggered(self, attacker: int, target: int, attempts: int = 40) -> dict[str, Any]:
+        effect: dict[str, Any] = {}
+        for _ in range(attempts):
+            result = await self.rpc("douququ.attack", {"attacker_tag": attacker, "target_tag": target})
+            effect = result.get("effect", {})
+            if effect.get("triggered"):
+                break
+        return effect
+
+    async def run_showcase(self) -> dict[str, Any]:
+        """Leave one visible friendly/display-enemy pair for every rule in the live map."""
+        showcase: dict[str, Any] = {}
+        enemy_x = 100.0
+        victim_x = 110.0
+        display_x = 120.0
+
+        def unit_record(tag: int, unit_type: str, owner: int, x: float, y: float) -> dict[str, Any]:
+            return {"tag": tag, "unit_type": unit_type, "owner": owner, "x": x, "y": y}
+
+        reaver = await self.spawn_runtime("Reaver", 1, 20.0, 20.0)
+        reaver_target = await self.spawn_runtime("Marine", 2, enemy_x, 20.0)
+        reaver_effect = await self.attack_until_triggered(reaver, reaver_target)
+        reaver_enemy = await self.spawn_runtime("Marine", 2, display_x, 20.0)
+        showcase["reaver"] = {
+            "friendly": unit_record(reaver, "Reaver", 1, 20.0, 20.0),
+            "enemy": unit_record(reaver_enemy, "Marine", 2, display_x, 20.0),
+            "effect_target": unit_record(reaver_target, "Marine", 2, enemy_x, 20.0),
+            "effect": reaver_effect,
+        }
+
+        vulture = await self.spawn_runtime("Vulture", 1, 20.0, 35.0)
+        vulture_victim = await self.spawn_runtime("Vulture", 2, victim_x, 35.0)
+        await self.rpc("douququ.vulture.consume", {"unit_tag": vulture, "count": 2})
+        await self.rpc("douququ.player.set_minerals", {"owner": 1, "minerals": 50})
+        refill = await self.rpc("douququ.vulture.refill", {"unit_tag": vulture})
+        death = await self.rpc("douququ.kill", {"killer_tag": vulture, "victim_tag": vulture_victim})
+        vulture_enemy = await self.spawn_runtime("Vulture", 2, enemy_x, 35.0)
+        showcase["vulture"] = {
+            "friendly": unit_record(vulture, "Vulture", 1, 20.0, 35.0),
+            "enemy": unit_record(vulture_enemy, "Vulture", 2, enemy_x, 35.0),
+            "refill": refill,
+            "killed_enemy": unit_record(vulture_victim, "Vulture", 2, victim_x, 35.0),
+            "death_effect": death,
+        }
+
+        banshee = await self.spawn_runtime("InfestedBanshee", 1, 20.0, 50.0)
+        await self.rpc("douququ.unit.set_energy", {"unit_tag": banshee, "energy": 20.0})
+        hatch = await self.rpc("douququ.tick", {"seconds": 10.0})
+        banshee_enemy = await self.spawn_runtime("Marine", 2, enemy_x, 50.0)
+        showcase["infested_banshee"] = {
+            "friendly": unit_record(banshee, "InfestedBanshee", 1, 20.0, 50.0) | {"energy_set": 20.0},
+            "enemy": unit_record(banshee_enemy, "Marine", 2, enemy_x, 50.0),
+            "hatch_effect": hatch,
+        }
+
+        broodlord = await self.spawn_runtime("BroodLord", 1, 20.0, 65.0)
+        broodlord_target = await self.spawn_runtime("Overlord", 2, enemy_x, 65.0)
+        broodlord_effect = await self.attack_until_triggered(broodlord, broodlord_target)
+        broodlord_enemy = await self.spawn_runtime("Overlord", 2, display_x, 65.0)
+        showcase["broodlord"] = {
+            "friendly": unit_record(broodlord, "BroodLord", 1, 20.0, 65.0),
+            "enemy": unit_record(broodlord_enemy, "Overlord", 2, display_x, 65.0),
+            "effect_target": unit_record(broodlord_target, "Overlord", 2, enemy_x, 65.0),
+            "effect": broodlord_effect,
+        }
+
+        hydra = await self.spawn_runtime("Hydralisk", 1, 20.0, 80.0)
+        hydra_victim = await self.spawn_runtime("Marine", 2, victim_x, 80.0)
+        await self.rpc("douququ.unit.set_life", {"unit_tag": hydra, "life": 20.0})
+        hydra_before = await self.rpc("vibe.unit.query_attrs", {"unit_tag": hydra})
+        hydra_kill = await self.rpc("douququ.kill", {"killer_tag": hydra, "victim_tag": hydra_victim})
+        hydra_after = await self.rpc("vibe.unit.query_attrs", {"unit_tag": hydra})
+        hydra_enemy = await self.spawn_runtime("Marine", 2, display_x, 80.0)
+        showcase["hydralisk"] = {
+            "friendly": unit_record(hydra, "Hydralisk", 1, 20.0, 80.0),
+            "enemy": unit_record(hydra_enemy, "Marine", 2, display_x, 80.0),
+            "killed_enemy": unit_record(hydra_victim, "Marine", 2, victim_x, 80.0),
+            "life_before": hydra_before.get("life"),
+            "kill_effect": hydra_kill,
+            "life_after": hydra_after.get("life"),
+        }
+
+        kerrigan = await self.spawn_runtime("K5Kerrigan", 1, 20.0, 95.0)
+        kerrigan_victim = await self.spawn_runtime("Marine", 2, victim_x, 95.0)
+        kerrigan_kill = await self.rpc("douququ.kill", {"killer_tag": kerrigan, "victim_tag": kerrigan_victim})
+        kerrigan_enemy = await self.spawn_runtime("Marine", 2, enemy_x, 95.0)
+        showcase["kerrigan"] = {
+            "friendly": unit_record(kerrigan, "K5Kerrigan", 1, 20.0, 95.0),
+            "enemy": unit_record(kerrigan_enemy, "Marine", 2, enemy_x, 95.0),
+            "killed_enemy": unit_record(kerrigan_victim, "Marine", 2, victim_x, 95.0),
+            "kill_effect": kerrigan_kill,
+        }
+
+        showcase["runtime_snapshot"] = await self.rpc("douququ.snapshot", {})
+        showcase["final_observation"] = await self.observe()
+        unit_entries = [
+            (name, entry)
+            for name, entry in showcase.items()
+            if isinstance(entry, dict) and "friendly" in entry and "enemy" in entry
+        ]
+        def raw_presence(record: dict[str, Any]) -> dict[str, Any]:
+            matches = [
+                unit
+                for unit in showcase["final_observation"]["units"]
+                if unit["owner"] == record["owner"]
+                and unit["type"] == record["unit_type"]
+                and abs(unit["y"] - record["y"]) <= 3.0
+            ]
+            return {"present": bool(matches), "raw_matches": matches}
+
+        showcase["unit_presence"] = {}
+        for name, entry in unit_entries:
+            friendly = raw_presence(entry["friendly"])
+            enemy = raw_presence(entry["enemy"])
+            showcase["unit_presence"][name] = {
+                "friendly_present": friendly["present"],
+                "enemy_present": enemy["present"],
+                "killed_enemy_present": False if "killed_enemy" in entry else None,
+                "friendly": entry["friendly"],
+                "enemy": entry["enemy"],
+                "killed_enemy": entry.get("killed_enemy"),
+                "friendly_raw": friendly,
+                "enemy_raw": enemy,
+            }
+        return showcase
+
     async def run_checks(self) -> None:
         status = await self.rpc("douququ.runtime.status", {})
         self.record_check("runtime_module", status.get("active") is True, status=status)
         await self.rpc("douququ.reset", {"seed": 42})
 
         reaver = await self.spawn_runtime("Reaver", 1, 65.0, 70.0)
-        reaver_target = await self.spawn_runtime("Marine", 2, 95.0, 70.0)
+        reaver_target = await self.spawn_runtime("Marine", 2, 115.0, 70.0)
         reaver_effect = {}
         for _ in range(30):
             result = await self.rpc("douququ.attack", {"attacker_tag": reaver, "target_tag": reaver_target})
@@ -372,6 +498,7 @@ class DouQuquRuntimeProbe:
             effect=reaver_effect,
             zealot_count=self.counts(after_reaver, 1, "Zealot"),
         )
+        await self.step(8)
 
         vulture = await self.spawn_runtime("Vulture", 1, 30.0, 30.0)
         await self.rpc("douququ.vulture.consume", {"unit_tag": vulture, "count": 2})
@@ -386,7 +513,7 @@ class DouQuquRuntimeProbe:
         )
         before_mines_snapshot = await self.snapshot()
         before_mines_count = self.mine_count(before_mines_snapshot, 2)
-        vulture_victim = await self.spawn_runtime("Vulture", 2, 32.0, 30.0)
+        vulture_victim = await self.spawn_runtime("Vulture", 2, 115.0, 30.0)
         death = await self.rpc("douququ.kill", {"killer_tag": vulture, "victim_tag": vulture_victim})
         after_death = await self.snapshot()
         after_mines_count = self.mine_count(after_death, 2)
@@ -405,6 +532,7 @@ class DouQuquRuntimeProbe:
             ),
             runtime_snapshot=mine_snapshot,
         )
+        await self.step(8)
 
         banshee = await self.spawn_runtime("InfestedBanshee", 1, 55.0, 35.0)
         await self.rpc("douququ.unit.set_energy", {"unit_tag": banshee, "energy": 20.0})
@@ -417,9 +545,10 @@ class DouQuquRuntimeProbe:
             and self.counts(after_banshee, 1, "Marine") >= self.counts(before_banshee, 1, "Marine") + 1,
             hatch=hatch,
         )
+        await self.step(8)
 
         broodlord = await self.spawn_runtime("BroodLord", 1, 45.0, 90.0)
-        brood_target = await self.spawn_runtime("Overlord", 2, 80.0, 90.0)
+        brood_target = await self.spawn_runtime("Overlord", 2, 115.0, 90.0)
         before_broodlord = await self.snapshot()
         brood_effect = {}
         for _ in range(40):
@@ -434,9 +563,10 @@ class DouQuquRuntimeProbe:
             and self.counts(after_broodlord, 1, "Baneling") > self.counts(before_broodlord, 1, "Baneling"),
             effect=brood_effect,
         )
+        await self.step(8)
 
         hydra = await self.spawn_runtime("Hydralisk", 1, 90.0, 30.0)
-        hydra_target = await self.spawn_runtime("Marine", 2, 108.0, 30.0)
+        hydra_target = await self.spawn_runtime("Marine", 2, 115.0, 30.0)
         await self.rpc("douququ.unit.set_life", {"unit_tag": hydra, "life": 20.0})
         before_hydra = await self.rpc("vibe.unit.query_attrs", {"unit_tag": hydra})
         hydra_kill = await self.rpc("douququ.kill", {"killer_tag": hydra, "victim_tag": hydra_target})
@@ -449,6 +579,7 @@ class DouQuquRuntimeProbe:
             life_before=before_hydra.get("life"),
             life_after=after_hydra.get("life"),
         )
+        await self.step(8)
 
         kerrigan = await self.spawn_runtime("K5Kerrigan", 1, 90.0, 50.0)
         kerrigan_target = await self.spawn_runtime("Marine", 2, 115.0, 50.0)
@@ -501,6 +632,7 @@ class DouQuquRuntimeProbe:
                 await self.run_checks()
                 result["calls"] = self.calls
                 result["checks"] = self.checks
+                result["showcase"] = await self.run_showcase()
                 result["finalSnapshot"] = await self.snapshot()
         finally:
             self.ws = None

@@ -46,6 +46,16 @@ fixed libDouQuquRuntime_gf_Fixed(string key, fixed fallback) {
     return DataTableGetFixed(true, key);
 }
 
+int libDouQuquRuntime_gf_ProcChance(string key, int fallback) {
+    return libDouQuquRuntime_gf_Int("DouQuquRuntimeProcChance_" + key, fallback);
+}
+
+void libDouQuquRuntime_gf_ResetProcChances() {
+    DataTableValueRemove(true, "DouQuquRuntimeProcChance_ReaverOrdinary");
+    DataTableValueRemove(true, "DouQuquRuntimeProcChance_ReaverKill");
+    DataTableValueRemove(true, "DouQuquRuntimeProcChance_BroodLord");
+}
+
 int libDouQuquRuntime_gf_VultureMinesKey(unit target) {
     return libDouQuquRuntime_gf_Int("DouQuquRuntimeMines_" + IntToString(UnitGetTag(target)), libDouQuquRuntime_gv_VultureMines);
 }
@@ -89,8 +99,8 @@ string libDouQuquRuntime_gf_ReaverImpactJson(unit attacker, unit victim, bool fa
         UnitGetType(attacker) != "Reaver" || UnitGetOwner(attacker) == UnitGetOwner(victim)) {
         return "{\"triggered\":false,\"reason\":\"ignored\",\"spawned\":[]}";
     }
-    chance = libDouQuquRuntime_gv_ReaverOrdinaryChance;
-    if (fatal) { chance = libDouQuquRuntime_gv_ReaverKillChance; }
+    chance = libDouQuquRuntime_gf_ProcChance("ReaverOrdinary", libDouQuquRuntime_gv_ReaverOrdinaryChance);
+    if (fatal) { chance = libDouQuquRuntime_gf_ProcChance("ReaverKill", libDouQuquRuntime_gv_ReaverKillChance); }
     roll = RandomInt(1, 100);
     active = libDouQuquRuntime_gf_Int("DouQuquRuntimeReaverActive_" + IntToString(UnitGetTag(attacker)), 0);
     spawned = 0;
@@ -125,10 +135,34 @@ string libDouQuquRuntime_gf_Status(string argsJson) {
 string libDouQuquRuntime_gf_Reset(string argsJson) {
     int seed;
     seed = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_seed");
+    libDouQuquRuntime_gf_ResetProcChances();
     DataTableSetInt(true, "DouQuquRuntimeSeed", seed);
     DataTableSetInt(true, "DouQuquRuntimeEventCount", 0);
     DataTableSetString(true, "DouQuquRuntimeLastEvent", "reset");
     return libDouQuquRuntime_gf_Result("douququ.reset", "{\"function_id\":\"douququ.reset\",\"seed\":" + IntToString(seed) + "}", true);
+}
+
+string libDouQuquRuntime_gf_SetProcChances(string argsJson) {
+    int reaverOrdinary;
+    int reaverKill;
+    int broodLord;
+    reaverOrdinary = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_reaver_ordinary_percent");
+    reaverKill = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_reaver_kill_percent");
+    broodLord = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_broodlord_percent");
+    if (reaverOrdinary < 0 || reaverOrdinary > 100 || reaverKill < 0 || reaverKill > 100 || broodLord < 0 || broodLord > 100) {
+        return libDouQuquRuntime_gf_Error("douququ.runtime.set_proc_chances", "INVALID_ARGS", "chance_percent");
+    }
+    DataTableSetInt(true, "DouQuquRuntimeProcChance_ReaverOrdinary", reaverOrdinary);
+    DataTableSetInt(true, "DouQuquRuntimeProcChance_ReaverKill", reaverKill);
+    DataTableSetInt(true, "DouQuquRuntimeProcChance_BroodLord", broodLord);
+    libDouQuquRuntime_gf_Event("proc_chances_set");
+    return libDouQuquRuntime_gf_Result("douququ.runtime.set_proc_chances", "{\"function_id\":\"douququ.runtime.set_proc_chances\",\"reaverOrdinaryPercent\":" + IntToString(reaverOrdinary) + ",\"reaverKillPercent\":" + IntToString(reaverKill) + ",\"broodLordPercent\":" + IntToString(broodLord) + "}", true);
+}
+
+string libDouQuquRuntime_gf_ResetProcChancesInvoke(string argsJson) {
+    libDouQuquRuntime_gf_ResetProcChances();
+    libDouQuquRuntime_gf_Event("proc_chances_reset");
+    return libDouQuquRuntime_gf_Result("douququ.runtime.reset_proc_chances", "{\"function_id\":\"douququ.runtime.reset_proc_chances\",\"reaverOrdinaryPercent\":" + IntToString(libDouQuquRuntime_gv_ReaverOrdinaryChance) + ",\"reaverKillPercent\":" + IntToString(libDouQuquRuntime_gv_ReaverKillChance) + ",\"broodLordPercent\":" + IntToString(libDouQuquRuntime_gv_BroodLordChance) + "}", true);
 }
 
 string libDouQuquRuntime_gf_UnitSpawn(string argsJson) {
@@ -211,6 +245,7 @@ string libDouQuquRuntime_gf_Attack(string argsJson) {
     int spawned;
     bool triggered;
     string triggeredText;
+    int broodLordChance;
     attackerTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_attacker_tag");
     targetTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_target_tag");
     attacker = libVibeKernel_gf_FindUnitByTag(attackerTag);
@@ -226,13 +261,14 @@ string libDouQuquRuntime_gf_Attack(string argsJson) {
         effect = libDouQuquRuntime_gf_ReaverImpactJson(attacker, target, false, PointGetX(targetPosition), PointGetY(targetPosition));
     } else if (typeName == "BroodLord") {
         roll = RandomInt(1, 100);
-        triggered = roll <= libDouQuquRuntime_gv_BroodLordChance;
+        broodLordChance = libDouQuquRuntime_gf_ProcChance("BroodLord", libDouQuquRuntime_gv_BroodLordChance);
+        triggered = roll <= broodLordChance;
         spawned = 0;
         if (triggered) { spawned = libDouQuquRuntime_gf_SpawnOne("Baneling", UnitGetOwner(attacker), targetPosition); }
         if (spawned > 0) { libDouQuquRuntime_gf_Event("broodlord_baneling"); }
         triggeredText = "false";
         if (spawned > 0) { triggeredText = "true"; }
-        effect = "{\"triggered\":" + triggeredText + ",\"roll\":" + IntToString(roll) + ",\"chancePercent\":" + IntToString(libDouQuquRuntime_gv_BroodLordChance) + ",\"projectile\":{\"unit_tag\":" + IntToString(spawned) + ",\"unit_type\":\"Baneling\",\"target\":{\"x\":" + FixedToString(PointGetX(targetPosition), 2) + ",\"y\":" + FixedToString(PointGetY(targetPosition), 2) + "}}}";
+        effect = "{\"triggered\":" + triggeredText + ",\"roll\":" + IntToString(roll) + ",\"chancePercent\":" + IntToString(broodLordChance) + ",\"projectile\":{\"unit_tag\":" + IntToString(spawned) + ",\"unit_type\":\"Baneling\",\"target\":{\"x\":" + FixedToString(PointGetX(targetPosition), 2) + ",\"y\":" + FixedToString(PointGetY(targetPosition), 2) + "}}}";
     }
     return libDouQuquRuntime_gf_Result("douququ.attack", "{\"function_id\":\"douququ.attack\",\"attacker_tag\":" + IntToString(attackerTag) + ",\"target_tag\":" + IntToString(targetTag) + ",\"issued\":true,\"effect\":" + effect + "}", true);
 }

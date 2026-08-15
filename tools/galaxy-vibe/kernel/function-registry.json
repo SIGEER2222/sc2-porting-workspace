@@ -622,6 +622,26 @@
       "args": {"seed": {"type": "integer", "required": false, "default": 42, "min": 0}},
       "returns": {"function_id": "string", "seed": "integer"}
     },
+    "douququ.runtime.set_proc_chances": {
+      "handler": "libDouQuquRuntime_gf_SetProcChances",
+      "side_effect": true,
+      "debug_only": true,
+      "capability": "douququ-live-runtime",
+      "args": {
+        "reaver_ordinary_percent": {"type": "integer", "required": true, "min": 0, "max": 100},
+        "reaver_kill_percent": {"type": "integer", "required": true, "min": 0, "max": 100},
+        "broodlord_percent": {"type": "integer", "required": true, "min": 0, "max": 100}
+      },
+      "returns": {"function_id": "string", "reaverOrdinaryPercent": "integer", "reaverKillPercent": "integer", "broodLordPercent": "integer"}
+    },
+    "douququ.runtime.reset_proc_chances": {
+      "handler": "libDouQuquRuntime_gf_ResetProcChancesInvoke",
+      "side_effect": true,
+      "debug_only": true,
+      "capability": "douququ-live-runtime",
+      "args": {},
+      "returns": {"function_id": "string", "reaverOrdinaryPercent": "integer", "reaverKillPercent": "integer", "broodLordPercent": "integer"}
+    },
     "douququ.unit.spawn": {
       "handler": "libDouQuquRuntime_gf_UnitSpawn",
       "side_effect": true,
