@@ -193,6 +193,24 @@
       "command": "python -m py_compile tools/cmre-webui/server.py tools/cmre-webui/dou_ququ_runtime_probe.py tools/cmre-webui/stage_map_vm_runtime.py src/projects/cmre-porting/vibe/dou_ququ_behavior.py src/projects/cmre-porting/vibe/map_event_extractor.py; node --check tools/cmre-webui/webui/app.js; git diff --check",
       "exitCode": 0,
       "summary": "Python compilation, JavaScript syntax, and whitespace checks passed."
+    },
+    {
+      "command": "python tools/cmre-webui/dou_ququ_runtime_probe.py --port 5896 --map-path artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/dou-ququ-runtime-vm-proc-config.packed.SC2Map --out-dir artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-manual-20260815",
+      "exitCode": 0,
+      "summary": "Fresh live recheck returned 8/8 PASS and left the unit showcase in the running SC2 session.",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-manual-20260815/dou-ququ-runtime-evidence.json"
+    },
+    {
+      "command": "POST /api/vibe/run-vm on WebUI 8777 / SC2 5896 with the full 49-instruction program excluding only douququ.reset",
+      "exitCode": 0,
+      "summary": "VM returned success=true/status=passed; all six behavior effects and assertions passed; current session remained connected.",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-call-log.jsonl"
+    },
+    {
+      "command": "python tools/galaxy-vibe/script_error_check.py --logs-dir C:\\Users\\22448\\Documents\\StarCraft II\\GameLogs --since 1786806860 --out artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-manual-20260815.json",
+      "exitCode": 0,
+      "summary": "Current SC2 window has_new_errors=false and count=0; SC2 PID 14424 remained responsive.",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-manual-20260815.json"
     }
   ],
   "runtime": {
@@ -200,7 +218,7 @@
     "douQuquRuntime": {
       "status": "PASS",
       "checks": "8/8",
-      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-logged-live/dou-ququ-runtime-evidence.json",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-manual-20260815/dou-ququ-runtime-evidence.json",
       "scriptErrors": 0
     },
     "evidence": [
@@ -212,7 +230,9 @@
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/staging-manifest.json",
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-map-details-20260815.json",
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-session-recovery-live-20260815.json",
-      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-verdict-20260815.json"
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-verdict-20260815.json",
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-manual-20260815/dou-ququ-runtime-evidence.json",
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-manual-20260815.json"
     ],
     "blockedBy": "zzerus03.SC2Map CreateGame timed out and direct-map initialization remained in the Reborn native-opening wait gate; this does not block the verified runtime-first 斗蛐蛐 plugin."
   },

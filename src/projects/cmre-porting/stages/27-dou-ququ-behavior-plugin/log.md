@@ -228,6 +228,46 @@ zzerus03/Reborn map-commander initialization issue is still open; the runtime-fi
   `zzerus03` Reborn map-commander initialization blocker; it is kept separate
   from the verified `douququ.*` development surface.
 
+## 2026-08-15 Runtime challenge recheck without pausing the game
+
+- `runtime`: The previous SC2 process was absent, so no live game was paused or
+  taken over. The approved WebUI launcher was started from the read-only user
+  map, with `douQuquBehavior.enabled=false` and `douQuquRuntime.enabled=true`.
+  SC2 PID `14424` reached API listener `127.0.0.1:5896` and remained alive with
+  `KeepAlive`; the launcher output reports zero new ScriptErrors at map load.
+- `runtime`: `python tools/cmre-webui/dou_ququ_runtime_probe.py --port 5896
+  --map-path artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/dou-ququ-runtime-vm-proc-config.packed.SC2Map
+  --out-dir artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-manual-20260815`
+  performed real `CreateGame + JoinGame + RequestStep` on the running SC2 host
+  and returned `8/8 PASS`. The evidence keeps a visible showcase pair for
+  Reaver, Vulture, InfestedBanshee, BroodLord, Hydralisk, and K5Kerrigan, plus
+  their enemy units and generated effects.
+- `runtime`: The WebUI reconnected to the live session
+  `dou-ququ-runtime-cd7fe0bc8810` without creating or leaving another game.
+  `/api/vibe/observe` returned `game_loop=1721` and `unit_count=38`, including
+  friendly Reaver/Vulture/InfestedBanshee/BroodLord/Hydralisk/K5Kerrigan and
+  enemy Marine/Vulture/Overlord/CommandCenter units, as well as Zealot,
+  Baneling, and Broodling results. `douququ.snapshot` returned
+  `zealotCount=2`, `mineCount=6`, `marineCount=6`, `banelingCount=2`, and
+  `broodlingCount=2` before the VM repeat.
+- `runtime`: `POST /api/vibe/run-vm` was executed with the full 49-instruction
+  program after removing only the standalone `douququ.reset` step. It returned
+  `success=true`, `status=passed`; all behavior assertions passed, including
+  Reaver Zealot spawn, Vulture `storedMines=5` after a 50-mineral refill,
+  three death mines, Banshee hatch, BroodLord Baneling projectile, Hydralisk
+  `healed=25.0`, and two Kerrigan broodlings. Proc chances were restored to
+  20/30/15 by `douququ.runtime.reset_proc_chances`.
+- `runtime`: The persisted call log now contains `116` records. The current
+  live repeat contributed `89` passed `origin=vm` calls; the log retains the
+  earlier failed probes (two timeout calls and stale-session attempts) for
+  auditability. Evidence:
+  `artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-call-log.jsonl`.
+- `runtime`: `python tools/galaxy-vibe/script_error_check.py --logs-dir
+  "C:\\Users\\22448\\Documents\\StarCraft II\\GameLogs" --since 1786806860
+  --out artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-manual-20260815.json`
+  returned exit code `0`, `has_new_errors=false`, and `count=0` for the current
+  SC2 window. The SC2 process and WebUI session remain running after the check.
+
 ## 2026-08-15 起义狂潮地图详情兼容修复
 
 - `static`: 地图详情 API 现在同时接受持久化地图 ID 和 UI 显示名；`[起义狂潮] 欢迎来到丛林` 会规范化为 `ttosh02.SC2Map`，不再依赖旧前端必须传文件名。
