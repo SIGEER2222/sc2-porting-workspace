@@ -55,6 +55,20 @@
         "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-session-recovery-live-20260815.json"
       ],
       "nextAction": "Keep session probing as the connection contract; do not reintroduce sequence-based latest-session selection."
+    },
+    {
+      "id": "WEBUI-MAP-DETAIL-CACHE-AND-STATUS",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Map-detail pane could report an unscanned state after a successful source response",
+      "detail": "Map details and editable shell resources now bypass caches, superseded fetches are aborted, and read/render failures expose their actual error instead of the misleading unscanned label. A real browser click on 天界封锁 completed without an error.",
+      "evidence_type": "runtime",
+      "owner": "stage27",
+      "evidence": [
+        "src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin/log.md",
+        "tools/cmre-webui/test_map_details.py"
+      ],
+      "nextAction": "Keep map-detail API and editable WebUI resources non-cacheable while this local development server serves live source analysis."
     }
   ]
 }

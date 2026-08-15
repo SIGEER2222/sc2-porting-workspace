@@ -57,6 +57,7 @@ const state = {
     search: "",
     selectedIndex: null,
     requestId: 0,
+    abortController: null,
   },
   cmdrFilter: "all",
   activeTab: "commanders",
@@ -951,10 +952,13 @@ async function loadMapDetailsForSelection(force = false) {
     renderMapDetail(state.mapDetail.data);
     return;
   }
+  state.mapDetail.abortController?.abort();
+  const abortController = new AbortController();
   const requestId = ++state.mapDetail.requestId;
   state.mapDetail.mapKey = key;
   state.mapDetail.loading = true;
   state.mapDetail.data = null;
+  state.mapDetail.abortController = abortController;
   const panel = $("map-detail-panel");
   panel.hidden = false;
   $("map-detail-title").textContent = map.name || map.id;
@@ -962,21 +966,29 @@ async function loadMapDetailsForSelection(force = false) {
   $("map-detail-status").textContent = "扫描中";
   $("map-detail-summary").innerHTML = '<p class="hint">正在读取 MapScript.galaxy、Objects、Regions 和本地化文本</p>';
   try {
-    const response = await fetch(API.mapDetails(map.id, map.packageId || "cmre", state.selected.commander));
+    const response = await fetch(API.mapDetails(map.id, map.packageId || "cmre", state.selected.commander), {
+      cache: "no-store",
+      signal: abortController.signal,
+    });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "地图尚未扫描");
     if (requestId !== state.mapDetail.requestId) return;
+    state.mapDetail.selectedIndex = null;
+    renderMapDetail(data);
     state.mapDetail.data = data;
     state.mapDetail.loading = false;
     state.mapDetail.error = "";
-    state.mapDetail.selectedIndex = null;
-    renderMapDetail(data);
   } catch (error) {
     if (requestId !== state.mapDetail.requestId) return;
+    if (error?.name === "AbortError") return;
     state.mapDetail.loading = false;
-    state.mapDetail.error = error.message;
-    $("map-detail-status").textContent = "尚未扫描";
-    $("map-detail-summary").innerHTML = `<p class="hint map-detail-error">详情读取失败：${esc(error.message)}</p>`;
+    state.mapDetail.error = String(error?.message || error || "未知错误");
+    $("map-detail-subtitle").textContent = "静态源码读取失败";
+    $("map-detail-status").textContent = "静态扫描失败";
+    $("map-detail-summary").innerHTML = `<p class="hint map-detail-error">详情读取失败：${esc(state.mapDetail.error)}</p>`;
+    $("map-detail-count").textContent = "0 / 0";
+    $("map-detail-preplaced-count").textContent = "0 个";
+    $("map-detail-region-count").textContent = "0 个";
     $("map-detail-timeline").innerHTML = "";
     $("map-detail-preplaced").innerHTML = "";
     $("map-detail-regions").innerHTML = "";

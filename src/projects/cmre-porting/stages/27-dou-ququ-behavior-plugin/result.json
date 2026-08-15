@@ -3,7 +3,7 @@
   "stage": "27-dou-ququ-behavior-plugin",
   "status": "IN_PROGRESS",
   "evidence_type": "runtime",
-  "summary": "The runtime-first 斗蛐蛐 VM plugin passes 8/8 live behavior assertions on the user-provided map with zero new ScriptErrors. The WebUI also exposes traceable static map evidence and now probes stale Bank sessions against the live kernel before accepting a connection. The overall stage remains IN_PROGRESS because the unrelated zzerus03 Reborn map-commander initialization remains blocked.",
+  "summary": "The runtime-first 斗蛐蛐 VM plugin passes 8/8 live behavior assertions on the user-provided map with zero new ScriptErrors. The WebUI exposes traceable static map evidence, keeps its map-detail payload and editable shell fresh, and probes stale Bank sessions against the live kernel before accepting a connection. The overall stage remains IN_PROGRESS because the unrelated zzerus03 Reborn map-commander initialization remains blocked.",
   "changed_paths": [
     "src/projects/cmre-porting/vibe/map_event_extractor.py",
     "src/projects/cmre-porting/vibe/map_commander_adapter.py",
@@ -117,6 +117,16 @@
       "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1",
       "exitCode": 0,
       "summary": "52/52 static checks passed with zero warnings."
+    },
+    {
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_map_details.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py",
+      "exitCode": 0,
+      "summary": "118 passed; map-detail caching, current-response handling, and launcher contracts pass."
+    },
+    {
+      "command": "Headless Edge click on 天界封锁 in the restarted WebUI at 127.0.0.1:8767",
+      "exitCode": 0,
+      "summary": "Static scan completed with 94 timeline rows, 1713 preplaced-unit rows, 40 region rows, and no browser error."
     }
   ],
   "runtime": {

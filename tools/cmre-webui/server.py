@@ -2336,8 +2336,18 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        # Map details are derived from the current source tree. A cached response
+        # can make the WebUI appear to be showing an older scan result.
+        self.send_header("Cache-Control", "no-store, max-age=0")
         self.end_headers()
         self.wfile.write(body)
+
+    def end_headers(self):
+        """Keep the editable WebUI shell fresh while developing locally."""
+        static_path = self.path.split("?", 1)[0].lower()
+        if static_path.endswith((".html", ".js", ".css")):
+            self.send_header("Cache-Control", "no-store, max-age=0")
+        super().end_headers()
 
     def _read_body(self):
         length = int(self.headers.get("Content-Length", 0))

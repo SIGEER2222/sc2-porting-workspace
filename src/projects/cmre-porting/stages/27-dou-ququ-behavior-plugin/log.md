@@ -183,3 +183,16 @@ zzerus03/Reborn map-commander initialization issue is still open; the runtime-fi
 - `validation`: `node --check tools/cmre-webui/webui/app.js` and
   `python -m py_compile tools/cmre-webui/server.py` -> passed.
 - `validation`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` -> `52/52` passed, `0` warnings.
+
+## 2026-08-15 天界封锁地图详情浏览器修复
+
+- `static`: WebUI JSON、HTML、JavaScript 和 CSS 现在均发送 `Cache-Control:
+  no-store, max-age=0`；地图详情请求也显式使用 `fetch(..., { cache:
+  "no-store" })`。切换地图或指挥官会中止已过期的详情请求，避免旧响应覆盖当前选择。
+- `static`: 读取或渲染失败不再显示误导性的“尚未扫描”。面板会显示“静态扫描失败”、清空旧表格计数，并展示实际错误文本。
+- `runtime`: 重启后的 `127.0.0.1:8767` 对 `天界封锁.SC2Map` 返回 HTTP `200`
+  和 `Cache-Control: no-store, max-age=0`，载荷包含 1,713 个预置单位、13 个
+  脚本事件、81 条时间记录、40 个区域及 94 条时间线记录。
+- `runtime`: 通过 Edge 无头浏览器在真实 WebUI 中点击“天界封锁”，面板状态为
+  “静态扫描完成”，渲染 94 条时间线、1,713 条预置单位和 40 条区域，无错误提示。
+- `validation`: `python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_map_details.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py` -> `118 passed`；`node --check tools/cmre-webui/webui/app.js` 以及 `python -m py_compile tools/cmre-webui/server.py src/projects/cmre-porting/vibe/map_event_extractor.py` -> passed.

@@ -59,3 +59,27 @@ def test_map_detail_http_endpoint_and_ui_contract():
         httpd.shutdown()
         httpd.server_close()
         thread.join(timeout=5)
+
+
+def test_celestial_lock_detail_is_current_and_not_cached():
+    httpd = server.ThreadingHTTPServer(("127.0.0.1", 0), server.CmreWebUIHandler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{httpd.server_port}"
+    try:
+        url = (
+            base
+            + "/api/map-details?mapName=%E5%A4%A9%E7%95%8C%E5%B0%81%E9%94%81.SC2Map"
+            + "&mapPackage=cmre&commander=TerranAlenger3"
+        )
+        with urllib.request.urlopen(url, timeout=30) as response:
+            payload = json.loads(response.read())
+            assert response.headers["Cache-Control"] == "no-store, max-age=0"
+        assert payload["map"]["id"] == "天界封锁.SC2Map"
+        assert payload["summary"]["preplaced_count"] == 1713
+        assert payload["summary"]["region_count"] == 40
+        assert len(payload["timeline"]) == 94
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=5)
