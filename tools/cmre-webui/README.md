@@ -38,3 +38,6 @@ Mod ID 必须是 SC2 安装目录下的 `Mods/` 相对路径。地图原始压�
 - `POST /api/prepare`：请求体 `{ "mods": ["Mods/Example.SC2Mod"] }`。
 - `POST /api/launch`：在上述请求体基础上增加 `port` 和可选 `verify`。
 - `GET /api/status`：最近一次 launcher 的状态和日志尾部。
+
+斗蛐蛐运行时 VM 的启动、调用、日志和静态/runtime 证据边界见
+[`DOUQUQU_RUNTIME.md`](DOUQUQU_RUNTIME.md)。

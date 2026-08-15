@@ -24,6 +24,16 @@ DEFAULT_DISPATCH = REPO_ROOT / "tools" / "launchers" / "overlays" / "cmre-alenge
 DEFAULT_DOU_QUQU_ROOT = REPO_ROOT / "tools" / "launchers" / "overlays" / "cmre-alenger" / "startup"
 EXTRACTOR = REPO_ROOT / "tools" / "mpq" / "scripts" / "extract_mpq.py"
 
+_ATTRIBUTION_EXPRESSION = 'TextExpressionAssemble("Param/Expression/265C2CBF")'
+_ATTRIBUTION_DIALOG_START = "DialogCreate(600,400,c_anchorCenter,0,0,true);"
+_ATTRIBUTION_DIALOG_MARKER = "// CMRE_WEBUI_ATTRIBUTION_POPUP_REMOVED"
+_ATTRIBUTION_STRING_KEYS = {
+    "DocInfo/HowToPlayAdvanced00",
+    "DocInfo/HowToPlayBasic00",
+    "DocInfo/HowToPlayWinning00",
+    "Param/Expression/265C2CBF",
+}
+
 
 class StagingError(RuntimeError):
     """Raised when a map cannot be staged without guessing."""
@@ -99,13 +109,17 @@ def _patch_map_script(
     )
     if enable_dou_ququ_features:
         include_lines.append('include "LibDouQuquBehavior"')
-    includes = "\n".join(include_lines)
-    text = text.replace(anchor, anchor + "\n" + includes, 1)
+    missing_includes = [line for line in include_lines if line not in text]
+    bootstrap_block = marker
+    if missing_includes:
+        bootstrap_block += "\n" + "\n".join(missing_includes)
+    text = text.replace(anchor, anchor + "\n" + bootstrap_block, 1)
     old_init = "void lllAtg(){libNtve_InitLib();}"
     new_init = "void lllAtg(){libVibeKernel_InitLib();libNtve_InitLib();}"
-    if text.count(old_init) != 1:
+    if text.count(old_init) == 1:
+        text = text.replace(old_init, new_init, 1)
+    elif text.count(new_init) != 1:
         raise StagingError(f"expected one斗蛐蛐 NativeLib init wrapper in {path}")
-    text = text.replace(old_init, new_init, 1)
     # The source map's InitMap body creates its native triggers after lllAtg.
     # Register the VM only after that graph exists; relying on a 0.0 time event
     # is not reliable in an API-created game with no advancing game clock.
@@ -129,6 +143,63 @@ def _patch_map_script(
         "libVibeKernel_gf_RegisterEntryPoints",
         *(["LibDouQuquBehavior", "libDouQuquBehavior_InitLib"] if enable_dou_ququ_features else []),
     ]
+
+
+def _remove_source_attribution_popup(output: Path) -> dict:
+    """Remove the source map's attribution dialog from the isolated copy.
+
+    The source map is immutable. This only edits the copied MapScript and its
+    localized strings after ``copytree``. The match is intentionally exact so
+    an unrelated dialog cannot be removed by a broad text replacement.
+    """
+    map_script = output / "MapScript.galaxy"
+    text = map_script.read_text(encoding="utf-8-sig")
+    expression_count = text.count(_ATTRIBUTION_EXPRESSION)
+    if expression_count == 0:
+        return {"applied": False, "files": [], "reason": "expression_not_found"}
+    if expression_count != 1:
+        raise StagingError(
+            "expected one source attribution expression in staged MapScript, "
+            f"found {expression_count}"
+        )
+    if _ATTRIBUTION_DIALOG_MARKER in text:
+        raise StagingError("staged MapScript already contains attribution cleanup marker")
+
+    expression_offset = text.index(_ATTRIBUTION_EXPRESSION)
+    dialog_start = text.rfind(_ATTRIBUTION_DIALOG_START, 0, expression_offset)
+    return_offset = text.find("return true;}", expression_offset)
+    if dialog_start < 0 or return_offset < 0:
+        raise StagingError("source attribution dialog boundaries were not found")
+    text = (
+        text[:dialog_start]
+        + _ATTRIBUTION_DIALOG_MARKER
+        + "\n"
+        + text[return_offset:]
+    )
+    map_script.write_text(text, encoding="utf-8", newline="\n")
+    cleaned_files = ["MapScript.galaxy"]
+    removed_keys = []
+
+    localized = output / "zhCN.SC2Data" / "LocalizedData" / "GameStrings.txt"
+    if localized.is_file():
+        lines = localized.read_text(encoding="utf-8-sig").splitlines(keepends=True)
+        kept = []
+        removed_keys = []
+        for line in lines:
+            key = line.split("=", 1)[0].strip()
+            if key in _ATTRIBUTION_STRING_KEYS:
+                removed_keys.append(key)
+                continue
+            kept.append(line)
+        if removed_keys:
+            localized.write_text("".join(kept), encoding="utf-8", newline="\n")
+            cleaned_files.append("zhCN.SC2Data/LocalizedData/GameStrings.txt")
+    return {
+        "applied": True,
+        "files": cleaned_files,
+        "removedKeys": sorted(set(removed_keys)),
+        "marker": _ATTRIBUTION_DIALOG_MARKER,
+    }
 
 
 def stage_map(source: Path, output: Path, kernel_root: Path = DEFAULT_KERNEL_ROOT,
@@ -167,6 +238,7 @@ def stage_map(source: Path, output: Path, kernel_root: Path = DEFAULT_KERNEL_ROO
         enable_dou_ququ_features=enable_dou_ququ_features,
         enable_dou_ququ_runtime=enable_dou_ququ_runtime,
     )
+    attribution_cleanup = _remove_source_attribution_popup(output)
     base_data = output / "Base.SC2Data"
     base_data.mkdir(parents=True, exist_ok=True)
     for name in ("LibVibeKernel.galaxy", "LibVibeKernel_h.galaxy", "LibVibeHandles.galaxy"):
@@ -225,6 +297,10 @@ def stage_map(source: Path, output: Path, kernel_root: Path = DEFAULT_KERNEL_ROO
             "enabled": enable_dou_ququ_runtime,
             "module": f"Base.SC2Data/{runtime_name}",
             "execution": "function.invoke douququ.*",
+        },
+        "stagedCleanup": {
+            "sourceAttributionPopup": attribution_cleanup,
+            "scope": "staged-copy-only",
         },
         "bankList": "GalaxyVibe players 1,2",
         "readOnlyInputs": [str(source), str(kernel_root), str(dispatch_source)],

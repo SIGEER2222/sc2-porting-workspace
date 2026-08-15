@@ -193,6 +193,30 @@ function Install-CmreDouQuquStandaloneMapOverlay {
         throw "斗蛐蛐 standalone MapScript signature not found: $mapScriptPath"
     }
 
+    # The source map's MapInit attribution dialog is removed only from this
+    # isolated launch copy. Keep the source map and its original strings intact.
+    $attributionPattern = '(?s)DialogCreate\(600,400,c_anchorCenter,0,0,true\);.*?TextExpressionAssemble\("Param/Expression/265C2CBF"\).*?return true;'
+    $attributionMatches = [regex]::Matches($mapScript, $attributionPattern)
+    if ($attributionMatches.Count -gt 1) {
+        throw "斗蛐蛐 attribution dialog matched more than once: $mapScriptPath"
+    }
+    if ($attributionMatches.Count -eq 1 -and -not $mapScript.Contains("CMRE_WEBUI_ATTRIBUTION_POPUP_REMOVED")) {
+        $mapScript = [regex]::Replace(
+            $mapScript,
+            $attributionPattern,
+            "// CMRE_WEBUI_ATTRIBUTION_POPUP_REMOVED`nreturn true;",
+            1
+        )
+        $localizedPath = Join-Path $MapPath "zhCN.SC2Data\LocalizedData\GameStrings.txt"
+        if (Test-Path -LiteralPath $localizedPath -PathType Leaf) {
+            $localized = Read-CmreUtf8 -Path $localizedPath
+            $localizedPattern = '(?m)^(?:DocInfo/HowToPlayAdvanced00|DocInfo/HowToPlayBasic00|DocInfo/HowToPlayWinning00|Param/Expression/265C2CBF)=.*(?:\r?\n|$)'
+            $localized = [regex]::Replace($localized, $localizedPattern, "")
+            Write-CmreUtf8NoBom -Path $localizedPath -Content $localized
+        }
+        Write-Host "斗蛐蛐 staged copy: attribution popup removed"
+    }
+
     $baseData = Join-Path $MapPath "Base.SC2Data"
     $douQuquRuntimeInclude = if ($EnableDouQuquRuntime) { "LibDouQuquRuntime" } else { "LibDouQuquRuntimeDisabled" }
     $includeNames = @("LibVibeKernel", "LibVibeInvokeDisabled", "LibMapModBridge", $douQuquRuntimeInclude)

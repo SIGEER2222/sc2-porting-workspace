@@ -3,6 +3,34 @@
   "stage": "27-dou-ququ-behavior-plugin",
   "issues": [
     {
+      "id": "DOUQUQU-ATTRIBUTION-POPUP-STAGED",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Source attribution popup was visible in the runtime map copy",
+      "detail": "The exact attribution dialog and four related zhCN strings are removed only after copying the map into artifacts. The read-only source still contains the original expression and author text; the runtime-only staged copy does not.",
+      "evidence_type": "static",
+      "owner": "stage27",
+      "evidence": [
+        "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/staging-manifest.json",
+        "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/dou-ququ-runtime-logged-live/dou-ququ-runtime-evidence.json"
+      ],
+      "nextAction": "Keep attribution cleanup scoped to staged copies; never edit the source map."
+    },
+    {
+      "id": "DOUQUQU-RUNTIME-CALL-LOG",
+      "severity": "medium",
+      "status": "resolved",
+      "title": "Runtime VM calls were not durable or directly inspectable from WebUI",
+      "detail": "RuntimeConsole now records connect, direct API, and VM function calls as JSONL with timestamp, session, port, origin, args, result, error, status, and duration. WebUI exposes read-only /api/vibe/call-log and a persisted-log button.",
+      "evidence_type": "runtime",
+      "owner": "stage27",
+      "evidence": [
+        "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-call-log.jsonl",
+        "tools/cmre-webui/DOUQUQU_RUNTIME.md"
+      ],
+      "nextAction": "Use /api/vibe/invoke for one call or /api/vibe/run-vm for a repeatable program; keep the JSONL file as the call audit trail."
+    },
+    {
       "id": "DOUQUQU-RUNTIME-PENDING",
       "severity": "high",
       "status": "resolved",

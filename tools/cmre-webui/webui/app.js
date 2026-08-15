@@ -26,6 +26,7 @@ const API = {
   vibeInvoke: "/api/vibe/invoke",
   vibeRunVm: "/api/vibe/run-vm",
   vibeObserve: "/api/vibe/observe",
+  vibeCallLog: "/api/vibe/call-log",
   asset: (relPath) => `/api/assets/dds?path=${encodeURIComponent(relPath)}`,
 };
 
@@ -35,6 +36,7 @@ const runtimeState = {
   selectedFunction: null,
   selectedTrace: null,
   trace: [],
+  callLog: [],
   pollTimer: null,
   observation: null,
 };
@@ -708,9 +710,25 @@ async function pollRuntimeStatus() {
   try {
     const status = await runtimeRequest(API.vibeStatus);
     syncRuntimeStatus(status);
+    await loadRuntimeCallLog(false);
     if (status.status === "connected") await pollRuntimeObservation();
   }
   catch (e) { $("runtime-session-meta").textContent = `调试服务不可用: ${e.message}`; }
+}
+
+async function loadRuntimeCallLog(showError = true) {
+  try {
+    const data = await runtimeRequest(`${API.vibeCallLog}?limit=300`);
+    runtimeState.callLog = data.records || [];
+    if (runtimeState.callLog.length) {
+      runtimeState.trace = runtimeState.callLog;
+      renderRuntimeTrace();
+    }
+    const path = data.path || "artifacts/.../douququ-runtime-vm-call-log.jsonl";
+    $("runtime-call-log-meta").textContent = `${data.total_count ?? data.count ?? 0} 条持久化 runtime call · ${path}`;
+  } catch (e) {
+    if (showError) showStatus(`读取 runtime 日志失败: ${e.message}`, "error");
+  }
 }
 
 async function loadRuntimeCatalog() {
@@ -786,6 +804,7 @@ async function invokeRuntimeFunction() {
       body: JSON.stringify({ functionId: runtimeState.selectedFunction.function_id, args }),
     });
     syncRuntimeStatus(data.status);
+    await loadRuntimeCallLog(false);
     showStatus(data.record.status === "passed" ? "函数调用成功" : `函数返回 ${data.record.result?.error_code || "失败"}`, data.record.status === "passed" ? "success" : "warn");
   } catch (e) { await pollRuntimeStatus(); showStatus(`函数调用失败: ${e.message}`, "error"); }
 }
@@ -801,6 +820,7 @@ async function runRuntimeVm() {
       body: JSON.stringify({ program }),
     });
     syncRuntimeStatus(data.status);
+    await loadRuntimeCallLog(false);
     const passed = data.result?.status === "passed";
     showStatus(passed ? "VM 执行成功" : `VM 执行失败: ${data.result?.error || data.error || "未知错误"}`, passed ? "success" : "error");
   } catch (e) { await pollRuntimeStatus(); showStatus(`VM 请求失败: ${e.message}`, "error"); }
@@ -813,6 +833,7 @@ function initRuntimeConsole() {
   $("runtime-disconnect").onclick = disconnectRuntime;
   $("runtime-invoke").onclick = invokeRuntimeFunction;
   $("runtime-run-vm").onclick = runRuntimeVm;
+  $("runtime-load-call-log").onclick = () => loadRuntimeCallLog(true);
   $("runtime-session-select").onchange = e => { $("runtime-session-id").value = e.target.value; };
   loadRuntimeCatalog();
   loadRuntimeSessions();

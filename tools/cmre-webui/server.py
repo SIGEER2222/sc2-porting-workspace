@@ -146,6 +146,7 @@ DOU_QUQU_EXTRACTOR = REPO_ROOT / "tools" / "mpq" / "scripts" / "extract_mpq.py"
 DOU_QUQU_RUNTIME_PACKED_MAP = (
     DOU_QUQU_ARTIFACT_ROOT.parent / "dou-ququ-runtime-vm.packed.SC2Map"
 )
+DOU_QUQU_RUNTIME_CALL_LOG = DOU_QUQU_ARTIFACT_ROOT.parent / "douququ-runtime-vm-call-log.jsonl"
 MAP_ADAPTER_CONFIG = VIBE_PROJECT_ROOT / "map_commander_adapters.json"
 _MAP_DETAIL_CACHE: dict[tuple[str, str], tuple[tuple[int, int], dict]] = {}
 
@@ -1408,7 +1409,7 @@ _launcher_lock = threading.Lock()
 class RuntimeConsole:
     """Own one long-lived VibeREPL on a worker event loop for the browser console."""
 
-    def __init__(self):
+    def __init__(self, call_log_path: Path | None = None):
         self._lock = threading.RLock()
         self._loop = None
         self._thread = None
@@ -1421,6 +1422,7 @@ class RuntimeConsole:
         self._session_recovery = []
         self._trace = []
         self._running = ""
+        self._call_log_path = Path(call_log_path or DOU_QUQU_RUNTIME_CALL_LOG)
 
     def _ensure_loop(self):
         with self._lock:
@@ -1555,7 +1557,17 @@ class RuntimeConsole:
                 # at sequence 0 is valid because the kernel validates identity,
                 # while request_id remains globally unique.
                 repl.rpc_sequence = 0
+                probe_started = time.perf_counter()
                 probe = await repl.invoke_function_request("douququ.runtime.status", {})
+                self._record_runtime_call(
+                    "douququ.runtime.status",
+                    {},
+                    probe,
+                    origin="connect",
+                    session_id=candidate,
+                    port=port,
+                    duration_ms=round((time.perf_counter() - probe_started) * 1000, 1),
+                )
                 error_code = str(probe.get("error_code", "") or "")
                 attempt = {"session_id": candidate, "error_code": error_code}
                 if error_code == "SESSION_EXPIRED":
@@ -1603,7 +1615,7 @@ class RuntimeConsole:
     def disconnect(self):
         return self._submit(self._disconnect(), timeout=15)
 
-    async def _invoke(self, function_id, args):
+    async def _invoke(self, function_id, args, origin="api"):
         if self._repl is None:
             raise RuntimeError("未连接 SC2 Vibe session")
         with self._lock:
@@ -1613,17 +1625,24 @@ class RuntimeConsole:
         started = time.perf_counter()
         try:
             result = await self._repl.invoke_function_request(function_id, args)
-            record = {
-                "ts": time.time(),
-                "op": "call",
-                "function_id": function_id,
-                "args": args,
-                "result": result,
-                "duration_ms": round((time.perf_counter() - started) * 1000, 1),
-                "status": "passed" if result.get("error_code") == "OK" else "failed",
-            }
-            self._append_trace(record)
+            record = self._record_runtime_call(
+                function_id,
+                args,
+                result,
+                origin=origin,
+                duration_ms=round((time.perf_counter() - started) * 1000, 1),
+            )
             return record
+        except Exception as exc:
+            record = self._record_runtime_call(
+                function_id,
+                args,
+                None,
+                origin=origin,
+                error={"type": type(exc).__name__, "message": str(exc)},
+                duration_ms=round((time.perf_counter() - started) * 1000, 1),
+            )
+            raise
         finally:
             with self._lock:
                 if not previous_running:
@@ -1721,7 +1740,7 @@ class RuntimeConsole:
 
             class ReplBridge:
                 async def call(inner_self, function_id, call_args):
-                    record = await manager._invoke(function_id, call_args)
+                    record = await manager._invoke(function_id, call_args, origin="vm")
                     return record["result"]
 
                 async def step(inner_self, loops):
@@ -1754,6 +1773,106 @@ class RuntimeConsole:
             self._trace.append(record)
             self._trace = self._trace[-300:]
 
+    @staticmethod
+    def _timestamp():
+        now = time.time()
+        milliseconds = int(now * 1000) % 1000
+        return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(now)) + f".{milliseconds:03d}Z"
+
+    @staticmethod
+    def _result_error(result):
+        if not isinstance(result, dict) or result.get("error_code") in (None, "OK"):
+            return None
+        return {
+            "error_code": result.get("error_code"),
+            "payload": result.get("payload", {}),
+        }
+
+    def _record_runtime_call(
+        self,
+        function_id,
+        args,
+        result,
+        *,
+        origin,
+        error=None,
+        session_id=None,
+        port=None,
+        duration_ms=None,
+    ):
+        with self._lock:
+            active_session = session_id or self._session_id
+            active_port = self._port if port is None else port
+        if error is None:
+            error = self._result_error(result)
+        status = "passed" if error is None else "failed"
+        record = {
+            "schema_version": "douququ-runtime-call.v1",
+            "timestamp": self._timestamp(),
+            "ts": time.time(),
+            "op": "call",
+            "origin": origin,
+            "session_id": active_session,
+            "port": active_port,
+            "function_id": function_id,
+            "args": args,
+            "result": result,
+            "error": error,
+            "duration_ms": duration_ms,
+            "status": status,
+        }
+        self._append_trace(record)
+        self._append_call_log(record)
+        return record
+
+    def _append_call_log(self, record):
+        try:
+            self._call_log_path.parent.mkdir(parents=True, exist_ok=True)
+            with self._call_log_path.open("a", encoding="utf-8", newline="\n") as handle:
+                handle.write(json.dumps(record, ensure_ascii=False, default=str, separators=(",", ":")))
+                handle.write("\n")
+        except OSError as exc:
+            _append_log(f"[vibe] runtime call log write failed: {exc}")
+
+    def call_log(self, limit=200):
+        limit = max(1, min(int(limit), 2000))
+        if not self._call_log_path.is_file():
+            records = []
+            total_count = 0
+        else:
+            try:
+                lines = self._call_log_path.read_text(encoding="utf-8").splitlines()
+                decoded = []
+                for line in lines:
+                    try:
+                        item = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(item, dict):
+                        decoded.append(item)
+                total_count = len(decoded)
+                records = decoded[-limit:]
+            except OSError as exc:
+                return {
+                    "schema_version": "douququ-runtime-call-log.v1",
+                    "records": [],
+                    "count": 0,
+                    "total_count": 0,
+                    "error": str(exc),
+                }
+        try:
+            relative_path = str(self._call_log_path.resolve().relative_to(REPO_ROOT.resolve()))
+        except ValueError:
+            relative_path = str(self._call_log_path)
+        return {
+            "schema_version": "douququ-runtime-call-log.v1",
+            "path": relative_path,
+            "limit": limit,
+            "count": len(records),
+            "total_count": total_count,
+            "records": records,
+        }
+
     def status(self):
         with self._lock:
             return {
@@ -1764,6 +1883,12 @@ class RuntimeConsole:
                 "session_recovery": list(self._session_recovery),
                 "running": self._running,
                 "trace": list(self._trace),
+                "call_log": {
+                    "path": str(self._call_log_path.resolve().relative_to(REPO_ROOT.resolve()))
+                    if self._call_log_path.resolve().is_relative_to(REPO_ROOT.resolve())
+                    else str(self._call_log_path),
+                    "endpoint": "/api/vibe/call-log",
+                },
             }
 
     def shutdown(self):
@@ -2391,6 +2516,23 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                 self._send_json({"sessions": _runtime_console.sessions()})
             except Exception as exc:
                 self._send_json({"error": str(exc)}, 500)
+            return
+        if self.path.startswith("/api/vibe/call-log"):
+            from urllib.parse import parse_qs, urlparse
+            query = parse_qs(urlparse(self.path).query)
+            try:
+                limit = int(query.get("limit", [200])[0])
+                self._send_json(_runtime_console.call_log(limit))
+            except (TypeError, ValueError) as exc:
+                self._send_json({"error": f"limit 无效: {exc}"}, 400)
+            return
+        if self.path == "/api/vibe/trace":
+            current = _runtime_console.status()
+            self._send_json({
+                "schema_version": "douququ-runtime-trace.v1",
+                "session_id": current.get("session_id", ""),
+                "records": current.get("trace", []),
+            })
             return
         if self.path == "/api/vibe/status":
             self._send_json(_runtime_console.status())

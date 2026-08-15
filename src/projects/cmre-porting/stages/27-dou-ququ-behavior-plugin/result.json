@@ -3,7 +3,7 @@
   "stage": "27-dou-ququ-behavior-plugin",
   "status": "IN_PROGRESS",
   "evidence_type": "runtime",
-  "summary": "The runtime-first 斗蛐蛐 VM plugin passes 8/8 live behavior assertions on the user-provided map with zero new ScriptErrors. The WebUI exposes traceable static map evidence, keeps its map-detail payload and editable shell fresh, and probes stale Bank sessions against the live kernel before accepting a connection. The overall stage remains IN_PROGRESS because the unrelated zzerus03 Reborn map-commander initialization remains blocked.",
+  "summary": "The runtime-first 斗蛐蛐 VM plugin passes 8/8 live behavior assertions on the cleaned staged user map with zero new ScriptErrors. The WebUI now exposes direct invoke and VM program entry points plus a persisted JSONL call log containing function ids, arguments, results, errors, origins, sessions, ports, and durations. The original map remains unchanged; only the runtime staging copy loses the attribution popup. The overall stage remains IN_PROGRESS because the unrelated zzerus03 Reborn map-commander initialization remains blocked.",
   "changed_paths": [
     "src/projects/cmre-porting/vibe/map_event_extractor.py",
     "src/projects/cmre-porting/vibe/map_commander_adapter.py",
@@ -11,6 +11,9 @@
     "tools/cmre-webui/extract_map_events.py",
     "tools/cmre-webui/validate_map_adapters.py",
     "tools/cmre-webui/server.py",
+    "tools/cmre-webui/README.md",
+    "tools/cmre-webui/DOUQUQU_RUNTIME.md",
+    "tools/cmre-webui/test_runtime_call_log.py",
     "tools/cmre-webui/test_map_details.py",
     "tools/cmre-webui/webui/app.js",
     "tools/cmre-webui/webui/index.html",
@@ -127,6 +130,43 @@
       "command": "Headless Edge click on 天界封锁 in the restarted WebUI at 127.0.0.1:8767",
       "exitCode": 0,
       "summary": "Static scan completed with 94 timeline rows, 1713 preplaced-unit rows, 40 region rows, and no browser error."
+    },
+    {
+      "command": "python -m pytest -q tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/launchers/tests/test_launch_cmre_alenger_static.py tools/cmre-webui/test_launch_async_contract.py",
+      "exitCode": 0,
+      "summary": "103 passed; includes staging-only attribution cleanup, reuse of an existing Vibe bootstrap, persisted call-log fields, and the read-only call-log endpoint."
+    },
+    {
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_map_details.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py",
+      "exitCode": 0,
+      "summary": "128 passed across the current Stage 27, runtime logging, staging, map-detail, launcher, and WebUI contracts."
+    },
+    {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1",
+      "exitCode": 0,
+      "summary": "52/52 static checks passed with zero warnings."
+    },
+    {
+      "command": "python tools/cmre-webui/stage_map_vm_runtime.py --source <user-map> --output artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/dou-ququ-runtime-vm --enable-dou-ququ-runtime --replace; pack-sc2map.ps1 <staged-runtime-dir> <dou-ququ-runtime-vm-logged.packed.SC2Map>",
+      "exitCode": 0,
+      "summary": "Source retained the attribution expression/author text; staged copy removed both, kept static behavior disabled, and packed 56 files."
+    },
+    {
+      "command": "python tools/cmre-webui/dou_ququ_runtime_probe.py --port 5896 --map-path artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/dou-ququ-runtime-vm-logged.packed.SC2Map --out-dir artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-logged-live",
+      "exitCode": 0,
+      "summary": "Real CreateGame/JoinGame/RequestStep probe returned 8/8 PASS on the cleaned runtime-only map.",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-logged-live/dou-ququ-runtime-evidence.json"
+    },
+    {
+      "command": "POST /api/vibe/connect, POST /api/vibe/invoke (Reaver + enemy Marine), POST /api/vibe/run-vm, GET /api/vibe/call-log?limit=300 on WebUI 8777 / SC2 5896",
+      "exitCode": 0,
+      "summary": "Connection recovered the live session; two direct spawns returned OK; full VM returned passed; the validation snapshot contained 42 calls (connect=10, api=2, vm=30) across 14 function ids; later reconnect probes appended two connect records.",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-call-log.jsonl"
+    },
+    {
+      "command": "GameLogs scan after SC2 PID 5460 start time",
+      "exitCode": 0,
+      "summary": "Zero new *ScriptError*.txt files."
     }
   ],
   "runtime": {
@@ -134,13 +174,15 @@
     "douQuquRuntime": {
       "status": "PASS",
       "checks": "8/8",
-      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-final/dou-ququ-runtime-evidence.json",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-logged-live/dou-ququ-runtime-evidence.json",
       "scriptErrors": 0
     },
     "evidence": [
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-unconditional-restart-20260815.json",
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/map-commander-runtime-evidence-20260815.json",
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-final/dou-ququ-runtime-evidence.json",
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-logged-live/dou-ququ-runtime-evidence.json",
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-call-log.jsonl",
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/staging-manifest.json",
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-map-details-20260815.json",
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/webui-session-recovery-live-20260815.json"
