@@ -229,6 +229,23 @@
       "exitCode": 0,
       "summary": "No new ScriptError files were found in the reloaded SC2 process window (PID 10984).",
       "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/galaxy-user-script-live-fixed-20260816/script-error-verdict-after-probe.json"
+    },
+    {
+      "command": "POST http://127.0.0.1:8778/api/vibe/connect with empty mapPath, then POST /api/vibe/run-vm using tools/cmre-webui/dou_ququ_runtime_full.json",
+      "exitCode": 0,
+      "summary": "Existing SC2 session was reused without map reload; the 48-instruction VM returned success=true/status=passed with zero failed steps. Results included Zealot, five-mine refill, three death-mine spawn tags, Marine hatch, Baneling projectile, +25 Hydralisk heal, and two Kerrigan broodlings.",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-call-log.jsonl"
+    },
+    {
+      "command": "GET http://127.0.0.1:8778/api/vibe/observe; python tools/galaxy-vibe/script_error_check.py --logs-dir C:\\Users\\22448\\Documents\\StarCraft II\\GameLogs --since 1786841410 --out artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-20260816-post-vm.json",
+      "exitCode": 0,
+      "summary": "Raw observation returned game_loop=954 and unit_count=16; the same-window ScriptError gate returned has_new_errors=false and count=0 for SC2 PID 10984.",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-20260816-post-vm.json"
+    },
+    {
+      "command": "python -m pytest -q tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py",
+      "exitCode": 0,
+      "summary": "106 passed, including the serialized RuntimeConsole queue and death-mine spawn-tag contract."
     }
   ],
   "runtime": {
@@ -236,7 +253,7 @@
     "douQuquRuntime": {
       "status": "PASS",
       "checks": "8/8",
-      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-manual-20260815/dou-ququ-runtime-evidence.json",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-call-log.jsonl",
       "scriptErrors": 0
     },
     "evidence": [
@@ -252,7 +269,8 @@
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-manual-20260815/dou-ququ-runtime-evidence.json",
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-manual-20260815.json",
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/galaxy-user-script-live-fixed-20260816/dou-ququ-runtime-evidence.json",
-      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/galaxy-user-script-live-fixed-20260816/script-error-verdict-after-probe.json"
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/galaxy-user-script-live-fixed-20260816/script-error-verdict-after-probe.json",
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-20260816-post-vm.json"
     ],
     "blockedBy": "zzerus03.SC2Map CreateGame timed out and direct-map initialization remained in the Reborn native-opening wait gate; this does not block the verified runtime-first 斗蛐蛐 plugin."
   },

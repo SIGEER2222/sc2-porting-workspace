@@ -276,6 +276,16 @@ zzerus03/Reborn map-commander initialization issue is still open; the runtime-fi
 - `runtime`: Edge 无头浏览器实际点击 `[起义狂潮] 欢迎来到丛林` 后显示“静态扫描完成”，渲染 498 条时间线、814 条预置单位和 67 条区域，无错误提示。
 - `validation`: `python -m pytest -q tools/cmre-webui/test_map_details.py` -> `4 passed`；`node --check tools/cmre-webui/webui/app.js` 和 `python -m py_compile tools/cmre-webui/server.py` -> passed。
 
+## 2026-08-16 Runtime VM replay and serialized WebUI queue
+
+- runtime: On the still-running SC2 process PID 10984 with API 127.0.0.1:5896, the updated WebUI at 127.0.0.1:8778 reconnected using an empty mapPath. It reused the current game session without CreateGame, LeaveGame, pause, or launcher restart.
+- runtime: POST /api/vibe/run-vm with tools/cmre-webui/dou_ququ_runtime_full.json returned success=true, status=passed, instructions_executed=48, and failed_steps=0. The runtime spawned Zealot tag 262149; the Vulture refill reached storedMines=5 and minerals=0; Vulture death returned mine tags 14680065, 14942209, and 15204353; Infested Banshee spawned Marines; Brood Lord launched Baneling tag 13369346; Hydralisk healed 25.0; and Kerrigan spawned broodlings 13893635 and 17301506. Final snapshot reported zealotCount=2, mineCount=9, marineCount=8, banelingCount=3, and broodlingCount=4. Proc chances were restored to 20/30/15.
+- runtime: Raw observation from the same session returned game_loop=954 and unit_count=16 with visible Marines, Zealots, Baneling, Brood Lord, Hydralisk, and Kerrigan. Burrowed death-mine visibility is diagnostic only; the three runtime spawn tags are the authoritative creation evidence.
+- static: RuntimeConsole now serializes connect, invoke, observe, step, and VM operations through one event-loop queue. The regression test drives overlapping API, observe, and VM calls and verifies peak concurrent SC2 transactions is 1.
+- validation: python -m pytest -q tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py -> 106 passed.
+- validation: Python compilation, JavaScript syntax, and git diff --check passed. The same-window ScriptError scan for SC2 PID 10984 returned has_new_errors=false and count=0 at artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-20260816-post-vm.json.
+- runtime: The append-only call log retains the successful VM calls and earlier stale-session or failed calls for auditability; historical failures are not counted as failures of this replay.
+
 ## 2026-08-16 Galaxy Script Lab reload and fresh runtime verification
 
 - `static`: The editable `LibDouQuquUser.galaxy` was staged only into the
