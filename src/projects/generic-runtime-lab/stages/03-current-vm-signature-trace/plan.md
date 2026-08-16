@@ -26,6 +26,8 @@ validated in a launcher-owned debug process.
   correlation.
 - A separate `BreakpointTraceDirect.SC2Map` source/dispatch gate that invokes
   the same probe from `InitMap()` before automatic event dispatch is tested.
+- A no-break `BreakpointTraceDirectControl.SC2Map` control that isolates
+  debug-break pause behavior from source/dispatch and Bank persistence.
 - An updated version profile that remains `hook_enabled=false` unless the
   signature passes the stage's independent verification gate.
 - Stage evidence quartet and a concrete decision on whether a hook can be

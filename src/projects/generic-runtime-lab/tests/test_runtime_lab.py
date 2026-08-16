@@ -223,6 +223,21 @@ def test_breakpoint_trace_direct_variant_executes_from_initmap():
         module.BREAKPOINT_TRACE_DIRECT_MAPSCRIPT
     )
     assert "breakpoint;" in module.BREAKPOINT_TRACE_DISPATCH
-    assert "remove_triggers_payload(BREAKPOINT_TRACE_DIRECT_BUILD_DIR)" in (
-        inspect.getsource(module.build_breakpoint_trace_direct)
+    assert "_build_direct_trace_variant(" in inspect.getsource(module.build_breakpoint_trace_direct)
+    assert "remove_triggers_payload(build_dir)" in inspect.getsource(module._build_direct_trace_variant)
+
+
+def test_breakpoint_trace_direct_control_removes_only_debug_breakpoint():
+    builder = PROJECT / "scripts" / "build_runtime_lab.py"
+    spec = importlib.util.spec_from_file_location("runtime_lab_builder_breakpoint_control", builder)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    assert module.BREAKPOINT_TRACE_DIRECT_CONTROL_MAP.name == "BreakpointTraceDirectControl.SC2Map"
+    assert "breakpoint;" not in module.BREAKPOINT_TRACE_DIRECT_CONTROL_DISPATCH
+    assert '"trace_before"' in module.BREAKPOINT_TRACE_DIRECT_CONTROL_DISPATCH
+    assert '"trace_after"' in module.BREAKPOINT_TRACE_DIRECT_CONTROL_DISPATCH
+    assert "TriggerExecute(TriggerCreate(\"BreakpointTrace_Probe\"), false, true);" in (
+        module.BREAKPOINT_TRACE_DIRECT_CONTROL_MAPSCRIPT
     )

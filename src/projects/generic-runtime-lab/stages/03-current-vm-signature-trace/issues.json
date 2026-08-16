@@ -8,15 +8,15 @@
       "status": "open",
       "evidence_type": "inference",
       "detail": "The corrected PE probe finds 6,643 file-backed RIP-relative instructions but zero direct references to the exact starts of the 54 diagnostic strings. No candidate is proven to be the Galaxy VM execution entrypoint.",
-      "nextAction": "Use the direct fixture as the source/dispatch gate, then obtain an independently attributable current-version VM boundary in two fresh windows before enabling any hook."
+      "nextAction": "Use the verified direct and no-break controls as prerequisites, then obtain an independently attributable current-version VM boundary in two fresh windows before enabling any hook."
     },
     {
       "id": "GSVM-GALAXY-BREAKPOINT-CORRELATION",
       "severity": "high",
       "status": "open",
       "evidence_type": "inference",
-      "detail": "The delayed time-event fixture still leaves GalaxyVibeTrace at seed_marker, while the direct InitMap fixture now writes startup/trace_before/trace_after in fresh ports 6009 and 6012. The observer records one high-volume 0x80000003 IP in the same window but carries no trigger or program id.",
-      "nextAction": "Keep hook_enabled=false. Add a direct probe without breakpoint; to isolate the game-loop pause, then install a filtered event-source observer before making a VM-boundary claim."
+      "detail": "The delayed time-event fixture still leaves GalaxyVibeTrace at seed_marker, while the breakpoint and no-break InitMap controls write startup/trace_before/trace_after. The no-break control completes JoinGame at game_loop=1, isolating the breakpoint pause. The observer records one high-volume 0x80000003 IP but carries no trigger or program id.",
+      "nextAction": "Keep hook_enabled=false. Install a filtered event-source observer, then validate the delayed time-event fixture before making a VM-boundary claim."
     },
     {
       "id": "GSVM-SC2-LIVE-OWNER-BLOCKED",

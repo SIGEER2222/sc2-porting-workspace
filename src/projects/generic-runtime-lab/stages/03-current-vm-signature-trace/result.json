@@ -3,7 +3,7 @@
   "stage": "03-current-vm-signature-trace",
   "status": "IN_PROGRESS",
   "evidence_type": "static",
-  "summary": "Stage 03 now has a reproducible native VEH trace protocol with an IP histogram, an isolated delayed fixture, and a direct InitMap TriggerExecute fixture. Fresh launcher-owned direct probes on ports 6009 and 6012 wrote startup/trace_before/trace_after to GalaxyVibeTrace with zero same-window ScriptErrors. The observer still sees an uncorrelated high-volume debug-break IP and the delayed time-event path remains unproven, so hook_enabled stays false.",
+  "summary": "Stage 03 now has a reproducible native VEH trace protocol with an IP histogram, an isolated delayed fixture, a breakpoint direct fixture, and a no-break direct control. Fresh launcher-owned direct probes on ports 6009, 6012, and 6013 wrote startup/trace_before/trace_after with zero same-window ScriptErrors; the no-break control also completed JoinGame at game_loop=1. The observer remains uncorrelated and delayed time-event dispatch remains unproven, so hook_enabled stays false.",
   "changed_paths": [
     "src/projects/generic-runtime-lab/project.json",
     "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/plan.md",
@@ -48,7 +48,13 @@
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-initmap-20260816/launcher-port6012.stdout.log",
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-initmap-20260816/controller-port6012.json",
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-initmap-20260816/repl-port6012.jsonl",
-    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-initmap-20260816/scripterror-port6012.json"
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-initmap-20260816/scripterror-port6012.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/BreakpointTraceDirectControl.SC2Map",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/breakpoint-trace-direct-control-build-report.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-evidence-20260816.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-20260816/launcher-port6013.stdout.log",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-20260816/repl-port6013.jsonl",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-20260816/scripterror-port6013.json"
   ],
   "validation": [
     {
@@ -225,12 +231,33 @@
       "summary": "The direct InitMap observer window reported zero new ScriptError files.",
       "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-initmap-20260816/scripterror-port6012.json",
       "evidence_type": "runtime"
+    },
+    {
+      "command": "python -m pytest -q src/projects/generic-runtime-lab/tests; python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py --breakpoint-trace-direct-control; node tools/analysis/galaxy-lint.mjs artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/build/BreakpointTraceDirectControl.SC2Map/MapScript.galaxy --format text; node tools/analysis/galaxy-lint.mjs artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/build/BreakpointTraceDirectControl.SC2Map/Base.SC2Data/BreakpointTraceDispatch.galaxy --format text",
+      "exitCode": 0,
+      "summary": "16 project tests passed; direct-control fixture packed with SHA d8910495...9425b; both control Galaxy files reported zero errors and zero warnings.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/breakpoint-trace-direct-control-build-report.json",
+      "evidence_type": "static"
+    },
+    {
+      "command": "pwsh tools/galaxy-vibe/launch-galaxy-vibe.ps1 -Port 6013 -Map BreakpointTraceDirectControl.SC2Map -ModPath '' -ForceRestart; python tools/galaxy-vibe/galaxy_repl.py --port 6013 --map BreakpointTraceDirectControl.SC2Map --join-wait 4 --cmd obs --cmd 'step 100'",
+      "exitCode": 0,
+      "summary": "The no-break direct control completed CreateGame, JoinGame player_id=1 at game_loop=1, initialization, and step 100. The root GalaxyVibeTrace Bank contained startup/trace_before/trace_after.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-evidence-20260816.json",
+      "evidence_type": "runtime"
+    },
+    {
+      "command": "python tools/galaxy-vibe/script_error_check.py --since 1786891708 --out artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-20260816/scripterror-port6013.json",
+      "exitCode": 0,
+      "summary": "The direct-control window reported zero new ScriptError files.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-20260816/scripterror-port6013.json",
+      "evidence_type": "runtime"
     }
   ],
   "runtime": {
     "status": "PARTIAL",
     "hook_enabled": false,
-    "scriptErrors": "ports 5993, 5994, 5995, 5997, 6003, 6004, 6009, and 6012 reported no new ScriptError files",
+    "scriptErrors": "ports 5993, 5994, 5995, 5997, 6003, 6004, 6009, 6012, and 6013 reported no new ScriptError files",
     "trace_status": "VEH_BREAKPOINT_HIGH_VOLUME_UNCORRELATED",
     "bank_name": "GalaxyVibeTrace",
     "bank_seed": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/galaxy-vibe-trace-bank-seed.xml",
@@ -240,6 +267,9 @@
     "breakpoint_map": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/BreakpointTrace.SC2Map",
     "direct_breakpoint_map": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/BreakpointTraceDirect.SC2Map",
     "direct_fixture_evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-initmap-evidence-20260816.json",
+    "direct_control_map": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/BreakpointTraceDirectControl.SC2Map",
+    "direct_control_evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-evidence-20260816.json",
+    "breakpoint_pause_isolated": true,
     "automatic_dispatch": "NOT_EXERCISED",
     "trace_recipe": "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/trace-recipe.md"
   },
@@ -250,15 +280,15 @@
       "status": "open",
       "evidence_type": "inference",
       "detail": "No current-version VM entrypoint has been independently verified for SC2 5.0.16.97563.",
-      "nextAction": "Run the updated recipe in two fresh launcher-owned debug windows; require trigger-to-VM correlation before considering hook promotion."
+      "nextAction": "Use the verified direct and no-break controls as prerequisites, then obtain an independently attributable current-version VM boundary in two fresh windows before enabling any hook."
     },
     {
       "id": "GSVM-GALAXY-BREAKPOINT-CORRELATION",
       "severity": "high",
       "status": "open",
       "evidence_type": "inference",
-      "detail": "The delayed time-event fixture remains unchanged at seed_marker, but the direct InitMap fixture writes startup/trace_before/trace_after in fresh launcher-owned ports 6009 and 6012. The VEH observer records one high-volume IP in the same window without a trigger/program correlation id.",
-      "nextAction": "Keep hook_enabled=false. Add a direct probe without breakpoint; to isolate the game-loop pause, then replace the generic VEH stream with a filtered observer or explicit event-source record before claiming VM execution."
+      "detail": "The delayed time-event fixture remains unchanged at seed_marker, while the breakpoint and no-break InitMap controls both write startup/trace_before/trace_after. The no-break control completes JoinGame at game_loop=1, isolating the breakpoint pause. The VEH observer still has no trigger/program correlation id.",
+      "nextAction": "Keep hook_enabled=false. Replace the generic VEH stream with a filtered observer or explicit event-source record, then validate the delayed time-event fixture before claiming VM execution."
     },
     {
       "id": "GSVM-SC2-LIVE-OWNER-BLOCKED",

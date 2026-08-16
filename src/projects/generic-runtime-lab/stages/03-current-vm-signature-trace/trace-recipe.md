@@ -59,6 +59,12 @@ the VM boundary. The direct probe intentionally includes `breakpoint;`, so a
 `JoinGame`/`game_loop=0` result is expected while the debug observer is armed.
 Record the direct run separately from the delayed behavior verdict.
 
+Use `BreakpointTraceDirectControl.SC2Map` as the no-break control. It keeps the
+same `InitMap` and Bank writes but removes only `breakpoint;`; a successful
+`JoinGame` with an advancing `game_loop` confirms that a direct probe's paused
+window is caused by the debug-break instruction rather than by source loading
+or Bank persistence.
+
 ## Promotion gate
 
 A profile may set `hook_enabled=true` only when two independent fresh windows

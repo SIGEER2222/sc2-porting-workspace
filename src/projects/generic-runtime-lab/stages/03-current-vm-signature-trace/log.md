@@ -294,3 +294,30 @@ blocked behavior, and the current VEH stream remains only a debug-break
 observation. The next bounded experiment is a direct probe without
 `breakpoint;` to isolate the JoinGame pause, followed by a filtered observer
 that can carry a trigger correlation id before any hook promotion.
+
+## 2026-08-16 direct control runtime
+
+- `static`: Added `BreakpointTraceDirectControl.SC2Map`, reusing the exact
+  `InitMap -> TriggerExecute` and Bank probe while removing only `breakpoint;`.
+  The control map SHA is
+  `d89104959b8ed38c6484a09db34e11a04d1ed17122a4ac7fd87311c81fa9425b`.
+- `static`: Refactored the two direct variants through one builder helper;
+  project tests pass `16/16`, and the control Galaxy files lint with zero
+  errors and zero warnings.
+- `runtime`: Port `6013` launched through the approved launcher and completed
+  `CreateGame`, `JoinGame` (`player_id=1`, `game_loop=1`), realtime
+  initialization, and `step 100`. The root `GalaxyVibeTrace` Bank contained
+  `startup=1`, `trace_before=1`, and `trace_after=1`; the same-window
+  ScriptError gate reported zero new errors.
+- `runtime`: The control pass isolates the previous direct probe's
+  `JoinGame/game_loop=0` result to the deliberate Galaxy `breakpoint;` pause.
+  It does not add VM-boundary attribution; the generic VEH observer remains
+  uncorrelated and the profile remains disabled. Evidence:
+  `artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-evidence-20260816.json`.
+
+## Updated boundary
+
+The source/dispatch path now has both a breakpoint probe and a no-break
+runtime control, with the expected Bank effects and stable game-loop evidence.
+The remaining gap is specifically automatic time-event dispatch and a filtered,
+trigger-correlated VM observer; no executable hook is promoted.

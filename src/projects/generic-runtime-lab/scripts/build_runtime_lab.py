@@ -76,6 +76,18 @@ BREAKPOINT_TRACE_DIRECT_REPORT = (
     REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
     / "maps" / "breakpoint-trace-direct-build-report.json"
 )
+BREAKPOINT_TRACE_DIRECT_CONTROL_BUILD_DIR = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
+    / "build" / "BreakpointTraceDirectControl.SC2Map"
+)
+BREAKPOINT_TRACE_DIRECT_CONTROL_MAP = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
+    / "maps" / "BreakpointTraceDirectControl.SC2Map"
+)
+BREAKPOINT_TRACE_DIRECT_CONTROL_REPORT = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
+    / "maps" / "breakpoint-trace-direct-control-build-report.json"
+)
 BREAKPOINT_TRACE_BANK_SEED = (
     REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
     / "runtime" / "galaxy-vibe-trace-bank-seed.xml"
@@ -214,6 +226,15 @@ void InitMap() {
 }
 """
 
+BREAKPOINT_TRACE_DIRECT_CONTROL_MAPSCRIPT = """// Generated direct control map. InitMap executes the probe without breakpoint.
+include "TriggerLibs/NativeLib"
+include "BreakpointTraceDispatch"
+
+void InitMap() {
+    TriggerExecute(TriggerCreate("BreakpointTrace_Probe"), false, true);
+}
+"""
+
 BREAKPOINT_TRACE_DISPATCH = """// Map-owned correlation fixture for the current-version VM trace.
 bool BreakpointTrace_Probe(bool testConds, bool runActions) {
     bank traceBank;
@@ -244,6 +265,9 @@ void BreakpointTrace_Init() {
     TriggerEnable(traceTrigger, true);
 }
 """
+
+BREAKPOINT_TRACE_DIRECT_CONTROL_DISPATCH = BREAKPOINT_TRACE_DISPATCH.replace(
+    "        breakpoint;\n", "")
 
 
 def sha256(path: Path) -> str:
@@ -500,28 +524,31 @@ def build_breakpoint_trace() -> int:
     return 0
 
 
-def build_breakpoint_trace_direct() -> int:
-    """Build a source-only dispatch fixture that runs from InitMap.
-
-    This isolates source compilation and direct TriggerExecute from delayed
-    event dispatch. It shares the probe body and seed with the delayed map.
-    """
-    if BREAKPOINT_TRACE_DIRECT_BUILD_DIR.exists():
-        shutil.rmtree(BREAKPOINT_TRACE_DIRECT_BUILD_DIR)
-    shutil.copytree(BASE_MAP, BREAKPOINT_TRACE_DIRECT_BUILD_DIR)
-    remove_triggers_payload(BREAKPOINT_TRACE_DIRECT_BUILD_DIR)
-    triggers_version = BREAKPOINT_TRACE_DIRECT_BUILD_DIR / "Triggers.version"
+def _build_direct_trace_variant(
+    build_dir: Path,
+    output_map: Path,
+    report_path: Path,
+    dispatch: str,
+    mapscript: str,
+    kind: str,
+) -> int:
+    """Build one InitMap TriggerExecute variant from the shared probe body."""
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+    shutil.copytree(BASE_MAP, build_dir)
+    remove_triggers_payload(build_dir)
+    triggers_version = build_dir / "Triggers.version"
     if triggers_version.exists():
         triggers_version.unlink()
-    (BREAKPOINT_TRACE_DIRECT_BUILD_DIR / "Base.SC2Data" / "BreakpointTraceDispatch.galaxy").write_text(
-        BREAKPOINT_TRACE_DISPATCH, encoding="utf-8", newline="\n")
-    (BREAKPOINT_TRACE_DIRECT_BUILD_DIR / "MapScript.galaxy").write_text(
-        BREAKPOINT_TRACE_DIRECT_MAPSCRIPT, encoding="utf-8", newline="\n")
-    (BREAKPOINT_TRACE_DIRECT_BUILD_DIR / "BankList.xml").write_text(
+    (build_dir / "Base.SC2Data" / "BreakpointTraceDispatch.galaxy").write_text(
+        dispatch, encoding="utf-8", newline="\n")
+    (build_dir / "MapScript.galaxy").write_text(
+        mapscript, encoding="utf-8", newline="\n")
+    (build_dir / "BankList.xml").write_text(
         TRACE_BANK_LIST, encoding="utf-8", newline="\n")
-    (BREAKPOINT_TRACE_DIRECT_BUILD_DIR / "DocumentInfo").write_text(
+    (build_dir / "DocumentInfo").write_text(
         DOCUMENT_INFO, encoding="utf-8", newline="\n")
-    packer_output = pack_map(BREAKPOINT_TRACE_DIRECT_BUILD_DIR, BREAKPOINT_TRACE_DIRECT_MAP)
+    packer_output = pack_map(build_dir, output_map)
 
     BREAKPOINT_TRACE_BANK_SEED.parent.mkdir(parents=True, exist_ok=True)
     if not BREAKPOINT_TRACE_BANK_SEED.exists():
@@ -539,9 +566,9 @@ def build_breakpoint_trace_direct() -> int:
     report = {
         "schemaVersion": 1,
         "classification": "static",
-        "kind": "breakpoint-trace-direct",
-        "map": BREAKPOINT_TRACE_DIRECT_MAP.relative_to(REPO).as_posix(),
-        "sha256": sha256(BREAKPOINT_TRACE_DIRECT_MAP),
+        "kind": kind,
+        "map": output_map.relative_to(REPO).as_posix(),
+        "sha256": sha256(output_map),
         "sourceFiles": ["MapScript.galaxy", "BreakpointTraceDispatch.galaxy"],
         "dependencies": ["Campaigns/Void.SC2Campaign"],
         "dispatch": "InitMap -> TriggerExecute(TriggerCreate(\"BreakpointTrace_Probe\"), false, true)",
@@ -551,10 +578,34 @@ def build_breakpoint_trace_direct() -> int:
         "removedFiles": ["Triggers", "Triggers.version"],
         "packerOutput": packer_output,
     }
-    BREAKPOINT_TRACE_DIRECT_REPORT.parent.mkdir(parents=True, exist_ok=True)
-    BREAKPOINT_TRACE_DIRECT_REPORT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=2))
     return 0
+
+
+def build_breakpoint_trace_direct() -> int:
+    """Build the InitMap breakpoint probe used by the armed observer."""
+    return _build_direct_trace_variant(
+        BREAKPOINT_TRACE_DIRECT_BUILD_DIR,
+        BREAKPOINT_TRACE_DIRECT_MAP,
+        BREAKPOINT_TRACE_DIRECT_REPORT,
+        BREAKPOINT_TRACE_DISPATCH,
+        BREAKPOINT_TRACE_DIRECT_MAPSCRIPT,
+        "breakpoint-trace-direct",
+    )
+
+
+def build_breakpoint_trace_direct_control() -> int:
+    """Build the InitMap control probe without the debug breakpoint."""
+    return _build_direct_trace_variant(
+        BREAKPOINT_TRACE_DIRECT_CONTROL_BUILD_DIR,
+        BREAKPOINT_TRACE_DIRECT_CONTROL_MAP,
+        BREAKPOINT_TRACE_DIRECT_CONTROL_REPORT,
+        BREAKPOINT_TRACE_DIRECT_CONTROL_DISPATCH,
+        BREAKPOINT_TRACE_DIRECT_CONTROL_MAPSCRIPT,
+        "breakpoint-trace-direct-control",
+    )
 
 
 def main() -> int:
@@ -617,8 +668,10 @@ if __name__ == "__main__":
         raise SystemExit(build_breakpoint_trace())
     if sys.argv[1:] == ["--breakpoint-trace-direct"]:
         raise SystemExit(build_breakpoint_trace_direct())
+    if sys.argv[1:] == ["--breakpoint-trace-direct-control"]:
+        raise SystemExit(build_breakpoint_trace_direct_control())
     if len(sys.argv) > 1:
         raise SystemExit(
-            "Usage: build_runtime_lab.py [--cmlib-control|--kernel-control|--kernel-cmlib-control|--kernel-control-no-triggers|--arena-kernel-control|--breakpoint-trace|--breakpoint-trace-direct]"
+            "Usage: build_runtime_lab.py [--cmlib-control|--kernel-control|--kernel-cmlib-control|--kernel-control-no-triggers|--arena-kernel-control|--breakpoint-trace|--breakpoint-trace-direct|--breakpoint-trace-direct-control]"
         )
     raise SystemExit(main())
