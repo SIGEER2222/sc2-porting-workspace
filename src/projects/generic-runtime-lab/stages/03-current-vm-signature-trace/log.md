@@ -180,3 +180,41 @@ no new runtime correlation was claimed in this session. Keep
 until a fresh launcher-owned window records `startup -> trace_before ->
 attributable VEH IP -> trace_after` in the isolated Bank with zero new
 ScriptErrors.
+
+## 2026-08-16 fresh seed attempts
+
+- `runtime`: A compliant launcher-owned window on port `6001` (launcher PID
+  `29844`, SC2 PID `8312`) completed `CreateGame + JoinGame + step 400` for
+  the first seeded fixture build. `GalaxyVibeTrace.SC2Bank` remained exactly
+  at `seed_marker`; `startup`, `trace_before`, and `trace_after` were absent.
+  The same-window ScriptError gate reported no new errors.
+- `runtime`: The fixture was rebuilt without the copied `Triggers` payload and
+  rerun on port `6002` (launcher PID `18868`, SC2 PID `14836`). Both a
+  non-realtime `step 400` run and a realtime retry reaching game loop `183`
+  completed `CreateGame + JoinGame`; the seeded Bank again remained unchanged
+  and the same-window ScriptError gate reported no new errors. Evidence:
+  `runtime/sc2-breakpoint-trace-bank-seed-attempts-20260816.json`,
+  `runtime/scripterror-port6001.json`,
+  `runtime/scripterror-port6002.json`, and
+  `runtime/scripterror-port6002-realtime.json`.
+- `inference`: The first result is consistent with the copied compiled
+  `Triggers` payload overriding the source fixture. The second result shows
+  that removing `Triggers` alone is insufficient; it does not yet prove the
+  source compiler is unavailable because the map retained `Triggers.version`.
+- `static`: The next build now removes both `Triggers` and `Triggers.version`,
+  reports the new packed SHA
+  `2426968320eee7444f9c838c447387a6ffb51c386ffdb52ecdffe4e69e3a9071`, and
+  remains covered by 14 project tests, zero-error Galaxy lint, and the seed
+  artifact.
+- `blocked`: Before the third runtime attempt, an unrelated SC2 owner appeared
+  on port `5971` (PID `4812`). The launcher restart path is global, so the
+  attempt was skipped and the owner was left untouched. A later clean window
+  must run the SHA `242696...` fixture before any VM correlation claim.
+
+## Current boundary
+
+The map/API transport is runtime-proven, but the map-owned trace trigger has
+not yet rewritten its seeded Bank in either fresh window. This is a fixture
+dispatch problem, separate from VM event attribution. Keep
+`hook_enabled=false`; do not interpret the zero-error gates or unchanged seed
+as evidence that `breakpoint;` executed.

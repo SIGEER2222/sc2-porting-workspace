@@ -1,4 +1,5 @@
 import importlib.util
+import inspect
 from pathlib import Path
 
 
@@ -202,3 +203,9 @@ def test_breakpoint_trace_variant_has_delayed_before_after_correlation():
     assert "BreakpointTrace_Init();" in module.BREAKPOINT_TRACE_MAPSCRIPT
     assert '<Bank Name="GalaxyVibeTrace" Player="1"/>' in module.TRACE_BANK_LIST
     assert module.BREAKPOINT_TRACE_BANK_SEED.name == "galaxy-vibe-trace-bank-seed.xml"
+    assert "remove_triggers_payload(BREAKPOINT_TRACE_BUILD_DIR)" in (
+        inspect.getsource(module.build_breakpoint_trace)
+    )
+    assert 'triggers_version = BREAKPOINT_TRACE_BUILD_DIR / "Triggers.version"' in (
+        inspect.getsource(module.build_breakpoint_trace)
+    )

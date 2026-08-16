@@ -430,6 +430,13 @@ def build_breakpoint_trace() -> int:
     if BREAKPOINT_TRACE_BUILD_DIR.exists():
         shutil.rmtree(BREAKPOINT_TRACE_BUILD_DIR)
     shutil.copytree(BASE_MAP, BREAKPOINT_TRACE_BUILD_DIR)
+    # The copied skeleton carries a compiled Triggers payload. Remove it so
+    # the runtime compiles the fixture's current MapScript.galaxy instead of
+    # dispatching the skeleton's stale trigger table.
+    remove_triggers_payload(BREAKPOINT_TRACE_BUILD_DIR)
+    triggers_version = BREAKPOINT_TRACE_BUILD_DIR / "Triggers.version"
+    if triggers_version.exists():
+        triggers_version.unlink()
     (BREAKPOINT_TRACE_BUILD_DIR / "Base.SC2Data" / "BreakpointTraceDispatch.galaxy").write_text(
         BREAKPOINT_TRACE_DISPATCH, encoding="utf-8", newline="\n")
     (BREAKPOINT_TRACE_BUILD_DIR / "MapScript.galaxy").write_text(
@@ -463,6 +470,7 @@ def build_breakpoint_trace() -> int:
         "bankName": "GalaxyVibeTrace",
         "bankKeys": ["startup", "trace_before", "trace_after"],
         "bankSeed": BREAKPOINT_TRACE_BANK_SEED.relative_to(REPO).as_posix(),
+        "removedFiles": ["Triggers", "Triggers.version"],
         "packerOutput": packer_output,
     }
     BREAKPOINT_TRACE_REPORT.parent.mkdir(parents=True, exist_ok=True)

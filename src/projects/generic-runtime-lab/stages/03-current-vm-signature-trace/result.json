@@ -3,7 +3,7 @@
   "stage": "03-current-vm-signature-trace",
   "status": "IN_PROGRESS",
   "evidence_type": "static",
-  "summary": "Stage 03 now has a reproducible native VEH trace protocol with an IP histogram, an isolated GalaxyVibeTrace breakpoint fixture with a reproducible Bank seed, fixture runtime evidence, and fresh launcher-owned negative evidence. A new causal runtime window is still blocked by unrelated SC2 owners, so Galaxy breakpoint-to-VEH-to-Bank correlation remains outstanding and hook_enabled stays false.",
+  "summary": "Stage 03 now has a reproducible native VEH trace protocol with an IP histogram, an isolated seeded GalaxyVibeTrace breakpoint fixture, and two fresh launcher-owned API windows. Both windows left the seed unchanged with zero ScriptErrors, so map trigger dispatch and Galaxy breakpoint-to-VEH-to-Bank correlation remain unproven; hook_enabled stays false.",
   "changed_paths": [
     "src/projects/generic-runtime-lab/project.json",
     "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/plan.md",
@@ -31,7 +31,8 @@
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/BreakpointTrace.SC2Map",
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/breakpoint-trace-build-report.json",
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/galaxy-vibe-trace-bank-seed.xml",
-    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-owner-blocked-20260816.json"
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-owner-blocked-20260816.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-breakpoint-trace-bank-seed-attempts-20260816.json"
   ],
   "validation": [
     {
@@ -54,6 +55,13 @@
       "summary": "Agent and controller compile-check successfully on the MSVC target; final link/test execution remains unavailable because this shell has no link.exe or dlltool.exe.",
       "evidence": "tools/runtime-vm/agent/src/lib.rs",
       "evidence_type": "static"
+    },
+    {
+      "command": "pwsh launch-galaxy-vibe.ps1 -Port 6001/6002 -Map BreakpointTrace.SC2Map -ModPath '' + galaxy_repl.py --map --cmd 'step 400' (port 6002 also --realtime --join-wait 8 --cmd obs)",
+      "exitCode": 0,
+      "summary": "Two launcher-owned windows completed CreateGame/JoinGame and frame advancement; GalaxyVibeTrace remained at seed_marker only, while same-window ScriptError gates reported no new errors. No trigger or VM pass claimed.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-breakpoint-trace-bank-seed-attempts-20260816.json",
+      "evidence_type": "runtime"
     },
     {
       "command": "python -m pytest -q src/projects/generic-runtime-lab/tests/test_native_vm.py",
@@ -145,6 +153,13 @@
       "summary": "Runtime launch was deliberately skipped: unrelated SC2 owners were present on ports 5949 and 5965; no process was terminated or attached.",
       "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-owner-blocked-20260816.json",
       "evidence_type": "blocked"
+    },
+    {
+      "command": "Get-CimInstance Win32_Process -Filter \"Name = 'SC2_x64.exe'\"",
+      "exitCode": 0,
+      "summary": "The next SHA 242696... attempt was skipped because an unrelated owner PID 4812 was listening on port 5971; no process was terminated or attached.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-breakpoint-trace-bank-seed-attempts-20260816.json",
+      "evidence_type": "blocked"
     }
   ],
   "runtime": {
@@ -174,8 +189,8 @@
       "severity": "high",
       "status": "open",
       "evidence_type": "inference",
-      "detail": "Fresh launcher-owned windows reached CreateGame/JoinGame, but the VEH observer saw high-volume generic 0x80000003 traffic and the map-only check produced no persistent Bank. The observer histogram and isolated GalaxyVibeTrace seed are now prepared, but no same-window Galaxy breakpoint, attributable VEH event, and startup/trace_before/trace_after chain has been captured.",
-      "nextAction": "Run the updated seed recipe in two fresh launcher-owned windows once unrelated SC2 owners have exited. Keep the profile disabled until the causal chain is independently attributable."
+      "detail": "Fresh launcher-owned ports 6001 and 6002 completed CreateGame/JoinGame/frame advancement with a seeded GalaxyVibeTrace Bank, but the seed remained unchanged and no startup/trace_before/trace_after marker was written. The VEH observer also remains high-volume and uncorrelated.",
+      "nextAction": "Run the 242696... fixture after the current port 5971 owner exits; first prove map trigger dispatch, then repeat with the native observer. Keep hook_enabled=false until the full causal chain is independently attributable."
     },
     {
       "id": "GSVM-SC2-LIVE-OWNER-BLOCKED",
