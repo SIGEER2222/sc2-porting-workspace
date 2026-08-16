@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stage": "07-commander-closure",
-  "status": "blocked",
+  "status": "passed",
   "claims": [
     {
       "type": "static",
@@ -41,18 +41,37 @@
     },
     {
       "type": "runtime",
-      "claim": "A fresh realtime thanson01/Iron session reached CreateGame=init_game and JoinGame=in_game, advanced from game loop 3 to 545 without RequestStep, and accepted one native move action; the map's target Iron worker and fortress were not observed because the bounded window did not reach the map-owned Escort transition.",
+      "claim": "A fresh pure-runtime thanson01/Iron session reached CreateGame=init_game and JoinGame=in_game, advanced from game loop 3 to 405 with requestStepsSent=0, and the map-owned Region 29 progression caused the runtime Galaxy bootstrap to observe 8 1gangtiegongchengche workers and 1 1gangtieyaosai fortress. No faction chat or debug API was used.",
       "evidence": [
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/launcher-5963-default-data.log",
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/runtime-progressed-default-data.json"
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/launcher-runtime-5988.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/runtime-pure-runtime-secondary-5967.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/script-error-verdict-pure-runtime-5967.json"
       ]
     },
     {
       "type": "runtime",
-      "claim": "A later isolated secondary-client retry on port 5964 did not reach API ready within 90 seconds while the user's external SC2 instance remained active; no runtime gameplay claim is made from that attempt.",
+      "claim": "Fresh pure-runtime thanson01 sessions for Coverts, Umojan, Pirate, and Madness reached CreateGame=init_game and JoinGame=in_game, advanced in realtime with requestStepsSent=0, and observed their runtime replacement targets: SCVC plus CommandCenterC, SCVU plus CommandCenterU, 9shougezhe, and 3diguozhijian respectively. Each same-window ScriptError verdict has count=0 and no faction chat was required.",
       "evidence": [
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/launcher-5964-isolated.log",
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json"
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-coverts-thanson01/runtime-coverts-secondary-5984.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-coverts-thanson01/launcher-5984.log",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-coverts-thanson01/script-error-verdict-coverts-5984.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-umojan-thanson01/runtime-Umojan-secondary-5985.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-umojan-thanson01/launcher-runtime-5985.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-umojan-thanson01/script-error-verdict-Umojan-5985.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-pirate-thanson01/runtime-Pirate-secondary-5986.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-pirate-thanson01/launcher-runtime-5986.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-pirate-thanson01/script-error-verdict-Pirate-5986.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-madness-thanson01/runtime-Madness-secondary-5987.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-madness-thanson01/launcher-runtime-5987.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-madness-thanson01/script-error-verdict-Madness-5987.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The owned thanson01 map still contains its original SCV creation statement; the launcher only declares replacements and injects runtime Galaxy lifecycle handlers and TriggerExecute bridges. Single-element runtime replacement rules are normalized before Galaxy generation, and the observed faction units are not statically authored into the map opening.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/07-commander-closure/test_iron_runtime_adapter.py",
+        "tools/launchers/launch-revolution-overdrive.ps1"
       ]
     }
   ],
@@ -61,6 +80,18 @@
     "src/projects/revolution-overdrive-porting/stages/07-commander-closure/issues.json",
     "src/projects/revolution-overdrive-porting/stages/07-commander-closure/self-assessment.md",
     "src/projects/revolution-overdrive-porting/stages/07-commander-closure/next-stage-plan.md",
+    "src/projects/revolution-overdrive-porting/stages/07-commander-closure/test_iron_runtime_adapter.py",
+    "tools/launchers/launch-revolution-overdrive.ps1",
+    "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/launcher-runtime-5988.json",
+    "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/runtime-pure-runtime-secondary-5967.json",
+    "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/script-error-verdict-pure-runtime-5967.json",
+    "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/runtime-Iron-secondary-5988.json",
+    "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/launcher-runtime-5988.json",
+    "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/script-error-verdict-Iron-5988.json",
+    "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-coverts-thanson01/runtime-coverts-secondary-5984.json",
+    "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-umojan-thanson01/runtime-Umojan-secondary-5985.json",
+    "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-pirate-thanson01/runtime-Pirate-secondary-5986.json",
+    "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-madness-thanson01/runtime-Madness-secondary-5987.json",
     "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-evidence-index.json"
   ],
   "validation": [
@@ -138,6 +169,61 @@
       "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-revolution-overdrive.ps1 -MapName thanson01.SC2Map -Faction Iron -ListenPort 5964 -SecondaryClient -DataDirOverride <isolated-temp-dir> -NoCheats -ReadyTimeoutSeconds 90",
       "exitCode": 1,
       "summary": "Isolated retry did not reach ready within 90 seconds while the external 5943 SC2 instance was active; the user's process was not terminated."
+    },
+    {
+      "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/07-commander-closure/test_iron_runtime_adapter.py -v",
+      "exitCode": 0,
+      "summary": "4 runtime-adapter regression tests passed: map-owned SCV creation remains unchanged, static replacement is absent, lifecycle events are registered, and API runs use unique packed-map paths when needed."
+    },
+    {
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-revolution-overdrive.ps1 -MapName thanson01.SC2Map -Faction Iron -ListenPort 5967 -SecondaryClient -NoCheats -ReadyTimeoutSeconds 180",
+      "exitCode": 0,
+      "summary": "Approved launcher staged 57 files with pure runtime bootstrap, reached ready=true on secondary port 5967, sent no faction chat, and used thanson01.stage07.5967.packed.SC2Map because the previous run remained open."
+    },
+    {
+      "command": "python src/projects/revolution-overdrive-porting/stages/07-commander-closure/iron_opening_runtime_probe.py --port 5967 --map artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/thanson01.stage07.5967.packed.SC2Map --progress-to-escort --progress-after-game-loop 120 --progress-interval-game-loop 90 --progress-max-attempts 20 --observe-seconds 120 --out artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/runtime-pure-runtime-secondary-5967.json",
+      "exitCode": 0,
+      "summary": "Realtime native probe reached init_game/in_game, advanced loop 3->405 without RequestStep, accepted 3 native moves, and observed 8 1gangtiegongchengche plus 1 1gangtieyaosai at loops 389 and 405."
+    },
+    {
+      "command": "python tools/galaxy-vibe/script_error_check.py --logs-dir <Documents>/StarCraft II/GameLogs --since <launcher-5967-epoch> --out artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/script-error-verdict-pure-runtime-5967.json",
+      "exitCode": 0,
+      "summary": "Same-window GameLogs scan returned has_new_errors=false and count=0."
+    },
+    {
+      "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/07-commander-closure/test_iron_runtime_adapter.py -v",
+      "exitCode": 0,
+      "summary": "8 runtime adapter tests passed, including all faction probe targets and single-element bridge declarations."
+    },
+    {
+      "command": "approved launcher + realtime probe thanson01/Coverts port 5984",
+      "exitCode": 0,
+      "summary": "CreateGame=init_game, JoinGame=in_game, loop advanced in realtime with requestStepsSent=0; SCVC and CommandCenterC observed; same-window ScriptError count=0."
+    },
+    {
+      "command": "approved launcher + realtime probe thanson01/Umojan port 5985",
+      "exitCode": 0,
+      "summary": "CreateGame=init_game, JoinGame=in_game, loop advanced in realtime with requestStepsSent=0; SCVU and CommandCenterU observed; same-window ScriptError count=0."
+    },
+    {
+      "command": "approved launcher + realtime probe thanson01/Pirate port 5986",
+      "exitCode": 0,
+      "summary": "CreateGame=init_game, JoinGame=in_game, loop advanced in realtime with requestStepsSent=0; 9shougezhe observed; same-window ScriptError count=0."
+    },
+    {
+      "command": "approved launcher + realtime probe thanson01/Madness port 5987",
+      "exitCode": 0,
+      "summary": "CreateGame=init_game, JoinGame=in_game, loop advanced in realtime with requestStepsSent=0; 3diguozhijian observed; same-window ScriptError count=0."
+    },
+    {
+      "command": "approved launcher + realtime probe thanson01/Iron port 5988",
+      "exitCode": 0,
+      "summary": "CreateGame=init_game, JoinGame=in_game, loop advanced in realtime with requestStepsSent=0; 1gangtiegongchengche and 1gangtieyaosai observed after launcher generator fixes; same-window ScriptError count=0."
+    },
+    {
+      "command": "approved launcher -NoLaunch staging smoke thanson01.SC2Map for Iron, Coverts, Umojan, Pirate, and Madness",
+      "exitCode": 0,
+      "summary": "All five faction staging runs returned exit 0 after live clients exited; each selected the runtime Galaxy bootstrap path without manual faction input."
     }
   ],
   "nextStage": "ai-ally-native-closure"

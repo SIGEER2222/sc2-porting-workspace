@@ -1,8 +1,10 @@
-"""Realtime proof for the thanson01/Iron opening adapter.
+"""Realtime proof for Revolution Overdrive runtime commander replacement.
 
-The probe deliberately never sends RequestStep or gameplay actions. The launcher has
-already injected the Galaxy bootstrap into the staged map; this process only loads that
-map through SC2API and observes the result from the P1 raw unit census.
+The probe deliberately never sends RequestStep. The launcher has already injected the
+Galaxy bootstrap into the staged map; this process only loads that map through SC2API,
+advances the map with ordinary native movement when requested, and observes P1 raw units.
+
+The filename is retained for compatibility with the existing Stage 07 evidence commands.
 """
 from __future__ import annotations
 
@@ -33,11 +35,27 @@ STATUS_NAMES = {
     5: "ended",
     6: "quit",
 }
-TARGET_TYPES = {
-    "1gangtiegongchengche": "iron_worker",
-    "1gangtieyaosai": "iron_command_center",
-    "SCV": "vanilla_scv",
-    "CommandCenter": "vanilla_command_center",
+FACTION_TARGETS = {
+    "Iron": {
+        "1gangtiegongchengche": "worker",
+        "1gangtieyaosai": "command_center",
+    },
+    "Coverts": {
+        "SCVC": "worker",
+        "CommandCenterC": "command_center",
+    },
+    "Umojan": {
+        "SCVU": "worker",
+        "CommandCenterU": "command_center",
+    },
+    "Pirate": {
+        "9shougezhe": "hero",
+        "9qianxianzhihuizhongxin": "command_center",
+    },
+    "Madness": {
+        "3diguozhijian": "hero",
+        "3diguoqianshaojidi": "command_center",
+    },
 }
 REGION_29_CENTER = (118.5, 47.5)
 ABILITY_MOVE = 16
@@ -58,7 +76,7 @@ def sub_error(response: sc_pb.Response, field: str) -> int | None:
     return int(nested.error) if nested.HasField("error") else None
 
 
-def census(observation, names: dict[int, str]) -> dict:
+def census(observation, names: dict[int, str], target_types: dict[str, str]) -> dict:
     response_observation = observation.observation
     game_observation = response_observation.observation
     units = list(game_observation.raw_data.units)
@@ -80,12 +98,12 @@ def census(observation, names: dict[int, str]) -> dict:
                 "is_blip": bool(unit.is_blip),
             }
         )
-        if name in TARGET_TYPES:
+        if name in target_types:
             target_units.append(
                 {
                     "tag": int(unit.tag),
                     "name": name,
-                    "role": TARGET_TYPES[name],
+                    "role": target_types[name],
                     "x": round(float(unit.pos.x), 3),
                     "y": round(float(unit.pos.y), 3),
                     "health": round(float(unit.health), 3),
@@ -133,11 +151,14 @@ async def move_p1_to_region_29(ws, observation) -> dict:
 
 
 async def run(options) -> dict:
+    target_types = FACTION_TARGETS[options.faction]
     result = {
         "schemaVersion": 1,
         "classification": "runtime",
         "map": str(Path(options.map).resolve()),
         "port": options.port,
+        "faction": options.faction,
+        "expectedTargetTypes": target_types,
         "realtime": True,
         "actionsSent": [],
         "requestStepsSent": 0,
@@ -220,7 +241,7 @@ async def run(options) -> dict:
                     "target_type_ids": {
                         target: unit_id
                         for unit_id, target in ((unit_id, name) for unit_id, name in names.items())
-                        if target in TARGET_TYPES
+                        if target in target_types
                     },
                 }
 
@@ -231,7 +252,7 @@ async def run(options) -> dict:
                     observation = await rpc(
                         ws, sc_pb.Request(observation=sc_pb.RequestObservation()), 20
                     )
-                    snapshot = census(observation, names)
+                    snapshot = census(observation, names, target_types)
                     snapshot["elapsed_seconds"] = round(time.monotonic() - started, 3)
                     result["observations"].append(snapshot)
                     if (
@@ -250,14 +271,14 @@ async def run(options) -> dict:
                         confirm = await rpc(
                             ws, sc_pb.Request(observation=sc_pb.RequestObservation()), 20
                         )
-                        confirmed = census(confirm, names)
+                        confirmed = census(confirm, names, target_types)
                         confirmed["elapsed_seconds"] = round(time.monotonic() - started, 3)
                         result["observations"].append(confirmed)
                         break
                     await asyncio.sleep(0.5)
 
                 result["verdict"] = (
-                    "passed_realtime_iron_opening_observed"
+                    f"passed_realtime_{options.faction.lower()}_replacement_observed"
                     if any(item["target_units"] for item in result["observations"])
                     and all(item["game_loop"] > 0 for item in result["observations"][-2:])
                     else "blocked_target_units_not_observed"
@@ -271,6 +292,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--map", required=True)
+    parser.add_argument("--faction", choices=sorted(FACTION_TARGETS), default="Iron")
     parser.add_argument("--observe-seconds", type=float, default=25.0)
     parser.add_argument("--progress-to-escort", action="store_true")
     parser.add_argument("--progress-after-game-loop", type=int, default=200)
@@ -284,7 +306,7 @@ def main() -> int:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if result["verdict"] == "passed_realtime_iron_opening_observed" else 1
+    return 0 if result["verdict"].startswith("passed_realtime_") else 1
 
 
 if __name__ == "__main__":

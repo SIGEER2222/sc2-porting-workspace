@@ -118,3 +118,65 @@ AI ally behavior remains blocked.
 - `runtime`: The same 5963 realtime probe reached `CreateGame=init_game`, `JoinGame=in_game`, P1, Catalog IDs for `1gangtiegongchengche`/`1gangtieyaosai`, and game loop `3 -> 545` with `requestStepsSent=0`. The native move to Region 29 returned `ActionResult=1`, but no target unit appeared; verdict is `blocked_target_units_not_observed`. Evidence: `runtime-bootstrap-20260816-ro-iron-thanson01/runtime-progressed-default-data.json`.
 - `runtime`: A follow-up isolated 5964 launch with `-DataDirOverride` failed its 90-second ready gate while the user's external SC2 instance was active. No external process was terminated. Evidence: `runtime-bootstrap-20260816-ro-iron-thanson01/launcher-5964-isolated.log`; the current mutable `stage07-commander-closure/launcher-runtime.json` records this failed attempt and must not be used as a pass artifact.
 - `inference`: The missing Iron worker/fortress is consistent with the map-owned `gt_StartHansonEscortPhase` waiting for `gv_missionPhase == Escort`; a single early move of the initial cinematic units is insufficient proof of reaching that transition. No commander adapter widening or artificial base creation was made.
+
+## 2026-08-16 Pure runtime Iron replacement closure
+
+- `static`: Removed the launcher's direct SCV and rescue-site text rewrites. The owned map still
+  contains `libNtve_gf_UnitCreateFacingPoint(1, "SCV", ...)`; the adapter now records the declared
+  replacement and injects only a runtime Galaxy bootstrap. Regression coverage is in
+  `stages/07-commander-closure/test_iron_runtime_adapter.py`.
+- `static`: The runtime bootstrap registers `UnitCreated`, `UnitChangeOwner`, and `TimePeriodic`
+  events, scans P1 units, applies Iron tech, and calls `libNtve_gf_ReplaceUnit` for SCV and
+  CommandCenter/OrbitalCommand/PlanetaryFortress. It requires no chat command or UI selection.
+- `runtime`: The approved launcher on port `5967` reached `ready=true` in a secondary client,
+  selected the unique packed path `thanson01.stage07.5967.packed.SC2Map`, and left the external
+  SC2 process untouched. Evidence: `launcher-runtime.json` and the launcher output.
+- `runtime`: The same realtime probe reached `CreateGame=init_game`, `JoinGame=in_game`, and
+  advanced game loop `3 -> 405` with `requestStepsSent=0`. Three native moves reached Region 29;
+  the map-owned Escort/rescue lifecycle then exposed 8 `1gangtiegongchengche` workers and 1
+  `1gangtieyaosai` fortress at loops 389 and 405. Evidence:
+  `runtime-bootstrap-20260816-ro-iron-thanson01/runtime-pure-runtime-secondary-5967.json`.
+- `runtime`: The same launcher window has `ready=true`, `apiStable=true`, and zero new
+  `*ScriptError*.txt` files. Evidence:
+  `runtime-bootstrap-20260816-ro-iron-thanson01/script-error-verdict-pure-runtime-5967.json`.
+- `validation`: The four pure-runtime adapter regression tests, Python compilation, and
+  PowerShell parsing all pass. Stage 07 is now `passed` for commander closure; the general
+  RO-AI-001 dynamic-owner population remains explicitly open and fail-closed.
+
+## 2026-08-16 All-faction runtime replacement closure
+
+- `static`: The first Coverts retry exposed a generator defect rather than a game failure:
+  the JSON evidence declared `SCV -> SCVC`, but PowerShell unwrapped the one-element property
+  before the count-based Galaxy generation loop, leaving the generated replacement function
+  empty. The launcher now normalizes `runtimeReplacementList` and substitutes explicit
+  bootstrap markers. The generated staged script contains the real `if (lv_type == "SCV")`
+  and `libNtve_gf_ReplaceUnit(..., "SCVC", ...)` branch.
+- `runtime/blocked historical`: Coverts port `5982` reached `init_game/in_game` and observed
+  `CommandCenterC`, but the pre-fix probe failed on a stale `TARGET_TYPES` name. Coverts port
+  `5983` then observed `CommandCenterC` while the generator defect still left map SCVs native;
+  neither is promoted as the final pass. These artifacts remain under
+  `runtime-bootstrap-20260816-ro-coverts-thanson01/` for diagnosis.
+- `runtime`: The repaired Coverts window on port `5984` reached `CreateGame=init_game`,
+  `JoinGame=in_game`, and realtime observations without `RequestStep`. The map-owned escort
+  progression exposed `SCVC` workers and `CommandCenterC`; the probe verdict is
+  `passed_realtime_coverts_replacement_observed`. Same-window ScriptError count is zero.
+  Evidence: `runtime-bootstrap-20260816-ro-coverts-thanson01/runtime-coverts-secondary-5984.json`
+  and `script-error-verdict-coverts-5984.json`.
+- `runtime`: The repaired Umojan window on port `5985` reached the same strict lifecycle and
+  observed `SCVU` plus `CommandCenterU`; `requestStepsSent=0`, no faction chat, and same-window
+  ScriptError count is zero. Evidence: `runtime-bootstrap-20260816-ro-umojan-thanson01/`.
+- `runtime`: The Pirate bridge window on port `5986` observed `9shougezhe` from the native
+  Revolution Overdrive trigger bridge; `requestStepsSent=0` and ScriptError count is zero.
+  Evidence: `runtime-bootstrap-20260816-ro-pirate-thanson01/`.
+- `runtime`: The Madness bridge window on port `5987` observed `3diguozhijian`; realtime
+  progression, no faction chat, and same-window ScriptError count zero are recorded in
+  `runtime-bootstrap-20260816-ro-madness-thanson01/`.
+- `runtime`: A post-generator-fix Iron regression on port `5988` observed
+  `1gangtiegongchengche` and `1gangtieyaosai` with `requestStepsSent=0` and zero same-window
+  ScriptErrors. Evidence: `runtime-bootstrap-20260816-ro-iron-thanson01/runtime-Iron-secondary-5988.json`
+  and `script-error-verdict-Iron-5988.json`.
+- `validation`: `python -m unittest src/projects/revolution-overdrive-porting/stages/07-commander-closure/test_iron_runtime_adapter.py -v` passed 8/8; PowerShell parsing and Python compilation passed; all five fresh approved launcher windows returned exit 0 and all five probes returned exit 0.
+- `validation`: After the live clients exited, a clean sequential approved launcher `-NoLaunch`
+  smoke for `Iron`, `Coverts`, `Umojan`, `Pirate`, and `Madness` all returned exit 0. The earlier
+  second-faction staging failure was a live-client directory lock and is not promoted as a
+  product failure.

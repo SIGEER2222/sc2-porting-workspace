@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "起义狂潮地图与指挥官组合适配。每条组合规则必须声明替换范围；未声明的任务单位保持原样。",
+  "description": "起义狂潮地图与指挥官组合适配。每条组合规则必须声明替换范围；未声明的任务单位保持原样。运行时替换由游戏 VM 扫描玩家单位执行。",
   "defaults": {
     "startup": {
       "startingStructure": "CommandCenter",
@@ -47,8 +47,8 @@
   ],
   "map_commander_rules": [
     {
-      "id": "thanson01-iron-opening",
-      "map_pattern": "^thanson01\\.SC2Map$",
+      "id": "revolution-overdrive-iron-runtime",
+      "map_pattern": "^(?!tarcade\\.SC2Map$).+\\.SC2Map$",
       "commander_pattern": "^RevolutionOverdriveIron$",
       "selection": {
         "mode": "runtime_galaxy_bootstrap",
@@ -56,7 +56,7 @@
         "commands": []
       },
       "map_unit_policy": {
-        "mode": "targeted_script_replacement",
+        "mode": "runtime_targeted_script_replacement",
         "targetPlayers": [1],
         "protectedPlayers": [2, 3, 4, 5, 6, 7, 8, 9, 10, 15],
         "protectedUnitTypes": [
@@ -70,22 +70,511 @@
         ],
         "anchorUnitTypes": ["SpecialOpsDropship"]
       },
-      "unit_replacements": [
+      "runtime_replacements": [
         {
           "from": "SCV",
           "to": "1gangtiegongchengche",
-          "from_name": "SCV（工人）",
-          "to_name": "钢铁工程车",
           "players": [1],
           "source": {
-            "file": "Maps/thanson01.SC2Map/MapScript.galaxy",
-            "line": 2422
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 152
           },
-          "reason": "大撤离 Starting Game 创建的 P1 初始工人"
+          "reason": "钢铁运行时替换所有 P1 工人"
+        },
+        {
+          "from": "CommandCenter",
+          "to": "1gangtieyaosai",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 159
+          },
+          "reason": "钢铁运行时替换 P1 主基地"
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "1gangtieyaosai",
+          "players": [1],
+          "source": {
+            "file": "launcher runtime extension",
+            "line": 0
+          },
+          "reason": "保持升级后的 P1 主基地使用钢铁主基地"
+        },
+        {
+          "from": "OrbitalCommandACGluescreenDummy",
+          "to": "1gangtieyaosai",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 166
+          },
+          "reason": "替换钢铁运行时可能出现的升级主基地占位体"
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "1gangtieyaosai",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 173
+          },
+          "reason": "钢铁运行时替换 P1 行星要塞"
+        },
+        {
+          "from": "Nexus",
+          "to": "1gangtieyaosai",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 180
+          },
+          "reason": "钢铁运行时保护跨种族地图主基地替换"
+        },
+        {
+          "from": "Hatchery",
+          "to": "1gangtieyaosai",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 187
+          },
+          "reason": "钢铁运行时保护跨种族地图主基地替换"
+        },
+        {
+          "from": "Lair",
+          "to": "1gangtieyaosai",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 194
+          },
+          "reason": "钢铁运行时保护跨种族地图主基地替换"
+        },
+        {
+          "from": "Hive",
+          "to": "1gangtieyaosai",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 201
+          },
+          "reason": "钢铁运行时保护跨种族地图主基地替换"
+        },
+        {
+          "from": "Factory",
+          "to": "1zhuzaochejian",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 215
+          },
+          "reason": "钢铁运行时替换 P1 机械生产建筑"
+        },
+        {
+          "from": "FactoryFlying",
+          "to": "1zhuzaochejianFlying",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 236
+          },
+          "reason": "钢铁运行时替换 P1 起飞机械生产建筑"
+        },
+        {
+          "from": "Starport",
+          "to": "1xingkongchuanwu",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 222
+          },
+          "reason": "钢铁运行时替换 P1 空军生产建筑"
+        },
+        {
+          "from": "StarportFlying",
+          "to": "1xingkongchuanwuFlying",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 243
+          },
+          "reason": "钢铁运行时替换 P1 起飞空军生产建筑"
+        },
+        {
+          "from": "PerditionTurret",
+          "to": "1moripaotai",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 681
+          },
+          "reason": "钢铁运行时替换 P1 地狱炮台"
+        },
+        {
+          "from": "PerditionTurretUnderground",
+          "to": "1moripaotai2",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 684
+          },
+          "reason": "钢铁运行时替换 P1 地下地狱炮台"
+        },
+        {
+          "from": "PlasmaTurret",
+          "to": "1guidaopaotai",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 696
+          },
+          "reason": "钢铁运行时替换 P1 等离子炮台"
+        },
+        {
+          "from": "LightArray",
+          "to": "1fangkongta",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 699
+          },
+          "reason": "钢铁运行时替换 P1 防空塔"
+        },
+        {
+          "from": "RefineryRich",
+          "to": "1zidonghuajinglianchang",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 705
+          },
+          "reason": "钢铁运行时替换 P1 富矿精炼厂"
+        },
+        {
+          "from": "AutomatedRefinery",
+          "to": "1zidonghuajinglianchang",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 708
+          },
+          "reason": "钢铁运行时替换 P1 自动精炼厂"
+        },
+        {
+          "from": "SupplyDepot",
+          "to": "1ranliaozhan",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 711
+          },
+          "reason": "钢铁运行时替换 P1 补给结构"
+        },
+        {
+          "from": "Armory",
+          "to": "1gangtiegongchang",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 714
+          },
+          "reason": "钢铁运行时替换 P1 军械工厂"
+        },
+        {
+          "from": "FusionCore",
+          "to": "1jubianhexin",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 720
+          },
+          "reason": "钢铁运行时替换 P1 聚变核心"
+        },
+        {
+          "from": "IronWarrior",
+          "to": "1wuzhuangjiqiren",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 723
+          },
+          "reason": "钢铁运行时替换 P1 铁甲战士"
+        },
+        {
+          "from": "HERC",
+          "to": "1xiulijiqiren",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 726
+          },
+          "reason": "钢铁运行时替换 P1 HERC"
+        },
+        {
+          "from": "ShockTrooper",
+          "to": "1gangtiezhanlang",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 729
+          },
+          "reason": "钢铁运行时替换 P1 震击部队"
+        },
+        {
+          "from": "Saboteur",
+          "to": "1jixiehete",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 732
+          },
+          "reason": "钢铁运行时替换 P1 破坏者"
+        },
+        {
+          "from": "Desecrator",
+          "to": "1huochexia",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 735
+          },
+          "reason": "钢铁运行时替换 P1 渎神者"
+        },
+        {
+          "from": "Radbat",
+          "to": "1huochexia",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 738
+          },
+          "reason": "钢铁运行时替换 P1 Radbat"
+        },
+        {
+          "from": "SpartanCompany",
+          "to": "1jurenjijia",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 741
+          },
+          "reason": "钢铁运行时替换 P1 斯巴达连队"
+        },
+        {
+          "from": "MengskGoliath",
+          "to": "1jurenjijia",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 744
+          },
+          "reason": "钢铁运行时替换 P1 孟斯巨人"
+        },
+        {
+          "from": "Phantom",
+          "to": "1gangtiezhiyi",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 747
+          },
+          "reason": "钢铁运行时替换 P1 幻影"
+        },
+        {
+          "from": "BileTank",
+          "to": "1zhongxinggongchengtanke",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 750
+          },
+          "reason": "钢铁运行时替换 P1 胆汁坦克"
+        },
+        {
+          "from": "Titan",
+          "to": "1gangtiebaolei",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 753
+          },
+          "reason": "钢铁运行时替换 P1 泰坦"
+        },
+        {
+          "from": "Hercules",
+          "to": "1zhongxingwuzhuangdenglujian",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 756
+          },
+          "reason": "钢铁运行时替换 P1 赫克力士"
+        },
+        {
+          "from": "VoidConduit",
+          "to": "1zhongxingzhanliexunhangjian1",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 759
+          },
+          "reason": "钢铁运行时替换 P1 虚空导管"
+        },
+        {
+          "from": "SpecOpsRaven",
+          "to": "1kexuechuan",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 762
+          },
+          "reason": "钢铁运行时替换 P1 特战渡鸦"
+        },
+        {
+          "from": "Liberator",
+          "to": "1zhongxingwuzhuangpaojian",
+          "players": [1],
+          "source": {
+            "file": "legacy-project/Mods/7vs1/Alenger1.SC2Mod/Base.SC2Data/Lib1A1D096B.galaxy",
+            "line": 765
+          },
+          "reason": "钢铁运行时替换 P1 解放者"
         }
       ],
-      "event_unit_replacements": {
-        "CommandCenter": "1gangtieyaosai"
+      "unsupported_reference_replacements": [
+        {
+          "from": "Barracks",
+          "to": "1jixiezuzhuanggongchang",
+          "reason": "参考仓库声明了该目标，但当前实际加载的钢铁 Mod 没有对应 CUnit Catalog，故保持 fail-closed"
+        },
+        {
+          "from": "BarracksFlying",
+          "to": "1jixiezuzhuanggongchangFlying",
+          "reason": "参考仓库声明了该目标，但当前实际加载的钢铁 Mod 没有对应 CUnit Catalog，故保持 fail-closed"
+        }
+      ]
+    },
+    {
+      "id": "revolution-overdrive-coverts-runtime",
+      "map_pattern": "^(?!tarcade\\.SC2Map$).+\\.SC2Map$",
+      "commander_pattern": "^RevolutionOverdriveCoverts$",
+      "selection": {
+        "mode": "runtime_galaxy_bootstrap",
+        "manualChatRequired": false,
+        "commands": []
+      },
+      "map_unit_policy": {
+        "mode": "runtime_native_trigger_bridge",
+        "targetPlayers": [1],
+        "protectedPlayers": [2, 3, 4, 5, 6, 7, 8, 9, 10, 15]
+      },
+      "runtime_replacements": [
+        {
+          "from": "SCV",
+          "to": "SCVC",
+          "players": [1],
+          "catalog_mod": "CovertOps.SC2Mod",
+          "source": {
+            "file": "packages/Commander/Mods/CovertOps.SC2Mod/Base.SC2Data/GameData/UnitData.xml",
+            "line": 4185
+          },
+          "reason": "CovertOps 运行时替换 P1 工人"
+        }
+      ],
+      "runtime_trigger_bridge": {
+        "header": "Lib6B3CCD85_h.galaxy",
+        "mod": "RevolutionOverdrive.SC2Mod",
+        "replacementTrigger": "lib6B3CCD85_gt_E789B9E68898E9989FE58D95E4BD8DE69BBFE68DA2",
+        "source": {
+          "file": "packages/Commander/Mods/RevolutionOverdrive.SC2Mod/Base.SC2Data/Lib6B3CCD85.galaxy",
+          "line": 17
+        }
+      }
+    },
+    {
+      "id": "revolution-overdrive-umojan-runtime",
+      "map_pattern": "^(?!tarcade\\.SC2Map$).+\\.SC2Map$",
+      "commander_pattern": "^RevolutionOverdriveUmojan$",
+      "selection": {
+        "mode": "runtime_galaxy_bootstrap",
+        "manualChatRequired": false,
+        "commands": []
+      },
+      "map_unit_policy": {
+        "mode": "runtime_native_trigger_bridge",
+        "targetPlayers": [1],
+        "protectedPlayers": [2, 3, 4, 5, 6, 7, 8, 9, 10, 15]
+      },
+      "runtime_replacements": [
+        {
+          "from": "SCV",
+          "to": "SCVU",
+          "players": [1],
+          "catalog_mod": "Umojan.SC2Mod",
+          "source": {
+            "file": "packages/Commander/Mods/Umojan.SC2Mod/Base.SC2Data/GameData/UnitData.xml",
+            "line": 3846
+          },
+          "reason": "Umojan 运行时替换 P1 工人"
+        }
+      ],
+      "runtime_trigger_bridge": {
+        "header": "Lib6B3CCD85_h.galaxy",
+        "mod": "RevolutionOverdrive.SC2Mod",
+        "replacementTrigger": "lib6B3CCD85_gt_ymyE58D95E4BD8DE69BBFE68DA2",
+        "source": {
+          "file": "packages/Commander/Mods/RevolutionOverdrive.SC2Mod/Base.SC2Data/Lib6B3CCD85.galaxy",
+          "line": 151
+        }
+      }
+    },
+    {
+      "id": "revolution-overdrive-pirate-runtime",
+      "map_pattern": "^(?!tarcade\\.SC2Map$).+\\.SC2Map$",
+      "commander_pattern": "^RevolutionOverdrivePirate$",
+      "selection": {
+        "mode": "runtime_galaxy_bootstrap",
+        "manualChatRequired": false,
+        "commands": []
+      },
+      "map_unit_policy": {
+        "mode": "runtime_native_trigger_bridge",
+        "targetPlayers": [1],
+        "protectedPlayers": [2, 3, 4, 5, 6, 7, 8, 9, 10, 15]
+      },
+      "runtime_trigger_bridge": {
+        "header": "Lib6B3CCD85_h.galaxy",
+        "mod": "RevolutionOverdrive.SC2Mod",
+        "replacementTrigger": "lib6B3CCD85_gt_E6B5B7E79B97E58D95E4BD8DE69BBFE68DA2",
+        "source": {
+          "file": "packages/Commander/Mods/RevolutionOverdrive.SC2Mod/Base.SC2Data/Lib6B3CCD85.galaxy",
+          "line": 285
+        }
+      }
+    },
+    {
+      "id": "revolution-overdrive-madness-runtime",
+      "map_pattern": "^(?!tarcade\\.SC2Map$).+\\.SC2Map$",
+      "commander_pattern": "^RevolutionOverdriveMadness$",
+      "selection": {
+        "mode": "runtime_galaxy_bootstrap",
+        "manualChatRequired": false,
+        "commands": []
+      },
+      "map_unit_policy": {
+        "mode": "runtime_native_trigger_bridge",
+        "targetPlayers": [1],
+        "protectedPlayers": [2, 3, 4, 5, 6, 7, 8, 9, 10, 15]
+      },
+      "runtime_trigger_bridge": {
+        "header": "Lib6B3CCD85_h.galaxy",
+        "mod": "RevolutionOverdrive.SC2Mod",
+        "replacementTrigger": "lib6B3CCD85_gt_E8BF9CE5BE81E5869BE58D95E4BD8DE69BBFE68DA2",
+        "source": {
+          "file": "packages/Commander/Mods/RevolutionOverdrive.SC2Mod/Base.SC2Data/Lib6B3CCD85.galaxy",
+          "line": 538
+        }
       }
     }
   ]

@@ -30,8 +30,8 @@
     {
       "id": "RO-AI-003",
       "severity": "high",
-      "status": "blocked",
-      "summary": "The thorner03 native bootstrap window through loop 48 exposes P2 as a Computer roster entry but has not yet reached the map-owned Tychus rescue that should materialize P2-owned or P1-visible allied units.",
+      "status": "resolved",
+      "summary": "The earlier thorner03 bootstrap window stopped before the map-owned Tychus rescue, but the later no-debug Stage 09 runtime window observed the same-tag P2 handover end to end.",
       "evidence": [
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/native-census.json",
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/script-error-verdict.json",
@@ -39,8 +39,8 @@
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-long/script-error-verdict.json",
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-actions/strict-action-census.json"
       ],
-      "impact": "The current AI ally adapter cannot safely expose P2 commands or classify the observed owner 16 units as an ally. Static shared-vision intent and accepted native actions are insufficient while the map-owned rescue lifecycle is unreachable.",
-      "nextAction": "Progress the mission-owned warehouse objective through a supported gameplay path and require P2-owned units, an explicit allied observation, and an acknowledged P2 command in the same window. If that progression cannot be reproduced without debug injection or map edits, keep the map-specific P2 contract unavailable."
+      "impact": "The old evidence was insufficient for the AI ally claim, but it is superseded by a current map-owned rescue observation with P2 ownership, P1-visible alliance, and a clean same-window ScriptError verdict.",
+      "resolution": "Stage 09 ran the unchanged no-debug p2_handover_probe.py through the approved launcher and observed Odin moving from owner 16/alliance 3 to owner 2/alliance 2 after the map-owned Region 24 handover."
     },
     {
       "id": "RO-RUN-005",
@@ -70,27 +70,45 @@
     {
       "id": "RO-IRON-001",
       "severity": "high",
-      "status": "blocked",
-      "summary": "The fresh thanson01 Iron realtime window reached in_game and advanced frames, but did not observe the runtime-replaced worker or fortress after the bounded Region 29 progression action.",
+      "status": "resolved",
+      "summary": "The pure-runtime thanson01 Iron window reached the map-owned Escort transition and observed the runtime-replaced worker and fortress.",
       "evidence": [
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/runtime-progressed-default-data.json",
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/launcher-5963-default-data.log",
-        "src/projects/revolution-overdrive-porting/packages/Maps/thanson01.SC2Map/MapScript.galaxy",
-        "src/projects/revolution-overdrive-porting/vibe/map_commander_adapters.json"
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/launcher-runtime-5988.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/runtime-pure-runtime-secondary-5967.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/script-error-verdict-pure-runtime-5967.json",
+        "src/projects/revolution-overdrive-porting/stages/07-commander-closure/test_iron_runtime_adapter.py"
       ],
-      "impact": "The P1 Iron opening replacement and base initialization cannot be claimed as an automatic gameplay pass until the map-owned Escort transition creates or rescues the expected units in the same runtime window.",
-      "nextAction": "Use a mission-supported progression path that reaches Region 29 after the initial cinematic, then require 1gangtiegongchengche and 1gangtieyaosai in raw observations. Do not create an artificial base from the adapter to bypass map-owned initialization."
+      "impact": "None for the thanson01/Iron commander-map pairing. The opening SCV remains map-owned and is replaced by runtime Galaxy after creation/ownership lifecycle events; the base is likewise replaced after the map-owned rescue.",
+      "resolution": "The fresh port-5967 realtime probe observed 8 1gangtiegongchengche and 1 1gangtieyaosai at game loops 389 and 405 with requestStepsSent=0 and no debug or chat command."
     },
     {
       "id": "RO-RUN-007",
       "severity": "medium",
-      "status": "blocked",
-      "summary": "An isolated secondary-client retry with DataDirOverride did not reach API ready while the user's external SC2 instance was active.",
+      "status": "resolved",
+      "summary": "The launcher now isolates API runs with a port-suffixed packed map when a previous run still holds the default packed-map file, and a fresh secondary client reached ready while the external SC2 process remained untouched.",
       "evidence": [
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/launcher-5964-isolated.log"
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/launcher-runtime-5988.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/runtime-pure-runtime-secondary-5967.json",
+        "src/projects/revolution-overdrive-porting/stages/07-commander-closure/test_iron_runtime_adapter.py"
       ],
-      "impact": "Further delayed realtime verification requires a launcher isolation setup that can coexist with the active user instance; the user process was intentionally left untouched.",
-      "nextAction": "Keep the current blocked evidence separate and rerun only after an independently launchable SC2 client slot is available."
+      "impact": "None for the verified secondary-client path; old failed evidence remains historical and was not promoted to a runtime claim.",
+      "resolution": "Port 5967 reached ready=true and used thanson01.stage07.5967.packed.SC2Map without terminating the user's SC2 process."
+    },
+    {
+      "id": "RO-COMMANDER-002",
+      "severity": "high",
+      "status": "resolved",
+      "summary": "Non-Iron runtime replacement declarations with one mapping were silently omitted from the generated Galaxy replacement body because PowerShell unwrapped the single-element JSON property before the count-based loop.",
+      "evidence": [
+        "tools/launchers/launch-revolution-overdrive.ps1",
+        "src/projects/revolution-overdrive-porting/stages/07-commander-closure/test_iron_runtime_adapter.py",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-coverts-thanson01/runtime-coverts-secondary-5984.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-umojan-thanson01/runtime-Umojan-secondary-5985.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-pirate-thanson01/runtime-Pirate-secondary-5986.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-madness-thanson01/runtime-Madness-secondary-5987.json"
+      ],
+      "impact": "Before the fix, Coverts and Umojan worker replacements were declared in evidence but their generated runtime function bodies were empty; bridge-based structure/unit replacements still ran. The issue affected only generated single-element replacement lists.",
+      "resolution": "The launcher now normalizes runtimeReplacementList and substitutes the generated Galaxy body through explicit markers. Fresh Coverts and Umojan windows observe SCVC/CommandCenterC and SCVU/CommandCenterU; Pirate and Madness bridge targets also pass in fresh windows, all with zero same-window ScriptErrors."
     }
   ]
 }

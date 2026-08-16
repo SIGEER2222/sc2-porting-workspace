@@ -179,126 +179,128 @@ function Apply-MapCommanderAdapter {
     $script = [System.IO.File]::ReadAllText($scriptPath)
     $replacementRecords = @()
     $eventReplacementRecords = @()
-    $declaredReplacements = if ($null -ne $rule.unit_replacements) { @($rule.unit_replacements) } else { @() }
-    foreach ($replacement in $declaredReplacements) {
+    $runtimeReplacements = if ($null -ne $rule.runtime_replacements) { @($rule.runtime_replacements) } else { @() }
+    $runtimeReplacementList = @($runtimeReplacements)
+    $runtimeBridge = $rule.runtime_trigger_bridge
+    $runtimeBridgeRecord = $null
+    $runtimePlayer = 1
+    if ($null -ne $rule.runtime_player) { $runtimePlayer = [int]$rule.runtime_player }
+    foreach ($replacement in $runtimeReplacements) {
         $from = [string]$replacement.from
         $to = [string]$replacement.to
         $source = $replacement.source
-        if ($from -ne "SCV" -or $to -ne "1gangtiegongchengche" -or $MapStem -ne "thanson01.SC2Map" -or $Faction -ne "Iron") {
-            throw "Unsupported Revolution pilot replacement: $MapStem/$Faction $from -> $to"
+        if ($from -notmatch '^[A-Za-z0-9_]+$' -or $to -notmatch '^[A-Za-z0-9_]+$') {
+            throw "Runtime replacement contains an invalid Galaxy catalog id: $from -> $to"
         }
-        $unitDataPath = Join-Path $modRoot "1钢铁之翼.SC2Mod\Base.SC2Data\GameData\UnitData.xml"
-        $unitPattern = '<CUnit id="' + [regex]::Escape($to) + '">'
+        $players = @($replacement.players | ForEach-Object { [int]$_ })
+        if ($players.Count -ne 1 -or $players[0] -ne $runtimePlayer) {
+            throw "Only one explicit runtime player is supported by this adapter: $from -> $to"
+        }
+        $catalogMod = "1钢铁之翼.SC2Mod"
+        if ($null -ne $replacement.catalog_mod) { $catalogMod = [string]$replacement.catalog_mod }
+        $unitDataPath = Join-Path $modRoot "$catalogMod\Base.SC2Data\GameData\UnitData.xml"
+        if (-not (Test-Path -LiteralPath $unitDataPath -PathType Leaf)) {
+            throw "Adapter target catalog data is absent from staged Mods: ${catalogMod}"
+        }
+        $unitPattern = '<CUnit id="' + [regex]::Escape($to) + '"(?:\s|>)'
         if (-not (Select-String -LiteralPath $unitDataPath -Pattern $unitPattern -Quiet)) {
-            throw "Adapter target catalog unit is absent from 1钢铁之翼.SC2Mod: $to"
+            throw "Adapter target catalog unit is absent from ${catalogMod}: $to"
         }
-        $needle = 'libNtve_gf_UnitCreateFacingPoint(1, "SCV", 0, 1, PointFromId(1940147643), PointFromId(1940147643));'
-        $replacementText = 'libNtve_gf_UnitCreateFacingPoint(1, "1gangtiegongchengche", 0, 1, PointFromId(1940147643), PointFromId(1940147643));'
-        $matches = [regex]::Matches($script, [regex]::Escape($needle)).Count
-        if ($matches -ne 1) {
-            throw "Expected exactly one thanson01 P1 SCV opening, found $matches"
-        }
-        $script = $script.Replace($needle, $replacementText)
         $replacementRecords += [ordered]@{
             from = $from
             to = $to
-            players = @($replacement.players)
+            players = $players
+            catalogMod = $catalogMod
             source = [ordered]@{ file = [string]$source.file; line = [int]$source.line }
-            matchCount = $matches
-            status = "applied_to_staged_map"
+            status = "runtime_bootstrap_declared"
         }
     }
-    $declaredEventReplacements = if ($null -ne $rule.event_unit_replacements) {
-        @($rule.event_unit_replacements.PSObject.Properties)
-    } else {
-        @()
-    }
-    foreach ($eventReplacement in $declaredEventReplacements) {
-        $from = [string]$eventReplacement.Name
-        $to = [string]$eventReplacement.Value
-        if ($from -ne "CommandCenter" -or $to -ne "1gangtieyaosai" -or $MapStem -ne "thanson01.SC2Map" -or $Faction -ne "Iron") {
-            throw "Unsupported Revolution event replacement: $MapStem/$Faction $from -> $to"
+
+    if ($null -ne $runtimeBridge) {
+        $bridgeMod = [string]$runtimeBridge.mod
+        $bridgeHeader = [string]$runtimeBridge.header
+        $bridgeTrigger = [string]$runtimeBridge.replacementTrigger
+        if ($bridgeMod -notmatch '^[A-Za-z0-9_.\u4e00-\u9fff-]+\.SC2Mod$' -or
+            $bridgeHeader -notmatch '^[A-Za-z0-9_.-]+\.galaxy$' -or
+            $bridgeTrigger -notmatch '^[A-Za-z0-9_]+$') {
+            throw "Runtime trigger bridge contains an invalid module, header, or trigger id"
         }
-        $unitDataPath = Join-Path $modRoot "1钢铁之翼.SC2Mod\Base.SC2Data\GameData\UnitData.xml"
-        $unitPattern = '<CUnit id="' + [regex]::Escape($to) + '">'
-        if (-not (Select-String -LiteralPath $unitDataPath -Pattern $unitPattern -Quiet)) {
-            throw "Adapter target catalog unit is absent from 1钢铁之翼.SC2Mod: $to"
+        $bridgeHeaderPath = Join-Path $modRoot "$bridgeMod\Base.SC2Data\$bridgeHeader"
+        if (-not (Test-Path -LiteralPath $bridgeHeaderPath -PathType Leaf)) {
+            throw "Runtime trigger bridge header is absent from staged Mods: ${bridgeMod}/${bridgeHeader}"
         }
-        $eventPatches = @(
-            [ordered]@{
-                needle = '            libNtve_gf_RescueUnit(autoEAEE2387_var, gv_p1_USER, true);'
-                variable = 'autoEAEE2387_var'
-                sourceLine = 1743
-            },
-            [ordered]@{
-                needle = '            libNtve_gf_RescueUnit(auto80E05334_var, gv_p1_USER, true);'
-                variable = 'auto80E05334_var'
-                sourceLine = 1778
+        $bridgeHeaderPattern = '^trigger\s+' + [regex]::Escape($bridgeTrigger) + '\s*;'
+        if (-not (Select-String -LiteralPath $bridgeHeaderPath -Pattern $bridgeHeaderPattern -Quiet)) {
+            throw "Runtime trigger bridge declaration is absent: $bridgeTrigger"
+        }
+        $runtimeBridgeRecord = [ordered]@{
+            mode = "runtime_trigger_execute"
+            mod = $bridgeMod
+            header = $bridgeHeader
+            replacementTrigger = $bridgeTrigger
+            source = [ordered]@{
+                file = [string]$runtimeBridge.source.file
+                line = [int]$runtimeBridge.source.line
             }
-        )
-        foreach ($eventPatch in $eventPatches) {
-            $needle = [string]$eventPatch.needle
-            $matches = [regex]::Matches($script, [regex]::Escape($needle)).Count
-            if ($matches -ne 1) {
-                throw "Expected exactly one thanson01 CommandCenter rescue at line $($eventPatch.sourceLine), found $matches"
-            }
-            $replacementText = @(
-                $needle
-                ('        if ((UnitGetType(' + [string]$eventPatch.variable + ') == "CommandCenter")) {')
-                ('            libNtve_gf_ReplaceUnit(' + [string]$eventPatch.variable + ', "' + $to + '", libNtve_ge_ReplaceUnitOptions_OldUnitsRelative);')
-                "        }"
-            ) -join [Environment]::NewLine
-            $script = $script.Replace($needle, $replacementText)
-            $eventReplacementRecords += [ordered]@{
-                from = $from
-                to = $to
-                event = "rescue_after"
-                source = [ordered]@{
-                    file = "Maps/thanson01.SC2Map/MapScript.galaxy"
-                    line = [int]$eventPatch.sourceLine
-                }
-                matchCount = $matches
-                status = "applied_to_staged_map"
-            }
+            manualChatRequired = $false
+            status = "runtime_bridge_declared"
         }
     }
-    if ($replacementRecords.Count -gt 0 -or $eventReplacementRecords.Count -gt 0) {
-        $encoding = New-Object System.Text.UTF8Encoding($false)
-        [System.IO.File]::WriteAllText($scriptPath, $script, $encoding)
-    }
-    if ($MapStem -eq "thanson01.SC2Map" -and $Faction -eq "Iron") {
+
+    if ($runtimeReplacementList.Count -gt 0 -or $null -ne $runtimeBridge) {
         $lineBreak = [Environment]::NewLine
-        $steelHeader = 'include "Lib1A1D096B_h"' + $lineBreak
-        if (-not $script.Contains($steelHeader.TrimEnd())) {
+        $runtimeIncludes = @()
+        if ($Faction -eq "Iron" -and $runtimeReplacementList.Count -gt 0) {
+            $runtimeIncludes += 'include "Lib1A1D096B_h"'
+        }
+        if ($null -ne $runtimeBridge) {
+            $runtimeIncludes += ('include "' + [string]$runtimeBridge.header.Replace('.galaxy', '') + '"')
+        }
+        foreach ($runtimeInclude in $runtimeIncludes) {
+            $includeLine = $runtimeInclude + $lineBreak
+            if ($script.Contains($runtimeInclude)) { continue }
             $includeNeedle = 'include "LibWCMI"' + $lineBreak
             if (-not $script.Contains($includeNeedle)) {
-                throw "Expected thanson01 include block was not found for runtime bootstrap"
+                throw "Expected Revolution Overdrive include block was not found for runtime bootstrap"
             }
-            $script = $script.Replace($includeNeedle, $includeNeedle + $steelHeader)
+            $script = $script.Replace($includeNeedle, $includeNeedle + $includeLine)
+        }
+        $replacementLines = @()
+        for ($replacementIndex = 0; $replacementIndex -lt $runtimeReplacementList.Count; $replacementIndex += 1) {
+            $replacement = $runtimeReplacementList[$replacementIndex]
+            $keyword = if ($replacementIndex -eq 0) { "if" } else { "else if" }
+            $replacementLines += ('    ' + $keyword + ' (lv_type == "' + [string]$replacement.from + '") {')
+            $replacementLines += ('        libNtve_gf_ReplaceUnit(lp_unit, "' + [string]$replacement.to + '", libNtve_ge_ReplaceUnitOptions_OldUnitsRelative);')
+            $replacementLines += '    }'
+        }
+        $replacementBody = $replacementLines -join $lineBreak
+        $bridgeCallLines = @()
+        if ($null -ne $runtimeBridge) {
+            $bridgeCallLines += ('    TriggerExecute(' + [string]$runtimeBridge.replacementTrigger + ', false, true);')
+        }
+        $bridgeCallBody = $bridgeCallLines -join $lineBreak
+        $techFunction = ""
+        if ($Faction -eq "Iron" -and $runtimeReplacementList.Count -gt 0) {
+            $techFunction = "        lib1A1D096B_gf_E4B8BAE78EA9E5AEB6E58D87E7BAA7E992A2E99381E4B98BE7BFBCE585A8E7A791E68A80(1);" + $lineBreak
         }
         $bootstrapMarker = '//--------------------------------------------------------------------------------------------------' + $lineBreak + '// Trigger Initialization'
-        $bootstrapCode = @'
+        $bootstrapCode = @"
 // Runtime commander bootstrap injected by the map adapter.
 // It runs inside the game VM; no chat command or UI keystroke is required.
-trigger gv_ro_iron_runtime_bootstrap;
-bool gv_ro_iron_runtime_bootstrap_busy;
-bool gv_ro_iron_runtime_bootstrap_tech_applied;
+trigger gv_ro_commander_runtime_bootstrap;
+bool gv_ro_commander_runtime_bootstrap_busy;
+bool gv_ro_commander_runtime_bootstrap_tech_applied;
 
-void gf_ro_iron_runtime_replace_p1_unit (unit lp_unit) {
+void gf_ro_commander_runtime_replace_p1_unit (unit lp_unit) {
     string lv_type;
     if (lp_unit == null || UnitGetOwner(lp_unit) != 1) {
         return;
     }
     lv_type = UnitGetType(lp_unit);
-    if (lv_type == "SCV") {
-        libNtve_gf_ReplaceUnit(lp_unit, "1gangtiegongchengche", libNtve_ge_ReplaceUnitOptions_OldUnitsRelative);
-    }
-    else if (lv_type == "CommandCenter" || lv_type == "OrbitalCommand" || lv_type == "PlanetaryFortress") {
-        libNtve_gf_ReplaceUnit(lp_unit, "1gangtieyaosai", libNtve_ge_ReplaceUnitOptions_OldUnitsRelative);
-    }
+__RO_REPLACEMENT_BODY__
 }
 
-void gf_ro_iron_runtime_scan_p1 () {
+void gf_ro_commander_runtime_scan_p1 () {
     unitgroup lv_units;
     int lv_index;
     unit lv_unit;
@@ -309,63 +311,67 @@ void gf_ro_iron_runtime_scan_p1 () {
         if (lv_unit == null) {
             break;
         }
-        gf_ro_iron_runtime_replace_p1_unit(lv_unit);
+        gf_ro_commander_runtime_replace_p1_unit(lv_unit);
     }
 }
 
-bool gt_ro_iron_runtime_bootstrap_Func (bool testConds, bool runActions) {
-    if (!runActions || gv_ro_iron_runtime_bootstrap_busy) {
+bool gt_ro_commander_runtime_bootstrap_Func (bool testConds, bool runActions) {
+    if (!runActions || gv_ro_commander_runtime_bootstrap_busy) {
         return true;
     }
-    gv_ro_iron_runtime_bootstrap_busy = true;
-    if (!gv_ro_iron_runtime_bootstrap_tech_applied) {
-        lib1A1D096B_gf_E4B8BAE78EA9E5AEB6E58D87E7BAA7E992A2E99381E4B98BE7BFBCE585A8E7A791E68A80(1);
-        gv_ro_iron_runtime_bootstrap_tech_applied = true;
+    gv_ro_commander_runtime_bootstrap_busy = true;
+    if (!gv_ro_commander_runtime_bootstrap_tech_applied) {
+__RO_TECH_FUNCTION__        gv_ro_commander_runtime_bootstrap_tech_applied = true;
     }
     if (EventUnit() != null) {
-        gf_ro_iron_runtime_replace_p1_unit(EventUnit());
+        gf_ro_commander_runtime_replace_p1_unit(EventUnit());
     }
-    gf_ro_iron_runtime_scan_p1();
-    gv_ro_iron_runtime_bootstrap_busy = false;
+    gf_ro_commander_runtime_scan_p1();
+__RO_BRIDGE_CALL__
+    gv_ro_commander_runtime_bootstrap_busy = false;
     return true;
 }
 
-void gt_ro_iron_runtime_bootstrap_Init () {
-    gv_ro_iron_runtime_bootstrap = TriggerCreate("gt_ro_iron_runtime_bootstrap_Func");
-    TriggerAddEventUnitCreated(gv_ro_iron_runtime_bootstrap, null, null, null);
-    TriggerAddEventUnitChangeOwner(gv_ro_iron_runtime_bootstrap, null);
-    TriggerAddEventTimePeriodic(gv_ro_iron_runtime_bootstrap, 0.25, c_timeGame);
+void gt_ro_commander_runtime_bootstrap_Init () {
+    gv_ro_commander_runtime_bootstrap = TriggerCreate("gt_ro_commander_runtime_bootstrap_Func");
+    TriggerAddEventUnitCreated(gv_ro_commander_runtime_bootstrap, null, null, null);
+    TriggerAddEventUnitChangeOwner(gv_ro_commander_runtime_bootstrap, null);
+    TriggerAddEventTimePeriodic(gv_ro_commander_runtime_bootstrap, 0.25, c_timeGame);
 }
 
-'@
+"@
+        $bootstrapCode = $bootstrapCode.Replace('__RO_REPLACEMENT_BODY__', $replacementBody)
+        $bootstrapCode = $bootstrapCode.Replace('__RO_TECH_FUNCTION__', $techFunction)
+        $bootstrapCode = $bootstrapCode.Replace('__RO_BRIDGE_CALL__', $bridgeCallBody)
         if ($script.Contains($bootstrapMarker)) {
             $script = $script.Replace($bootstrapMarker, $bootstrapCode + $bootstrapMarker)
         } else {
-            throw "Expected thanson01 trigger initialization marker was not found for runtime bootstrap"
+            throw "Expected trigger initialization marker was not found for runtime bootstrap"
         }
-        $initNeedle = '    gt_VictoryCleanup_Init();' + $lineBreak
+        $initNeedle = 'void InitTriggers () {' + $lineBreak
         if ([regex]::Matches($script, [regex]::Escape($initNeedle)).Count -ne 1) {
-            throw "Expected exactly one thanson01 trigger initialization tail"
+            throw "Expected exactly one InitTriggers bootstrap anchor"
         }
-        $script = $script.Replace($initNeedle, $initNeedle + '    gt_ro_iron_runtime_bootstrap_Init();' + $lineBreak)
+        $script = $script.Replace($initNeedle, $initNeedle + '    gt_ro_commander_runtime_bootstrap_Init();' + $lineBreak)
+        $triggerExecuteRecords = New-Object 'System.Collections.Generic.List[string]'
+        if ($null -ne $runtimeBridge) {
+            [void]$triggerExecuteRecords.Add([string]$runtimeBridge.replacementTrigger)
+        }
         $record.runtimeBootstrap = [ordered]@{
             mode = "runtime_galaxy_bootstrap"
             manualChatRequired = $false
             source = "launcher-injected MapScript.galaxy"
             events = @("UnitCreated", "UnitChangeOwner", "TimePeriodic")
-            player = 1
-            replacements = [ordered]@{
-                SCV = "1gangtiegongchengche"
-                CommandCenter = "1gangtieyaosai"
-                OrbitalCommand = "1gangtieyaosai"
-                PlanetaryFortress = "1gangtieyaosai"
-            }
-            techFunction = "lib1A1D096B_gf_E4B8BAE78EA9E5AEB6E58D87E7BAA7E992A2E99381E4B98BE7BFBCE585A8E7A791E68A80(1)"
+            player = $runtimePlayer
+            replacements = @($replacementRecords)
+            triggerExecute = $triggerExecuteRecords
+            techFunction = $techFunction.Trim()
         }
+        if ($null -ne $runtimeBridgeRecord) { $record.runtimeTriggerBridge = $runtimeBridgeRecord }
         $encoding = New-Object System.Text.UTF8Encoding($false)
         [System.IO.File]::WriteAllText($scriptPath, $script, $encoding)
     }
-    $record.status = if ($replacementRecords.Count -gt 0 -or $eventReplacementRecords.Count -gt 0) { "applied" } else { "matched_rule_without_replacements" }
+    $record.status = if ($replacementRecords.Count -gt 0 -or $null -ne $runtimeBridge) { "applied" } else { "matched_rule_without_replacements" }
     $record.replacements = @($replacementRecords)
     $record.eventReplacements = @($eventReplacementRecords)
     $record.selectionMode = if ($null -ne $rule.selection.mode) { [string]$rule.selection.mode } else { "manual_chat" }
@@ -618,6 +624,10 @@ if ($NoLaunch) {
 New-Item -ItemType Directory -Force -Path $runtimeEvidenceRoot | Out-Null
 
 $packedMapName = ([System.IO.Path]::GetFileNameWithoutExtension($mapStem) + ".stage07.packed.SC2Map")
+$packedMapBase = Join-Path $runtimeEvidenceRoot $packedMapName
+if ($ListenPort -gt 0 -and (Test-Path -LiteralPath $packedMapBase -PathType Leaf)) {
+    $packedMapName = ([System.IO.Path]::GetFileNameWithoutExtension($mapStem) + ".stage07." + $ListenPort + ".packed.SC2Map")
+}
 $packedMap = Pack-OwnedMap -Source $liveMap -Destination (Join-Path $runtimeEvidenceRoot $packedMapName)
 $evidence['packedMap'] = $packedMap
 $runtimeMapDirectory = Join-Path $sc2Root "Maps\RevolutionOverdrive"

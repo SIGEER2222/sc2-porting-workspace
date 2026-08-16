@@ -1,5 +1,10 @@
 # Next Stage Plan: Native AI Ally Closure
 
+> **2026-08-16 status update:** Stage 07 commander closure is now passed. The thanson01/Iron
+> replacement is proven by a pure runtime Galaxy window, and the old thorner03 loop-48 blocker
+> was superseded by Stage 09's map-owned P2 handover evidence. The remaining scope here is the
+> general RO-AI-001 dynamic-owner population; it remains fail-closed.
+
 ## Objective
 
 Determine whether the map-owned P2 slot is a real controllable AI ally and complete the
