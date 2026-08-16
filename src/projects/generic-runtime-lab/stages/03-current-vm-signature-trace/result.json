@@ -26,6 +26,8 @@
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port5993.json",
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port5994.json",
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port5995.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-breakpoint-trace-map-only-port5997.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port5997.json",
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/BreakpointTrace.SC2Map",
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/breakpoint-trace-build-report.json"
   ],
@@ -101,6 +103,20 @@
       "evidence_type": "runtime"
     },
     {
+      "command": "pwsh launch-galaxy-vibe.ps1 -Port 5997 -Map BreakpointTrace.SC2Map -ModPath '' + galaxy_repl.py --rpc-session-id trace_probe_5997 --cmd 'step 600'",
+      "exitCode": 0,
+      "summary": "Map-only CreateGame/JoinGame and 600-frame step passed, but no GalaxyVibe Bank file was present afterward; no trigger-to-Bank claim made.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-breakpoint-trace-map-only-port5997.json",
+      "evidence_type": "runtime"
+    },
+    {
+      "command": "python tools/galaxy-vibe/script_error_check.py --since 1786879673 --out runtime/scripterror-port5997.json",
+      "exitCode": 0,
+      "summary": "Port 5997 same-window ScriptError gate reported no new ScriptError files.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port5997.json",
+      "evidence_type": "runtime"
+    },
+    {
       "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-revolution-overdrive.ps1 -MapName traynor01.SC2Map -Faction Iron -ListenPort 5983 -NoCheats -SecondaryClient -ReadyTimeoutSeconds 180",
       "exitCode": 1,
       "summary": "Blocked after launcher timeout because an unrelated SC2 owner already occupied the runtime environment; no process was terminated and no fresh Galaxy breakpoint claim was made.",
@@ -111,7 +127,7 @@
   "runtime": {
     "status": "PARTIAL",
     "hook_enabled": false,
-    "scriptErrors": "ports 5993, 5994, and 5995 reported no new ScriptError files",
+    "scriptErrors": "ports 5993, 5994, 5995, and 5997 reported no new ScriptError files",
     "trace_status": "VEH_BREAKPOINT_HIGH_VOLUME_UNCORRELATED",
     "fixture_evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/fixture-veh-breakpoint-trace.json",
     "historical_sc2_evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-veh-breakpoint-trace-port5981-historical.json",
@@ -133,8 +149,8 @@
       "severity": "high",
       "status": "open",
       "evidence_type": "inference",
-      "detail": "Fresh launcher-owned windows reached CreateGame/JoinGame, but the VEH observer saw high-volume generic 0x80000003 traffic and the pre-seeded GalaxyVibe Bank remained an empty shell. No same-window Galaxy breakpoint; attributable VEH event; and trace_before/trace_after chain was captured.",
-      "nextAction": "Add a filtered event-source observer or an explicitly persisted map startup marker, then repeat the trace in a fresh window. Keep the profile disabled until the causal chain is independently attributable."
+      "detail": "Fresh launcher-owned windows reached CreateGame/JoinGame, but the VEH observer saw high-volume generic 0x80000003 traffic and the map-only check produced no persistent GalaxyVibe Bank. No same-window Galaxy breakpoint; attributable VEH event; and trace_before/trace_after chain was captured.",
+      "nextAction": "Add a filtered event-source observer and an explicitly persisted map startup/Bank marker, then repeat the trace. Keep the profile disabled until the causal chain is independently attributable."
     },
     {
       "id": "GSVM-SC2-LIVE-OWNER-BLOCKED",

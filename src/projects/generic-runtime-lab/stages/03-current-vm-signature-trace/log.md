@@ -126,3 +126,21 @@ fixture PASS: API readiness and Create/Join are reproducible, but Galaxy
 breakpoint-to-VEH-to-Bank correlation remains unproven. Do not use the current
 VEH counter as a VM event source; the next attempt needs a filtered event
 observer or an explicitly instrumented map startup marker before promotion.
+
+## 2026-08-16 map-only Bank check
+
+- `runtime`: A no-agent launcher-owned window on port `5997` completed
+  `CreateGame + JoinGame` and `step 600` for `BreakpointTrace.SC2Map`.
+  `Banks\\1\\GalaxyVibe.SC2Bank` was still absent immediately afterward; no
+  Bank marker was claimed. Evidence:
+  `artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-breakpoint-trace-map-only-port5997.json`.
+- `runtime`: The port `5997` same-window ScriptError gate reported no new
+  ScriptError files (`runtime/scripterror-port5997.json`).
+- `inference`: The map/API path is reachable, but the fixture does not yet
+  provide a durable writable Bank in this runtime recipe. This blocks causal
+  Bank correlation independently of the high-volume VEH breakpoint stream.
+- `runtime`: After the port `5997` observation, a separate SC2 process on port
+  `5948` repopulated `Banks\\1\\GalaxyVibe.SC2Bank` with unrelated session
+  requests. That external process and Bank were identified by command line and
+  left untouched; the map-only evidence above records the file state at the
+  observation time.
