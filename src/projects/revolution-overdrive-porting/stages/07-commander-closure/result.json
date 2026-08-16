@@ -23,7 +23,6 @@
       "type": "runtime",
       "claim": "The approved launcher stages the complete closure, reaches CreateGame=init_game and JoinGame=in_game, advances observations to loop 48, accepts ActionChat(Iron), and has a clean same-window ScriptError scan.",
       "evidence": [
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json",
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/native-census.json",
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/script-error-verdict.json",
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-long/long-census.json",
@@ -33,18 +32,27 @@
     },
     {
       "type": "runtime",
-      "claim": "A fresh direct-map launch of thanson01.SC2Map with the Coverts faction reaches ready=true through the approved launcher and has no same-window ScriptErrors after the SC2 child startup grace period.",
-      "evidence": [
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json"
-      ]
-    },
-    {
-      "type": "runtime",
       "claim": "Native AI ally behavior remains blocked after strict P1 participant plus P2 Computer setup and accepted ordinary native actions: Tychus dies before Region 24, P2-owned units remain absent, no P1-visible P2 ally appears, and no P2 command acknowledgement exists. The observed owner 16 units are Neutral.",
       "evidence": [
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/native-census.json",
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260807-ro-native-census/script-error-verdict.json",
         "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260808-ro-ai-ally-actions/strict-action-census.json"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "A fresh realtime thanson01/Iron session reached CreateGame=init_game and JoinGame=in_game, advanced from game loop 3 to 545 without RequestStep, and accepted one native move action; the map's target Iron worker and fortress were not observed because the bounded window did not reach the map-owned Escort transition.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/launcher-5963-default-data.log",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/runtime-progressed-default-data.json"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "A later isolated secondary-client retry on port 5964 did not reach API ready within 90 seconds while the user's external SC2 instance remained active; no runtime gameplay claim is made from that attempt.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/launcher-5964-isolated.log",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json"
       ]
     }
   ],
@@ -112,9 +120,24 @@
       "summary": "CreateGame=init_game and JoinGame=in_game; attack-move and move returned ActionResult=1; Tychus died before Region 24; P2-owned units=0, P1-visible P2 ally=0, owner 16 remained Neutral, P2 acknowledgement=false; same-window ScriptError count=0. Verdict remains blocked."
     },
     {
-      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-revolution-overdrive.ps1 -MapName thanson01.SC2Map -Faction Coverts -ReadyTimeoutSeconds 90 -NoCheats",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-revolution-overdrive.ps1 -MapName thanson01.SC2Map -Faction Iron -ListenPort 5963 -SecondaryClient -NoCheats -ReadyTimeoutSeconds 90",
       "exitCode": 0,
-      "summary": "Real approved direct-map launch passed after the SC2 child startup grace: ready=true, ScriptErrors=0, and SC2 remained running."
+      "summary": "Fresh approved launcher run staged 57 files, applied the thanson01 Iron runtime Galaxy bootstrap, reached ready=true, and emitted no faction chat command."
+    },
+    {
+      "command": "python src/projects/revolution-overdrive-porting/stages/07-commander-closure/iron_opening_runtime_probe.py --port 5963 --map <thanson01.stage07.packed.SC2Map> --progress-to-escort --observe-seconds 35",
+      "exitCode": 1,
+      "summary": "Realtime probe reached init_game/in_game, advanced loop 3->545 with requestStepsSent=0, accepted ActionResult=1 for native move, and returned blocked_target_units_not_observed with zero errors."
+    },
+    {
+      "command": "python -m py_compile src/projects/revolution-overdrive-porting/stages/07-commander-closure/iron_opening_runtime_probe.py",
+      "exitCode": 0,
+      "summary": "Delayed finite retry and raw-unit census changes compile successfully."
+    },
+    {
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-revolution-overdrive.ps1 -MapName thanson01.SC2Map -Faction Iron -ListenPort 5964 -SecondaryClient -DataDirOverride <isolated-temp-dir> -NoCheats -ReadyTimeoutSeconds 90",
+      "exitCode": 1,
+      "summary": "Isolated retry did not reach ready within 90 seconds while the external 5943 SC2 instance was active; the user's process was not terminated."
     }
   ],
   "nextStage": "ai-ally-native-closure"

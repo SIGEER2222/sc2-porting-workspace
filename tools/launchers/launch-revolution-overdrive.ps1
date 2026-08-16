@@ -15,6 +15,8 @@ param(
     [string]$Sc2Root = "",
     [int]$ListenPort = 0,
     [switch]$NoLaunch,
+    [switch]$SecondaryClient,
+    [string]$DataDirOverride = "",
     [switch]$NoCheats,
     [string]$VoidCampaignSource = "",
     [switch]$ReplaceVoidCampaign,
@@ -27,6 +29,13 @@ $ErrorActionPreference = "Stop"
 # 强制 PowerShell 输出编码为 UTF-8，确保 Python 端能正确解码中文消息
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
+
+if ($SecondaryClient -and $ListenPort -le 0) {
+    throw "-SecondaryClient requires -ListenPort <port>"
+}
+if ($DataDirOverride -and -not $SecondaryClient) {
+    throw "-DataDirOverride is reserved for -SecondaryClient"
+}
 
 # 全局异常 trap：将未捕获的终止错误通过 Write-Host 写入 stdout
 trap {
@@ -53,11 +62,13 @@ $gameLogsRoot = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "StarCra
 $runtimeEvidenceRoot = Join-Path $workspace "artifacts\projects\revolution-overdrive-porting\stage07-commander-closure"
 
 $factions = @{
-    Iron = "Iron"
-    Madness = "Madness"
-    Pirate = "Pirate"
-    Coverts = "Coverts"
-    Umojan = "Umojan"
+    # The shared RO library listens for the English preset name, while the
+    # Iron faction mod listens for its native bootstrap command as well.
+    Iron = @("Iron", "gangtiezhiyi")
+    Madness = @("Madness")
+    Pirate = @("Pirate")
+    Coverts = @("Coverts")
+    Umojan = @("Umojan")
 }
 $requiredMods = @(
     "RevolutionOverdrive.SC2Mod",
@@ -109,6 +120,258 @@ function Copy-DirectoryOverlay {
             Copy-Item -LiteralPath $item.FullName -Destination $target -Force
         }
     }
+}
+
+function Resolve-MapCommanderAdapter {
+    param(
+        [string]$MapStem,
+        [string]$Faction
+    )
+    $configPath = Join-Path $workspace "src\projects\revolution-overdrive-porting\vibe\map_commander_adapters.json"
+    if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
+        throw "Revolution Overdrive map adapter config not found: $configPath"
+    }
+    $config = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $commanderId = "RevolutionOverdrive$Faction"
+    foreach ($rule in @($config.map_commander_rules)) {
+        if ($MapStem -match [string]$rule.map_pattern -and $commanderId -match [string]$rule.commander_pattern) {
+            return [ordered]@{
+                config = $configPath
+                commander = $commanderId
+                rule = $rule
+            }
+        }
+    }
+    return [ordered]@{
+        config = $configPath
+        commander = $commanderId
+        rule = $null
+    }
+}
+
+function Apply-MapCommanderAdapter {
+    param(
+        [string]$MapPath,
+        [string]$MapStem,
+        [string]$Faction
+    )
+    $resolved = Resolve-MapCommanderAdapter -MapStem $MapStem -Faction $Faction
+    $rule = $resolved.rule
+    $record = [ordered]@{
+        schemaVersion = 1
+        classification = "static"
+        config = $resolved.config
+        commander = $resolved.commander
+        map = $MapStem
+        status = "no_matching_rule"
+        replacements = @()
+        protectedPlayers = @()
+    }
+    if ($null -eq $rule) { return $record }
+    if ($null -ne $rule.map_unit_policy.protectedPlayers) {
+        $record.protectedPlayers = @($rule.map_unit_policy.protectedPlayers)
+    }
+    $record.ruleId = [string]$rule.id
+    $scriptPath = Join-Path $MapPath "MapScript.galaxy"
+    if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+        throw "Map adapter target script not found: $scriptPath"
+    }
+    $script = [System.IO.File]::ReadAllText($scriptPath)
+    $replacementRecords = @()
+    $eventReplacementRecords = @()
+    $declaredReplacements = if ($null -ne $rule.unit_replacements) { @($rule.unit_replacements) } else { @() }
+    foreach ($replacement in $declaredReplacements) {
+        $from = [string]$replacement.from
+        $to = [string]$replacement.to
+        $source = $replacement.source
+        if ($from -ne "SCV" -or $to -ne "1gangtiegongchengche" -or $MapStem -ne "thanson01.SC2Map" -or $Faction -ne "Iron") {
+            throw "Unsupported Revolution pilot replacement: $MapStem/$Faction $from -> $to"
+        }
+        $unitDataPath = Join-Path $modRoot "1钢铁之翼.SC2Mod\Base.SC2Data\GameData\UnitData.xml"
+        $unitPattern = '<CUnit id="' + [regex]::Escape($to) + '">'
+        if (-not (Select-String -LiteralPath $unitDataPath -Pattern $unitPattern -Quiet)) {
+            throw "Adapter target catalog unit is absent from 1钢铁之翼.SC2Mod: $to"
+        }
+        $needle = 'libNtve_gf_UnitCreateFacingPoint(1, "SCV", 0, 1, PointFromId(1940147643), PointFromId(1940147643));'
+        $replacementText = 'libNtve_gf_UnitCreateFacingPoint(1, "1gangtiegongchengche", 0, 1, PointFromId(1940147643), PointFromId(1940147643));'
+        $matches = [regex]::Matches($script, [regex]::Escape($needle)).Count
+        if ($matches -ne 1) {
+            throw "Expected exactly one thanson01 P1 SCV opening, found $matches"
+        }
+        $script = $script.Replace($needle, $replacementText)
+        $replacementRecords += [ordered]@{
+            from = $from
+            to = $to
+            players = @($replacement.players)
+            source = [ordered]@{ file = [string]$source.file; line = [int]$source.line }
+            matchCount = $matches
+            status = "applied_to_staged_map"
+        }
+    }
+    $declaredEventReplacements = if ($null -ne $rule.event_unit_replacements) {
+        @($rule.event_unit_replacements.PSObject.Properties)
+    } else {
+        @()
+    }
+    foreach ($eventReplacement in $declaredEventReplacements) {
+        $from = [string]$eventReplacement.Name
+        $to = [string]$eventReplacement.Value
+        if ($from -ne "CommandCenter" -or $to -ne "1gangtieyaosai" -or $MapStem -ne "thanson01.SC2Map" -or $Faction -ne "Iron") {
+            throw "Unsupported Revolution event replacement: $MapStem/$Faction $from -> $to"
+        }
+        $unitDataPath = Join-Path $modRoot "1钢铁之翼.SC2Mod\Base.SC2Data\GameData\UnitData.xml"
+        $unitPattern = '<CUnit id="' + [regex]::Escape($to) + '">'
+        if (-not (Select-String -LiteralPath $unitDataPath -Pattern $unitPattern -Quiet)) {
+            throw "Adapter target catalog unit is absent from 1钢铁之翼.SC2Mod: $to"
+        }
+        $eventPatches = @(
+            [ordered]@{
+                needle = '            libNtve_gf_RescueUnit(autoEAEE2387_var, gv_p1_USER, true);'
+                variable = 'autoEAEE2387_var'
+                sourceLine = 1743
+            },
+            [ordered]@{
+                needle = '            libNtve_gf_RescueUnit(auto80E05334_var, gv_p1_USER, true);'
+                variable = 'auto80E05334_var'
+                sourceLine = 1778
+            }
+        )
+        foreach ($eventPatch in $eventPatches) {
+            $needle = [string]$eventPatch.needle
+            $matches = [regex]::Matches($script, [regex]::Escape($needle)).Count
+            if ($matches -ne 1) {
+                throw "Expected exactly one thanson01 CommandCenter rescue at line $($eventPatch.sourceLine), found $matches"
+            }
+            $replacementText = @(
+                $needle
+                ('        if ((UnitGetType(' + [string]$eventPatch.variable + ') == "CommandCenter")) {')
+                ('            libNtve_gf_ReplaceUnit(' + [string]$eventPatch.variable + ', "' + $to + '", libNtve_ge_ReplaceUnitOptions_OldUnitsRelative);')
+                "        }"
+            ) -join [Environment]::NewLine
+            $script = $script.Replace($needle, $replacementText)
+            $eventReplacementRecords += [ordered]@{
+                from = $from
+                to = $to
+                event = "rescue_after"
+                source = [ordered]@{
+                    file = "Maps/thanson01.SC2Map/MapScript.galaxy"
+                    line = [int]$eventPatch.sourceLine
+                }
+                matchCount = $matches
+                status = "applied_to_staged_map"
+            }
+        }
+    }
+    if ($replacementRecords.Count -gt 0 -or $eventReplacementRecords.Count -gt 0) {
+        $encoding = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($scriptPath, $script, $encoding)
+    }
+    if ($MapStem -eq "thanson01.SC2Map" -and $Faction -eq "Iron") {
+        $lineBreak = [Environment]::NewLine
+        $steelHeader = 'include "Lib1A1D096B_h"' + $lineBreak
+        if (-not $script.Contains($steelHeader.TrimEnd())) {
+            $includeNeedle = 'include "LibWCMI"' + $lineBreak
+            if (-not $script.Contains($includeNeedle)) {
+                throw "Expected thanson01 include block was not found for runtime bootstrap"
+            }
+            $script = $script.Replace($includeNeedle, $includeNeedle + $steelHeader)
+        }
+        $bootstrapMarker = '//--------------------------------------------------------------------------------------------------' + $lineBreak + '// Trigger Initialization'
+        $bootstrapCode = @'
+// Runtime commander bootstrap injected by the map adapter.
+// It runs inside the game VM; no chat command or UI keystroke is required.
+trigger gv_ro_iron_runtime_bootstrap;
+bool gv_ro_iron_runtime_bootstrap_busy;
+bool gv_ro_iron_runtime_bootstrap_tech_applied;
+
+void gf_ro_iron_runtime_replace_p1_unit (unit lp_unit) {
+    string lv_type;
+    if (lp_unit == null || UnitGetOwner(lp_unit) != 1) {
+        return;
+    }
+    lv_type = UnitGetType(lp_unit);
+    if (lv_type == "SCV") {
+        libNtve_gf_ReplaceUnit(lp_unit, "1gangtiegongchengche", libNtve_ge_ReplaceUnitOptions_OldUnitsRelative);
+    }
+    else if (lv_type == "CommandCenter" || lv_type == "OrbitalCommand" || lv_type == "PlanetaryFortress") {
+        libNtve_gf_ReplaceUnit(lp_unit, "1gangtieyaosai", libNtve_ge_ReplaceUnitOptions_OldUnitsRelative);
+    }
+}
+
+void gf_ro_iron_runtime_scan_p1 () {
+    unitgroup lv_units;
+    int lv_index;
+    unit lv_unit;
+    lv_units = UnitGroup(null, 1, RegionEntireMap(), UnitFilter(0, 0, (1 << c_targetFilterMissile), (1 << (c_targetFilterDead - 32)) | (1 << (c_targetFilterHidden - 32))), 0);
+    lv_index = UnitGroupCount(lv_units, c_unitCountAll);
+    for (;; lv_index -= 1) {
+        lv_unit = UnitGroupUnitFromEnd(lv_units, lv_index);
+        if (lv_unit == null) {
+            break;
+        }
+        gf_ro_iron_runtime_replace_p1_unit(lv_unit);
+    }
+}
+
+bool gt_ro_iron_runtime_bootstrap_Func (bool testConds, bool runActions) {
+    if (!runActions || gv_ro_iron_runtime_bootstrap_busy) {
+        return true;
+    }
+    gv_ro_iron_runtime_bootstrap_busy = true;
+    if (!gv_ro_iron_runtime_bootstrap_tech_applied) {
+        lib1A1D096B_gf_E4B8BAE78EA9E5AEB6E58D87E7BAA7E992A2E99381E4B98BE7BFBCE585A8E7A791E68A80(1);
+        gv_ro_iron_runtime_bootstrap_tech_applied = true;
+    }
+    if (EventUnit() != null) {
+        gf_ro_iron_runtime_replace_p1_unit(EventUnit());
+    }
+    gf_ro_iron_runtime_scan_p1();
+    gv_ro_iron_runtime_bootstrap_busy = false;
+    return true;
+}
+
+void gt_ro_iron_runtime_bootstrap_Init () {
+    gv_ro_iron_runtime_bootstrap = TriggerCreate("gt_ro_iron_runtime_bootstrap_Func");
+    TriggerAddEventUnitCreated(gv_ro_iron_runtime_bootstrap, null, null, null);
+    TriggerAddEventUnitChangeOwner(gv_ro_iron_runtime_bootstrap, null);
+    TriggerAddEventTimePeriodic(gv_ro_iron_runtime_bootstrap, 0.25, c_timeGame);
+}
+
+'@
+        if ($script.Contains($bootstrapMarker)) {
+            $script = $script.Replace($bootstrapMarker, $bootstrapCode + $bootstrapMarker)
+        } else {
+            throw "Expected thanson01 trigger initialization marker was not found for runtime bootstrap"
+        }
+        $initNeedle = '    gt_VictoryCleanup_Init();' + $lineBreak
+        if ([regex]::Matches($script, [regex]::Escape($initNeedle)).Count -ne 1) {
+            throw "Expected exactly one thanson01 trigger initialization tail"
+        }
+        $script = $script.Replace($initNeedle, $initNeedle + '    gt_ro_iron_runtime_bootstrap_Init();' + $lineBreak)
+        $record.runtimeBootstrap = [ordered]@{
+            mode = "runtime_galaxy_bootstrap"
+            manualChatRequired = $false
+            source = "launcher-injected MapScript.galaxy"
+            events = @("UnitCreated", "UnitChangeOwner", "TimePeriodic")
+            player = 1
+            replacements = [ordered]@{
+                SCV = "1gangtiegongchengche"
+                CommandCenter = "1gangtieyaosai"
+                OrbitalCommand = "1gangtieyaosai"
+                PlanetaryFortress = "1gangtieyaosai"
+            }
+            techFunction = "lib1A1D096B_gf_E4B8BAE78EA9E5AEB6E58D87E7BAA7E992A2E99381E4B98BE7BFBCE585A8E7A791E68A80(1)"
+        }
+        $encoding = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($scriptPath, $script, $encoding)
+    }
+    $record.status = if ($replacementRecords.Count -gt 0 -or $eventReplacementRecords.Count -gt 0) { "applied" } else { "matched_rule_without_replacements" }
+    $record.replacements = @($replacementRecords)
+    $record.eventReplacements = @($eventReplacementRecords)
+    $record.selectionMode = if ($null -ne $rule.selection.mode) { [string]$rule.selection.mode } else { "manual_chat" }
+    $record.manualChatRequired = if ($null -ne $rule.selection.manualChatRequired) { [bool]$rule.selection.manualChatRequired } else { $true }
+    $record.selectionCommands = if ($null -ne $rule.selection.commands) { @($rule.selection.commands) } else { @() }
+    return $record
 }
 
 function Get-DirectoryManifest {
@@ -184,19 +447,53 @@ function Wait-ApiReady {
     return $false
 }
 
+function Test-ApiPort {
+    param([int]$Port)
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $task = $client.ConnectAsync("127.0.0.1", $Port)
+        return ($task.Wait(1000) -and $client.Connected)
+    } catch {
+        return $false
+    } finally {
+        $client.Dispose()
+    }
+}
+
+function Wait-ApiStable {
+    param([int]$Port, [int]$Seconds)
+    $deadline = [DateTime]::UtcNow.AddSeconds($Seconds)
+    while ([DateTime]::UtcNow -lt $deadline) {
+        if (-not (Test-ApiPort -Port $Port)) { return $false }
+        if (-not (Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue)) { return $false }
+        Start-Sleep -Seconds 1
+    }
+    return $true
+}
+
+function Get-ApiOwnerPid {
+    param([int]$Port)
+    $connection = @(Get-NetTCPConnection -LocalAddress "127.0.0.1" -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1)
+    if ($connection.Count -eq 0) { return 0 }
+    return [int]$connection[0].OwningProcess
+}
+
 function Send-FactionChat {
-    param([string]$Chat)
+    param([string[]]$Chats)
     Add-Type -AssemblyName Microsoft.VisualBasic
     $process = Get-Process -Name "SC2_x64" -ErrorAction SilentlyContinue | Select-Object -First 1
-    if (-not $process) { Write-Warning "SC2 process not found; faction chat was not sent: $Chat"; return $false }
+    if (-not $process) { Write-Warning "SC2 process not found; faction bootstrap was not sent: $($Chats -join ', ')"; return $false }
     try { [Microsoft.VisualBasic.Interaction]::AppActivate($process.Id) | Out-Null } catch { Write-Warning "Could not focus SC2: $($_.Exception.Message)"; return $false }
     Start-Sleep -Milliseconds 500
     $shell = New-Object -ComObject WScript.Shell
-    $shell.SendKeys("{ENTER}")
-    Start-Sleep -Milliseconds 150
-    $shell.SendKeys($Chat)
-    Start-Sleep -Milliseconds 150
-    $shell.SendKeys("{ENTER}")
+    foreach ($chat in @($Chats)) {
+        $shell.SendKeys("{ENTER}")
+        Start-Sleep -Milliseconds 150
+        $shell.SendKeys([string]$chat)
+        Start-Sleep -Milliseconds 150
+        $shell.SendKeys("{ENTER}")
+        Start-Sleep -Milliseconds 250
+    }
     return $true
 }
 
@@ -284,6 +581,7 @@ foreach ($mod in $requiredMods) {
     }
 }
 Copy-OwnedDirectory -Source $mapSource -Destination $liveMap
+$mapAdapter = Apply-MapCommanderAdapter -MapPath $liveMap -MapStem $mapStem -Faction $Faction
 
 $startedAt = Get-Date
 $evidence = [ordered]@{
@@ -292,15 +590,19 @@ $evidence = [ordered]@{
     package = "revolution-overdrive"
     map = $mapStem
     faction = $Faction
-    factionChat = $factions[$Faction]
+    factionChat = if ($mapAdapter.selectionMode -eq "runtime_galaxy_bootstrap") { @() } else { @($factions[$Faction]) }
+    factionSelectionCommands = if ($mapAdapter.selectionMode -eq "runtime_galaxy_bootstrap") { @() } else { @($factions[$Faction]) }
     sourceMap = "src/projects/revolution-overdrive-porting/packages/Maps/$mapStem"
     stagedMap = $liveMap
     stagedMods = $requiredMods
     assetMirror = "assets/src/projects/revolution-overdrive-porting/packages/Commander/Mods"
     assetOverlays = $assetOverlays
+    mapAdapter = $mapAdapter
     campaignDependencies = $campaignDependencies
     voidCampaign = $campaignDependencies[0]
     noLaunch = [bool]$NoLaunch
+    secondaryClient = [bool]$SecondaryClient
+    dataDirOverride = $DataDirOverride
     listenPort = $ListenPort
     startedAtUtc = $startedAt.ToUniversalTime().ToString("o")
 }
@@ -318,6 +620,12 @@ New-Item -ItemType Directory -Force -Path $runtimeEvidenceRoot | Out-Null
 $packedMapName = ([System.IO.Path]::GetFileNameWithoutExtension($mapStem) + ".stage07.packed.SC2Map")
 $packedMap = Pack-OwnedMap -Source $liveMap -Destination (Join-Path $runtimeEvidenceRoot $packedMapName)
 $evidence['packedMap'] = $packedMap
+$runtimeMapDirectory = Join-Path $sc2Root "Maps\RevolutionOverdrive"
+$runtimePackedMap = Join-Path $runtimeMapDirectory $packedMapName
+New-Item -ItemType Directory -Force -Path $runtimeMapDirectory | Out-Null
+Copy-Item -LiteralPath $packedMap -Destination $runtimePackedMap -Force
+$evidence['runtimeMap'] = "Maps\RevolutionOverdrive\$packedMapName"
+$evidence['runtimeMapLocalPath'] = $runtimePackedMap
 
 # Runtime-verification mode (API / -ListenPort set) must NEVER kill or assume ownership of an
 # externally-owned SC2 instance. If SC2 is already running here, we cannot prove it is ours, so we
@@ -325,7 +633,7 @@ $evidence['packedMap'] = $packedMap
 # session. (Plan risk rule: 不终止或接管外部 owner；保持 blocked 并等待独立窗口.)
 # Non-API play mode (default, -run packedMap) keeps the prior relaunch-kill behavior, because the
 # user has explicitly asked to (re)launch the map and expects the previous instance to be replaced.
-if ($ListenPort -gt 0) {
+if ($ListenPort -gt 0 -and -not $SecondaryClient) {
     $existingSc2 = @(Get-Process -Name "SC2_x64", "SC2Switcher_x64" -ErrorAction SilentlyContinue)
     if ($existingSc2.Count -gt 0) {
         $ownerInfo = $existingSc2 | ForEach-Object {
@@ -349,12 +657,30 @@ if ($ListenPort -gt 0) {
     }
 }
 
-Get-Process -Name "SC2_x64", "SC2Switcher_x64" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+if (-not $SecondaryClient) {
+    Get-Process -Name "SC2_x64", "SC2Switcher_x64" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+}
 Start-Sleep -Seconds 2
 $args = if ($ListenPort -gt 0) {
     @("-listen", "127.0.0.1", "-port", "$ListenPort", "-debug")
 } else {
     @("-run", $packedMap)
+}
+if ($ListenPort -gt 0) {
+    $runtimeTempDir = Join-Path $env:TEMP "sc2-ro-$PID-$ListenPort"
+    New-Item -ItemType Directory -Force -Path $runtimeTempDir | Out-Null
+    $sc2DataDir = if ($DataDirOverride) { (Resolve-Path -LiteralPath $DataDirOverride).Path } else { $sc2Root }
+    $args += @("-dataDir", ('"' + $sc2DataDir + '"'), "-tempDir", $runtimeTempDir)
+    if ($SecondaryClient) {
+        # A primary player session may own the fullscreen D3D device. Keep the
+        # explicit parallel runtime windowed so it can start without taking it.
+        $args += @("-displayMode", "0", "-windowWidth", "800", "-windowHeight", "600")
+    }
+    $evidence.runtimeIsolation = [ordered]@{
+        secondaryClient = [bool]$SecondaryClient
+        dataDir = $sc2DataDir
+        tempDir = $runtimeTempDir
+    }
 }
 Write-Host "Launching SC2 through SC2Switcher_x64.exe: $($args -join ' ')"
 $process = Start-Process -FilePath $switcher -ArgumentList $args -WorkingDirectory $sc2Root -PassThru
@@ -384,10 +710,21 @@ if ($ListenPort -gt 0) {
 }
 $evidence.scriptErrors = @(Get-NewScriptErrors -Since $startedAt | ForEach-Object { $_.FullName })
 $evidence.scriptErrorFree = ($evidence.scriptErrors.Count -eq 0)
-if ($evidence.ready -and -not $NoCheats -and $ListenPort -le 0) {
+$evidence.apiOwnerPid = if ($ListenPort -gt 0) { Get-ApiOwnerPid -Port $ListenPort } else { 0 }
+if ($evidence.ready -and -not $NoCheats -and $ListenPort -le 0 -and $mapAdapter.selectionMode -ne "runtime_galaxy_bootstrap") {
     Start-Sleep -Seconds 2
-    $evidence.factionChatSent = Send-FactionChat -Chat $factions[$Faction]
-} else { $evidence.factionChatSent = $false }
+    $evidence.factionChatSent = Send-FactionChat -Chats $factions[$Faction]
+    $evidence.factionSelectionMode = "launcher_bootstrap"
+    $evidence.manualFactionInputRequired = $false
+} elseif ($mapAdapter.selectionMode -eq "runtime_galaxy_bootstrap") {
+    $evidence.factionChatSent = $false
+    $evidence.factionSelectionMode = "runtime_galaxy_bootstrap"
+    $evidence.manualFactionInputRequired = $false
+} else {
+    $evidence.factionChatSent = $false
+}
+$evidence.apiStable = if ($ListenPort -gt 0 -and $evidence.ready) { Wait-ApiStable -Port $ListenPort -Seconds 4 } else { $true }
+$evidence.ready = ($evidence.ready -and $evidence.apiStable)
 $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $runtimeEvidenceRoot "launcher-runtime.json") -Encoding UTF8
 if (-not $evidence.ready) { throw "SC2 did not produce a ready signal within $ReadyTimeoutSeconds seconds." }
 if (-not $evidence.scriptErrorFree) { throw "New ScriptError detected: $($evidence.scriptErrors -join ', ')" }

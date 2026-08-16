@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "description": "起义狂潮地图与指挥官组合适配。每条组合规则必须声明替换范围；未声明的任务单位保持原样。",
+  "defaults": {
+    "startup": {
+      "startingStructure": "CommandCenter",
+      "startingWorker": "SCV",
+      "workerCount": 5,
+      "vanillaRemovals": []
+    },
+    "map_unit_policy": {
+      "mode": "preserve_native",
+      "removeUnitTypes": [],
+      "protectedUnitTypes": [],
+      "anchorUnitTypes": [],
+      "targetPlayers": [],
+      "protectedPlayers": []
+    }
+  },
+  "commander_rules": [
+    {
+      "id": "revolution-overdrive-iron",
+      "pattern": "^RevolutionOverdriveIron$",
+      "startup": {
+        "startingStructure": "1gangtieyaosai",
+        "startingWorker": "1gangtiegongchengche",
+        "workerCount": 1
+      }
+    },
+    {
+      "id": "revolution-overdrive-faction-default",
+      "pattern": "^RevolutionOverdrive",
+      "startup": {
+        "startingStructure": "CommandCenter",
+        "startingWorker": "SCV"
+      }
+    }
+  ],
+  "map_rules": [
+    {
+      "id": "revolution-overdrive-native-map",
+      "pattern": "^.+\\.SC2Map$",
+      "map_unit_policy": {
+        "mode": "preserve_native"
+      }
+    }
+  ],
+  "map_commander_rules": [
+    {
+      "id": "thanson01-iron-opening",
+      "map_pattern": "^thanson01\\.SC2Map$",
+      "commander_pattern": "^RevolutionOverdriveIron$",
+      "selection": {
+        "mode": "runtime_galaxy_bootstrap",
+        "manualChatRequired": false,
+        "commands": []
+      },
+      "map_unit_policy": {
+        "mode": "targeted_script_replacement",
+        "targetPlayers": [1],
+        "protectedPlayers": [2, 3, 4, 5, 6, 7, 8, 9, 10, 15],
+        "protectedUnitTypes": [
+          "SpecialOpsDropship",
+          "Marine",
+          "Firebat",
+          "Medic",
+          "Goliath",
+          "Vulture",
+          "SiegeTankSieged"
+        ],
+        "anchorUnitTypes": ["SpecialOpsDropship"]
+      },
+      "unit_replacements": [
+        {
+          "from": "SCV",
+          "to": "1gangtiegongchengche",
+          "from_name": "SCV（工人）",
+          "to_name": "钢铁工程车",
+          "players": [1],
+          "source": {
+            "file": "Maps/thanson01.SC2Map/MapScript.galaxy",
+            "line": 2422
+          },
+          "reason": "大撤离 Starting Game 创建的 P1 初始工人"
+        }
+      ],
+      "event_unit_replacements": {
+        "CommandCenter": "1gangtieyaosai"
+      }
+    }
+  ]
+}

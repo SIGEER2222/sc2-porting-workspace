@@ -62,10 +62,35 @@
       "summary": "The direct-map Revolution Overdrive launcher could exit before SC2_x64 became visible after SC2Switcher returned.",
       "evidence": [
         "tools/launchers/launch-revolution-overdrive.ps1",
-        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json"
+        "src/projects/revolution-overdrive-porting/stages/07-commander-closure/log.md"
       ],
       "impact": "WebUI launches could be reported as ready-timeout failures even though SC2 was still starting and later produced the map-load log.",
       "nextAction": "Keep the bounded startup grace and same-window Alert/ScriptError gates in future direct-map launcher changes."
+    },
+    {
+      "id": "RO-IRON-001",
+      "severity": "high",
+      "status": "blocked",
+      "summary": "The fresh thanson01 Iron realtime window reached in_game and advanced frames, but did not observe the runtime-replaced worker or fortress after the bounded Region 29 progression action.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/runtime-progressed-default-data.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/launcher-5963-default-data.log",
+        "src/projects/revolution-overdrive-porting/packages/Maps/thanson01.SC2Map/MapScript.galaxy",
+        "src/projects/revolution-overdrive-porting/vibe/map_commander_adapters.json"
+      ],
+      "impact": "The P1 Iron opening replacement and base initialization cannot be claimed as an automatic gameplay pass until the map-owned Escort transition creates or rescues the expected units in the same runtime window.",
+      "nextAction": "Use a mission-supported progression path that reaches Region 29 after the initial cinematic, then require 1gangtiegongchengche and 1gangtieyaosai in raw observations. Do not create an artificial base from the adapter to bypass map-owned initialization."
+    },
+    {
+      "id": "RO-RUN-007",
+      "severity": "medium",
+      "status": "blocked",
+      "summary": "An isolated secondary-client retry with DataDirOverride did not reach API ready while the user's external SC2 instance was active.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/launcher-5964-isolated.log"
+      ],
+      "impact": "Further delayed realtime verification requires a launcher isolation setup that can coexist with the active user instance; the user process was intentionally left untouched.",
+      "nextAction": "Keep the current blocked evidence separate and rerun only after an independently launchable SC2 client slot is available."
     }
   ]
 }
