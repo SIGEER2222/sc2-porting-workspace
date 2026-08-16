@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "02-inprocess-gsvm-agent",
+  "issues": [
+    {
+      "id": "GSVM-CURRENT-SIGNATURE-UNKNOWN",
+      "severity": "high",
+      "status": "open",
+      "evidence_type": "inference",
+      "detail": "The 2016 GSVM research does not provide a verified signature or entrypoint for SC2 5.0.16.97563; the profile contains no executable hooks.",
+      "nextAction": "Perform non-invasive tracing in an approved isolated debug window and only enable a hook after a current signature is independently verified."
+    },
+    {
+      "id": "GSVM-SC2-RUNTIME-GATE",
+      "severity": "high",
+      "status": "open",
+      "evidence_type": "blocked",
+      "detail": "The available SC2 process is an unrelated external map session without the approved debug/listener contract. Injecting it would violate the stage safety boundary and could interfere with the existing WebUI session.",
+      "nextAction": "Launch a fresh approved debug SC2 window through a compliant launcher, then capture PID, command line, binary hash, agent handshake, runtime listener, and same-window ScriptError verdict."
+    }
+  ],
+  "resolved": [
+    {
+      "id": "GSVM-TOOLCHAIN-UNWIND",
+      "evidence_type": "static",
+      "detail": "LLVM-MinGW libunwind was linked and copied beside the native artifacts; the fixture binaries now start successfully."
+    },
+    {
+      "id": "GSVM-FIXTURE-IPC",
+      "evidence_type": "runtime",
+      "detail": "The isolated fixture completed injection, HELLO, STATUS, and SHUTDOWN with hook_enabled=false."
+    }
+  ],
+  "residual_risks": [
+    {
+      "id": "RUNTIME-VM-HOT-RELOAD",
+      "status": "deferred",
+      "detail": "No VM execution, Galaxy bytecode replacement, editor bridge, or in-game WYSIWYG update path is implemented in this foundation stage."
+    }
+  ]
+}
