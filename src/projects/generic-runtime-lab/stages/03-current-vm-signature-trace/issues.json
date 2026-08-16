@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "stage_id": "03-current-vm-signature-trace",
+  "issues": [
+    {
+      "id": "GSVM-CURRENT-SIGNATURE-UNKNOWN",
+      "severity": "high",
+      "status": "open",
+      "evidence_type": "inference",
+      "detail": "The current PE probe can produce string/xref candidates, but no candidate is yet proven to be the Galaxy VM execution entrypoint.",
+      "nextAction": "Correlate a candidate with a launcher-owned debug trace before enabling any hook."
+    }
+  ],
+  "residual_risks": [
+    {
+      "id": "RUNTIME-VM-HOOK-SAFETY",
+      "status": "deferred",
+      "detail": "Promoting a false-positive address could crash SC2 or corrupt a running map; the profile must remain hook_enabled=false until independent verification passes."
+    }
+  ]
+}

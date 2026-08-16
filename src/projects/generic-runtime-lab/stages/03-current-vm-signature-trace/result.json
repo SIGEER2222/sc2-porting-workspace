@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "stage": "03-current-vm-signature-trace",
+  "status": "IN_PROGRESS",
+  "evidence_type": "static",
+  "summary": "Stage 03 is open for current-version VM signature discovery. The profile remains hash-locked with hook_enabled=false.",
+  "changed_paths": [
+    "src/projects/generic-runtime-lab/project.json",
+    "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/plan.md",
+    "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/log.md",
+    "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/result.json",
+    "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/issues.json"
+  ],
+  "validation": [
+    {
+      "command": "python src/projects/generic-runtime-lab/scripts/probe_sc2_binary.py --exe E:\\SC2\\SC2new\\StarCraft II\\Versions\\Base97563\\SC2_x64.exe --profile src/projects/generic-runtime-lab/runtime/native-vm/profiles/sc2-5.0.16.97563.json --out artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/static/sc2-binary-probe.json",
+      "exitCode": 0,
+      "summary": "SHA matched; 54 string/xref candidates recorded; promoted_hooks is empty.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/static/sc2-binary-probe.json",
+      "evidence_type": "static"
+    }
+  ],
+  "runtime": {
+    "status": "PENDING",
+    "hook_enabled": false,
+    "scriptErrors": null
+  },
+  "issues": [
+    {
+      "id": "GSVM-CURRENT-SIGNATURE-UNKNOWN",
+      "severity": "high",
+      "status": "open",
+      "evidence_type": "inference",
+      "detail": "No current-version VM entrypoint has been independently verified for SC2 5.0.16.97563.",
+      "nextAction": "Run the read-only PE probe, then design a non-invasive debug observation that can correlate script dispatch with a candidate code boundary."
+    }
+  ],
+  "nextStage": null
+}

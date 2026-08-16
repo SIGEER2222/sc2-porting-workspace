@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "stage": "02-inprocess-gsvm-agent",
-  "status": "BLOCKED",
+  "status": "COMPLETE",
   "evidence_type": "runtime",
-  "summary": "The version-locked native injection and named-pipe foundation is implemented and passes isolated fixture runtime validation. The required real-SC2 handshake remains blocked because no approved exclusive debug window is available; no Galaxy VM hook is enabled.",
+  "summary": "The version-locked native injection and named-pipe foundation is implemented. An approved launcher-owned SC2 5.0.16.97563 debug window completed the real agent handshake with zero same-window ScriptErrors; no Galaxy VM hook is enabled.",
   "changed_paths": [
     "tools/runtime-vm/Cargo.toml",
     "tools/runtime-vm/controller/src/main.rs",
@@ -18,7 +18,7 @@
     {
       "command": "powershell -NoProfile -ExecutionPolicy Bypass -File src/projects/generic-runtime-lab/scripts/build_native_vm.ps1 -Configuration Release",
       "exitCode": 0,
-      "summary": "Release controller, fixture host, agent DLL, and libunwind.dll built.",
+      "summary": "Release controller, fixture host, and agent DLL built; the agent statically links libunwind and no longer imports libunwind.dll.",
       "evidence_type": "static"
     },
     {
@@ -45,10 +45,24 @@
       "summary": "Fixture runtime completed inject -> HELLO -> STATUS -> SHUTDOWN with hook_enabled=false.",
       "evidence": "artifacts/projects/generic-runtime-lab/stage02-inprocess-gsvm-agent/runtime/fixture-injection.json",
       "evidence_type": "runtime"
+    },
+    {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-revolution-overdrive.ps1 -MapName traynor01.SC2Map -Faction Iron -ListenPort 5911 -NoCheats -ReadyTimeoutSeconds 180",
+      "exitCode": 0,
+      "summary": "Approved launcher produced SC2 PID 21212 with -listen 127.0.0.1 -port 5911 -debug, matching the profile SHA and listener ownership.",
+      "evidence": "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json",
+      "evidence_type": "runtime"
+    },
+    {
+      "command": "gsvm-controller.exe inject --pid 21212 --dll gsvm_agent.dll --profile src/projects/generic-runtime-lab/runtime/native-vm/profiles/sc2-5.0.16.97563.json --ack-debug-process --timeout-ms 15000",
+      "exitCode": 0,
+      "summary": "Real SC2 agent handshake completed with HELLO, STATUS, and SHUTDOWN; hook_enabled=false and vm_hook=disabled.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage02-inprocess-gsvm-agent/runtime/sc2-agent-handshake-port5911.json",
+      "evidence_type": "runtime"
     }
   ],
   "runtime": {
-    "status": "BLOCKED",
+    "status": "PASS",
     "agent": {
       "status": "PASS",
       "protocol": "gsvm-agent/1",
@@ -57,14 +71,18 @@
       "evidence_type": "runtime"
     },
     "sc2_handshake": {
-      "status": "BLOCKED",
-      "reason": "No approved exclusive debug SC2 window was available; the observed PID 9120 was not a valid target.",
-      "evidence_type": "blocked"
+      "status": "PASS",
+      "pid": 21212,
+      "port": 5911,
+      "hook_enabled": false,
+      "evidence": "artifacts/projects/generic-runtime-lab/stage02-inprocess-gsvm-agent/runtime/sc2-agent-handshake-port5911.json",
+      "evidence_type": "runtime"
     },
     "scriptErrors": {
-      "status": "NOT_RUN",
-      "reason": "A real SC2 agent handshake was not attempted.",
-      "evidence_type": "blocked"
+      "status": "PASS",
+      "count": 0,
+      "evidence": "artifacts/projects/generic-runtime-lab/stage02-inprocess-gsvm-agent/runtime/sc2-agent-handshake-port5911.json",
+      "evidence_type": "runtime"
     }
   },
   "issues": [
@@ -79,11 +97,11 @@
     {
       "id": "GSVM-SC2-RUNTIME-GATE",
       "severity": "high",
-      "status": "open",
-      "detail": "A long-lived debug SC2 session is currently owned by the existing WebUI on port 5896; it must not be reused or terminated for injection evidence.",
+      "status": "resolved",
+      "detail": "A fresh launcher-owned debug SC2 window on port 5911 completed the agent handshake and was closed after evidence capture.",
       "evidence_type": "blocked",
-      "nextAction": "Use a fresh approved launcher-owned debug window for the agent handshake."
+      "nextAction": null
     }
   ],
-  "nextStage": null
+  "nextStage": "03-current-vm-signature-trace"
 }

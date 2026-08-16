@@ -17,7 +17,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $llvm 'bin\clang.exe'))) {
 $env:Path = "$(Join-Path $llvm 'bin');$env:Path"
 $env:CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER = Join-Path $llvm 'bin\x86_64-w64-mingw32-clang.exe'
 $env:CARGO_TARGET_X86_64_PC_WINDOWS_GNU_AR = Join-Path $llvm 'bin\x86_64-w64-mingw32-llvm-ar.exe'
-$env:RUSTFLAGS = '-C panic=abort -C link-arg=-lunwind'
+$env:RUSTFLAGS = '-C panic=abort -C link-arg=-Wl,-Bstatic -C link-arg=-l:libunwind.a -C link-arg=-Wl,-Bdynamic'
 $args = @('build', '--manifest-path', $manifest, '--target', $target)
 if ($profile) { $args += $profile }
 & cargo @args
