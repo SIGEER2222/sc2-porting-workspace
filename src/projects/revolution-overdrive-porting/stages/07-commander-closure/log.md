@@ -180,3 +180,22 @@ AI ally behavior remains blocked.
   smoke for `Iron`, `Coverts`, `Umojan`, `Pirate`, and `Madness` all returned exit 0. The earlier
   second-faction staging failure was a live-client directory lock and is not promoted as a
   product failure.
+
+## 2026-08-16 Commander x map rollout matrix
+
+- `static`: Added `map-commander-adaptation-plan.md` as the execution contract for 30 eligible
+  maps x 5 commanders = 150 cells. `tarcade.SC2Map` is excluded as the Stage 04 entry-flow
+  arcade map; `tstory01.SC2Map` remains explicitly pending because it is also entry-flow.
+- `static`: Added `artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/map-commander-matrix.json`.
+  It joins every cell to the preserved MapScript, Stage 04 roster, adapter rule, target Catalog
+  IDs, protected players, and a dedicated runtime evidence directory.
+- `static`: The matrix guard passed 3/3. It reports 7 current runtime-pass cells
+  (`thanson01` x 5, `thanson02/Iron`, `thanson03a/Iron`) and 143 `runtime_pending` cells.
+- `blocked`: The first new `thanson02/Iron` launcher attempt without `-SecondaryClient` was
+  correctly rejected because an external SC2 PID 31752 was already running. A retry through the
+  approved `-SecondaryClient` path on port 5991 staged 50 files but did not produce the requested
+  ready signal within 90 seconds; no existing SC2 process was terminated and no runtime pass was
+  inferred. Evidence: `artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime-blocked.json`
+  and the current `launcher-runtime.json`.
+- `next`: Keep the four remaining `thanson02` cells pending until a fresh independent API window
+  is available, then proceed map-by-map in the order recorded by the rollout plan.

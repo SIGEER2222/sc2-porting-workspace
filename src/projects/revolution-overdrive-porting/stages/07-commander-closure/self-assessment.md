@@ -42,6 +42,12 @@ the WebUI route and the RO AI ally adapter remains deterministic and fail-closed
 - Final rerun passed: 5/5 AI ally tests, 2/2 WebUI tests, 74-file Galaxy lint with zero
   diagnostics, 4,135 catalog entries with zero parse errors, Python compile, workspace validate,
   and approved launcher `-NoLaunch` with 55/55 staged map files.
+- Commander x map rollout plan is now explicit: 150 cells across 30 non-arcade maps and five
+  commanders. Seven cells have current realtime evidence; 143 remain `runtime_pending` rather
+  than being promoted from the generic adapter pattern.
+- The first new thanson02 pilot retry was blocked by the machine's external SC2 runtime lease.
+  The approved launcher staged the map but did not produce an independent ready API window in
+  90 seconds. No existing SC2 process was terminated and no new runtime claim was made.
 
 ## Remaining Scope
 
@@ -50,6 +56,9 @@ the WebUI route and the RO AI ally adapter remains deterministic and fail-closed
 - The old thorner03 loop-48 blocker is superseded by the Stage 09 no-debug handover evidence;
   the current unresolved item is the general RO-AI-001 dynamic-owner population, not the Iron
   commander replacement.
+- The commander-by-map rollout is not complete: `thanson02` Coverts/Umojan/Pirate/Madness and
+  the remaining matrix cells still require fresh same-window runtime evidence. The rollout plan
+  records the exact order and stop conditions.
 
 ## Self-critique
 
@@ -65,5 +74,7 @@ adapter boundary.
 
 Keep map-owned initialization, objectives, rewards, and alliance setup inside the maps. Keep the
 general AI ally adapter fail-closed for the 24 unresolved dynamic-owner maps, while treating all
-five Revolution Overdrive commander runtime replacement paths as proven on thanson01. The next
-stage remains responsible for any broader AI ally contract changes.
+five Revolution Overdrive commander runtime replacement paths as proven on thanson01. Continue
+the commander-by-map matrix only through fresh approved realtime windows; do not turn a static
+match or a launcher ready signal into a cell pass. The next stage remains responsible for any
+broader AI ally contract changes.

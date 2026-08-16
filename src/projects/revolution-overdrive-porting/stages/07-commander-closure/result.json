@@ -73,6 +73,24 @@
         "src/projects/revolution-overdrive-porting/stages/07-commander-closure/test_iron_runtime_adapter.py",
         "tools/launchers/launch-revolution-overdrive.ps1"
       ]
+    },
+    {
+      "type": "static",
+      "claim": "The commander-by-map rollout is represented as a complete 30-map x 5-commander matrix. Every cell has a preserved MapScript source, Stage 04 roster source, adapter rule, target Catalog IDs, protected players, and a dedicated evidence directory; seven cells currently have runtime evidence and 143 remain pending.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/stages/07-commander-closure/map-commander-adaptation-plan.md",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/map-commander-matrix.json",
+        "src/projects/revolution-overdrive-porting/stages/07-commander-closure/test_map_commander_matrix.py"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "The thanson02 non-Iron pilot cells are not runtime-complete in this turn because the approved launcher did not obtain an independent ready API window while an external SC2 runtime was active; no existing process was terminated and no pass was inferred.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime-blocked.json",
+        "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json",
+        "src/projects/revolution-overdrive-porting/stages/07-commander-closure/issues.json"
+      ]
     }
   ],
   "outputs": [
@@ -81,6 +99,9 @@
     "src/projects/revolution-overdrive-porting/stages/07-commander-closure/self-assessment.md",
     "src/projects/revolution-overdrive-porting/stages/07-commander-closure/next-stage-plan.md",
     "src/projects/revolution-overdrive-porting/stages/07-commander-closure/test_iron_runtime_adapter.py",
+    "src/projects/revolution-overdrive-porting/stages/07-commander-closure/map-commander-adaptation-plan.md",
+    "src/projects/revolution-overdrive-porting/stages/07-commander-closure/test_map_commander_matrix.py",
+    "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/map-commander-matrix.json",
     "tools/launchers/launch-revolution-overdrive.ps1",
     "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/launcher-runtime-5988.json",
     "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/runtime-bootstrap-20260816-ro-iron-thanson01/runtime-pure-runtime-secondary-5967.json",
@@ -224,6 +245,46 @@
       "command": "approved launcher -NoLaunch staging smoke thanson01.SC2Map for Iron, Coverts, Umojan, Pirate, and Madness",
       "exitCode": 0,
       "summary": "All five faction staging runs returned exit 0 after live clients exited; each selected the runtime Galaxy bootstrap path without manual faction input."
+    },
+    {
+      "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/07-commander-closure/test_map_commander_matrix.py -v",
+      "exitCode": 0,
+      "summary": "3 matrix tests passed: 150 cells are present, tarcade is excluded, every cell has a static/runtime contract, and the seven known runtime-pass cells point to evidence."
+    },
+    {
+      "command": "node tools/utils/workspace.mjs validate",
+      "exitCode": 0,
+      "summary": "Workspace validation ok=true; only the existing registered-path warnings remain."
+    },
+    {
+      "command": "node tools/utils/workspace.mjs lint src/projects/revolution-overdrive-porting/packages --format json --no-type-check",
+      "exitCode": 0,
+      "summary": "74 Galaxy files, zero diagnostics."
+    },
+    {
+      "command": "python -m unittest src/projects/revolution-overdrive-porting/stages/04-ai-ally/test_ai_ally_adapter.py -v",
+      "exitCode": 0,
+      "summary": "5 AI ally static adapter tests passed."
+    },
+    {
+      "command": "python -m unittest tools/cmre-webui/test_revolution_overdrive.py -v",
+      "exitCode": 0,
+      "summary": "2 WebUI Revolution Overdrive tests passed."
+    },
+    {
+      "command": "python -m py_compile src/projects/revolution-overdrive-porting/stages/07-commander-closure/iron_opening_runtime_probe.py src/projects/revolution-overdrive-porting/stages/07-commander-closure/test_map_commander_matrix.py",
+      "exitCode": 0,
+      "summary": "Runtime probe and matrix test module compile successfully."
+    },
+    {
+      "command": "node tools/analysis/analyze-catalog.mjs revolution-overdrive-owned-package Commander/Mods/RevolutionOverdrive.SC2Mod '.*' artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/matrix-owned-main-catalog.json",
+      "exitCode": 0,
+      "summary": "36 XML files, 4,135 Catalog entries, zero parse errors."
+    },
+    {
+      "command": "approved launcher thanson02/Iron port 5991, first without -SecondaryClient and then with -SecondaryClient",
+      "exitCode": 1,
+      "summary": "The first attempt was correctly blocked by external SC2 owner PID 31752; the secondary attempt staged 50 files but did not reach ready within 90 seconds. No existing SC2 process was terminated, and the cell remains represented by existing independent Iron evidence rather than this blocked attempt."
     }
   ],
   "nextStage": "ai-ally-native-closure"
