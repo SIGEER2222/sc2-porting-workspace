@@ -9,6 +9,23 @@
       "evidence_type": "inference",
       "detail": "The corrected PE probe finds 6,643 file-backed RIP-relative instructions but zero direct references to the exact starts of the 54 diagnostic strings. No candidate is proven to be the Galaxy VM execution entrypoint.",
       "nextAction": "Add or identify an event-source observer, then run the non-invasive recipe in two fresh launcher-owned debug windows before enabling any hook."
+    },
+    {
+      "id": "GSVM-GALAXY-BREAKPOINT-CORRELATION",
+      "severity": "high",
+      "status": "open",
+      "evidence_type": "inference",
+      "detail": "Fresh launcher-owned ports 5993-5995 reached CreateGame/JoinGame, but the VEH observer saw high-volume generic 0x80000003 traffic and the pre-seeded GalaxyVibe Bank remained an empty shell. No same-window record links Galaxy breakpoint; an attributable VEH event; and Bank trace_before/trace_after.",
+      "nextAction": "Add a filtered event-source observer or an explicitly persisted map startup marker, then repeat the trace. Keep hook_enabled=false until the causal chain is independently attributable."
+    },
+    {
+      "id": "GSVM-SC2-LIVE-OWNER-BLOCKED",
+      "severity": "medium",
+      "status": "resolved",
+      "evidence_type": "blocked",
+      "detail": "The historical 5983 launcher attempt was blocked by an unrelated SC2 owner, but fresh exclusive launcher-owned windows on ports 5993-5995 reached API readiness and CreateGame/JoinGame without taking over an external process.",
+      "nextAction": "No owner blocker remains for this stage; continue only with the filtered VM event observer needed for Galaxy correlation.",
+      "resolution": "Fresh ports 5993-5995 passed the launcher/API ownership gate; the remaining blocker is VM event attribution, tracked by GSVM-GALAXY-BREAKPOINT-CORRELATION."
     }
   ],
   "residual_risks": [

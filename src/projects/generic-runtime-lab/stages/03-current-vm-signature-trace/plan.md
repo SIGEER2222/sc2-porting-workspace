@@ -21,6 +21,9 @@ validated in a launcher-owned debug process.
   disassembly context.
 - A debug-window observation recipe that distinguishes script load, trigger
   dispatch, and VM execution without patching code.
+- A reusable `BreakpointTrace.SC2Map` fixture with a delayed Galaxy
+  `breakpoint;` and `trace_before`/`trace_after` Bank markers for same-window
+  correlation.
 - An updated version profile that remains `hook_enabled=false` unless the
   signature passes the stage's independent verification gate.
 - Stage evidence quartet and a concrete decision on whether a hook can be

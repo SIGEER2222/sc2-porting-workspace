@@ -3,7 +3,7 @@
   "stage": "03-current-vm-signature-trace",
   "status": "IN_PROGRESS",
   "evidence_type": "static",
-  "summary": "Stage 03 improved the reproducible PE candidate report and defined a non-invasive three-layer trace contract. No current VM entrypoint is verified; the profile remains hash-locked with hook_enabled=false.",
+  "summary": "Stage 03 now has a reproducible native VEH trace protocol, a packed Galaxy breakpoint correlation fixture, fixture runtime evidence, and fresh launcher-owned negative evidence. The current SC2 debug build produces high-volume unfiltered 0x80000003 traffic without durable trace_before/trace_after Bank markers, so Galaxy breakpoint-to-VEH-to-Bank correlation remains outstanding and hook_enabled stays false.",
   "changed_paths": [
     "src/projects/generic-runtime-lab/project.json",
     "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/plan.md",
@@ -12,7 +12,22 @@
     "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/issues.json",
     "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/trace-recipe.md",
     "src/projects/generic-runtime-lab/scripts/probe_sc2_binary.py",
-    "src/projects/generic-runtime-lab/tests/test_native_vm.py"
+    "src/projects/generic-runtime-lab/tests/test_native_vm.py",
+    "src/projects/generic-runtime-lab/tests/test_runtime_lab.py",
+    "src/projects/generic-runtime-lab/scripts/build_runtime_lab.py",
+    "src/projects/generic-runtime-lab/scripts/build_native_vm.ps1",
+    "tools/runtime-vm/Cargo.toml",
+    "tools/runtime-vm/agent/src/lib.rs",
+    "tools/runtime-vm/controller/src/main.rs",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/static/fixture-profile-current.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/fixture-veh-breakpoint-trace.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-veh-breakpoint-trace-port5981-historical.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-breakpoint-trace-runtime-attempts-20260816.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port5993.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port5994.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port5995.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/BreakpointTrace.SC2Map",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/breakpoint-trace-build-report.json"
   ],
   "validation": [
     {
@@ -28,13 +43,80 @@
       "summary": "3 tests passed, including synthetic RIP-relative ModRM displacement coverage.",
       "evidence": "src/projects/generic-runtime-lab/tests/test_native_vm.py",
       "evidence_type": "static"
+    },
+    {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File src/projects/generic-runtime-lab/scripts/build_native_vm.ps1 -Configuration Release",
+      "exitCode": 0,
+      "summary": "Release controller, fixture host, and agent DLL built for x86_64-pc-windows-gnu; fixture-profile.json regenerated from the copied host SHA.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage02-inprocess-gsvm-agent/bin",
+      "evidence_type": "static"
+    },
+    {
+      "command": "cargo test --manifest-path tools/runtime-vm/Cargo.toml --target x86_64-pc-windows-gnu -p gsvm-agent -- --test-threads=1",
+      "exitCode": 0,
+      "summary": "Native VEH protocol test passed: arm, capture 0x80000003 with non-zero IP, count one, disarm.",
+      "evidence": "tools/runtime-vm/agent/src/lib.rs",
+      "evidence_type": "static"
+    },
+    {
+      "command": "cargo test --manifest-path tools/runtime-vm/Cargo.toml --target x86_64-pc-windows-gnu -p gsvm-controller",
+      "exitCode": 0,
+      "summary": "Controller PID-scoped pipe test passed.",
+      "evidence": "tools/runtime-vm/controller/src/main.rs",
+      "evidence_type": "static"
+    },
+    {
+      "command": "python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py --breakpoint-trace",
+      "exitCode": 0,
+      "summary": "Packed BreakpointTrace.SC2Map with twenty-second trigger and trace_before/trace_after Bank keys.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/breakpoint-trace-build-report.json",
+      "evidence_type": "static"
+    },
+    {
+      "command": "node tools/analysis/galaxy-lint.mjs artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/build/BreakpointTrace.SC2Map/MapScript.galaxy --format text; node tools/analysis/galaxy-lint.mjs artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/build/BreakpointTrace.SC2Map/Base.SC2Data/BreakpointTraceDispatch.galaxy --format text",
+      "exitCode": 0,
+      "summary": "Both breakpoint fixture Galaxy files reported zero errors and zero warnings.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/build/BreakpointTrace.SC2Map",
+      "evidence_type": "static"
+    },
+    {
+      "command": "gsvm-controller.exe inject --pid <fixture> --dll gsvm_agent.dll --profile fixture-profile-current.json --ack-debug-process --arm-trace --test-int3 --timeout-ms 15000",
+      "exitCode": 0,
+      "summary": "Fixture handshake and VEH trace passed; breakpoint_count=1, last_exception=2147483651, non-zero last_ip, fixture remained alive, hook_enabled=false.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/fixture-veh-breakpoint-trace.json",
+      "evidence_type": "runtime"
+    },
+    {
+      "command": "pwsh launch-galaxy-vibe.ps1 ports 5993/5994/5995 + gsvm-controller --arm-trace --hold-trace-ms + galaxy_repl.py BreakpointTrace.SC2Map",
+      "exitCode": 1,
+      "summary": "Partial runtime attempt: fresh launcher-owned windows completed CreateGame/JoinGame. Port 5993 step path errored, 5994 completed segmented steps, and 5995 timed out at obs; all traces were high-volume generic 0x80000003 with no trace_before/trace_after Bank markers. No VM correlation claimed.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-breakpoint-trace-runtime-attempts-20260816.json",
+      "evidence_type": "runtime"
+    },
+    {
+      "command": "python tools/galaxy-vibe/script_error_check.py --since <port-launch-epoch> --out runtime/scripterror-port5993.json (and ports 5994/5995)",
+      "exitCode": 0,
+      "summary": "All three same-window ScriptError gates reported no new ScriptError files.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port5993.json",
+      "evidence_type": "runtime"
+    },
+    {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/launchers/launch-revolution-overdrive.ps1 -MapName traynor01.SC2Map -Faction Iron -ListenPort 5983 -NoCheats -SecondaryClient -ReadyTimeoutSeconds 180",
+      "exitCode": 1,
+      "summary": "Blocked after launcher timeout because an unrelated SC2 owner already occupied the runtime environment; no process was terminated and no fresh Galaxy breakpoint claim was made.",
+      "evidence": "artifacts/projects/revolution-overdrive-porting/stage07-commander-closure/launcher-runtime.json",
+      "evidence_type": "blocked"
     }
   ],
   "runtime": {
-    "status": "PENDING",
+    "status": "PARTIAL",
     "hook_enabled": false,
-    "scriptErrors": null,
-    "trace_status": "BLOCKED_AT_VM_LAYER",
+    "scriptErrors": "ports 5993, 5994, and 5995 reported no new ScriptError files",
+    "trace_status": "VEH_BREAKPOINT_HIGH_VOLUME_UNCORRELATED",
+    "fixture_evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/fixture-veh-breakpoint-trace.json",
+    "historical_sc2_evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-veh-breakpoint-trace-port5981-historical.json",
+    "fresh_sc2_attempts": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-breakpoint-trace-runtime-attempts-20260816.json",
+    "breakpoint_map": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/BreakpointTrace.SC2Map",
     "trace_recipe": "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/trace-recipe.md"
   },
   "issues": [
@@ -45,6 +127,23 @@
       "evidence_type": "inference",
       "detail": "No current-version VM entrypoint has been independently verified for SC2 5.0.16.97563.",
       "nextAction": "Run the recipe in a fresh launcher-owned debug window once an event-source observer is available; require trigger-to-VM correlation before considering hook promotion."
+    },
+    {
+      "id": "GSVM-GALAXY-BREAKPOINT-CORRELATION",
+      "severity": "high",
+      "status": "open",
+      "evidence_type": "inference",
+      "detail": "Fresh launcher-owned windows reached CreateGame/JoinGame, but the VEH observer saw high-volume generic 0x80000003 traffic and the pre-seeded GalaxyVibe Bank remained an empty shell. No same-window Galaxy breakpoint; attributable VEH event; and trace_before/trace_after chain was captured.",
+      "nextAction": "Add a filtered event-source observer or an explicitly persisted map startup marker, then repeat the trace in a fresh window. Keep the profile disabled until the causal chain is independently attributable."
+    },
+    {
+      "id": "GSVM-SC2-LIVE-OWNER-BLOCKED",
+      "severity": "medium",
+      "status": "resolved",
+      "evidence_type": "blocked",
+      "detail": "The historical 5983 launcher attempt was blocked by an unrelated SC2 owner, but fresh exclusive launcher-owned windows on ports 5993-5995 reached API readiness and CreateGame/JoinGame without taking over an external process.",
+      "nextAction": "No owner blocker remains for this stage; continue only with the filtered VM event observer needed for Galaxy correlation.",
+      "resolution": "Fresh ports 5993-5995 passed the launcher/API ownership gate; the remaining blocker is VM event attribution, tracked by GSVM-GALAXY-BREAKPOINT-CORRELATION."
     }
   ],
   "nextStage": null
