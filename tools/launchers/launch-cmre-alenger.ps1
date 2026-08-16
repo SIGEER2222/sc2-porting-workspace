@@ -6,7 +6,8 @@ param([Parameter(Mandatory = $true)][string]$MapName, [Parameter(Mandatory = $tr
 # -InvokeTier: Stage 26 全函数 invoke 分档放量开关（0=禁用，100/1000=挂载对应低 id 分片）。
 # -InvokeFull: 挂载全量 generated bundle；不能与 -InvokeTier 同时使用。
 # -EnableDouQuquBehavior: 仅对斗蛐蛐地图注入 stage 27 behavior plugin。
-# -EnableDouQuquRuntime: 仅挂载可由 Vibe VM 即时调用的 douququ.* live module；不注册地图事件。
+# -EnableDouQuquRuntime: 挂载可由 Vibe VM 即时调用的 douququ.* live module，
+# 并注册 GalaxyVibeEvents 事件源，由 RuntimeConsole 驱动自动 vibe-debug/1 VM。
 $ErrorActionPreference = "Stop"
 
 # 强制 PowerShell 输出编码为 UTF-8，确保 Python 端（subprocess.Popen encoding="utf-8"）
@@ -3437,9 +3438,10 @@ try {
                 Start-Sleep -Seconds 2
                 continue
             }
-            # 外来 SC2 检测：玩家游戏或其它 AI 会话会与本启动器争用 SC2 单实例锁，
-            # 导致 SC2Switcher 无法为本次启动打开 API 端口。
-            if ((Get-Date) -gt $foreignDeadline -and (Test-ForeignSc2Running -OurSc2Pid $ourSc2Pid -SwitcherPid $switcherPid)) {
+            # 主客户端必须拒绝外来 SC2，避免误接管玩家游戏。SecondaryClient
+            # 使用独立 dataDir/tempDir，并由调用方明确承担并行客户端语义，
+            # 因此外来主客户端不能阻止它完成自己的 API 监听。
+            if (-not $SecondaryClient -and (Get-Date) -gt $foreignDeadline -and (Test-ForeignSc2Running -OurSc2Pid $ourSc2Pid -SwitcherPid $switcherPid)) {
                 throw ("SC2 API 端口 $ListenPort 无法绑定：检测到另一个 StarCraft II 实例正在运行" +
                        "(疑似玩家游戏或其它 AI 会话，已占用 SC2 单实例锁)。" +
                        "请先在任务管理器关闭其它 StarCraft II / SC2Switcher 进程，再重新点击启动；" +

@@ -3,7 +3,7 @@
   "stage": "27-dou-ququ-behavior-plugin",
   "status": "IN_PROGRESS",
   "evidence_type": "runtime",
-  "summary": "The 斗蛐蛐 runtime VM transport, explicit function calls, JSONL audit log, and ScriptError gate were verified, but those checks only exercised explicit douququ.* calls. The loaded runtime module has no attack, death, kill, or periodic event subscriptions, so normal combat has not been verified to trigger the six requested effects and must not be reported as a behavior pass. The original map remains unchanged; only the runtime staging copy loses the attribution popup. The stage remains IN_PROGRESS while a runtime event source is designed and verified.",
+  "summary": "The 斗蛐蛐 runtime VM transport, explicit function calls, JSONL audit log, ScriptError gate, and static Galaxy event bridge are present. RuntimeConsole now requires RPC OK, SC2 in_game status, and game_loop > 0 before exposing a session. The requested automatic effects remain unverified in this turn because another in-game SC2 session occupied the single-instance runtime and the isolated secondary launcher could not open a second API. The original map remains unchanged; only runtime staging copies are modified. The stage remains IN_PROGRESS and automatic behavior remains BLOCKED/NOT_EXERCISED.",
   "changed_paths": [
     "src/projects/cmre-porting/vibe/map_event_extractor.py",
     "src/projects/cmre-porting/vibe/map_commander_adapter.py",
@@ -251,13 +251,34 @@
       "command": "python -m pytest -q tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_runtime_call_log.py; python -m py_compile tools/cmre-webui/dou_ququ_runtime_probe.py tools/cmre-webui/stage_map_vm_runtime.py tools/cmre-webui/server.py",
       "exitCode": 0,
       "summary": "13 passed. The explicit VM probe now reports explicitVmOverall separately and always marks automatic behavior NOT_EXERCISED, preventing API-side effects from being reported as normal-combat behavior."
+    },
+    {
+      "command": "python -m pytest -q tools/cmre-webui/test_launch_async_contract.py tools/cmre-webui/test_runtime_call_log.py",
+      "exitCode": 0,
+      "summary": "40 passed; RuntimeConsole rejects non-OK probes, requires in_game/game_loop readiness, exposes readiness metadata, and serves the event-log HTTP endpoint."
+    },
+    {
+      "command": "python -m pytest -q tools/launchers/tests/test_launch_cmre_alenger_static.py tools/cmre-webui/test_launch_async_contract.py tools/cmre-webui/test_runtime_call_log.py",
+      "exitCode": 0,
+      "summary": "104 passed; the secondary-client foreign-runtime guard and runtime logging/readiness contracts pass."
+    },
+    {
+      "command": "approved launch-cmre-alenger.ps1 -MapName 地图调试和斗蛐蛐工具（完整功能版).SC2Map -EnableDouQuquRuntime -SecondaryClient -ListenPort 5932",
+      "exitCode": 1,
+      "summary": "BLOCKED: staging completed, but the isolated secondary API did not listen within 120 seconds while an unrelated in_game 大撤离 session occupied the SC2 runtime. No existing process was stopped.",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/auto-event-launch-20260816-secondary2.out.log"
+    },
+    {
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py; powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1",
+      "exitCode": 0,
+      "summary": "136 targeted tests passed; Galaxy static validation passed 52/52 with zero warnings; Python/JavaScript compilation and git diff check passed."
     }
   ],
   "runtime": {
     "status": "BLOCKED",
     "douQuquRuntime": {
       "status": "BLOCKED",
-      "checks": "explicit VM calls: 8/8; automatic combat effects: 0/6 verified",
+      "checks": "explicit VM calls: 8/8; static event bridge present; automatic combat effects: 0/6 verified in the current target-map window",
       "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-call-log.jsonl",
       "scriptErrors": 0
     },
@@ -275,9 +296,11 @@
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-manual-20260815.json",
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/galaxy-user-script-live-fixed-20260816/dou-ququ-runtime-evidence.json",
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/galaxy-user-script-live-fixed-20260816/script-error-verdict-after-probe.json",
-      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-20260816-post-vm.json"
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-20260816-post-vm.json",
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/auto-event-launch-20260816-secondary.out.log",
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/auto-event-launch-20260816-secondary2.out.log"
     ],
-    "blockedBy": "The current LibDouQuquRuntime.galaxy explicitly contains no map triggers and only changes the game for explicit douququ.* RPC calls. A runtime event source for normal combat has not been implemented or observed; the unrelated zzerus03 CreateGame block remains open."
+    "blockedBy": "The live Galaxy event bridge and auto-vm dispatcher are statically present, but this turn could not acquire a target-map SC2 window: an unrelated 大撤离 session was already in_game on 127.0.0.1:5927, and the approved isolated secondary launcher failed to open ports 5931/5932. Automatic behavior therefore remains unobserved; the unrelated zzerus03 CreateGame block also remains open."
   },
   "next_actions": ["Implement and verify a runtime event source that feeds actual attack, death, kill, and periodic events into the VM without treating explicit RPC calls as combat evidence.", "Diagnose and rerun zzerus03 Reborn native-opening initialization before closing the unrelated map-commander blocker."]
 }

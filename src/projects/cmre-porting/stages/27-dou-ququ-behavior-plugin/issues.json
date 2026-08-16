@@ -35,8 +35,8 @@
       "severity": "high",
       "status": "open",
       "title": "Normal combat does not yet drive the runtime VM behavior rules",
-      "detail": "The live evidence exercised explicit douququ.* RPC calls only. LibDouQuquRuntime.galaxy declares that it has no map triggers and changes the game only for explicit calls, so no runtime evidence proves that ordinary attacks, deaths, kills, or elapsed time invoke the requested rules. The previous resolved status was invalidated after an in-game manual check.",
-      "evidence_type": "inference",
+      "detail": "The live Galaxy module now statically registers attack, death, creation, effect, and periodic event triggers and writes GalaxyVibeEvents records; RuntimeConsole dispatches those records through auto-vm with correlation ids. However, this retest could not obtain a target-map SC2 window because an unrelated 大撤离 session occupied the single-instance runtime and the approved isolated secondary launcher failed to open a second API. No runtime evidence yet proves that ordinary attacks, deaths, kills, or elapsed time invoke the requested rules. The earlier explicit RPC results remain API-only evidence.",
+      "evidence_type": "blocked",
       "owner": "stage27",
       "evidence": [
         "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-final/dou-ququ-runtime-evidence.json",
@@ -49,8 +49,10 @@
         "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/galaxy-user-script-live-fixed-20260816/script-error-verdict-after-probe.json",
         "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-call-log.jsonl",
         "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-20260816-post-vm.json"
+        ,"artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/auto-event-launch-20260816-secondary.out.log"
+        ,"artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/auto-event-launch-20260816-secondary2.out.log"
       ],
-      "nextAction": "Add a real runtime event source, then verify each effect from ordinary in-game combat and keep explicit VM calls only as API tests."
+      "nextAction": "When the unrelated SC2 session is naturally closed, launch the target map through the approved launcher, require in_game/game_loop>0, then verify each effect from ordinary combat with GalaxyVibeEvents -> auto-vm -> raw observation evidence. Keep explicit VM calls only as API tests."
     },
     {
       "id": "MAP-COMMANDER-REborn-RUNTIME-BLOCKED",

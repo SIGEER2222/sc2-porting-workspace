@@ -981,6 +981,12 @@ def test_secondary_client_does_not_mutate_shared_runtime_banks():
     assert "SecondaryClient: skipping shared CampaignXCore bank writes" in source
 
 
+def test_secondary_client_is_not_rejected_by_primary_foreign_sc2_guard():
+    source = LAUNCHER.read_text(encoding="utf-8-sig")
+
+    assert "if (-not $SecondaryClient -and (Get-Date) -gt $foreignDeadline" in source
+
+
 def test_secondary_client_can_reuse_an_existing_staged_map_without_restaging():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
 

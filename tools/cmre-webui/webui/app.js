@@ -1052,12 +1052,25 @@ function renderMapDetail(data, statusText = "静态扫描完成") {
     ["适配模式", data.adapter?.map_unit_policy?.mode || "未解析"],
   ].map(([label, value]) => `<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("");
   const adapter = data.adapter || {};
+  const replacements = adapter.unit_replacements || [];
+  $("map-adapter-replacement-count").textContent = `${replacements.length} 条`;
+  $("map-adapter-replacements").innerHTML = replacements.length
+    ? `<table class="map-detail-table"><thead><tr><th>原版单位</th><th>指挥官单位</th><th>玩家</th><th>源码</th></tr></thead><tbody>${replacements.map(item => {
+      const players = (item.players || []).map(player => `P${player}`).join(", ") || "未限定";
+      const source = item.source || {};
+      const sourceText = source.file ? `${source.file}${source.line !== undefined ? `:${source.line}` : ""}` : "未记录";
+      return `<tr><td><strong>${esc(item.from_name || item.from)}</strong><br><code>${esc(item.from)}</code></td><td><strong>${esc(item.to_name || item.to)}</strong><br><code>${esc(item.to)}</code></td><td>${esc(players)}</td><td><code>${esc(sourceText)}</code></td></tr>`;
+    }).join("")}</tbody></table>`
+    : '<div class="map-adapter-replacements-empty">当前组合没有声明单位替换，地图原生单位保持不变。</div>';
   $("map-adapter-detail").textContent = adapter.error ? adapter.error : JSON.stringify({
     mapRule: adapter.evidence?.map_rule,
     commanderRule: adapter.evidence?.commander_rule,
+    combinationRule: adapter.evidence?.combination_rule,
+    adapterConfig: adapter.evidence?.config,
     startup: adapter.startup,
     mapUnitPolicy: adapter.map_unit_policy,
     eventUnitReplacements: adapter.event_unit_replacements,
+    unitReplacements: adapter.unit_replacements,
   }, null, 2);
   renderMapDetailTables(data);
   renderSelectedMapRecord(data.timeline?.[state.mapDetail.selectedIndex ?? 0]);

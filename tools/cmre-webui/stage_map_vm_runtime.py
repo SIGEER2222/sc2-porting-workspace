@@ -79,6 +79,8 @@ def _write_bank_list(path: Path) -> None:
     for player in ("1", "2"):
         if ("GalaxyVibe", player) not in existing:
             ET.SubElement(root, "Bank", Name="GalaxyVibe", Player=player)
+        if ("GalaxyVibeEvents", player) not in existing:
+            ET.SubElement(root, "Bank", Name="GalaxyVibeEvents", Player=player)
     tree = ET.ElementTree(root)
     tree.write(path, encoding="utf-8", xml_declaration=True)
 
@@ -134,6 +136,8 @@ def _patch_map_script(
         raise StagingError(f"source map already contains VM registration marker: {path}")
     init_body = init_map.group(2).rstrip()
     init_body += "\n// CMRE_WEBUI_VIBE_VM_REGISTER\n    libVibeKernel_gf_RegisterEntryPoints();\n"
+    if enable_dou_ququ_runtime:
+        init_body += "    libDouQuquRuntime_InitLib();\n"
     if enable_dou_ququ_features:
         init_body += "    libDouQuquBehavior_InitLib();\n"
     text = text[:init_map.start(2)] + init_body + "\n" + text[init_map.start(3):]
@@ -145,6 +149,7 @@ def _patch_map_script(
         "LibDouQuquRuntime" if enable_dou_ququ_runtime else "LibDouQuquRuntimeDisabled",
         "libVibeKernel_InitLib",
         "libVibeKernel_gf_RegisterEntryPoints",
+        *(["libDouQuquRuntime_InitLib"] if enable_dou_ququ_runtime else []),
         *(["LibDouQuquBehavior", "libDouQuquBehavior_InitLib"] if enable_dou_ququ_features else []),
     ]
 
@@ -269,6 +274,20 @@ def stage_map(source: Path, output: Path, kernel_root: Path = DEFAULT_KERNEL_ROO
         raise StagingError(f"user Galaxy file must be named {user_name}: {user_source}")
     shutil.copy2(user_source, base_data / user_name)
     dou_ququ_files.append(f"Base.SC2Data/{user_name}")
+    if enable_dou_ququ_features or enable_dou_ququ_runtime:
+        game_data = base_data / "GameData"
+        game_data.mkdir(parents=True, exist_ok=True)
+        data_names = (
+            ("AttachMethodData.xml", "EffectData.xml", "AbilData.xml", "UnitData.xml", "ActorData.xml", "ButtonData.xml")
+            if enable_dou_ququ_features
+            else ("AbilData.xml", "ButtonData.xml")
+        )
+        for name in data_names:
+            source_file = dou_ququ_root / name
+            if not source_file.is_file():
+                raise StagingError(f"斗蛐蛐 Data file missing: {source_file}")
+            shutil.copy2(source_file, game_data / name)
+            dou_ququ_files.append(f"Base.SC2Data/GameData/{name}")
     if enable_dou_ququ_features:
         for name in ("LibDouQuquBehavior.galaxy", "LibDouQuquBehavior_h.galaxy"):
             source_file = dou_ququ_root / name
@@ -276,14 +295,6 @@ def stage_map(source: Path, output: Path, kernel_root: Path = DEFAULT_KERNEL_ROO
                 raise StagingError(f"斗蛐蛐 Galaxy file missing: {source_file}")
             shutil.copy2(source_file, base_data / name)
             dou_ququ_files.append(f"Base.SC2Data/{name}")
-        game_data = base_data / "GameData"
-        game_data.mkdir(parents=True, exist_ok=True)
-        for name in ("AttachMethodData.xml", "EffectData.xml", "AbilData.xml", "UnitData.xml", "ActorData.xml", "ButtonData.xml"):
-            source_file = dou_ququ_root / name
-            if not source_file.is_file():
-                raise StagingError(f"斗蛐蛐 Data file missing: {source_file}")
-            shutil.copy2(source_file, game_data / name)
-            dou_ququ_files.append(f"Base.SC2Data/GameData/{name}")
     _write_bank_list(output / "BankList.xml")
     manifest = {
         "schemaVersion": 1,
@@ -309,7 +320,9 @@ def stage_map(source: Path, output: Path, kernel_root: Path = DEFAULT_KERNEL_ROO
         "douQuquRuntime": {
             "enabled": enable_dou_ququ_runtime,
             "module": f"Base.SC2Data/{runtime_name}",
-            "execution": "function.invoke douququ.*",
+            "execution": "function.invoke douququ.* and event-source-driven vibe-debug/1 auto.*",
+            "eventBank": "GalaxyVibeEvents",
+            "automaticDispatch": enable_dou_ququ_runtime,
         },
         "douQuquUserGalaxy": {
             "enabled": enable_dou_ququ_runtime,
@@ -320,7 +333,7 @@ def stage_map(source: Path, output: Path, kernel_root: Path = DEFAULT_KERNEL_ROO
             "sourceAttributionPopup": attribution_cleanup,
             "scope": "staged-copy-only",
         },
-        "bankList": "GalaxyVibe players 1,2",
+        "bankList": "GalaxyVibe and GalaxyVibeEvents players 1,2",
         "readOnlyInputs": [str(source), str(kernel_root), str(dispatch_source)],
         "forbiddenMap": "亡者之夜",
     }

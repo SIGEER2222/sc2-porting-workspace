@@ -39,7 +39,11 @@ from host.vibe_host import (  # noqa: E402
 from vibe import protocol  # noqa: E402
 from vibe.function_registry import load_function_registry  # noqa: E402
 from vibe.simulator_transport import SimulatorTransport  # noqa: E402
-from galaxy_repl import _archive_stale_rpc_bank, _resume_sequence_from_bank  # noqa: E402
+from galaxy_repl import (  # noqa: E402
+    _archive_stale_rpc_bank,
+    _local_map_for_create,
+    _resume_sequence_from_bank,
+)
 
 
 # ---- RPC 协议单元测试 ----
@@ -58,6 +62,21 @@ class TestReplSessionResume(unittest.TestCase):
                 encoding="utf-8",
             )
             self.assertEqual(_resume_sequence_from_bank("resume", bank), 7)
+
+    def test_packed_map_uses_map_data_and_directory_uses_map_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            packed = root / "runtime.SC2Map"
+            packed.write_bytes(b"packed-map")
+            local_map = _local_map_for_create(str(packed))
+            self.assertEqual(local_map.map_data, b"packed-map")
+            self.assertEqual(local_map.map_path, "")
+
+            unpacked = root / "runtime-dir.SC2Map"
+            unpacked.mkdir()
+            local_map = _local_map_for_create(str(unpacked))
+            self.assertEqual(local_map.map_data, b"")
+            self.assertTrue(local_map.map_path.endswith("runtime-dir.SC2Map"))
 
     def test_fresh_rpc_bank_archives_root_and_author_candidates(self):
         with tempfile.TemporaryDirectory() as tmp:

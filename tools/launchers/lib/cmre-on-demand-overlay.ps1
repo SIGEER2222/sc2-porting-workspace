@@ -269,6 +269,7 @@ function Install-CmreDouQuquStandaloneMapOverlay {
         '    libMapModBridge_gf_WriteDebugBank("map_init_entered", 1);',
         '    gt_CmreDouQuquStandaloneRuntimeListener_Init();'
     )
+    if ($EnableDouQuquRuntime) { $initLines += '    libDouQuquRuntime_InitLib();' }
     if ($EnableDouQuquBehavior) { $initLines += '    libDouQuquBehavior_InitLib();' }
     if (-not $mapScript.Contains('gt_CmreDouQuquStandaloneRuntimeListener_Init();')) {
         $initBlock = ($initLines -join [Environment]::NewLine) + [Environment]::NewLine
@@ -325,8 +326,10 @@ function Initialize-CmreRuntimeListenerBank {
     $banksRoot = Join-Path $env:USERPROFILE "Documents\StarCraft II\Banks"
     $bankXml = '<?xml version="1.0" encoding="utf-8"?>' + [Environment]::NewLine + '<Bank version="1"><Section name="debug"/><Section name="ally"/></Bank>'
     $vibeBankXml = '<?xml version="1.0" encoding="utf-8"?>' + [Environment]::NewLine + '<Bank version="1"><Section name="index"/><Section name="request"/><Section name="response"/><Section name="ally"/><Section name="diag"/></Bank>'
+    $eventBankXml = '<?xml version="1.0" encoding="utf-8"?>' + [Environment]::NewLine + '<Bank version="1"><Section name="index"/><Section name="events"/></Bank>'
     $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($bankXml)
     $vibeBytes = [System.Text.UTF8Encoding]::new($false).GetBytes($vibeBankXml)
+    $eventBytes = [System.Text.UTF8Encoding]::new($false).GetBytes($eventBankXml)
     [System.IO.Directory]::CreateDirectory($banksRoot) | Out-Null
     foreach ($dir in @($banksRoot, (Join-Path $banksRoot "1"), (Join-Path $banksRoot "2"), (Join-Path $banksRoot "14"))) {
         [System.IO.Directory]::CreateDirectory($dir) | Out-Null
@@ -337,8 +340,7 @@ function Initialize-CmreRuntimeListenerBank {
         $vibeBankFile = Join-Path $dir "GalaxyVibe.SC2Bank"
         if (-not (Test-Path -LiteralPath $vibeBankFile)) {
             [System.IO.File]::WriteAllBytes($vibeBankFile, $vibeBytes)
-            continue
-        }
+        } else {
 
         $vibeDocument = [System.Xml.XmlDocument]::new()
         $vibeDocument.PreserveWhitespace = $true
@@ -388,6 +390,27 @@ function Initialize-CmreRuntimeListenerBank {
             $vibeDocument.Save($vibeBankFile)
         } catch {
             throw "Could not initialize GalaxyVibe bank sections: $($_.Exception.Message)"
+        }
+        }
+        $eventBankFile = Join-Path $dir "GalaxyVibeEvents.SC2Bank"
+        if (-not (Test-Path -LiteralPath $eventBankFile)) {
+            [System.IO.File]::WriteAllBytes($eventBankFile, $eventBytes)
+        } else {
+            $eventDocument = [System.Xml.XmlDocument]::new()
+            $eventDocument.PreserveWhitespace = $true
+            try {
+                $eventDocument.Load($eventBankFile)
+                foreach ($sectionName in @("index", "events")) {
+                    if (@($eventDocument.Bank.Section | Where-Object { $_.name -eq $sectionName }).Count -eq 0) {
+                        $section = $eventDocument.CreateElement("Section")
+                        $section.SetAttribute("name", $sectionName)
+                        $eventDocument.Bank.AppendChild($section) | Out-Null
+                    }
+                }
+                $eventDocument.Save($eventBankFile)
+            } catch {
+                throw "Could not initialize GalaxyVibeEvents bank sections: $($_.Exception.Message)"
+            }
         }
     }
 }
@@ -1251,7 +1274,7 @@ function Install-CmreObserverOverlay {
             @{ Source = Join-Path $douQuquRoot "ButtonData.xml"; Name = "ButtonData.xml" }
         ) -DestinationRoot $douQuquGameData
         Write-Host "斗蛐蛐 behavior plugin: copied opt-in Galaxy and Data overlays"
-    } else {
+    } elseif (-not $EnableDouQuquRuntime) {
         Get-ChildItem -LiteralPath $baseData -Filter "LibDouQuquBehavior*.galaxy" -File -ErrorAction SilentlyContinue |
             Remove-Item -Force -ErrorAction Stop
         $douQuquGameData = Join-Path $baseData "GameData"
@@ -1262,6 +1285,15 @@ function Install-CmreObserverOverlay {
             }
         }
         Write-Host "斗蛐蛐 behavior plugin: disabled and stale files removed"
+    }
+    if ($EnableDouQuquRuntime -and -not $EnableDouQuquBehavior) {
+        $douQuquGameData = Join-Path $baseData "GameData"
+        New-Item -ItemType Directory -Force -Path $douQuquGameData | Out-Null
+        Copy-CmreOverlayFiles -Files @(
+            @{ Source = Join-Path $douQuquRoot "AbilData.xml"; Name = "AbilData.xml" },
+            @{ Source = Join-Path $douQuquRoot "ButtonData.xml"; Name = "ButtonData.xml" }
+        ) -DestinationRoot $douQuquGameData
+        Write-Host "斗蛐蛐 live VM module: copied runtime AbilData/ButtonData"
     }
 
     $douQuquRuntimeInclude = if ($EnableDouQuquRuntime) { "LibDouQuquRuntime" } else { "LibDouQuquRuntimeDisabled" }
@@ -1439,6 +1471,7 @@ bool gv_CmreOnDemandInitMapEntered = false;
     # 注意：Add-CmreLinesAfter 以整行文本判重，故此行必须与首行那句**文本不同**
     #（保留尾部 // CMRE_REASSERT 注释），否则会被当成已存在而被过滤掉。
     $initTriggerLines = @('    libVibeKernel_gf_WriteBankInt("index", "stage16_after_vibe", 160801);', '    libVibeKernel_gf_RegisterEntryPoints();', '    libMapModBridge_gf_WriteDebugBank("stage16_after_vibe", 1);', '    libMapModBridge_gf_WriteDebugBank("map_init_entered", 1); // CMRE_REASSERT', '    libDeadOfNightObserver_InitLib();', '    gt_CmreOnDemandRuntimeListener_Init();', '    gt_CmreOnDemandDeadOfNightPoll_Init();', '    gt_CmreOnDemandCommanderStartingUnits_Init();', '    gt_CmreOnDemandAllyChat_Init();')
+    if ($EnableDouQuquRuntime) { $initTriggerLines += '    libDouQuquRuntime_InitLib();' }
     if ($enableCmreComputerAllyEconomy) {
         $initTriggerLines += '    gt_CmreOnDemandComputerAllyReady_Init();'
         Write-Host "CMRE computer ally economy: enabled for owned CMRE map $MapName"
@@ -1538,6 +1571,8 @@ bool gv_CmreOnDemandInitMapEntered = false;
         # undeclared bank during map initialization, which would stop InitMap
         # before the kernel can register its transports.
         @{ Name = "GalaxyVibe"; Player = "1" },
+        @{ Name = "GalaxyVibeEvents"; Player = "1" },
+        @{ Name = "GalaxyVibeEvents"; Player = "2" },
         @{ Name = "CMRERebornDebug"; Player = "1" },
         @{ Name = "CMRERebornDebug"; Player = "2" },
         @{ Name = "CMRERebornDebug"; Player = "14" }

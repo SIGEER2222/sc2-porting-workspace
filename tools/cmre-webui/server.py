@@ -148,6 +148,7 @@ DOU_QUQU_RUNTIME_PACKED_MAP = (
     DOU_QUQU_ARTIFACT_ROOT.parent / "dou-ququ-runtime-vm.packed.SC2Map"
 )
 DOU_QUQU_RUNTIME_CALL_LOG = DOU_QUQU_ARTIFACT_ROOT.parent / "douququ-runtime-vm-call-log.jsonl"
+DOU_QUQU_RUNTIME_EVENT_LOG = DOU_QUQU_ARTIFACT_ROOT.parent / "douququ-runtime-event-log.jsonl"
 DOU_QUQU_USER_SCRIPT_TEMPLATE = (
     REPO_ROOT / "tools" / "launchers" / "overlays" / "cmre-alenger" / "startup" / USER_SCRIPT_NAME
 )
@@ -155,7 +156,76 @@ DOU_QUQU_USER_SCRIPT_ARTIFACT = DOU_QUQU_ARTIFACT_ROOT.parent / "galaxy-user-scr
 DOU_QUQU_USER_SCRIPT_STAGE_ROOT = DOU_QUQU_ARTIFACT_ROOT.parent / "galaxy-user-script-stage"
 DOU_QUQU_PACK_SCRIPT = REPO_ROOT / "tools" / "mpq" / "scripts" / "pack-sc2map.ps1"
 MAP_ADAPTER_CONFIG = VIBE_PROJECT_ROOT / "map_commander_adapters.json"
+REVOLUTION_MAP_ADAPTER_CONFIG = (
+    REPO_ROOT
+    / "src"
+    / "projects"
+    / "revolution-overdrive-porting"
+    / "vibe"
+    / "map_commander_adapters.json"
+)
 _MAP_DETAIL_CACHE: dict[tuple[str, str], tuple[tuple[int, int], dict]] = {}
+
+
+def parse_runtime_event_bank(path: Path) -> dict:
+    """Read the append-only GalaxyVibeEvents bank without mutating it."""
+    path = Path(path)
+    if not path.is_file():
+        return {"path": str(path), "event_session": "", "events": []}
+    try:
+        root = ET.parse(path).getroot()
+    except (OSError, ET.ParseError):
+        return {"path": str(path), "event_session": "", "events": [], "parse_error": True}
+    sections: dict[str, dict[str, object]] = {}
+    for section in root.findall("./Section"):
+        section_name = section.get("name", "")
+        values: dict[str, object] = {}
+        for key in section.findall("./Key"):
+            key_name = key.get("name", "")
+            value = key.find("./Value")
+            if not key_name or value is None:
+                continue
+            if "int" in value.attrib:
+                raw_value: object = value.attrib["int"]
+                try:
+                    raw_value = int(raw_value)
+                except ValueError:
+                    pass
+            elif "string" in value.attrib:
+                raw_value = value.attrib["string"]
+            elif "text" in value.attrib:
+                raw_value = value.attrib["text"]
+            elif "flag" in value.attrib:
+                raw_value = value.attrib["flag"] == "1"
+            else:
+                continue
+            values[key_name] = raw_value
+        sections[section_name] = values
+    index = sections.get("index", {})
+    event_values = sections.get("events", {})
+    events = []
+    for event_id, raw_event in event_values.items():
+        if not isinstance(raw_event, str):
+            continue
+        try:
+            event = json.loads(raw_event)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        try:
+            numeric_id = int(event.get("eventId", event_id))
+        except (TypeError, ValueError):
+            continue
+        event["eventId"] = numeric_id
+        events.append(event)
+    events.sort(key=lambda item: int(item.get("eventId", 0)))
+    return {
+        "path": str(path),
+        "event_session": str(index.get("event_session", "") or ""),
+        "events": events,
+        "last_event_id": max((int(item.get("eventId", 0)) for item in events), default=0),
+    }
 
 
 def _dou_ququ_map_root() -> Path | None:
@@ -380,12 +450,18 @@ def load_map_details(map_name: str, package_id: str = "cmre", commander_id: str 
         ).extract()
         _MAP_DETAIL_CACHE[cache_key] = (stamp, extracted)
 
+    adapter_config = (
+        REVOLUTION_MAP_ADAPTER_CONFIG
+        if package_id == "revolution-overdrive"
+        else MAP_ADAPTER_CONFIG
+    )
     try:
         adapter = resolve_adapter(
-            load_adapter_config(MAP_ADAPTER_CONFIG),
+            load_adapter_config(adapter_config),
             map_name=map_name,
             commander_id=commander_id or "TerranAlenger3",
         )
+        adapter.setdefault("evidence", {})["config"] = _repo_relative(adapter_config)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         adapter = {"error": f"适配层未加载: {exc}"}
 
@@ -1545,7 +1621,12 @@ _launcher_lock = threading.Lock()
 class RuntimeConsole:
     """Own one long-lived VibeREPL on a worker event loop for the browser console."""
 
-    def __init__(self, call_log_path: Path | None = None):
+    def __init__(
+        self,
+        call_log_path: Path | None = None,
+        event_log_path: Path | None = None,
+        event_bank_root: Path | None = None,
+    ):
         self._lock = threading.RLock()
         self._operation_lock = None
         self._loop = None
@@ -1560,6 +1641,16 @@ class RuntimeConsole:
         self._trace = []
         self._running = ""
         self._call_log_path = Path(call_log_path or DOU_QUQU_RUNTIME_CALL_LOG)
+        self._event_log_path = Path(event_log_path or DOU_QUQU_RUNTIME_EVENT_LOG)
+        self._event_bank_root = Path(
+            event_bank_root
+            or (Path.home() / "Documents" / "StarCraft II" / "Banks")
+        )
+        self._event_session = ""
+        self._event_cursor = 0
+        self._event_pump_task = None
+        self._event_bank_path = ""
+        self._readiness = {}
 
     def _ensure_loop(self):
         with self._lock:
@@ -1660,6 +1751,266 @@ class RuntimeConsole:
         # must not be used to guess which session belongs to the current game.
         return sorted(sessions.values(), key=lambda item: item["session_id"])[:20]
 
+    def _event_bank_paths(self) -> list[Path]:
+        root = self._event_bank_root
+        paths = [root / "GalaxyVibeEvents.SC2Bank"]
+        if root.is_dir():
+            paths.extend(
+                child / "GalaxyVibeEvents.SC2Bank"
+                for child in root.iterdir()
+                if child.is_dir() and child.name.isdigit()
+            )
+        return paths
+
+    def _read_event_snapshot(self) -> dict:
+        snapshots = []
+        for path in self._event_bank_paths():
+            snapshot = parse_runtime_event_bank(path)
+            if snapshot.get("event_session"):
+                try:
+                    snapshot["_mtime_ns"] = path.stat().st_mtime_ns
+                except OSError:
+                    snapshot["_mtime_ns"] = 0
+                snapshots.append(snapshot)
+        if not snapshots:
+            return {}
+        with self._lock:
+            current_session = self._event_session
+        matching = [
+            item for item in snapshots
+            if current_session and item.get("event_session") == current_session
+        ]
+        candidates = matching or snapshots
+        return max(
+            candidates,
+            key=lambda item: (
+                int(item.get("last_event_id", 0) or 0),
+                int(item.get("_mtime_ns", 0) or 0),
+            ),
+        )
+
+    @staticmethod
+    def _event_dispatch(event: dict, correlation_id: str):
+        event_type = str(event.get("eventType", "") or "")
+        payload = event.get("payload")
+        if not isinstance(payload, dict):
+            return None
+        if event_type == "unit_attacked":
+            attacker_type = str(payload.get("attackerType", "") or "")
+            if attacker_type not in {"Reaver", "BroodLord"}:
+                return None
+            return (
+                "douququ.auto.attack",
+                {
+                    "attacker_tag": int(payload.get("attackerTag", 0) or 0),
+                    "target_tag": int(payload.get("targetTag", 0) or 0),
+                    "correlation_id": correlation_id,
+                },
+            )
+        if event_type == "unit_died":
+            killer_type = str(payload.get("killerType", "") or "")
+            victim_type = str(payload.get("victimType", "") or "")
+            if victim_type != "Vulture" and killer_type not in {
+                "Reaver",
+                "Hydralisk",
+                "K5Kerrigan",
+                "K5KerriganBurrowed",
+            }:
+                return None
+            return (
+                "douququ.auto.death",
+                {
+                    "correlation_id": correlation_id,
+                    "killer_tag": int(payload.get("killerTag", 0) or 0),
+                    "victim_owner": int(payload.get("victimOwner", 0) or 0),
+                    "victim_tag": int(payload.get("victimTag", 0) or 0),
+                    "victim_type": victim_type,
+                    "victim_x": float(payload.get("victimX", 0.0) or 0.0),
+                    "victim_y": float(payload.get("victimY", 0.0) or 0.0),
+                },
+            )
+        if event_type == "unit_created":
+            unit_type = str(payload.get("unitType", "") or "")
+            if unit_type not in {"Vulture", "InfestedBanshee"}:
+                return None
+            return (
+                "douququ.auto.created",
+                {
+                    "correlation_id": correlation_id,
+                    "unit_tag": int(payload.get("unitTag", 0) or 0),
+                },
+            )
+        if event_type == "effect_used":
+            return (
+                "douququ.auto.effect",
+                {
+                    "ability": str(payload.get("ability", "") or ""),
+                    "correlation_id": correlation_id,
+                    "unit_tag": int(payload.get("unitTag", 0) or 0),
+                },
+            )
+        if event_type == "periodic":
+            return (
+                "douququ.auto.periodic",
+                {
+                    "correlation_id": correlation_id,
+                    "seconds": float(payload.get("seconds", 0.0) or 0.0),
+                },
+            )
+        return None
+
+    @staticmethod
+    def _automatic_program(function_id: str, args: dict) -> dict:
+        return {
+            "vm": "vibe-debug/1",
+            "mode": "debug",
+            "steps": [
+                {
+                    "op": "call",
+                    "fn": function_id,
+                    "args": args,
+                    "save": "automatic",
+                }
+            ],
+        }
+
+    async def _poll_events_unlocked(self):
+        snapshot = self._read_event_snapshot()
+        event_session = str(snapshot.get("event_session", "") or "")
+        if not event_session:
+            return []
+        with self._lock:
+            if self._event_session != event_session:
+                self._event_session = event_session
+                self._event_cursor = 0
+            self._event_bank_path = str(snapshot.get("path", ""))
+            cursor = self._event_cursor
+        dispatched = []
+        for event in snapshot.get("events", [])[:128]:
+            event_id = int(event.get("eventId", 0) or 0)
+            if event_id <= cursor:
+                continue
+            correlation_id = (
+                f"auto-vm:{self._session_id}:{event_session}:{event_id}"
+            )
+            dispatch = self._event_dispatch(event, correlation_id)
+            # Advance before executing the VM. A malformed or failed event is
+            # still consumed exactly once and remains visible in the event log.
+            with self._lock:
+                self._event_cursor = event_id
+            function_id = dispatch[0] if dispatch else ""
+            args = dispatch[1] if dispatch else {}
+            vm_result = None
+            error = None
+            status = "ignored"
+            if dispatch:
+                try:
+                    vm_result = await self._run_vm_unlocked(
+                        self._automatic_program(function_id, args),
+                        origin="auto-vm",
+                    )
+                    status = (
+                        "passed"
+                        if isinstance(vm_result, dict)
+                        and vm_result.get("status") == "passed"
+                        else "failed"
+                    )
+                except Exception as exc:
+                    error = {"type": type(exc).__name__, "message": str(exc)}
+                    status = "failed"
+            record = {
+                "schema_version": "douququ-runtime-event.v1",
+                "timestamp": self._timestamp(),
+                "ts": time.time(),
+                "op": "event",
+                "event_id": event_id,
+                "event_session": event_session,
+                "event_type": event.get("eventType", ""),
+                "raw_event": event,
+                "correlation_id": correlation_id,
+                "dispatch_function_id": function_id,
+                "dispatch_args": args,
+                "vm_result": vm_result,
+                "error": error,
+                "status": status,
+            }
+            self._record_runtime_event(record)
+            dispatched.append(record)
+            cursor = event_id
+        return dispatched
+
+    async def _event_pump(self):
+        try:
+            while True:
+                await asyncio.sleep(0.2)
+                with self._lock:
+                    connected = self._repl is not None and self._status == "connected"
+                if not connected:
+                    return
+                try:
+                    await self._run_serialized(
+                        "auto-vm",
+                        self._poll_events_unlocked,
+                    )
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    self._append_trace({
+                        "schema_version": "douququ-runtime-event.v1",
+                        "timestamp": self._timestamp(),
+                        "op": "event-pump-error",
+                        "status": "failed",
+                        "error": {"type": type(exc).__name__, "message": str(exc)},
+                    })
+        finally:
+            with self._lock:
+                if self._event_pump_task is asyncio.current_task():
+                    self._event_pump_task = None
+
+    def _start_event_pump_unlocked(self):
+        if self._event_pump_task is None or self._event_pump_task.done():
+            self._event_pump_task = asyncio.create_task(
+                self._event_pump(),
+                name="douququ-runtime-event-pump",
+            )
+
+    async def _stop_event_pump_unlocked(self):
+        task = self._event_pump_task
+        if task is None:
+            return
+        self._event_pump_task = None
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    async def _probe_live_readiness(self, repl):
+        """Read the SC2 lifecycle and frame before exposing a live session."""
+        from galaxy_repl import send_request
+        from s2clientprotocol import sc2api_pb2 as sc_pb
+
+        response = await send_request(
+            repl.ws,
+            sc_pb.Request(observation=sc_pb.RequestObservation()),
+            timeout=15.0,
+        )
+        status = int(getattr(response, "status", 0) or 0)
+        status_name = sc_pb.Status.Name(status) if status else "unknown"
+        readiness = {
+            "status": status,
+            "status_name": status_name,
+            "game_loop": 0,
+        }
+        if response.error:
+            readiness["errors"] = list(response.error)
+            return readiness
+        if not response.HasField("observation"):
+            readiness["errors"] = ["observation response missing"]
+            return readiness
+        readiness["game_loop"] = int(response.observation.observation.game_loop)
+        return readiness
+
     async def _connect_unlocked(self, payload):
         VibeREPL, resolve, name_lookup, _, _, _ = self._imports()
         port = int(payload.get("port", 5000))
@@ -1667,6 +2018,7 @@ class RuntimeConsole:
         join_wait = float(payload.get("join_wait", 0) or 0)
         rpc_session_id = str(payload.get("rpc_session_id", "") or "")
         available_sessions = self.sessions()
+        await self._stop_event_pump_unlocked()
         if self._repl is not None:
             await self._repl.close()
         with self._lock:
@@ -1728,14 +2080,32 @@ class RuntimeConsole:
                 )
                 error_code = str(probe.get("error_code", "") or "")
                 attempt = {"session_id": candidate, "error_code": error_code}
-                if error_code == "SESSION_EXPIRED":
-                    attempted_sessions.append(attempt)
-                    probe_error = f"{candidate}: SESSION_EXPIRED"
-                    continue
-                attempt["accepted"] = True
+                try:
+                    readiness = await self._probe_live_readiness(repl)
+                except Exception as exc:
+                    readiness = {
+                        "status": 0,
+                        "status_name": "unknown",
+                        "game_loop": 0,
+                        "errors": [str(exc)],
+                    }
+                attempt.update(readiness)
+                if error_code != "OK":
+                    probe_error = f"{candidate}: {error_code or 'missing error_code'}"
+                elif readiness.get("status_name") != "in_game":
+                    probe_error = (
+                        f"{candidate}: SC2 status={readiness.get('status_name', 'unknown')}"
+                    )
+                elif int(readiness.get("game_loop", 0) or 0) <= 0:
+                    probe_error = f"{candidate}: game_loop=0"
+                else:
+                    attempt["accepted"] = True
+                    accepted_session = candidate
+                    with self._lock:
+                        self._readiness = dict(readiness)
                 attempted_sessions.append(attempt)
-                accepted_session = candidate
-                break
+                if accepted_session:
+                    break
             if not accepted_session:
                 raise RuntimeError(
                     "没有可用的当前 Vibe session；已探测候选: "
@@ -1756,6 +2126,10 @@ class RuntimeConsole:
             self._status = "connected"
             self._error = ""
             self._trace = []
+            self._event_session = ""
+            self._event_cursor = 0
+            self._event_bank_path = ""
+            self._start_event_pump_unlocked()
         return self.status()
 
     async def _connect(self, payload):
@@ -1767,12 +2141,17 @@ class RuntimeConsole:
         )
 
     async def _disconnect_unlocked(self):
+        await self._stop_event_pump_unlocked()
         if self._repl is not None:
             await self._repl.close()
         with self._lock:
             self._repl = None
             self._status = "disconnected"
             self._running = ""
+            self._event_session = ""
+            self._event_cursor = 0
+            self._event_bank_path = ""
+            self._readiness = {}
         return self.status()
 
     def connect(self, payload):
@@ -1903,7 +2282,7 @@ class RuntimeConsole:
             timeout=20,
         )
 
-    async def _run_vm_unlocked(self, program):
+    async def _run_vm_unlocked(self, program, *, origin="vm"):
         if self._repl is None:
             raise RuntimeError("未连接 SC2 Vibe session")
         _, _, _, DebugVm, load_function_catalog, load_function_metadata = self._imports()
@@ -1913,7 +2292,9 @@ class RuntimeConsole:
 
             class ReplBridge:
                 async def call(inner_self, function_id, call_args):
-                    record = await manager._invoke_unlocked(function_id, call_args, origin="vm")
+                    record = await manager._invoke_unlocked(
+                        function_id, call_args, origin=origin
+                    )
                     return record["result"]
 
                 async def step(inner_self, loops):
@@ -2010,6 +2391,23 @@ class RuntimeConsole:
         except OSError as exc:
             _append_log(f"[vibe] runtime call log write failed: {exc}")
 
+    def _record_runtime_event(self, record):
+        self._append_trace(record)
+        try:
+            self._event_log_path.parent.mkdir(parents=True, exist_ok=True)
+            with self._event_log_path.open("a", encoding="utf-8", newline="\n") as handle:
+                handle.write(
+                    json.dumps(
+                        record,
+                        ensure_ascii=False,
+                        default=str,
+                        separators=(",", ":"),
+                    )
+                )
+                handle.write("\n")
+        except OSError as exc:
+            _append_log(f"[vibe] runtime event log write failed: {exc}")
+
     def call_log(self, limit=200):
         limit = max(1, min(int(limit), 2000))
         if not self._call_log_path.is_file():
@@ -2049,6 +2447,45 @@ class RuntimeConsole:
             "records": records,
         }
 
+    def event_log(self, limit=200):
+        limit = max(1, min(int(limit), 2000))
+        if not self._event_log_path.is_file():
+            records = []
+            total_count = 0
+        else:
+            try:
+                lines = self._event_log_path.read_text(encoding="utf-8").splitlines()
+                decoded = []
+                for line in lines:
+                    try:
+                        item = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(item, dict):
+                        decoded.append(item)
+                total_count = len(decoded)
+                records = decoded[-limit:]
+            except OSError as exc:
+                return {
+                    "schema_version": "douququ-runtime-event.v1",
+                    "records": [],
+                    "count": 0,
+                    "total_count": 0,
+                    "error": str(exc),
+                }
+        try:
+            relative_path = str(self._event_log_path.resolve().relative_to(REPO_ROOT.resolve()))
+        except ValueError:
+            relative_path = str(self._event_log_path)
+        return {
+            "schema_version": "douququ-runtime-event.v1",
+            "path": relative_path,
+            "limit": limit,
+            "count": len(records),
+            "total_count": total_count,
+            "records": records,
+        }
+
     def status(self):
         with self._lock:
             return {
@@ -2057,6 +2494,7 @@ class RuntimeConsole:
                 "port": self._port,
                 "session_id": self._session_id,
                 "session_recovery": list(self._session_recovery),
+                "readiness": dict(self._readiness),
                 "running": self._running,
                 "trace": list(self._trace),
                 "call_log": {
@@ -2064,6 +2502,14 @@ class RuntimeConsole:
                     if self._call_log_path.resolve().is_relative_to(REPO_ROOT.resolve())
                     else str(self._call_log_path),
                     "endpoint": "/api/vibe/call-log",
+                },
+                "event_source": {
+                    "bank": "GalaxyVibeEvents",
+                    "bank_path": self._event_bank_path,
+                    "event_session": self._event_session,
+                    "cursor": self._event_cursor,
+                    "pump": bool(self._event_pump_task and not self._event_pump_task.done()),
+                    "endpoint": "/api/vibe/event-log",
                 },
             }
 
@@ -2705,6 +3151,15 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             try:
                 limit = int(query.get("limit", [200])[0])
                 self._send_json(_runtime_console.call_log(limit))
+            except (TypeError, ValueError) as exc:
+                self._send_json({"error": f"limit 无效: {exc}"}, 400)
+            return
+        if self.path.startswith("/api/vibe/event-log"):
+            from urllib.parse import parse_qs, urlparse
+            query = parse_qs(urlparse(self.path).query)
+            try:
+                limit = int(query.get("limit", [200])[0])
+                self._send_json(_runtime_console.event_log(limit))
             except (TypeError, ValueError) as exc:
                 self._send_json({"error": f"limit 无效: {exc}"}, 400)
             return

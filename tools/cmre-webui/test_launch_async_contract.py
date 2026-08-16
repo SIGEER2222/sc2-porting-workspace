@@ -9,6 +9,7 @@ import json
 import threading
 import inspect
 from pathlib import Path
+import pytest
 
 import server
 
@@ -203,6 +204,7 @@ def test_runtime_connect_probes_expired_session_before_accepting_current_one(mon
         def __init__(self, port, resolve, name_lookup, **kwargs):
             self.rpc_session_id = kwargs.get("rpc_session_id") or "repl_new"
             self.rpc_sequence = 0
+            self.ws = object()
 
         async def connect(self):
             return True
@@ -230,6 +232,9 @@ def test_runtime_connect_probes_expired_session_before_accepting_current_one(mon
             {"session_id": "repl_current", "sequence": 7},
         ],
     )
+    async def fake_readiness(repl):
+        return {"status": 3, "status_name": "in_game", "game_loop": 8}
+    monkeypatch.setattr(console, "_probe_live_readiness", fake_readiness)
 
     result = asyncio.run(console._connect({"port": 5896, "rpc_session_id": "dou-ququ-runtime-stale"}))
 
@@ -237,9 +242,57 @@ def test_runtime_connect_probes_expired_session_before_accepting_current_one(mon
     assert result["session_id"] == "repl_current"
     assert attempts[:2] == ["dou-ququ-runtime-stale", "repl_current"]
     assert result["session_recovery"] == [
-        {"session_id": "dou-ququ-runtime-stale", "error_code": "SESSION_EXPIRED"},
-        {"session_id": "repl_current", "error_code": "OK", "accepted": True},
+        {
+            "session_id": "dou-ququ-runtime-stale",
+            "error_code": "SESSION_EXPIRED",
+            "status": 3,
+            "status_name": "in_game",
+            "game_loop": 8,
+        },
+        {
+            "session_id": "repl_current",
+            "error_code": "OK",
+            "status": 3,
+            "status_name": "in_game",
+            "game_loop": 8,
+            "accepted": True,
+        },
     ]
+    assert result["readiness"] == {"status": 3, "status_name": "in_game", "game_loop": 8}
+
+
+def test_runtime_connect_rejects_non_ok_probe_even_when_game_is_in_game(monkeypatch):
+    class FakeRepl:
+        def __init__(self, port, resolve, name_lookup, **kwargs):
+            self.rpc_session_id = kwargs.get("rpc_session_id") or "repl_new"
+            self.rpc_sequence = 0
+            self.ws = object()
+
+        async def connect(self):
+            return True
+
+        async def close(self):
+            return None
+
+        async def invoke_function_request(self, function_id, args):
+            return {"kind": "error", "error_code": "INTERNAL_ERROR", "payload": {}}
+
+    console = server.RuntimeConsole()
+    monkeypatch.setattr(
+        console,
+        "_imports",
+        lambda: (FakeRepl, lambda: object(), lambda: object(), None, None, None),
+    )
+    monkeypatch.setattr(console, "sessions", lambda: [])
+
+    async def fake_readiness(repl):
+        return {"status": 3, "status_name": "in_game", "game_loop": 12}
+    monkeypatch.setattr(console, "_probe_live_readiness", fake_readiness)
+
+    with pytest.raises(RuntimeError, match="没有可用的当前 Vibe session"):
+        asyncio.run(console._connect({"port": 5896, "rpc_session_id": "repl_bad"}))
+    assert console.status()["status"] == "error"
+    assert "INTERNAL_ERROR" in console.status()["error"]
 
 
 def test_dou_ququ_launch_mounts_live_runtime_module(monkeypatch, tmp_path):

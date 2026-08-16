@@ -3,10 +3,31 @@ import threading
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 import asyncio
 
 import server
+
+
+def _write_event_bank(path: Path, session: str, events: list[dict]) -> None:
+    root = ET.Element("Bank", version="1")
+    index = ET.SubElement(root, "Section", name="index")
+    key = ET.SubElement(index, "Key", name="event_session")
+    ET.SubElement(key, "Value", string=session)
+    events_section = ET.SubElement(root, "Section", name="events")
+    for event in events:
+        event_key = ET.SubElement(
+            events_section,
+            "Key",
+            name=str(event["eventId"]),
+        )
+        ET.SubElement(
+            event_key,
+            "Value",
+            string=json.dumps(event, separators=(",", ":")),
+        )
+    path.write_bytes(ET.tostring(root, encoding="utf-8", xml_declaration=True))
 
 
 def test_runtime_call_log_persists_runtime_function_arguments_results_and_errors(tmp_path):
@@ -43,14 +64,169 @@ def test_runtime_call_log_persists_runtime_function_arguments_results_and_errors
     assert json.loads((tmp_path / "runtime-call-log.jsonl").read_text(encoding="utf-8").splitlines()[0])["function_id"] == "douququ.unit.spawn"
 
 
+def test_event_bank_parser_reads_session_and_wrapped_events(tmp_path):
+    bank = tmp_path / "GalaxyVibeEvents.SC2Bank"
+    event = {
+        "schemaVersion": 1,
+        "eventId": 7,
+        "eventSession": "session-a",
+        "eventType": "unit_attacked",
+        "payload": {"attackerType": "Reaver", "attackerTag": 11, "targetTag": 22},
+    }
+    _write_event_bank(bank, "session-a", [event])
+
+    parsed = server.parse_runtime_event_bank(bank)
+
+    assert parsed["event_session"] == "session-a"
+    assert parsed["last_event_id"] == 7
+    assert parsed["events"] == [event]
+
+
+def test_event_dispatch_builds_typed_auto_vm_arguments_and_correlation():
+    event = {
+        "eventId": 3,
+        "eventSession": "session-a",
+        "eventType": "unit_died",
+        "payload": {
+            "killerTag": 101,
+            "killerType": "Hydralisk",
+            "victimTag": 202,
+            "victimType": "Marine",
+            "victimOwner": 2,
+            "victimX": 40.5,
+            "victimY": 41.5,
+        },
+    }
+
+    function_id, args = server.RuntimeConsole._event_dispatch(
+        event,
+        "auto-vm:repl_test:session-a:3",
+    )
+
+    assert function_id == "douququ.auto.death"
+    assert args == {
+        "correlation_id": "auto-vm:repl_test:session-a:3",
+        "killer_tag": 101,
+        "victim_owner": 2,
+        "victim_tag": 202,
+        "victim_type": "Marine",
+        "victim_x": 40.5,
+        "victim_y": 41.5,
+    }
+
+
+def test_event_pump_consumes_current_session_once_and_records_auto_vm_origin(tmp_path):
+    bank = tmp_path / "GalaxyVibeEvents.SC2Bank"
+    first = {
+        "schemaVersion": 1,
+        "eventId": 1,
+        "eventSession": "session-a",
+        "eventType": "unit_attacked",
+        "payload": {
+            "attackerType": "Reaver",
+            "attackerTag": 11,
+            "targetTag": 22,
+        },
+    }
+    ignored = {
+        "schemaVersion": 1,
+        "eventId": 2,
+        "eventSession": "session-a",
+        "eventType": "unit_attacked",
+        "payload": {
+            "attackerType": "Marine",
+            "attackerTag": 12,
+            "targetTag": 23,
+        },
+    }
+    _write_event_bank(bank, "session-a", [first, ignored])
+    console = server.RuntimeConsole(
+        tmp_path / "calls.jsonl",
+        tmp_path / "events.jsonl",
+        tmp_path,
+    )
+    console._session_id = "repl_test"
+    console._status = "connected"
+    seen = []
+
+    async def fake_run_vm(program, *, origin="vm"):
+        seen.append((origin, program["steps"][0]["fn"], program["steps"][0]["args"]))
+        return {"status": "passed", "trace": []}
+
+    console._run_vm_unlocked = fake_run_vm
+
+    async def exercise():
+        first_batch = await console._poll_events_unlocked()
+        second_batch = await console._poll_events_unlocked()
+        return first_batch, second_batch
+
+    first_batch, second_batch = asyncio.run(exercise())
+
+    assert [item["status"] for item in first_batch] == ["passed", "ignored"]
+    assert second_batch == []
+    assert seen[0][0] == "auto-vm"
+    assert seen[0][1] == "douququ.auto.attack"
+    assert seen[0][2]["correlation_id"] == "auto-vm:repl_test:session-a:1"
+    logged = console.event_log()["records"]
+    assert logged[0]["event_session"] == "session-a"
+    assert logged[0]["dispatch_function_id"] == "douququ.auto.attack"
+    assert logged[1]["dispatch_function_id"] == ""
+
+
+def test_event_session_change_resets_cursor_without_replaying_old_session(tmp_path):
+    bank = tmp_path / "GalaxyVibeEvents.SC2Bank"
+    event = {
+        "schemaVersion": 1,
+        "eventId": 1,
+        "eventSession": "session-a",
+        "eventType": "periodic",
+        "payload": {"seconds": 1.0},
+    }
+    _write_event_bank(bank, "session-a", [event])
+    console = server.RuntimeConsole(
+        tmp_path / "calls.jsonl",
+        tmp_path / "events.jsonl",
+        tmp_path,
+    )
+    console._session_id = "repl_test"
+    calls = []
+
+    async def fake_run_vm(program, *, origin="vm"):
+        calls.append(program["steps"][0]["args"]["correlation_id"])
+        return {"status": "passed", "trace": []}
+
+    console._run_vm_unlocked = fake_run_vm
+
+    async def poll_once():
+        return await console._poll_events_unlocked()
+
+    assert len(asyncio.run(poll_once())) == 1
+    assert asyncio.run(poll_once()) == []
+    event["eventSession"] = "session-b"
+    _write_event_bank(bank, "session-b", [event])
+    assert len(asyncio.run(poll_once())) == 1
+    assert calls == [
+        "auto-vm:repl_test:session-a:1",
+        "auto-vm:repl_test:session-b:1",
+    ]
+
+
 def test_runtime_call_log_http_endpoint_is_read_only(tmp_path, monkeypatch):
-    console = server.RuntimeConsole(tmp_path / "runtime-call-log.jsonl")
+    console = server.RuntimeConsole(
+        call_log_path=tmp_path / "runtime-call-log.jsonl",
+        event_log_path=tmp_path / "runtime-event-log.jsonl",
+    )
     console._record_runtime_call(
         "douququ.runtime.status",
         {},
         {"kind": "result", "error_code": "OK", "payload": {"active": True}},
         origin="connect",
     )
+    console._record_runtime_event({
+        "schema_version": "douququ-runtime-event.v1",
+        "event_type": "unit_attacked",
+        "status": "ignored",
+    })
     monkeypatch.setattr(server, "_runtime_console", console)
     httpd = server.ThreadingHTTPServer(("127.0.0.1", 0), server.CmreWebUIHandler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
@@ -66,6 +242,14 @@ def test_runtime_call_log_http_endpoint_is_read_only(tmp_path, monkeypatch):
         assert payload["total_count"] == 1
         assert payload["records"][0]["function_id"] == "douququ.runtime.status"
         assert payload["records"][0]["origin"] == "connect"
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{httpd.server_port}/api/vibe/event-log?limit=1",
+            timeout=5,
+        ) as response:
+            event_payload = json.loads(response.read())
+        assert response.status == 200
+        assert event_payload["count"] == 1
+        assert event_payload["records"][0]["event_type"] == "unit_attacked"
     finally:
         httpd.shutdown()
         httpd.server_close()

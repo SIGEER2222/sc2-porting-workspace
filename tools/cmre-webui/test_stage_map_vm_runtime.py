@@ -1,4 +1,5 @@
 import json
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from stage_map_vm_runtime import StagingError, stage_map
@@ -129,10 +130,21 @@ def test_stage_can_mount_live_dou_ququ_runtime_without_static_behavior(tmp_path)
     assert 'include "LibDouQuquBehavior"' not in script
     assert result["douQuquRuntime"]["enabled"] is True
     assert result["douQuquUserGalaxy"]["enabled"] is True
+    assert "libDouQuquRuntime_InitLib" in result["injection"]
+    assert result["douQuquRuntime"]["automaticDispatch"] is True
+    assert result["douQuquRuntime"]["eventBank"] == "GalaxyVibeEvents"
+    assert "event-source-driven vibe-debug/1 auto.*" in result["douQuquRuntime"]["execution"]
     manifest = json.loads((output.parent / "staging-manifest.json").read_text(encoding="utf-8"))
     assert manifest["stage"] == "27-dou-ququ-behavior-plugin"
     assert (output / "Base.SC2Data" / "LibDouQuquRuntime.galaxy").is_file()
     assert (output / "Base.SC2Data" / "LibDouQuquUser.galaxy").is_file()
+    assert (output / "Base.SC2Data" / "GameData" / "AbilData.xml").is_file()
+    assert (output / "Base.SC2Data" / "GameData" / "ButtonData.xml").is_file()
+    bank_list = ET.parse(output / "BankList.xml").getroot()
+    banks = {(item.get("Name"), item.get("Player")) for item in bank_list.findall("./Bank")}
+    assert {("GalaxyVibe", "1"), ("GalaxyVibe", "2")} <= banks
+    assert {("GalaxyVibeEvents", "1"), ("GalaxyVibeEvents", "2")} <= banks
+    assert "GalaxyVibe and GalaxyVibeEvents" in result["bankList"]
 
 
 def test_stage_accepts_an_editable_user_galaxy_source(tmp_path):

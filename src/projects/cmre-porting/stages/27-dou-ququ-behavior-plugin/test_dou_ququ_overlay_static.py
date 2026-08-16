@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[5]
 LAUNCHER = ROOT / "tools" / "launchers" / "launch-cmre-alenger.ps1"
 OVERLAY = ROOT / "tools" / "launchers" / "lib" / "cmre-on-demand-overlay.ps1"
 GALAXY = ROOT / "tools" / "launchers" / "overlays" / "cmre-alenger" / "startup" / "LibDouQuquBehavior.galaxy"
+RUNTIME = ROOT / "tools" / "launchers" / "overlays" / "cmre-alenger" / "startup" / "LibDouQuquRuntime.galaxy"
 EFFECTS = ROOT / "tools" / "launchers" / "overlays" / "cmre-alenger" / "startup" / "EffectData.xml"
 ATTACH = ROOT / "tools" / "launchers" / "overlays" / "cmre-alenger" / "startup" / "AttachMethodData.xml"
 ACTOR = ROOT / "tools" / "launchers" / "overlays" / "cmre-alenger" / "startup" / "ActorData.xml"
@@ -78,6 +79,44 @@ def test_reaver_uses_thor_style_rolling_weapon_attachments():
     assert 'Methods="CRV_AMFilterReaverWeapons CRV_AMPatternReaverScarab"' in actor
     assert '<ImpactSiteOps Ops="SOpAttachHarness SOpAttachVolumeStandard SOpForwardLaunchGuide"/>' in actor
     assert '<ImpactPhysics Name="Explosion" MatchKeys="Basic" Physics="ScarabExplosionForce"/>' in actor
+
+
+def test_runtime_event_source_and_auto_handlers_are_registered():
+    source = RUNTIME.read_text(encoding="utf-8-sig")
+    for token in (
+        "libDouQuquRuntime_InitLib",
+        "libDouQuquRuntime_gf_WriteGameEvent",
+        "GalaxyVibeEvents",
+        "eventSession",
+        "TriggerAddEventUnitAttacked2",
+        "TriggerAddEventUnitDied",
+        "TriggerAddEventUnitCreated",
+        "TriggerAddEventPlayerEffectUsed",
+        "TriggerAddEventTimePeriodic",
+        "libDouQuquRuntime_gf_AutoAttack",
+        "libDouQuquRuntime_gf_AutoDeath",
+        "libDouQuquRuntime_gf_AutoCreated",
+        "libDouQuquRuntime_gf_AutoEffect",
+        "libDouQuquRuntime_gf_AutoPeriodic",
+        "victimX",
+        "victimY",
+    ):
+        assert token in source
+    assert source.count("TriggerAddEvent") == 5
+    registry = json.loads(
+        (ROOT / "tools" / "galaxy-vibe" / "kernel" / "function-registry.json").read_text(
+            encoding="utf-8"
+        )
+    )["functions"]
+    for function_id in (
+        "douququ.auto.attack",
+        "douququ.auto.death",
+        "douququ.auto.created",
+        "douququ.auto.effect",
+        "douququ.auto.periodic",
+    ):
+        assert registry[function_id]["debug_only"] is True
+        assert registry[function_id]["capability"] == "douququ-live-runtime-auto"
 
 
 def test_config_matches_plugin_contract():

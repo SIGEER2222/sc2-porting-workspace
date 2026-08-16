@@ -767,6 +767,68 @@
       "args": {},
       "returns": {"function_id": "string", "events": "integer", "lastEvent": "string", "zealotCount": "integer", "mineCount": "integer", "marineCount": "integer", "banelingCount": "integer", "broodlingCount": "integer"}
     },
+    "douququ.auto.attack": {
+      "handler": "libDouQuquRuntime_gf_AutoAttack",
+      "side_effect": true,
+      "debug_only": true,
+      "capability": "douququ-live-runtime-auto",
+      "args": {
+        "attacker_tag": {"type": "integer", "required": true, "min": 1},
+        "correlation_id": {"type": "string", "required": true, "maxLength": 128},
+        "target_tag": {"type": "integer", "required": true, "min": 1}
+      },
+      "returns": {"function_id": "string", "correlationId": "string", "attackerTag": "integer", "targetTag": "integer", "attackerType": "string", "effect": "object"}
+    },
+    "douququ.auto.death": {
+      "handler": "libDouQuquRuntime_gf_AutoDeath",
+      "side_effect": true,
+      "debug_only": true,
+      "capability": "douququ-live-runtime-auto",
+      "args": {
+        "correlation_id": {"type": "string", "required": true, "maxLength": 128},
+        "killer_tag": {"type": "integer", "required": true, "min": 0},
+        "victim_owner": {"type": "integer", "required": true, "min": 1, "max": 15},
+        "victim_tag": {"type": "integer", "required": true, "min": 1},
+        "victim_type": {"type": "string", "required": true, "maxLength": 128},
+        "victim_x": {"type": "fixed", "required": true, "min": 0.0, "max": 500.0},
+        "victim_y": {"type": "fixed", "required": true, "min": 0.0, "max": 500.0}
+      },
+      "returns": {"function_id": "string", "correlationId": "string", "victimTag": "integer", "victimType": "string", "killerTag": "integer", "killerType": "string", "spawnedCount": "integer", "spawned": "array", "scarabImpact": "object", "healed": "fixed", "kerriganBroodlings": "array"}
+    },
+    "douququ.auto.created": {
+      "handler": "libDouQuquRuntime_gf_AutoCreated",
+      "side_effect": true,
+      "debug_only": true,
+      "capability": "douququ-live-runtime-auto",
+      "args": {
+        "correlation_id": {"type": "string", "required": true, "maxLength": 128},
+        "unit_tag": {"type": "integer", "required": true, "min": 1}
+      },
+      "returns": {"function_id": "string", "correlationId": "string", "unitTag": "integer", "unitType": "string", "owner": "integer"}
+    },
+    "douququ.auto.effect": {
+      "handler": "libDouQuquRuntime_gf_AutoEffect",
+      "side_effect": true,
+      "debug_only": true,
+      "capability": "douququ-live-runtime-auto",
+      "args": {
+        "ability": {"type": "string", "required": true, "maxLength": 128},
+        "correlation_id": {"type": "string", "required": true, "maxLength": 128},
+        "unit_tag": {"type": "integer", "required": true, "min": 1}
+      },
+      "returns": {"function_id": "string", "correlationId": "string", "status": "string", "storedMines": "integer", "minerals": "integer"}
+    },
+    "douququ.auto.periodic": {
+      "handler": "libDouQuquRuntime_gf_AutoPeriodic",
+      "side_effect": true,
+      "debug_only": true,
+      "capability": "douququ-live-runtime-auto",
+      "args": {
+        "correlation_id": {"type": "string", "required": true, "maxLength": 128},
+        "seconds": {"type": "fixed", "required": true, "min": 0.0, "max": 60.0}
+      },
+      "returns": {"function_id": "string", "correlationId": "string", "seconds": "fixed", "spawned": "array"}
+    },
     "gen.1": {
       "handler": "libVibeInvoke_gf_Call1",
       "galaxy_name": "AIAbilityFixed",

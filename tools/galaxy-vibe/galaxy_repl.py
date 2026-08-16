@@ -80,6 +80,16 @@ from vibe.function_registry import FunctionRegistryError, coerce_cli_args  # noq
 DEFAULT_BANK = Path.home() / "Documents" / "StarCraft II" / "Banks" / "GalaxyVibeDebug.SC2Bank"
 DEFAULT_RPC_BANK = Path.home() / "Documents" / "StarCraft II" / "Banks" / "GalaxyVibe.SC2Bank"
 
+
+def _local_map_for_create(map_path: str):
+    """Build a LocalMap from the exact packed artifact or an unpacked directory."""
+    path = Path(map_path).resolve()
+    if path.is_file():
+        return sc_pb.LocalMap(map_data=path.read_bytes())
+    if path.is_dir():
+        return sc_pb.LocalMap(map_path=str(path).replace("\\", "/"))
+    raise FileNotFoundError(f"map does not exist: {path}")
+
 # 断言结果落盘（外部完全可控，不碰 Bank；供冷循环/CI 消费）
 ASSERT_REPORT_PATH = REPO_ROOT / "artifacts" / "galaxy-vibe" / "assert-results.json"
 
@@ -383,7 +393,7 @@ class VibeREPL:
         last_error = ""
         for setup in player_sets:
             req = sc_pb.Request(create_game=sc_pb.RequestCreateGame(
-                local_map=sc_pb.LocalMap(map_path=normalized_map),
+                local_map=_local_map_for_create(normalized_map),
                 player_setup=setup,
                 realtime=self.realtime,
             ))
@@ -402,7 +412,7 @@ class VibeREPL:
             print(f"[game] CreateGame OK: {normalized_map}")
             break
         if not created:
-            print(f"[game] CreateGame not confirmed, attempting JoinGame anyway: {last_error}")
+            raise RuntimeError(f"CreateGame failed; refusing to attempt JoinGame: {last_error}")
 
         join_req = sc_pb.Request(join_game=sc_pb.RequestJoinGame(
             race=1,
@@ -421,21 +431,17 @@ class VibeREPL:
                     last_join_error = f"{resp.join_game.error} {resp.join_game.error_details}"
                     await asyncio.sleep(0.5)
                     continue
-                joined = True
                 player_id = resp.join_game.player_id if resp.HasField("join_game") else 0
-                print(f"[game] JoinGame OK player_id={player_id}")
+                confirmed_loop = await self._confirm_in_game()
+                joined = True
+                print(f"[game] JoinGame OK player_id={player_id} game_loop={confirmed_loop}")
+                break
+            except RuntimeError as exc:
+                last_join_error = str(exc)
                 break
             except Exception as exc:
                 last_join_error = str(exc)
                 await asyncio.sleep(0.5)
-        if not joined:
-            try:
-                obs = await send_request(self.ws, sc_pb.Request(observation=sc_pb.RequestObservation()), timeout=15.0)
-                if not obs.error:
-                    joined = True
-                    print("[game] Observation OK; treating client as in_game")
-            except Exception as exc:
-                last_join_error = str(exc)
         if not joined:
             raise RuntimeError(f"JoinGame failed and client is not in_game: {last_join_error}")
         if self.join_wait > 0:
@@ -461,6 +467,35 @@ class VibeREPL:
             if time.time() >= deadline:
                 return advanced
             await asyncio.sleep(max(0.0, sleep_seconds))
+
+    async def _confirm_in_game(self, attempts: int = 30) -> int:
+        """Require an advancing observation before exposing the session as ready."""
+        last_error = ""
+        for _ in range(max(1, attempts)):
+            try:
+                observation = await send_request(
+                    self.ws,
+                    sc_pb.Request(observation=sc_pb.RequestObservation()),
+                    timeout=15.0,
+                )
+                if observation.HasField("observation"):
+                    game_loop = int(observation.observation.observation.game_loop)
+                    if game_loop > 0:
+                        return game_loop
+                step = await send_request(
+                    self.ws,
+                    sc_pb.Request(step=sc_pb.RequestStep(count=1)),
+                    timeout=15.0,
+                )
+                if step.error:
+                    last_error = repr(list(step.error))
+            except Exception as exc:
+                last_error = str(exc)
+            await asyncio.sleep(0.5)
+        raise RuntimeError(
+            "JoinGame acknowledged but game never entered in_game "
+            f"(game_loop=0): {last_error}"
+        )
 
     @staticmethod
     def _unit_is_alive(unit) -> bool:

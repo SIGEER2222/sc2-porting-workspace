@@ -89,6 +89,16 @@ def _unit_alive(unit: Any) -> bool:
     return True
 
 
+def _local_map_for_create(map_path: Path) -> Any:
+    """Use map bytes for packed local maps so CreateGame loads the exact artifact."""
+    path = map_path.resolve()
+    if path.is_file():
+        return sc_pb.LocalMap(map_data=path.read_bytes())
+    if path.is_dir():
+        return sc_pb.LocalMap(map_path=str(path).replace("\\", "/"))
+    raise ProbeError(f"map does not exist: {path}")
+
+
 class DouQuquRuntimeProbe:
     def __init__(self, port: int, map_path: Path, out_dir: Path) -> None:
         self.port = port
@@ -135,7 +145,7 @@ class DouQuquRuntimeProbe:
         response = await self.send(
             sc_pb.Request(
                 create_game=sc_pb.RequestCreateGame(
-                    local_map=sc_pb.LocalMap(map_path=normalized),
+                    local_map=_local_map_for_create(self.map_path),
                     player_setup=setup,
                     realtime=False,
                 )
@@ -166,7 +176,30 @@ class DouQuquRuntimeProbe:
                 "player_id": int(joined.join_game.player_id),
             }
         )
-        await self.step(64)
+        game_loop = await self.confirm_in_game()
+        self.calls[-1]["game_loop"] = game_loop
+
+    async def confirm_in_game(self, attempts: int = 30) -> int:
+        """Do not treat a successful JoinGame response as readiness by itself."""
+        last_error = ""
+        for _ in range(max(1, attempts)):
+            try:
+                observation = await self.send(
+                    sc_pb.Request(observation=sc_pb.RequestObservation()),
+                    timeout=15.0,
+                )
+                if observation.HasField("observation"):
+                    game_loop = int(observation.observation.observation.game_loop)
+                    if game_loop > 0:
+                        return game_loop
+                await self.step(1)
+            except Exception as exc:
+                last_error = str(exc)
+            await asyncio.sleep(0.5)
+        raise ProbeError(
+            "JoinGame acknowledged but game never entered in_game "
+            f"(game_loop=0): {last_error}"
+        )
 
     async def load_data(self) -> None:
         response = await self.send(

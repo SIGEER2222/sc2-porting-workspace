@@ -38,6 +38,42 @@ def test_revolution_map_detail_accepts_ui_display_name():
     assert payload["timeline"]
 
 
+def test_revolution_iron_pilot_resolves_p1_opening_replacement():
+    payload = server.load_map_details(
+        "thanson01.SC2Map",
+        "revolution-overdrive",
+        "RevolutionOverdriveIron",
+    )
+
+    adapter = payload["adapter"]
+    assert adapter["map_id"] == "thanson01-iron-opening"
+    assert adapter["commander_rule_id"] == "revolution-overdrive-iron"
+    assert adapter["map_unit_policy"]["mode"] == "targeted_script_replacement"
+    assert adapter["map_unit_policy"]["targetPlayers"] == [1]
+    assert adapter["map_unit_policy"]["protectedPlayers"] == [2, 3, 4, 5, 6, 7, 8, 9, 10, 15]
+    assert adapter["startup"]["startingWorker"] == "1gangtiegongchengche"
+    assert adapter["unit_replacements"] == [{
+        "from": "SCV",
+        "to": "1gangtiegongchengche",
+        "from_name": "SCV（工人）",
+        "to_name": "钢铁工程车",
+        "players": [1],
+        "source": {
+            "file": "Maps/thanson01.SC2Map/MapScript.galaxy",
+            "line": 2422,
+        },
+        "reason": "大撤离 Starting Game 创建的 P1 初始工人",
+    }]
+
+
+def test_revolution_iron_pilot_is_visible_in_webui_markup_and_script():
+    html = server.WEBUI_DIR.joinpath("index.html").read_text(encoding="utf-8")
+    app = server.WEBUI_DIR.joinpath("app.js").read_text(encoding="utf-8")
+    assert 'id="map-adapter-replacements"' in html
+    assert 'id="map-adapter-replacement-count"' in html
+    assert "unit_replacements" in app
+
+
 def test_map_detail_http_endpoint_and_ui_contract():
     httpd = server.ThreadingHTTPServer(("127.0.0.1", 0), server.CmreWebUIHandler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)

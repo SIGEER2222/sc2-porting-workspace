@@ -1,7 +1,8 @@
 include "LibVibeKernel_h"
 
-// Stage 27 live VM plugin. This module has no map triggers and no Catalog patch.
-// It only changes the current game when an explicit douququ.* RPC is invoked.
+// Stage 27 live VM plugin. The behavior rules execute through the runtime VM.
+// This module only contains a narrow, generic event source plus VM handlers;
+// it is not the static LibDouQuquBehavior event implementation.
 const int libDouQuquRuntime_gv_VultureMines = 5;
 const int libDouQuquRuntime_gv_VultureRefillCost = 50;
 const int libDouQuquRuntime_gv_ReaverOrdinaryChance = 20;
@@ -10,6 +11,16 @@ const int libDouQuquRuntime_gv_BroodLordChance = 15;
 const fixed libDouQuquRuntime_gv_BansheeInterval = 10.0;
 const fixed libDouQuquRuntime_gv_BansheeEnergyCost = 20.0;
 const fixed libDouQuquRuntime_gv_HydraliskHeal = 25.0;
+
+bank libDouQuquRuntime_gv_EventBank;
+int libDouQuquRuntime_gv_EventSequence = 0;
+bool libDouQuquRuntime_gv_EventBridgeInitialized = false;
+string libDouQuquRuntime_gv_EventSession = "";
+trigger libDouQuquRuntime_gt_Attacked;
+trigger libDouQuquRuntime_gt_Died;
+trigger libDouQuquRuntime_gt_Created;
+trigger libDouQuquRuntime_gt_EffectUsed;
+trigger libDouQuquRuntime_gt_Periodic;
 
 string libDouQuquRuntime_gf_Error(string functionId, string code, string reason) {
     return libVibeKernel_gf_MakeResponse(
@@ -34,6 +45,125 @@ void libDouQuquRuntime_gf_Event(string name) {
     }
     DataTableSetInt(true, "DouQuquRuntimeEventCount", count + 1);
     DataTableSetString(true, "DouQuquRuntimeLastEvent", name);
+}
+
+void libDouQuquRuntime_gf_EnsureEventBank() {
+    if (libDouQuquRuntime_gv_EventBank == null) {
+        libDouQuquRuntime_gv_EventBank = BankLoad("GalaxyVibeEvents", 1);
+        if (libDouQuquRuntime_gv_EventBank != null) {
+            BankWait(libDouQuquRuntime_gv_EventBank);
+        }
+    }
+}
+
+void libDouQuquRuntime_gf_WriteGameEvent(string eventType, string payload) {
+    string eventId;
+    string wrappedPayload;
+
+    libDouQuquRuntime_gf_EnsureEventBank();
+    if (libDouQuquRuntime_gv_EventBank == null) { return; }
+    libDouQuquRuntime_gv_EventSequence += 1;
+    eventId = IntToString(libDouQuquRuntime_gv_EventSequence);
+    wrappedPayload = "{\"schemaVersion\":1,\"eventId\":" + eventId
+        + ",\"eventSession\":\"" + libDouQuquRuntime_gv_EventSession
+        + "\",\"eventType\":\"" + eventType + "\",\"payload\":" + payload + "}";
+    BankValueSetFromString(libDouQuquRuntime_gv_EventBank, "events", eventId, wrappedPayload);
+    BankValueSetFromString(libDouQuquRuntime_gv_EventBank, "index", "last_event_type", eventType);
+    BankValueSetFromString(libDouQuquRuntime_gv_EventBank, "index", "event_session", libDouQuquRuntime_gv_EventSession);
+    BankValueSetFromInt(libDouQuquRuntime_gv_EventBank, "index", "last_event_id", libDouQuquRuntime_gv_EventSequence);
+    BankValueSetFromInt(libDouQuquRuntime_gv_EventBank, "index", "schema_version", 1);
+    BankSave(libDouQuquRuntime_gv_EventBank);
+}
+
+bool libDouQuquRuntime_gt_Attacked_Func(bool testConds, bool runActions) {
+    unit attacker;
+    unit target;
+
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    attacker = EventUnitTarget();
+    target = EventUnit();
+    if (attacker == null || target == null) { return true; }
+    libDouQuquRuntime_gf_WriteGameEvent(
+        "unit_attacked",
+        "{\"schemaVersion\":1,\"eventType\":\"unit_attacked\",\"attackerTag\":"
+        + IntToString(UnitGetTag(attacker)) + ",\"attackerType\":\"" + UnitGetType(attacker)
+        + "\",\"attackerOwner\":" + IntToString(UnitGetOwner(attacker))
+        + ",\"targetTag\":" + IntToString(UnitGetTag(target))
+        + ",\"targetType\":\"" + UnitGetType(target) + "\",\"targetOwner\":"
+        + IntToString(UnitGetOwner(target)) + "}");
+    return true;
+}
+
+bool libDouQuquRuntime_gt_Died_Func(bool testConds, bool runActions) {
+    unit victim;
+    unit killer;
+    int killerTag;
+    string killerType;
+    int killerOwner;
+
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    victim = EventUnit();
+    if (victim == null) { return true; }
+    killer = libNtve_gf_KillingUnit();
+    killerTag = 0;
+    killerType = "";
+    killerOwner = 0;
+    if (killer != null) {
+        killerTag = UnitGetTag(killer);
+        killerType = UnitGetType(killer);
+        killerOwner = UnitGetOwner(killer);
+    }
+    libDouQuquRuntime_gf_WriteGameEvent(
+        "unit_died",
+        "{\"schemaVersion\":1,\"eventType\":\"unit_died\",\"victimTag\":"
+        + IntToString(UnitGetTag(victim)) + ",\"victimType\":\"" + UnitGetType(victim)
+        + "\",\"victimOwner\":" + IntToString(UnitGetOwner(victim))
+        + ",\"victimX\":" + FixedToString(PointGetX(UnitGetPosition(victim)), 2)
+        + ",\"victimY\":" + FixedToString(PointGetY(UnitGetPosition(victim)), 2)
+        + ",\"killerTag\":" + IntToString(killerTag) + ",\"killerType\":\""
+        + killerType + "\",\"killerOwner\":" + IntToString(killerOwner) + "}");
+    return true;
+}
+
+bool libDouQuquRuntime_gt_Created_Func(bool testConds, bool runActions) {
+    unit created;
+
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    created = EventUnit();
+    if (created == null) { return true; }
+    libDouQuquRuntime_gf_WriteGameEvent(
+        "unit_created",
+        "{\"schemaVersion\":1,\"eventType\":\"unit_created\",\"unitTag\":"
+        + IntToString(UnitGetTag(created)) + ",\"unitType\":\"" + UnitGetType(created)
+        + "\",\"unitOwner\":" + IntToString(UnitGetOwner(created)) + "}");
+    return true;
+}
+
+bool libDouQuquRuntime_gt_EffectUsed_Func(bool testConds, bool runActions) {
+    unit caster;
+
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    caster = EventPlayerEffectUsedUnit(c_effectUnitCaster);
+    if (caster == null) { return true; }
+    libDouQuquRuntime_gf_WriteGameEvent(
+        "effect_used",
+        "{\"schemaVersion\":1,\"eventType\":\"effect_used\",\"ability\":\"CRV_Vulture_MineRefill\",\"unitTag\":"
+        + IntToString(UnitGetTag(caster)) + ",\"unitType\":\"" + UnitGetType(caster)
+        + "\",\"unitOwner\":" + IntToString(UnitGetOwner(caster)) + "}");
+    return true;
+}
+
+bool libDouQuquRuntime_gt_Periodic_Func(bool testConds, bool runActions) {
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    libDouQuquRuntime_gf_WriteGameEvent(
+        "periodic",
+        "{\"schemaVersion\":1,\"eventType\":\"periodic\",\"seconds\":1.0}");
+    return true;
 }
 
 int libDouQuquRuntime_gf_Int(string key, int fallback) {
@@ -86,7 +216,7 @@ string libDouQuquRuntime_gf_SpawnList(string unitType, int owner, point position
     return tags + "]";
 }
 
-string libDouQuquRuntime_gf_ReaverImpactJson(unit attacker, unit victim, bool fatal, fixed impactX, fixed impactY) {
+string libDouQuquRuntime_gf_ReaverImpactJson(unit attacker, int victimOwner, bool fatal, fixed impactX, fixed impactY) {
     int roll;
     int chance;
     int active;
@@ -95,8 +225,8 @@ string libDouQuquRuntime_gf_ReaverImpactJson(unit attacker, unit victim, bool fa
     string payload;
     string triggeredText;
     string fatalText;
-    if (attacker == null || victim == null || !UnitIsAlive(attacker) ||
-        UnitGetType(attacker) != "Reaver" || UnitGetOwner(attacker) == UnitGetOwner(victim)) {
+    if (attacker == null || !UnitIsAlive(attacker) ||
+        UnitGetType(attacker) != "Reaver" || UnitGetOwner(attacker) == victimOwner) {
         return "{\"triggered\":false,\"reason\":\"ignored\",\"spawned\":[]}";
     }
     chance = libDouQuquRuntime_gf_ProcChance("ReaverOrdinary", libDouQuquRuntime_gv_ReaverOrdinaryChance);
@@ -258,7 +388,7 @@ string libDouQuquRuntime_gf_Attack(string argsJson) {
     typeName = UnitGetType(attacker);
     effect = "{\"triggered\":false,\"spawned\":[]}";
     if (typeName == "Reaver") {
-        effect = libDouQuquRuntime_gf_ReaverImpactJson(attacker, target, false, PointGetX(targetPosition), PointGetY(targetPosition));
+        effect = libDouQuquRuntime_gf_ReaverImpactJson(attacker, UnitGetOwner(target), false, PointGetX(targetPosition), PointGetY(targetPosition));
     } else if (typeName == "BroodLord") {
         roll = RandomInt(1, 100);
         broodLordChance = libDouQuquRuntime_gf_ProcChance("BroodLord", libDouQuquRuntime_gv_BroodLordChance);
@@ -290,7 +420,7 @@ string libDouQuquRuntime_gf_ReaverScarabImpact(string argsJson) {
     attacker = libVibeKernel_gf_FindUnitByTag(attackerTag);
     victim = libVibeKernel_gf_FindUnitByTag(victimTag);
     if (attacker == null || victim == null || (fatalFlag != 0 && fatalFlag != 1)) { return libDouQuquRuntime_gf_Error("douququ.reaver.scarab_impact", "INVALID_ARGS", "tags_or_fatal"); }
-    impact = libDouQuquRuntime_gf_ReaverImpactJson(attacker, victim, fatalFlag == 1, impactX, impactY);
+    impact = libDouQuquRuntime_gf_ReaverImpactJson(attacker, UnitGetOwner(victim), fatalFlag == 1, impactX, impactY);
     return libDouQuquRuntime_gf_Result("douququ.reaver.scarab_impact", "{\"function_id\":\"douququ.reaver.scarab_impact\",\"impact\":" + impact + "}", true);
 }
 
@@ -322,7 +452,7 @@ string libDouQuquRuntime_gf_Kill(string argsJson) {
     // Resolve the fatal Scarab roll while the victim is still a live unit
     // handle; apply the death immediately after the impact side effect.
     if (UnitGetType(killer) == "Reaver") {
-        scarab = libDouQuquRuntime_gf_ReaverImpactJson(killer, victim, true, PointGetX(position), PointGetY(position));
+        scarab = libDouQuquRuntime_gf_ReaverImpactJson(killer, UnitGetOwner(victim), true, PointGetX(position), PointGetY(position));
     }
     UnitKill(victim);
     if (victimType == "Vulture") {
@@ -345,6 +475,212 @@ string libDouQuquRuntime_gf_Kill(string argsJson) {
         libDouQuquRuntime_gf_Event("kerrigan_broodlings");
     }
     return libDouQuquRuntime_gf_Result("douququ.kill", "{\"function_id\":\"douququ.kill\",\"victim_tag\":" + IntToString(victimTag) + ",\"spawned\":" + spawned + ",\"scarabImpact\":" + scarab + ",\"healed\":" + FixedToString(healed, 2) + ",\"kerriganBroodlings\":" + broodlings + "}", true);
+}
+
+string libDouQuquRuntime_gf_AutoAttack(string argsJson) {
+    int attackerTag;
+    int targetTag;
+    int roll;
+    int chance;
+    int spawned;
+    unit attacker;
+    unit target;
+    point targetPosition;
+    string attackerType;
+    string correlationId;
+    string effect;
+    string triggeredText;
+
+    attackerTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_attacker_tag");
+    targetTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_target_tag");
+    correlationId = libVibeKernel_gf_ArgsGet(argsJson, "arg_correlation_id");
+    attacker = libVibeKernel_gf_FindUnitByTag(attackerTag);
+    target = libVibeKernel_gf_FindUnitByTag(targetTag);
+    if (attacker == null || target == null || attackerTag == targetTag
+        || UnitGetOwner(attacker) == UnitGetOwner(target)) {
+        return libDouQuquRuntime_gf_Error("douququ.auto.attack", "UNIT_NOT_FOUND", correlationId);
+    }
+    targetPosition = UnitGetPosition(target);
+    attackerType = UnitGetType(attacker);
+    effect = "{\"triggered\":false,\"spawned\":[]}";
+    if (attackerType == "Reaver") {
+        effect = libDouQuquRuntime_gf_ReaverImpactJson(
+            attacker, UnitGetOwner(target), false, PointGetX(targetPosition), PointGetY(targetPosition));
+    } else if (attackerType == "BroodLord") {
+        chance = libDouQuquRuntime_gf_ProcChance(
+            "BroodLord", libDouQuquRuntime_gv_BroodLordChance);
+        roll = RandomInt(1, 100);
+        spawned = 0;
+        if (roll <= chance) {
+            spawned = libDouQuquRuntime_gf_SpawnOne(
+                "Baneling", UnitGetOwner(attacker), targetPosition);
+            if (spawned > 0) { libDouQuquRuntime_gf_Event("broodlord_baneling"); }
+        }
+        triggeredText = "false";
+        if (spawned > 0) { triggeredText = "true"; }
+        effect = "{\"triggered\":" + triggeredText + ",\"roll\":"
+            + IntToString(roll) + ",\"chancePercent\":" + IntToString(chance)
+            + ",\"spawned\":[" + IntToString(spawned) + "]}";
+    }
+    return libDouQuquRuntime_gf_Result(
+        "douququ.auto.attack",
+        "{\"function_id\":\"douququ.auto.attack\",\"correlationId\":\""
+        + correlationId + "\",\"attackerTag\":" + IntToString(attackerTag)
+        + ",\"targetTag\":" + IntToString(targetTag) + ",\"attackerType\":\""
+        + attackerType + "\",\"effect\":" + effect + "}",
+        true);
+}
+
+string libDouQuquRuntime_gf_AutoDeath(string argsJson) {
+    int killerTag;
+    int victimTag;
+    int owner;
+    int spawnedCount;
+    unit killer;
+    unit victim;
+    point position;
+    string victimType;
+    string killerType;
+    string correlationId;
+    string eventVictimType;
+    string spawned;
+    string broodlings;
+    string scarab;
+    fixed life;
+    fixed maxLife;
+    fixed healed;
+    fixed nextLife;
+    int victimOwner;
+    int eventVictimOwner;
+    fixed eventVictimX;
+    fixed eventVictimY;
+
+    killerTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_killer_tag");
+    victimTag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_victim_tag");
+    correlationId = libVibeKernel_gf_ArgsGet(argsJson, "arg_correlation_id");
+    eventVictimType = libVibeKernel_gf_ArgsGet(argsJson, "arg_victim_type");
+    eventVictimOwner = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_victim_owner");
+    eventVictimX = libVibeKernel_gf_ArgsGetFixed(argsJson, "arg_victim_x");
+    eventVictimY = libVibeKernel_gf_ArgsGetFixed(argsJson, "arg_victim_y");
+    killer = libVibeKernel_gf_FindUnitByTag(killerTag);
+    victim = libVibeKernel_gf_FindUnitByTag(victimTag);
+    if (victim == null && eventVictimType == "") {
+        return libDouQuquRuntime_gf_Error("douququ.auto.death", "VICTIM_NOT_FOUND", correlationId);
+    }
+    position = Point(eventVictimX, eventVictimY);
+    victimType = eventVictimType;
+    victimOwner = eventVictimOwner;
+    if (victim != null) {
+        position = UnitGetPosition(victim);
+        victimType = UnitGetType(victim);
+        victimOwner = UnitGetOwner(victim);
+    }
+    owner = victimOwner;
+    spawned = "[]";
+    broodlings = "[]";
+    scarab = "{\"triggered\":false}";
+    healed = 0.0;
+    spawnedCount = 0;
+    if (victimType == "Vulture") {
+        spawned = libDouQuquRuntime_gf_SpawnList("SpiderMineBurrowed", owner, position, 3);
+        spawnedCount = 3;
+        libDouQuquRuntime_gf_Event("vulture_death_mines");
+    }
+    killerType = "";
+    if (killer != null && UnitGetOwner(killer) != victimOwner) {
+        killerType = UnitGetType(killer);
+        if (killerType == "Reaver") {
+            scarab = libDouQuquRuntime_gf_ReaverImpactJson(
+                killer, victimOwner, true, PointGetX(position), PointGetY(position));
+        }
+        if (killerType == "Hydralisk") {
+            life = UnitGetPropertyFixed(killer, c_unitPropLife, true);
+            maxLife = UnitGetPropertyFixed(killer, c_unitPropLifeMax, true);
+            nextLife = life + libDouQuquRuntime_gv_HydraliskHeal;
+            if (nextLife > maxLife) { nextLife = maxLife; }
+            UnitSetPropertyFixed(killer, c_unitPropLife, nextLife);
+            healed = nextLife - life;
+            libDouQuquRuntime_gf_Event("hydralisk_heal");
+        }
+        if (killerType == "K5Kerrigan" || killerType == "K5KerriganBurrowed") {
+            broodlings = libDouQuquRuntime_gf_SpawnList(
+                "KerriganInfestBroodling", UnitGetOwner(killer), position, 2);
+            spawnedCount = spawnedCount + 2;
+            libDouQuquRuntime_gf_Event("kerrigan_broodlings");
+        }
+    }
+    return libDouQuquRuntime_gf_Result(
+        "douququ.auto.death",
+        "{\"function_id\":\"douququ.auto.death\",\"correlationId\":\""
+        + correlationId + "\",\"victimTag\":" + IntToString(victimTag)
+        + ",\"victimType\":\"" + victimType + "\",\"killerTag\":"
+        + IntToString(killerTag) + ",\"killerType\":\"" + killerType
+        + "\",\"spawnedCount\":" + IntToString(spawnedCount)
+        + ",\"spawned\":" + spawned + ",\"scarabImpact\":" + scarab
+        + ",\"healed\":" + FixedToString(healed, 2)
+        + ",\"kerriganBroodlings\":" + broodlings + "}",
+        spawnedCount > 0 || healed > 0.0 || scarab != "{\"triggered\":false}");
+}
+
+string libDouQuquRuntime_gf_AutoCreated(string argsJson) {
+    int tag;
+    int owner;
+    unit created;
+    string typeName;
+    string correlationId;
+
+    tag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_unit_tag");
+    correlationId = libVibeKernel_gf_ArgsGet(argsJson, "arg_correlation_id");
+    created = libVibeKernel_gf_FindUnitByTag(tag);
+    if (created == null) {
+        return libDouQuquRuntime_gf_Error("douququ.auto.created", "UNIT_NOT_FOUND", correlationId);
+    }
+    owner = UnitGetOwner(created);
+    typeName = UnitGetType(created);
+    if (typeName == "InfestedBanshee") {
+        DataTableSetFixed(true, "DouQuquRuntimeBansheeTimer_" + IntToString(tag), 0.0);
+    } else if (typeName == "Vulture") {
+        CatalogFieldValueSet(c_gameCatalogAbil, "VultureSpiderMines", "Cost[0].Charge.CountMax", owner, "5");
+        CatalogFieldValueSet(c_gameCatalogAbil, "VultureSpiderMines", "Cost[0].Charge.CountStart", owner, "5");
+        UnitAbilityAdd(created, "CRV_Vulture_MineRefill");
+        if (UnitAbilityExists(created, "VultureSpiderMines")) {
+            UnitAbilityAddChargeUsed(
+                created, "VultureSpiderMines", "Abil/VultureSpiderMines", -2.0);
+        }
+        DataTableSetInt(true, "DouQuquRuntimeMines_" + IntToString(tag), 5);
+    }
+    libDouQuquRuntime_gf_Event("unit_created");
+    return libDouQuquRuntime_gf_Result(
+        "douququ.auto.created",
+        "{\"function_id\":\"douququ.auto.created\",\"correlationId\":\""
+        + correlationId + "\",\"unitTag\":" + IntToString(tag)
+        + ",\"unitType\":\"" + typeName + "\",\"owner\":" + IntToString(owner) + "}",
+        true);
+}
+
+string libDouQuquRuntime_gf_AutoEffect(string argsJson) {
+    string ability;
+    string correlationId;
+    int tag;
+
+    ability = libVibeKernel_gf_ArgsGet(argsJson, "arg_ability");
+    correlationId = libVibeKernel_gf_ArgsGet(argsJson, "arg_correlation_id");
+    tag = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_unit_tag");
+    if (ability != "CRV_Vulture_MineRefill") {
+        return libDouQuquRuntime_gf_Error("douququ.auto.effect", "ABILITY_IGNORED", correlationId);
+    }
+    return libDouQuquRuntime_gf_VultureRefill(
+        "arg_unit_tag=" + IntToString(tag) + ";arg_correlation_id=" + correlationId);
+}
+
+string libDouQuquRuntime_gf_AutoPeriodic(string argsJson) {
+    string correlationId;
+    fixed seconds;
+
+    correlationId = libVibeKernel_gf_ArgsGet(argsJson, "arg_correlation_id");
+    seconds = libVibeKernel_gf_ArgsGetFixed(argsJson, "arg_seconds");
+    return libDouQuquRuntime_gf_Tick(
+        "arg_seconds=" + FixedToString(seconds, 2) + ";arg_correlation_id=" + correlationId);
 }
 
 string libDouQuquRuntime_gf_BansheeHatch(string argsJson) {
@@ -467,4 +803,26 @@ string libDouQuquRuntime_gf_Snapshot(string argsJson) {
     lastEvent = "";
     if (DataTableValueExists(true, "DouQuquRuntimeLastEvent")) { lastEvent = DataTableGetString(true, "DouQuquRuntimeLastEvent"); }
     return libDouQuquRuntime_gf_Result("douququ.snapshot", "{\"function_id\":\"douququ.snapshot\",\"events\":" + IntToString(events) + ",\"lastEvent\":\"" + lastEvent + "\",\"zealotCount\":" + IntToString(libDouQuquRuntime_gf_Count("Zealot")) + ",\"mineCount\":" + IntToString(libDouQuquRuntime_gf_MineCount()) + ",\"marineCount\":" + IntToString(libDouQuquRuntime_gf_Count("Marine")) + ",\"banelingCount\":" + IntToString(libDouQuquRuntime_gf_Count("Baneling")) + ",\"broodlingCount\":" + IntToString(libDouQuquRuntime_gf_Count("KerriganInfestBroodling")) + "}", false);
+}
+
+void libDouQuquRuntime_InitLib() {
+    if (libDouQuquRuntime_gv_EventBridgeInitialized) { return; }
+    libDouQuquRuntime_gv_EventBridgeInitialized = true;
+    libDouQuquRuntime_gv_EventSession = IntToString(RandomInt(1, 2147483647));
+    libDouQuquRuntime_gf_EnsureEventBank();
+    if (libDouQuquRuntime_gv_EventBank != null) {
+        BankValueSetFromString(libDouQuquRuntime_gv_EventBank, "index", "event_session", libDouQuquRuntime_gv_EventSession);
+        BankValueSetFromInt(libDouQuquRuntime_gv_EventBank, "index", "schema_version", 1);
+        BankSave(libDouQuquRuntime_gv_EventBank);
+    }
+    libDouQuquRuntime_gt_Attacked = TriggerCreate("libDouQuquRuntime_gt_Attacked_Func");
+    libDouQuquRuntime_gt_Died = TriggerCreate("libDouQuquRuntime_gt_Died_Func");
+    libDouQuquRuntime_gt_Created = TriggerCreate("libDouQuquRuntime_gt_Created_Func");
+    libDouQuquRuntime_gt_EffectUsed = TriggerCreate("libDouQuquRuntime_gt_EffectUsed_Func");
+    libDouQuquRuntime_gt_Periodic = TriggerCreate("libDouQuquRuntime_gt_Periodic_Func");
+    TriggerAddEventUnitAttacked2(libDouQuquRuntime_gt_Attacked, null, null);
+    TriggerAddEventUnitDied(libDouQuquRuntime_gt_Died, null);
+    TriggerAddEventUnitCreated(libDouQuquRuntime_gt_Created, null, null, null);
+    TriggerAddEventPlayerEffectUsed(libDouQuquRuntime_gt_EffectUsed, c_playerAny, "CRV_Vulture_MineRefill");
+    TriggerAddEventTimePeriodic(libDouQuquRuntime_gt_Periodic, 1.0, c_timeGame);
 }

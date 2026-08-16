@@ -332,3 +332,33 @@ zzerus03/Reborn map-commander initialization issue is still open; the runtime-fi
 - `static`: The explicit VM probe now emits `validationScope.id=explicit-vm-api`, `automaticBehavior.status=NOT_EXERCISED`, and a separate `explicitVmOverall`. Its process status remains useful for API validation but cannot be read as an automatic behavior verdict.
 - `static`: The runtime operator skill and public runtime documentation now require the same-window causal chain `game event -> event-source/VM dispatch -> raw observation`. Absent any link, a behavior result is `NOT_EXERCISED` or `BLOCKED`, never a generic pass.
 - `validation`: `test_explicit_vm_probe_cannot_claim_automatic_behavior_pass` locks the naming and exit-status contract so a later edit cannot reintroduce `verdict.overall=PASS` for the manual probe.
+
+## 2026-08-16 Runtime readiness gate and blocked automatic-event retest
+
+- `static`: `LibDouQuquRuntime.galaxy` now contains the live event bridge: unit
+  attacked, unit died, unit created, effect used, and one-second periodic
+  triggers write structured records to `GalaxyVibeEvents.SC2Bank`. The WebUI
+  event pump maps each record to an `auto-vm:<webui-session>:<event-session>:<event-id>`
+  correlation id and runs the registered `douququ.auto.*` VM function.
+- `static`: `RuntimeConsole._connect_unlocked()` no longer accepts a candidate
+  session from an arbitrary RPC error. It now requires `error_code=OK`, SC2
+  `Response.status=in_game`, and an observation `game_loop > 0`; the accepted
+  readiness tuple is exposed in `/api/vibe/status` and `session_recovery`.
+- `validation`: `python -m pytest -q tools/cmre-webui/test_launch_async_contract.py tools/cmre-webui/test_runtime_call_log.py` -> `40 passed`; this includes non-OK rejection, readiness metadata, and the real `/api/vibe/event-log?limit=1` HTTP route.
+- `validation`: `python -m pytest -q tools/launchers/tests/test_launch_cmre_alenger_static.py tools/cmre-webui/test_launch_async_contract.py tools/cmre-webui/test_runtime_call_log.py` -> `104 passed`; `python -m py_compile` and `git diff --check` passed.
+- `runtime`: A read-only probe of the existing SC2 API `127.0.0.1:5927`
+  returned `status=in_game`, `game_loop=8320`, map `大撤离`; it was not the
+  target 斗蛐蛐 map and was not joined, stepped, or modified.
+- `blocked`: The approved launcher could not obtain a target-map runtime
+  window without interrupting the existing game. A primary attempt left no
+  usable API, and the isolated `-SecondaryClient` attempts were recorded as
+  real launcher failures: port `5931` rejected the external SC2 instance and
+  port `5932` timed out while the existing SC2 remained alive. Evidence:
+  `artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/auto-event-launch-20260816-secondary.out.log`,
+  `artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/auto-event-launch-20260816-secondary2.out.log`.
+- `blocked`: No automatic behavior is claimed from this retest. The required
+  causal evidence remains `real target-map event -> GalaxyVibeEvents event id
+  -> auto-vm correlation record -> raw observation副作用`; it was not
+  available in this runtime window.
+- `validation`: `python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py` -> `136 passed`.
+- `validation`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` -> `52/52 passed`, zero warnings; Python/JavaScript compilation and `git diff --check` passed.
