@@ -32,14 +32,19 @@ validation and must be reported separately from automatic gameplay dispatch.
 
 1. Clear stale assertion, Bank, and ScriptError outputs under the run artifact
    directory. Keep the UTC marker for the same window.
-2. Launch the map through the approved launcher and wait for its ready signal.
-3. Capture the runtime listener and launcher JSON before injecting the agent.
-4. Inject the agent and save raw `HELLO`, `STATUS`, and `SHUTDOWN` responses.
-5. Exercise one map-owned trigger using a unique correlation id. Capture the
+2. Before `CreateGame`, seed the map-owned `GalaxyVibeTrace` Bank from
+   `artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/galaxy-vibe-trace-bank-seed.xml`
+   into the root and every existing numeric author directory under the local
+   SC2 `Documents/StarCraft II/Banks` directory. Do not touch the unrelated
+   `GalaxyVibe.SC2Bank` RPC channel.
+3. Launch the map through the approved launcher and wait for its ready signal.
+4. Capture the runtime listener and launcher JSON before injecting the agent.
+5. Inject the agent and save raw `HELLO`, `STATUS`, and `SHUTDOWN` responses.
+6. Exercise one map-owned trigger using a unique correlation id. Capture the
    raw event, frame, Bank value, and any agent trace record.
-6. Scan only ScriptError files newer than the UTC marker. Any new file fails the
+7. Scan only ScriptError files newer than the UTC marker. Any new file fails the
    window; process startup or a zero-error scan alone is not a VM pass.
-7. Close the launcher-owned process and write a bundle that classifies each
+8. Close the launcher-owned process and write a bundle that classifies each
    artifact as `static`, `runtime`, `blocked`, or `inference`.
 
 ## Promotion gate

@@ -196,5 +196,9 @@ def test_breakpoint_trace_variant_has_delayed_before_after_correlation():
     assert "breakpoint;" in module.BREAKPOINT_TRACE_DISPATCH
     assert '"trace_before"' in module.BREAKPOINT_TRACE_DISPATCH
     assert '"trace_after"' in module.BREAKPOINT_TRACE_DISPATCH
-    assert "TriggerAddEventTimeElapsed(traceTrigger, 20.0, c_timeGame);" in module.BREAKPOINT_TRACE_DISPATCH
+    assert 'BankLoad("GalaxyVibeTrace", 1)' in module.BREAKPOINT_TRACE_DISPATCH
+    assert '"startup"' in module.BREAKPOINT_TRACE_DISPATCH
+    assert "TriggerAddEventTimeElapsed(traceTrigger, 5.0, c_timeGame);" in module.BREAKPOINT_TRACE_DISPATCH
     assert "BreakpointTrace_Init();" in module.BREAKPOINT_TRACE_MAPSCRIPT
+    assert '<Bank Name="GalaxyVibeTrace" Player="1"/>' in module.TRACE_BANK_LIST
+    assert module.BREAKPOINT_TRACE_BANK_SEED.name == "galaxy-vibe-trace-bank-seed.xml"

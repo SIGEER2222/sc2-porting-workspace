@@ -35,6 +35,47 @@ static TRACE_BREAKPOINT_COUNT: AtomicU64 = AtomicU64::new(0);
 static TRACE_LAST_EXCEPTION: AtomicU32 = AtomicU32::new(0);
 static TRACE_LAST_IP: AtomicU64 = AtomicU64::new(0);
 
+const TRACE_IP_SLOTS: usize = 32;
+
+struct TraceIpSlot {
+    ip: AtomicU64,
+    count: AtomicU64,
+}
+
+impl TraceIpSlot {
+    const fn new() -> Self {
+        Self {
+            ip: AtomicU64::new(0),
+            count: AtomicU64::new(0),
+        }
+    }
+}
+
+static TRACE_IP_HISTOGRAM: [TraceIpSlot; TRACE_IP_SLOTS] =
+    [const { TraceIpSlot::new() }; TRACE_IP_SLOTS];
+
+fn record_trace_ip(ip: u64) {
+    if ip == 0 {
+        return;
+    }
+    for slot in TRACE_IP_HISTOGRAM.iter() {
+        let known = slot.ip.load(Ordering::Acquire);
+        if known == ip {
+            slot.count.fetch_add(1, Ordering::Relaxed);
+            return;
+        }
+        if known == 0
+            && slot
+                .ip
+                .compare_exchange(0, ip, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
+        {
+            slot.count.fetch_add(1, Ordering::Relaxed);
+            return;
+        }
+    }
+}
+
 unsafe extern "system" fn trace_exception_handler(info: *mut EXCEPTION_POINTERS) -> i32 {
     if !TRACE_ARMED.load(Ordering::Acquire) || info.is_null() {
         return EXCEPTION_CONTINUE_SEARCH;
@@ -47,7 +88,9 @@ unsafe extern "system" fn trace_exception_handler(info: *mut EXCEPTION_POINTERS)
     TRACE_LAST_EXCEPTION.store((*record).ExceptionCode as u32, Ordering::Release);
     let context = (*info).ContextRecord;
     if !context.is_null() {
-        TRACE_LAST_IP.store((*context).Rip, Ordering::Release);
+        let ip = (*context).Rip;
+        TRACE_LAST_IP.store(ip, Ordering::Release);
+        record_trace_ip(ip);
     }
     EXCEPTION_CONTINUE_EXECUTION
 }
@@ -79,12 +122,24 @@ fn trace_disarm() -> String {
 }
 
 fn trace_status() -> String {
+    let mut histogram = String::new();
+    for slot in TRACE_IP_HISTOGRAM.iter() {
+        let ip = slot.ip.load(Ordering::Acquire);
+        let count = slot.count.load(Ordering::Acquire);
+        if ip != 0 && count != 0 {
+            if !histogram.is_empty() {
+                histogram.push(',');
+            }
+            histogram.push_str(&format!(r#"{{"ip":"0x{:016X}","count":{}}}"#, ip, count));
+        }
+    }
     format!(
-        r#"{{"trace_enabled":{},"trace_mode":"veh-breakpoint","breakpoint_count":{},"last_exception":{},"last_ip":"0x{:016X}"}}"#,
+        r#"{{"trace_enabled":{},"trace_mode":"veh-breakpoint","breakpoint_count":{},"last_exception":{},"last_ip":"0x{:016X}","ip_histogram":[{}]}}"#,
         TRACE_ARMED.load(Ordering::Acquire),
         TRACE_BREAKPOINT_COUNT.load(Ordering::Acquire),
         TRACE_LAST_EXCEPTION.load(Ordering::Acquire),
         TRACE_LAST_IP.load(Ordering::Acquire),
+        histogram,
     )
 }
 

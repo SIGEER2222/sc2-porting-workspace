@@ -144,3 +144,39 @@ observer or an explicitly instrumented map startup marker before promotion.
   requests. That external process and Bank were identified by command line and
   left untouched; the map-only evidence above records the file state at the
   observation time.
+
+## 2026-08-16 filtered observation preparation
+
+- `static`: Extended the VEH observer with a fixed 32-slot instruction-pointer
+  histogram. `TRACE_STATUS` now retains the high-volume total plus per-IP
+  counts, so a future window can distinguish one generic debug stream from a
+  candidate event source without treating the counter as VM evidence. The
+  profile and handshake remain `hook_enabled=false`.
+- `static`: Rebuilt `BreakpointTrace.SC2Map` to use the isolated
+  `GalaxyVibeTrace` Bank and to persist `startup`, `trace_before`, and
+  `trace_after` around Galaxy `breakpoint;`. The trigger delay is now five game
+  seconds. The packed map SHA remains reproducible in the build report.
+- `static`: Generated the seed Bank artifact
+  `artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/galaxy-vibe-trace-bank-seed.xml`.
+  The recipe now requires copying this seed to the root and existing numeric
+  author directories before `CreateGame`; it intentionally leaves the
+  unrelated `GalaxyVibe.SC2Bank` RPC channel untouched.
+- `static`: `python -m pytest -q src/projects/generic-runtime-lab/tests` ->
+  `14 passed`; both breakpoint fixture Galaxy files linted with zero errors and
+  zero warnings; `cargo check` for `gsvm-agent` and `gsvm-controller` on the
+  MSVC target passed.
+- `blocked`: A fresh runtime attempt was not started because unrelated SC2
+  owners were present at ports `5949` (PID `9424`) and `5965` (PID `30644`).
+  The approved launcher can perform a global SC2 restart, so this session did
+  not terminate or attach to either process. Evidence is the process command
+  line snapshot from the current shell; the next runtime attempt requires an
+  empty owner window and the new seed procedure.
+
+## Updated boundary
+
+The observer and map fixture are now prepared for a clean causal attempt, but
+no new runtime correlation was claimed in this session. Keep
+`hook_enabled=false` and `trace_status=VEH_BREAKPOINT_HIGH_VOLUME_UNCORRELATED`
+until a fresh launcher-owned window records `startup -> trace_before ->
+attributable VEH IP -> trace_after` in the isolated Bank with zero new
+ScriptErrors.

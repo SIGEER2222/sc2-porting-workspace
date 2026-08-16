@@ -64,6 +64,10 @@ BREAKPOINT_TRACE_REPORT = (
     REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
     / "maps" / "breakpoint-trace-build-report.json"
 )
+BREAKPOINT_TRACE_BANK_SEED = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
+    / "runtime" / "galaxy-vibe-trace-bank-seed.xml"
+)
 CMLIB = REPO / "src" / "lib" / "scripts" / "cmlib"
 SELFTEST = REPO / "src" / "lib" / "selftest" / "cmlib_selftest.galaxy"
 KERNEL = REPO / "tools" / "galaxy-vibe" / "kernel"
@@ -75,6 +79,13 @@ BANK_LIST = """<?xml version="1.0" encoding="utf-8"?>
 <BankList>
     <Bank Name="GalaxyVibe" Player="1"/>
     <Bank Name="GalaxyVibe" Player="2"/>
+</BankList>
+"""
+
+TRACE_BANK_LIST = """<?xml version="1.0" encoding="utf-8"?>
+<BankList>
+    <Bank Name="GalaxyVibeTrace" Player="1"/>
+    <Bank Name="GalaxyVibeTrace" Player="2"/>
 </BankList>
 """
 
@@ -189,9 +200,11 @@ bool BreakpointTrace_Probe(bool testConds, bool runActions) {
     if (testConds) { return true; }
     if (!runActions) { return true; }
 
-    traceBank = BankLoad("GalaxyVibe", 1);
+    traceBank = BankLoad("GalaxyVibeTrace", 1);
     if (traceBank != null) {
         BankWait(traceBank);
+        BankValueSetFromInt(traceBank, "trace", "startup", 1);
+        BankSave(traceBank);
         BankValueSetFromInt(traceBank, "trace", "trace_before", 1);
         BankSave(traceBank);
         breakpoint;
@@ -206,7 +219,7 @@ void BreakpointTrace_Init() {
     trigger traceTrigger;
 
     traceTrigger = TriggerCreate("BreakpointTrace_Probe");
-    TriggerAddEventTimeElapsed(traceTrigger, 20.0, c_timeGame);
+    TriggerAddEventTimeElapsed(traceTrigger, 5.0, c_timeGame);
     TriggerEnable(traceTrigger, true);
 }
 """
@@ -422,10 +435,21 @@ def build_breakpoint_trace() -> int:
     (BREAKPOINT_TRACE_BUILD_DIR / "MapScript.galaxy").write_text(
         BREAKPOINT_TRACE_MAPSCRIPT, encoding="utf-8", newline="\n")
     (BREAKPOINT_TRACE_BUILD_DIR / "BankList.xml").write_text(
-        BANK_LIST, encoding="utf-8", newline="\n")
+        TRACE_BANK_LIST, encoding="utf-8", newline="\n")
     (BREAKPOINT_TRACE_BUILD_DIR / "DocumentInfo").write_text(
         DOCUMENT_INFO, encoding="utf-8", newline="\n")
     packer_output = pack_map(BREAKPOINT_TRACE_BUILD_DIR, BREAKPOINT_TRACE_MAP)
+    BREAKPOINT_TRACE_BANK_SEED.parent.mkdir(parents=True, exist_ok=True)
+    BREAKPOINT_TRACE_BANK_SEED.write_text(
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+        "<Bank version=\"1\">\n"
+        "  <Section name=\"trace\">\n"
+        "    <Key name=\"seed_marker\"><Value int=\"1\" /></Key>\n"
+        "  </Section>\n"
+        "</Bank>\n",
+        encoding="utf-8",
+        newline="\n",
+    )
 
     report = {
         "schemaVersion": 1,
@@ -435,8 +459,10 @@ def build_breakpoint_trace() -> int:
         "sha256": sha256(BREAKPOINT_TRACE_MAP),
         "sourceFiles": ["MapScript.galaxy", "BreakpointTraceDispatch.galaxy"],
         "dependencies": ["Campaigns/Void.SC2Campaign"],
-        "triggerDelaySeconds": 20.0,
-        "bankKeys": ["trace_before", "trace_after"],
+        "triggerDelaySeconds": 5.0,
+        "bankName": "GalaxyVibeTrace",
+        "bankKeys": ["startup", "trace_before", "trace_after"],
+        "bankSeed": BREAKPOINT_TRACE_BANK_SEED.relative_to(REPO).as_posix(),
         "packerOutput": packer_output,
     }
     BREAKPOINT_TRACE_REPORT.parent.mkdir(parents=True, exist_ok=True)
