@@ -47,6 +47,18 @@ validation and must be reported separately from automatic gameplay dispatch.
 8. Close the launcher-owned process and write a bundle that classifies each
    artifact as `static`, `runtime`, `blocked`, or `inference`.
 
+## Direct dispatch gate
+
+Use `BreakpointTraceDirect.SC2Map` before testing the delayed fixture when
+source compilation or trigger dispatch is in doubt. Its `InitMap()` executes
+`TriggerExecute(TriggerCreate("BreakpointTrace_Probe"), false, true)` directly,
+so `startup`, `trace_before`, and `trace_after` in the isolated
+`GalaxyVibeTrace` Bank prove the map-owned function ran. This is a runtime
+source/dispatch check only; it does not prove automatic time-event dispatch or
+the VM boundary. The direct probe intentionally includes `breakpoint;`, so a
+`JoinGame`/`game_loop=0` result is expected while the debug observer is armed.
+Record the direct run separately from the delayed behavior verdict.
+
 ## Promotion gate
 
 A profile may set `hook_enabled=true` only when two independent fresh windows

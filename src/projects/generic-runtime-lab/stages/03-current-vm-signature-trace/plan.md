@@ -24,6 +24,8 @@ validated in a launcher-owned debug process.
 - A reusable `BreakpointTrace.SC2Map` fixture with a delayed Galaxy
   `breakpoint;` and `trace_before`/`trace_after` Bank markers for same-window
   correlation.
+- A separate `BreakpointTraceDirect.SC2Map` source/dispatch gate that invokes
+  the same probe from `InitMap()` before automatic event dispatch is tested.
 - An updated version profile that remains `hook_enabled=false` unless the
   signature passes the stage's independent verification gate.
 - Stage evidence quartet and a concrete decision on whether a hook can be

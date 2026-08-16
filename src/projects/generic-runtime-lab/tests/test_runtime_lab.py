@@ -209,3 +209,20 @@ def test_breakpoint_trace_variant_has_delayed_before_after_correlation():
     assert 'triggers_version = BREAKPOINT_TRACE_BUILD_DIR / "Triggers.version"' in (
         inspect.getsource(module.build_breakpoint_trace)
     )
+
+
+def test_breakpoint_trace_direct_variant_executes_from_initmap():
+    builder = PROJECT / "scripts" / "build_runtime_lab.py"
+    spec = importlib.util.spec_from_file_location("runtime_lab_builder_breakpoint_direct", builder)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    assert module.BREAKPOINT_TRACE_DIRECT_MAP.name == "BreakpointTraceDirect.SC2Map"
+    assert 'TriggerExecute(TriggerCreate("BreakpointTrace_Probe"), false, true);' in (
+        module.BREAKPOINT_TRACE_DIRECT_MAPSCRIPT
+    )
+    assert "breakpoint;" in module.BREAKPOINT_TRACE_DISPATCH
+    assert "remove_triggers_payload(BREAKPOINT_TRACE_DIRECT_BUILD_DIR)" in (
+        inspect.getsource(module.build_breakpoint_trace_direct)
+    )

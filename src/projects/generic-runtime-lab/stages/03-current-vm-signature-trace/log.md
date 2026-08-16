@@ -256,3 +256,41 @@ Galaxy trigger marker. Do not inject or promote a VM hook from this window;
 the next bounded action is to establish a compliant source-compilation or
 trigger-dispatch path, then repeat the observer only after
 `startup -> trace_before -> attributable VEH/IP -> trace_after` is visible.
+
+## 2026-08-16 InitMap direct-dispatch probe
+
+- `static`: Added a separate `BreakpointTraceDirect.SC2Map` build target. It
+  removes both `Triggers` and `Triggers.version`, then executes
+  `TriggerExecute(TriggerCreate("BreakpointTrace_Probe"), false, true)` from
+  `InitMap()`. The delayed `BreakpointTrace.SC2Map` remains unchanged for the
+  later automatic-dispatch test. Build SHA:
+  `726263ed97679d428592efc4182e3c2583fbd25f76f9b25140d0251974293336`.
+- `static`: Project tests now pass `15/15`; direct fixture Galaxy lint reports
+  zero errors and zero warnings (known include/undeclared diagnostics remain
+  suppressed by the linter). Native release artifacts were rebuilt after the
+  IP-histogram observer change.
+- `runtime`: Port `6009` was a first direct probe with the pre-histogram DLL.
+  `CreateGame` reached the map and the root `GalaxyVibeTrace` Bank contained
+  `startup`, `trace_before`, and `trace_after`; JoinGame remained at
+  `game_loop=0` because the Galaxy `breakpoint;` probe pauses the debug game.
+  The same-window ScriptError gate reported zero new errors.
+- `runtime`: Fresh port `6012` repeated the direct probe with the rebuilt
+  agent. The launcher-owned SC2 PID was `3632`, the locked executable SHA
+  matched, and the observer was armed before `CreateGame`. The root Bank again
+  contained all three markers. The observer reported one high-volume IP
+  (`0x00007FF6D878B586`, `33,975,012` breakpoint events, exception
+  `0x80000003`) and zero ScriptErrors. Raw evidence:
+  `artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-initmap-evidence-20260816.json`.
+- `inference`: This proves current source compilation, `InitMap` direct
+  trigger execution, and Bank persistence in a real SC2 window. The VEH IP is
+  still uncorrelated to a trigger/program id; it is not a promoted VM
+  boundary. `hook_enabled=false` remains required.
+
+## Updated boundary
+
+The direct path is now runtime-verifiable and can be used as the fixture gate
+for future observer work. Automatic time-event dispatch is still a separate
+blocked behavior, and the current VEH stream remains only a debug-break
+observation. The next bounded experiment is a direct probe without
+`breakpoint;` to isolate the JoinGame pause, followed by a filtered observer
+that can carry a trigger correlation id before any hook promotion.

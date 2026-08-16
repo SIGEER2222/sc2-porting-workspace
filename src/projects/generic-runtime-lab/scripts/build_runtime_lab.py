@@ -64,6 +64,18 @@ BREAKPOINT_TRACE_REPORT = (
     REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
     / "maps" / "breakpoint-trace-build-report.json"
 )
+BREAKPOINT_TRACE_DIRECT_BUILD_DIR = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
+    / "build" / "BreakpointTraceDirect.SC2Map"
+)
+BREAKPOINT_TRACE_DIRECT_MAP = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
+    / "maps" / "BreakpointTraceDirect.SC2Map"
+)
+BREAKPOINT_TRACE_DIRECT_REPORT = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
+    / "maps" / "breakpoint-trace-direct-build-report.json"
+)
 BREAKPOINT_TRACE_BANK_SEED = (
     REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
     / "runtime" / "galaxy-vibe-trace-bank-seed.xml"
@@ -190,6 +202,15 @@ include "BreakpointTraceDispatch"
 
 void InitMap() {
     BreakpointTrace_Init();
+}
+"""
+
+BREAKPOINT_TRACE_DIRECT_MAPSCRIPT = """// Generated direct breakpoint trace map. InitMap executes the probe immediately.
+include "TriggerLibs/NativeLib"
+include "BreakpointTraceDispatch"
+
+void InitMap() {
+    TriggerExecute(TriggerCreate("BreakpointTrace_Probe"), false, true);
 }
 """
 
@@ -479,6 +500,63 @@ def build_breakpoint_trace() -> int:
     return 0
 
 
+def build_breakpoint_trace_direct() -> int:
+    """Build a source-only dispatch fixture that runs from InitMap.
+
+    This isolates source compilation and direct TriggerExecute from delayed
+    event dispatch. It shares the probe body and seed with the delayed map.
+    """
+    if BREAKPOINT_TRACE_DIRECT_BUILD_DIR.exists():
+        shutil.rmtree(BREAKPOINT_TRACE_DIRECT_BUILD_DIR)
+    shutil.copytree(BASE_MAP, BREAKPOINT_TRACE_DIRECT_BUILD_DIR)
+    remove_triggers_payload(BREAKPOINT_TRACE_DIRECT_BUILD_DIR)
+    triggers_version = BREAKPOINT_TRACE_DIRECT_BUILD_DIR / "Triggers.version"
+    if triggers_version.exists():
+        triggers_version.unlink()
+    (BREAKPOINT_TRACE_DIRECT_BUILD_DIR / "Base.SC2Data" / "BreakpointTraceDispatch.galaxy").write_text(
+        BREAKPOINT_TRACE_DISPATCH, encoding="utf-8", newline="\n")
+    (BREAKPOINT_TRACE_DIRECT_BUILD_DIR / "MapScript.galaxy").write_text(
+        BREAKPOINT_TRACE_DIRECT_MAPSCRIPT, encoding="utf-8", newline="\n")
+    (BREAKPOINT_TRACE_DIRECT_BUILD_DIR / "BankList.xml").write_text(
+        TRACE_BANK_LIST, encoding="utf-8", newline="\n")
+    (BREAKPOINT_TRACE_DIRECT_BUILD_DIR / "DocumentInfo").write_text(
+        DOCUMENT_INFO, encoding="utf-8", newline="\n")
+    packer_output = pack_map(BREAKPOINT_TRACE_DIRECT_BUILD_DIR, BREAKPOINT_TRACE_DIRECT_MAP)
+
+    BREAKPOINT_TRACE_BANK_SEED.parent.mkdir(parents=True, exist_ok=True)
+    if not BREAKPOINT_TRACE_BANK_SEED.exists():
+        BREAKPOINT_TRACE_BANK_SEED.write_text(
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+            "<Bank version=\"1\">\n"
+            "  <Section name=\"trace\">\n"
+            "    <Key name=\"seed_marker\"><Value int=\"1\" /></Key>\n"
+            "  </Section>\n"
+            "</Bank>\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+
+    report = {
+        "schemaVersion": 1,
+        "classification": "static",
+        "kind": "breakpoint-trace-direct",
+        "map": BREAKPOINT_TRACE_DIRECT_MAP.relative_to(REPO).as_posix(),
+        "sha256": sha256(BREAKPOINT_TRACE_DIRECT_MAP),
+        "sourceFiles": ["MapScript.galaxy", "BreakpointTraceDispatch.galaxy"],
+        "dependencies": ["Campaigns/Void.SC2Campaign"],
+        "dispatch": "InitMap -> TriggerExecute(TriggerCreate(\"BreakpointTrace_Probe\"), false, true)",
+        "bankName": "GalaxyVibeTrace",
+        "bankKeys": ["startup", "trace_before", "trace_after"],
+        "bankSeed": BREAKPOINT_TRACE_BANK_SEED.relative_to(REPO).as_posix(),
+        "removedFiles": ["Triggers", "Triggers.version"],
+        "packerOutput": packer_output,
+    }
+    BREAKPOINT_TRACE_DIRECT_REPORT.parent.mkdir(parents=True, exist_ok=True)
+    BREAKPOINT_TRACE_DIRECT_REPORT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(report, indent=2))
+    return 0
+
+
 def main() -> int:
     for required in (RUNTIME_BASE_MAP, CMLIB, SELFTEST, KERNEL, PACKER, STORMLIB):
         if not required.exists():
@@ -537,8 +615,10 @@ if __name__ == "__main__":
         raise SystemExit(build_arena_kernel_control())
     if sys.argv[1:] == ["--breakpoint-trace"]:
         raise SystemExit(build_breakpoint_trace())
+    if sys.argv[1:] == ["--breakpoint-trace-direct"]:
+        raise SystemExit(build_breakpoint_trace_direct())
     if len(sys.argv) > 1:
         raise SystemExit(
-            "Usage: build_runtime_lab.py [--cmlib-control|--kernel-control|--kernel-cmlib-control|--kernel-control-no-triggers|--arena-kernel-control|--breakpoint-trace]"
+            "Usage: build_runtime_lab.py [--cmlib-control|--kernel-control|--kernel-cmlib-control|--kernel-control-no-triggers|--arena-kernel-control|--breakpoint-trace|--breakpoint-trace-direct]"
         )
     raise SystemExit(main())
