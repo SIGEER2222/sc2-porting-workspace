@@ -3,27 +3,39 @@
   "stage": "03-current-vm-signature-trace",
   "status": "IN_PROGRESS",
   "evidence_type": "static",
-  "summary": "Stage 03 is open for current-version VM signature discovery. The profile remains hash-locked with hook_enabled=false.",
+  "summary": "Stage 03 improved the reproducible PE candidate report and defined a non-invasive three-layer trace contract. No current VM entrypoint is verified; the profile remains hash-locked with hook_enabled=false.",
   "changed_paths": [
     "src/projects/generic-runtime-lab/project.json",
     "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/plan.md",
     "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/log.md",
     "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/result.json",
-    "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/issues.json"
+    "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/issues.json",
+    "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/trace-recipe.md",
+    "src/projects/generic-runtime-lab/scripts/probe_sc2_binary.py",
+    "src/projects/generic-runtime-lab/tests/test_native_vm.py"
   ],
   "validation": [
     {
       "command": "python src/projects/generic-runtime-lab/scripts/probe_sc2_binary.py --exe E:\\SC2\\SC2new\\StarCraft II\\Versions\\Base97563\\SC2_x64.exe --profile src/projects/generic-runtime-lab/runtime/native-vm/profiles/sc2-5.0.16.97563.json --out artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/static/sc2-binary-probe.json",
       "exitCode": 0,
-      "summary": "SHA matched; 54 string/xref candidates recorded; promoted_hooks is empty.",
+      "summary": "SHA matched; 54 target strings and 6,643 file-backed RIP-relative candidates recorded; direct xrefs to exact target-string starts are 0; promoted_hooks is empty.",
       "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/static/sc2-binary-probe.json",
+      "evidence_type": "static"
+    },
+    {
+      "command": "python -m pytest -q src/projects/generic-runtime-lab/tests/test_native_vm.py",
+      "exitCode": 0,
+      "summary": "3 tests passed, including synthetic RIP-relative ModRM displacement coverage.",
+      "evidence": "src/projects/generic-runtime-lab/tests/test_native_vm.py",
       "evidence_type": "static"
     }
   ],
   "runtime": {
     "status": "PENDING",
     "hook_enabled": false,
-    "scriptErrors": null
+    "scriptErrors": null,
+    "trace_status": "BLOCKED_AT_VM_LAYER",
+    "trace_recipe": "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/trace-recipe.md"
   },
   "issues": [
     {
@@ -32,7 +44,7 @@
       "status": "open",
       "evidence_type": "inference",
       "detail": "No current-version VM entrypoint has been independently verified for SC2 5.0.16.97563.",
-      "nextAction": "Run the read-only PE probe, then design a non-invasive debug observation that can correlate script dispatch with a candidate code boundary."
+      "nextAction": "Run the recipe in a fresh launcher-owned debug window once an event-source observer is available; require trigger-to-VM correlation before considering hook promotion."
     }
   ],
   "nextStage": null

@@ -39,3 +39,36 @@ def test_probe_rejects_non_pe(tmp_path):
         assert "PE" in str(error)
     else:
         raise AssertionError("non-PE input was accepted")
+
+
+def test_rip_relative_string_reference_uses_modrm_displacement():
+    module = load_probe()
+    sections = [
+        {
+            "name": ".text",
+            "virtual_address": 0x1000,
+            "virtual_size": 16,
+            "raw_size": 16,
+            "raw_pointer": 0,
+        },
+        {
+            "name": ".rdata",
+            "virtual_address": 0x2000,
+            "virtual_size": 16,
+            "raw_size": 16,
+            "raw_pointer": 16,
+        },
+    ]
+    target_rva = 0x2000
+    instruction_rva = 0x1000
+    displacement = target_rva - (instruction_rva + 7)
+    data = bytearray(32)
+    data[:7] = b"\x48\x8d\x0d" + displacement.to_bytes(4, "little", signed=True)
+    data[16:22] = b"Galaxy"
+    matches = [{"text": "Galaxy", "rva": target_rva, "file_offset": 16}]
+
+    xrefs = module._candidate_xrefs_map(bytes(data), sections, matches)
+
+    assert target_rva in xrefs
+    assert xrefs[target_rva][0]["instruction_rva"] == instruction_rva
+    assert xrefs[target_rva][0]["bytes"] == "48 8d 0d f9 0f 00 00"
