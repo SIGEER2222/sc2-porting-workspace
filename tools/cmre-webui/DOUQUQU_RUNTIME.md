@@ -2,6 +2,12 @@
 
 斗蛐蛐插件的开发入口是实时 `function.invoke`，不是静态 Catalog/Event 注入。启动时只把 Vibe kernel 和 `LibDouQuquRuntime.galaxy` 挂到本次 staged copy；单位和效果只有收到 runtime 调用后才会在当前 SC2 会话中发生。
 
+## 验收范围
+
+`/api/vibe/invoke`、`/api/vibe/run-vm` 和 `dou_ququ_runtime_probe.py` 验证的是显式 VM API：调用方直接请求 `douququ.*`，随后观测对应副作用。它们不能证明普通游戏内攻击、死亡、击杀或时间流逝会自动触发规则。
+
+自动行为只能在同一证据窗口同时具备以下因果链时标为通过：真实游戏事件、运行时事件源向 VM 的带关联 ID 记录、以及原始观察中可见的预期结果。没有这三段证据时，行为状态必须是 `NOT_EXERCISED` 或 `BLOCKED`，不得使用泛化的 `PASS`。
+
 ## 启动
 
 使用批准的 WebUI/launcher 入口：
@@ -70,7 +76,7 @@ curl.exe http://127.0.0.1:8777/api/vibe/trace
 
 每条 call 记录包含 `timestamp`、`session_id`、`port`、`origin`（`api`/`vm`/`connect`）、`function_id`、`args`、`result`、`error`、状态和耗时。连接握手的 `douququ.runtime.status` 也会记录，便于区分用户调用和 VM 调用。
 
-作者弹窗清理只作用于 `artifacts/` 下的运行副本；原始 `.SC2Map` 不会被修改，也不计入 runtime 效果验证。真实效果验证必须以 `/api/vibe/invoke` 或 `/api/vibe/run-vm` 返回的 SC2 runtime 结果和对应 JSONL 记录为准。
+作者弹窗清理只作用于 `artifacts/` 下的运行副本；原始 `.SC2Map` 不会被修改，也不计入 runtime 效果验证。显式 VM 调用的 SC2 返回和 JSONL 只可作为 API 验证；自动效果必须满足上方的完整事件链。
 
 ## Galaxy Script Lab
 

@@ -27,6 +27,8 @@ Use this skill to drive one SC2 Vibe task from static inputs to verified evidenc
 - Use UTF-8-SIG when reading PowerShell-generated JSON or .vtest files.
 - Use a real UTC Unix epoch for ScriptError launch windows.
 - Use port fallback/retry when a prior SC2 process or API port is still settling; keep blocked runs separate from the last PASS bundle.
+- An explicit `function.invoke` or VM program that directly calls a behavior function proves only that API path. It must never be labeled as an automatic gameplay-behavior pass.
+- Automatic behavior evidence must contain one causal chain in the same runtime window: the real game event, the runtime event-source/VM dispatch record with a correlation id, and raw observation of the expected in-game result. If any link is absent, mark the behavior `NOT_EXERCISED` or `BLOCKED`.
 
 ## Evidence Interpretation
 
@@ -43,5 +45,6 @@ Use this skill to drive one SC2 Vibe task from static inputs to verified evidenc
 - Simulator and parser/static lanes are recorded.
 - Live runtime claims have launcher/API evidence and ScriptError evidence.
 - Assertions are present, current, and all pass.
+- Any automatic behavior claim has a real event-to-VM-to-observation evidence chain; direct RPC side effects are recorded separately as API validation.
 - result.json, log.md, issues.json, and the evidence bundle agree.
 - Remaining warnings and next actions are recorded explicitly.

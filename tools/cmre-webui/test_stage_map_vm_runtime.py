@@ -214,3 +214,12 @@ def test_stage_rejects_dou_ququ_opt_in_for_other_map(tmp_path):
         assert "restricted to the 斗蛐蛐 map" in str(exc)
     else:
         raise AssertionError("expected map restriction")
+
+
+def test_explicit_vm_probe_cannot_claim_automatic_behavior_pass():
+    probe = Path(__file__).with_name("dou_ququ_runtime_probe.py").read_text(encoding="utf-8")
+    assert 'EXPLICIT_VM_SCOPE = "explicit-vm-api"' in probe
+    assert 'AUTOMATIC_BEHAVIOR_NOT_EXERCISED = "NOT_EXERCISED"' in probe
+    assert '"automaticBehaviorOverall"] = AUTOMATIC_BEHAVIOR_NOT_EXERCISED' in probe
+    assert '"explicitVmOverall"] == "PASS"' in probe
+    assert 'result["verdict"]["overall"]' not in probe

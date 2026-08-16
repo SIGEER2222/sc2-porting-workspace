@@ -246,6 +246,11 @@
       "command": "python -m pytest -q tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py",
       "exitCode": 0,
       "summary": "106 passed, including the serialized RuntimeConsole queue and death-mine spawn-tag contract."
+    },
+    {
+      "command": "python -m pytest -q tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_runtime_call_log.py; python -m py_compile tools/cmre-webui/dou_ququ_runtime_probe.py tools/cmre-webui/stage_map_vm_runtime.py tools/cmre-webui/server.py",
+      "exitCode": 0,
+      "summary": "13 passed. The explicit VM probe now reports explicitVmOverall separately and always marks automatic behavior NOT_EXERCISED, preventing API-side effects from being reported as normal-combat behavior."
     }
   ],
   "runtime": {

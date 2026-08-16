@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""End-to-end runtime probe for the staged 斗蛐蛐 behavior plugin.
+"""Explicit-VM runtime probe for the staged 斗蛐蛐 development transport.
 
 The launcher owns the SC2 process. This probe owns one API game session and
-drives the map through the registered Vibe functions, then observes the real
-unit state and the plugin's debug-bank markers.
+drives the map through registered Vibe functions, then observes the real unit
+state and debug-bank markers. It does not create ordinary gameplay events, so
+it cannot establish that attacks, deaths, kills, or elapsed time invoke a
+runtime behavior program.
 """
 
 from __future__ import annotations
@@ -37,6 +39,9 @@ MARKERS = {
     "hydralisk": "douququ_hydralisk_heal",
     "kerrigan": "douququ_kerrigan_broodlings",
 }
+
+EXPLICIT_VM_SCOPE = "explicit-vm-api"
+AUTOMATIC_BEHAVIOR_NOT_EXERCISED = "NOT_EXERCISED"
 
 
 class ProbeError(RuntimeError):
@@ -595,6 +600,15 @@ class DouQuquRuntimeProbe:
         result: dict[str, Any] = {
             "schemaVersion": 1,
             "classification": "runtime",
+            "validationScope": {
+                "id": EXPLICIT_VM_SCOPE,
+                "meaning": "Calls douququ.* directly through function.invoke; this verifies the typed VM API only.",
+                "automaticBehavior": {
+                    "status": AUTOMATIC_BEHAVIOR_NOT_EXERCISED,
+                    "reason": "The probe creates side effects through explicit RPC calls and does not observe a gameplay event feeding the VM.",
+                    "requiredEventSources": ["attack", "death", "kill", "periodic"],
+                },
+            },
             "mapLabel": "斗蛐蛐",
             "forbiddenMap": "亡者之夜",
             "map": str(self.map_path),
@@ -643,7 +657,8 @@ class DouQuquRuntimeProbe:
             "checkCount": len(self.checks),
             "passedCount": sum(item["passed"] for item in self.checks.values()),
         }
-        result["verdict"]["overall"] = "PASS" if result["verdict"]["allChecksPassed"] else "FAIL"
+        result["verdict"]["explicitVmOverall"] = "PASS" if result["verdict"]["allChecksPassed"] else "FAIL"
+        result["verdict"]["automaticBehaviorOverall"] = AUTOMATIC_BEHAVIOR_NOT_EXERCISED
         self.out_dir.mkdir(parents=True, exist_ok=True)
         (self.out_dir / "dou-ququ-runtime-evidence.json").write_text(
             json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -654,7 +669,7 @@ class DouQuquRuntimeProbe:
 async def main_async(args: argparse.Namespace) -> int:
     result = await DouQuquRuntimeProbe(args.port, Path(args.map_path), Path(args.out_dir)).run()
     print(json.dumps(result["verdict"], ensure_ascii=False, indent=2))
-    return 0 if result["verdict"]["overall"] == "PASS" else 1
+    return 0 if result["verdict"]["explicitVmOverall"] == "PASS" else 1
 
 
 def main() -> int:

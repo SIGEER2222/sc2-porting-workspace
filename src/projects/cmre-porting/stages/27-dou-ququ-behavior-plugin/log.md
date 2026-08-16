@@ -326,3 +326,9 @@ zzerus03/Reborn map-commander initialization issue is still open; the runtime-fi
 - `runtime`: A manual in-game check found that normal combat did not trigger the requested effects. The previous `8/8` and 48-step results came from explicit `douququ.*` VM/RPC calls, which directly invoked the behavior functions and therefore did not exercise an event-to-VM path.
 - `static`: `tools/launchers/overlays/cmre-alenger/startup/LibDouQuquRuntime.galaxy` explicitly states that it has no map triggers and changes the game only for an explicit RPC. Source inspection confirms no attack, death, kill, or periodic subscription in that module.
 - `inference`: The existing staged-map runtime provides a typed execution transport and manual debugging surface, not automatic combat behavior. Until a runtime event source feeds actual game events to the VM and each result is observed, the behavior contract is blocked rather than passed.
+
+## 2026-08-16 Anti-false-validation gate
+
+- `static`: The explicit VM probe now emits `validationScope.id=explicit-vm-api`, `automaticBehavior.status=NOT_EXERCISED`, and a separate `explicitVmOverall`. Its process status remains useful for API validation but cannot be read as an automatic behavior verdict.
+- `static`: The runtime operator skill and public runtime documentation now require the same-window causal chain `game event -> event-source/VM dispatch -> raw observation`. Absent any link, a behavior result is `NOT_EXERCISED` or `BLOCKED`, never a generic pass.
+- `validation`: `test_explicit_vm_probe_cannot_claim_automatic_behavior_pass` locks the naming and exit-status contract so a later edit cannot reintroduce `verdict.overall=PASS` for the manual probe.
