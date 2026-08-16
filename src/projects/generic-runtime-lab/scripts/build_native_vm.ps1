@@ -31,4 +31,19 @@ Copy-Item (Join-Path $buildRoot 'gsvm-controller.exe') (Join-Path $artifactRoot 
 Copy-Item (Join-Path $buildRoot 'gsvm-fixture-host.exe') (Join-Path $artifactRoot 'gsvm-fixture-host.exe') -Force
 Copy-Item (Join-Path $buildRoot 'gsvm_agent.dll') (Join-Path $artifactRoot 'gsvm_agent.dll') -Force
 Copy-Item (Join-Path $llvm 'x86_64-w64-mingw32\bin\libunwind.dll') (Join-Path $artifactRoot 'libunwind.dll') -Force
+$fixtureHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $artifactRoot 'gsvm-fixture-host.exe')).Hash
+$fixtureProfile = [ordered]@{
+    schema_version = 1
+    profile_id = 'fixture-host'
+    executable_name = 'gsvm-fixture-host.exe'
+    sha256 = $fixtureHash
+    required_args = @()
+    hook_enabled = $false
+    hooks = @()
+}
+$utf8 = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText(
+    (Join-Path $artifactRoot 'fixture-profile.json'),
+    ($fixtureProfile | ConvertTo-Json -Depth 5) + "`n",
+    $utf8)
 Write-Output "native VM artifacts: $artifactRoot"

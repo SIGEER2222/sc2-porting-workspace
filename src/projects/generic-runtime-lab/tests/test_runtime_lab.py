@@ -183,3 +183,18 @@ def test_runtime_lab_control_panel_has_deterministic_actions():
     assert "TriggerExecute(RuntimeLab_gt_KernelEntryPoints, false, false);" in init_body
     assert 'RuntimeLab_WriteStatus("runtime_vm_registration_requested", 1);' in init_body
     assert text.index("CMLib_TrigOnUnitDied(RuntimeLab_gt_ManagedUnitDied") < text.index("TriggerEnable(RuntimeLab_gt_ManagedUnitDied")
+
+
+def test_breakpoint_trace_variant_has_delayed_before_after_correlation():
+    builder = PROJECT / "scripts" / "build_runtime_lab.py"
+    spec = importlib.util.spec_from_file_location("runtime_lab_builder_breakpoint", builder)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    assert module.BREAKPOINT_TRACE_MAP.name == "BreakpointTrace.SC2Map"
+    assert "breakpoint;" in module.BREAKPOINT_TRACE_DISPATCH
+    assert '"trace_before"' in module.BREAKPOINT_TRACE_DISPATCH
+    assert '"trace_after"' in module.BREAKPOINT_TRACE_DISPATCH
+    assert "TriggerAddEventTimeElapsed(traceTrigger, 20.0, c_timeGame);" in module.BREAKPOINT_TRACE_DISPATCH
+    assert "BreakpointTrace_Init();" in module.BREAKPOINT_TRACE_MAPSCRIPT

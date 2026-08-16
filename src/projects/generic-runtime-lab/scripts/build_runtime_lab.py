@@ -52,6 +52,18 @@ ARENA_KERNEL_CONTROL_BUILD_DIR = (
 )
 ARENA_KERNEL_CONTROL_MAP = OUTPUT_DIR / "ArenaKernelControl.SC2Map"
 ARENA_KERNEL_CONTROL_REPORT = OUTPUT_DIR / "arena-kernel-control-build-report.json"
+BREAKPOINT_TRACE_BUILD_DIR = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
+    / "build" / "BreakpointTrace.SC2Map"
+)
+BREAKPOINT_TRACE_MAP = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
+    / "maps" / "BreakpointTrace.SC2Map"
+)
+BREAKPOINT_TRACE_REPORT = (
+    REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage03-current-vm-signature-trace"
+    / "maps" / "breakpoint-trace-build-report.json"
+)
 CMLIB = REPO / "src" / "lib" / "scripts" / "cmlib"
 SELFTEST = REPO / "src" / "lib" / "selftest" / "cmlib_selftest.galaxy"
 KERNEL = REPO / "tools" / "galaxy-vibe" / "kernel"
@@ -158,6 +170,44 @@ void InitMap() {
     libNtve_InitLib();
     KernelControl_Init();
     CMLib_SelfTest();
+}
+"""
+
+BREAKPOINT_TRACE_MAPSCRIPT = """// Generated breakpoint trace map. The trigger is delayed so an agent can arm first.
+include "TriggerLibs/NativeLib"
+include "BreakpointTraceDispatch"
+
+void InitMap() {
+    BreakpointTrace_Init();
+}
+"""
+
+BREAKPOINT_TRACE_DISPATCH = """// Map-owned correlation fixture for the current-version VM trace.
+bool BreakpointTrace_Probe(bool testConds, bool runActions) {
+    bank traceBank;
+
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+
+    traceBank = BankLoad("GalaxyVibe", 1);
+    if (traceBank != null) {
+        BankWait(traceBank);
+        BankValueSetFromInt(traceBank, "trace", "trace_before", 1);
+        BankSave(traceBank);
+        breakpoint;
+        BankWait(traceBank);
+        BankValueSetFromInt(traceBank, "trace", "trace_after", 1);
+        BankSave(traceBank);
+    }
+    return true;
+}
+
+void BreakpointTrace_Init() {
+    trigger traceTrigger;
+
+    traceTrigger = TriggerCreate("BreakpointTrace_Probe");
+    TriggerAddEventTimeElapsed(traceTrigger, 20.0, c_timeGame);
+    TriggerEnable(traceTrigger, true);
 }
 """
 
@@ -363,6 +413,38 @@ def build_arena_kernel_control() -> int:
     return 0
 
 
+def build_breakpoint_trace() -> int:
+    if BREAKPOINT_TRACE_BUILD_DIR.exists():
+        shutil.rmtree(BREAKPOINT_TRACE_BUILD_DIR)
+    shutil.copytree(BASE_MAP, BREAKPOINT_TRACE_BUILD_DIR)
+    (BREAKPOINT_TRACE_BUILD_DIR / "Base.SC2Data" / "BreakpointTraceDispatch.galaxy").write_text(
+        BREAKPOINT_TRACE_DISPATCH, encoding="utf-8", newline="\n")
+    (BREAKPOINT_TRACE_BUILD_DIR / "MapScript.galaxy").write_text(
+        BREAKPOINT_TRACE_MAPSCRIPT, encoding="utf-8", newline="\n")
+    (BREAKPOINT_TRACE_BUILD_DIR / "BankList.xml").write_text(
+        BANK_LIST, encoding="utf-8", newline="\n")
+    (BREAKPOINT_TRACE_BUILD_DIR / "DocumentInfo").write_text(
+        DOCUMENT_INFO, encoding="utf-8", newline="\n")
+    packer_output = pack_map(BREAKPOINT_TRACE_BUILD_DIR, BREAKPOINT_TRACE_MAP)
+
+    report = {
+        "schemaVersion": 1,
+        "classification": "static",
+        "kind": "breakpoint-trace",
+        "map": BREAKPOINT_TRACE_MAP.relative_to(REPO).as_posix(),
+        "sha256": sha256(BREAKPOINT_TRACE_MAP),
+        "sourceFiles": ["MapScript.galaxy", "BreakpointTraceDispatch.galaxy"],
+        "dependencies": ["Campaigns/Void.SC2Campaign"],
+        "triggerDelaySeconds": 20.0,
+        "bankKeys": ["trace_before", "trace_after"],
+        "packerOutput": packer_output,
+    }
+    BREAKPOINT_TRACE_REPORT.parent.mkdir(parents=True, exist_ok=True)
+    BREAKPOINT_TRACE_REPORT.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(report, indent=2))
+    return 0
+
+
 def main() -> int:
     for required in (RUNTIME_BASE_MAP, CMLIB, SELFTEST, KERNEL, PACKER, STORMLIB):
         if not required.exists():
@@ -419,8 +501,10 @@ if __name__ == "__main__":
         raise SystemExit(build_kernel_control_no_triggers())
     if sys.argv[1:] == ["--arena-kernel-control"]:
         raise SystemExit(build_arena_kernel_control())
+    if sys.argv[1:] == ["--breakpoint-trace"]:
+        raise SystemExit(build_breakpoint_trace())
     if len(sys.argv) > 1:
         raise SystemExit(
-            "Usage: build_runtime_lab.py [--cmlib-control|--kernel-control|--kernel-cmlib-control|--kernel-control-no-triggers|--arena-kernel-control]"
+            "Usage: build_runtime_lab.py [--cmlib-control|--kernel-control|--kernel-cmlib-control|--kernel-control-no-triggers|--arena-kernel-control|--breakpoint-trace]"
         )
     raise SystemExit(main())
