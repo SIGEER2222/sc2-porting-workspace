@@ -3,7 +3,7 @@
   "stage": "03-current-vm-signature-trace",
   "status": "IN_PROGRESS",
   "evidence_type": "static",
-  "summary": "Stage 03 now has a reproducible native VEH trace protocol with an IP histogram, an isolated seeded GalaxyVibeTrace breakpoint fixture, and two fresh launcher-owned API windows. Both windows left the seed unchanged with zero ScriptErrors, so map trigger dispatch and Galaxy breakpoint-to-VEH-to-Bank correlation remain unproven; hook_enabled stays false.",
+  "summary": "Stage 03 now has a reproducible native VEH trace protocol with an IP histogram, an isolated seeded GalaxyVibeTrace breakpoint fixture, and a fresh self-restarted launcher-owned window for the current 242696... fixture. CreateGame/JoinGame/realtime stepping passed with zero same-window ScriptErrors, but the seed remained unchanged; map trigger dispatch and Galaxy breakpoint-to-VEH-to-Bank correlation remain unproven, so hook_enabled stays false.",
   "changed_paths": [
     "src/projects/generic-runtime-lab/project.json",
     "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/plan.md",
@@ -32,7 +32,14 @@
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/maps/breakpoint-trace-build-report.json",
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/galaxy-vibe-trace-bank-seed.xml",
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-owner-blocked-20260816.json",
-    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-breakpoint-trace-bank-seed-attempts-20260816.json"
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-breakpoint-trace-bank-seed-attempts-20260816.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/launcher-port6003-20260816-pwsh.log",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/repl-port6003-20260816.jsonl",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port6003.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/launcher-port6004-20260816.log",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/repl-port6004-20260816.jsonl",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port6004.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/bank-pre6003-20260816T121617Z"
   ],
   "validation": [
     {
@@ -160,12 +167,40 @@
       "summary": "The next SHA 242696... attempt was skipped because an unrelated owner PID 4812 was listening on port 5971; no process was terminated or attached.",
       "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-breakpoint-trace-bank-seed-attempts-20260816.json",
       "evidence_type": "blocked"
+    },
+    {
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/launch-galaxy-vibe.ps1 -Port 6003 -Map BreakpointTrace.SC2Map -ModPath '' -ForceRestart; python tools/galaxy-vibe/galaxy_repl.py --port 6003 --map BreakpointTrace.SC2Map --realtime --join-wait 8 --cmd 'obs' --cmd 'step 600'",
+      "exitCode": 0,
+      "summary": "Self-restarted launcher-owned window (SC2 PID 20288) reached API readiness, CreateGame, JoinGame, and realtime step 600 for SHA 242696...; all seeded GalaxyVibeTrace copies remained at seed_marker.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/sc2-breakpoint-trace-bank-seed-attempts-20260816.json",
+      "evidence_type": "runtime"
+    },
+    {
+      "command": "python tools/galaxy-vibe/script_error_check.py --since 1786882618 --out artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port6003.json",
+      "exitCode": 0,
+      "summary": "The same-window ScriptError gate for port 6003 reported no new ScriptError files.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port6003.json",
+      "evidence_type": "runtime"
+    },
+    {
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/launch-galaxy-vibe.ps1 -Port 6004 -Map BreakpointTrace.SC2Map -ModPath '' -ForceRestart; python tools/galaxy-vibe/galaxy_repl.py --port 6004 --map build/BreakpointTrace.SC2Map --realtime --join-wait 8 --cmd 'obs' --cmd 'step 600'",
+      "exitCode": 1,
+      "summary": "The unpacked-directory LocalMap experiment was rejected before JoinGame with SC2 API error 'map_path ... file doesn't exist'; it is a negative API-path check, not map execution evidence.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/repl-port6004-20260816.jsonl",
+      "evidence_type": "blocked"
+    },
+    {
+      "command": "python tools/galaxy-vibe/script_error_check.py --since 1786882850 --out artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port6004.json",
+      "exitCode": 0,
+      "summary": "The same-window ScriptError gate for port 6004 reported no new ScriptError files.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/scripterror-port6004.json",
+      "evidence_type": "runtime"
     }
   ],
   "runtime": {
     "status": "PARTIAL",
     "hook_enabled": false,
-    "scriptErrors": "ports 5993, 5994, 5995, and 5997 reported no new ScriptError files",
+    "scriptErrors": "ports 5993, 5994, 5995, 5997, 6003, and 6004 reported no new ScriptError files",
     "trace_status": "VEH_BREAKPOINT_HIGH_VOLUME_UNCORRELATED",
     "bank_name": "GalaxyVibeTrace",
     "bank_seed": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/galaxy-vibe-trace-bank-seed.xml",
@@ -189,8 +224,8 @@
       "severity": "high",
       "status": "open",
       "evidence_type": "inference",
-      "detail": "Fresh launcher-owned ports 6001 and 6002 completed CreateGame/JoinGame/frame advancement with a seeded GalaxyVibeTrace Bank, but the seed remained unchanged and no startup/trace_before/trace_after marker was written. The VEH observer also remains high-volume and uncorrelated.",
-      "nextAction": "Run the 242696... fixture after the current port 5971 owner exits; first prove map trigger dispatch, then repeat with the native observer. Keep hook_enabled=false until the full causal chain is independently attributable."
+      "detail": "Fresh launcher-owned ports 6001, 6002, and 6003 completed CreateGame/JoinGame/frame advancement with a seeded GalaxyVibeTrace Bank, but the seed remained unchanged and no startup/trace_before/trace_after marker was written. The VEH observer also remains high-volume and uncorrelated.",
+      "nextAction": "Establish a compliant source-compilation or trigger-dispatch path for the current fixture, then repeat with the native observer. Keep hook_enabled=false until the full causal chain is independently attributable."
     },
     {
       "id": "GSVM-SC2-LIVE-OWNER-BLOCKED",

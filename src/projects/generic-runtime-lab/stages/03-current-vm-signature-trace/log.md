@@ -218,3 +218,41 @@ not yet rewritten its seeded Bank in either fresh window. This is a fixture
 dispatch problem, separate from VM event attribution. Keep
 `hook_enabled=false`; do not interpret the zero-error gates or unchanged seed
 as evidence that `breakpoint;` executed.
+
+## 2026-08-16 self-restarted verification
+
+- `runtime`: The approved `tools/galaxy-vibe/launch-galaxy-vibe.ps1` was
+  rerun with `pwsh -NoProfile ... -Port 6003 -ForceRestart`. It terminated the
+  prior SC2 owner through the launcher's forced restart path, started Switcher
+  PID `16624` and SC2 PID `20288`, and opened API port `6003`. Evidence:
+  `runtime/launcher-port6003-20260816-pwsh.log`.
+- `runtime`: With the current packed fixture SHA
+  `2426968320eee7444f9c838c447387a6ffb51c386ffdb52ecdffe4e69e3a9071`, the
+  same window completed `CreateGame + JoinGame + realtime step 600` after an
+  eight-second join wait. Every seeded root/numeric `GalaxyVibeTrace` Bank
+  remained at `seed_marker`; no `startup`, `trace_before`, or `trace_after`
+  key appeared. Evidence:
+  `runtime/repl-port6003-20260816.jsonl`,
+  `runtime/bank-pre6003-20260816T121617Z`, and
+  `runtime/sc2-breakpoint-trace-bank-seed-attempts-20260816.json`.
+- `runtime`: The same-window ScriptError gate for launch epoch `1786882618`
+  reported no new errors. Evidence: `runtime/scripterror-port6003.json`.
+- `runtime`: A second forced restart on port `6004` tested a `LocalMap.map_path`
+  pointing at the unpacked build directory. SC2 API rejected it before
+  `JoinGame` with `map_path ... file doesn't exist`; the directory experiment
+  is not execution evidence. The same-window ScriptError gate was empty.
+  Evidence: `runtime/repl-port6004-20260816.jsonl`,
+  `runtime/scripterror-port6004.json`.
+- `inference`: The requested fresh-window retry removes the prior owner
+  blocker, but it still cannot distinguish a source-compilation boundary from
+  a map fixture dispatch defect because the current packed map produces no
+  Bank marker. The native observer remains uncorrelated and
+  `hook_enabled=false` is retained.
+
+## Updated boundary
+
+The current fixture has fresh launcher/API/runtime evidence but no automatic
+Galaxy trigger marker. Do not inject or promote a VM hook from this window;
+the next bounded action is to establish a compliant source-compilation or
+trigger-dispatch path, then repeat the observer only after
+`startup -> trace_before -> attributable VEH/IP -> trace_after` is visible.
