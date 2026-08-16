@@ -320,3 +320,9 @@ zzerus03/Reborn map-commander initialization issue is still open; the runtime-fi
   The VM fixture moves its Vulture victim away from the attacking Vulture,
   preventing newly created Spider Mines from immediately triggering during a
   future in-session replay.
+
+## 2026-08-16 Runtime behavior verdict corrected
+
+- `runtime`: A manual in-game check found that normal combat did not trigger the requested effects. The previous `8/8` and 48-step results came from explicit `douququ.*` VM/RPC calls, which directly invoked the behavior functions and therefore did not exercise an event-to-VM path.
+- `static`: `tools/launchers/overlays/cmre-alenger/startup/LibDouQuquRuntime.galaxy` explicitly states that it has no map triggers and changes the game only for an explicit RPC. Source inspection confirms no attack, death, kill, or periodic subscription in that module.
+- `inference`: The existing staged-map runtime provides a typed execution transport and manual debugging surface, not automatic combat behavior. Until a runtime event source feeds actual game events to the VM and each result is observed, the behavior contract is blocked rather than passed.

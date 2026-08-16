@@ -3,7 +3,7 @@
   "stage": "27-dou-ququ-behavior-plugin",
   "status": "IN_PROGRESS",
   "evidence_type": "runtime",
-  "summary": "The runtime-first 斗蛐蛐 VM plugin passes 8/8 live behavior assertions on a freshly created game using the newly reloaded staged map, with zero new ScriptErrors. The editable Galaxy Script Lab entry was also invoked through the WebUI: real Galaxy code created a Marine at (90,90) and added 25 minerals, which raw SC2 observation confirmed. The WebUI exposes direct invoke and VM program entry points plus a persisted JSONL call log containing function ids, arguments, results, errors, origins, sessions, ports, and durations. The original map remains unchanged; only the runtime staging copy loses the attribution popup. The overall stage remains IN_PROGRESS because the unrelated zzerus03 Reborn map-commander initialization remains blocked.",
+  "summary": "The 斗蛐蛐 runtime VM transport, explicit function calls, JSONL audit log, and ScriptError gate were verified, but those checks only exercised explicit douququ.* calls. The loaded runtime module has no attack, death, kill, or periodic event subscriptions, so normal combat has not been verified to trigger the six requested effects and must not be reported as a behavior pass. The original map remains unchanged; only the runtime staging copy loses the attribution popup. The stage remains IN_PROGRESS while a runtime event source is designed and verified.",
   "changed_paths": [
     "src/projects/cmre-porting/vibe/map_event_extractor.py",
     "src/projects/cmre-porting/vibe/map_commander_adapter.py",
@@ -251,8 +251,8 @@
   "runtime": {
     "status": "BLOCKED",
     "douQuquRuntime": {
-      "status": "PASS",
-      "checks": "8/8",
+      "status": "BLOCKED",
+      "checks": "explicit VM calls: 8/8; automatic combat effects: 0/6 verified",
       "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-call-log.jsonl",
       "scriptErrors": 0
     },
@@ -272,7 +272,7 @@
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/galaxy-user-script-live-fixed-20260816/script-error-verdict-after-probe.json",
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-20260816-post-vm.json"
     ],
-    "blockedBy": "zzerus03.SC2Map CreateGame timed out and direct-map initialization remained in the Reborn native-opening wait gate; this does not block the verified runtime-first 斗蛐蛐 plugin."
+    "blockedBy": "The current LibDouQuquRuntime.galaxy explicitly contains no map triggers and only changes the game for explicit douququ.* RPC calls. A runtime event source for normal combat has not been implemented or observed; the unrelated zzerus03 CreateGame block remains open."
   },
-  "next_actions": ["Keep the verified douququ.* runtime API as the development surface; later create a separate static Catalog/event patch stage only after the runtime contract is intentionally固化.", "Diagnose and rerun zzerus03 Reborn native-opening initialization before closing the unrelated map-commander blocker."]
+  "next_actions": ["Implement and verify a runtime event source that feeds actual attack, death, kill, and periodic events into the VM without treating explicit RPC calls as combat evidence.", "Diagnose and rerun zzerus03 Reborn native-opening initialization before closing the unrelated map-commander blocker."]
 }

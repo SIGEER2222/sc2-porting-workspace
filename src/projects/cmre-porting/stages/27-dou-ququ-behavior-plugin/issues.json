@@ -33,10 +33,10 @@
     {
       "id": "DOUQUQU-RUNTIME-PENDING",
       "severity": "high",
-      "status": "resolved",
-      "title": "Six behavior effects needed real 斗蛐蛐 runtime evidence",
-      "detail": "The runtime-first Galaxy VM was exercised through the real SC2 API on the user-provided map. A fresh post-reload game returned all eight checks passed, including three death mines confirmed by RPC tags and douququ.snapshot mineCount=3. The editable user Galaxy entry also created an observed Marine and added minerals through UnitCreate and PlayerModifyPropertyInt. The final same-window ScriptError gate returned count=0.",
-      "evidence_type": "runtime",
+      "status": "open",
+      "title": "Normal combat does not yet drive the runtime VM behavior rules",
+      "detail": "The live evidence exercised explicit douququ.* RPC calls only. LibDouQuquRuntime.galaxy declares that it has no map triggers and changes the game only for explicit calls, so no runtime evidence proves that ordinary attacks, deaths, kills, or elapsed time invoke the requested rules. The previous resolved status was invalidated after an in-game manual check.",
+      "evidence_type": "inference",
       "owner": "stage27",
       "evidence": [
         "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-live-final/dou-ququ-runtime-evidence.json",
@@ -50,7 +50,7 @@
         "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-call-log.jsonl",
         "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-20260816-post-vm.json"
       ],
-      "nextAction": "Keep douququ.* as the live development API; defer static patch solidification to a separate later stage."
+      "nextAction": "Add a real runtime event source, then verify each effect from ordinary in-game combat and keep explicit VM calls only as API tests."
     },
     {
       "id": "MAP-COMMANDER-REborn-RUNTIME-BLOCKED",
