@@ -642,6 +642,20 @@
       "args": {},
       "returns": {"function_id": "string", "reaverOrdinaryPercent": "integer", "reaverKillPercent": "integer", "broodLordPercent": "integer"}
     },
+    "douququ.user.run": {
+      "handler": "libDouQuquUser_gf_Run",
+      "side_effect": true,
+      "debug_only": true,
+      "capability": "douququ-galaxy-source",
+      "args": {
+        "mineral_delta": {"type": "integer", "required": true, "min": -999999, "max": 999999},
+        "owner": {"type": "integer", "required": true, "min": 1, "max": 15},
+        "unit_type": {"type": "string", "required": true, "maxLength": 64},
+        "x": {"type": "fixed", "required": true, "min": 0.0, "max": 500.0},
+        "y": {"type": "fixed", "required": true, "min": 0.0, "max": 500.0}
+      },
+      "returns": {"function_id": "string", "unit_tag": "integer", "unit_type": "string", "owner": "integer", "mineral_delta": "integer", "minerals": "integer"}
+    },
     "douququ.unit.spawn": {
       "handler": "libDouQuquRuntime_gf_UnitSpawn",
       "side_effect": true,

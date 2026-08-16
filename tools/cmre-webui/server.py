@@ -37,6 +37,7 @@ if str(VIBE_PROJECT_ROOT) not in sys.path:
 
 from map_commander_adapter import load_adapter_config, resolve_adapter  # noqa: E402
 from map_event_extractor import MapEventExtractor  # noqa: E402
+from galaxy_script_lab import USER_FUNCTION_ID, USER_SCRIPT_NAME, read_source, source_sha256, validate_source  # noqa: E402
 MUTATORS_JSON = DATA_DIR / "mutators.json"
 # DDS → PNG 转换缓存目录。首次请求某 DDS 时转 PNG 存这里，后续直接返回。
 ASSETS_CACHE_DIR = WEBUI_DIR / "assets_cache"
@@ -147,6 +148,12 @@ DOU_QUQU_RUNTIME_PACKED_MAP = (
     DOU_QUQU_ARTIFACT_ROOT.parent / "dou-ququ-runtime-vm.packed.SC2Map"
 )
 DOU_QUQU_RUNTIME_CALL_LOG = DOU_QUQU_ARTIFACT_ROOT.parent / "douququ-runtime-vm-call-log.jsonl"
+DOU_QUQU_USER_SCRIPT_TEMPLATE = (
+    REPO_ROOT / "tools" / "launchers" / "overlays" / "cmre-alenger" / "startup" / USER_SCRIPT_NAME
+)
+DOU_QUQU_USER_SCRIPT_ARTIFACT = DOU_QUQU_ARTIFACT_ROOT.parent / "galaxy-user-script" / USER_SCRIPT_NAME
+DOU_QUQU_USER_SCRIPT_STAGE_ROOT = DOU_QUQU_ARTIFACT_ROOT.parent / "galaxy-user-script-stage"
+DOU_QUQU_PACK_SCRIPT = REPO_ROOT / "tools" / "mpq" / "scripts" / "pack-sc2map.ps1"
 MAP_ADAPTER_CONFIG = VIBE_PROJECT_ROOT / "map_commander_adapters.json"
 _MAP_DETAIL_CACHE: dict[tuple[str, str], tuple[tuple[int, int], dict]] = {}
 
@@ -190,6 +197,115 @@ def _dou_ququ_map_root() -> Path | None:
             raise RuntimeError(f"斗蛐蛐地图解包失败 (exit={completed.returncode}): {detail}")
     DOU_QUQU_EXTRACTED_SOURCE = target
     return target
+
+
+def _repo_relative(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(REPO_ROOT.resolve()))
+    except ValueError:
+        return str(path)
+
+
+def _galaxy_user_script_payload() -> dict:
+    source_path = DOU_QUQU_USER_SCRIPT_ARTIFACT if DOU_QUQU_USER_SCRIPT_ARTIFACT.is_file() else DOU_QUQU_USER_SCRIPT_TEMPLATE
+    source = read_source(source_path)
+    validation = validate_source(source)
+    stage_manifest = DOU_QUQU_USER_SCRIPT_STAGE_ROOT / "galaxy-script-stage.json"
+    staged = None
+    if stage_manifest.is_file():
+        try:
+            staged = json.loads(stage_manifest.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            staged = None
+    return {
+        "schema_version": "douququ-galaxy-script.v1",
+        "function_id": USER_FUNCTION_ID,
+        "file_name": USER_SCRIPT_NAME,
+        "source": source,
+        "source_path": _repo_relative(source_path),
+        "source_sha256": source_sha256(source),
+        "validation": validation,
+        "staged": staged,
+        "compile_boundary": "next_sc2_map_load",
+    }
+
+
+def _save_galaxy_user_script(source: str) -> dict:
+    validation = validate_source(source)
+    if not validation["valid"]:
+        return {"saved": False, "validation": validation}
+    DOU_QUQU_USER_SCRIPT_ARTIFACT.parent.mkdir(parents=True, exist_ok=True)
+    DOU_QUQU_USER_SCRIPT_ARTIFACT.write_text(source, encoding="utf-8", newline="\n")
+    return {
+        "saved": True,
+        "path": _repo_relative(DOU_QUQU_USER_SCRIPT_ARTIFACT),
+        "validation": validation,
+    }
+
+
+def _stage_galaxy_user_script(source: str) -> dict:
+    saved = _save_galaxy_user_script(source)
+    if not saved["saved"]:
+        return saved
+    map_root = _dou_ququ_map_root()
+    if map_root is None:
+        raise RuntimeError("未绑定斗蛐蛐地图；请先用 -DouQuquMap 指定用户地图")
+    from stage_map_vm_runtime import DEFAULT_DISPATCH, DEFAULT_DOU_QUQU_ROOT, DEFAULT_KERNEL_ROOT, stage_map
+
+    digest = saved["validation"]["sha256"][:12]
+    staged_dir = DOU_QUQU_USER_SCRIPT_STAGE_ROOT / f"staged-{digest}"
+    packed_map = DOU_QUQU_USER_SCRIPT_STAGE_ROOT / f"dou-ququ-user-{digest}.packed.SC2Map"
+    stage_result = stage_map(
+        map_root,
+        staged_dir,
+        DEFAULT_KERNEL_ROOT,
+        DEFAULT_DISPATCH,
+        replace=True,
+        dou_ququ_root=DEFAULT_DOU_QUQU_ROOT,
+        enable_dou_ququ_runtime=True,
+        user_galaxy_source=DOU_QUQU_USER_SCRIPT_ARTIFACT,
+    )
+    ps_exe = _resolve_powershell_executable()
+    completed = subprocess.run(
+        [
+            ps_exe,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(DOU_QUQU_PACK_SCRIPT),
+            str(staged_dir),
+            str(packed_map),
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if completed.returncode != 0 or not packed_map.is_file():
+        detail = (completed.stdout + "\n" + completed.stderr).strip()[-2000:]
+        raise RuntimeError(f"斗蛐蛐 Galaxy 源码打包失败 (exit={completed.returncode}): {detail}")
+    result = {
+        "schema_version": "douququ-galaxy-script-stage.v1",
+        "status": "staged_pending_reload",
+        "function_id": USER_FUNCTION_ID,
+        "source": _repo_relative(DOU_QUQU_USER_SCRIPT_ARTIFACT),
+        "source_sha256": saved["validation"]["sha256"],
+        "staged_directory": _repo_relative(staged_dir),
+        "packed_map": _repo_relative(packed_map),
+        "manifest": _repo_relative(Path(stage_result["manifest"])),
+        "compile_boundary": "next_sc2_map_load",
+        "restart_required": True,
+        "validation": saved["validation"],
+        "pack_output": (completed.stdout or "").strip()[-1200:],
+    }
+    DOU_QUQU_USER_SCRIPT_STAGE_ROOT.mkdir(parents=True, exist_ok=True)
+    (DOU_QUQU_USER_SCRIPT_STAGE_ROOT / "galaxy-script-stage.json").write_text(
+        json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return result
 
 
 def _resolve_map_detail_source(map_name: str, package_id: str) -> tuple[Path, Path]:
@@ -1431,6 +1547,7 @@ class RuntimeConsole:
 
     def __init__(self, call_log_path: Path | None = None):
         self._lock = threading.RLock()
+        self._operation_lock = None
         self._loop = None
         self._thread = None
         self._ready = threading.Event()
@@ -1447,20 +1564,29 @@ class RuntimeConsole:
     def _ensure_loop(self):
         with self._lock:
             if self._thread and self._thread.is_alive():
-                return
-            self._ready.clear()
-            self._thread = threading.Thread(
-                target=self._run_loop, name="vibe-console-loop", daemon=True
-            )
-            self._thread.start()
+                thread = self._thread
+            else:
+                self._ready.clear()
+                self._thread = threading.Thread(
+                    target=self._run_loop, name="vibe-console-loop", daemon=True
+                )
+                self._thread.start()
+            thread = self._thread
         if not self._ready.wait(timeout=5):
             raise RuntimeError("runtime console event loop did not start")
+        with self._lock:
+            if self._loop is None or not thread.is_alive():
+                raise RuntimeError("runtime console event loop stopped during startup")
 
     def _run_loop(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         with self._lock:
             self._loop = loop
+            # VibeREPL shares one WebSocket and one Bank RPC sequence. Every
+            # request must pass this queue so an observer cannot consume a VM
+            # response or interleave a second request into the active command.
+            self._operation_lock = asyncio.Lock()
             self._ready.set()
         loop.run_forever()
         loop.close()
@@ -1469,6 +1595,18 @@ class RuntimeConsole:
         self._ensure_loop()
         future = asyncio.run_coroutine_threadsafe(coroutine, self._loop)
         return future.result(timeout=timeout)
+
+    async def _run_serialized(self, operation, action):
+        if self._operation_lock is None:
+            raise RuntimeError("runtime console operation queue is unavailable")
+        async with self._operation_lock:
+            with self._lock:
+                self._running = operation
+            try:
+                return await action()
+            finally:
+                with self._lock:
+                    self._running = ""
 
     @staticmethod
     def _imports():
@@ -1522,7 +1660,7 @@ class RuntimeConsole:
         # must not be used to guess which session belongs to the current game.
         return sorted(sessions.values(), key=lambda item: item["session_id"])[:20]
 
-    async def _connect(self, payload):
+    async def _connect_unlocked(self, payload):
         VibeREPL, resolve, name_lookup, _, _, _ = self._imports()
         port = int(payload.get("port", 5000))
         map_path = str(payload.get("map_path", "") or "")
@@ -1620,7 +1758,15 @@ class RuntimeConsole:
             self._trace = []
         return self.status()
 
-    async def _disconnect(self):
+    async def _connect(self, payload):
+        """Compatibility coroutine for direct tests; HTTP callers use connect()."""
+        if self._operation_lock is None:
+            return await self._connect_unlocked(payload)
+        return await self._run_serialized(
+            "connect", lambda: self._connect_unlocked(payload)
+        )
+
+    async def _disconnect_unlocked(self):
         if self._repl is not None:
             await self._repl.close()
         with self._lock:
@@ -1630,18 +1776,20 @@ class RuntimeConsole:
         return self.status()
 
     def connect(self, payload):
-        return self._submit(self._connect(payload), timeout=90)
+        return self._submit(
+            self._run_serialized("connect", lambda: self._connect_unlocked(payload)),
+            timeout=90,
+        )
 
     def disconnect(self):
-        return self._submit(self._disconnect(), timeout=15)
+        return self._submit(
+            self._run_serialized("disconnect", self._disconnect_unlocked),
+            timeout=15,
+        )
 
-    async def _invoke(self, function_id, args, origin="api"):
+    async def _invoke_unlocked(self, function_id, args, origin="api"):
         if self._repl is None:
             raise RuntimeError("未连接 SC2 Vibe session")
-        with self._lock:
-            previous_running = self._running
-            if not previous_running:
-                self._running = "invoke"
         started = time.perf_counter()
         try:
             result = await self._repl.invoke_function_request(function_id, args)
@@ -1663,15 +1811,16 @@ class RuntimeConsole:
                 duration_ms=round((time.perf_counter() - started) * 1000, 1),
             )
             raise
-        finally:
-            with self._lock:
-                if not previous_running:
-                    self._running = ""
-
     def invoke(self, function_id, args):
-        return self._submit(self._invoke(function_id, args), timeout=30)
+        return self._submit(
+            self._run_serialized(
+                "invoke",
+                lambda: self._invoke_unlocked(function_id, args),
+            ),
+            timeout=30,
+        )
 
-    async def _step(self, loops):
+    async def _step_unlocked(self, loops):
         if self._repl is None:
             raise RuntimeError("未连接 SC2 Vibe session")
         from galaxy_repl import send_request
@@ -1690,9 +1839,12 @@ class RuntimeConsole:
         return result
 
     def step(self, loops):
-        return self._submit(self._step(loops), timeout=15)
+        return self._submit(
+            self._run_serialized("step", lambda: self._step_unlocked(loops)),
+            timeout=15,
+        )
 
-    async def _observe(self):
+    async def _observe_unlocked(self):
         if self._repl is None:
             raise RuntimeError("未连接 SC2 Vibe session")
         from galaxy_repl import send_request
@@ -1746,25 +1898,26 @@ class RuntimeConsole:
         }
 
     def observe(self):
-        return self._submit(self._observe(), timeout=20)
+        return self._submit(
+            self._run_serialized("observe", self._observe_unlocked),
+            timeout=20,
+        )
 
-    async def _run_vm(self, program):
+    async def _run_vm_unlocked(self, program):
         if self._repl is None:
             raise RuntimeError("未连接 SC2 Vibe session")
         _, _, _, DebugVm, load_function_catalog, load_function_metadata = self._imports()
-        with self._lock:
-            self._running = "vm"
         manager = self
         try:
             catalog = load_function_catalog(VIBE_FUNCTION_CATALOG) if VIBE_FUNCTION_CATALOG.exists() else []
 
             class ReplBridge:
                 async def call(inner_self, function_id, call_args):
-                    record = await manager._invoke(function_id, call_args, origin="vm")
+                    record = await manager._invoke_unlocked(function_id, call_args, origin="vm")
                     return record["result"]
 
                 async def step(inner_self, loops):
-                    return await manager._step(loops)
+                    return await manager._step_unlocked(loops)
 
             result = await DebugVm(
                 ReplBridge(),
@@ -1776,8 +1929,8 @@ class RuntimeConsole:
                     self._append_trace({"ts": time.time(), **item})
             return result
         finally:
-            with self._lock:
-                self._running = ""
+            # _run_serialized owns the visible running state for the whole VM.
+            pass
 
     @staticmethod
     def _step_request(loops):
@@ -1786,7 +1939,10 @@ class RuntimeConsole:
         return sc_pb.Request(step=sc_pb.RequestStep(count=loops))
 
     def run_vm(self, program):
-        return self._submit(self._run_vm(program), timeout=180)
+        return self._submit(
+            self._run_serialized("vm", lambda: self._run_vm_unlocked(program)),
+            timeout=180,
+        )
 
     def _append_trace(self, record):
         with self._lock:
@@ -2531,6 +2687,12 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             except Exception as exc:
                 self._send_json({"error": str(exc)}, 500)
             return
+        if self.path == "/api/vibe/galaxy-script":
+            try:
+                self._send_json(_galaxy_user_script_payload())
+            except (OSError, RuntimeError, ValueError) as exc:
+                self._send_json({"error": str(exc)}, 500)
+            return
         if self.path == "/api/vibe/sessions":
             try:
                 self._send_json({"sessions": _runtime_console.sessions()})
@@ -2702,6 +2864,15 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/vibe/invoke":
             self._handle_vibe_invoke()
             return
+        if self.path == "/api/vibe/galaxy-script/validate":
+            self._handle_vibe_galaxy_script_validate()
+            return
+        if self.path == "/api/vibe/galaxy-script/save":
+            self._handle_vibe_galaxy_script_save()
+            return
+        if self.path == "/api/vibe/galaxy-script/stage":
+            self._handle_vibe_galaxy_script_stage()
+            return
         if self.path == "/api/vibe/run-vm":
             self._handle_vibe_run_vm()
             return
@@ -2745,6 +2916,34 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             self._send_json({"success": True, "record": record, "status": _runtime_console.status()})
         except Exception as exc:
             self._send_json({"success": False, "error": str(exc), "status": _runtime_console.status()}, 502)
+
+    def _galaxy_script_body(self) -> str:
+        body = self._read_body()
+        source = body.get("source", "")
+        if not isinstance(source, str):
+            raise ValueError("source 必须是字符串")
+        return source
+
+    def _handle_vibe_galaxy_script_validate(self):
+        try:
+            validation = validate_source(self._galaxy_script_body())
+            self._send_json({"success": validation["valid"], **validation})
+        except Exception as exc:
+            self._send_json({"success": False, "error": str(exc)}, 400)
+
+    def _handle_vibe_galaxy_script_save(self):
+        try:
+            result = _save_galaxy_user_script(self._galaxy_script_body())
+            self._send_json({"success": result["saved"], **result}, 200 if result["saved"] else 400)
+        except Exception as exc:
+            self._send_json({"success": False, "error": str(exc)}, 400)
+
+    def _handle_vibe_galaxy_script_stage(self):
+        try:
+            result = _stage_galaxy_user_script(self._galaxy_script_body())
+            self._send_json({"success": True, **result})
+        except Exception as exc:
+            self._send_json({"success": False, "error": str(exc)}, 500)
 
     def _handle_vibe_run_vm(self):
         body = self._read_body()

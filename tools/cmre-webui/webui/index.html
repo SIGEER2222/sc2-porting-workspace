@@ -277,6 +277,45 @@
           </section>
         </div>
 
+        <section class="runtime-panel galaxy-script-lab" aria-labelledby="galaxy-script-title">
+          <div class="runtime-panel-head">
+            <div>
+              <h2 id="galaxy-script-title">Galaxy Runtime Script Lab</h2>
+              <div class="runtime-hint">这里编辑真实的 LibDouQuquUser.galaxy；暂存后会编译进下一份斗蛐蛐地图副本。</div>
+            </div>
+            <span class="runtime-selected-function" id="galaxy-script-state">尚未读取</span>
+          </div>
+          <div class="galaxy-script-layout">
+            <div class="galaxy-script-source-column">
+              <label class="runtime-label">Galaxy 源码<textarea id="runtime-galaxy-source" class="runtime-code galaxy-script-code" spellcheck="false"></textarea></label>
+              <div class="runtime-form-foot galaxy-script-actions">
+                <span class="runtime-hint" id="runtime-galaxy-meta">入口: libDouQuquUser_gf_Run</span>
+                <div class="runtime-panel-actions">
+                  <button type="button" class="btn-tiny" id="runtime-galaxy-reload">读取源码</button>
+                  <button type="button" class="btn-tiny" id="runtime-galaxy-validate">校验源码</button>
+                  <button type="button" class="btn-secondary btn-compact" id="runtime-galaxy-save">保存源码</button>
+                  <button type="button" class="btn-primary btn-compact" id="runtime-galaxy-stage">暂存并打包</button>
+                </div>
+              </div>
+            </div>
+            <div class="galaxy-script-run-column">
+              <div class="runtime-panel-head"><h3>入口参数</h3><span class="runtime-hint">douququ.user.run</span></div>
+              <label class="runtime-label">args JSON<textarea id="runtime-galaxy-args" class="runtime-code" spellcheck="false">{
+  "mineral_delta": 25,
+  "owner": 1,
+  "unit_type": "Marine",
+  "x": 90.0,
+  "y": 90.0
+}</textarea></label>
+              <div class="runtime-form-foot">
+                <span class="runtime-hint">执行的是已加载地图中的 Galaxy 入口。</span>
+                <button type="button" class="btn-primary" id="runtime-galaxy-run" disabled>执行 Galaxy</button>
+              </div>
+              <pre class="runtime-detail galaxy-script-result" id="runtime-galaxy-result">等待源码入口结果</pre>
+            </div>
+          </div>
+        </section>
+
         <div class="runtime-trace-layout">
           <section class="runtime-panel runtime-trace-panel" aria-labelledby="runtime-trace-title">
             <div class="runtime-panel-head runtime-trace-head">

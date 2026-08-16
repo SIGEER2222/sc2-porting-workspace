@@ -275,3 +275,38 @@ zzerus03/Reborn map-commander initialization issue is still open; the runtime-fi
 - `runtime`: 8767 和 8777 两个重启后的 WebUI 对显示名请求均返回 HTTP `200`、`no-store`，并返回 `ttosh02.SC2Map` 的 814 个预置单位、346 个脚本事件、498 条时间线和 67 个区域。
 - `runtime`: Edge 无头浏览器实际点击 `[起义狂潮] 欢迎来到丛林` 后显示“静态扫描完成”，渲染 498 条时间线、814 条预置单位和 67 条区域，无错误提示。
 - `validation`: `python -m pytest -q tools/cmre-webui/test_map_details.py` -> `4 passed`；`node --check tools/cmre-webui/webui/app.js` 和 `python -m py_compile tools/cmre-webui/server.py` -> passed。
+
+## 2026-08-16 Galaxy Script Lab reload and fresh runtime verification
+
+- `static`: The editable `LibDouQuquUser.galaxy` was staged only into the
+  isolated runtime copy and repacked as
+  `runtime/galaxy-user-script-stage-fixed.packed.SC2Map`. Its staging marker
+  appears exactly once, so the reloaded map has one kernel, runtime, and user
+  extension include each. The read-only user-provided 斗蛐蛐 source map was not
+  modified.
+- `runtime`: After the approved WebUI launcher reloaded the staged 斗蛐蛐 map
+  (SC2 PID `10984`, API `127.0.0.1:5896`), the session handshake returned
+  `douququ.runtime.status={active:true, mode:live-vm}`. Direct WebUI invocation
+  of the real Galaxy entry `douququ.user.run` created a `Marine` at `(90,90)`
+  for player 1 and increased minerals from `0` to `25`. The Galaxy response
+  returned `unit_tag=1572866`; raw observation returned `MARINE` tag
+  `4296540162`, whose low 22 bits equal `1572866`, at the requested position.
+- `runtime`: A clean `CreateGame + JoinGame + RequestStep` probe then used the
+  newly packed map rather than the old SC2 session. It returned `8/8 PASS`:
+  runtime activation, Reaver-to-Zealot proc, Vulture five-mine refill after a
+  50-mineral charge, three Vulture death mines, Infested Banshee 20-energy
+  Marine hatch, Brood Lord Baneling proc, Hydralisk +25 kill heal, and two
+  Kerrigan broodlings. Death-mine RPC returned three distinct tags and the
+  live runtime snapshot reported `mineCount=3`; raw SC2 observation correctly
+  omits burrowed mines. Evidence:
+  `artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/galaxy-user-script-live-fixed-20260816/dou-ququ-runtime-evidence.json`.
+- `runtime`: The same-window GameLogs gate for the SC2 process started at
+  `2026-08-16T00:50:10Z` returned `has_new_errors=false` and `count=0`.
+  Evidence:
+  `artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/galaxy-user-script-live-fixed-20260816/script-error-verdict-after-probe.json`.
+- `validation`: `python -m py_compile tools/cmre-webui/dou_ququ_runtime_probe.py; python -m pytest -q tools/cmre-webui/test_stage_map_vm_runtime.py src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin` -> `30 passed`. The full live probe returned exit code `0` with `8/8 PASS`.
+- `inference`: A long-lived WebUI VM program can inherit units from an earlier
+  run, so the authoritative behavior validation remains the fresh-game probe.
+  The VM fixture moves its Vulture victim away from the attacking Vulture,
+  preventing newly created Spider Mines from immediately triggering during a
+  future in-session replay.

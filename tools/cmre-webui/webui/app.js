@@ -27,6 +27,10 @@ const API = {
   vibeRunVm: "/api/vibe/run-vm",
   vibeObserve: "/api/vibe/observe",
   vibeCallLog: "/api/vibe/call-log",
+  vibeGalaxyScript: "/api/vibe/galaxy-script",
+  vibeGalaxyValidate: "/api/vibe/galaxy-script/validate",
+  vibeGalaxySave: "/api/vibe/galaxy-script/save",
+  vibeGalaxyStage: "/api/vibe/galaxy-script/stage",
   asset: (relPath) => `/api/assets/dds?path=${encodeURIComponent(relPath)}`,
 };
 
@@ -37,6 +41,7 @@ const runtimeState = {
   selectedTrace: null,
   trace: [],
   callLog: [],
+  galaxyScript: { source: "", validation: null, staged: null },
   pollTimer: null,
   observation: null,
 };
@@ -666,6 +671,7 @@ function syncRuntimeStatus(status) {
   $("runtime-disconnect").disabled = !connected || busy;
   $("runtime-invoke").disabled = !connected || busy || !runtimeState.selectedFunction;
   $("runtime-run-vm").disabled = !connected || busy;
+  $("runtime-galaxy-run").disabled = !connected || busy;
   const session = data.session_id ? `session=${data.session_id}` : "session=未建立";
   $("runtime-session-meta").textContent = `${data.port ? `port=${data.port} · ` : ""}${session}${data.error ? ` · ${data.error}` : ""}`;
   if (Array.isArray(data.trace)) {
@@ -826,6 +832,92 @@ async function runRuntimeVm() {
   } catch (e) { await pollRuntimeStatus(); showStatus(`VM 请求失败: ${e.message}`, "error"); }
 }
 
+function galaxyScriptSource() {
+  return $("runtime-galaxy-source").value || "";
+}
+
+function renderGalaxyScriptValidation(data) {
+  const validation = data.validation || data;
+  runtimeState.galaxyScript.validation = validation;
+  const errors = (validation.diagnostics || []).filter(item => item.level === "error");
+  $("runtime-galaxy-state").textContent = validation.valid ? "结构校验通过" : `校验失败 · ${errors.length} 个错误`;
+  $("runtime-galaxy-state").style.color = validation.valid ? "var(--success)" : "var(--danger)";
+  $("runtime-galaxy-meta").textContent = `${validation.function_id || "douququ.user.run"} · ${validation.bytes || 0} bytes · sha256=${(validation.sha256 || "").slice(0, 12)}`;
+  $("runtime-galaxy-result").textContent = runtimeJson(validation);
+}
+
+async function loadGalaxyScript() {
+  try {
+    const data = await runtimeRequest(API.vibeGalaxyScript);
+    runtimeState.galaxyScript.source = data.source || "";
+    runtimeState.galaxyScript.staged = data.staged || null;
+    $("runtime-galaxy-source").value = runtimeState.galaxyScript.source;
+    renderGalaxyScriptValidation(data);
+    if (data.staged?.packed_map) {
+      $("runtime-galaxy-state").textContent = `已暂存 · ${data.staged.source_sha256.slice(0, 12)} · 等待重载`;
+    }
+  } catch (e) {
+    $("runtime-galaxy-state").textContent = `源码读取失败: ${e.message}`;
+    showStatus(`Galaxy 源码读取失败: ${e.message}`, "error");
+  }
+}
+
+async function validateGalaxyScript() {
+  try {
+    const data = await runtimeRequest(API.vibeGalaxyValidate, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: galaxyScriptSource() }),
+    });
+    renderGalaxyScriptValidation(data);
+    showStatus(data.valid ? "Galaxy 源码结构校验通过" : "Galaxy 源码校验失败", data.valid ? "success" : "error");
+  } catch (e) { showStatus(`Galaxy 源码校验请求失败: ${e.message}`, "error"); }
+}
+
+async function saveGalaxyScript() {
+  try {
+    const data = await runtimeRequest(API.vibeGalaxySave, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: galaxyScriptSource() }),
+    });
+    renderGalaxyScriptValidation(data);
+    showStatus("Galaxy 源码已保存到 artifacts", "success");
+  } catch (e) { showStatus(`Galaxy 源码保存失败: ${e.message}`, "error"); }
+}
+
+async function stageGalaxyScript() {
+  try {
+    const data = await runtimeRequest(API.vibeGalaxyStage, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: galaxyScriptSource() }),
+    });
+    runtimeState.galaxyScript.staged = data;
+    $("runtime-galaxy-state").textContent = `已暂存并打包 · ${data.source_sha256.slice(0, 12)} · 重载后生效`;
+    $("runtime-galaxy-result").textContent = runtimeJson(data);
+    showStatus("Galaxy 源码已暂存并打包；重载斗蛐蛐地图后生效", "success");
+  } catch (e) { showStatus(`Galaxy 源码暂存失败: ${e.message}`, "error"); }
+}
+
+async function runGalaxyScript() {
+  let args;
+  try { args = JSON.parse($("runtime-galaxy-args").value || "{}"); }
+  catch (e) { showStatus(`Galaxy 入口 args JSON 无效: ${e.message}`, "error"); return; }
+  try {
+    const data = await runtimeRequest(API.vibeInvoke, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ functionId: "douququ.user.run", args }),
+    });
+    $("runtime-galaxy-result").textContent = runtimeJson(data.record);
+    syncRuntimeStatus(data.status);
+    await loadRuntimeCallLog(false);
+    const passed = data.record?.status === "passed";
+    showStatus(passed ? "Galaxy 入口执行成功" : `Galaxy 入口返回 ${data.record?.result?.error_code || "失败"}`, passed ? "success" : "error");
+  } catch (e) { await pollRuntimeStatus(); showStatus(`Galaxy 入口执行失败: ${e.message}`, "error"); }
+}
+
 function initRuntimeConsole() {
   $("runtime-function-search").oninput = renderRuntimeCatalog;
   $("runtime-load-sessions").onclick = loadRuntimeSessions;
@@ -834,9 +926,15 @@ function initRuntimeConsole() {
   $("runtime-invoke").onclick = invokeRuntimeFunction;
   $("runtime-run-vm").onclick = runRuntimeVm;
   $("runtime-load-call-log").onclick = () => loadRuntimeCallLog(true);
+  $("runtime-galaxy-reload").onclick = loadGalaxyScript;
+  $("runtime-galaxy-validate").onclick = validateGalaxyScript;
+  $("runtime-galaxy-save").onclick = saveGalaxyScript;
+  $("runtime-galaxy-stage").onclick = stageGalaxyScript;
+  $("runtime-galaxy-run").onclick = runGalaxyScript;
   $("runtime-session-select").onchange = e => { $("runtime-session-id").value = e.target.value; };
   loadRuntimeCatalog();
   loadRuntimeSessions();
+  loadGalaxyScript();
   pollRuntimeStatus();
   if (!runtimeState.pollTimer) runtimeState.pollTimer = window.setInterval(pollRuntimeStatus, 1000);
 }

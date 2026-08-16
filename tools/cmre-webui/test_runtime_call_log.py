@@ -1,6 +1,10 @@
 import json
 import threading
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+import asyncio
 
 import server
 
@@ -66,3 +70,66 @@ def test_runtime_call_log_http_endpoint_is_read_only(tmp_path, monkeypatch):
         httpd.shutdown()
         httpd.server_close()
         thread.join(timeout=5)
+
+
+def test_runtime_console_serializes_overlapping_vm_api_and_observe_calls(tmp_path, monkeypatch):
+    console = server.RuntimeConsole(tmp_path / "runtime-call-log.jsonl")
+    state = {"active": 0, "peak": 0, "operations": []}
+
+    async def transact(name, result):
+        state["active"] += 1
+        state["peak"] = max(state["peak"], state["active"])
+        state["operations"].append(name)
+        try:
+            await asyncio.sleep(0.03)
+            return result
+        finally:
+            state["active"] -= 1
+
+    async def fake_invoke(function_id, args, origin="api"):
+        return await transact(
+            f"{origin}:{function_id}",
+            {"function_id": function_id, "result": {"error_code": "OK"}},
+        )
+
+    async def fake_observe():
+        return await transact("observe", {"error_code": "OK"})
+
+    async def fake_vm(program):
+        return await transact("vm", {"success": True, "status": "passed"})
+
+    monkeypatch.setattr(console, "_invoke_unlocked", fake_invoke)
+    monkeypatch.setattr(console, "_observe_unlocked", fake_observe)
+    monkeypatch.setattr(console, "_run_vm_unlocked", fake_vm)
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = [
+            pool.submit(console.invoke, "douququ.runtime.status", {}),
+            pool.submit(console.observe),
+            pool.submit(console.run_vm, {"version": "vibe-debug/1", "instructions": []}),
+        ]
+        results = [future.result(timeout=5) for future in futures]
+
+    assert results[0]["result"]["error_code"] == "OK"
+    assert results[1]["error_code"] == "OK"
+    assert results[2]["status"] == "passed"
+    assert state["peak"] == 1
+    assert sorted(state["operations"]) == [
+        "api:douququ.runtime.status",
+        "observe",
+        "vm",
+    ]
+    assert console.status()["running"] == ""
+
+
+def test_runtime_vm_program_asserts_death_mine_spawn_tags_not_transient_visibility():
+    program_path = Path(__file__).with_name("dou_ququ_runtime_full.json")
+    steps = json.loads(program_path.read_text(encoding="utf-8"))["steps"]
+
+    assert sum(
+        step.get("op") == "assert"
+        and step.get("source") == "$vars.vultureDeath"
+        and step.get("path", "").startswith("spawned.")
+        for step in steps
+    ) == 3
+    assert not any(step.get("source") == "$vars.mineSnapshot" for step in steps)

@@ -71,3 +71,29 @@ curl.exe http://127.0.0.1:8777/api/vibe/trace
 每条 call 记录包含 `timestamp`、`session_id`、`port`、`origin`（`api`/`vm`/`connect`）、`function_id`、`args`、`result`、`error`、状态和耗时。连接握手的 `douququ.runtime.status` 也会记录，便于区分用户调用和 VM 调用。
 
 作者弹窗清理只作用于 `artifacts/` 下的运行副本；原始 `.SC2Map` 不会被修改，也不计入 runtime 效果验证。真实效果验证必须以 `/api/vibe/invoke` 或 `/api/vibe/run-vm` 返回的 SC2 runtime 结果和对应 JSONL 记录为准。
+
+## Galaxy Script Lab
+
+运行时页现在有 `Galaxy Runtime Script Lab`。编辑的不是 Python VM 规则，而是实际会被
+挂载进下一份斗蛐蛐 staged map 的 `LibDouQuquUser.galaxy`。默认入口是：
+
+```galaxy
+string libDouQuquUser_gf_Run(string argsJson)
+```
+
+默认源码直接调用 `UnitCreate`、`PlayerModifyPropertyInt` 和 `DataTableSet*`。
+UI 的“校验源码”只做结构检查；“保存源码”写入 `artifacts/`；“暂存并打包”会复制地图、
+挂载该 `.galaxy` 文件并生成新的 `.packed.SC2Map`。SC2 是静态编译运行时，不能在已经
+加载的进程里热编译任意 Galaxy，因此暂存后必须重载斗蛐蛐地图，随后用
+`douququ.user.run` 执行新源码。当前会话点击“执行 Galaxy”只会调用已经加载的入口，
+不会伪装成热加载。
+
+相关接口：
+
+```text
+GET  /api/vibe/galaxy-script
+POST /api/vibe/galaxy-script/validate
+POST /api/vibe/galaxy-script/save
+POST /api/vibe/galaxy-script/stage
+POST /api/vibe/invoke  {"functionId":"douququ.user.run", ...}
+```

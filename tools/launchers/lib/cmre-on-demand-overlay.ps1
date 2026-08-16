@@ -219,13 +219,14 @@ function Install-CmreDouQuquStandaloneMapOverlay {
 
     $baseData = Join-Path $MapPath "Base.SC2Data"
     $douQuquRuntimeInclude = if ($EnableDouQuquRuntime) { "LibDouQuquRuntime" } else { "LibDouQuquRuntimeDisabled" }
-    $includeNames = @("LibVibeKernel", "LibVibeInvokeDisabled", "LibMapModBridge", $douQuquRuntimeInclude)
+    $douQuquUserInclude = if ($EnableDouQuquRuntime) { "LibDouQuquUser" } else { "LibDouQuquUserDisabled" }
+    $includeNames = @("LibVibeKernel", "LibVibeInvokeDisabled", "LibMapModBridge", $douQuquRuntimeInclude, $douQuquUserInclude)
     if ($EnableDouQuquBehavior) { $includeNames += "LibDouQuquBehavior" }
     $mapScript = [regex]::Replace(
         $mapScript,
         '(?m)^[ \t]*include "LibVibe(?:Kernel|Kernel_h|Handles|Invoke[^\"]*)"\r?\n',
         "")
-    foreach ($includeName in @("LibMapModBridge", "LibDouQuquBehavior", "LibDouQuquRuntime", "LibDouQuquRuntimeDisabled")) {
+    foreach ($includeName in @("LibMapModBridge", "LibDouQuquBehavior", "LibDouQuquRuntime", "LibDouQuquRuntimeDisabled", "LibDouQuquUser", "LibDouQuquUserDisabled")) {
         $mapScript = [regex]::Replace(
             $mapScript,
             '(?m)^[ \t]*include "' + [regex]::Escape($includeName) + '"\r?\n',
@@ -234,8 +235,11 @@ function Install-CmreDouQuquStandaloneMapOverlay {
     $douQuquRoot = Join-Path $WorkspaceRoot "tools\launchers\overlays\cmre-alenger\startup"
     Get-ChildItem -LiteralPath $baseData -Filter "LibDouQuquRuntime*.galaxy" -File -ErrorAction SilentlyContinue |
         Remove-Item -Force -ErrorAction Stop
+    Get-ChildItem -LiteralPath $baseData -Filter "LibDouQuquUser*.galaxy" -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force -ErrorAction Stop
     Copy-CmreOverlayFiles -Files @(
-        @{ Source = Join-Path $douQuquRoot ($douQuquRuntimeInclude + ".galaxy"); Name = ($douQuquRuntimeInclude + ".galaxy") }
+        @{ Source = Join-Path $douQuquRoot ($douQuquRuntimeInclude + ".galaxy"); Name = ($douQuquRuntimeInclude + ".galaxy") },
+        @{ Source = Join-Path $douQuquRoot ($douQuquUserInclude + ".galaxy"); Name = ($douQuquUserInclude + ".galaxy") }
     ) -DestinationRoot $baseData
     $includeLines = $includeNames | ForEach-Object { 'include "' + $_ + '"' }
     $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor 'include "TriggerLibs/NativeLib"' -Lines $includeLines
@@ -1261,10 +1265,14 @@ function Install-CmreObserverOverlay {
     }
 
     $douQuquRuntimeInclude = if ($EnableDouQuquRuntime) { "LibDouQuquRuntime" } else { "LibDouQuquRuntimeDisabled" }
+    $douQuquUserInclude = if ($EnableDouQuquRuntime) { "LibDouQuquUser" } else { "LibDouQuquUserDisabled" }
     Get-ChildItem -LiteralPath $baseData -Filter "LibDouQuquRuntime*.galaxy" -File -ErrorAction SilentlyContinue |
         Remove-Item -Force -ErrorAction Stop
+    Get-ChildItem -LiteralPath $baseData -Filter "LibDouQuquUser*.galaxy" -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force -ErrorAction Stop
     Copy-CmreOverlayFiles -Files @(
-        @{ Source = Join-Path $douQuquRoot ($douQuquRuntimeInclude + ".galaxy"); Name = ($douQuquRuntimeInclude + ".galaxy") }
+        @{ Source = Join-Path $douQuquRoot ($douQuquRuntimeInclude + ".galaxy"); Name = ($douQuquRuntimeInclude + ".galaxy") },
+        @{ Source = Join-Path $douQuquRoot ($douQuquUserInclude + ".galaxy"); Name = ($douQuquUserInclude + ".galaxy") }
     ) -DestinationRoot $baseData
     Write-Host "斗蛐蛐 live VM module: $douQuquRuntimeInclude"
 
@@ -1334,6 +1342,7 @@ function Install-CmreObserverOverlay {
     # references to files removed by the cleanup above.
     $mapScript = [regex]::Replace($mapScript, '(?m)^[ \t]*include "LibVibe(?:Handles|Invoke(?:Common|_[^"]*|Dispatch|Disabled))"\r?\n', '')
     $mapScript = [regex]::Replace($mapScript, '(?m)^[ \t]*include "LibDouQuquRuntime(?:Disabled)?"\r?\n', '')
+    $mapScript = [regex]::Replace($mapScript, '(?m)^[ \t]*include "LibDouQuquUser(?:Disabled)?"\r?\n', '')
     $vibeInvokeBundleDir = Join-Path $baseData "LibVibeInvokeDispatch.galaxy"
     if ($mountGeneratedInvokeBundle -and (Test-Path -LiteralPath $vibeInvokeBundleDir)) {
         $vibeInvokeIncludes = @('include "LibVibeHandles"', 'include "LibVibeInvokeCommon"')
@@ -1351,7 +1360,7 @@ function Install-CmreObserverOverlay {
         }
         $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor 'include "LibVibeKernel"' -Lines @('include "LibVibeInvokeDisabled"')
     }
-    $includeLines = @('include "LibEFA54406"', 'include "LibNeuroCommandBridge"', 'include "LibPortingObserver"', 'include "LibDeadOfNightObserver"', 'include "LibMapModBridge"', ('include "' + $douQuquRuntimeInclude + '"'))
+    $includeLines = @('include "LibEFA54406"', 'include "LibNeuroCommandBridge"', 'include "LibPortingObserver"', 'include "LibDeadOfNightObserver"', 'include "LibMapModBridge"', ('include "' + $douQuquRuntimeInclude + '"'), ('include "' + $douQuquUserInclude + '"'))
     if ($EnableDouQuquBehavior) { $includeLines += 'include "LibDouQuquBehavior"' }
     if ($IsAlengerCommander -and $AdapterLibPrefix -ne "") { $includeLines += ('include "Lib' + $AdapterLibPrefix + '"') }
     $mapScript = Add-CmreLinesAfter -Content $mapScript -Anchor $mapIncludeAnchor -Lines $includeLines

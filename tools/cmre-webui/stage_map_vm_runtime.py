@@ -97,7 +97,6 @@ def _patch_map_script(
     if text.count(anchor) != 1:
         raise StagingError(f"expected one NativeLib include in {path}")
     include_lines = [
-        marker,
         'include "LibVibeKernel"',
         'include "LibVibeHandles"',
         'include "LibVibeInvokeDispatch_active"',
@@ -106,6 +105,11 @@ def _patch_map_script(
         'include "LibDouQuquRuntime"'
         if enable_dou_ququ_runtime
         else 'include "LibDouQuquRuntimeDisabled"'
+    )
+    include_lines.append(
+        'include "LibDouQuquUser"'
+        if enable_dou_ququ_runtime
+        else 'include "LibDouQuquUserDisabled"'
     )
     if enable_dou_ququ_features:
         include_lines.append('include "LibDouQuquBehavior"')
@@ -206,7 +210,8 @@ def stage_map(source: Path, output: Path, kernel_root: Path = DEFAULT_KERNEL_ROO
               dispatch_source: Path = DEFAULT_DISPATCH, replace: bool = False,
               enable_dou_ququ_features: bool = False,
               dou_ququ_root: Path = DEFAULT_DOU_QUQU_ROOT,
-              enable_dou_ququ_runtime: bool = False) -> dict:
+              enable_dou_ququ_runtime: bool = False,
+              user_galaxy_source: Path | None = None) -> dict:
     source = source.resolve()
     output = output.resolve()
     kernel_root = kernel_root.resolve()
@@ -256,6 +261,14 @@ def stage_map(source: Path, output: Path, kernel_root: Path = DEFAULT_KERNEL_ROO
         raise StagingError(f"斗蛐蛐 runtime Galaxy file missing: {runtime_source}")
     shutil.copy2(runtime_source, base_data / runtime_name)
     dou_ququ_files.append(f"Base.SC2Data/{runtime_name}")
+    user_name = "LibDouQuquUser.galaxy" if enable_dou_ququ_runtime else "LibDouQuquUserDisabled.galaxy"
+    user_source = user_galaxy_source if enable_dou_ququ_runtime and user_galaxy_source else dou_ququ_root / user_name
+    if not user_source.is_file():
+        raise StagingError(f"斗蛐蛐 user Galaxy file missing: {user_source}")
+    if user_source.name != user_name:
+        raise StagingError(f"user Galaxy file must be named {user_name}: {user_source}")
+    shutil.copy2(user_source, base_data / user_name)
+    dou_ququ_files.append(f"Base.SC2Data/{user_name}")
     if enable_dou_ququ_features:
         for name in ("LibDouQuquBehavior.galaxy", "LibDouQuquBehavior_h.galaxy"):
             source_file = dou_ququ_root / name
@@ -298,6 +311,11 @@ def stage_map(source: Path, output: Path, kernel_root: Path = DEFAULT_KERNEL_ROO
             "module": f"Base.SC2Data/{runtime_name}",
             "execution": "function.invoke douququ.*",
         },
+        "douQuquUserGalaxy": {
+            "enabled": enable_dou_ququ_runtime,
+            "module": f"Base.SC2Data/{user_name}",
+            "source": str(user_source),
+        },
         "stagedCleanup": {
             "sourceAttributionPopup": attribution_cleanup,
             "scope": "staged-copy-only",
@@ -320,12 +338,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--enable-dou-ququ-features", action="store_true")
     parser.add_argument("--enable-dou-ququ-runtime", action="store_true")
     parser.add_argument("--dou-ququ-root", default=str(DEFAULT_DOU_QUQU_ROOT))
+    parser.add_argument("--user-galaxy-source", default="", help="editable LibDouQuquUser.galaxy override")
     parser.add_argument("--replace", action="store_true")
     args = parser.parse_args(argv)
     try:
         result = stage_map(
             Path(args.source), Path(args.output), Path(args.kernel_root), Path(args.dispatch_source), args.replace,
             args.enable_dou_ququ_features, Path(args.dou_ququ_root), args.enable_dou_ququ_runtime,
+            Path(args.user_galaxy_source) if args.user_galaxy_source else None,
         )
     except (OSError, ET.ParseError, StagingError) as exc:
         print(f"[stage-vm] ERROR: {exc}", file=sys.stderr)

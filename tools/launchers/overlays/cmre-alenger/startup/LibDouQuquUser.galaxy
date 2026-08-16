@@ -1,0 +1,57 @@
+include "LibVibeKernel_h"
+
+// This file is the editable Galaxy extension surface for the runtime lab.
+// Keep the public signature stable; edit the body and reload the staged map.
+string libDouQuquUser_gf_Run(string argsJson) {
+    int owner;
+    int mineralDelta;
+    int currentMinerals;
+    fixed x;
+    fixed y;
+    string unitType;
+    point position;
+    unit created;
+    int tag;
+
+    owner = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_owner");
+    mineralDelta = libVibeKernel_gf_ArgsGetInt(argsJson, "arg_mineral_delta");
+    unitType = libVibeKernel_gf_ArgsGet(argsJson, "arg_unit_type");
+    x = libVibeKernel_gf_ArgsGetFixed(argsJson, "arg_x");
+    y = libVibeKernel_gf_ArgsGetFixed(argsJson, "arg_y");
+    if (owner < 1 || owner > 15 || !CatalogEntryIsValid(c_gameCatalogUnit, unitType)) {
+        return libVibeKernel_gf_MakeResponse(
+            "error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId,
+            libVibeKernel_gv_lastSequence, "function.invoke", "INVALID_ARGS",
+            "{\"function_id\":\"douququ.user.run\",\"reason\":\"owner_or_unit\"}");
+    }
+
+    // The user extension is real game logic: it creates a unit and changes
+    // the player's minerals using native Galaxy operations.
+    position = Point(x, y);
+    UnitCreate(1, unitType, c_unitCreateIgnorePlacement, owner, position, libNtve_gf_RandomAngle());
+    created = UnitLastCreated();
+    if (created == null) {
+        return libVibeKernel_gf_MakeResponse(
+            "error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId,
+            libVibeKernel_gv_lastSequence, "function.invoke", "CREATE_FAILED",
+            "{\"function_id\":\"douququ.user.run\"}");
+    }
+
+    if (mineralDelta >= 0) {
+        PlayerModifyPropertyInt(owner, c_playerPropMinerals, c_playerPropOperAdd, mineralDelta);
+    } else {
+        PlayerModifyPropertyInt(owner, c_playerPropMinerals, c_playerPropOperSubtract, -mineralDelta);
+    }
+    currentMinerals = PlayerGetPropertyInt(owner, c_playerPropMinerals);
+    tag = UnitGetTag(created);
+    DataTableSetString(true, "DouQuquUserLastAction", unitType);
+    DataTableSetInt(true, "DouQuquUserLastTag", tag);
+    libVibeKernel_gv_stateVersion += 1;
+    return libVibeKernel_gf_MakeResponse(
+        "result", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId,
+        libVibeKernel_gv_lastSequence, "function.invoke", "OK",
+        "{\"function_id\":\"douququ.user.run\",\"unit_tag\":" + IntToString(tag) +
+        ",\"unit_type\":\"" + unitType + "\",\"owner\":" + IntToString(owner) +
+        ",\"mineral_delta\":" + IntToString(mineralDelta) +
+        ",\"minerals\":" + IntToString(currentMinerals) + "}");
+}

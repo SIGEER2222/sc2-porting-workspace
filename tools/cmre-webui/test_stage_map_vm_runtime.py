@@ -61,6 +61,7 @@ def _dou_ququ_root(tmp_path: Path) -> Path:
     for name in (
         "LibDouQuquBehavior.galaxy", "LibDouQuquBehavior_h.galaxy",
         "LibDouQuquRuntime.galaxy", "LibDouQuquRuntimeDisabled.galaxy",
+        "LibDouQuquUser.galaxy", "LibDouQuquUserDisabled.galaxy",
     ):
         (root / name).write_text(name, encoding="utf-8")
     for name in ("AttachMethodData.xml", "EffectData.xml", "AbilData.xml", "UnitData.xml", "ActorData.xml", "ButtonData.xml"):
@@ -75,6 +76,7 @@ def test_stage_map_isolated_and_injects_kernel(tmp_path):
     result = stage_map(source, output, kernel, dispatch)
 
     script = (output / "MapScript.galaxy").read_text(encoding="utf-8")
+    assert script.count("CMRE_WEBUI_VIBE_VM_STAGING") == 1
     assert 'include "LibVibeKernel"' in script
     assert "libVibeKernel_InitLib();" in script
     assert "CMRE_WEBUI_VIBE_VM_REGISTER" in script
@@ -126,9 +128,36 @@ def test_stage_can_mount_live_dou_ququ_runtime_without_static_behavior(tmp_path)
     assert 'include "LibDouQuquRuntime"' in script
     assert 'include "LibDouQuquBehavior"' not in script
     assert result["douQuquRuntime"]["enabled"] is True
+    assert result["douQuquUserGalaxy"]["enabled"] is True
     manifest = json.loads((output.parent / "staging-manifest.json").read_text(encoding="utf-8"))
     assert manifest["stage"] == "27-dou-ququ-behavior-plugin"
     assert (output / "Base.SC2Data" / "LibDouQuquRuntime.galaxy").is_file()
+    assert (output / "Base.SC2Data" / "LibDouQuquUser.galaxy").is_file()
+
+
+def test_stage_accepts_an_editable_user_galaxy_source(tmp_path):
+    source = _source(tmp_path, "斗蛐蛐-user-source.SC2Map")
+    kernel, dispatch = _kernel(tmp_path)
+    dou_ququ = _dou_ququ_root(tmp_path)
+    user_source = tmp_path / "LibDouQuquUser.galaxy"
+    user_source.write_text(
+        'string libDouQuquUser_gf_Run(string argsJson) {\n'
+        '    return "user-source";\n'
+        '}\n',
+        encoding="utf-8",
+    )
+    output = tmp_path / "staged-user-source"
+    result = stage_map(
+        source,
+        output,
+        kernel,
+        dispatch,
+        dou_ququ_root=dou_ququ,
+        enable_dou_ququ_runtime=True,
+        user_galaxy_source=user_source,
+    )
+    assert result["douQuquUserGalaxy"]["source"] == str(user_source)
+    assert (output / "Base.SC2Data" / "LibDouQuquUser.galaxy").read_text(encoding="utf-8") == user_source.read_text(encoding="utf-8")
 
 
 def test_stage_removes_source_attribution_popup_only_from_copy(tmp_path):
