@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import inspect
 from pathlib import Path
 
@@ -10,6 +11,16 @@ def test_runtime_lab_has_only_generic_inputs():
     text = (PROJECT / "project.json").read_text(encoding="utf-8")
     assert "cmre-porting" not in text
     assert "RuntimeLab.SC2Map" in text
+    project = json.loads((PROJECT / "project.json").read_text(encoding="utf-8"))
+    skeleton = project["sources"][0]
+    assert skeleton["path"] == (
+        "../test-arena/packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map"
+    )
+    workspace = json.loads((PROJECT.parents[2] / "src" / "config" / "workspace.json").read_text(encoding="utf-8"))
+    registered_skeleton = next(source for source in workspace["sources"] if source["id"] == skeleton["sourceId"])
+    assert registered_skeleton["path"] == (
+        "src/projects/test-arena/packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map"
+    )
 
 
 def test_runtime_lab_build_wires_the_three_suites():
@@ -20,6 +31,7 @@ def test_runtime_lab_build_wires_the_three_suites():
     spec.loader.exec_module(module)
     assert module.RUNTIME_BASE_MAP == module.ARENA_BASE_MAP
     assert module.RUNTIME_BASE_MAP.is_dir()
+    assert module.BASE_MAP == module.RUNTIME_BASE_MAP
     assert 'include "LibVibeKernel"' in module.MAPSCRIPT
     assert 'include "LibVibeKernel_h"' not in module.MAPSCRIPT
     assert 'include "LibVibeHandles"' not in module.MAPSCRIPT

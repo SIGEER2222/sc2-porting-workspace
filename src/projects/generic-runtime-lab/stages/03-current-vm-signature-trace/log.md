@@ -321,3 +321,41 @@ The source/dispatch path now has both a breakpoint probe and a no-break
 runtime control, with the expected Bank effects and stable game-loop evidence.
 The remaining gap is specifically automatic time-event dispatch and a filtered,
 trigger-correlated VM observer; no executable hook is promoted.
+
+## 2026-08-17 offline continuation
+
+- `static`: Added a `TRACE_RESET` protocol command that only succeeds while
+  the VEH observer is disarmed. It clears the breakpoint count, last exception,
+  last IP, and all 32 histogram slots. An armed observer returns
+  `trace_must_be_disarmed`. The controller now records the raw reset response
+  before `TRACE_ARM` for every `--arm-trace` window, ensuring future evidence
+  has a zero-counter baseline without enabling a VM hook.
+- `static`: The runtime-lab configuration and all control/trace builders now
+  reference the existing read-only test-arena map source rather than the absent
+  `src/lib/_testmap_src` skeleton. The source map itself was not modified.
+- `static`: `python -m pytest -q src/projects/generic-runtime-lab/tests` ->
+  `18 passed`; Windows GNU-target `cargo check --tests` completed for both
+  `gsvm-agent` and `gsvm-controller`; and `rustfmt --check` passed for both
+  changed Rust sources. Evidence:
+  `artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/static/offline-validation-20260817.json`.
+- `blocked`: The new base-source configuration let
+  `python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py --breakpoint-trace`
+  reach `pack_map`, but it cannot produce a fresh packed fixture because
+  `artifacts/stormlib-v9.40/x64/StormLib.dll` is absent. No fixture SHA or
+  Galaxy-lint result was claimed from this attempt.
+- `blocked`: Native Rust unit tests cannot link in this shell: the GNU target
+  lacks `dlltool.exe`, and the MSVC target/linker is not installed. Their code
+  compiles through `cargo check --tests`; the runnable native-test claim remains
+  deferred.
+- `blocked`: No local SC2 environment is available, so no launcher, API,
+  ScriptError, Bank, or VM-observation step was attempted in this continuation.
+- `static`: The offline evidence JSON remains under the workspace-wide ignored
+  `artifacts/**` tree by design. Its commands and outcomes are mirrored in this
+  log and `result.json`, so the ignored artifact is intentionally not staged.
+
+## Updated boundary
+
+The next future runtime window will start with a controller-recorded reset
+baseline, but this is static preparation only. It does not correlate VEH events
+to a Galaxy trigger, exercise delayed automatic dispatch, identify a VM entry
+point, or permit `hook_enabled=true`.

@@ -3,7 +3,7 @@
   "stage": "03-current-vm-signature-trace",
   "status": "IN_PROGRESS",
   "evidence_type": "static",
-  "summary": "Stage 03 now has a reproducible native VEH trace protocol with an IP histogram, an isolated delayed fixture, a breakpoint direct fixture, and a no-break direct control. Fresh launcher-owned direct probes on ports 6009, 6012, and 6013 wrote startup/trace_before/trace_after with zero same-window ScriptErrors; the no-break control also completed JoinGame at game_loop=1. The observer remains uncorrelated and delayed time-event dispatch remains unproven, so hook_enabled stays false.",
+  "summary": "Stage 03 has a reproducible native VEH trace protocol with an IP histogram, isolated delayed fixture, direct breakpoint fixture, and no-break direct control. The offline continuation adds a resettable controller-recorded trace baseline and aligns fixture builders with the available read-only test-arena source. Prior fresh direct probes remain runtime evidence, but no new dynamic claim was made: local SC2 is unavailable, fresh packing is blocked by a missing StormLib DLL, the observer remains uncorrelated, and delayed time-event dispatch remains unproven. hook_enabled stays false.",
   "changed_paths": [
     "src/projects/generic-runtime-lab/project.json",
     "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/plan.md",
@@ -54,7 +54,9 @@
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-evidence-20260816.json",
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-20260816/launcher-port6013.stdout.log",
     "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-20260816/repl-port6013.jsonl",
-    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-20260816/scripterror-port6013.json"
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-20260816/scripterror-port6013.json",
+    "src/config/workspace.json",
+    "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/static/offline-validation-20260817.json"
   ],
   "validation": [
     {
@@ -252,6 +254,20 @@
       "summary": "The direct-control window reported zero new ScriptError files.",
       "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-20260816/scripterror-port6013.json",
       "evidence_type": "runtime"
+    },
+    {
+      "command": "python -m pytest -q src/projects/generic-runtime-lab/tests; cargo check --tests --manifest-path tools/runtime-vm/Cargo.toml --target x86_64-pc-windows-gnu -p gsvm-agent; cargo check --tests --manifest-path tools/runtime-vm/Cargo.toml --target x86_64-pc-windows-gnu -p gsvm-controller; rustfmt --check tools/runtime-vm/agent/src/lib.rs tools/runtime-vm/controller/src/main.rs",
+      "exitCode": 0,
+      "summary": "18 project tests passed; agent and controller, including their test code, compile for the Windows GNU target; both changed Rust sources are formatted.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/static/offline-validation-20260817.json",
+      "evidence_type": "static"
+    },
+    {
+      "command": "python src/projects/generic-runtime-lab/scripts/build_runtime_lab.py --breakpoint-trace",
+      "exitCode": 1,
+      "summary": "The configured read-only base map was copied and the builder reached pack_map, but StormLib DLL was absent; no packed map or lint verdict was produced.",
+      "evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/static/offline-validation-20260817.json",
+      "evidence_type": "blocked"
     }
   ],
   "runtime": {
@@ -271,7 +287,10 @@
     "direct_control_evidence": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/runtime/direct-control-evidence-20260816.json",
     "breakpoint_pause_isolated": true,
     "automatic_dispatch": "NOT_EXERCISED",
-    "trace_recipe": "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/trace-recipe.md"
+    "trace_recipe": "src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/trace-recipe.md",
+    "offline_validation": "artifacts/projects/generic-runtime-lab/stage03-current-vm-signature-trace/static/offline-validation-20260817.json",
+    "trace_window_baseline": "The controller records TRACE_RESET before TRACE_ARM; reset requires a disarmed observer and clears trace counters and histogram.",
+    "runtime_environment": "BLOCKED: no local SC2 environment was available for the 2026-08-17 continuation."
   },
   "issues": [
     {
@@ -298,6 +317,30 @@
       "detail": "The historical 5983 launcher attempt was blocked by an unrelated SC2 owner, but fresh exclusive launcher-owned windows on ports 5993-5995 reached API readiness and CreateGame/JoinGame without taking over an external process.",
       "nextAction": "No owner blocker remains for this stage; continue only with the filtered VM event observer needed for Galaxy correlation.",
       "resolution": "Fresh ports 5993-5995 passed the launcher/API ownership gate; the remaining blocker is VM event attribution, tracked by GSVM-GALAXY-BREAKPOINT-CORRELATION."
+    },
+    {
+      "id": "GSVM-SC2-RUNTIME-UNAVAILABLE",
+      "severity": "high",
+      "status": "open",
+      "evidence_type": "blocked",
+      "detail": "No local SC2 environment is available, so this continuation performed no fresh launcher/API/Bank/ScriptError/VM-observer validation.",
+      "nextAction": "When a compliant SC2 environment is available, run the delayed fixture with the controller-recorded TRACE_RESET baseline and retain the same-window evidence bundle."
+    },
+    {
+      "id": "RUNTIME-LAB-STORMLIB-UNAVAILABLE",
+      "severity": "medium",
+      "status": "open",
+      "evidence_type": "blocked",
+      "detail": "Fresh fixture packing is blocked because artifacts/stormlib-v9.40/x64/StormLib.dll is absent, although the configured base source now exists.",
+      "nextAction": "Restore the approved StormLib artifact, then rebuild and Galaxy-lint all three fixtures before any future live run."
+    },
+    {
+      "id": "RUNTIME-VM-NATIVE-TEST-LINKER-UNAVAILABLE",
+      "severity": "medium",
+      "status": "open",
+      "evidence_type": "blocked",
+      "detail": "Rust native unit tests cannot link locally because the GNU target lacks dlltool.exe and the MSVC target/linker is unavailable. cargo check --tests passed, but it does not execute the tests.",
+      "nextAction": "Provision an approved Windows Rust linker toolchain and run the gsvm-agent/controller native test suites before treating TRACE_RESET behavior as executable native-test evidence."
     }
   ],
   "nextStage": null

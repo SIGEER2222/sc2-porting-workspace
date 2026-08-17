@@ -26,6 +26,30 @@
       "detail": "The historical 5983 launcher attempt was blocked by an unrelated SC2 owner, but fresh exclusive launcher-owned windows on ports 5993-5995 reached API readiness and CreateGame/JoinGame without taking over an external process.",
       "nextAction": "No owner blocker remains for this stage; continue only with the filtered VM event observer needed for Galaxy correlation.",
       "resolution": "Fresh ports 5993-5995 passed the launcher/API ownership gate; the remaining blocker is VM event attribution, tracked by GSVM-GALAXY-BREAKPOINT-CORRELATION."
+    },
+    {
+      "id": "GSVM-SC2-RUNTIME-UNAVAILABLE",
+      "severity": "high",
+      "status": "open",
+      "evidence_type": "blocked",
+      "detail": "No local SC2 environment is available, so this continuation performed no fresh launcher/API/Bank/ScriptError/VM-observer validation.",
+      "nextAction": "When a compliant SC2 environment is available, run the delayed fixture with the controller-recorded TRACE_RESET baseline and retain the same-window evidence bundle."
+    },
+    {
+      "id": "RUNTIME-LAB-STORMLIB-UNAVAILABLE",
+      "severity": "medium",
+      "status": "open",
+      "evidence_type": "blocked",
+      "detail": "Fresh fixture packing is blocked because artifacts/stormlib-v9.40/x64/StormLib.dll is absent, although the configured base source now exists.",
+      "nextAction": "Restore the approved StormLib artifact, then rebuild and Galaxy-lint all three fixtures before any future live run."
+    },
+    {
+      "id": "RUNTIME-VM-NATIVE-TEST-LINKER-UNAVAILABLE",
+      "severity": "medium",
+      "status": "open",
+      "evidence_type": "blocked",
+      "detail": "Rust native unit tests cannot link locally because the GNU target lacks dlltool.exe and the MSVC target/linker is unavailable. cargo check --tests passed, but it does not execute the tests.",
+      "nextAction": "Provision an approved Windows Rust linker toolchain and run the gsvm-agent/controller native test suites before treating TRACE_RESET behavior as executable native-test evidence."
     }
   ],
   "residual_risks": [

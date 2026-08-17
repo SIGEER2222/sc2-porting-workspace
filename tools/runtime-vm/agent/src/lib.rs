@@ -76,6 +76,16 @@ fn record_trace_ip(ip: u64) {
     }
 }
 
+fn reset_trace_state() {
+    TRACE_BREAKPOINT_COUNT.store(0, Ordering::Release);
+    TRACE_LAST_EXCEPTION.store(0, Ordering::Release);
+    TRACE_LAST_IP.store(0, Ordering::Release);
+    for slot in TRACE_IP_HISTOGRAM.iter() {
+        slot.count.store(0, Ordering::Release);
+        slot.ip.store(0, Ordering::Release);
+    }
+}
+
 unsafe extern "system" fn trace_exception_handler(info: *mut EXCEPTION_POINTERS) -> i32 {
     if !TRACE_ARMED.load(Ordering::Acquire) || info.is_null() {
         return EXCEPTION_CONTINUE_SEARCH;
@@ -121,6 +131,15 @@ fn trace_disarm() -> String {
     r#"{"trace_enabled":false,"trace_mode":"veh-breakpoint","state":"disarmed"}"#.to_string()
 }
 
+fn trace_reset() -> String {
+    if TRACE_ARMED.load(Ordering::Acquire) {
+        return r#"{"trace_enabled":true,"trace_mode":"veh-breakpoint","error":"trace_must_be_disarmed"}"#
+            .to_string();
+    }
+    reset_trace_state();
+    format!(r#"{{"state":"reset","trace":{}}}"#, trace_status())
+}
+
 fn trace_status() -> String {
     let mut histogram = String::new();
     for slot in TRACE_IP_HISTOGRAM.iter() {
@@ -162,6 +181,7 @@ fn response(command: &str) -> String {
         "HELLO" => r#"{"protocol":"gsvm-agent/1","agent_version":"0.2.0","hook_enabled":false,"state":"ready","trace_mode":"veh-breakpoint"}"#.to_string(),
         "STATUS" => format!(r#"{{"protocol":"gsvm-agent/1","hook_enabled":false,"state":"ready","vm_hook":"disabled","trace":{}}}"#, trace_status()),
         "TRACE_ARM" => trace_arm(),
+        "TRACE_RESET" => trace_reset(),
         "TRACE_STATUS" => trace_status(),
         "TRACE_TEST_BREAK" => {
             if !TRACE_ARMED.load(Ordering::Acquire) {
@@ -280,5 +300,35 @@ mod tests {
         assert!(disarmed.contains(r#""trace_enabled":false"#));
         assert!(!TRACE_ARMED.load(Ordering::Acquire));
         assert!(response("TRACE_TEST_INT3").contains("trace_not_armed"));
+    }
+
+    #[test]
+    fn trace_reset_returns_a_clean_baseline_when_disarmed() {
+        let _ = trace_disarm();
+        TRACE_BREAKPOINT_COUNT.store(41, Ordering::Release);
+        TRACE_LAST_EXCEPTION.store(0x80000003, Ordering::Release);
+        TRACE_LAST_IP.store(0x1234, Ordering::Release);
+        TRACE_IP_HISTOGRAM[0].ip.store(0x1234, Ordering::Release);
+        TRACE_IP_HISTOGRAM[0].count.store(41, Ordering::Release);
+
+        let reset = response("TRACE_RESET");
+
+        assert!(reset.contains(r#"\"state\":\"reset\""#));
+        assert_eq!(TRACE_BREAKPOINT_COUNT.load(Ordering::Acquire), 0);
+        assert_eq!(TRACE_LAST_EXCEPTION.load(Ordering::Acquire), 0);
+        assert_eq!(TRACE_LAST_IP.load(Ordering::Acquire), 0);
+        assert_eq!(TRACE_IP_HISTOGRAM[0].ip.load(Ordering::Acquire), 0);
+        assert_eq!(TRACE_IP_HISTOGRAM[0].count.load(Ordering::Acquire), 0);
+        assert!(trace_status().contains(r#"\"ip_histogram\":[]"#));
+    }
+
+    #[test]
+    fn trace_reset_rejects_an_armed_observer() {
+        let _ = trace_disarm();
+        assert!(trace_arm().contains(r#"\"trace_enabled\":true"#));
+
+        assert!(response("TRACE_RESET").contains("trace_must_be_disarmed"));
+
+        let _ = trace_disarm();
     }
 }

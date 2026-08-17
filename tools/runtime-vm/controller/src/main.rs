@@ -434,6 +434,11 @@ fn run(args: &[String]) -> Result<(), String> {
             return Err(format!("agent handshake rejected: {hello}"));
         }
         let status = pipe_request(pipe, "STATUS")?;
+        let trace_reset = if has_arg(args, "--arm-trace") {
+            Some(pipe_request(pipe, "TRACE_RESET")?)
+        } else {
+            None
+        };
         let trace_arm = if has_arg(args, "--arm-trace") {
             Some(pipe_request(pipe, "TRACE_ARM")?)
         } else {
@@ -471,8 +476,9 @@ fn run(args: &[String]) -> Result<(), String> {
         unsafe {
             CloseHandle(pipe);
         }
-        println!("{{\"pid\":{pid},\"image\":{},\"sha256\":{},\"hello\":{},\"status\":{},\"trace_arm\":{},\"trace_test\":{},\"hold_trace_ms\":{hold_trace_ms},\"trace_status\":{},\"shutdown\":{}}}",
+        println!("{{\"pid\":{pid},\"image\":{},\"sha256\":{},\"hello\":{},\"status\":{},\"trace_reset\":{},\"trace_arm\":{},\"trace_test\":{},\"hold_trace_ms\":{hold_trace_ms},\"trace_status\":{},\"shutdown\":{}}}",
             json_quote(&image.display().to_string()), json_quote(&actual_hash), json_quote(&hello), json_quote(&status),
+            trace_reset.as_deref().map(json_quote).unwrap_or_else(|| "null".to_string()),
             trace_arm.as_deref().map(json_quote).unwrap_or_else(|| "null".to_string()),
             trace_test.as_deref().map(json_quote).unwrap_or_else(|| "null".to_string()),
             trace_status.as_deref().map(json_quote).unwrap_or_else(|| "null".to_string()),

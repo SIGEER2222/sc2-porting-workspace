@@ -15,6 +15,7 @@ independently verified.
    the locked profile, or the process was not created by the launcher.
 4. Inject the release agent with the profile. Require `HELLO` and `STATUS` to
    report `hook_enabled=false`; do not pass a hook address in the profile.
+5. When `--arm-trace` is requested, the controller first sends `TRACE_RESET` and records its raw response. It must report a disarmed, zero-counter, empty-histogram baseline before `TRACE_ARM`; an armed observer rejects reset. This prevents a later window from inheriting stale trace counts.
 
 ## Three observation layers
 
@@ -39,7 +40,7 @@ validation and must be reported separately from automatic gameplay dispatch.
    `GalaxyVibe.SC2Bank` RPC channel.
 3. Launch the map through the approved launcher and wait for its ready signal.
 4. Capture the runtime listener and launcher JSON before injecting the agent.
-5. Inject the agent and save raw `HELLO`, `STATUS`, and `SHUTDOWN` responses.
+5. Inject the agent and save raw `HELLO`, `STATUS`, `TRACE_RESET`, and `SHUTDOWN` responses. The controller issues `TRACE_RESET` before `TRACE_ARM` whenever `--arm-trace` is used.
 6. Exercise one map-owned trigger using a unique correlation id. Capture the
    raw event, frame, Bank value, and any agent trace record.
 7. Scan only ScriptError files newer than the UTC marker. Any new file fails the

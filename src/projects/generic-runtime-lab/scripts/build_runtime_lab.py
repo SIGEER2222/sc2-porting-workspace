@@ -12,7 +12,6 @@ from pathlib import Path
 
 PROJECT = Path(__file__).resolve().parents[1]
 REPO = PROJECT.parents[2]
-BASE_MAP = REPO / "src" / "lib" / "_testmap_src"
 BUILD_DIR = REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage01-foundation" / "build" / "RuntimeLab.SC2Map"
 OUTPUT_DIR = REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage01-foundation" / "maps"
 OUTPUT_MAP = OUTPUT_DIR / "RuntimeLab.SC2Map"
@@ -46,6 +45,7 @@ ARENA_BASE_MAP = (
     / "地图调试和斗蛐蛐工具（完整功能版).SC2Map"
 )
 RUNTIME_BASE_MAP = ARENA_BASE_MAP
+BASE_MAP = RUNTIME_BASE_MAP
 ARENA_KERNEL_CONTROL_BUILD_DIR = (
     REPO / "artifacts" / "projects" / "generic-runtime-lab" / "stage01-foundation"
     / "build" / "ArenaKernelControl.SC2Map"

@@ -8,6 +8,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[4]
 PROBE_PATH = ROOT / "src" / "projects" / "generic-runtime-lab" / "scripts" / "probe_sc2_binary.py"
 PROFILE_PATH = ROOT / "src" / "projects" / "generic-runtime-lab" / "runtime" / "native-vm" / "profiles" / "sc2-5.0.16.97563.json"
+AGENT_PATH = ROOT / "tools" / "runtime-vm" / "agent" / "src" / "lib.rs"
+CONTROLLER_PATH = ROOT / "tools" / "runtime-vm" / "controller" / "src" / "main.rs"
 
 
 def load_probe():
@@ -72,3 +74,23 @@ def test_rip_relative_string_reference_uses_modrm_displacement():
     assert target_rva in xrefs
     assert xrefs[target_rva][0]["instruction_rva"] == instruction_rva
     assert xrefs[target_rva][0]["bytes"] == "48 8d 0d f9 0f 00 00"
+
+
+def test_trace_protocol_defines_a_clean_disarmed_reset_boundary():
+    source = AGENT_PATH.read_text(encoding="utf-8")
+
+    assert '"TRACE_RESET" => trace_reset()' in source
+    assert "fn trace_reset() -> String" in source
+    assert "trace_must_be_disarmed" in source
+    assert "TRACE_BREAKPOINT_COUNT.store(0, Ordering::Release)" in source
+    assert "TRACE_LAST_EXCEPTION.store(0, Ordering::Release)" in source
+    assert "TRACE_LAST_IP.store(0, Ordering::Release)" in source
+    assert "for slot in TRACE_IP_HISTOGRAM.iter()" in source
+
+
+def test_controller_resets_trace_before_arming_an_observation_window():
+    source = CONTROLLER_PATH.read_text(encoding="utf-8")
+
+    assert 'let trace_reset = if has_arg(args, "--arm-trace")' in source
+    assert source.index('"TRACE_RESET"') < source.index('"TRACE_ARM"')
+    assert "trace_reset.as_deref()" in source
