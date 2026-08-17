@@ -1,0 +1,37 @@
+{
+  "artifact_result": {
+    "contract_schema_version": "stage47-snapshot-branch-replay.v1",
+    "native_claim": false,
+    "native_differential": "BLOCKED",
+    "status": "PASS"
+  },
+  "evidence_type": "simulator",
+  "implementation": {
+    "artifact": "artifacts/projects/cmre-porting/stage47-snapshot-branch-replay/snapshot-branch-replay-20260817.json",
+    "module": "src/projects/cmre-porting/vibe/simulation_first_progression.py"
+  },
+  "next_actions": [
+    "Keep native differential BLOCKED until Stage 31 runtime evidence exists.",
+    "Proceed to 48-commander-unit-slice after preserving this stage quartet and artifact."
+  ],
+  "next_stage": "48-commander-unit-slice",
+  "runtime_claim": "none; deterministic simulator/control-plane artifact only",
+  "schemaVersion": 1,
+  "stage": "47-snapshot-branch-replay",
+  "status": "COMPLETE",
+  "summary": "Stage 47 deliverable generated and verified as `stage47-snapshot-branch-replay.v1`. Report status is `PASS`; native_claim=false and native_differential remains `BLOCKED`.",
+  "validation": [
+    {
+      "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.simulation_first_progression --stage 47 --out artifacts/projects/cmre-porting/stage47-snapshot-branch-replay/snapshot-branch-replay-20260817.json",
+      "detail": "Generated report status PASS with native_claim=false.",
+      "evidence_type": "simulator",
+      "status": "PASS"
+    },
+    {
+      "command": "py -3.13 -m json.tool artifacts/projects/cmre-porting/stage47-snapshot-branch-replay/snapshot-branch-replay-20260817.json",
+      "detail": "Generated artifact parses as JSON.",
+      "evidence_type": "static",
+      "status": "PASS"
+    }
+  ]
+}

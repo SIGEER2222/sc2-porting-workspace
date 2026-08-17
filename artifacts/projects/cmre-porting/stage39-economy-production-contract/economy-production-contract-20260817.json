@@ -1,0 +1,89 @@
+{
+  "checks": {
+    "building_construction": true,
+    "combat_unit_creation": true,
+    "production_completion": true,
+    "resource_deposit": true,
+    "worker_mining": true
+  },
+  "contract_schema_version": "stage39-economy-production-contract.v1",
+  "evidence_type": "simulator",
+  "macro_contract": {
+    "required_checks": {
+      "building_construction": true,
+      "combat_unit_creation": true,
+      "enemy_none": true,
+      "initial_state_fair": true,
+      "native_claim_false": true,
+      "no_deadlock": true,
+      "no_dispatch_error": true,
+      "no_initial_adapter_advantage": true,
+      "production_completion": true,
+      "resource_deposit": true,
+      "resource_income": true,
+      "supply_handling": true,
+      "worker_mining": true,
+      "worker_survival": true
+    },
+    "summary": {
+      "action_kind_counts": {
+        "build": 2,
+        "gather": 14,
+        "train": 3
+      },
+      "command_storm_detected": false,
+      "deadlock_detected": false,
+      "end_loop": 900,
+      "end_reason": "max_loops_reached",
+      "error_breakdown": {},
+      "event_kinds": [
+        "build_completed",
+        "build_started",
+        "command_accepted",
+        "gather_picked_up",
+        "gather_start_deposit",
+        "gather_start_mining",
+        "mineral_deposited",
+        "move_arrived",
+        "rally_set",
+        "train_completed",
+        "train_queued"
+      ],
+      "final_resources": {
+        "minerals": 55,
+        "reserved_minerals": 50,
+        "reserved_supply": 1,
+        "reserved_vespene": 0,
+        "supply_cap": 19,
+        "supply_used": 14,
+        "vespene": 0
+      },
+      "final_units_by_type": {
+        "Barracks": 1,
+        "CommandCenter": 1,
+        "Marine": 2,
+        "SCV": 12,
+        "SupplyDepot": 1
+      },
+      "max_commands_per_loop": 12,
+      "total_dispatch_errors": 0,
+      "total_dispatched": 19,
+      "trace_hash": "8ad3063ba6a3c055811d9c5eadd1bff9e1f561f7ea68bf385f17faebfa07b4f9"
+    },
+    "upstream_schema": "normal-start-contract.v1",
+    "upstream_status": "PASS"
+  },
+  "native_claim": false,
+  "native_differential": "BLOCKED",
+  "progression_schema_version": "simulation-first-stage-progress.v1",
+  "runtime_claim": "none; deterministic simulator/control-plane artifact only",
+  "schemaVersion": 1,
+  "source_policy": {
+    "native_observation_required_for_native_differential": true,
+    "project_local_adapter_only": true,
+    "reference_simulator_read_only": true
+  },
+  "stage": "39-economy-production-contract",
+  "status": "PASS",
+  "title": "Economy Production Contract"
+}

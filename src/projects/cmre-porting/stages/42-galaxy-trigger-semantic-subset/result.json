@@ -1,0 +1,37 @@
+{
+  "artifact_result": {
+    "contract_schema_version": "stage42-galaxy-trigger-semantic-subset.v1",
+    "native_claim": false,
+    "native_differential": "BLOCKED",
+    "status": "PASS"
+  },
+  "evidence_type": "simulator",
+  "implementation": {
+    "artifact": "artifacts/projects/cmre-porting/stage42-galaxy-trigger-semantic-subset/galaxy-trigger-semantic-subset-20260817.json",
+    "module": "src/projects/cmre-porting/vibe/simulation_first_progression.py"
+  },
+  "next_actions": [
+    "Keep native differential BLOCKED until Stage 31 runtime evidence exists.",
+    "Proceed to 43-mission-adapter-contract after preserving this stage quartet and artifact."
+  ],
+  "next_stage": "43-mission-adapter-contract",
+  "runtime_claim": "none; deterministic simulator/control-plane artifact only",
+  "schemaVersion": 1,
+  "stage": "42-galaxy-trigger-semantic-subset",
+  "status": "COMPLETE",
+  "summary": "Stage 42 deliverable generated and verified as `stage42-galaxy-trigger-semantic-subset.v1`. Report status is `PASS`; native_claim=false and native_differential remains `BLOCKED`.",
+  "validation": [
+    {
+      "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.simulation_first_progression --stage 42 --out artifacts/projects/cmre-porting/stage42-galaxy-trigger-semantic-subset/galaxy-trigger-semantic-subset-20260817.json",
+      "detail": "Generated report status PASS with native_claim=false.",
+      "evidence_type": "simulator",
+      "status": "PASS"
+    },
+    {
+      "command": "py -3.13 -m json.tool artifacts/projects/cmre-porting/stage42-galaxy-trigger-semantic-subset/galaxy-trigger-semantic-subset-20260817.json",
+      "detail": "Generated artifact parses as JSON.",
+      "evidence_type": "static",
+      "status": "PASS"
+    }
+  ]
+}

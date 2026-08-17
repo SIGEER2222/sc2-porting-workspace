@@ -1,0 +1,44 @@
+{
+  "checks": {
+    "blocked_until_native_inputs": true,
+    "simulator_inputs_present": true
+  },
+  "contract_schema_version": "stage46-divergence-localization.v1",
+  "divergence_contract": {
+    "available_inputs": [
+      "simulator trace hashes",
+      "snapshot hashes",
+      "fidelity matrix row ids"
+    ],
+    "inputs_required": [
+      "simulator trace hash",
+      "native trace/observation hash",
+      "entity id mapping",
+      "event kind mapping"
+    ],
+    "localization_algorithm": [
+      "compare terminal result",
+      "compare aggregate counters",
+      "compare first divergent loop",
+      "drill into domain row"
+    ],
+    "missing_inputs": [
+      "native trace/observation hash",
+      "native entity/event mapping"
+    ]
+  },
+  "evidence_type": "blocked",
+  "native_claim": false,
+  "native_differential": "BLOCKED",
+  "progression_schema_version": "simulation-first-stage-progress.v1",
+  "runtime_claim": "none; deterministic simulator/control-plane artifact only",
+  "schemaVersion": 1,
+  "source_policy": {
+    "native_observation_required_for_native_differential": true,
+    "project_local_adapter_only": true,
+    "reference_simulator_read_only": true
+  },
+  "stage": "46-divergence-localization",
+  "status": "BLOCKED",
+  "title": "Divergence Localization"
+}

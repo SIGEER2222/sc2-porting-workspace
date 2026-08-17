@@ -1,0 +1,205 @@
+{
+  "checks": {
+    "all_scenarios_ran": true,
+    "movement_combat_economy_ability_terrain_trigger_snapshot_covered": true,
+    "trace_hashes_present": true
+  },
+  "contract_schema_version": "stage35-golden-scenario-framework.v1",
+  "evidence_type": "simulator",
+  "native_claim": false,
+  "native_differential": "BLOCKED",
+  "progression_schema_version": "simulation-first-stage-progress.v1",
+  "runtime_claim": "none; deterministic simulator/control-plane artifact only",
+  "scenario_count": 7,
+  "scenario_hash": "6d1bb2748cf267c9cec94675d7f70704fdc04fffd9b5b894291ad5fcfedeb607",
+  "scenarios": [
+    {
+      "command_result_count": 1,
+      "coverage_used": [
+        "unit.marine",
+        "unit.marine.command",
+        "unit.marine.create",
+        "unit.move",
+        "unit.zergling",
+        "unit.zergling.create"
+      ],
+      "end_loop": 80,
+      "end_reason": "survival",
+      "event_count": 2,
+      "event_kinds": [
+        "command_accepted",
+        "move_arrived"
+      ],
+      "name": "GS-001 deterministic movement",
+      "snapshot_hash": "1e2fe795893e4362841f81954759549b1804fcb4a4ee4458b2bb1ef90f8b21da",
+      "status": "PASS",
+      "trace_hash": "d5630ee846bc8dec504e82aec21ece314d6f224afcb467c70e58c229d7980ee9",
+      "winner_player_id": 1
+    },
+    {
+      "command_result_count": 1,
+      "coverage_used": [
+        "combat.armor",
+        "combat.attributes",
+        "combat.damage_breakdown",
+        "unit.attack",
+        "unit.create",
+        "unit.death",
+        "unit.marine",
+        "unit.marine.combat",
+        "unit.marine.command",
+        "unit.marine.create",
+        "unit.zergling",
+        "unit.zergling.create",
+        "unit.zergling.death",
+        "weapon.normal"
+      ],
+      "end_loop": 114,
+      "end_reason": "annihilation",
+      "event_count": 17,
+      "event_kinds": [
+        "command_accepted",
+        "damage",
+        "death",
+        "entity_removed"
+      ],
+      "name": "GS-002 marine defeats zergling",
+      "snapshot_hash": "3afdd221a64aa1612808598039a70b507372467864f30744d174ec690f059150",
+      "status": "PASS",
+      "trace_hash": "36c9fdf40d652dc57ca63573d8d364a1864c7c571995918e8c45ebf972225c22",
+      "winner_player_id": 1
+    },
+    {
+      "command_result_count": 1,
+      "coverage_used": [
+        "command.smart",
+        "economy.mine",
+        "unit.commandcenter",
+        "unit.commandcenter.create",
+        "unit.mineralfield",
+        "unit.mineralfield.create",
+        "unit.scv",
+        "unit.scv.command",
+        "unit.scv.create"
+      ],
+      "end_loop": 180,
+      "end_reason": "survival",
+      "event_count": 10,
+      "event_kinds": [
+        "command_accepted",
+        "gather_picked_up",
+        "gather_start_deposit",
+        "gather_start_mining",
+        "mineral_deposited"
+      ],
+      "name": "GS-003 worker mineral deposit",
+      "snapshot_hash": "96dab60451012f5bd7bd0550e902a975405517177453dfe7f2fac10b5990a2e4",
+      "status": "PASS",
+      "trace_hash": "5032e5e9806fc12956d02d45a53d1f5f2fffb35517046b52d8b439a804baa5aa",
+      "winner_player_id": 0
+    },
+    {
+      "command_result_count": 1,
+      "coverage_used": [
+        "unit.marine",
+        "unit.marine.create",
+        "unit.zergling",
+        "unit.zergling.create"
+      ],
+      "end_loop": 30,
+      "end_reason": "survival",
+      "event_count": 2,
+      "event_kinds": [
+        "ability_cast",
+        "behavior_applied"
+      ],
+      "name": "GS-004 stim applies behavior",
+      "snapshot_hash": "48433604584939527210d2d1c2273da59d90ebec30d4550fd85608ce8d6995a5",
+      "status": "PASS",
+      "trace_hash": "2ca8b8752db34c494075f2d21e781e542f44a3d2789d1adba8f03051ef587969",
+      "winner_player_id": 1
+    },
+    {
+      "command_result_count": 1,
+      "coverage_used": [
+        "unit.marine",
+        "unit.marine.command",
+        "unit.marine.create",
+        "unit.move",
+        "unit.zergling",
+        "unit.zergling.create"
+      ],
+      "end_loop": 160,
+      "end_reason": "survival",
+      "event_count": 2,
+      "event_kinds": [
+        "command_accepted",
+        "move_arrived"
+      ],
+      "name": "GS-005 path around blocker",
+      "snapshot_hash": "87561665ac5615a5217816fef615ff3a4a01d58343029124d3feac05aab26e75",
+      "status": "PASS",
+      "trace_hash": "b60e8dfff68134a7ff209eefe3af17e21fa6d7edc90fe43cf7ca9e33463b88a2",
+      "winner_player_id": 1
+    },
+    {
+      "command_result_count": 0,
+      "coverage_used": [
+        "unit.marine",
+        "unit.marine.create",
+        "unit.zergling",
+        "unit.zergling.create"
+      ],
+      "end_loop": 5,
+      "end_reason": "stage42_trigger_end",
+      "event_count": 1,
+      "event_kinds": [
+        "trigger_fired"
+      ],
+      "name": "GS-006 trigger end game",
+      "snapshot_hash": "1d61399a8723bee9da9ba8ed2874b3d346427659069e36dd2c556b2d0349c99d",
+      "status": "PASS",
+      "trace_hash": "230eb9d0b711bddbcba802d70ea83089d7ac7252b49226a764b7dc1dda3e22ba",
+      "winner_player_id": 1
+    },
+    {
+      "command_result_count": 1,
+      "coverage_used": [
+        "combat.armor",
+        "combat.attributes",
+        "combat.damage_breakdown",
+        "unit.marine",
+        "unit.marine.combat",
+        "unit.marine.command",
+        "unit.marine.create",
+        "unit.move",
+        "unit.zergling",
+        "unit.zergling.combat",
+        "unit.zergling.create",
+        "weapon.normal"
+      ],
+      "end_loop": 120,
+      "end_reason": "survival",
+      "event_count": 13,
+      "event_kinds": [
+        "command_accepted",
+        "damage",
+        "move_arrived"
+      ],
+      "name": "GS-007 branch replay base",
+      "snapshot_hash": "9a02a322af0425769db37a13980c9c5bf8b70d87111c70ff4a7ff7fb2cfa4970",
+      "status": "PASS",
+      "trace_hash": "738eb54002e912e31b5e85c09973484fa140ea618ac211b8ff6d4a4f5fea0b35",
+      "winner_player_id": 1
+    }
+  ],
+  "schemaVersion": 1,
+  "source_policy": {
+    "native_observation_required_for_native_differential": true,
+    "project_local_adapter_only": true,
+    "reference_simulator_read_only": true
+  },
+  "stage": "35-golden-scenario-framework",
+  "status": "PASS",
+  "title": "Golden Scenario Framework"
+}

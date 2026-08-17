@@ -1,0 +1,37 @@
+{
+  "artifact_result": {
+    "contract_schema_version": "stage46-divergence-localization.v1",
+    "native_claim": false,
+    "native_differential": "BLOCKED",
+    "status": "BLOCKED"
+  },
+  "evidence_type": "blocked",
+  "implementation": {
+    "artifact": "artifacts/projects/cmre-porting/stage46-divergence-localization/divergence-localization-20260817.json",
+    "module": "src/projects/cmre-porting/vibe/simulation_first_progression.py"
+  },
+  "next_actions": [
+    "Keep native differential BLOCKED until Stage 31 runtime evidence exists.",
+    "Proceed to 47-snapshot-branch-replay after preserving this stage quartet and artifact."
+  ],
+  "next_stage": "47-snapshot-branch-replay",
+  "runtime_claim": "none; deterministic simulator/control-plane artifact only",
+  "schemaVersion": 1,
+  "stage": "46-divergence-localization",
+  "status": "COMPLETE",
+  "summary": "Stage 46 deliverable generated and verified as `stage46-divergence-localization.v1`. Report status is `BLOCKED`; native_claim=false and native_differential remains `BLOCKED`.",
+  "validation": [
+    {
+      "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.simulation_first_progression --stage 46 --out artifacts/projects/cmre-porting/stage46-divergence-localization/divergence-localization-20260817.json",
+      "detail": "Generated report status BLOCKED with native_claim=false.",
+      "evidence_type": "blocked",
+      "status": "PASS"
+    },
+    {
+      "command": "py -3.13 -m json.tool artifacts/projects/cmre-porting/stage46-divergence-localization/divergence-localization-20260817.json",
+      "detail": "Generated artifact parses as JSON.",
+      "evidence_type": "static",
+      "status": "PASS"
+    }
+  ]
+}

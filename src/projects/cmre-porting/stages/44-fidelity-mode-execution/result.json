@@ -1,0 +1,37 @@
+{
+  "artifact_result": {
+    "contract_schema_version": "stage44-fidelity-mode-execution.v1",
+    "native_claim": false,
+    "native_differential": "BLOCKED",
+    "status": "PASS"
+  },
+  "evidence_type": "mixed",
+  "implementation": {
+    "artifact": "artifacts/projects/cmre-porting/stage44-fidelity-mode-execution/fidelity-mode-execution-20260817.json",
+    "module": "src/projects/cmre-porting/vibe/simulation_first_progression.py"
+  },
+  "next_actions": [
+    "Keep native differential BLOCKED until Stage 31 runtime evidence exists.",
+    "Proceed to 45-native-differential-fixtures after preserving this stage quartet and artifact."
+  ],
+  "next_stage": "45-native-differential-fixtures",
+  "runtime_claim": "none; deterministic simulator/control-plane artifact only",
+  "schemaVersion": 1,
+  "stage": "44-fidelity-mode-execution",
+  "status": "COMPLETE",
+  "summary": "Stage 44 deliverable generated and verified as `stage44-fidelity-mode-execution.v1`. Report status is `PASS`; native_claim=false and native_differential remains `BLOCKED`.",
+  "validation": [
+    {
+      "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.simulation_first_progression --stage 44 --out artifacts/projects/cmre-porting/stage44-fidelity-mode-execution/fidelity-mode-execution-20260817.json",
+      "detail": "Generated report status PASS with native_claim=false.",
+      "evidence_type": "mixed",
+      "status": "PASS"
+    },
+    {
+      "command": "py -3.13 -m json.tool artifacts/projects/cmre-porting/stage44-fidelity-mode-execution/fidelity-mode-execution-20260817.json",
+      "detail": "Generated artifact parses as JSON.",
+      "evidence_type": "static",
+      "status": "PASS"
+    }
+  ]
+}

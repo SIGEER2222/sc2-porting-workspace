@@ -1,0 +1,37 @@
+{
+  "artifact_result": {
+    "contract_schema_version": "stage38-combat-damage-pipeline.v1",
+    "native_claim": false,
+    "native_differential": "BLOCKED",
+    "status": "PASS"
+  },
+  "evidence_type": "simulator",
+  "implementation": {
+    "artifact": "artifacts/projects/cmre-porting/stage38-combat-damage-pipeline/combat-damage-pipeline-20260817.json",
+    "module": "src/projects/cmre-porting/vibe/simulation_first_progression.py"
+  },
+  "next_actions": [
+    "Keep native differential BLOCKED until Stage 31 runtime evidence exists.",
+    "Proceed to 39-economy-production-contract after preserving this stage quartet and artifact."
+  ],
+  "next_stage": "39-economy-production-contract",
+  "runtime_claim": "none; deterministic simulator/control-plane artifact only",
+  "schemaVersion": 1,
+  "stage": "38-combat-damage-pipeline",
+  "status": "COMPLETE",
+  "summary": "Stage 38 deliverable generated and verified as `stage38-combat-damage-pipeline.v1`. Report status is `PASS`; native_claim=false and native_differential remains `BLOCKED`.",
+  "validation": [
+    {
+      "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.simulation_first_progression --stage 38 --out artifacts/projects/cmre-porting/stage38-combat-damage-pipeline/combat-damage-pipeline-20260817.json",
+      "detail": "Generated report status PASS with native_claim=false.",
+      "evidence_type": "simulator",
+      "status": "PASS"
+    },
+    {
+      "command": "py -3.13 -m json.tool artifacts/projects/cmre-porting/stage38-combat-damage-pipeline/combat-damage-pipeline-20260817.json",
+      "detail": "Generated artifact parses as JSON.",
+      "evidence_type": "static",
+      "status": "PASS"
+    }
+  ]
+}

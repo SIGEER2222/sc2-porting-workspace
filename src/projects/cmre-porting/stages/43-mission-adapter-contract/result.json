@@ -1,0 +1,37 @@
+{
+  "artifact_result": {
+    "contract_schema_version": "stage43-mission-adapter-contract.v1",
+    "native_claim": false,
+    "native_differential": "BLOCKED",
+    "status": "BLOCKED"
+  },
+  "evidence_type": "blocked",
+  "implementation": {
+    "artifact": "artifacts/projects/cmre-porting/stage43-mission-adapter-contract/mission-adapter-contract-20260817.json",
+    "module": "src/projects/cmre-porting/vibe/simulation_first_progression.py"
+  },
+  "next_actions": [
+    "Keep native differential BLOCKED until Stage 31 runtime evidence exists.",
+    "Proceed to 44-fidelity-mode-execution after preserving this stage quartet and artifact."
+  ],
+  "next_stage": "44-fidelity-mode-execution",
+  "runtime_claim": "none; deterministic simulator/control-plane artifact only",
+  "schemaVersion": 1,
+  "stage": "43-mission-adapter-contract",
+  "status": "COMPLETE",
+  "summary": "Stage 43 deliverable generated and verified as `stage43-mission-adapter-contract.v1`. Report status is `BLOCKED`; native_claim=false and native_differential remains `BLOCKED`.",
+  "validation": [
+    {
+      "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.simulation_first_progression --stage 43 --out artifacts/projects/cmre-porting/stage43-mission-adapter-contract/mission-adapter-contract-20260817.json",
+      "detail": "Generated report status BLOCKED with native_claim=false.",
+      "evidence_type": "blocked",
+      "status": "PASS"
+    },
+    {
+      "command": "py -3.13 -m json.tool artifacts/projects/cmre-porting/stage43-mission-adapter-contract/mission-adapter-contract-20260817.json",
+      "detail": "Generated artifact parses as JSON.",
+      "evidence_type": "static",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,303 @@
+{
+  "checks": {
+    "all_required_domains_present": true,
+    "deterministic_across_runs": true,
+    "missing_domains": [],
+    "native_claim_false": true,
+    "no_hidden_state_omission": true,
+    "state_hash_consistent": true,
+    "trace_hash_consistent": true
+  },
+  "contract_schema_version": "world-state-observability.v1",
+  "domains": [
+    {
+      "name": "MapState",
+      "observed_fields": [
+        "terrain",
+        "terrain_is_explicit"
+      ],
+      "omitted": false,
+      "partial_reason": "Snapshot exposes terrain slots, but Stage 33 uses a flat simulator fixture and does not import native SC2 map geometry.",
+      "sample_count": 1,
+      "status": "PARTIAL"
+    },
+    {
+      "name": "PlayerState",
+      "observed_fields": [
+        "alliance_summary",
+        "is_ai",
+        "players",
+        "race"
+      ],
+      "omitted": false,
+      "sample_count": 3,
+      "status": "OBSERVED"
+    },
+    {
+      "name": "EntityState",
+      "observed_fields": [
+        "ability_cooldowns",
+        "active_behaviors",
+        "addon_entity_id",
+        "addon_parent_entity_id",
+        "armor_bonus",
+        "attack_target_id",
+        "build_product_unit_id",
+        "build_progress",
+        "build_target_id",
+        "build_total_loops",
+        "builder_entity_ids",
+        "built_by_entity_id",
+        "cargo_entity_ids",
+        "carry_minerals",
+        "carry_vespene",
+        "energy",
+        "entity_id",
+        "expires_at_loop",
+        "facing",
+        "gather_phase",
+        "gather_target_id",
+        "has_rally",
+        "health",
+        "is_burrowed",
+        "is_cloaked",
+        "is_in_phasing_mode",
+        "is_lifted",
+        "is_sieged",
+        "kills",
+        "max_health_bonus",
+        "move_target_x",
+        "move_target_y",
+        "owner",
+        "owner_entity_id",
+        "patrol_destination_x",
+        "patrol_destination_y",
+        "patrol_origin_x",
+        "patrol_origin_y",
+        "patrol_returning",
+        "production_queue",
+        "rally_x",
+        "rally_y",
+        "research_progress",
+        "research_total",
+        "research_upgrade_id",
+        "resource_amount",
+        "resource_depleted",
+        "resource_remaining",
+        "secondary_production_queue",
+        "shield_bonus",
+        "shields",
+        "speed_bonus",
+        "state",
+        "state_until",
+        "transport_entity_id",
+        "tumor_generation",
+        "unit_type_id",
+        "warp_cooldown_remaining",
+        "weapon_air_cd",
+        "weapon_air_damage_bonus",
+        "weapon_air_range_bonus",
+        "weapon_damage_bonus",
+        "weapon_ground_cd",
+        "weapon_ground_range_bonus",
+        "x",
+        "y"
+      ],
+      "omitted": false,
+      "sample_count": 44,
+      "status": "OBSERVED"
+    },
+    {
+      "name": "ResourceState",
+      "observed_fields": [
+        "minerals",
+        "reserved_minerals",
+        "reserved_supply",
+        "reserved_vespene",
+        "resources",
+        "supply_cap",
+        "supply_used",
+        "vespene"
+      ],
+      "omitted": false,
+      "sample_count": 3,
+      "status": "OBSERVED"
+    },
+    {
+      "name": "TechnologyState",
+      "observed_fields": [
+        "completed_upgrades",
+        "research_progress",
+        "research_total",
+        "research_upgrade_id"
+      ],
+      "omitted": false,
+      "sample_count": 0,
+      "status": "OBSERVED"
+    },
+    {
+      "name": "UpgradeState",
+      "observed_fields": [
+        "armor_bonus",
+        "completed_upgrades",
+        "shield_bonus",
+        "speed_bonus",
+        "weapon_air_damage_bonus",
+        "weapon_damage_bonus"
+      ],
+      "omitted": false,
+      "partial_reason": "Runtime upgrade state is snapshotted; native CMRE upgrade import and validation remain outside this stage.",
+      "sample_count": 0,
+      "status": "PARTIAL"
+    },
+    {
+      "name": "VisionState",
+      "observed_fields": [
+        "last_known_positions",
+        "mineral_fields",
+        "vespene_geysers",
+        "visible_allies",
+        "visible_enemies"
+      ],
+      "omitted": false,
+      "partial_reason": "Observation facade exposes player-visible slices and fog memory keys; native SC2 sight/fog parity is not claimed.",
+      "sample_count": 13,
+      "status": "PARTIAL"
+    },
+    {
+      "name": "SpatialState",
+      "observed_fields": [
+        "footprint_height",
+        "footprint_width",
+        "movement_paths",
+        "radius",
+        "terrain",
+        "x",
+        "y"
+      ],
+      "omitted": false,
+      "sample_count": 0,
+      "status": "OBSERVED"
+    },
+    {
+      "name": "AbilityState",
+      "observed_fields": [
+        "ability_cooldowns",
+        "active_behaviors",
+        "orders",
+        "research_upgrade_id"
+      ],
+      "omitted": false,
+      "partial_reason": "Entity ability/cooldown/behavior slots are observable, but full Galaxy ability semantics are not represented in Stage 33.",
+      "sample_count": 0,
+      "status": "PARTIAL"
+    },
+    {
+      "name": "ProjectileState",
+      "observed_fields": [
+        "next_projectile_id",
+        "projectiles"
+      ],
+      "omitted": false,
+      "sample_count": 0,
+      "status": "OBSERVED"
+    },
+    {
+      "name": "MissionState",
+      "observed_fields": [
+        "end_reason",
+        "objective_progress",
+        "terminated",
+        "win_condition"
+      ],
+      "omitted": false,
+      "partial_reason": "Mission progress hooks are observable through query.mission/objective_progress; native mission script state is not imported.",
+      "sample_count": 1,
+      "status": "PARTIAL"
+    },
+    {
+      "name": "TriggerState",
+      "observed_fields": [
+        "event_kinds",
+        "event_systems",
+        "events",
+        "trigger_fired"
+      ],
+      "omitted": false,
+      "partial_reason": "Event queue is observable. Stage 33 does not claim full Galaxy trigger semantic coverage.",
+      "sample_count": 1,
+      "status": "PARTIAL"
+    },
+    {
+      "name": "RNGState",
+      "observed_fields": [
+        "rng"
+      ],
+      "omitted": false,
+      "sample_count": 1,
+      "status": "OBSERVED"
+    }
+  ],
+  "evidence_type": "simulator",
+  "fixture": {
+    "catalog_hash": "cafab5205fba13a7",
+    "catalog_schema": "m7.v1",
+    "observation_loops": 180,
+    "scenario_name": "stage29-normal-start-contract",
+    "source": "src/projects/cmre-porting/vibe/normal_start_contract.py:build_normal_start_scenario"
+  },
+  "native_claim": false,
+  "native_differential": "BLOCKED",
+  "runtime_claim": "none; deterministic simulator world-state observability only",
+  "snapshot_identity": {
+    "deterministic_across_runs": true,
+    "final_hash": "082a5167e3600564169ca4288324bffa308eca821686c2e169526ffd919ee332",
+    "final_loop": 180,
+    "initial_hash": "9920080a2ba7bc6910a527028b6bb37aed482b13dce96b47f6cc41f456b18b89",
+    "initial_loop": 0,
+    "repeat_final_hash": "082a5167e3600564169ca4288324bffa308eca821686c2e169526ffd919ee332",
+    "state_hash_consistent": true
+  },
+  "source_policy": {
+    "native_runtime_required_for_native_differential": true,
+    "reference_simulator_read_only": true,
+    "unsupported_domains_explicit": true
+  },
+  "status": "PASS",
+  "trace_identity": {
+    "command_result_count": 1,
+    "event_count": 2,
+    "event_sample": [
+      {
+        "entity_id": 2,
+        "kind": "command_accepted",
+        "loop": 0,
+        "payload": {
+          "kind": "move",
+          "resolved_x": 40960,
+          "resolved_y": 92160,
+          "x": 40960,
+          "y": 92160
+        },
+        "seq": 1,
+        "system": "movement"
+      },
+      {
+        "entity_id": 2,
+        "kind": "move_arrived",
+        "loop": 7,
+        "payload": {
+          "x": 40960,
+          "y": 92160
+        },
+        "seq": 2,
+        "system": "movement"
+      }
+    ],
+    "repeat_trace_hash": "c6d5dc59d1d822dfa7342a926f928d171246ab1467772d5c774c29c2e2d96a2b",
+    "trace_artifact": "artifacts/projects/cmre-porting/stage33-world-state-observability-contract/world-state-observability-contract-20260817.trace.jsonl",
+    "trace_artifact_sha256": "c6d5dc59d1d822dfa7342a926f928d171246ab1467772d5c774c29c2e2d96a2b",
+    "trace_hash": "c6d5dc59d1d822dfa7342a926f928d171246ab1467772d5c774c29c2e2d96a2b",
+    "trace_hash_consistent": true
+  }
+}

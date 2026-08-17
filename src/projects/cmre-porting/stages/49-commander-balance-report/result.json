@@ -1,0 +1,43 @@
+{
+  "artifact_result": {
+    "contract_schema_version": "stage49-commander-balance-report.v1",
+    "native_claim": false,
+    "native_differential": "BLOCKED",
+    "status": "PASS"
+  },
+  "evidence_type": "static",
+  "implementation": {
+    "artifact": "artifacts/projects/cmre-porting/stage49-commander-balance-report/commander-balance-report-20260817.json",
+    "module": "src/projects/cmre-porting/vibe/simulation_first_progression.py"
+  },
+  "next_actions": [
+    "Keep native differential BLOCKED until Stage 31 runtime evidence exists.",
+    "Proceed to 50-vm-debugger-expansion after preserving this stage quartet and artifact."
+  ],
+  "next_stage": "50-vm-debugger-expansion",
+  "runtime_claim": "none; deterministic simulator/control-plane artifact only",
+  "schemaVersion": 1,
+  "stage": "49-commander-balance-report",
+  "status": "COMPLETE",
+  "summary": "Stage 49 deliverable generated and verified as `stage49-commander-balance-report.v1`. Report status is `PASS`; native_claim=false and native_differential remains `BLOCKED`.",
+  "validation": [
+    {
+      "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.simulation_first_progression --stage 49 --out artifacts/projects/cmre-porting/stage49-commander-balance-report/commander-balance-report-20260817.json",
+      "detail": "Generated report status PASS with native_claim=false.",
+      "evidence_type": "static",
+      "status": "PASS"
+    },
+    {
+      "command": "py -3.13 -m json.tool artifacts/projects/cmre-porting/stage49-commander-balance-report/commander-balance-report-20260817.json",
+      "detail": "Generated artifact parses as JSON.",
+      "evidence_type": "static",
+      "status": "PASS"
+    },
+    {
+      "command": "py -3.13 -m unittest discover -s src/projects/cmre-porting/stages/49-commander-balance-report -p test_commander_balance_report.py -v",
+      "detail": "Focused stage contract test passes.",
+      "evidence_type": "static",
+      "status": "PASS"
+    }
+  ]
+}
