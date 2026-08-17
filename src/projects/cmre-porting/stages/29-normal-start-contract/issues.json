@@ -5,20 +5,21 @@
     {
       "id": "SIM29-NORMAL-START-CONTRACT-PENDING",
       "severity": "high",
-      "status": "open",
-      "evidence_type": "static",
+      "status": "resolved",
+      "evidence_type": "simulator",
       "title": "Normal-start macro-bootstrap contract is not implemented yet",
-      "detail": "Stage 29 has been initialized from the Stage29+ roadmap, but the deterministic fixture, normal-start-contract.v1 artifact, and focused simulator assertions still need to be implemented.",
-      "nextAction": "Build a fair Terran-vs-Terran normal-start fixture and assert worker mining, income/deposit, supply, construction, production, combat-unit creation, no dispatch errors, and no deadlock."
+      "detail": "Resolved by normal-start-contract.v1 PASS artifact and focused unittest coverage. The contract proves worker mining, income/deposit, supply handling, worker survival, construction, production, combat-unit creation, no dispatch error, and no deadlock from the fair normal-start fixture.",
+      "nextAction": "None for Stage 29; carry the artifact into Stage 30 differential validation planning.",
+      "resolution": "artifacts/projects/cmre-porting/stage29-normal-start-contract/normal-start-contract-20260817.json"
     },
     {
       "id": "SIM29-NATIVE-RUNTIME-OUT-OF-SCOPE",
       "severity": "medium",
-      "status": "open",
+      "status": "deferred",
       "evidence_type": "scope",
       "title": "Native SC2 runtime proof belongs to Stage 31",
-      "detail": "Stage 29 must keep native_claim=false and must not convert simulator macro-bootstrap evidence into native mission completion evidence.",
-      "nextAction": "Defer Native SC2 runtime evidence to Stage 31 after Stage 30 differential validation is defined."
+      "detail": "Still intentionally out of Stage 29 scope. The completed contract keeps native_claim=false and does not convert simulator macro-bootstrap evidence into native mission completion evidence.",
+      "nextAction": "Revisit in Stage 31 native runtime evidence lane after Stage 30 differential-report.v1 is defined."
     }
   ]
 }

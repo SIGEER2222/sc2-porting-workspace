@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "stage": "29-normal-start-contract",
-  "status": "IN_PROGRESS",
-  "evidence_type": "static",
-  "summary": "Stage 29 is initialized from the Stage29+ simulator roadmap. The stage will establish a normal RTS macro-bootstrap contract with no adapter-injected advantages, result_category=macro_bootstrap, and native_claim=false.",
+  "status": "COMPLETE",
+  "evidence_type": "simulator",
+  "summary": "Stage 29 normal-start macro-bootstrap contract is complete. The deterministic simulator starts P1 and P2 from matching Terran normal-start state (50 minerals, 0 gas, 12 SCVs, one Command Center, no enemy and no initial combat units) and passes every normal-start-contract.v1 check without adapter-injected advantages or dispatch errors.",
   "source_plan": "C:/Users/Sigeer/Downloads/sc2-simulator-next-stage-plan-stage29-plus.md",
   "depends_on": [
     "src/projects/cmre-porting/stages/28-simulator-baseline-hardening/result.json",
@@ -55,12 +55,92 @@
       "command": "py -3.13 -m json.tool src/projects/cmre-porting/project.json && py -3.13 -m json.tool src/projects/cmre-porting/stages/28-simulator-baseline-hardening/result.json && py -3.13 -m json.tool src/projects/cmre-porting/stages/29-normal-start-contract/result.json && py -3.13 -m json.tool src/projects/cmre-porting/stages/29-normal-start-contract/issues.json",
       "status": "PASS",
       "detail": "Stage transition JSON files parsed successfully after creating Stage 29 and switching currentStage."
+    },
+    {
+      "evidence_type": "simulator",
+      "command": "py -3.13 -m unittest src.projects.cmre-porting.stages.29-normal-start-contract.test_normal_start_contract",
+      "status": "PASS",
+      "detail": "Ran 3 focused Stage 29 tests in 2.588s; scenario fairness, required macro-bootstrap checks, and artifact writing passed."
+    },
+    {
+      "evidence_type": "simulator",
+      "command": "py -3.13 -m vibe.normal_start_contract --out artifacts/projects/cmre-porting/stage29-normal-start-contract/normal-start-contract-20260817.json",
+      "status": "PASS",
+      "detail": "Generated normal-start-contract.v1 artifact with status PASS, result_category=macro_bootstrap, native_claim=false."
+    },
+    {
+      "evidence_type": "static",
+      "command": "py -3.13 -m json.tool artifacts/projects/cmre-porting/stage29-normal-start-contract/normal-start-contract-20260817.json",
+      "status": "PASS",
+      "detail": "Generated artifact parses as JSON."
+    },
+    {
+      "evidence_type": "simulator",
+      "command": "py -3.13 -c \"import json, pathlib; p=pathlib.Path('artifacts/projects/cmre-porting/stage29-normal-start-contract/normal-start-contract-20260817.json'); r=json.loads(p.read_text(encoding='utf-8')); assert r['status']=='PASS'; assert r['contract_schema_version']=='normal-start-contract.v1'; assert r['result_category']=='macro_bootstrap'; assert r['native_claim'] is False; required=['worker_mining','resource_income','resource_deposit','supply_handling','worker_survival','building_construction','production_completion','combat_unit_creation','no_dispatch_error','no_deadlock']; assert all(r['checks'][k] for k in required); print('normal-start-contract assertions PASS')\"",
+      "status": "PASS",
+      "detail": "Asserted artifact status PASS, schema normal-start-contract.v1, result_category macro_bootstrap, native_claim false, and all required checks true."
     }
   ],
-  "runtime_claim": "none; Stage 29 is deterministic simulator macro-bootstrap planning until focused simulator tests pass",
+  "runtime_claim": "none; deterministic simulator macro-bootstrap only",
   "next_actions": [
-    "Implement deterministic normal-start fixture with no adapter-injected advantages.",
-    "Generate normal-start-contract.v1 and assert each required macro-bootstrap check independently.",
-    "Only after Stage 29 passes, proceed to Stage 30 differential validation planning."
-  ]
+    "Use the Stage 29 simulator artifact as the baseline input for differential-report.v1.",
+    "Build the Stage 30 differential validation layer for entity creation, resources, unit stats, costs, build time, abilities, upgrades, and trigger outputs.",
+    "Keep native mission-completion evidence deferred to Stage 31."
+  ],
+  "implementation": {
+    "contract_module": "src/projects/cmre-porting/vibe/normal_start_contract.py",
+    "focused_tests": "src/projects/cmre-porting/stages/29-normal-start-contract/test_normal_start_contract.py",
+    "artifact": "artifacts/projects/cmre-porting/stage29-normal-start-contract/normal-start-contract-20260817.json"
+  },
+  "contract_result": {
+    "status": "PASS",
+    "contract_schema_version": "normal-start-contract.v1",
+    "result_category": "macro_bootstrap",
+    "native_claim": false,
+    "runtime_claim": "none; deterministic simulator macro-bootstrap only",
+    "seed": 29,
+    "max_loops": 900,
+    "trace_hash": "8ad3063ba6a3c055811d9c5eadd1bff9e1f561f7ea68bf385f17faebfa07b4f9",
+    "checks": {
+      "initial_state_fair": true,
+      "no_initial_adapter_advantage": true,
+      "enemy_none": true,
+      "native_claim_false": true,
+      "worker_mining": true,
+      "resource_income": true,
+      "resource_deposit": true,
+      "supply_handling": true,
+      "worker_survival": true,
+      "building_construction": true,
+      "production_completion": true,
+      "combat_unit_creation": true,
+      "no_dispatch_error": true,
+      "no_deadlock": true
+    },
+    "summary": {
+      "end_loop": 900,
+      "end_reason": "max_loops_reached",
+      "final_units_by_type": {
+        "CommandCenter": 1,
+        "SCV": 12,
+        "SupplyDepot": 1,
+        "Barracks": 1,
+        "Marine": 2
+      },
+      "final_resources": {
+        "minerals": 55,
+        "vespene": 0,
+        "supply_used": 14,
+        "supply_cap": 19,
+        "reserved_minerals": 50,
+        "reserved_vespene": 0,
+        "reserved_supply": 1
+      },
+      "total_dispatched": 19,
+      "total_dispatch_errors": 0,
+      "error_breakdown": {},
+      "deadlock_detected": false
+    }
+  },
+  "next_stage": "30-differential-validation-layer"
 }

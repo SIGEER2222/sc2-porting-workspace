@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "stage": "30-differential-validation-layer",
+  "status": "IN_PROGRESS",
+  "evidence_type": "static",
+  "summary": "Stage 30 is opened after Stage 29 normal-start-contract.v1 passed. The stage will define differential-report.v1 and compare simulator/native observations without claiming native mission completion.",
+  "depends_on": [
+    "artifacts/projects/cmre-porting/stage29-normal-start-contract/normal-start-contract-20260817.json",
+    "src/projects/cmre-porting/vibe/normal_start_contract.py"
+  ],
+  "target_contract": {
+    "schema_version": "differential-report.v1",
+    "native_mission_completion_claim": false,
+    "comparison_scope": [
+      "entity_creation",
+      "resource_changes",
+      "unit_stats",
+      "build_time",
+      "cost",
+      "ability_execution",
+      "upgrade_state",
+      "trigger_result"
+    ]
+  },
+  "validation": [],
+  "runtime_claim": "none; Stage 30 is differential validation planning until focused comparator and native-observation evidence exist",
+  "next_actions": [
+    "Define normalized simulator/native observation records.",
+    "Implement differential-report.v1 comparator and blocked/native-missing classifications.",
+    "Add focused tests before any launcher-owned native runtime trace is promoted."
+  ]
+}
