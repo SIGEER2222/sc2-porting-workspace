@@ -332,6 +332,9 @@ class AllyRunResult:
     replay_path: str = ""
     replay_frame_count: int = 0
     action_kind_counts: dict[str, int] = field(default_factory=dict)
+    action_actor_type_counts: dict[str, int] = field(default_factory=dict)
+    attack_actor_type_counts: dict[str, int] = field(default_factory=dict)
+    worker_attack_action_count: int = 0
     event_kinds: list[str] = field(default_factory=list)
     final_units_by_type: dict[str, int] = field(default_factory=dict)
     final_enemy_units_by_type: dict[str, int] = field(default_factory=dict)
@@ -1727,7 +1730,9 @@ def run_ally_scenario(
         for result in dispatched:
             key = (int(result.issue_loop), int(result.entity_id), str(result.kind))
             action = replay_action_by_key.get(key)
+            issuer_unit_type = ""
             if action is not None:
+                issuer_unit_type = str(action.get("issuer_unit_type", ""))
                 action["dispatched"] = {
                     "success": bool(
                         not result.superseded
@@ -1739,6 +1744,7 @@ def run_ally_scenario(
                     "loop": int(loop),
                     "dispatch_loop": int(result.dispatch_loop),
                     "issuer_player_id": int(policy.player_id),
+                    "issuer_unit_type": issuer_unit_type,
                 }
             replay_events.append({
                 "loop": int(loop),
@@ -1755,6 +1761,7 @@ def run_ally_scenario(
                 "issue_loop": int(result.issue_loop),
                 "dispatch_loop": int(result.dispatch_loop),
                 "issuer_player_id": int(policy.player_id),
+                "issuer_unit_type": issuer_unit_type,
             })
         if dispatched_ok > max_cmds_per_loop:
             max_cmds_per_loop = dispatched_ok
@@ -1807,7 +1814,8 @@ def run_ally_scenario(
         if not lightweight_map_replay:
             # 4) 验证策略不访问隐藏状态：动作实体必须是 P2 自有或可见目标。
             actions = policy.decide(obs, loop)
-            own_ids = {u["entity_id"] for u in obs.own_units}
+            own_units_by_id = {int(u["entity_id"]): u for u in obs.own_units}
+            own_ids = set(own_units_by_id)
             visible_ids = own_ids | {
                 entity["entity_id"] for entity in obs.visible_enemies + obs.visible_allies
             } | {
@@ -1826,6 +1834,9 @@ def run_ally_scenario(
             receipts_by_entity = {int(receipt["entity_id"]): receipt for receipt in receipts}
             for action in actions:
                 receipt = receipts_by_entity.get(int(action.entity_id))
+                issuer_unit_type = str(
+                    own_units_by_id.get(int(action.entity_id), {}).get("unit_type_id", "")
+                )
                 replay_action = {
                     "record_type": "action",
                     "action_id": f"p2-action-{len(replay_actions) + 1:03d}",
@@ -1835,6 +1846,7 @@ def run_ally_scenario(
                     "owner": int(policy.player_id),
                     "issuer_player_id": int(policy.player_id),
                     "entity_id": int(action.entity_id),
+                    "issuer_unit_type": issuer_unit_type,
                     "reason": action.reason,
                     "arguments": {
                         "kind": action.kind,
@@ -1843,6 +1855,7 @@ def run_ally_scenario(
                         "target_y": action.target_y,
                         "unit_type_id": action.unit_type_id,
                         "ability_id": action.ability_id,
+                        "issuer_unit_type": issuer_unit_type,
                     },
                     "accepted": receipt is not None,
                     "queued": receipt,
@@ -1859,6 +1872,7 @@ def run_ally_scenario(
                     "command_kind": action.kind,
                     "accepted": receipt is not None,
                     "issuer_player_id": int(policy.player_id),
+                    "issuer_unit_type": issuer_unit_type,
                     "reason": action.reason,
                 })
 
@@ -2008,9 +2022,21 @@ def run_ally_scenario(
                 replay_file.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
 
     action_kind_counts: dict[str, int] = {}
+    action_actor_type_counts: dict[str, int] = {}
+    attack_actor_type_counts: dict[str, int] = {}
+    worker_attack_action_count = 0
     for result in adapter.dispatch_history:
         if result.dispatched:
             action_kind_counts[result.kind] = action_kind_counts.get(result.kind, 0) + 1
+            key = (int(result.issue_loop), int(result.entity_id), str(result.kind))
+            replay_action = replay_action_by_key.get(key, {})
+            issuer_unit_type = str(replay_action.get("issuer_unit_type", ""))
+            if issuer_unit_type:
+                action_actor_type_counts[issuer_unit_type] = action_actor_type_counts.get(issuer_unit_type, 0) + 1
+                if result.kind in {"attack", "attack_move"}:
+                    attack_actor_type_counts[issuer_unit_type] = attack_actor_type_counts.get(issuer_unit_type, 0) + 1
+                    if issuer_unit_type in DefendBasePolicy.WORKER_TYPES:
+                        worker_attack_action_count += 1
     event_kinds = [str(getattr(event, "kind", "")) for event in s.world.events.emitted]
     final_units_by_type: dict[str, int] = {}
     for entity in s.world.entities.values():
@@ -2098,6 +2124,9 @@ def run_ally_scenario(
         replay_path=replay_path,
         replay_frame_count=len(replay_frame_records),
         action_kind_counts=action_kind_counts,
+        action_actor_type_counts=action_actor_type_counts,
+        attack_actor_type_counts=attack_actor_type_counts,
+        worker_attack_action_count=worker_attack_action_count,
         event_kinds=event_kinds,
         final_units_by_type=final_units_by_type,
         final_enemy_units_by_type=final_enemy_units_by_type,

@@ -164,13 +164,16 @@ def run_map_probe(
             "victory": victory,
             "enemy_elimination": not result.final_enemy_units_by_type,
         })
+    checks_passed = all(checks.values())
+    result_category = "adapter_clearance" if full_game else "tactical_probe"
     summary = {
-        "status": "PASS" if all(checks.values()) else "FAIL",
+        "status": "PASS" if checks_passed else "FAIL",
         "mode": "full_game" if full_game else "tactical_probe",
+        "result_category": result_category,
         "probe_status": (
-            "FULL_GAME_PASS" if full_game and all(checks.values())
-            else "FULL_GAME_FAIL" if full_game
-            else "TACTICAL_PASS" if all(checks.values())
+            "ADAPTER_CLEARANCE_PASS" if full_game and checks_passed
+            else "ADAPTER_CLEARANCE_FAIL" if full_game
+            else "TACTICAL_PASS" if checks_passed
             else "TACTICAL_FAIL"
         ),
         "evidence_type": "simulator",
@@ -188,10 +191,15 @@ def run_map_probe(
         "final_units_by_type": result.final_units_by_type,
         "final_resources": result.final_resources,
         "final_tech": result.final_tech,
+        "claim_status": "simulator_adapter_clearance_not_native_runtime",
         "max_enemy_per_player": int(max_enemy_per_player),
         "simulator_expansion_position": scenario.get("_simulator_expansion_position"),
         "checks": checks,
+        "simulator_transformation_audit": scenario["_map_metadata"].get("simulator_transformation_audit", {}),
         "action_kind_counts": action_counts,
+        "action_actor_type_counts": result.action_actor_type_counts,
+        "attack_actor_type_counts": result.attack_actor_type_counts,
+        "worker_attack_action_count": result.worker_attack_action_count,
         "action_reason_counts": policy.action_reason_counts,
         "phase_history": policy.phase_history,
         "error_breakdown": result.error_breakdown,
@@ -242,7 +250,8 @@ def run_matrix(
         except Exception as exc:  # keep the matrix truthful and continue other maps
             runs.append({
                 "status": "ERROR",
-                "probe_status": "TACTICAL_ERROR",
+                "probe_status": "ADAPTER_CLEARANCE_ERROR" if full_game else "TACTICAL_ERROR",
+                "result_category": "adapter_clearance_error" if full_game else "tactical_error",
                 "evidence_type": "simulator",
                 "runtime_claim": "none",
                 "map_name": path.stem,
@@ -259,6 +268,7 @@ def run_matrix(
         "seed": int(seed),
         "max_loops": int(max_loops),
         "mode": "full_game" if full_game else "tactical_probe",
+        "result_category": "adapter_clearance_matrix" if full_game else "tactical_probe_matrix",
         "max_enemy_per_player": int(max_enemy_per_player),
         "runs": runs,
     }

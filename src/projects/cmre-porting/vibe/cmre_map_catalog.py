@@ -857,6 +857,41 @@ def build_cooperative_map_scenario(
         ],
         {"id": 0, "name": "Neutral", "race": "neutral", "allies": [], "is_ai": True, "relation": "neutral"},
     ]
+    adapter_starting_force_count = sum(1 for spawn in spawns if spawn.get("adapter_starting_force"))
+    adapter_resource_normalizations = sorted({
+        str(spawn.get("source_unit_type_id"))
+        for spawn in spawns
+        if spawn.get("adapter_resource_normalization")
+    })
+    simulator_enemy_normalizations = sorted(set(enemy_normalizations))
+    simulator_transformation_audit = {
+        "source_static": {
+            "map_path": _repo_relative(path),
+            "map_hash": _map_hash(path),
+            "native_object_count": len(data.native_objects),
+            "native_spawn_count": len(data.scenario.get("spawns", [])),
+        },
+        "map_derived": {
+            "geometry_evidence": asdict(geometry).get("evidence", {}),
+            "objective_count": len(profile.objectives),
+            "placement_marker_count": len([
+                obj for obj in data.native_objects if obj.get("unit_type") in START_MARKER_TYPES
+            ]),
+        },
+        "adapter_transforms": {
+            "starting_force_injected": adapter_starting_force_count,
+            "resource_normalized_from": adapter_resource_normalizations,
+            "enemy_normalized_from": simulator_enemy_normalizations,
+            "expansion_position_injected": simulator_expansion_point is not None,
+        },
+        "simulator_only": {
+            "native_starting_force_injected": False,
+            "adapter_starting_force": "simulator_only_runtime_overlay",
+            "enemy_staged_for_full_game": bool(stage_enemies_for_full_game),
+            "enemy_staging_point": list(enemy_staging_point) if enemy_staging_point else None,
+        },
+        "claim": "deterministic simulator adapter clearance only; no native SC2 mission completion",
+    }
     static_metadata = {
         "source_kind": "cmre_map_catalog",
         "map_name": data.scenario["name"],
@@ -870,11 +905,7 @@ def build_cooperative_map_scenario(
             str(owner): sum(1 for spawn in data.scenario.get("spawns", []) if int(spawn.get("owner_player_id", 0)) == owner)
             for owner in sorted({int(spawn.get("owner_player_id", 0)) for spawn in data.scenario.get("spawns", [])})
         },
-        "adapter_resource_normalizations": sorted({
-            str(spawn.get("source_unit_type_id"))
-            for spawn in spawns
-            if spawn.get("adapter_resource_normalization")
-        }),
+        "adapter_resource_normalizations": adapter_resource_normalizations,
         "placement_markers": [
             {"unit_type_id": obj.get("unit_type"), "owner_player_id": int(obj.get("player", 0)), "x": obj.get("x"), "y": obj.get("y"), "source_object_id": obj.get("object_id")}
             for obj in data.native_objects if obj.get("unit_type") in START_MARKER_TYPES
@@ -899,10 +930,11 @@ def build_cooperative_map_scenario(
             "route_index": enemy_staging_route_index,
             "native_positions_retained": not bool(stage_enemies_for_full_game),
         },
-        "simulator_enemy_normalizations": sorted(set(enemy_normalizations)),
+        "simulator_enemy_normalizations": simulator_enemy_normalizations,
         "simulator_expansion_position": (
             list(simulator_expansion_point) if simulator_expansion_point else None
         ),
+        "simulator_transformation_audit": simulator_transformation_audit,
         "evidence_classification": {"native_objects": "static", "geometry_markers": "static_or_inferred", "tactical_run": "simulator"},
     }
     data.scenario = {

@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "stage": "28-simulator-baseline-hardening",
+  "status": "IN_PROGRESS",
+  "p0_status": "PASS",
+  "evidence_type": "simulator",
+  "summary": "P0 simulator-first hardening is implemented and regression-tested: map matrix summaries now use adapter_clearance semantics instead of FULL_GAME_PASS, map metadata exposes simulator_transformation_audit, and ally action/replay outputs expose issuer unit type aggregates.",
+  "changed_paths": [
+    "src/config/workspace.json",
+    "src/projects/cmre-porting/project.json",
+    "src/projects/cmre-porting/vibe/cmre_map_catalog.py",
+    "src/projects/cmre-porting/vibe/consumers/ally_ai.py",
+    "src/projects/cmre-porting/vibe/run_cmre_map_matrix.py",
+    "src/projects/cmre-porting/stages/28-simulator-baseline-hardening/plan.md",
+    "src/projects/cmre-porting/stages/28-simulator-baseline-hardening/log.md",
+    "src/projects/cmre-porting/stages/28-simulator-baseline-hardening/issues.json",
+    "src/projects/cmre-porting/stages/28-simulator-baseline-hardening/result.json",
+    "src/projects/cmre-porting/stages/28-simulator-baseline-hardening/test_simulator_baseline_hardening.py"
+  ],
+  "implemented": {
+    "result_semantics": {
+      "full_game_probe_status": "ADAPTER_CLEARANCE_PASS|ADAPTER_CLEARANCE_FAIL",
+      "result_category": "adapter_clearance",
+      "runtime_claim": "none; native SC2 mission completion not exercised",
+      "removed_active_code_label": "FULL_GAME_PASS"
+    },
+    "transformation_audit": [
+      "source_static",
+      "map_derived",
+      "adapter_transforms",
+      "simulator_only",
+      "claim"
+    ],
+    "action_issuer_audit": [
+      "issuer_unit_type on ally action records",
+      "issuer_unit_type on dispatch frame events",
+      "action_actor_type_counts",
+      "attack_actor_type_counts",
+      "worker_attack_action_count"
+    ]
+  },
+  "validation": [
+    {
+      "evidence_type": "static",
+      "command": "py -3.13 -m py_compile src/projects/cmre-porting/vibe/consumers/ally_ai.py src/projects/cmre-porting/vibe/run_cmre_map_matrix.py src/projects/cmre-porting/vibe/cmre_map_catalog.py",
+      "status": "PASS",
+      "detail": "Patched simulator modules compiled with no syntax errors."
+    },
+    {
+      "evidence_type": "simulator",
+      "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m unittest -q stages/28-simulator-baseline-hardening/test_simulator_baseline_hardening.py",
+      "status": "PASS",
+      "detail": "Ran 3 tests in 0.114s; verified adapter_clearance summary semantics, transformation audit, and issuer-unit replay/action aggregates."
+    },
+    {
+      "evidence_type": "simulator",
+      "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m unittest -q stages/25-ai-ally-capability-completion/test_ladder_ai.py",
+      "status": "PASS",
+      "detail": "Ran 4 tests in 117.386s; existing full-game ladder simulator regression remained green."
+    },
+    {
+      "evidence_type": "static",
+      "command": "grep FULL_GAME_PASS in src/projects/cmre-porting/vibe and Stage 28 tests",
+      "status": "PASS",
+      "detail": "No active simulator code emits FULL_GAME_PASS; only the Stage 28 negative assertion references the old label."
+    }
+  ],
+  "runtime_claim": "none; Stage 28 is deterministic simulator evidence only",
+  "next_actions": [
+    "P1: build canonical catalog-fidelity models for unit/economy/production/ability minimum sets.",
+    "P1: persist richer transformation audits in generated matrix artifacts for each map.",
+    "P2: run a broader map-matrix adapter-clearance sweep after catalog-fidelity checks are added."
+  ]
+}

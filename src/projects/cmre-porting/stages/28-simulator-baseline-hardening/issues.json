@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "stage": "28-simulator-baseline-hardening",
+  "issues": [
+    {
+      "id": "SIM28-NATIVE-RUNTIME-OUT-OF-SCOPE",
+      "severity": "medium",
+      "status": "open",
+      "evidence_type": "scope",
+      "title": "Native SC2 mission completion remains out of scope",
+      "detail": "Stage 28 hardens deterministic simulator evidence only. Simulator adapter clearance must not be promoted to native runtime completion.",
+      "nextAction": "Keep runtime_claim as none until a compliant launcher-owned runtime lane exercises the same map outcome."
+    },
+    {
+      "id": "SIM28-P1-CATALOG-FIDELITY-PENDING",
+      "severity": "medium",
+      "status": "open",
+      "evidence_type": "inference",
+      "title": "Catalog-fidelity minimum set is still pending",
+      "detail": "P0 now records transformation and issuer provenance, but the broader UnitModel/EconomyModel/AbilityModel fidelity graph from the v2 plan is not implemented in this pass.",
+      "nextAction": "Implement catalog-fidelity baseline checks before treating map-matrix passes as stronger simulator evidence."
+    }
+  ]
+}
