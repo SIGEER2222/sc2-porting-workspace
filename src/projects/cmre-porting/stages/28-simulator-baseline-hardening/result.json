@@ -3,12 +3,14 @@
   "stage": "28-simulator-baseline-hardening",
   "status": "IN_PROGRESS",
   "p0_status": "PASS",
+  "p1_catalog_fidelity_status": "PASS",
   "evidence_type": "simulator",
-  "summary": "P0 simulator-first hardening is implemented and regression-tested: map matrix summaries now use adapter_clearance semantics instead of FULL_GAME_PASS, map metadata exposes simulator_transformation_audit, and ally action/replay outputs expose issuer unit type aggregates.",
+  "summary": "P0 simulator-first hardening remains regression-tested, and P1 catalog-fidelity baseline is implemented: map probe summaries now gate on a static catalog_fidelity_baseline covering unit, economy, production, ability, and catalog reference-closure minimum checks. Native SC2 mission completion remains out of scope.",
   "changed_paths": [
     "src/config/workspace.json",
     "src/projects/cmre-porting/project.json",
     "src/projects/cmre-porting/vibe/cmre_map_catalog.py",
+    "src/projects/cmre-porting/vibe/catalog_fidelity.py",
     "src/projects/cmre-porting/vibe/consumers/ally_ai.py",
     "src/projects/cmre-porting/vibe/run_cmre_map_matrix.py",
     "src/projects/cmre-porting/stages/28-simulator-baseline-hardening/plan.md",
@@ -37,38 +39,52 @@
       "action_actor_type_counts",
       "attack_actor_type_counts",
       "worker_attack_action_count"
-    ]
+    ],
+    "catalog_fidelity_baseline": {
+      "schema_version": "cmre-catalog-fidelity-baseline.v1",
+      "source": "sc2_simulator.m7",
+      "content_hash": "cafab5205fba13a7",
+      "minimum_checks": [
+        "scenario_unit_refs_resolve",
+        "no_unsupported_scenario_units",
+        "unit_model_minimum",
+        "economy_model_minimum",
+        "production_model_minimum",
+        "ability_model_minimum",
+        "catalog_reference_closure"
+      ],
+      "runtime_claim": "none; simulator catalog fidelity only"
+    }
   },
   "validation": [
     {
       "evidence_type": "static",
-      "command": "py -3.13 -m py_compile src/projects/cmre-porting/vibe/consumers/ally_ai.py src/projects/cmre-porting/vibe/run_cmre_map_matrix.py src/projects/cmre-porting/vibe/cmre_map_catalog.py",
+      "command": "py -3.13 -m py_compile src/projects/cmre-porting/vibe/catalog_fidelity.py src/projects/cmre-porting/vibe/run_cmre_map_matrix.py src/projects/cmre-porting/stages/28-simulator-baseline-hardening/test_simulator_baseline_hardening.py",
       "status": "PASS",
-      "detail": "Patched simulator modules compiled with no syntax errors."
+      "detail": "Changed P1 modules and tests compiled with no syntax errors."
     },
     {
       "evidence_type": "simulator",
       "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m unittest -q stages/28-simulator-baseline-hardening/test_simulator_baseline_hardening.py",
       "status": "PASS",
-      "detail": "Ran 3 tests in 0.114s; verified adapter_clearance summary semantics, transformation audit, and issuer-unit replay/action aggregates."
+      "detail": "Ran 5 tests in 0.138s; verified adapter_clearance summary semantics, transformation audit, issuer-unit aggregates, catalog-fidelity PASS, and missing-unit FAIL behavior."
     },
     {
       "evidence_type": "simulator",
       "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m unittest -q stages/25-ai-ally-capability-completion/test_ladder_ai.py",
       "status": "PASS",
-      "detail": "Ran 4 tests in 117.386s; existing full-game ladder simulator regression remained green."
+      "detail": "Ran 4 tests in 98.611s; existing full-game ladder simulator regression remained green."
     },
     {
       "evidence_type": "static",
-      "command": "grep FULL_GAME_PASS in src/projects/cmre-porting/vibe and Stage 28 tests",
+      "command": "build_cooperative_map_scenario(亡者之夜.SC2Map, seed=28) -> build_catalog_fidelity_baseline -> catalog-fidelity-baseline-20260817.json",
       "status": "PASS",
-      "detail": "No active simulator code emits FULL_GAME_PASS; only the Stage 28 negative assertion references the old label."
+      "detail": "Generated PASS baseline artifact with unit_count=117 and content_hash=cafab5205fba13a7."
     }
   ],
   "runtime_claim": "none; Stage 28 is deterministic simulator evidence only",
   "next_actions": [
-    "P1: build canonical catalog-fidelity models for unit/economy/production/ability minimum sets.",
-    "P1: persist richer transformation audits in generated matrix artifacts for each map.",
-    "P2: run a broader map-matrix adapter-clearance sweep after catalog-fidelity checks are added."
+    "P1b: persist catalog_fidelity_baseline in generated matrix artifacts for every CMRE map.",
+    "P2: run a broader map-matrix adapter-clearance sweep now that catalog-fidelity checks are added."
   ]
 }

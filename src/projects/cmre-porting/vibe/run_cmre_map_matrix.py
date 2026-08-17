@@ -27,6 +27,7 @@ from .cmre_map_catalog import (
     list_cmre_maps,
     write_map_inventory,
 )
+from .catalog_fidelity import build_catalog_fidelity_baseline
 from .ladder_ai import LadderAI
 from .replay_player import load_replay, render_player_html
 from .consumers.ally_ai import run_ally_scenario
@@ -139,6 +140,7 @@ def run_map_probe(
         )
 
     action_counts = dict(result.action_kind_counts)
+    catalog_fidelity_baseline = build_catalog_fidelity_baseline(scenario)
     victory = result.end_reason == "enemy_elimination"
     checks = {
         "map_extracted": scenario["_map_metadata"]["native_object_count"] > 0,
@@ -158,6 +160,7 @@ def run_map_probe(
         "no_dispatch_errors": result.total_dispatch_errors == 0,
         "no_deadlock": not result.deadlock_detected,
         "no_command_storm": not result.command_storm_detected,
+        "catalog_fidelity_baseline": catalog_fidelity_baseline["status"] == "PASS",
     }
     if full_game:
         checks.update({
@@ -195,6 +198,7 @@ def run_map_probe(
         "max_enemy_per_player": int(max_enemy_per_player),
         "simulator_expansion_position": scenario.get("_simulator_expansion_position"),
         "checks": checks,
+        "catalog_fidelity_baseline": catalog_fidelity_baseline,
         "simulator_transformation_audit": scenario["_map_metadata"].get("simulator_transformation_audit", {}),
         "action_kind_counts": action_counts,
         "action_actor_type_counts": result.action_actor_type_counts,

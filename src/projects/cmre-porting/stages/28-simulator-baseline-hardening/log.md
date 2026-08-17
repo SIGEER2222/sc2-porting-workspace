@@ -27,7 +27,30 @@
 - `src/projects/cmre-porting/stages/28-simulator-baseline-hardening/result.json`
 - `artifacts/projects/cmre-porting/stage28-simulator-baseline-hardening/validation-20260817.json`
 
+## P1 catalog fidelity baseline
+
+- `static`: Added `src/projects/cmre-porting/vibe/catalog_fidelity.py` to build a project-local `cmre-catalog-fidelity-baseline.v1` report from the simulator `sc2_simulator.m7` CatalogSnapshot without modifying the read-only simulator package.
+- `static`: The baseline records `runtime_claim=none; simulator catalog fidelity only`, catalog source/hash/counts, scenario unit reference closure, unsupported-unit rejection, UnitModel, EconomyModel, ProductionModel, AbilityModel, and catalog-reference-closure checks.
+- `static`: `run_cmre_map_matrix.py` now computes `catalog_fidelity_baseline` for each map probe, includes it in the summary, and adds `checks.catalog_fidelity_baseline` so adapter-clearance summaries fail if the minimum static catalog gate fails.
+- `static`: Generated `artifacts/projects/cmre-porting/stage28-simulator-baseline-hardening/catalog-fidelity-baseline-20260817.json` from `亡者之夜.SC2Map`; observed status `PASS`, unit count `117`, and catalog content hash `cafab5205fba13a7`.
+
+## P1 validation
+
+- `static`: `py -3.13 -m py_compile src/projects/cmre-porting/vibe/catalog_fidelity.py src/projects/cmre-porting/vibe/run_cmre_map_matrix.py src/projects/cmre-porting/stages/28-simulator-baseline-hardening/test_simulator_baseline_hardening.py` passed with exit code 0.
+- `simulator`: `PYTHONPATH=src/projects/cmre-porting py -3.13 -m unittest -q stages/28-simulator-baseline-hardening/test_simulator_baseline_hardening.py` passed: 5 tests in 0.138s.
+- `simulator`: `PYTHONPATH=src/projects/cmre-porting py -3.13 -m unittest -q stages/25-ai-ally-capability-completion/test_ladder_ai.py` passed: 4 tests in 98.611s.
+
+## Evidence paths
+
+- `src/projects/cmre-porting/vibe/catalog_fidelity.py`
+- `src/projects/cmre-porting/vibe/run_cmre_map_matrix.py`
+- `src/projects/cmre-porting/stages/28-simulator-baseline-hardening/test_simulator_baseline_hardening.py`
+- `src/projects/cmre-porting/stages/28-simulator-baseline-hardening/result.json`
+- `src/projects/cmre-porting/stages/28-simulator-baseline-hardening/issues.json`
+- `artifacts/projects/cmre-porting/stage28-simulator-baseline-hardening/catalog-fidelity-baseline-20260817.json`
+- `artifacts/projects/cmre-porting/stage28-simulator-baseline-hardening/validation-20260817.json`
+
 ## Remaining work
 
 - `open`: `SIM28-NATIVE-RUNTIME-OUT-OF-SCOPE` remains by design; adapter clearance is simulator-only evidence.
-- `open`: `SIM28-P1-CATALOG-FIDELITY-PENDING` tracks the next v2-plan layer: UnitModel/EconomyModel/AbilityModel fidelity checks and broader matrix persistence.
+- `open`: P1b/P2 should persist `catalog_fidelity_baseline` across generated matrix artifacts for every CMRE map, then run the broader adapter-clearance sweep.

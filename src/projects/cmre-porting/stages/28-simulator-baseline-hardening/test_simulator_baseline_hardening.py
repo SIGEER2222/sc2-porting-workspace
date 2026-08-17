@@ -17,6 +17,7 @@ sys.path.insert(0, str(REPO_ROOT / "src" / "projects" / "cmre-porting"))
 
 from vibe import run_cmre_map_matrix  # noqa: E402
 from vibe.cmre_map_catalog import build_cooperative_map_scenario  # noqa: E402
+from vibe.catalog_fidelity import build_catalog_fidelity_baseline  # noqa: E402
 from vibe.consumers.ally_ai import AllyAction, run_ally_scenario  # noqa: E402
 
 
@@ -165,6 +166,47 @@ class Stage28SimulatorBaselineHardeningTests(unittest.TestCase):
         self.assertEqual(summary["attack_actor_type_counts"], {"Marine": 1})
         self.assertEqual(summary["worker_attack_action_count"], 0)
         self.assertIn("claim", summary["simulator_transformation_audit"])
+        self.assertTrue(summary["checks"]["catalog_fidelity_baseline"])
+        baseline = summary["catalog_fidelity_baseline"]
+        self.assertEqual(baseline["status"], "PASS")
+        self.assertEqual(baseline["evidence_type"], "static")
+        self.assertEqual(baseline["runtime_claim"], "none; simulator catalog fidelity only")
+        self.assertTrue(baseline["checks"]["unit_model_minimum"])
+        self.assertTrue(baseline["checks"]["economy_model_minimum"])
+        self.assertTrue(baseline["checks"]["production_model_minimum"])
+        self.assertTrue(baseline["checks"]["ability_model_minimum"])
+
+    def test_catalog_fidelity_baseline_reports_minimum_models(self):
+        map_path = REPO_ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "亡者之夜.SC2Map"
+        data, _profile, _geometry = build_cooperative_map_scenario(
+            map_path,
+            seed=28,
+            max_enemy_per_player=1,
+            stage_enemies_for_full_game=True,
+        )
+
+        baseline = build_catalog_fidelity_baseline(data.scenario)
+
+        self.assertEqual(baseline["status"], "PASS")
+        self.assertEqual(baseline["catalog"]["source"], "sc2_simulator.m7")
+        self.assertGreaterEqual(baseline["catalog"]["unit_count"], 100)
+        self.assertTrue(baseline["checks"]["unit_model_minimum"])
+        self.assertTrue(baseline["checks"]["economy_model_minimum"])
+        self.assertTrue(baseline["checks"]["production_model_minimum"])
+        self.assertTrue(baseline["checks"]["ability_model_minimum"])
+        self.assertTrue(baseline["checks"]["catalog_reference_closure"])
+        self.assertIn("Marine", baseline["unit_model"]["fidelity"])
+        self.assertFalse(baseline["scenario_usage"]["missing_units"])
+        self.assertFalse(baseline["scenario_usage"]["unsupported_units"])
+
+    def test_catalog_fidelity_baseline_rejects_missing_scenario_unit(self):
+        baseline = build_catalog_fidelity_baseline({
+            "spawns": [{"unit_type_id": "NotARealUnit"}],
+        })
+
+        self.assertEqual(baseline["status"], "FAIL")
+        self.assertFalse(baseline["checks"]["scenario_unit_refs_resolve"])
+        self.assertEqual(baseline["scenario_usage"]["missing_units"], ["NotARealUnit"])
 
     def test_map_catalog_exposes_transformation_audit(self):
         map_path = REPO_ROOT / "src" / "projects" / "cmre-porting" / "packages" / "Maps" / "亡者之夜.SC2Map"

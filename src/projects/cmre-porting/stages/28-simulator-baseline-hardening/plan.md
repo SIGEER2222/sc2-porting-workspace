@@ -17,7 +17,8 @@ Prioritize the deterministic CMRE simulator before additional Galaxy VM/runtime 
 - Map-matrix summaries use `adapter_clearance` result semantics and preserve `runtime_claim: none`.
 - Scenario metadata exposes a `simulator_transformation_audit` for source/static data, adapter-injected data, and simulator-only approximations.
 - Ally replay/action outputs expose issuer unit types and aggregate action actor counts, including worker attack counts.
-- Focused regression tests prove the new semantics and audit fields.
+- Map probe summaries include a static `catalog_fidelity_baseline` covering UnitModel, EconomyModel, ProductionModel, AbilityModel, and catalog-reference-closure minimum checks.
+- Focused regression tests prove the semantics, audit fields, issuer fields, and catalog-fidelity baseline behavior.
 
 ## Non-goals
 
@@ -28,6 +29,7 @@ Prioritize the deterministic CMRE simulator before additional Galaxy VM/runtime 
 ## Verification
 
 ```text
+py -3.13 -m py_compile src/projects/cmre-porting/vibe/catalog_fidelity.py src/projects/cmre-porting/vibe/run_cmre_map_matrix.py src/projects/cmre-porting/stages/28-simulator-baseline-hardening/test_simulator_baseline_hardening.py
 PYTHONPATH=src/projects/cmre-porting py -3.13 -m unittest -q stages/28-simulator-baseline-hardening/test_simulator_baseline_hardening.py
 PYTHONPATH=src/projects/cmre-porting py -3.13 -m unittest -q stages/25-ai-ally-capability-completion/test_ladder_ai.py
 ```
