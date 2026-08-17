@@ -66,6 +66,44 @@ def test_maps_and_extra_mods_use_all_owned_package_roots():
     assert any(item["id"] == "AbathurAlenger" for item in server.load_extra_mods("Alenger3"))
 
 
+def test_revolution_map_routes_all_commander_groups_to_its_runtime_launcher(monkeypatch):
+    monkeypatch.setattr(server, "_resolve_powershell_executable", lambda: "powershell.exe")
+    handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)
+
+    for commander in ("TerranRaynor", "TerranAlenger3", "RebornTerranTosh", "RevolutionOverdriveIron"):
+        context = handler._build_launch_args({
+            "packageId": "revolution-overdrive",
+            "mapPackage": "revolution-overdrive",
+            "mapName": "thanson01.SC2Map",
+            "commander": commander,
+            "commanderPackage": "cmre",
+            "faction": "Iron" if commander == "RevolutionOverdriveIron" else "",
+        })
+        assert context["kind"] == "revolution-overdrive"
+        args = context["args"]
+        assert "launch-revolution-overdrive.ps1" in " ".join(args)
+        assert args[args.index("-Commander") + 1] == commander
+        if commander == "RevolutionOverdriveIron":
+            assert args[args.index("-Faction") + 1] == "Iron"
+        else:
+            assert "-Faction" not in args
+
+
+def test_revolution_map_rejects_tarcade_entry_flow(monkeypatch):
+    monkeypatch.setattr(server, "_resolve_powershell_executable", lambda: "powershell.exe")
+    handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)
+    sent = {}
+    handler._send_json = lambda payload, status=200: sent.update(payload=payload, status=status)
+
+    assert handler._build_launch_args({
+        "packageId": "revolution-overdrive",
+        "mapName": "tarcade.SC2Map",
+        "commander": "TerranRaynor",
+    }) is None
+    assert sent["status"] == 400
+    assert "入口流" in sent["payload"]["error"]
+
+
 def test_all_current_map_display_names_are_explicit_chinese_and_ids_stay_internal():
     maps = server.load_maps() + server.load_reborn_maps() + server.load_revolution_maps()
 
@@ -141,8 +179,6 @@ def test_cross_category_matrix_args_preserve_map_and_commander_identity(monkeypa
     })
     reborn_args = reborn_map["args"]
     assert "-MapSourceOverride" in reborn_args
-    assert "-StartupContractOverride" in reborn_args
-    assert not reborn_args[reborn_args.index("-StartupContractOverride") + 1].endswith(".full.json")
     assert "-EnableReborn" in reborn_args
     assert "-RebornCommander" not in reborn_args
 
@@ -153,22 +189,19 @@ def test_cross_category_matrix_args_preserve_map_and_commander_identity(monkeypa
         "commanderPackage": "cmre",
     })
     revolution_args = revolution_map["args"]
-    assert revolution_args[revolution_args.index("-MapDependencyRootOverride") + 1].endswith(
-        "src\\projects\\revolution-overdrive-porting\\packages"
-    )
+    assert "launch-revolution-overdrive.ps1" in " ".join(revolution_args)
+    assert "-MapDependencyRootOverride" not in revolution_args
     assert revolution_args[revolution_args.index("-Commander") + 1] == "TerranAlenger3"
 
     reborn_commander = handler._build_launch_args({
         "mapPackage": "revolution-overdrive",
         "mapName": "thorner03.SC2Map",
-        "commander": "ZergAbathur",
-        "commanderPackage": "cmre",
-        "enableReborn": True,
-        "rebornCommander": "Abathur",
+        "commander": "RebornZergAbathur",
+        "commanderPackage": "reborn",
     })
     reborn_commander_args = reborn_commander["args"]
-    assert reborn_commander_args.count("-EnableReborn") == 1
-    assert reborn_commander_args[reborn_commander_args.index("-RebornCommander") + 1] == "Abathur"
+    assert reborn_commander_args[reborn_commander_args.index("-Commander") + 1] == "RebornZergAbathur"
+    assert "-EnableReborn" not in reborn_commander_args
 
 
 def test_webui_defaults_to_player_map_launch(monkeypatch):

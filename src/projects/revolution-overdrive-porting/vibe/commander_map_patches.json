@@ -1,0 +1,7780 @@
+{
+  "schemaVersion": 2,
+  "id": "revolution-overdrive-commander-map-patches",
+  "package": "revolution-overdrive",
+  "description": "Git-managed runtime Galaxy overlays for every WebUI-selectable commander on Revolution Overdrive maps.",
+  "runtimeTemplate": "src/projects/revolution-overdrive-porting/vibe/runtime_commander_overlay.galaxy.tpl",
+  "mapPolicy": {
+    "supportedMaps": [
+      "thanson01.SC2Map",
+      "thanson02.SC2Map",
+      "thanson03a.SC2Map",
+      "thanson03b.SC2Map",
+      "thorner01.SC2Map",
+      "thorner02.SC2Map",
+      "thorner03.SC2Map",
+      "thorner04.SC2Map",
+      "thorner05s.SC2Map",
+      "traynor01.SC2Map",
+      "traynor02.SC2Map",
+      "traynor03.SC2Map",
+      "tstory01.SC2Map",
+      "ttosh01.SC2Map",
+      "ttosh02.SC2Map",
+      "ttosh03a.SC2Map",
+      "ttosh03b.SC2Map",
+      "ttychus01.SC2Map",
+      "ttychus02.SC2Map",
+      "ttychus03.SC2Map",
+      "ttychus04.SC2Map",
+      "ttychus05.SC2Map",
+      "tvalerian01.SC2Map",
+      "tvalerian02a.SC2Map",
+      "tvalerian02b.SC2Map",
+      "tvalerian03.SC2Map",
+      "tzeratul01.SC2Map",
+      "tzeratul02.SC2Map",
+      "tzeratul03.SC2Map",
+      "tzeratul04.SC2Map"
+    ],
+    "unsupportedMaps": [
+      "tarcade.SC2Map"
+    ],
+    "forbiddenMaps": [
+      "亡者之夜.SC2Map"
+    ],
+    "sourceMapsReadOnly": true,
+    "patchTarget": "staged MapScript.galaxy only"
+  },
+  "commanderCount": 50,
+  "commanders": [
+    {
+      "id": "ro-patch-TerranSwann",
+      "commander": "TerranSwann",
+      "bank": "Swann",
+      "label": "斯旺",
+      "group": "official",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "CommandCenterSwann",
+        "startingWorker": "SCVSwann",
+        "workerCount": 5,
+        "hero": "Swann",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "CommandCenterSwann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "CommandCenterSwann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "CommandCenterSwann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "CommandCenterSwann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "CommandCenterSwann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "CommandCenterSwann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "CommandCenterSwann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "SCVSwann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "SCVSwann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "SCVSwann",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "Swann",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        },
+        {
+          "name": "CommanderUnits_Swann.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/CommanderUnits_Swann.SC2Mod"
+          },
+          "destination": "Mods/Commanders/CommanderUnits_Swann.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "CommandCenterSwann",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "SCVSwann",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Swann",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-TerranTychus",
+      "commander": "TerranTychus",
+      "bank": "Tychus",
+      "label": "泰凯斯",
+      "group": "official",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "CommandCenter",
+        "startingWorker": "SCV",
+        "workerCount": 5,
+        "hero": "TychusCommando",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "OrbitalCommand",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "SCV",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "SCV",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "TychusCommando",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "CommandCenter",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "SCV",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "TychusCommando",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-TerranMengsk",
+      "commander": "TerranMengsk",
+      "bank": "Mengsk",
+      "label": "蒙斯克",
+      "group": "official",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "CommandCenterMengsk",
+        "startingWorker": "SCVMengsk",
+        "workerCount": 5,
+        "hero": "MarauderMengsk",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "CommandCenterMengsk",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "CommandCenterMengsk",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "CommandCenterMengsk",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "CommandCenterMengsk",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "CommandCenterMengsk",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "CommandCenterMengsk",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "CommandCenterMengsk",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "SCVMengsk",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "SCVMengsk",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "SCVMengsk",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "MarauderMengsk",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        },
+        {
+          "name": "CMRE_Core_Mengsk.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Mengsk.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Mengsk.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "CommandCenterMengsk",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "MarauderMengsk",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "SCVMengsk",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-TerranNova",
+      "commander": "TerranNova",
+      "bank": "Nova",
+      "label": "诺娃",
+      "group": "official",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "CommandCenter",
+        "startingWorker": "SCV",
+        "workerCount": 5,
+        "hero": "NovaCoop",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "OrbitalCommand",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "SCV",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "SCV",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "NovaCoop",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "CommandCenter",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "NovaCoop",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "SCV",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-TerranRaynor",
+      "commander": "TerranRaynor",
+      "bank": "Raynor",
+      "label": "雷诺",
+      "group": "official",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "CommandCenter",
+        "startingWorker": "SCV",
+        "workerCount": 5,
+        "hero": "RaynorCommando",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "OrbitalCommand",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "SCV",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "SCV",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "RaynorCommando",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "CommandCenter",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "RaynorCommando",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "SCV",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-TerranHorner",
+      "commander": "TerranHorner",
+      "bank": "Mira",
+      "label": "霍纳与汉",
+      "group": "official",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "HHCommandCenter",
+        "startingWorker": "HHSCV",
+        "workerCount": 5,
+        "hero": "HHReaper",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "HHCommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "HHCommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "HHCommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "HHCommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "HHCommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "HHCommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "HHCommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "HHSCV",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "HHSCV",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "HHSCV",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "HHReaper",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "HHCommandCenter",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "HHReaper",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "HHSCV",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ZergKerrigan",
+      "commander": "ZergKerrigan",
+      "bank": "Kerrigan",
+      "label": "凯瑞甘",
+      "group": "official",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Hatchery",
+        "startingWorker": "Drone",
+        "workerCount": 5,
+        "hero": "Kerrigan",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "Kerrigan",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Drone",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Hatchery",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Kerrigan",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ZergDehaka",
+      "commander": "ZergDehaka",
+      "bank": "Dehaka",
+      "label": "德哈卡",
+      "group": "official",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "DehakaHatchery",
+        "startingWorker": "DehakaDrone",
+        "workerCount": 5,
+        "hero": "DehakaCoop",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "DehakaHatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "DehakaHatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "DehakaHatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "DehakaHatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "DehakaHatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "DehakaHatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "DehakaHatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "DehakaDrone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "DehakaDrone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "DehakaDrone",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "DehakaCoop",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "DehakaCoop",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "DehakaDrone",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "DehakaHatchery",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ZergZagara",
+      "commander": "ZergZagara",
+      "bank": "Zagara",
+      "label": "扎加拉",
+      "group": "official",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Hatchery",
+        "startingWorker": "Drone",
+        "workerCount": 5,
+        "hero": "ZaGara",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "ZaGara",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Drone",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Hatchery",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "ZaGara",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ZergStetmann",
+      "commander": "ZergStetmann",
+      "bank": "Stetmann",
+      "label": "斯台特曼",
+      "group": "official",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "HatcheryStetmann",
+        "startingWorker": "DroneStetmann",
+        "workerCount": 5,
+        "hero": "GaryStetmann",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "HatcheryStetmann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "HatcheryStetmann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "HatcheryStetmann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "HatcheryStetmann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "HatcheryStetmann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "HatcheryStetmann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "HatcheryStetmann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "DroneStetmann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "DroneStetmann",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "DroneStetmann",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "GaryStetmann",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        },
+        {
+          "name": "CMRE_Core_Stetmann.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Stetmann.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Stetmann.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "DroneStetmann",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "GaryStetmann",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "HatcheryStetmann",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ZergStukov",
+      "commander": "ZergStukov",
+      "bank": "Stukov",
+      "label": "斯托科夫",
+      "group": "official",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Hatchery",
+        "startingWorker": "Drone",
+        "workerCount": 5,
+        "hero": "InfestedStukovCoop",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "InfestedStukovCoop",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Drone",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Hatchery",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "InfestedStukovCoop",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ZergAbathur",
+      "commander": "ZergAbathur",
+      "bank": "Abathur",
+      "label": "阿巴瑟",
+      "group": "official",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Hatchery",
+        "startingWorker": "Drone",
+        "workerCount": 5,
+        "hero": "CoopCasterAbathur",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "CoopCasterAbathur",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "CoopCasterAbathur",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Drone",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Hatchery",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ProtossKarax",
+      "commander": "ProtossKarax",
+      "bank": "Karax",
+      "label": "凯拉克斯",
+      "group": "official",
+      "race": "Protoss",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Nexus",
+        "startingWorker": "Probe",
+        "workerCount": 5,
+        "hero": "KaraxChampion",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "KaraxChampion",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "KaraxChampion",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Nexus",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Probe",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ProtossVorazun",
+      "commander": "ProtossVorazun",
+      "bank": "Vorazun",
+      "label": "沃拉尊",
+      "group": "official",
+      "race": "Protoss",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Nexus",
+        "startingWorker": "Probe",
+        "workerCount": 5,
+        "hero": "VorazunChampion",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "VorazunChampion",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Nexus",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Probe",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "VorazunChampion",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ProtossZeratul",
+      "commander": "ProtossZeratul",
+      "bank": "Zeratul",
+      "label": "泽拉图",
+      "group": "official",
+      "race": "Protoss",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Nexus",
+        "startingWorker": "Probe",
+        "workerCount": 5,
+        "hero": "Zeratul",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "Zeratul",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Nexus",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Probe",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Zeratul",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ProtossFenix",
+      "commander": "ProtossFenix",
+      "bank": "Fenix",
+      "label": "菲尼克斯",
+      "group": "official",
+      "race": "Protoss",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Nexus",
+        "startingWorker": "Probe",
+        "workerCount": 5,
+        "hero": "FenixChampion",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "FenixChampion",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "FenixChampion",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Nexus",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Probe",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ProtossArtanis",
+      "commander": "ProtossArtanis",
+      "bank": "Artanis",
+      "label": "阿塔尼斯",
+      "group": "official",
+      "race": "Protoss",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Nexus",
+        "startingWorker": "Probe",
+        "workerCount": 5,
+        "hero": "Artanis",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "Artanis",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Artanis",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Nexus",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Probe",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ProtossAlarak",
+      "commander": "ProtossAlarak",
+      "bank": "Alarak",
+      "label": "阿拉纳克",
+      "group": "official",
+      "race": "Protoss",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Nexus",
+        "startingWorker": "Probe",
+        "workerCount": 5,
+        "hero": "AlarakChampion",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "AlarakChampion",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "CMRE_Core_Base.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/CMRE/CMRE_Core_Base.SC2Mod"
+          },
+          "destination": "Mods/CMRE/CMRE_Core_Base.SC2Mod"
+        },
+        {
+          "name": "CMRE/CM_ArtPack",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/CMRE/CM_ArtPack"
+          },
+          "destination": "Mods/CM_ArtPack"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "AlarakChampion",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Nexus",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Probe",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-TerranAlenger9",
+      "commander": "TerranAlenger9",
+      "bank": "Alenger9",
+      "label": "海盗",
+      "group": "alenger",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "9qianxianzhihuizhongxin",
+        "startingWorker": "9shihuangzhe",
+        "workerCount": 12,
+        "hero": "",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "9qianxianzhihuizhongxin",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "9qianxianzhihuizhongxin",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "9qianxianzhihuizhongxin",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "9qianxianzhihuizhongxin",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "9qianxianzhihuizhongxin",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "9qianxianzhihuizhongxin",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "9qianxianzhihuizhongxin",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "9shihuangzhe",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "9shihuangzhe",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "9shihuangzhe",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [],
+      "dependencies": [
+        {
+          "name": "SharedAlengerCommon.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/SharedAlengerCommon.SC2Mod"
+          },
+          "destination": "Mods/Commanders/SharedAlengerCommon.SC2Mod"
+        },
+        {
+          "name": "PirateAlenger.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/PirateAlenger.SC2Mod"
+          },
+          "destination": "Mods/Commanders/PirateAlenger.SC2Mod"
+        },
+        {
+          "name": "PirateAlengerAdapter.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/PirateAlengerAdapter.SC2Mod"
+          },
+          "destination": "Mods/Commanders/PirateAlengerAdapter.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "9qianxianzhihuizhongxin",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "9shihuangzhe",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "src/config/alenger-mods.json",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-TerranAlenger12",
+      "commander": "TerranAlenger12",
+      "bank": "Alenger12",
+      "label": "游骑兵",
+      "group": "alenger",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "12guidaokongzhijidi",
+        "startingWorker": "12sishuigongchengche",
+        "workerCount": 12,
+        "hero": "",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "12guidaokongzhijidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "12guidaokongzhijidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "12guidaokongzhijidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "12guidaokongzhijidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "12guidaokongzhijidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "12guidaokongzhijidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "12guidaokongzhijidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "12sishuigongchengche",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "12sishuigongchengche",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "12sishuigongchengche",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [],
+      "dependencies": [
+        {
+          "name": "SharedAlengerCommon.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/SharedAlengerCommon.SC2Mod"
+          },
+          "destination": "Mods/Commanders/SharedAlengerCommon.SC2Mod"
+        },
+        {
+          "name": "RangerAlenger.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/RangerAlenger.SC2Mod"
+          },
+          "destination": "Mods/Commanders/RangerAlenger.SC2Mod"
+        },
+        {
+          "name": "RangerAlengerAdapter.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/RangerAlengerAdapter.SC2Mod"
+          },
+          "destination": "Mods/Commanders/RangerAlengerAdapter.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "12guidaokongzhijidi",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "12sishuigongchengche",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "src/config/alenger-mods.json",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-TerranAlenger3",
+      "commander": "TerranAlenger3",
+      "bank": "Alenger3",
+      "label": "疯批帝国",
+      "group": "alenger",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "3diguoqianshaojidi",
+        "startingWorker": "3diguolaogong",
+        "workerCount": 12,
+        "hero": "",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "3diguoqianshaojidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "3diguoqianshaojidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "3diguoqianshaojidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "3diguoqianshaojidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "3diguoqianshaojidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "3diguoqianshaojidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "3diguoqianshaojidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "3diguolaogong",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "3diguolaogong",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "3diguolaogong",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [],
+      "dependencies": [
+        {
+          "name": "EmpireAlengerCommon.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/EmpireAlengerCommon.SC2Mod"
+          },
+          "destination": "Mods/Commanders/EmpireAlengerCommon.SC2Mod"
+        },
+        {
+          "name": "EmpireAlenger.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/EmpireAlenger.SC2Mod"
+          },
+          "destination": "Mods/Commanders/EmpireAlenger.SC2Mod"
+        },
+        {
+          "name": "EmpireAlengerAdapter.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/EmpireAlengerAdapter.SC2Mod"
+          },
+          "destination": "Mods/Commanders/EmpireAlengerAdapter.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "3diguolaogong",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "3diguoqianshaojidi",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "src/config/alenger-mods.json",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-TerranAlenger1",
+      "commander": "TerranAlenger1",
+      "bank": "Alenger1",
+      "label": "钢铁",
+      "group": "alenger",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "1gangtieyaosai",
+        "startingWorker": "1gangtiegongchengche",
+        "workerCount": 12,
+        "hero": "",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "1gangtieyaosai",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "1gangtieyaosai",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "1gangtieyaosai",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "1gangtieyaosai",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "1gangtieyaosai",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "1gangtieyaosai",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "1gangtieyaosai",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "1gangtiegongchengche",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "1gangtiegongchengche",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "1gangtiegongchengche",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [],
+      "dependencies": [
+        {
+          "name": "SharedAlengerCommon.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/SharedAlengerCommon.SC2Mod"
+          },
+          "destination": "Mods/Commanders/SharedAlengerCommon.SC2Mod"
+        },
+        {
+          "name": "SteelWallAlenger.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/SteelWallAlenger.SC2Mod"
+          },
+          "destination": "Mods/Commanders/SteelWallAlenger.SC2Mod"
+        },
+        {
+          "name": "SteelWallAlengerAdapter.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/SteelWallAlengerAdapter.SC2Mod"
+          },
+          "destination": "Mods/Commanders/SteelWallAlengerAdapter.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "1gangtiegongchengche",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "1gangtieyaosai",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "src/config/alenger-mods.json",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ZergAlenger10",
+      "commander": "ZergAlenger10",
+      "bank": "Alenger10",
+      "label": "埃蒙",
+      "group": "alenger",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Hatchery",
+        "startingWorker": "Drone",
+        "workerCount": 12,
+        "hero": "",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [],
+      "dependencies": [
+        {
+          "name": "SharedAlengerCommon.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/SharedAlengerCommon.SC2Mod"
+          },
+          "destination": "Mods/Commanders/SharedAlengerCommon.SC2Mod"
+        },
+        {
+          "name": "AmonAlenger.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/AmonAlenger.SC2Mod"
+          },
+          "destination": "Mods/Commanders/AmonAlenger.SC2Mod"
+        },
+        {
+          "name": "AmonAlengerAdapter.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/AmonAlengerAdapter.SC2Mod"
+          },
+          "destination": "Mods/Commanders/AmonAlengerAdapter.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Drone",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Hatchery",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "src/config/alenger-mods.json",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ZergAlenger8",
+      "commander": "ZergAlenger8",
+      "bank": "Alenger8",
+      "label": "扎加拉",
+      "group": "alenger",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "8fuhuachang",
+        "startingWorker": "8gongfeng",
+        "workerCount": 12,
+        "hero": "",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "8fuhuachang",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "8fuhuachang",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "8fuhuachang",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "8fuhuachang",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "8fuhuachang",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "8fuhuachang",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "8fuhuachang",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "8gongfeng",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "8gongfeng",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "8gongfeng",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [],
+      "dependencies": [
+        {
+          "name": "SharedAlengerCommon.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/SharedAlengerCommon.SC2Mod"
+          },
+          "destination": "Mods/Commanders/SharedAlengerCommon.SC2Mod"
+        },
+        {
+          "name": "ZagaraAlenger.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/ZagaraAlenger.SC2Mod"
+          },
+          "destination": "Mods/Commanders/ZagaraAlenger.SC2Mod"
+        },
+        {
+          "name": "ZagaraAlengerAdapter.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/ZagaraAlengerAdapter.SC2Mod"
+          },
+          "destination": "Mods/Commanders/ZagaraAlengerAdapter.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "8fuhuachang",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "8gongfeng",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "src/config/alenger-mods.json",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ZergAlenger11",
+      "commander": "ZergAlenger11",
+      "bank": "Alenger11",
+      "label": "群友",
+      "group": "alenger",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Hatchery",
+        "startingWorker": "Drone",
+        "workerCount": 12,
+        "hero": "",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [],
+      "dependencies": [
+        {
+          "name": "SharedAlengerCommon.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/SharedAlengerCommon.SC2Mod"
+          },
+          "destination": "Mods/Commanders/SharedAlengerCommon.SC2Mod"
+        },
+        {
+          "name": "CommunityAlenger.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/CommunityAlenger.SC2Mod"
+          },
+          "destination": "Mods/Commanders/CommunityAlenger.SC2Mod"
+        },
+        {
+          "name": "CommunityAlengerAdapter.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/CommunityAlengerAdapter.SC2Mod"
+          },
+          "destination": "Mods/Commanders/CommunityAlengerAdapter.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Drone",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Hatchery",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "src/config/alenger-mods.json",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ZergAlenger2",
+      "commander": "ZergAlenger2",
+      "bank": "Alenger2",
+      "label": "贝希摩斯虫群",
+      "group": "alenger",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "2chujichaoxue",
+        "startingWorker": "2gongchong",
+        "workerCount": 12,
+        "hero": "",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "2chujichaoxue",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "2chujichaoxue",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "2chujichaoxue",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "2chujichaoxue",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "2chujichaoxue",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "2chujichaoxue",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "2chujichaoxue",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "2gongchong",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "2gongchong",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "2gongchong",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [],
+      "dependencies": [
+        {
+          "name": "SharedAlengerCommon.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/SharedAlengerCommon.SC2Mod"
+          },
+          "destination": "Mods/Commanders/SharedAlengerCommon.SC2Mod"
+        },
+        {
+          "name": "BehemothAlenger.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/BehemothAlenger.SC2Mod"
+          },
+          "destination": "Mods/Commanders/BehemothAlenger.SC2Mod"
+        },
+        {
+          "name": "BehemothAlengerAdapter.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/BehemothAlengerAdapter.SC2Mod"
+          },
+          "destination": "Mods/Commanders/BehemothAlengerAdapter.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "2chujichaoxue",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "2gongchong",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "src/config/alenger-mods.json",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ZergAlenger6",
+      "commander": "ZergAlenger6",
+      "bank": "Alenger6",
+      "label": "阿巴瑟",
+      "group": "alenger",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "6fuhuachang",
+        "startingWorker": "6gongfeng",
+        "workerCount": 12,
+        "hero": "",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "6fuhuachang",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "6fuhuachang",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "6fuhuachang",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "6fuhuachang",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "6fuhuachang",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "6fuhuachang",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "6fuhuachang",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "6gongfeng",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "6gongfeng",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "6gongfeng",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [],
+      "dependencies": [
+        {
+          "name": "SharedAlengerCommon.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/SharedAlengerCommon.SC2Mod"
+          },
+          "destination": "Mods/Commanders/SharedAlengerCommon.SC2Mod"
+        },
+        {
+          "name": "AbathurAlenger.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/AbathurAlenger.SC2Mod"
+          },
+          "destination": "Mods/Commanders/AbathurAlenger.SC2Mod"
+        },
+        {
+          "name": "AbathurAlengerAdapter.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/AbathurAlengerAdapter.SC2Mod"
+          },
+          "destination": "Mods/Commanders/AbathurAlengerAdapter.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "6fuhuachang",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "6gongfeng",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "src/config/alenger-mods.json",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ProtossAlenger13",
+      "commander": "ProtossAlenger13",
+      "bank": "Alenger13",
+      "label": "净化者",
+      "group": "alenger",
+      "race": "Protoss",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "13jinghuazheshuniu",
+        "startingWorker": "13tanji",
+        "workerCount": 12,
+        "hero": "",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "13jinghuazheshuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "13jinghuazheshuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "13jinghuazheshuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "13jinghuazheshuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "13jinghuazheshuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "13jinghuazheshuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "13jinghuazheshuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "13tanji",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "13tanji",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "13tanji",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [],
+      "dependencies": [
+        {
+          "name": "SharedAlengerCommon.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/SharedAlengerCommon.SC2Mod"
+          },
+          "destination": "Mods/Commanders/SharedAlengerCommon.SC2Mod"
+        },
+        {
+          "name": "PurifierAlenger.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/PurifierAlenger.SC2Mod"
+          },
+          "destination": "Mods/Commanders/PurifierAlenger.SC2Mod"
+        },
+        {
+          "name": "PurifierAlengerAdapter.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/PurifierAlengerAdapter.SC2Mod"
+          },
+          "destination": "Mods/Commanders/PurifierAlengerAdapter.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "13jinghuazheshuniu",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "13tanji",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "src/config/alenger-mods.json",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ProtossAlenger7",
+      "commander": "ProtossAlenger7",
+      "bank": "Alenger7",
+      "label": "卡莱",
+      "group": "alenger",
+      "race": "Protoss",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "7xiangweishuniu",
+        "startingWorker": "7xiangweitanji",
+        "workerCount": 12,
+        "hero": "",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "7xiangweishuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "7xiangweishuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "7xiangweishuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "7xiangweishuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "7xiangweishuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "7xiangweishuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "7xiangweishuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "7xiangweitanji",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "7xiangweitanji",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "7xiangweitanji",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [],
+      "dependencies": [
+        {
+          "name": "SharedAlengerCommon.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/SharedAlengerCommon.SC2Mod"
+          },
+          "destination": "Mods/Commanders/SharedAlengerCommon.SC2Mod"
+        },
+        {
+          "name": "KhalaiAlenger.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/KhalaiAlenger.SC2Mod"
+          },
+          "destination": "Mods/Commanders/KhalaiAlenger.SC2Mod"
+        },
+        {
+          "name": "KhalaiAlengerAdapter.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/KhalaiAlengerAdapter.SC2Mod"
+          },
+          "destination": "Mods/Commanders/KhalaiAlengerAdapter.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "7xiangweishuniu",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "7xiangweitanji",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "src/config/alenger-mods.json",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-ProtossAlenger4",
+      "commander": "ProtossAlenger4",
+      "bank": "Alenger4",
+      "label": "塔达林",
+      "group": "alenger",
+      "race": "Protoss",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "4zhanzhengshuniu",
+        "startingWorker": "4zhanzhengtanji",
+        "workerCount": 12,
+        "hero": "",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "4zhanzhengshuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "4zhanzhengshuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "4zhanzhengshuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "4zhanzhengshuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "4zhanzhengshuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "4zhanzhengshuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "4zhanzhengshuniu",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "4zhanzhengtanji",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "4zhanzhengtanji",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "4zhanzhengtanji",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [],
+      "dependencies": [
+        {
+          "name": "SharedAlengerCommon.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/SharedAlengerCommon.SC2Mod"
+          },
+          "destination": "Mods/Commanders/SharedAlengerCommon.SC2Mod"
+        },
+        {
+          "name": "TalDarimAlenger.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/TalDarimAlenger.SC2Mod"
+          },
+          "destination": "Mods/Commanders/TalDarimAlenger.SC2Mod"
+        },
+        {
+          "name": "TalDarimAlengerAdapter.SC2Mod",
+          "source": {
+            "sourceId": "cmre-owned-project",
+            "path": "src/projects/cmre-porting/packages/Mods/Commanders/TalDarimAlengerAdapter.SC2Mod"
+          },
+          "destination": "Mods/Commanders/TalDarimAlengerAdapter.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "4zhanzhengshuniu",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "4zhanzhengtanji",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "src/config/alenger-mods.json",
+        "reborn": "",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornTerranTosh",
+      "commander": "RebornTerranTosh",
+      "bank": "Tosh",
+      "label": "托什",
+      "group": "reborn",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "CommandCenter",
+        "startingWorker": "SCV",
+        "workerCount": 5,
+        "hero": "Witch",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "OrbitalCommand",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "SCV",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "SCV",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "Witch",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "CommandCenter",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "SCV",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Witch",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "Witch"
+      ],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornTerranWarfield",
+      "commander": "RebornTerranWarfield",
+      "bank": "Warfield",
+      "label": "沃菲尔德",
+      "group": "reborn",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "CommandCenter",
+        "startingWorker": "SCV",
+        "workerCount": 5,
+        "hero": "Grizzly",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "OrbitalCommand",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "SCV",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "SCV",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "Grizzly",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "CommandCenter",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Grizzly",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "SCV",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "Grizzly"
+      ],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornTerranMengsk",
+      "commander": "RebornTerranMengsk",
+      "bank": "Mengsk",
+      "label": "蒙斯克",
+      "group": "reborn",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "CommandCenter",
+        "startingWorker": "SCV",
+        "workerCount": 5,
+        "hero": "MengskMarauder",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "OrbitalCommand",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "SCV",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "SCV",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "MengskMarauder",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "CommandCenter",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "MengskMarauder",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "SCV",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "MengskMarauder"
+      ],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornTerranRaynor",
+      "commander": "RebornTerranRaynor",
+      "bank": "Raynor",
+      "label": "雷诺",
+      "group": "reborn",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "CommandCenter",
+        "startingWorker": "SCV",
+        "workerCount": 5,
+        "hero": "WarPig",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "OrbitalCommand",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "CommandCenter",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "SCV",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "SCV",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "WarPig",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "CommandCenter",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "SCV",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "WarPig",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "WarPig"
+      ],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornZergIzsha",
+      "commander": "RebornZergIzsha",
+      "bank": "Izsha",
+      "label": "伊兹莎",
+      "group": "reborn",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Hatchery",
+        "startingWorker": "Drone",
+        "workerCount": 5,
+        "hero": "SIQueen",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "SIQueen",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Drone",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Hatchery",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "SIQueen",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "SIQueen"
+      ],
+      "expectedBuildings": [
+        "Hatchery",
+        "SpawningPool",
+        "Drone"
+      ],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornZergKerrigan",
+      "commander": "RebornZergKerrigan",
+      "bank": "Kerrigan",
+      "label": "凯瑞甘",
+      "group": "reborn",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Hatchery",
+        "startingWorker": "Drone",
+        "workerCount": 5,
+        "hero": "K5Kerrigan",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "K5Kerrigan",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Drone",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Hatchery",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "K5Kerrigan",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "K5Kerrigan"
+      ],
+      "expectedBuildings": [
+        "Hatchery",
+        "SpawningPool",
+        "Drone"
+      ],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornZergNaktul",
+      "commander": "RebornZergNaktul",
+      "bank": "Naktul",
+      "label": "娜克图尔",
+      "group": "reborn",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Hatchery",
+        "startingWorker": "Drone",
+        "workerCount": 5,
+        "hero": "Queen",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "Queen",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Drone",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Hatchery",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Queen",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "Queen"
+      ],
+      "expectedBuildings": [
+        "Hatchery",
+        "SpawningPool",
+        "Drone"
+      ],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornZergDehaka",
+      "commander": "RebornZergDehaka",
+      "bank": "Dehaka",
+      "label": "德哈卡",
+      "group": "reborn",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Hatchery",
+        "startingWorker": "Drone",
+        "workerCount": 5,
+        "hero": "PrimalHydralisk2",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "PrimalHydralisk2",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Drone",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Hatchery",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "PrimalHydralisk2",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "PrimalHydralisk2",
+        "PrimalIgniter"
+      ],
+      "expectedBuildings": [
+        "Hatchery",
+        "SpawningPool",
+        "Drone"
+      ],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornZergZagara",
+      "commander": "RebornZergZagara",
+      "bank": "Zagara",
+      "label": "扎加拉",
+      "group": "reborn",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Hatchery",
+        "startingWorker": "Drone",
+        "workerCount": 5,
+        "hero": "InfestedAbomination",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "InfestedAbomination",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Drone",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Hatchery",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "InfestedAbomination",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "InfestedAbomination"
+      ],
+      "expectedBuildings": [
+        "Hatchery",
+        "SpawningPool",
+        "Drone"
+      ],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornZergStukov",
+      "commander": "RebornZergStukov",
+      "bank": "Stukov",
+      "label": "斯图科夫",
+      "group": "reborn",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Hatchery",
+        "startingWorker": "Drone",
+        "workerCount": 5,
+        "hero": "InfestedMarine",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "InfestedMarine",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Drone",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Hatchery",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "InfestedMarine",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "InfestedMarine"
+      ],
+      "expectedBuildings": [
+        "Hatchery",
+        "SpawningPool",
+        "Drone"
+      ],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornZergAbathur",
+      "commander": "RebornZergAbathur",
+      "bank": "Abathur",
+      "label": "阿巴瑟",
+      "group": "reborn",
+      "race": "Zerg",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Hatchery",
+        "startingWorker": "Drone",
+        "workerCount": 5,
+        "hero": "HunterKiller",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "Hatchery",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "Drone",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "HunterKiller",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Drone",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Hatchery",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "HunterKiller",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "HunterKiller"
+      ],
+      "expectedBuildings": [
+        "Hatchery",
+        "SpawningPool",
+        "RoachWarren",
+        "HydraliskDen",
+        "BanelingNest",
+        "EvolutionChamber",
+        "Drone"
+      ],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornProtossUrun",
+      "commander": "RebornProtossUrun",
+      "bank": "Urun",
+      "label": "乌伦",
+      "group": "reborn",
+      "race": "Protoss",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Nexus",
+        "startingWorker": "Probe",
+        "workerCount": 5,
+        "hero": "Huntress",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "Huntress",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Huntress",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Nexus",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Probe",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "Huntress"
+      ],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornProtossKarass",
+      "commander": "RebornProtossKarass",
+      "bank": "Karass",
+      "label": "卡拉斯",
+      "group": "reborn",
+      "race": "Protoss",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Nexus",
+        "startingWorker": "Probe",
+        "workerCount": 5,
+        "hero": "HighArchonTemplar",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "HighArchonTemplar",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "HighArchonTemplar",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Nexus",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Probe",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "HighArchonTemplar"
+      ],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornProtossZeratul",
+      "commander": "RebornProtossZeratul",
+      "bank": "Zeratul",
+      "label": "泽拉图",
+      "group": "reborn",
+      "race": "Protoss",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Nexus",
+        "startingWorker": "Probe",
+        "workerCount": 5,
+        "hero": "StalkerShakuras",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "StalkerShakuras",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Nexus",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Probe",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "StalkerShakuras",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "StalkerShakuras"
+      ],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RebornProtossNarud",
+      "commander": "RebornProtossNarud",
+      "bank": "Narud",
+      "label": "纳鲁德",
+      "group": "reborn",
+      "race": "Protoss",
+      "status": "declared_runtime_patch",
+      "mode": "runtime_galaxy_overlay",
+      "legacyNativeAdapter": false,
+      "startup": {
+        "startingStructure": "Nexus",
+        "startingWorker": "Probe",
+        "workerCount": 5,
+        "hero": "RevenantGun",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "Nexus",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "Probe",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "RevenantGun",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [
+        {
+          "name": "reborn/crys_swarm_assets.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_swarm_assets.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_swarm_assets.SC2Mod"
+        },
+        {
+          "name": "reborn/crys_the_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/crys_the_swarm_reborn.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_common.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_common.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_starhooks_swarmstoryutils.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_starhooks_swarmstoryutils.SC2Mod"
+        },
+        {
+          "name": "reborn/sibirens_sundries_swarm_reborn.SC2Mod",
+          "source": {
+            "sourceId": "cmre-runtime",
+            "path": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+          },
+          "destination": "Mods/reborn/sibirens_sundries_swarm_reborn.SC2Mod"
+        }
+      ],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "Nexus",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "Probe",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "RevenantGun",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [
+        "RevenantGun"
+      ],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "src/config/reborn-commanders.json",
+        "ro": ""
+      }
+    },
+    {
+      "id": "ro-patch-RevolutionOverdriveIron",
+      "commander": "RevolutionOverdriveIron",
+      "bank": "Iron",
+      "label": "起义狂潮：钢铁之翼",
+      "group": "revolution-overdrive",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "legacy_native_adapter",
+      "legacyNativeAdapter": true,
+      "startup": {
+        "startingStructure": "1gangtieyaosai",
+        "startingWorker": "1gangtiegongchengche",
+        "workerCount": 5,
+        "hero": "1gangtietaitan",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "1gangtieyaosai",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "1gangtieyaosai",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "1gangtieyaosai",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "1gangtieyaosai",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "1gangtieyaosai",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "1gangtieyaosai",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "1gangtieyaosai",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "1gangtiegongchengche",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "1gangtiegongchengche",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "1gangtiegongchengche",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "1gangtietaitan",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "1gangtiegongchengche",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "1gangtietaitan",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "1gangtieyaosai",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": "src/projects/revolution-overdrive-porting/packages/Commander/revolution-overdrive-commander.json"
+      }
+    },
+    {
+      "id": "ro-patch-RevolutionOverdriveMadness",
+      "commander": "RevolutionOverdriveMadness",
+      "bank": "Madness",
+      "label": "起义狂潮：克哈远征军",
+      "group": "revolution-overdrive",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "legacy_native_adapter",
+      "legacyNativeAdapter": true,
+      "startup": {
+        "startingStructure": "3diguoqianshaojidi",
+        "startingWorker": "3diguolaogong",
+        "workerCount": 5,
+        "hero": "3diguozhijian",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "3diguoqianshaojidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "3diguoqianshaojidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "3diguoqianshaojidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "3diguoqianshaojidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "3diguoqianshaojidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "3diguoqianshaojidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "3diguoqianshaojidi",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "3diguolaogong",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "3diguolaogong",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "3diguolaogong",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "3diguozhijian",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "3diguolaogong",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "3diguoqianshaojidi",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "3diguozhijian",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": "src/projects/revolution-overdrive-porting/packages/Commander/revolution-overdrive-commander.json"
+      }
+    },
+    {
+      "id": "ro-patch-RevolutionOverdrivePirate",
+      "commander": "RevolutionOverdrivePirate",
+      "bank": "Pirate",
+      "label": "起义狂潮：海盗",
+      "group": "revolution-overdrive",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "legacy_native_adapter",
+      "legacyNativeAdapter": true,
+      "startup": {
+        "startingStructure": "9qianxianzhihuizhongxin",
+        "startingWorker": "9shihuangzhe",
+        "workerCount": 5,
+        "hero": "9chenmomalihao",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "9qianxianzhihuizhongxin",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "9qianxianzhihuizhongxin",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "9qianxianzhihuizhongxin",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "9qianxianzhihuizhongxin",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "9qianxianzhihuizhongxin",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "9qianxianzhihuizhongxin",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "9qianxianzhihuizhongxin",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "9shihuangzhe",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "9shihuangzhe",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "9shihuangzhe",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "9chenmomalihao",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "9chenmomalihao",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "9qianxianzhihuizhongxin",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "9shihuangzhe",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": "src/projects/revolution-overdrive-porting/packages/Commander/revolution-overdrive-commander.json"
+      }
+    },
+    {
+      "id": "ro-patch-RevolutionOverdriveCoverts",
+      "commander": "RevolutionOverdriveCoverts",
+      "bank": "Coverts",
+      "label": "起义狂潮：特战队",
+      "group": "revolution-overdrive",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "legacy_native_adapter",
+      "legacyNativeAdapter": true,
+      "startup": {
+        "startingStructure": "CommandCenterC",
+        "startingWorker": "SCVC",
+        "workerCount": 5,
+        "hero": "",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "CommandCenterC",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "CommandCenterC",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "CommandCenterC",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "CommandCenterC",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "CommandCenterC",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "CommandCenterC",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "CommandCenterC",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "SCVC",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "SCVC",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "SCVC",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [],
+      "dependencies": [],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "CommandCenterC",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "SCVC",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": "src/projects/revolution-overdrive-porting/packages/Commander/revolution-overdrive-commander.json"
+      }
+    },
+    {
+      "id": "ro-patch-RevolutionOverdriveUmojan",
+      "commander": "RevolutionOverdriveUmojan",
+      "bank": "Umojan",
+      "label": "起义狂潮：尤摩扬",
+      "group": "revolution-overdrive",
+      "race": "Terran",
+      "status": "declared_runtime_patch",
+      "mode": "legacy_native_adapter",
+      "legacyNativeAdapter": true,
+      "startup": {
+        "startingStructure": "CommandCenterU",
+        "startingWorker": "SCVU",
+        "workerCount": 5,
+        "hero": "UmojanCommanderU",
+        "anchorTypes": [
+          "CommandCenter",
+          "OrbitalCommand",
+          "PlanetaryFortress",
+          "Hatchery",
+          "Lair",
+          "Hive",
+          "Nexus"
+        ]
+      },
+      "runtimeReplacements": [
+        {
+          "from": "CommandCenter",
+          "to": "CommandCenterU",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "OrbitalCommand",
+          "to": "CommandCenterU",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "PlanetaryFortress",
+          "to": "CommandCenterU",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hatchery",
+          "to": "CommandCenterU",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Lair",
+          "to": "CommandCenterU",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Hive",
+          "to": "CommandCenterU",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Nexus",
+          "to": "CommandCenterU",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "SCV",
+          "to": "SCVU",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Drone",
+          "to": "SCVU",
+          "players": [
+            1
+          ]
+        },
+        {
+          "from": "Probe",
+          "to": "SCVU",
+          "players": [
+            1
+          ]
+        }
+      ],
+      "runtimeCreate": [
+        {
+          "unit": "UmojanCommanderU",
+          "anchorTypes": [
+            "CommandCenter",
+            "OrbitalCommand",
+            "PlanetaryFortress",
+            "Hatchery",
+            "Lair",
+            "Hive",
+            "Nexus"
+          ],
+          "player": 1
+        }
+      ],
+      "dependencies": [],
+      "catalogContracts": [
+        {
+          "family": "Unit",
+          "id": "CommandCenterU",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "SCVU",
+          "required": true,
+          "onMissing": "block"
+        },
+        {
+          "family": "Unit",
+          "id": "UmojanCommanderU",
+          "required": true,
+          "onMissing": "block"
+        }
+      ],
+      "expectedUnits": [],
+      "expectedBuildings": [],
+      "sourceRefs": {
+        "webui": "tools/cmre-webui/server.py",
+        "alenger": "",
+        "reborn": "",
+        "ro": "src/projects/revolution-overdrive-porting/packages/Commander/revolution-overdrive-commander.json"
+      }
+    }
+  ]
+}

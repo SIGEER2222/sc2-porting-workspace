@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "stage": "10-all-commander-adaptation",
+  "status": "in_progress",
+  "claims": [
+    {
+      "type": "static",
+      "claim": "The Stage 10 registry contains 50 selectable commanders across 31 registered maps, with source maps and canonical commander Mods left unchanged during staging.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/vibe/commander_map_patches.json",
+        "artifacts/projects/revolution-overdrive-porting/stage10-all-commander-adaptation/commander-map-matrix.json"
+      ]
+    },
+    {
+      "type": "static",
+      "claim": "The staged Galaxy overlay replaces ordinary opening units and provides a manifest-driven fallback base/worker initialization for mission-only P1 openings.",
+      "evidence": [
+        "src/projects/revolution-overdrive-porting/vibe/runtime_commander_overlay.galaxy.tpl",
+        "tools/launchers/launch-revolution-overdrive.ps1"
+      ]
+    },
+    {
+      "type": "runtime",
+      "claim": "thanson01.SC2Map x TerranAlenger3 passed an approved-launcher realtime probe: CreateGame reached init_game, JoinGame reached in_game, game loop advanced from 3 to 11 without manual stepping, P1 contained one 3diguoqianshaojidi and 12 3diguolaogong, and the same-window ScriptError scan was empty.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage10-all-commander-adaptation/runtime-pilot-5996/launcher-runtime.json",
+        "artifacts/projects/revolution-overdrive-porting/stage10-all-commander-adaptation/runtime-pilot-5996/realtime-probe.json",
+        "artifacts/projects/revolution-overdrive-porting/stage10-all-commander-adaptation/runtime-pilot-5996/launcher.stdout.log"
+      ]
+    }
+  ],
+  "outputs": [
+    "src/projects/revolution-overdrive-porting/vibe/commander_map_patches.json",
+    "src/projects/revolution-overdrive-porting/vibe/runtime_commander_overlay.galaxy.tpl",
+    "src/projects/revolution-overdrive-porting/stages/10-all-commander-adaptation/realtime_commander_probe.py",
+    "artifacts/projects/revolution-overdrive-porting/stage10-all-commander-adaptation/runtime-evidence-index.json",
+    "artifacts/projects/revolution-overdrive-porting/stage10-all-commander-adaptation/commander-map-matrix.json"
+  ],
+  "validation": [
+    {
+      "type": "static",
+      "command": "python -m pytest -q src/projects/revolution-overdrive-porting/stages/10-all-commander-adaptation/test_commander_rollout.py tools/cmre-webui/test_revolution_overdrive.py tools/cmre-webui/test_launch_async_contract.py",
+      "status": "passed",
+      "summary": "45 tests passed."
+    },
+    {
+      "type": "runtime",
+      "command": "approved launcher thanson01.SC2Map -Commander TerranAlenger3 -ListenPort 5996 followed by realtime_commander_probe.py",
+      "status": "passed",
+      "summary": "P1 starting structure and worker targets observed in a naturally advancing realtime game with no same-window ScriptError."
+    }
+  ],
+  "nextStage": null
+}

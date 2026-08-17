@@ -10,8 +10,8 @@
 [CmdletBinding()]
 param(
     [string]$MapName = "traynor01.SC2Map",
-    [ValidateSet("Iron", "Madness", "Pirate", "Coverts", "Umojan")]
     [string]$Faction = "Iron",
+    [string]$Commander = "",
     [string]$Sc2Root = "",
     [int]$ListenPort = 0,
     [switch]$NoLaunch,
@@ -60,6 +60,20 @@ $mapsRoot = Join-Path $packageRoot "Maps"
 $evidenceRoot = Join-Path $workspace "artifacts\projects\revolution-overdrive-porting\stage03-commander-package\launcher"
 $gameLogsRoot = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "StarCraft II\GameLogs"
 $runtimeEvidenceRoot = Join-Path $workspace "artifacts\projects\revolution-overdrive-porting\stage07-commander-closure"
+$rolloutEvidenceRoot = Join-Path $workspace "artifacts\projects\revolution-overdrive-porting\stage10-all-commander-adaptation\launcher"
+$patchManifestPath = Join-Path $workspace "src\projects\revolution-overdrive-porting\vibe\commander_map_patches.json"
+$patchTemplatePath = Join-Path $workspace "src\projects\revolution-overdrive-porting\vibe\runtime_commander_overlay.galaxy.tpl"
+$cmreRuntimeRoot = Join-Path (Split-Path -Parent $workspace) "cmre-runtime"
+$dependencyHelper = Join-Path $cmreRuntimeRoot "scripts\sc2-launcher\document-dependencies.ps1"
+if (-not (Test-Path -LiteralPath $dependencyHelper -PathType Leaf)) {
+    throw "Commander patch dependency helper not found: $dependencyHelper"
+}
+. $dependencyHelper
+$patchSourceRoots = @{
+    "revolution-overdrive-owned-package" = $workspace
+    "cmre-owned-project" = $workspace
+    "cmre-runtime" = $cmreRuntimeRoot
+}
 
 $factions = @{
     # The shared RO library listens for the English preset name, while the
@@ -119,6 +133,221 @@ function Copy-DirectoryOverlay {
         } else {
             Copy-Item -LiteralPath $item.FullName -Destination $target -Force
         }
+    }
+}
+
+function Resolve-RevolutionCommanderPatch {
+    param(
+        [Parameter(Mandatory = $true)][string]$MapStem,
+        [string]$RequestedCommander,
+        [string]$RequestedFaction
+    )
+    if (-not (Test-Path -LiteralPath $patchManifestPath -PathType Leaf)) {
+        throw "Commander patch manifest not found: $patchManifestPath"
+    }
+    $manifest = Get-Content -LiteralPath $patchManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ([int]$manifest.schemaVersion -ne 2 -or [int]$manifest.commanderCount -ne 50) {
+        throw "Unsupported commander patch manifest contract"
+    }
+    if (@($manifest.mapPolicy.forbiddenMaps) -contains $MapStem) {
+        throw "Forbidden map for Revolution Overdrive commander adaptation: $MapStem"
+    }
+    if (@($manifest.mapPolicy.unsupportedMaps) -contains $MapStem) {
+        throw "Unsupported Revolution Overdrive entry-flow map: $MapStem"
+    }
+    if (@($manifest.mapPolicy.supportedMaps) -notcontains $MapStem) {
+        throw "Map is not in the explicit Revolution Overdrive patch allowlist: $MapStem"
+    }
+
+    $aliases = @{
+        "Iron" = "Iron"; "gangtiezhiyi" = "Iron"
+        "Madness" = "Madness"; "Pirate" = "Pirate"; "Coverts" = "Coverts"; "Umojan" = "Umojan"
+    }
+    $commander = $RequestedCommander.Trim()
+    $faction = ""
+    if ([string]::IsNullOrWhiteSpace($commander)) {
+        $rawFaction = $RequestedFaction.Trim()
+        if (-not $aliases.ContainsKey($rawFaction)) {
+            throw "Unknown Revolution Overdrive faction alias: $rawFaction"
+        }
+        $faction = [string]$aliases[$rawFaction]
+        $commander = "RevolutionOverdrive$faction"
+    } elseif ($commander -match '^RevolutionOverdrive(Iron|Madness|Pirate|Coverts|Umojan)$') {
+        $faction = $Matches[1]
+    }
+
+    $patch = @($manifest.commanders | Where-Object { [string]$_.commander -eq $commander }) | Select-Object -First 1
+    if ($null -eq $patch) {
+        throw "Commander is not declared by the Revolution Overdrive runtime patch manifest: $commander"
+    }
+    return [ordered]@{
+        manifestPath = $patchManifestPath
+        manifestId = [string]$manifest.id
+        commander = $commander
+        faction = $faction
+        patch = $patch
+    }
+}
+
+function Copy-CommanderPatchDependencies {
+    param(
+        [Parameter(Mandatory = $true)][object]$Patch,
+        [Parameter(Mandatory = $true)][string]$Sc2Root
+    )
+    $records = @()
+    $destinations = @{}
+    foreach ($dependency in @($Patch.dependencies)) {
+        $sourceId = [string]$dependency.source.sourceId
+        $relativeSource = ([string]$dependency.source.path).Replace('/', '\')
+        $relativeDestination = ([string]$dependency.destination).Replace('/', '\')
+        if (-not $patchSourceRoots.ContainsKey($sourceId)) {
+            throw "Patch dependency source is not registered: $sourceId"
+        }
+        if ([string]::IsNullOrWhiteSpace($relativeSource) -or [string]::IsNullOrWhiteSpace($relativeDestination) -or
+            $relativeSource.Contains('..') -or $relativeDestination.Contains('..') -or -not $relativeDestination.StartsWith('Mods\')) {
+            throw "Invalid commander patch dependency path: $sourceId/$relativeSource -> $relativeDestination"
+        }
+        if ($destinations.ContainsKey($relativeDestination)) {
+            throw "Duplicate commander patch staging destination: $relativeDestination"
+        }
+        $source = Join-Path $patchSourceRoots[$sourceId] $relativeSource
+        $destination = Join-Path $Sc2Root $relativeDestination
+        if (-not (Test-Path -LiteralPath $source -PathType Container)) {
+            throw "Commander patch dependency source is absent: $sourceId/$relativeSource"
+        }
+        Copy-OwnedDirectory -Source $source -Destination $destination
+        $destinations[$relativeDestination] = $true
+        $records += [ordered]@{
+            name = [string]$dependency.name
+            sourceId = $sourceId
+            source = $relativeSource.Replace('\', '/')
+            destination = $relativeDestination.Replace('\', '/')
+            manifest = Get-DirectoryManifest -Source $source
+        }
+    }
+    return @($records)
+}
+
+function Add-CommanderPatchDependenciesToMap {
+    param(
+        [Parameter(Mandatory = $true)][string]$MapPath,
+        [Parameter(Mandatory = $true)][object[]]$DependencyRecords
+    )
+    $existing = @(Read-DocumentInfoDependencies -Path (Join-Path $MapPath "DocumentInfo"))
+    $additional = @($DependencyRecords | ForEach-Object { 'file:' + ([string]$_.destination).Replace('/', '\') })
+    $combined = @($existing + $additional | Select-Object -Unique)
+    if ($combined.Count -ne ($existing.Count + $additional.Count)) {
+        throw "Commander patch dependency list contains a duplicate staged map dependency"
+    }
+    Set-MapDependencies -MapPath $MapPath -Dependencies $combined
+    return $combined
+}
+
+function Test-CommanderPatchCatalogs {
+    param(
+        [Parameter(Mandatory = $true)][object]$Patch,
+        [Parameter(Mandatory = $true)][object[]]$DependencyRecords,
+        [Parameter(Mandatory = $true)][string]$Sc2Root
+    )
+    $roots = @($modRoot)
+    foreach ($record in $DependencyRecords) {
+        $roots += Join-Path $Sc2Root (([string]$record.destination).Replace('/', '\'))
+    }
+    $unitDataFiles = @()
+    foreach ($root in @($roots | Select-Object -Unique)) {
+        if (-not (Test-Path -LiteralPath $root -PathType Container)) {
+            throw "Staged catalog root is absent: $root"
+        }
+        $unitDataFiles += @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter "UnitData*.xml")
+    }
+    $records = @()
+    foreach ($contract in @($Patch.catalogContracts)) {
+        $id = [string]$contract.id
+        if ($id -notmatch '^[A-Za-z0-9_]+$') {
+            throw "Invalid commander patch Catalog id: $id"
+        }
+        $pattern = '<CUnit(?:Hero)?\s+id="' + [regex]::Escape($id) + '"(?:\s|>)'
+        $matches = @($unitDataFiles | Where-Object { Select-String -LiteralPath $_.FullName -Pattern $pattern -Quiet })
+        if ($matches.Count -eq 0 -and [bool]$contract.required) {
+            throw "Required commander patch Catalog target is absent from staged dependency closure: $id"
+        }
+        $records += [ordered]@{
+            family = [string]$contract.family
+            id = $id
+            required = [bool]$contract.required
+            status = if ($matches.Count -gt 0) { "found" } else { "not_required" }
+            matches = @($matches | ForEach-Object { $_.FullName })
+        }
+    }
+    return @($records)
+}
+
+function Apply-CommanderRuntimePatch {
+    param(
+        [Parameter(Mandatory = $true)][string]$MapPath,
+        [Parameter(Mandatory = $true)][object]$Patch
+    )
+    if (-not (Test-Path -LiteralPath $patchTemplatePath -PathType Leaf)) {
+        throw "Commander patch Galaxy template not found: $patchTemplatePath"
+    }
+    $scriptPath = Join-Path $MapPath "MapScript.galaxy"
+    if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+        throw "Commander patch target script not found: $scriptPath"
+    }
+    $script = [System.IO.File]::ReadAllText($scriptPath)
+    $patchId = [string]$Patch.id
+    $marker = "RO_PATCH_RUNTIME_OVERLAY_V1 $patchId"
+    if ($script.Contains($marker)) {
+        throw "Commander patch is already present in the staged map: $patchId"
+    }
+    $replacementLines = @()
+    $replacementRecords = @()
+    foreach ($replacement in @($Patch.runtimeReplacements)) {
+        $from = [string]$replacement.from
+        $to = [string]$replacement.to
+        $players = @($replacement.players | ForEach-Object { [int]$_ })
+        if ($from -notmatch '^[A-Za-z0-9_]+$' -or $to -notmatch '^[A-Za-z0-9_]+$' -or
+            $players.Count -ne 1 -or $players[0] -ne 1) {
+            throw "Invalid runtime replacement in ${patchId}: $from -> $to"
+        }
+        $replacementLines += ('    if (lv_type == "' + $from + '") {')
+        $replacementLines += ('        libNtve_gf_ReplaceUnit(lp_unit, "' + $to + '", libNtve_ge_ReplaceUnitOptions_OldUnitsRelative);')
+        $replacementLines += '        return;'
+        $replacementLines += '    }'
+        $replacementRecords += [ordered]@{ from = $from; to = $to; player = 1 }
+    }
+    $hero = [string]$Patch.startup.hero
+    $structure = [string]$Patch.startup.startingStructure
+    $worker = [string]$Patch.startup.startingWorker
+    $workerCount = [int]$Patch.startup.workerCount
+    if ($hero -notmatch '^[A-Za-z0-9_]*$' -or $structure -notmatch '^[A-Za-z0-9_]+$' -or $worker -notmatch '^[A-Za-z0-9_]+$') {
+        throw "Invalid commander patch startup Catalog id"
+    }
+    if ($workerCount -lt 1 -or $workerCount -gt 64) {
+        throw "Invalid commander patch worker count: $workerCount"
+    }
+    $template = [System.IO.File]::ReadAllText($patchTemplatePath)
+    $overlay = $template.Replace('{{PATCH_ID}}', $patchId).Replace('{{REPLACEMENT_BODY}}', ($replacementLines -join [Environment]::NewLine)).Replace('{{HERO}}', $hero).Replace('{{STARTING_STRUCTURE}}', $structure).Replace('{{STARTING_WORKER}}', $worker).Replace('{{WORKER_COUNT}}', [string]$workerCount)
+    $bootstrapMarker = '//--------------------------------------------------------------------------------------------------' + [Environment]::NewLine + '// Trigger Initialization'
+    if (-not $script.Contains($bootstrapMarker)) {
+        throw "Expected trigger initialization marker was not found for commander patch injection"
+    }
+    $script = $script.Replace($bootstrapMarker, $overlay + [Environment]::NewLine + $bootstrapMarker)
+    $initNeedle = 'void InitTriggers () {' + [Environment]::NewLine
+    if ([regex]::Matches($script, [regex]::Escape($initNeedle)).Count -ne 1) {
+        throw "Expected exactly one InitTriggers anchor for commander patch injection"
+    }
+    $script = $script.Replace($initNeedle, $initNeedle + '    gt_ro_patch_bootstrap_Init();' + [Environment]::NewLine)
+    [System.IO.File]::WriteAllText($scriptPath, $script, (New-Object System.Text.UTF8Encoding($false)))
+    return [ordered]@{
+        status = "applied"
+        mode = "runtime_galaxy_overlay"
+        source = "src/projects/revolution-overdrive-porting/vibe/runtime_commander_overlay.galaxy.tpl"
+        marker = $marker
+        events = @("UnitCreated", "UnitChangeOwner", "TimePeriodic")
+        replacements = @($replacementRecords)
+        hero = $hero
+        startupFallback = [ordered]@{ structure = $structure; worker = $worker; workerCount = $workerCount }
     }
 }
 
@@ -380,6 +609,18 @@ void gt_ro_commander_runtime_bootstrap_Init () {
     return $record
 }
 
+function Get-Sha256Hex {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $algorithm = [System.Security.Cryptography.SHA256]::Create()
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        return [BitConverter]::ToString($algorithm.ComputeHash($stream)).Replace("-", "")
+    } finally {
+        $stream.Dispose()
+        $algorithm.Dispose()
+    }
+}
+
 function Get-DirectoryManifest {
     param([string]$Source)
     $resolvedSource = (Resolve-Path -LiteralPath $Source).Path
@@ -388,7 +629,7 @@ function Get-DirectoryManifest {
             Sort-Object FullName |
             ForEach-Object {
                 $relative = $_.FullName.Substring($resolvedSource.Length).TrimStart('\').Replace('\', '/')
-                $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash
+                $hash = Get-Sha256Hex -Path $_.FullName
                 [ordered]@{ path = $relative; bytes = $_.Length; sha256 = $hash }
             }
     )
@@ -506,6 +747,9 @@ function Send-FactionChat {
 $sc2Root = Resolve-Sc2Root -Requested $Sc2Root
 $switcher = Join-Path $sc2Root "Support64\SC2Switcher_x64.exe"
 $mapStem = if ($MapName.EndsWith(".SC2Map", [StringComparison]::OrdinalIgnoreCase)) { $MapName } else { "$MapName.SC2Map" }
+$commanderSelection = Resolve-RevolutionCommanderPatch -MapStem $mapStem -RequestedCommander $Commander -RequestedFaction $Faction
+$Faction = [string]$commanderSelection.faction
+$commanderPatch = $commanderSelection.patch
 $mapSource = Join-Path $mapsRoot $mapStem
 if (-not (Test-Path -LiteralPath $mapSource -PathType Container)) { throw "Owned map not found: $mapStem" }
 $assetMirrorAvailable = Test-Path -LiteralPath $assetModsRoot -PathType Container
@@ -518,6 +762,7 @@ foreach ($mod in $requiredMods) {
 
 $liveMods = Join-Path $sc2Root "Mods"
 $liveMap = Join-Path $sc2Root ("Maps\RevolutionOverdrive\" + $mapStem)
+$sourceMapManifestBefore = Get-DirectoryManifest -Source $mapSource
 $campaignsRoot = Join-Path $sc2Root "Campaigns"
 $resolvedCampaignSourceRoot = ""
 if ($CampaignSourceRoot) {
@@ -587,7 +832,23 @@ foreach ($mod in $requiredMods) {
     }
 }
 Copy-OwnedDirectory -Source $mapSource -Destination $liveMap
-$mapAdapter = Apply-MapCommanderAdapter -MapPath $liveMap -MapStem $mapStem -Faction $Faction
+$stagedMapManifestBeforePatch = Get-DirectoryManifest -Source $liveMap
+$patchDependencyRecords = @()
+$patchMapDependencies = @()
+$patchCatalogContracts = @()
+if ([bool]$commanderPatch.legacyNativeAdapter) {
+    $mapAdapter = Apply-MapCommanderAdapter -MapPath $liveMap -MapStem $mapStem -Faction $Faction
+} else {
+    $patchDependencyRecords = Copy-CommanderPatchDependencies -Patch $commanderPatch -Sc2Root $sc2Root
+    $patchMapDependencies = Add-CommanderPatchDependenciesToMap -MapPath $liveMap -DependencyRecords $patchDependencyRecords
+    $patchCatalogContracts = Test-CommanderPatchCatalogs -Patch $commanderPatch -DependencyRecords $patchDependencyRecords -Sc2Root $sc2Root
+    $mapAdapter = Apply-CommanderRuntimePatch -MapPath $liveMap -Patch $commanderPatch
+}
+$sourceMapManifestAfter = Get-DirectoryManifest -Source $mapSource
+if ($sourceMapManifestBefore.manifestSha256 -ne $sourceMapManifestAfter.manifestSha256) {
+    throw "Source map changed during staging; refusing to continue"
+}
+$stagedMapManifestAfterPatch = Get-DirectoryManifest -Source $liveMap
 
 $startedAt = Get-Date
 $evidence = [ordered]@{
@@ -595,12 +856,24 @@ $evidence = [ordered]@{
     classification = "static"
     package = "revolution-overdrive"
     map = $mapStem
+    commander = $commanderSelection.commander
     faction = $Faction
-    factionChat = if ($mapAdapter.selectionMode -eq "runtime_galaxy_bootstrap") { @() } else { @($factions[$Faction]) }
-    factionSelectionCommands = if ($mapAdapter.selectionMode -eq "runtime_galaxy_bootstrap") { @() } else { @($factions[$Faction]) }
+    patchManifest = "src/projects/revolution-overdrive-porting/vibe/commander_map_patches.json"
+    patchManifestId = $commanderSelection.manifestId
+    patchId = [string]$commanderPatch.id
+    patchMode = [string]$commanderPatch.mode
+    factionChat = if ([bool]$commanderPatch.legacyNativeAdapter -and $mapAdapter.selectionMode -ne "runtime_galaxy_bootstrap") { @($factions[$Faction]) } else { @() }
+    factionSelectionCommands = if ([bool]$commanderPatch.legacyNativeAdapter -and $mapAdapter.selectionMode -ne "runtime_galaxy_bootstrap") { @($factions[$Faction]) } else { @() }
     sourceMap = "src/projects/revolution-overdrive-porting/packages/Maps/$mapStem"
+    sourceMapManifestBefore = $sourceMapManifestBefore
+    sourceMapManifestAfter = $sourceMapManifestAfter
     stagedMap = $liveMap
+    stagedMapManifestBeforePatch = $stagedMapManifestBeforePatch
+    stagedMapManifestAfterPatch = $stagedMapManifestAfterPatch
     stagedMods = $requiredMods
+    stagedPatchDependencies = @($patchDependencyRecords)
+    stagedMapDependencies = @($patchMapDependencies)
+    patchCatalogContracts = @($patchCatalogContracts)
     assetMirror = "assets/src/projects/revolution-overdrive-porting/packages/Commander/Mods"
     assetOverlays = $assetOverlays
     mapAdapter = $mapAdapter
@@ -613,10 +886,12 @@ $evidence = [ordered]@{
     startedAtUtc = $startedAt.ToUniversalTime().ToString("o")
 }
 New-Item -ItemType Directory -Force -Path $evidenceRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $rolloutEvidenceRoot | Out-Null
 if ($NoLaunch) {
     $evidence | Add-Member -NotePropertyName status -NotePropertyValue "staged"
     $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $evidenceRoot "last-run.json") -Encoding UTF8
-    Write-Host "Revolution Overdrive staged: $mapStem / $Faction"
+    $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $rolloutEvidenceRoot "last-run.json") -Encoding UTF8
+    Write-Host "Revolution Overdrive staged: $mapStem / $($commanderSelection.commander)"
     Write-Host "Staged map: $liveMap"
     exit 0
 }
@@ -721,12 +996,12 @@ if ($ListenPort -gt 0) {
 $evidence.scriptErrors = @(Get-NewScriptErrors -Since $startedAt | ForEach-Object { $_.FullName })
 $evidence.scriptErrorFree = ($evidence.scriptErrors.Count -eq 0)
 $evidence.apiOwnerPid = if ($ListenPort -gt 0) { Get-ApiOwnerPid -Port $ListenPort } else { 0 }
-if ($evidence.ready -and -not $NoCheats -and $ListenPort -le 0 -and $mapAdapter.selectionMode -ne "runtime_galaxy_bootstrap") {
+if ([bool]$commanderPatch.legacyNativeAdapter -and $evidence.ready -and -not $NoCheats -and $ListenPort -le 0 -and $mapAdapter.selectionMode -ne "runtime_galaxy_bootstrap") {
     Start-Sleep -Seconds 2
     $evidence.factionChatSent = Send-FactionChat -Chats $factions[$Faction]
     $evidence.factionSelectionMode = "launcher_bootstrap"
     $evidence.manualFactionInputRequired = $false
-} elseif ($mapAdapter.selectionMode -eq "runtime_galaxy_bootstrap") {
+} elseif (-not [bool]$commanderPatch.legacyNativeAdapter -or $mapAdapter.selectionMode -eq "runtime_galaxy_bootstrap") {
     $evidence.factionChatSent = $false
     $evidence.factionSelectionMode = "runtime_galaxy_bootstrap"
     $evidence.manualFactionInputRequired = $false
@@ -738,4 +1013,4 @@ $evidence.ready = ($evidence.ready -and $evidence.apiStable)
 $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $runtimeEvidenceRoot "launcher-runtime.json") -Encoding UTF8
 if (-not $evidence.ready) { throw "SC2 did not produce a ready signal within $ReadyTimeoutSeconds seconds." }
 if (-not $evidence.scriptErrorFree) { throw "New ScriptError detected: $($evidence.scriptErrors -join ', ')" }
-Write-Host "Revolution Overdrive ready: $mapStem / $Faction"
+Write-Host "Revolution Overdrive ready: $mapStem / $($commanderSelection.commander)"

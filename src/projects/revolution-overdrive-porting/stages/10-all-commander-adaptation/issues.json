@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "issues": [
+    {
+      "id": "RO-ALL-010",
+      "severity": "medium",
+      "status": "open",
+      "summary": "The 1,492 supported cells without matching runtime evidence require individual realtime probes before they can be classified as runtime-passed.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage10-all-commander-adaptation/commander-map-matrix.json",
+        "artifacts/projects/revolution-overdrive-porting/stage10-all-commander-adaptation/runtime-evidence-index.json"
+      ],
+      "impact": "The runtime patch contract can be staged and validated statically, but one Alenger pilot does not prove the remaining maps or commanders.",
+      "nextAction": "Run the Stage 10 realtime probe per map and commander against an independent approved-launcher window, then index only the passing cell evidence."
+    },
+    {
+      "id": "RO-ALL-011",
+      "severity": "medium",
+      "status": "resolved",
+      "summary": "Mission-only openings with no CommandCenter/SCV anchor did not initialize the selected commander's base and workers.",
+      "evidence": [
+        "artifacts/projects/revolution-overdrive-porting/stage10-all-commander-adaptation/runtime-pilot-5994/realtime-probe.json",
+        "artifacts/projects/revolution-overdrive-porting/stage10-all-commander-adaptation/runtime-pilot-5996/realtime-probe.json"
+      ],
+      "impact": "The selected commander could load but its declared starting base and worker state was absent on thanson01.",
+      "resolution": "The staged runtime Galaxy overlay now creates the manifest base and worker count at a P1 mission-unit anchor when no selected starting structure exists. The repaired thanson01 x TerranAlenger3 window observed one base and 12 workers in realtime with no ScriptError."
+    }
+  ]
+}

@@ -115,6 +115,32 @@ class RevolutionOverdriveWebUiMvpTests(unittest.TestCase):
         self.assertTrue(Path(evidence["stagedMap"]).is_dir())
         self.assertTrue((Path(evidence["stagedMap"]) / "MapScript.galaxy").is_file())
 
+    def test_webui_dry_run_stages_cross_category_runtime_patch(self):
+        result = self.post_json("/api/launch", {
+            "packageId": "revolution-overdrive",
+            "mapPackage": "revolution-overdrive",
+            "commander": "TerranAlenger3",
+            "commanderPackage": "cmre",
+            "mapName": "thanson01.SC2Map",
+        })
+
+        self.assertTrue(result["success"], result)
+        self.assertEqual(result["commander"], "TerranAlenger3")
+        self.assertTrue(any("launch-revolution-overdrive.ps1" in arg for arg in result["debug_args"]))
+        self.assertEqual(result["debug_args"][result["debug_args"].index("-Commander") + 1], "TerranAlenger3")
+        evidence = json.loads(EVIDENCE.read_text(encoding="utf-8-sig"))
+        self.assertEqual(evidence["status"], "staged")
+        self.assertEqual(evidence["commander"], "TerranAlenger3")
+        self.assertEqual(evidence["patchMode"], "runtime_galaxy_overlay")
+        self.assertTrue(any(item["name"] == "EmpireAlenger.SC2Mod" for item in evidence["stagedPatchDependencies"]))
+        self.assertTrue(all(item["status"] == "found" for item in evidence["patchCatalogContracts"]))
+        self.assertEqual(
+            evidence["sourceMapManifestBefore"]["manifestSha256"],
+            evidence["sourceMapManifestAfter"]["manifestSha256"],
+        )
+        staged_script = (Path(evidence["stagedMap"]) / "MapScript.galaxy").read_text(encoding="utf-8-sig")
+        self.assertIn("RO_PATCH_RUNTIME_OVERLAY_V1 ro-patch-TerranAlenger3", staged_script)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1614,9 +1614,9 @@ async function launchGame() {
     enemy: s.enemy, mutators: s.mutators,
     voicePack: s.voicePack, extraMods: s.extraMods,
   };
-  if (s.mapPackage === "revolution-overdrive" && s.commanderPackage === "revolution-overdrive") {
+  if (s.mapPackage === "revolution-overdrive") {
     body.packageId = "revolution-overdrive";
-    body.faction = s.faction;
+    if (s.commanderPackage === "revolution-overdrive") body.faction = s.faction;
   }
   if (s.mapPackage === "dou-ququ") {
     body.enableDouQuquBehavior = true;
@@ -1628,7 +1628,7 @@ async function launchGame() {
   // 但 launcher 只接受 "ZergAbathur" 形式作为 -Commander，所以用 cmdrMeta.runtimeId 覆盖 body.commander。
   // cmdrMeta.id 唯一（Reborn 前缀），find 能精确匹配；原版指挥官无 runtimeId 字段，保持 s.commander 不变。
   const cmdrMeta = state.commanders.find(c => c.id === s.commander);
-  if (cmdrMeta && cmdrMeta.group === "reborn") {
+  if (cmdrMeta && cmdrMeta.group === "reborn" && s.mapPackage !== "revolution-overdrive") {
     body.enableReborn = true;
     body.rebornCommander = cmdrMeta.rebornName || cmdrMeta.bank || "";
     if (cmdrMeta.runtimeId) body.commander = cmdrMeta.runtimeId;

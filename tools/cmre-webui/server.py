@@ -3424,22 +3424,38 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             self._send_json({"success": False, "error": str(exc), "status": _runtime_console.status()}, 400)
 
     def _build_revolution_launch_args(self, body):
-        """Build an explicit map-plus-faction request for the owned package."""
+        """Build an explicit Revolution Overdrive map-plus-commander request."""
         map_name = body.get("mapName", "")
         faction = body.get("faction", "")
         commander = body.get("commander", "")
         if not faction and commander.startswith("RevolutionOverdrive"):
             faction = commander.removeprefix("RevolutionOverdrive")
         valid_maps = {entry["id"] for entry in load_revolution_maps()}
-        valid_factions = {
-            entry["faction"] for entry in load_revolution_commanders()
+        native_commanders = {
+            entry["id"]: entry["faction"] for entry in load_revolution_commanders()
         }
+        valid_commanders = {
+            entry["id"] for entry in load_commanders()
+        } | set(native_commanders)
+        if not commander and faction:
+            commander = f"RevolutionOverdrive{faction}"
         if map_name not in valid_maps:
             self._send_json({"success": False, "error": f"未知起义狂潮地图: {map_name}"}, 400)
             return None
-        if faction not in valid_factions:
-            self._send_json({"success": False, "error": f"未知起义狂潮阵营: {faction}"}, 400)
+        if map_name == "tarcade.SC2Map":
+            self._send_json({"success": False, "error": "tarcade 是入口流地图，尚不支持指挥官运行时适配"}, 400)
             return None
+        if commander not in valid_commanders:
+            self._send_json({"success": False, "error": f"未知起义狂潮适配指挥官: {commander}"}, 400)
+            return None
+        native_faction = native_commanders.get(commander, "")
+        if native_faction:
+            if faction and faction != native_faction:
+                self._send_json({"success": False, "error": f"指挥官与阵营不一致: {commander}/{faction}"}, 400)
+                return None
+            faction = native_faction
+        else:
+            faction = ""
         if not REVOLUTION_LAUNCH_SCRIPT.exists():
             self._send_json({"success": False, "error": f"启动脚本不存在: {REVOLUTION_LAUNCH_SCRIPT}"}, 500)
             return None
@@ -3456,9 +3472,11 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             str(REVOLUTION_LAUNCH_SCRIPT),
             "-MapName",
             map_name,
-            "-Faction",
-            faction,
+            "-Commander",
+            commander,
         ]
+        if faction:
+            args.extend(["-Faction", faction])
         if listen_port > 0:
             args.extend(["-ListenPort", str(listen_port)])
         if os.environ.get("CMRE_WEBUI_DRY_RUN"):
@@ -3466,7 +3484,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         return {
             "kind": "revolution-overdrive",
             "args": args,
-            "commander": commander or f"RevolutionOverdrive{faction}",
+            "commander": commander,
             "faction": faction,
             "map_name": map_name,
             "listen_port": listen_port,
@@ -3479,20 +3497,10 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                         buffs, masteries, listen_port, commander}；
         失败时发送错误 JSON 响应并返回 None。
         """
-        # Keep the native Revolution launcher only for its own faction presets.
-        # Cross-category matrix cells use the CMRE adapter launcher so the selected
-        # official/Alenger/Reborn commander remains the actual commander under test.
-        commander_package = body.get("commanderPackage", "")
-        if (
-            body.get("packageId") == "revolution-overdrive"
-            and (
-                commander_package == "revolution-overdrive"
-                or (
-                    not commander_package
-                    and str(body.get("commander", "")).startswith("RevolutionOverdrive")
-                )
-            )
-        ):
+        # A Revolution Overdrive map always uses its own launcher. The selected
+        # manifest then stages only that commander's dependencies and overlays
+        # the staged map; cross-category choices never fall back to a CMRE map.
+        if body.get("packageId") == "revolution-overdrive" or body.get("mapPackage") == "revolution-overdrive":
             return self._build_revolution_launch_args(body)
 
         commander = body.get("commander", "TerranAlenger3")
@@ -3775,6 +3783,7 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             "success": True,
             "message": "起义狂潮已启动" if not os.environ.get("CMRE_WEBUI_DRY_RUN") else "起义狂潮已完成 staging",
             "packageId": "revolution-overdrive",
+            "commander": ctx["commander"],
             "faction": ctx["faction"],
             "mapName": ctx["map_name"],
             "listenPort": ctx["listen_port"] or None,
