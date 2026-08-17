@@ -5,21 +5,54 @@
     "native_differential": "BLOCKED",
     "status": "PASS"
   },
-  "evidence_type": "simulator",
+  "evidence_type": "mixed",
   "implementation": {
     "artifact": "artifacts/projects/cmre-porting/stage33-world-state-observability-contract/world-state-observability-contract-20260817.json",
     "module": "src/projects/cmre-porting/vibe/simulation_first_progression.py"
   },
   "next_actions": [
     "Keep native differential BLOCKED until Stage 31 runtime evidence exists.",
-    "Proceed to 34-canonical-catalog-slice after preserving this stage quartet and artifact."
+    "Proceed to 34-canonical-catalog-slice after preserving this stage quartet and artifact.",
+    "If runtime behavior remains in scope, isolate the InfestedBanshee handler abort before rerunning the full Dou Ququ runtime probe.",
+    "Add a gameplay projectile event assertion before claiming automatic projectile replacement."
   ],
   "next_stage": "34-canonical-catalog-slice",
-  "runtime_claim": "none; deterministic simulator world-state observability only",
+  "runtime_claim": "simulator world-state observability PASS plus explicit VM catalog override only; no automatic gameplay behavior or native parity claim",
+  "runtime_vm_progress": {
+    "artifact": "artifacts/projects/cmre-porting/stage33-world-state-observability-contract/runtime-vm-progress-20260817.json",
+    "compiled_call": {
+      "catalog": "effect",
+      "entry": "ScarabLM",
+      "field": "AmmoUnit",
+      "function_id": "vibe.catalog.set",
+      "player": 1,
+      "value": "ScarabWeapon"
+    },
+    "latest_request_id": "89942a4a0f2a",
+    "latest_state_version": 14,
+    "observation": {
+      "endpoint": "GET /api/vibe/observe",
+      "error_code": "OK",
+      "game_loop": 282,
+      "unit_count": 4
+    },
+    "port": 5896,
+    "readiness": {
+      "game_loop": 244,
+      "status_name": "in_game"
+    },
+    "script": "ReplaceScarabProjectile(\"ScarabWeapon\");",
+    "script_errors": {
+      "count": 0,
+      "method": "Python os.walk under %USERPROFILE%/Documents/StarCraft II, pruning .runtime-lab-backup-* recursion"
+    },
+    "session_id": "dou-ququ-runtime-45e7f82cdab6",
+    "status": "CONNECTED_PROJECTILE_SCRIPT_PASSED"
+  },
   "schemaVersion": 1,
   "stage": "33-world-state-observability-contract",
   "status": "COMPLETE",
-  "summary": "Stage 33 deliverable generated and verified as `world-state-observability.v1`. Report status is `PASS`; native_claim=false and native_differential remains `BLOCKED`.",
+  "summary": "Stage 33 deliverable generated and verified as `world-state-observability.v1`. Report status is `PASS`; native_claim=false and native_differential remains `BLOCKED`. Runtime continuation also verified WebUI session reconnection and explicit VM catalog override; automatic gameplay projectile replacement remains not claimed.",
   "validation": [
     {
       "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.simulation_first_progression --stage 33 --out artifacts/projects/cmre-porting/stage33-world-state-observability-contract/world-state-observability-contract-20260817.json",
@@ -38,6 +71,36 @@
       "detail": "Focused stage contract test passes.",
       "evidence_type": "static",
       "status": "PASS"
+    },
+    {
+      "command": "POST http://127.0.0.1:8777/api/vibe/connect with rpcSessionId=dou-ququ-runtime-45e7f82cdab6",
+      "detail": "WebUI accepted the recovered session and reported status=connected, port=5896, readiness status_name=in_game game_loop=244.",
+      "evidence_type": "runtime",
+      "status": "PASS"
+    },
+    {
+      "command": "POST http://127.0.0.1:8777/api/vibe/run-script source=ReplaceScarabProjectile(\"ScarabWeapon\");",
+      "detail": "Compiled to one VM call and executed vibe.catalog.set against effect ScarabLM AmmoUnit with error_code=OK, request_id=89942a4a0f2a, state_version=14.",
+      "evidence_type": "runtime",
+      "status": "PASS"
+    },
+    {
+      "command": "POST http://127.0.0.1:8777/api/vibe/step loops=8 then GET http://127.0.0.1:8777/api/vibe/observe",
+      "detail": "Step returned OK and observe returned OK with game_loop=282 and unit_count=4.",
+      "evidence_type": "runtime",
+      "status": "PASS"
+    },
+    {
+      "command": "Python os.walk %USERPROFILE%/Documents/StarCraft II for *ScriptError*.txt, pruning .runtime-lab-backup-* directories",
+      "detail": "No ScriptError files found.",
+      "evidence_type": "runtime",
+      "status": "PASS"
+    },
+    {
+      "command": "Automatic projectile gameplay event assertion",
+      "detail": "The verified path is explicit VM/catalog override only; no real gameplay projectile event-to-observation assertion was run.",
+      "evidence_type": "blocked",
+      "status": "NOT_CLAIMED"
     }
   ]
 }
