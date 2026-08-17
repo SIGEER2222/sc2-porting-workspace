@@ -1,36 +1,30 @@
 {
+  "schemaVersion": 1,
+  "stage": "33-world-state-observability-contract",
   "issues": [
     {
-      "evidence": [
-        "src/projects/cmre-porting/stages/31-native-runtime-evidence-lane/result.json"
-      ],
-      "id": "SIM-FIRST-33-NATIVE-BLOCKED",
-      "nextAction": "Restore/verify SC2 launcher runtime evidence before promoting any native parity claim.",
-      "severity": "blocked",
-      "status": "open",
-      "summary": "Native SC2 differential evidence is unavailable."
-    },
-    {
-      "evidence": [
-        "artifacts/projects/cmre-porting/stage33-world-state-observability-contract/runtime-vm-progress-20260817.json"
-      ],
       "id": "AUTOMATIC-PROJECTILE-REPLACEMENT-NOT-EXERCISED",
-      "nextAction": "Add or run a gameplay event assertion that observes the replacement projectile after an attack, then record runtime evidence separately from explicit VM/API evidence.",
-      "severity": "blocked",
-      "status": "open",
-      "summary": "ReplaceScarabProjectile(\"ScarabWeapon\") was verified as an explicit VM catalog override through vibe.catalog.set, but no real gameplay projectile event-to-observation assertion was run."
+      "status": "OPEN",
+      "evidence_type": "blocked",
+      "detail": "ReplaceScarabProjectile(\"ScarabWeapon\") was verified as an explicit VM catalog override through vibe.catalog.set, but no real gameplay projectile event-to-observation assertion was run.",
+      "source": "artifacts/projects/cmre-porting/stage33-world-state-observability-contract/runtime-vm-progress-20260817.json",
+      "next_action": "Add or run a gameplay event assertion that observes the replacement projectile after an attack, then record runtime evidence separately from explicit VM/API evidence."
     },
     {
-      "evidence": [
-        "terminal command: python tools/cmre-webui/dou_ququ_runtime_probe.py --port 5896 --map-path artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/dou-ququ-runtime-vm.packed.SC2Map --out-dir artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/live-restart-probe-20260817"
-      ],
       "id": "DOUQUQU-FULL-PROBE-INFESTED-BANSHEE-HANDLER-ABORT",
-      "nextAction": "Isolate whether the abort is unit catalog availability, spawn location/pathing, handler timeout, or stale runtime state before rerunning the full probe.",
-      "severity": "runtime",
-      "status": "open",
-      "summary": "The direct full Dou Ququ runtime probe reached VM dispatch but failed at douququ.unit.spawn for InfestedBanshee with HANDLER_ABORTED handler_did_not_complete, so full probe PASS is not claimed."
+      "status": "OPEN",
+      "evidence_type": "runtime",
+      "detail": "The direct full Dou Ququ runtime probe reached VM dispatch but failed at douququ.unit.spawn for InfestedBanshee with HANDLER_ABORTED handler_did_not_complete, so full probe PASS is not claimed.",
+      "source": "terminal command: python tools/cmre-webui/dou_ququ_runtime_probe.py --port 5896 --map-path artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/dou-ququ-runtime-vm.packed.SC2Map --out-dir artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/live-restart-probe-20260817",
+      "next_action": "Isolate whether the abort is unit catalog availability, spawn location/pathing, handler timeout, or stale runtime state before rerunning the full probe."
+    },
+    {
+      "id": "STAGE33-DECLARED-SIMULATOR-OBSERVABILITY-NOT-COMPLETE",
+      "status": "OPEN",
+      "evidence_type": "static",
+      "detail": "The stage currently has a plan plus runtime continuation evidence, but the declared world-state observability module, focused tests, simulator artifact, and next-stage plan have not been completed in this continuation.",
+      "source": "src/projects/cmre-porting/stages/33-world-state-observability-contract/plan.md",
+      "next_action": "Implement and validate the Stage 33 simulator world-state observability contract per plan.md."
     }
-  ],
-  "schemaVersion": 1,
-  "stage": "33-world-state-observability-contract"
+  ]
 }
