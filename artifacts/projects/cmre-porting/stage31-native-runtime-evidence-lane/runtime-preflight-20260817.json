@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "stage": "31-native-runtime-evidence-lane",
+  "fixture_id": "stage31-native-dead-of-night-baseline",
+  "captured_at_utc": "2026-08-17T09:17:13Z",
+  "status": "BLOCKED",
+  "evidence_type": "blocked",
+  "native_claim": false,
+  "source_map": {
+    "path": "src/projects/cmre-porting/packages/Maps/亡者之夜.SC2Map",
+    "exists": true
+  },
+  "sc2_runtime_roots": [
+    {"path": "E:/SC2/SC2new/StarCraft II", "exists": false},
+    {"path": "C:/Program Files (x86)/StarCraft II", "exists": false},
+    {"path": "C:/Program Files/StarCraft II", "exists": false},
+    {"path": "D:/SC2", "exists": false}
+  ],
+  "sc2_executable_candidates": {
+    "configured": "E:/SC2/SC2new/StarCraft II/Versions/Base97563/SC2_x64.exe",
+    "exists": false,
+    "common_location_glob": "no paths found"
+  },
+  "process_preflight": {
+    "image": "SC2_x64.exe",
+    "running": false
+  },
+  "launcher_static_validation": {
+    "command": "py -3.13 -m pytest -q tools/launchers/tests/test_launch_cmre_alenger_static.py --tb=short",
+    "status": "PASS",
+    "detail": "64 passed in 0.31s"
+  },
+  "not_attempted": [
+    "launcher process startup",
+    "map packing",
+    "CreateGame",
+    "JoinGame",
+    "RequestStep",
+    "mission result assertion",
+    "same-window ScriptError gate"
+  ],
+  "blocker": "No SC2 installation exists at the launcher-configured root or common alternate roots. The launcher hard-codes E:/SC2/SC2new/StarCraft II, so safely starting a compliant native runtime window is impossible on this workstation.",
+  "next_action": "Restore a supported SC2 installation at E:/SC2/SC2new/StarCraft II (or make a separately scoped launcher configuration change), then rerun Stage 31 through the approved launcher with a fresh epoch."
+}

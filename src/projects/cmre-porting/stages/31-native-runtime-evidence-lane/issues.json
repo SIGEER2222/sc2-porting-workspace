@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "stage": "31-native-runtime-evidence-lane",
+  "issues": [
+    {
+      "id": "SIM31-FRESH-NATIVE-RUNTIME-PENDING",
+      "severity": "high",
+      "status": "blocked",
+      "evidence_type": "blocked",
+      "title": "Fresh launcher-owned native mission evidence cannot run without SC2",
+      "detail": "The source map exists, but the launcher-configured SC2 root E:/SC2/SC2new/StarCraft II, three common alternate SC2 roots, and the configured SC2_x64.exe are absent. No SC2_x64.exe process is running. Therefore no compliant launcher/API/runtime listener/ScriptError window can be started.",
+      "evidence": "artifacts/projects/cmre-porting/stage31-native-runtime-evidence-lane/runtime-preflight-20260817.json",
+      "nextAction": "Restore a supported SC2 installation at the launcher-configured root or make a separately scoped launcher configuration change, then rerun Stage 31 with a fresh epoch."
+    },
+    {
+      "id": "SIM31-NATIVE-EVIDENCE-CHAIN-GATE",
+      "severity": "high",
+      "status": "open",
+      "evidence_type": "scope",
+      "title": "Native mission completion cannot be inferred from simulator or replay evidence",
+      "detail": "Stage 31 has no fresh runtime window. The 64-pass launcher static suite proves only launcher source behavior; it does not replace runtime listener, API, mission-result, or same-window ScriptError evidence.",
+      "nextAction": "Keep Stage 32 blocked until the Stage 31 runtime evidence chain is complete."
+    }
+  ]
+}

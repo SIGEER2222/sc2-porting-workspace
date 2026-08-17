@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "stage": "31-native-runtime-evidence-lane",
+  "status": "BLOCKED",
+  "evidence_type": "blocked",
+  "summary": "Stage 31 cannot start a compliant native SC2 window on this workstation. The declared source map exists, but no SC2 installation exists at the launcher-configured E:/SC2/SC2new/StarCraft II root or common alternate roots, and no SC2 process is running. The approved launcher static regression passes, but no launcher/API/runtime/ScriptError result is claimed.",
+  "depends_on": [
+    "src/projects/cmre-porting/stages/30-differential-validation-layer/result.json",
+    "artifacts/projects/cmre-porting/stage30-differential-validation-layer/differential-report-20260817.json",
+    "tools/launchers/launch-cmre-alenger.ps1",
+    "src/projects/cmre-porting/stages/23-runtime-full-structure-clearance/run_runtime_full_structure_clearance.py"
+  ],
+  "fixture": {
+    "fixture_id": "stage31-native-dead-of-night-baseline",
+    "map": "亡者之夜.SC2Map",
+    "commander": "TerranRaynor",
+    "topology": "P1 Participant, P2 native Computer ally"
+  },
+  "target_contract": {
+    "native_observation_schema": "differential-observation.v1",
+    "native_mission_completion_claim": true,
+    "required_evidence": [
+      "launcher_ready",
+      "runtime_listener_heartbeat",
+      "create_game_join_game",
+      "advancing_request_step_frames",
+      "api_runtime_assertions",
+      "terminal_mission_result",
+      "same_window_script_error_verdict",
+      "evidence_bundle"
+    ]
+  },
+  "runtime_preflight": {
+    "status": "BLOCKED",
+    "artifact": "artifacts/projects/cmre-porting/stage31-native-runtime-evidence-lane/runtime-preflight-20260817.json",
+    "source_map_exists": true,
+    "configured_sc2_executable_exists": false,
+    "active_sc2_process": false,
+    "launcher_static_regression": "PASS (64 tests)"
+  },
+  "validation": [
+    {
+      "evidence_type": "static",
+      "command": "py -3.13 -m pytest -q tools/launchers/tests/test_launch_cmre_alenger_static.py --tb=short",
+      "status": "PASS",
+      "detail": "64 launcher static tests passed in 0.31s. This is not runtime evidence."
+    },
+    {
+      "evidence_type": "blocked",
+      "command": "SC2 root/process preflight for E:/SC2/SC2new/StarCraft II plus common alternate roots",
+      "status": "BLOCKED",
+      "detail": "Configured root, three common alternate roots, and configured SC2_x64.exe are absent; no SC2_x64.exe process is active."
+    }
+  ],
+  "runtime_claim": "none; launcher/API/runtime listener/CreateGame/JoinGame/RequestStep/mission-result/ScriptError gates were not run because a compliant SC2 executable is absent",
+  "next_actions": [
+    "Restore SC2 at E:/SC2/SC2new/StarCraft II or make a separately scoped launcher configuration change to a verified installation.",
+    "Re-run the approved launcher with a fresh epoch, then collect all required same-window evidence.",
+    "Do not promote Stage 32 until Stage 31 has a verified native mission-completion chain."
+  ]
+}

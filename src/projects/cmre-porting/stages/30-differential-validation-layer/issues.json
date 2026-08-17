@@ -5,20 +5,22 @@
     {
       "id": "SIM30-DIFFERENTIAL-REPORT-PENDING",
       "severity": "high",
-      "status": "open",
-      "evidence_type": "static",
+      "status": "resolved",
+      "evidence_type": "mixed",
       "title": "differential-report.v1 comparator is not implemented yet",
-      "detail": "Stage 30 has only been opened from the Stage 29 PASS artifact. The normalized observation records, comparator, report artifact, and focused tests still need to be implemented.",
-      "nextAction": "Build the differential-report.v1 comparator and validate it with focused tests before any native trace claim."
+      "detail": "Resolved by the normalized observation contract, reusable comparator, fixture coverage, focused tests, and generated report artifact. Missing or inference-only native evidence is rejected from PASS.",
+      "resolution": "src/projects/cmre-porting/vibe/differential_validation.py; artifacts/projects/cmre-porting/stage30-differential-validation-layer/differential-report-20260817.json",
+      "nextAction": "None for Stage 30; feed a fresh runtime-labelled observation from Stage 31 into the comparator."
     },
     {
       "id": "SIM30-NATIVE-MISSION-COMPLETION-OUT-OF-SCOPE",
       "severity": "medium",
-      "status": "open",
+      "status": "deferred",
       "evidence_type": "scope",
       "title": "Native mission completion remains Stage 31 scope",
-      "detail": "Stage 30 may compare native observations, but it must not claim mission completion or reuse simulator PASS as native runtime proof.",
-      "nextAction": "Keep mission-completion evidence deferred to Stage 31 native runtime evidence lane."
+      "detail": "The generated Stage 30 report is BLOCKED with native_runtime_present=false. This is intentional: Stage 30 implements comparison semantics and does not convert simulator evidence, static catalog values, or the historical P9 stub into native runtime evidence.",
+      "resolution": "artifacts/projects/cmre-porting/stage30-differential-validation-layer/differential-report-20260817.json",
+      "nextAction": "Execute a fresh launcher-owned Stage 31 runtime window with listener, API, mission-result, and same-window ScriptError evidence."
     }
   ]
 }
