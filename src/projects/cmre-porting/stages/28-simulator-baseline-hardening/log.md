@@ -50,7 +50,8 @@
 - `artifacts/projects/cmre-porting/stage28-simulator-baseline-hardening/catalog-fidelity-baseline-20260817.json`
 - `artifacts/projects/cmre-porting/stage28-simulator-baseline-hardening/validation-20260817.json`
 
-## Remaining work
+## Handoff
 
-- `open`: `SIM28-NATIVE-RUNTIME-OUT-OF-SCOPE` remains by design; adapter clearance is simulator-only evidence.
-- `open`: P1b/P2 should persist `catalog_fidelity_baseline` across generated matrix artifacts for every CMRE map, then run the broader adapter-clearance sweep.
+- `static`: Stage 28 is marked complete after P0 simulator result semantics and P1 catalog-fidelity baseline passed focused regression validation.
+- `scope`: Native SC2 mission completion remains explicitly out of scope for Stage 28 and is carried as a recorded boundary, not a Stage 28 implementation blocker.
+- `static`: Opened Stage 29 `normal-start-contract` from the Stage29+ roadmap. Stage 29 must prioritize fair normal RTS macro-bootstrap evidence before broader map-matrix sweeps or native runtime claims.

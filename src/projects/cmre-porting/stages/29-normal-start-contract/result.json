@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "stage": "29-normal-start-contract",
+  "status": "IN_PROGRESS",
+  "evidence_type": "static",
+  "summary": "Stage 29 is initialized from the Stage29+ simulator roadmap. The stage will establish a normal RTS macro-bootstrap contract with no adapter-injected advantages, result_category=macro_bootstrap, and native_claim=false.",
+  "source_plan": "C:/Users/Sigeer/Downloads/sc2-simulator-next-stage-plan-stage29-plus.md",
+  "depends_on": [
+    "src/projects/cmre-porting/stages/28-simulator-baseline-hardening/result.json",
+    "src/projects/cmre-porting/vibe/catalog_fidelity.py"
+  ],
+  "target_contract": {
+    "schema_version": "normal-start-contract.v1",
+    "result_category": "macro_bootstrap",
+    "native_claim": false,
+    "initial_state": {
+      "p1": {
+        "race": "Terran",
+        "minerals": 50,
+        "gas": 0,
+        "workers": 12
+      },
+      "p2": {
+        "race": "Terran",
+        "minerals": 50,
+        "gas": 0,
+        "workers": 12
+      },
+      "enemy": "none"
+    },
+    "prohibited_adapter_advantages": [
+      "initial_combat_unit_injection",
+      "extra_building_injection",
+      "resource_multiplier_or_boosted_starting_resources",
+      "enemy_replacement",
+      "enemy_relocation_or_staging",
+      "map_count_expansion_as_success_substitute"
+    ],
+    "required_checks": [
+      "worker_mining",
+      "resource_income",
+      "resource_deposit",
+      "supply_handling",
+      "worker_survival",
+      "building_construction",
+      "production_completion",
+      "combat_unit_creation",
+      "no_dispatch_error",
+      "no_deadlock"
+    ]
+  },
+  "validation": [
+    {
+      "evidence_type": "static",
+      "command": "py -3.13 -m json.tool src/projects/cmre-porting/project.json && py -3.13 -m json.tool src/projects/cmre-porting/stages/28-simulator-baseline-hardening/result.json && py -3.13 -m json.tool src/projects/cmre-porting/stages/29-normal-start-contract/result.json && py -3.13 -m json.tool src/projects/cmre-porting/stages/29-normal-start-contract/issues.json",
+      "status": "PASS",
+      "detail": "Stage transition JSON files parsed successfully after creating Stage 29 and switching currentStage."
+    }
+  ],
+  "runtime_claim": "none; Stage 29 is deterministic simulator macro-bootstrap planning until focused simulator tests pass",
+  "next_actions": [
+    "Implement deterministic normal-start fixture with no adapter-injected advantages.",
+    "Generate normal-start-contract.v1 and assert each required macro-bootstrap check independently.",
+    "Only after Stage 29 passes, proceed to Stage 30 differential validation planning."
+  ]
+}

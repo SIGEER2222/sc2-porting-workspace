@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "stage": "28-simulator-baseline-hardening",
-  "status": "IN_PROGRESS",
+  "status": "COMPLETE",
   "p0_status": "PASS",
   "p1_catalog_fidelity_status": "PASS",
   "evidence_type": "simulator",
-  "summary": "P0 simulator-first hardening remains regression-tested, and P1 catalog-fidelity baseline is implemented: map probe summaries now gate on a static catalog_fidelity_baseline covering unit, economy, production, ability, and catalog reference-closure minimum checks. Native SC2 mission completion remains out of scope.",
+  "summary": "Stage 28 simulator-first hardening is complete: map probe summaries use adapter_clearance semantics, native SC2 mission completion is explicitly excluded, transformation and action-issuer provenance are recorded, and P1 catalog-fidelity baseline gates adapter-clearance summaries. Stage 29 is opened for normal RTS macro-bootstrap validation.",
   "changed_paths": [
     "src/config/workspace.json",
     "src/projects/cmre-porting/project.json",
@@ -84,7 +84,7 @@
   ],
   "runtime_claim": "none; Stage 28 is deterministic simulator evidence only",
   "next_actions": [
-    "P1b: persist catalog_fidelity_baseline in generated matrix artifacts for every CMRE map.",
-    "P2: run a broader map-matrix adapter-clearance sweep now that catalog-fidelity checks are added."
+    "Stage 29: implement normal-start-contract.v1 with result_category=macro_bootstrap and native_claim=false.",
+    "Defer broader map-matrix adapter-clearance sweeps until the normal RTS bootstrap contract passes."
   ]
 }
