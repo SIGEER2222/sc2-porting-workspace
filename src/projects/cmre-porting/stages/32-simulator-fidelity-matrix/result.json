@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "stage": "32-simulator-fidelity-matrix",
+  "status": "COMPLETE",
+  "evidence_type": "mixed",
+  "summary": "Stage 32 implemented and verified simulator-fidelity-matrix.v1. The artifact contains all 27 Simulation-First roadmap rows with source provenance and static capability probes: 26 supported, 11 APPROXIMATE, 15 PARTIAL, and 1 explicitly UNSUPPORTED. All 27 native differential fields truthfully remain BLOCKED; no native runtime or mission-completion claim is made.",
+  "depends_on": [
+    "src/projects/cmre-porting/vibe/catalog_fidelity.py",
+    "src/projects/cmre-porting/vibe/normal_start_contract.py",
+    "src/projects/cmre-porting/vibe/differential_validation.py",
+    "src/projects/cmre-porting/stages/31-native-runtime-evidence-lane/result.json"
+  ],
+  "implementation": {
+    "module": "src/projects/cmre-porting/vibe/simulator_fidelity_matrix.py",
+    "focused_tests": "src/projects/cmre-porting/stages/32-simulator-fidelity-matrix/test_simulator_fidelity_matrix.py",
+    "matrix_artifact": "artifacts/projects/cmre-porting/stage32-simulator-fidelity-matrix/fidelity-matrix-20260817.json"
+  },
+  "target_contract": {
+    "schema_version": "simulator-fidelity-matrix.v1",
+    "row_count": 27,
+    "native_claim": false,
+    "native_differential_default": "BLOCKED",
+    "unsupported_features_must_remain_visible": true
+  },
+  "validation": [
+    {
+      "evidence_type": "static",
+      "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m py_compile src/projects/cmre-porting/vibe/simulator_fidelity_matrix.py src/projects/cmre-porting/stages/32-simulator-fidelity-matrix/test_simulator_fidelity_matrix.py",
+      "status": "PASS",
+      "detail": "Stage 32 implementation and focused test module compiled successfully."
+    },
+    {
+      "evidence_type": "simulator",
+      "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m unittest discover -s src/projects/cmre-porting/stages/32-simulator-fidelity-matrix -p test_simulator_fidelity_matrix.py -v",
+      "status": "PASS",
+      "detail": "Ran 4 focused tests in 5.391s: roadmap coverage, truthful native blocker, source provenance/baselines, and artifact writing."
+    },
+    {
+      "evidence_type": "simulator",
+      "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m pytest -q src/projects/cmre-porting/stages/28-simulator-baseline-hardening/test_simulator_baseline_hardening.py src/projects/cmre-porting/stages/29-normal-start-contract/test_normal_start_contract.py --tb=short",
+      "status": "PASS",
+      "detail": "Re-verified the existing catalog and normal-start baselines: 8 passed in 2.94s."
+    },
+    {
+      "evidence_type": "simulator",
+      "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.simulator_fidelity_matrix --out artifacts/projects/cmre-porting/stage32-simulator-fidelity-matrix/fidelity-matrix-20260817.json",
+      "status": "PASS",
+      "detail": "Generated simulator-fidelity-matrix.v1 with status PASS and row_count 27."
+    },
+    {
+      "evidence_type": "static",
+      "command": "py -3.13 -m json.tool artifacts/projects/cmre-porting/stage32-simulator-fidelity-matrix/fidelity-matrix-20260817.json",
+      "status": "PASS",
+      "detail": "Generated artifact parses as JSON."
+    },
+    {
+      "evidence_type": "simulator",
+      "command": "Stage32 artifact assertions: schema, PASS, 27 rows/tested rows, native_claim=false, BLOCKED native differential count, explicit UNSUPPORTED row, and baseline input status",
+      "status": "PASS",
+      "detail": "Artifact assertions passed; catalog and normal-start baseline inputs are PASS and the native differential blocker is preserved."
+    }
+  ],
+  "matrix_result": {
+    "artifact_status": "PASS",
+    "row_count": 27,
+    "supported_count": 26,
+    "unsupported_count": 1,
+    "tested_count": 27,
+    "fidelity_counts": {
+      "APPROXIMATE": 11,
+      "PARTIAL": 15,
+      "UNSUPPORTED": 1
+    },
+    "native_differential_counts": {
+      "BLOCKED": 27
+    },
+    "catalog_baseline_status": "PASS",
+    "normal_start_baseline_status": "PASS"
+  },
+  "changed_paths": [
+    "src/projects/cmre-porting/project.json",
+    "src/projects/cmre-porting/vibe/simulator_fidelity_matrix.py",
+    "src/projects/cmre-porting/stages/32-simulator-fidelity-matrix/plan.md",
+    "src/projects/cmre-porting/stages/32-simulator-fidelity-matrix/test_simulator_fidelity_matrix.py",
+    "src/projects/cmre-porting/stages/32-simulator-fidelity-matrix/log.md",
+    "src/projects/cmre-porting/stages/32-simulator-fidelity-matrix/result.json",
+    "src/projects/cmre-porting/stages/32-simulator-fidelity-matrix/issues.json",
+    "artifacts/projects/cmre-porting/stage32-simulator-fidelity-matrix/fidelity-matrix-20260817.json",
+    "src/projects/cmre-porting/stages/33-world-state-observability-contract/plan.md"
+  ],
+  "runtime_claim": "none; this stage provides simulator-only fidelity evidence and cannot establish native SC2 parity or mission completion",
+  "next_stage": "33-world-state-observability-contract",
+  "next_actions": [
+    "Implement the Stage 33 world-state observability contract before extending simulator feature breadth.",
+    "Keep native differential values BLOCKED until a compliant Stage 31 runtime evidence chain exists.",
+    "Use the matrix denominator and fidelity labels to prioritize behavior-level probes instead of silently replacing unsupported map content."
+  ]
+}

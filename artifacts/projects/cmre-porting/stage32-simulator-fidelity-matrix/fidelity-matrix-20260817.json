@@ -1,0 +1,367 @@
+{
+  "schemaVersion": 1,
+  "contract_schema_version": "simulator-fidelity-matrix.v1",
+  "status": "PASS",
+  "evidence_type": "simulator",
+  "result_category": "simulator_fidelity_matrix",
+  "native_claim": false,
+  "runtime_claim": "none; deterministic simulator fidelity boundary only; native differential status is intentionally BLOCKED",
+  "source_policy": {
+    "catalog_source": "sc2_simulator.m7",
+    "catalog_schema_version": "m7.v1",
+    "catalog_content_hash": "m7-standard",
+    "reference_source_read_only": true,
+    "native_observation_required_for_differential": true
+  },
+  "matrix": [
+    {
+      "domain": "Unit",
+      "feature": "HP/Shield",
+      "supported": true,
+      "fidelity": "APPROXIMATE",
+      "tested": true,
+      "test_id": "matrix.unit.hp_shield",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 CatalogSnapshot.units[*].max_health/max_shields"
+    },
+    {
+      "domain": "Unit",
+      "feature": "Armor",
+      "supported": true,
+      "fidelity": "APPROXIMATE",
+      "tested": true,
+      "test_id": "matrix.unit.armor",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 CatalogSnapshot.units[*].armor"
+    },
+    {
+      "domain": "Weapon",
+      "feature": "Damage",
+      "supported": true,
+      "fidelity": "APPROXIMATE",
+      "tested": true,
+      "test_id": "matrix.weapon.damage",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 CatalogSnapshot weapons[*].damage"
+    },
+    {
+      "domain": "Weapon",
+      "feature": "Period",
+      "supported": true,
+      "fidelity": "APPROXIMATE",
+      "tested": true,
+      "test_id": "matrix.weapon.period",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 CatalogSnapshot weapons[*].period"
+    },
+    {
+      "domain": "Weapon",
+      "feature": "Range",
+      "supported": true,
+      "fidelity": "APPROXIMATE",
+      "tested": true,
+      "test_id": "matrix.weapon.range",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 CatalogSnapshot weapons[*].range"
+    },
+    {
+      "domain": "Weapon",
+      "feature": "Target Filter",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.weapon.target_filter",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 CatalogSnapshot weapons[*].target_filters"
+    },
+    {
+      "domain": "Movement",
+      "feature": "Speed",
+      "supported": true,
+      "fidelity": "APPROXIMATE",
+      "tested": true,
+      "test_id": "matrix.movement.speed",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 CatalogSnapshot.units[*].speed"
+    },
+    {
+      "domain": "Movement",
+      "feature": "Acceleration",
+      "supported": false,
+      "fidelity": "UNSUPPORTED",
+      "tested": true,
+      "test_id": "matrix.movement.acceleration",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator catalog has speed but no acceleration field or rule"
+    },
+    {
+      "domain": "Movement",
+      "feature": "Collision",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.movement.collision",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 UnitType.radius plus movement/path occupancy"
+    },
+    {
+      "domain": "Combat",
+      "feature": "Damage",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.combat.damage",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 CatalogSnapshot weapons[*].damage"
+    },
+    {
+      "domain": "Combat",
+      "feature": "Splash",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.combat.splash",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 WeaponType.splash_type/splash_radius and combat system"
+    },
+    {
+      "domain": "Combat",
+      "feature": "Search",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.combat.search",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator combat target selection over WorldState entities"
+    },
+    {
+      "domain": "Economy",
+      "feature": "Gather",
+      "supported": true,
+      "fidelity": "APPROXIMATE",
+      "tested": true,
+      "test_id": "matrix.economy.gather",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "vibe.normal_start_contract plus sc2_simulator economy system"
+    },
+    {
+      "domain": "Economy",
+      "feature": "Deposit",
+      "supported": true,
+      "fidelity": "APPROXIMATE",
+      "tested": true,
+      "test_id": "matrix.economy.deposit",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator economy system worker return/deposit path"
+    },
+    {
+      "domain": "Production",
+      "feature": "Train",
+      "supported": true,
+      "fidelity": "APPROXIMATE",
+      "tested": true,
+      "test_id": "matrix.production.train",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 CatalogSnapshot.production_rules and production system"
+    },
+    {
+      "domain": "Upgrade",
+      "feature": "Modifier",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.upgrade.modifier",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 UpgradeType.effects and upgrade system"
+    },
+    {
+      "domain": "Ability",
+      "feature": "Cost",
+      "supported": true,
+      "fidelity": "APPROXIMATE",
+      "tested": true,
+      "test_id": "matrix.ability.cost",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 AbilityType.cost_energy/cost_hp"
+    },
+    {
+      "domain": "Ability",
+      "feature": "Cooldown",
+      "supported": true,
+      "fidelity": "APPROXIMATE",
+      "tested": true,
+      "test_id": "matrix.ability.cooldown",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 AbilityType.cooldown and abilities system"
+    },
+    {
+      "domain": "Ability",
+      "feature": "Effect",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.ability.effect",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 AbilityType.effects and abilities system"
+    },
+    {
+      "domain": "Vision",
+      "feature": "Sight",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.vision.sight",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.m7 CatalogSnapshot.units[*].sight"
+    },
+    {
+      "domain": "Terrain",
+      "feature": "Walkable",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.terrain.walkable",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.world.terrain.TerrainMap.pathable_grid"
+    },
+    {
+      "domain": "Terrain",
+      "feature": "Height",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.terrain.height",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.world.terrain.TerrainMap.height_grid"
+    },
+    {
+      "domain": "Pathing",
+      "feature": "Path",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.pathing.path",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.map.pathfinding.Pathfinder"
+    },
+    {
+      "domain": "Trigger",
+      "feature": "Event",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.trigger.event",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.tools.triggers.TriggerEngine"
+    },
+    {
+      "domain": "Trigger",
+      "feature": "Condition",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.trigger.condition",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.tools.triggers.TriggerEngine"
+    },
+    {
+      "domain": "Trigger",
+      "feature": "Action",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.trigger.action",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.tools.triggers.TriggerEngine"
+    },
+    {
+      "domain": "Mission",
+      "feature": "Objective",
+      "supported": true,
+      "fidelity": "PARTIAL",
+      "tested": true,
+      "test_id": "matrix.mission.objective",
+      "native_differential": "BLOCKED",
+      "native_differential_reason": "No runtime-labelled native observation is available; simulator evidence cannot be promoted to native differential parity.",
+      "source": "sc2_simulator.runner objective/win-condition handling"
+    }
+  ],
+  "summary": {
+    "row_count": 27,
+    "supported_count": 26,
+    "unsupported_count": 1,
+    "tested_count": 27,
+    "fidelity_counts": {
+      "APPROXIMATE": 11,
+      "PARTIAL": 15,
+      "UNSUPPORTED": 1
+    },
+    "domain_counts": {
+      "Ability": 3,
+      "Combat": 3,
+      "Economy": 2,
+      "Mission": 1,
+      "Movement": 3,
+      "Pathing": 1,
+      "Production": 1,
+      "Terrain": 2,
+      "Trigger": 3,
+      "Unit": 2,
+      "Upgrade": 1,
+      "Vision": 1,
+      "Weapon": 4
+    },
+    "native_differential_counts": {
+      "BLOCKED": 27
+    }
+  },
+  "checks": {
+    "complete_roadmap_row_count": true,
+    "all_domains_present": true,
+    "all_rows_have_provenance": true,
+    "all_rows_tested": true,
+    "unsupported_features_explicit": true,
+    "native_differential_truthful": true,
+    "catalog_baseline_pass": true,
+    "normal_start_baseline_pass": true,
+    "no_native_claim": true
+  },
+  "baseline_inputs": {
+    "catalog_fidelity": {
+      "schema_version": "cmre-catalog-fidelity-baseline.v1",
+      "status": "PASS",
+      "catalog_hash": "cafab5205fba13a7"
+    },
+    "normal_start_contract": {
+      "schema_version": "normal-start-contract.v1",
+      "status": "PASS",
+      "trace_hash": "8ad3063ba6a3c055811d9c5eadd1bff9e1f561f7ea68bf385f17faebfa07b4f9"
+    }
+  }
+}

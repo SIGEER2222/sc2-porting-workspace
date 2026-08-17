@@ -26,3 +26,8 @@
 - `static`: `py -3.13 -m pytest -q tools/launchers/tests/test_launch_cmre_alenger_static.py --tb=short` passed: 64 tests in 0.31s. This validates launcher source only and is not runtime evidence.
 - `blocked`: Map packing, launcher readiness, runtime listener, CreateGame, JoinGame, RequestStep, mission result, and ScriptError gates remain unexercised. The full preflight evidence is `artifacts/projects/cmre-porting/stage31-native-runtime-evidence-lane/runtime-preflight-20260817.json`.
 - `scope`: Stage 31 remains `BLOCKED`; Stage 32 must not be opened or promoted until a supported SC2 installation makes the full native evidence chain executable.
+
+## Simulation-First reprioritization 2026-08-17
+
+- `scope`: The Simulation-First roadmap makes simulator correctness and fidelity its primary workstream. A new simulator-only Stage 32 may proceed independently of this blocked native lane.
+- `scope`: This does not change the Stage 31 native completion gate: a simulator matrix, adapter clearance, or static result cannot become a native mission-completion claim.
