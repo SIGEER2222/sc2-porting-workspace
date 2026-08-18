@@ -28,3 +28,11 @@
 - `static`: `tools/cmre-webui/server.py` rejects `RevolutionOverdrive*` commander ids and `commanderPackage=revolution-overdrive` on non-Revolution maps before launcher spawn; `tools/cmre-webui/webui/app.js` mirrors the guard.
 - `runtime`: Temporary WebUI smoke POST for `虚空降临.SC2Map` / `RevolutionOverdriveCoverts` returned HTTP 400, with `/api/status` reporting `launcherRunning=false`, `pid=null`; valid Revolution Overdrive dry-run remained routable.
 - `static`: `CMRE_WEBUI_DRY_RUN=1 python -m pytest -q tools/cmre-webui/test_launch_async_contract.py tools/cmre-webui/test_revolution_overdrive.py` -> PASS, `43 passed`.
+
+## Runtime VM Spot-Check - 2026-08-18
+
+- `runtime`: User-requested current VM progress check captured in `artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/runtime-vm-current-check-20260818.json`.
+- `runtime`: WebUI `127.0.0.1:8777` is alive, but `/api/status` reports `launcherRunning=false` and `pid=null`; TCP probes show `5896=false` and `5897=false`.
+- `runtime`: `/api/vibe/status` reports `status=error` with no active current Vibe session; last candidate `repl_c9dc144c3fa8` ended as `INTERNAL_ERROR timeout` for request `33e8a4809297`.
+- `runtime`: Bank signals show prior runtime init/bridge readiness (`runtime_listener_ready=1`, `bridge_heartbeat=12`) and a stale pending request, but `/api/vibe/event-log` count is `0` and `/api/vibe/rules` count is `0`.
+- `static`: This spot-check does not change the Stage50 tactical simulator PASS or native/runtime claim boundary; it records that fresh VM RPC/gameplay-event claims are currently blocked by inactive session binding.

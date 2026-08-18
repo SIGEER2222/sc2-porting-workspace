@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 1,
+  "artifact": "runtime-vm-current-check-20260818.json",
+  "stage": "50-vm-debugger-expansion",
+  "classification": "runtime",
+  "checked_utc": "2026-08-18T15:48:41Z",
+  "scope_boundary": "User-requested runtime VM spot-check only; Stage50 tactical-validation PASS and native_claim=false are unchanged.",
+  "verdict": {
+    "status": "NO_ACTIVE_RUNTIME_VM_SESSION",
+    "webui_alive": true,
+    "launcher_running": false,
+    "launcher_pid": null,
+    "vm_status": "error",
+    "vm_error": "没有可用的当前 Vibe session；已探测候选: repl_c9dc144c3fa8；最后错误: repl_c9dc144c3fa8: INTERNAL_ERROR",
+    "ports_open": {
+      "8777": true,
+      "5896": false,
+      "5897": false
+    },
+    "event_log_count": 0,
+    "runtime_rule_count": 0,
+    "call_log_total_count": 474
+  },
+  "http": {
+    "/api/status": {
+      "ok": true,
+      "http_status": 200,
+      "body": {
+        "launcherRunning": false,
+        "pid": null
+      }
+    },
+    "/api/vibe/status": {
+      "ok": true,
+      "http_status": 200,
+      "body_summary": {
+        "status": "error",
+        "error": "没有可用的当前 Vibe session；已探测候选: repl_c9dc144c3fa8；最后错误: repl_c9dc144c3fa8: INTERNAL_ERROR",
+        "port": null,
+        "session_id": "",
+        "running": "",
+        "trace_tail": [
+          {
+            "schema_version": "douququ-runtime-call.v1",
+            "timestamp": "2026-08-18T15:18:50.903Z",
+            "ts": 1787066330.90381,
+            "op": "call",
+            "origin": "connect",
+            "session_id": "repl_c9dc144c3fa8",
+            "port": 5896,
+            "function_id": "douququ.runtime.status",
+            "args": {},
+            "result": {
+              "kind": "error",
+              "error_code": "INTERNAL_ERROR",
+              "request_id": "33e8a4809297",
+              "payload": {
+                "reason": "timeout"
+              }
+            },
+            "error": {
+              "error_code": "INTERNAL_ERROR",
+              "payload": {
+                "reason": "timeout"
+              }
+            },
+            "duration_ms": 10126.3,
+            "status": "failed"
+          }
+        ]
+      }
+    },
+    "/api/vibe/call-log?limit=20": {
+      "ok": true,
+      "http_status": 200,
+      "path": "artifacts\\projects\\cmre-porting\\stage27-dou-ququ-behavior-plugin\\runtime\\douququ-runtime-vm-call-log.jsonl",
+      "count": 20,
+      "total_count": 474,
+      "tail": [
+        {
+          "schema_version": "douququ-runtime-call.v1",
+          "timestamp": "2026-08-18T15:39:31.848Z",
+          "ts": 1787067571.8484557,
+          "op": "call",
+          "origin": "connect",
+          "session_id": "dou-ququ-runtime-stale",
+          "port": 5896,
+          "function_id": "douququ.runtime.status",
+          "result": {
+            "error_code": "SESSION_EXPIRED"
+          },
+          "error": {
+            "error_code": "SESSION_EXPIRED",
+            "payload": {}
+          },
+          "duration_ms": 0.0,
+          "status": "failed"
+        },
+        {
+          "schema_version": "douququ-runtime-call.v1",
+          "timestamp": "2026-08-18T15:39:31.848Z",
+          "ts": 1787067571.8484557,
+          "op": "call",
+          "origin": "connect",
+          "session_id": "repl_current",
+          "port": 5896,
+          "function_id": "douququ.runtime.status",
+          "result": {
+            "error_code": "OK",
+            "payload": {
+              "active": true
+            }
+          },
+          "error": null,
+          "duration_ms": 0.0,
+          "status": "passed"
+        },
+        {
+          "schema_version": "douququ-runtime-call.v1",
+          "timestamp": "2026-08-18T15:39:31.848Z",
+          "ts": 1787067571.8484557,
+          "op": "call",
+          "origin": "connect",
+          "session_id": "repl_fresh",
+          "port": 5896,
+          "function_id": "douququ.runtime.status",
+          "result": {
+            "error_code": "OK",
+            "payload": {
+              "active": true
+            }
+          },
+          "error": null,
+          "duration_ms": 0.0,
+          "status": "passed"
+        },
+        {
+          "schema_version": "douququ-runtime-call.v1",
+          "timestamp": "2026-08-18T15:39:31.848Z",
+          "ts": 1787067571.8484557,
+          "op": "call",
+          "origin": "connect",
+          "session_id": "repl_bad",
+          "port": 5896,
+          "function_id": "douququ.runtime.status",
+          "result": {
+            "kind": "error",
+            "error_code": "INTERNAL_ERROR",
+            "payload": {}
+          },
+          "error": {
+            "error_code": "INTERNAL_ERROR",
+            "payload": {}
+          },
+          "duration_ms": 0.0,
+          "status": "failed"
+        },
+        {
+          "schema_version": "douququ-runtime-call.v1",
+          "timestamp": "2026-08-18T15:39:31.848Z",
+          "ts": 1787067571.8484557,
+          "op": "call",
+          "origin": "connect",
+          "session_id": "repl_930bd79cbd28",
+          "port": 5896,
+          "function_id": "douququ.runtime.status",
+          "result": {
+            "kind": "error",
+            "error_code": "INTERNAL_ERROR",
+            "payload": {}
+          },
+          "error": {
+            "error_code": "INTERNAL_ERROR",
+            "payload": {}
+          },
+          "duration_ms": 0.0,
+          "status": "failed"
+        }
+      ]
+    },
+    "/api/vibe/event-log": {
+      "ok": true,
+      "http_status": 200,
+      "count": 0,
+      "total_count": 0,
+      "path": "artifacts\\projects\\cmre-porting\\stage27-dou-ququ-behavior-plugin\\runtime\\douququ-runtime-event-log.jsonl"
+    },
+    "/api/vibe/rules": {
+      "ok": true,
+      "http_status": 200,
+      "rule_count": 0,
+      "source_sha256": ""
+    }
+  },
+  "ports": {
+    "8777": {
+      "open": true
+    },
+    "5896": {
+      "open": false,
+      "error": "TimeoutError: timed out"
+    },
+    "5897": {
+      "open": false,
+      "error": "TimeoutError: timed out"
+    }
+  },
+  "process_check": {
+    "command": "Get-CimInstance Win32_Process filtered for SC2/launcher/WebUI/runtime ports",
+    "returncode": 0,
+    "records": [
+      {
+        "ProcessId": 14028,
+        "Name": "python.exe",
+        "CommandLine": "C:\\Users\\22448\\AppData\\Local\\Programs\\Python\\Python313\\python.exe E:\\Code\\MyMod\\SC2VibeTools\\sc2-porting-workspace\\tools\\cmre-webui\\server.py --host 127.0.0.1 --port 8767"
+      },
+      {
+        "ProcessId": 2336,
+        "Name": "python.exe",
+        "CommandLine": "C:\\Users\\22448\\AppData\\Local\\Programs\\Python\\Python313\\python.exe tools/cmre-webui/server.py --host 127.0.0.1 --port 8777 --dou-ququ-map src/projects/test-arena/packages/Maps/鍦板浘璋冭瘯鍜屾枟铔愯洂宸ュ叿锛堝畬鏁村姛鑳界増).SC2Map"
+      }
+    ],
+    "stderr": ""
+  },
+  "banks": {
+    "GalaxyVibe.SC2Bank": {
+      "path": "C:\\Users\\22448\\Documents\\StarCraft II\\Banks\\GalaxyVibe.SC2Bank",
+      "exists": true,
+      "mtime_local": "2026-08-18T23:18:45",
+      "size_bytes": 680,
+      "signals": {
+        "index.pending_request_id": {
+          "string": "33e8a4809297"
+        },
+        "index.register_entrypoints_pollloop_fired": {
+          "int": "1"
+        },
+        "diag.pollloop_first_flush": {
+          "int": "1"
+        },
+        "request.33e8a4809297": {
+          "string": "protocol_version=vibe/1.0;session_id=repl_c9dc144c3fa8;request_id=33e8a4809297;sequence=1;operation=function.invoke;checksum=740868ee;function_id=douququ.runtime.status;arg_names="
+        }
+      }
+    },
+    "GalaxyVibeModel.SC2Bank": {
+      "path": "C:\\Users\\22448\\Documents\\StarCraft II\\Banks\\GalaxyVibeModel.SC2Bank",
+      "exists": true,
+      "mtime_local": "2026-08-18T23:20:01",
+      "size_bytes": 855,
+      "signals": {
+        "index.watchdog_last_seen_poll": {
+          "int": "65"
+        },
+        "poll_diag.request_len": {
+          "int": "0"
+        },
+        "poll_diag.stage": {
+          "int": "8"
+        },
+        "poll_diag.pending_len": {
+          "int": "0"
+        }
+      }
+    },
+    "GalaxyVibeEvents.SC2Bank": {
+      "path": "C:\\Users\\22448\\Documents\\StarCraft II\\Banks\\GalaxyVibeEvents.SC2Bank",
+      "exists": true,
+      "mtime_local": "2026-08-18T23:18:25",
+      "size_bytes": 289,
+      "signals": {
+        "index.event_session": {
+          "string": "280352719"
+        },
+        "index.schema_version": {
+          "int": "1"
+        }
+      }
+    },
+    "CMRERebornDebug.SC2Bank": {
+      "path": "C:\\Users\\22448\\Documents\\StarCraft II\\Banks\\CMRERebornDebug.SC2Bank",
+      "exists": true,
+      "mtime_local": "2026-08-18T23:18:48",
+      "size_bytes": 1067,
+      "signals": {
+        "debug.vibe_registration_kernel_done": {
+          "int": "1"
+        },
+        "debug.vibe_registration_handoff_started": {
+          "int": "1"
+        },
+        "debug.runtime_listener_started": {
+          "int": "1"
+        },
+        "debug.runtime_listener_ready": {
+          "int": "1"
+        },
+        "debug.vibe_registration_event_bridge_done": {
+          "int": "1"
+        },
+        "debug.bridge_heartbeat": {
+          "int": "12"
+        },
+        "debug.initialization_complete": {
+          "int": "1"
+        },
+        "debug.map_init_entered": {
+          "int": "1"
+        }
+      }
+    }
+  },
+  "evidence_commands": [
+    "HTTP GET http://127.0.0.1:8777/api/status",
+    "HTTP GET http://127.0.0.1:8777/api/vibe/status",
+    "HTTP GET http://127.0.0.1:8777/api/vibe/call-log?limit=20",
+    "HTTP GET http://127.0.0.1:8777/api/vibe/event-log",
+    "HTTP GET http://127.0.0.1:8777/api/vibe/rules",
+    "TCP connect probes: 127.0.0.1:8777, 5896, 5897",
+    "Get-CimInstance Win32_Process filtered for SC2_x64/launcher/WebUI/runtime ports",
+    "Read StarCraft II Banks: GalaxyVibe, GalaxyVibeModel, GalaxyVibeEvents, CMRERebornDebug"
+  ],
+  "next_action": "Fix or relaunch runtime session binding before making fresh VM RPC/gameplay-event claims; stale call-log OK rows are not current runtime evidence because both VM ports are closed and /api/vibe/status has no active session."
+}

@@ -59,6 +59,19 @@
       "detail": "43 tests passed; invalid RevolutionOverdriveCoverts on a CMRE map returned HTTP 400 before launcher spawn, while the valid Revolution Overdrive dry-run remained routable."
     }
   ],
+  "runtime_spot_check": {
+    "status": "NO_ACTIVE_RUNTIME_VM_SESSION",
+    "evidence_type": "runtime",
+    "artifact": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/runtime-vm-current-check-20260818.json",
+    "checked_utc": "2026-08-18T15:48:41Z",
+    "scope_boundary": "User-requested current VM progress check only; Stage50 tactical simulator PASS, native_claim=false, and runtime_claim=none are unchanged.",
+    "observations": [
+      "WebUI 127.0.0.1:8777 responded, but /api/status returned launcherRunning=false and pid=null.",
+      "TCP probes to 127.0.0.1:5896 and 127.0.0.1:5897 failed, so no current VM RPC listener is reachable.",
+      "/api/vibe/status returned status=error with no active current Vibe session and last candidate repl_c9dc144c3fa8: INTERNAL_ERROR timeout.",
+      "/api/vibe/event-log returned count=0 and /api/vibe/rules returned rule_count=0, so no current automatic event-to-VM evidence is present."
+    ]
+  },
   "checks": {
     "schema_identity_present": true,
     "seed_batch_present": true,

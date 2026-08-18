@@ -8,6 +8,14 @@
       "evidence_type": "static",
       "summary": "Strategy input now flows through SimulatorSession.query_observation, but per-run aggregate statistics still read simulator state directly inside the existing tactical consumer.",
       "next_action": "If Stage50 proceeds beyond MVP report contract, add query helpers for alive unit census/damage summary or move metrics into SimulatorSession facade."
+    },
+    {
+      "id": "STAGE50-RUNTIME-VM-SPOTCHECK-INACTIVE",
+      "severity": "medium",
+      "evidence_type": "runtime",
+      "summary": "Current VM progress spot-check found WebUI alive but no active launcher, no open VM RPC listener on 5896/5897, and /api/vibe/status reporting no active Vibe session.",
+      "source": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/runtime-vm-current-check-20260818.json",
+      "next_action": "Relaunch or fix runtime session binding before making fresh VM RPC or gameplay event-to-observation claims."
     }
   ],
   "resolved": [
