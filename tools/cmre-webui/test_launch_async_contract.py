@@ -89,6 +89,46 @@ def test_revolution_map_routes_all_commander_groups_to_its_runtime_launcher(monk
             assert "-Faction" not in args
 
 
+def test_cmre_launcher_rejects_revolution_commander_before_subprocess(monkeypatch):
+    monkeypatch.setattr(server, "_resolve_powershell_executable", lambda: "powershell.exe")
+    handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)
+    sent = {}
+    handler._send_json = lambda payload, status=200: sent.update(payload=payload, status=status)
+
+    assert handler._build_launch_args({
+        "mapPackage": "cmre",
+        "mapName": "虚空降临.SC2Map",
+        "commander": "RevolutionOverdriveCoverts",
+        "commanderPackage": "revolution-overdrive",
+    }) is None
+
+    assert sent["status"] == 400
+    assert "起义狂潮专属指挥官只能与起义狂潮地图一起启动" in sent["payload"]["error"]
+
+
+def test_launch_async_rejects_revolution_commander_without_spawning(monkeypatch):
+    handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)
+    sent = {}
+    handler._read_body = lambda: {
+        "mapPackage": "cmre",
+        "mapName": "虚空降临.SC2Map",
+        "commander": "RevolutionOverdriveCoverts",
+        "commanderPackage": "revolution-overdrive",
+    }
+    handler._send_json = lambda payload, status=200: sent.update(payload=payload, status=status)
+    monkeypatch.setattr(server.subprocess, "Popen", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("launcher spawned")))
+
+    handler._handle_launch_async()
+
+    assert sent["status"] == 400
+    assert "起义狂潮专属指挥官" in sent["payload"]["error"]
+
+
+def test_webui_blocks_revolution_commander_on_non_revolution_map():
+    app = WEBUI_APP.read_text(encoding="utf-8")
+    assert 'cmdrMeta.group === "revolution-overdrive" && s.mapPackage !== "revolution-overdrive"' in app
+    assert "起义狂潮专属指挥官只能与起义狂潮地图一起启动" in app
+
 def test_revolution_map_rejects_tarcade_entry_flow(monkeypatch):
     monkeypatch.setattr(server, "_resolve_powershell_executable", lambda: "powershell.exe")
     handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)

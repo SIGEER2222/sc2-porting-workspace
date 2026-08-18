@@ -3513,6 +3513,20 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if map_package not in {"cmre", "reborn", "revolution-overdrive", "dou-ququ"}:
             self._send_json({"success": False, "error": f"未知地图类别: {map_package}"}, 400)
             return None
+        commander_package = body.get("commanderPackage", "") or ""
+        if commander_package == "revolution-overdrive" or str(commander).startswith("RevolutionOverdrive"):
+            self._send_json(
+                {
+                    "success": False,
+                    "error": (
+                        "起义狂潮专属指挥官只能与起义狂潮地图一起启动；"
+                        f"当前地图类别: {map_package}/{map_name}。"
+                        "请选择起义狂潮地图，或换官方/起义/重生指挥官。"
+                    ),
+                },
+                400,
+            )
+            return None
         map_source_override = ""
         map_dependency_root = ""
         if map_package == "reborn":

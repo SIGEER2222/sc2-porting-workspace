@@ -22,3 +22,9 @@
 - `static`: `STAGE50-STAT-SURFACE-001` remains open. Strategy input is now facade-bound, but per-run aggregate metrics still use the existing tactical consumer's direct simulator-state reads. This is acceptable for the Stage50 report-contract MVP, but should be moved behind session query helpers if Stage50 continues deeper into architecture enforcement.
 
 - `static`: `py -3.13 -m json.tool artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/stage50-tactical-report-v1.json` -> PASS.
+
+## WebUI Revolution Commander Route Fix - 2026-08-18
+
+- `static`: `tools/cmre-webui/server.py` rejects `RevolutionOverdrive*` commander ids and `commanderPackage=revolution-overdrive` on non-Revolution maps before launcher spawn; `tools/cmre-webui/webui/app.js` mirrors the guard.
+- `runtime`: Temporary WebUI smoke POST for `虚空降临.SC2Map` / `RevolutionOverdriveCoverts` returned HTTP 400, with `/api/status` reporting `launcherRunning=false`, `pid=null`; valid Revolution Overdrive dry-run remained routable.
+- `static`: `CMRE_WEBUI_DRY_RUN=1 python -m pytest -q tools/cmre-webui/test_launch_async_contract.py tools/cmre-webui/test_revolution_overdrive.py` -> PASS, `43 passed`.

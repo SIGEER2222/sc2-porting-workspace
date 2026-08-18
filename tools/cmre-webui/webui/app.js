@@ -1607,6 +1607,19 @@ async function launchGame() {
   btn.disabled = true; btn.textContent = "启动中...";
   showStatus("正在启动 SC2...", "info");
 
+  const cmdrMeta = state.commanders.find(c => c.id === s.commander);
+  const output = $("output");
+  const outputBody = $("output-body");
+  const stopBtn = $("stop-btn");
+  if (cmdrMeta && cmdrMeta.group === "revolution-overdrive" && s.mapPackage !== "revolution-overdrive") {
+    output.hidden = false;
+    outputBody.textContent = "错误: 起义狂潮专属指挥官只能与起义狂潮地图一起启动；请选择起义狂潮地图，或换官方/起义/重生指挥官。";
+    showStatus("启动失败", "error");
+    btn.disabled = false; btn.textContent = "启动游戏";
+    if (stopBtn) stopBtn.style.display = "none";
+    return;
+  }
+
   const body = {
     commander: s.commander, commanderPackage: s.commanderPackage,
     mapName: s.mapName, mapPackage: s.mapPackage, mode: s.mode,
@@ -1627,7 +1640,6 @@ async function launchGame() {
   // 注意：state.selected.commander 是 "RebornZergAbathur" 形式（避免与原版 8 个重名指挥官冲突），
   // 但 launcher 只接受 "ZergAbathur" 形式作为 -Commander，所以用 cmdrMeta.runtimeId 覆盖 body.commander。
   // cmdrMeta.id 唯一（Reborn 前缀），find 能精确匹配；原版指挥官无 runtimeId 字段，保持 s.commander 不变。
-  const cmdrMeta = state.commanders.find(c => c.id === s.commander);
   if (cmdrMeta && cmdrMeta.group === "reborn" && s.mapPackage !== "revolution-overdrive") {
     body.enableReborn = true;
     body.rebornCommander = cmdrMeta.rebornName || cmdrMeta.bank || "";
@@ -1651,11 +1663,8 @@ async function launchGame() {
     body.buffExtras = extrasObj;
   }
 
-  const output = $("output");
-  const outputBody = $("output-body");
   output.hidden = false;
   outputBody.textContent = "";
-  const stopBtn = $("stop-btn");
   if (stopBtn) stopBtn.style.display = "";
 
   try {

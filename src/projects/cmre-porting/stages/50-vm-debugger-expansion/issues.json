@@ -18,6 +18,17 @@
     {
       "id": "STAGE50-RUNNER-001",
       "summary": "Existing tactical consumer now exposes run_tactical_scenario, run_tactical_batch, sweep_tactical_ab, and verify_tactical_determinism surfaces."
+    },
+    {
+      "id": "STAGE50-WEBUI-REVOLUTION-COMMANDER-MISROUTE",
+      "summary": "WebUI rejects RevolutionOverdrive commander ids on non-Revolution maps before launcher spawn, with the same browser-side guard.",
+      "evidence_type": "runtime",
+      "evidence": [
+        "tools/cmre-webui/server.py",
+        "tools/cmre-webui/webui/app.js",
+        "tools/cmre-webui/test_launch_async_contract.py"
+      ],
+      "resolution": "Reproduced 虚空降临.SC2Map/RevolutionOverdriveCoverts returned HTTP 400 and launcherRunning=false; valid Revolution Overdrive dry-run remained routable."
     }
   ]
 }
