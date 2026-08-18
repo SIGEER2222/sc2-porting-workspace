@@ -756,6 +756,20 @@ class SimulatorSession:
         )
         return {"units": [_entity_brief(e) for e in es], "count": len(es)}
 
+    def query_observation(self, player_id: int, level: str = "player_visible") -> Observation:
+        """Return the strategy-facing observation surface for a player.
+
+        Stage50 tactical runners use this facade instead of constructing
+        observations from private world internals at the policy boundary.
+        ``level`` is reserved for later full-map / abstract tactical views; the
+        MVP exposes the existing player-visible Observation contract.
+        """
+        if self.world is None:
+            raise KernelError(2, "query.observation 前需 scenario.reset")
+        if level not in {"player_visible", "unit", "abstract_tactical"}:
+            raise KernelError(2, f"unsupported observation level: {level}")
+        return Observation.from_world(self.world, player_id)
+
     def query_structures(
         self, owner_player_id: int = 0, unit_type_id: str = ""
     ) -> dict:

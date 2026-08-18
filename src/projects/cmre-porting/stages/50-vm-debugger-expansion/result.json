@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "stage": "50-vm-debugger-expansion",
+  "stage_alias": "Ares-Inspired Tactical Validation Layer",
+  "status": "PASS",
+  "evidence_type": "simulator",
+  "runtime_claim": "none; deterministic headless simulator/tactical runner only",
+  "native_claim": false,
+  "native_differential": "BLOCKED",
+  "contract_schema_version": "tactical_report.v1",
+  "summary": "Stage50A/B/C seed-batch tactical report contract and runner surfaces were implemented by extending the existing tactical consumer instead of creating a parallel runner.",
+  "implemented": {
+    "tactical_report_v1": "scenario_id, scenario_version, run_mode, seed_batch, ab_comparison, reliability, capability_coverage, determinism, and architecture_gates fields",
+    "runner_surfaces": [
+      "run_tactical_scenario",
+      "run_tactical_batch",
+      "sweep_tactical_ab",
+      "verify_tactical_determinism"
+    ],
+    "policy_surfaces": [
+      "AggressiveTimingPushStrategy",
+      "DelayedDefensiveBaselineStrategy"
+    ],
+    "observation_boundary": "SimulatorSession.query_observation feeds Strategy.decide without direct world construction at the policy boundary",
+    "artifacts": [
+      "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/stage50-tactical-report-v1.json",
+      "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/stage50-tactical-report-v1.md"
+    ]
+  },
+  "validation": [
+    {
+      "command": "PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.consumers.tactical",
+      "status": "PASS",
+      "evidence_type": "simulator",
+      "detail": "Existing tactical consumer selftest passed all 16 checks after tactical_report.v1 contract extension."
+    },
+    {
+      "command": "py -3.13 -m unittest discover -s src/projects/cmre-porting/stages/50-vm-debugger-expansion -p test_tactical_validation_layer.py -v",
+      "status": "PASS",
+      "evidence_type": "simulator",
+      "detail": "Stage50 focused tests passed: report schema/identity/reliability, deterministic runner surfaces, and seed-batch sweep."
+    },
+    {
+      "command": "py -3.13 -m json.tool src/projects/cmre-porting/stages/50-vm-debugger-expansion/result.json",
+      "status": "PASS",
+      "evidence_type": "static",
+      "detail": "result.json parses as JSON."
+    },
+    {
+      "command": "py -3.13 -m json.tool artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/stage50-tactical-report-v1.json",
+      "status": "PASS",
+      "evidence_type": "static",
+      "detail": "Generated tactical report artifact parses as JSON."
+    }
+  ],
+  "checks": {
+    "schema_identity_present": true,
+    "seed_batch_present": true,
+    "ab_compare_rule_present": true,
+    "deterministic_health_check": true,
+    "capability_coverage_present": true,
+    "native_claim_false": true
+  },
+  "next_actions": [
+    "Refactor residual per-run statistics in tactical.py behind SimulatorSession query helpers if Stage50 continues beyond report/runner contract.",
+    "Promote the timing-push setback scenario from focused test fixture into a named scenario artifact if later stages require reusable fixture identity.",
+    "Keep training/parameter-tuning loop deferred to Stage6x while preserving the Observation/Action boundary."
+  ]
+}

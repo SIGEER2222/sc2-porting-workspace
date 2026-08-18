@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "stage": "50-vm-debugger-expansion",
+  "open": [
+    {
+      "id": "STAGE50-STAT-SURFACE-001",
+      "severity": "medium",
+      "evidence_type": "static",
+      "summary": "Strategy input now flows through SimulatorSession.query_observation, but per-run aggregate statistics still read simulator state directly inside the existing tactical consumer.",
+      "next_action": "If Stage50 proceeds beyond MVP report contract, add query helpers for alive unit census/damage summary or move metrics into SimulatorSession facade."
+    }
+  ],
+  "resolved": [
+    {
+      "id": "STAGE50-REPORT-001",
+      "summary": "tactical_report.v1 now records scenario identity, seed_batch, compare rule, capability coverage, reliability, determinism, and architecture gates."
+    },
+    {
+      "id": "STAGE50-RUNNER-001",
+      "summary": "Existing tactical consumer now exposes run_tactical_scenario, run_tactical_batch, sweep_tactical_ab, and verify_tactical_determinism surfaces."
+    }
+  ]
+}

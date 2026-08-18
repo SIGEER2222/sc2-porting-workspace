@@ -28,7 +28,9 @@ objective faster, more reliably, or with better tradeoffs than another.
 ## Verification
 
 ```text
-py -3.13 -m json.tool src/projects/cmre-porting/stages/49-commander-balance-report/result.json
+PYTHONPATH=src/projects/cmre-porting py -3.13 -m vibe.consumers.tactical
+py -3.13 -m unittest discover -s src/projects/cmre-porting/stages/50-vm-debugger-expansion -p test_tactical_validation_layer.py -v
+py -3.13 -m json.tool src/projects/cmre-porting/stages/50-vm-debugger-expansion/result.json
 ```
 
 ## Boundaries

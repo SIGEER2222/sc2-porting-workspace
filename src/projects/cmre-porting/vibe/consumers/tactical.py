@@ -22,11 +22,13 @@ M4 hardening 新增：
 
 from __future__ import annotations
 
+import hashlib
+import itertools
 import json
 import math
 import statistics
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any, Mapping, Optional
 
 from ..contracts import Observation, VictoryTimeMetric
 from ..sim_path import ensure_simulator_on_path
@@ -36,6 +38,13 @@ ensure_simulator_on_path()
 from sc2_simulator.reporting.trace import trace_hash  # noqa: E402
 
 from ..simulator_session import SimulatorSession
+
+
+TACTICAL_REPORT_SCHEMA_VERSION = "tactical_report.v1"
+AB_COMPARE_RULE = (
+    "先按 success_rate 分组，仅在双方均成功的样本内比较 completion_time；"
+    "若成功率不同，先报告成功率差异，不直接比较时间"
+)
 
 
 @dataclass
@@ -269,6 +278,35 @@ class RetreatStrategy(Strategy):
         return actions
 
 
+class AggressiveTimingPushStrategy(FocusFireStrategy):
+    """Scripted timing-push policy: wait for a planned loop, then focus fire."""
+
+    name = "aggressive_timing_push"
+
+    def __init__(self, attack_loop: int = 0) -> None:
+        self.attack_loop = int(attack_loop)
+
+    def decide(self, obs: Observation, loop: int) -> list[TacticalAction]:
+        if loop < self.attack_loop:
+            return []
+        return super().decide(obs, loop)
+
+
+class DelayedDefensiveBaselineStrategy(RetreatStrategy):
+    """Scripted baseline: hold early, then attack while preserving low-HP retreats."""
+
+    name = "delayed_defensive_baseline"
+
+    def __init__(self, defend_until_loop: int = 32, hp_threshold_pct: float = 0.5) -> None:
+        super().__init__(hp_threshold_pct=hp_threshold_pct)
+        self.defend_until_loop = int(defend_until_loop)
+
+    def decide(self, obs: Observation, loop: int) -> list[TacticalAction]:
+        if loop < self.defend_until_loop:
+            return []
+        return super().decide(obs, loop)
+
+
 class HealAbilityStrategy(Strategy):
     """技能时机策略：Medivac 在友军 HP < 阈值时使用治疗（CAST_UNIT）。
 
@@ -371,7 +409,7 @@ class AggregatedMetrics:
 
 @dataclass
 class TacticalReport:
-    """战术对比报告。"""
+    """战术对比报告，兼容 Stage50 ``tactical_report.v1`` schema。"""
 
     scenario_name: str
     strategy_a: AggregatedMetrics
@@ -385,6 +423,22 @@ class TacticalReport:
     victory_time_comparison: dict = field(
         default_factory=dict
     )  # {"faster": "strat_name", "delta_sec": float}
+    schema_version: str = TACTICAL_REPORT_SCHEMA_VERSION
+    scenario_id: str = ""
+    scenario_version: str = ""
+    run_mode: str = "seed_batch"
+    seed_batch: dict = field(default_factory=dict)
+    result_reliability: str = "usable"
+    unsupported_mechanics: list[str] = field(default_factory=list)
+    approximated_mechanics: list[str] = field(default_factory=list)
+    capability_coverage: dict = field(default_factory=dict)
+    failure_tags: list[str] = field(default_factory=list)
+    ab_comparison: dict = field(default_factory=dict)
+    determinism: dict = field(default_factory=dict)
+    architecture_gates: dict = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        return asdict(self)
 
 
 def wilson_lower(wins: int, n: int, z: float = 1.96) -> float:
@@ -396,6 +450,184 @@ def wilson_lower(wins: int, n: int, z: float = 1.96) -> float:
     center = p + z * z / (2 * n)
     margin = z * math.sqrt((p * (1 - p) + z * z / (4 * n)) / n)
     return max(0.0, (center - margin) / denom)
+
+
+
+
+def scenario_identity(scenario_dict: Mapping[str, Any]) -> dict[str, str]:
+    """Return stable scenario identity, ignoring the per-run seed."""
+    payload = {k: v for k, v in dict(scenario_dict).items() if k != "seed"}
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    raw_id = str(payload.get("scenario_id") or payload.get("id") or payload.get("name") or "scenario")
+    safe_id = "".join(ch if ch.isalnum() or ch in "._-" else "-" for ch in raw_id).strip("-")
+    return {
+        "scenario_id": safe_id or digest[:12],
+        "scenario_version": str(payload.get("scenario_version") or payload.get("version") or digest[:16]),
+    }
+
+
+def _sample_std(values: list[float]) -> float:
+    return statistics.stdev(values) if len(values) > 1 else 0.0
+
+
+def _completion_time_summary(runs: list[SingleRunMetrics]) -> dict:
+    successful_times = [r.game_time_sec for r in runs if r.victory]
+    if not successful_times:
+        return {"mean": 0.0, "std": 0.0, "min": 0.0, "max": 0.0, "n_successful": 0}
+    return {
+        "mean": statistics.mean(successful_times),
+        "std": _sample_std(successful_times),
+        "min": min(successful_times),
+        "max": max(successful_times),
+        "n_successful": len(successful_times),
+    }
+
+
+def _strategy_seed_summary(agg: AggregatedMetrics, seeds: list[int]) -> dict:
+    return {
+        "strategy": agg.strategy_name,
+        "seeds": list(seeds),
+        "n_runs": len(agg.seed_results),
+        "success_rate": agg.survival_rate,
+        "completion_time": _completion_time_summary(agg.seed_results),
+        "trace_hashes": [r.trace_hash for r in agg.seed_results],
+    }
+
+
+def _seed_batch_summary(agg_a: AggregatedMetrics, agg_b: AggregatedMetrics, seeds: list[int]) -> dict:
+    return {
+        "seeds": list(seeds),
+        "n_runs": len(seeds),
+        "strategy_a": _strategy_seed_summary(agg_a, seeds),
+        "strategy_b": _strategy_seed_summary(agg_b, seeds),
+        "note": "completion_time 仅在成功 run 中计算；失败 run 单独计入 success_rate，不拉低时间均值",
+    }
+
+
+def _scenario_capability_coverage(scenario_dict: Mapping[str, Any]) -> dict:
+    session = SimulatorSession()
+    session.scenario_load(scenario_dict=dict(scenario_dict), catalog="m7")
+    unit_ids = sorted({str(spawn.get("unit_type_id", "")) for spawn in scenario_dict.get("spawns", []) if spawn.get("unit_type_id")})
+    fidelity_by_unit = {unit_id: session.catalog.fidelity_of(unit_id) for unit_id in unit_ids}
+    fidelity_counts: dict[str, int] = {}
+    for fidelity in fidelity_by_unit.values():
+        fidelity_counts[fidelity] = fidelity_counts.get(fidelity, 0) + 1
+    return {
+        "source": "m7 capability matrix",
+        "unit_count": len(unit_ids),
+        "unit_fidelity": fidelity_by_unit,
+        "fidelity_counts": fidelity_counts,
+    }
+
+
+def _mechanics_from_coverage(coverage: Mapping[str, Any]) -> tuple[list[str], list[str], str]:
+    counts = dict(coverage.get("fidelity_counts", {}))
+    unsupported = ["catalog_unit_fidelity"] if counts.get("unsupported", 0) else []
+    approximated = []
+    if counts.get("approximate", 0) or counts.get("partial", 0):
+        approximated.append("catalog_unit_fidelity")
+    if unsupported:
+        reliability = "not_reliable"
+    elif approximated:
+        reliability = "degraded"
+    else:
+        reliability = "usable"
+    return unsupported, approximated, reliability
+
+
+def _failure_tags(agg_a: AggregatedMetrics, agg_b: AggregatedMetrics, reliability: str) -> list[str]:
+    tags: list[str] = []
+    if agg_a.survival_rate < 1.0 or agg_b.survival_rate < 1.0:
+        tags.append("TACTIC_OBJECTIVE_FAILURE")
+    if abs(agg_a.survival_rate - agg_b.survival_rate) > 0:
+        tags.append("TACTIC_SUCCESS_RATE_DELTA")
+    if reliability != "usable":
+        tags.append("SIMULATOR_RELIABILITY_DOWNGRADED")
+    return tags
+
+
+def _ab_comparison(agg_a: AggregatedMetrics, agg_b: AggregatedMetrics) -> dict:
+    mean_a = _completion_time_summary(agg_a.seed_results)["mean"]
+    mean_b = _completion_time_summary(agg_b.seed_results)["mean"]
+    return {
+        "enabled": True,
+        "baseline_strategy": agg_a.strategy_name,
+        "candidate_strategy": agg_b.strategy_name,
+        "compare_rule": AB_COMPARE_RULE,
+        "success_rate_delta": agg_b.survival_rate - agg_a.survival_rate,
+        "completion_time_mean_delta_successful": mean_b - mean_a if mean_a and mean_b else 0.0,
+        "completion_time_basis": "successful_runs_only",
+    }
+
+
+def verify_tactical_determinism(
+    scenario_dict: dict,
+    strategy: Strategy,
+    seed: int,
+    ally_player_id: int = 1,
+    max_loops: int = 1000,
+) -> dict:
+    """Run the same scenario/strategy/seed twice and compare trace and timing."""
+    first = _run_single(scenario_dict, strategy, seed, ally_player_id, max_loops)
+    second = _run_single(scenario_dict, strategy, seed, ally_player_id, max_loops)
+    return {
+        "seed": int(seed),
+        "same_trace_hash": first.trace_hash == second.trace_hash,
+        "same_end_loop": first.end_loop == second.end_loop,
+        "same_victory": first.victory == second.victory,
+        "trace_hash_a": first.trace_hash,
+        "trace_hash_b": second.trace_hash,
+        "deterministic": (
+            first.trace_hash == second.trace_hash
+            and first.end_loop == second.end_loop
+            and first.victory == second.victory
+        ),
+    }
+
+
+def run_tactical_scenario(
+    scenario_dict: dict,
+    strategy: Strategy,
+    seed: int,
+    ally_player_id: int = 1,
+    max_loops: int = 1000,
+) -> SingleRunMetrics:
+    """Stage50 runner surface for one deterministic tactical episode."""
+    return _run_single(scenario_dict, strategy, seed, ally_player_id, max_loops)
+
+
+def run_tactical_batch(
+    scenario_dict: dict,
+    strategy: Strategy,
+    seeds: list[int],
+    ally_player_id: int = 1,
+    max_loops: int = 1000,
+) -> AggregatedMetrics:
+    """Stage50 runner surface for multi-seed tactical aggregation."""
+    return _aggregate(strategy, scenario_dict, seeds, ally_player_id, max_loops)
+
+
+def sweep_tactical_ab(
+    scenario_dict: dict,
+    strategy_a: Strategy,
+    strategy_b: Strategy,
+    seeds: list[int],
+    param_grid: Mapping[str, list[Any]],
+    ally_player_id: int = 1,
+    max_loops: int = 1000,
+) -> list[TacticalReport]:
+    """Run an A/B report for each top-level scenario parameter combination."""
+    keys = list(param_grid)
+    reports: list[TacticalReport] = []
+    for values in itertools.product(*(param_grid[key] for key in keys)):
+        candidate = dict(scenario_dict)
+        sweep_params = dict(zip(keys, values))
+        candidate.update(sweep_params)
+        report = run_tactical_ab(candidate, strategy_a, strategy_b, seeds, ally_player_id, max_loops)
+        report.ab_comparison["sweep_params"] = sweep_params
+        reports.append(report)
+    return reports
 
 
 def _run_single(
@@ -442,7 +674,7 @@ def _run_single(
     while not s.terminated and s.world.clock.now.loop < max_loops:
         loop = s.world.clock.now.loop
         if loop - last_decide >= cmd_interval:
-            obs = Observation.from_world(s.world, ally_player_id)
+            obs = s.query_observation(ally_player_id)
             last_actions = strategy.decide(obs, loop)
             last_decide = loop
             decisions_made += 1
@@ -658,6 +890,13 @@ def run_tactical_ab(
                 "delta_sec": agg_a.avg_victory_time_sec - agg_b.avg_victory_time_sec,
             }
 
+    identity = scenario_identity(scenario_dict)
+    coverage = _scenario_capability_coverage(scenario_dict)
+    unsupported, approximated, reliability = _mechanics_from_coverage(coverage)
+    determinism = verify_tactical_determinism(
+        scenario_dict, strategy_a, seeds[0], ally_player_id, max_loops
+    ) if seeds else {"deterministic": True}
+
     return TacticalReport(
         scenario_name=scenario_dict.get("name", "unnamed"),
         strategy_a=agg_a,
@@ -667,6 +906,22 @@ def run_tactical_ab(
         improvement_trace_refs=trace_refs,
         verdict=verdict,
         victory_time_comparison=vt_comp,
+        scenario_id=identity["scenario_id"],
+        scenario_version=identity["scenario_version"],
+        seed_batch=_seed_batch_summary(agg_a, agg_b, seeds),
+        result_reliability=reliability,
+        unsupported_mechanics=unsupported,
+        approximated_mechanics=approximated,
+        capability_coverage=coverage,
+        failure_tags=_failure_tags(agg_a, agg_b, reliability),
+        ab_comparison=_ab_comparison(agg_a, agg_b),
+        determinism=determinism,
+        architecture_gates={
+            "runner_policy_input": "SimulatorSession.query_observation",
+            "runner_policy_output": "TacticalAction",
+            "policy_uses_observation_action": True,
+            "engine_statistics_surface": "SimulatorSession facade + trace_hash",
+        },
     )
 
 
