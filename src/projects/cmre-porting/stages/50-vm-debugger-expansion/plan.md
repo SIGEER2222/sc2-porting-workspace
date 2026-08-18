@@ -1,23 +1,29 @@
-# Stage 50: VM Debugger Expansion
+# Stage 50: Ares-Inspired Tactical Validation Layer
 
 ## Objective
 
-Return from simulator-first control-plane reports to the generic-runtime-lab VM
-debugger lane.  Use the Stage 03 current VM signature trace and the Stage 49
-commander-balance report as inputs, but do not enable executable hooks until a
-current-version signature is independently validated in a launcher-owned debug
-process.
+Pivot Stage 50 from VM-debugger work to the simulator's macro tactical validation
+lane. The simulator should act as a PvE AI tactical evaluation sandbox and CI
+regression gate: it should answer whether one AI strategy completes a tactical
+objective faster, more reliably, or with better tradeoffs than another.
 
 ## Inputs
 
-- `src/projects/generic-runtime-lab/stages/03-current-vm-signature-trace/result.json`
 - `src/projects/cmre-porting/stages/49-commander-balance-report/result.json`
 - `artifacts/projects/cmre-porting/stage49-commander-balance-report/commander-balance-report-20260817.json`
+- `src/projects/cmre-porting/stages/50-vm-debugger-expansion/sc2-simulator-macro-tactics-questionnaire-20260818.md`
+- `src/projects/cmre-porting/stages/50-vm-debugger-expansion/sc2-simulator-macro-tactics-roadmap-20260818.md`
+- `src/projects/cmre-porting/stages/50-vm-debugger-expansion/ares-sc2-tactical-layer-integration-20260818.md`
+- Local reference: `E:/Code/sc2-rts-reference/ares-sc2`
 
 ## Deliverables
 
-- A debugger expansion plan that separates static signature candidates, debug-window observations, and any future hook promotion.
-- Explicit carry-forward blockers for native SC2 runtime evidence and native differential comparison.
+- A Stage50 macro tactical validation roadmap derived from the user's answers.
+- An Ares-SC2 tactical-layer integration note covering mediator, behavior, role,
+  squad, build-runner, and engagement-result abstractions.
+- A next implementation sequence for `tactical_report.v1`, Ares-inspired
+  Observation/Action/Mediator interfaces, experiment runner, timing-push golden
+  scenario, and CI regression gate.
 
 ## Verification
 
@@ -27,5 +33,10 @@ py -3.13 -m json.tool src/projects/cmre-porting/stages/49-commander-balance-repo
 
 ## Boundaries
 
-- Do not treat Stage 49 simulator balance rows as native balance evidence.
-- Do not patch or hook SC2 without a fresh launcher-owned debug process and same-window ScriptError evidence.
+- Do not make SC2 native/runtime parity a prerequisite for simulator tactical work.
+- Do not let micro-rule fidelity gaps block macro tactical validation; use M7
+  capability coverage to mark confidence/reliability instead.
+- Use Ares-SC2 as a tactical decision vocabulary/reference, not as a bottom-up
+  simulator implementation source.
+- Keep VM debugger / hook work out of this stage unless a later stage explicitly
+  reopens that lane.
