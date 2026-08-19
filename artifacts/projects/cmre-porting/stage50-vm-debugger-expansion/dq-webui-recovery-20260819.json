@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "artifact": "dq-webui-recovery-20260819.json",
+  "stage": "50-vm-debugger-expansion",
+  "classification": "runtime",
+  "checked_utc": "2026-08-19T10:37:44Z",
+  "failure_observed": {
+    "process": "dq-webui",
+    "supervisor_exit_code": 1073807364,
+    "pre_restart_8777": "closed by TCP probe before restart",
+    "reported_by_user": "Supervised process dq-webui failed with exit code 1073807364"
+  },
+  "action": {
+    "command": "hub start dq-webui: py -3.13 tools/cmre-webui/server.py --host 127.0.0.1 --port 8777 --dou-ququ-map src/projects/test-arena/packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map",
+    "ready_condition": "TCP port 127.0.0.1:8777 became ready under supervisor"
+  },
+  "verdict": {
+    "status": "WEBUI_RECOVERED_RUNTIME_VM_DISCONNECTED",
+    "webui_8777_ready": true,
+    "launcher_running": false,
+    "launcher_pid": null,
+    "vibe_status": "disconnected",
+    "vm_ports_open": {
+      "5896": false,
+      "5897": false
+    },
+    "maps_count": 16,
+    "commanders_count": 45,
+    "revolution_commanders_count": 5,
+    "call_log_total_count": 474
+  },
+  "endpoint_summaries": {
+    "/api/status": {
+      "ok": true,
+      "http_status": 200,
+      "body": {
+        "launcherRunning": false,
+        "pid": null
+      }
+    },
+    "/api/vibe/status": {
+      "ok": true,
+      "http_status": 200,
+      "status": "disconnected",
+      "session_id": "",
+      "runtime_rules": {
+        "count": 0,
+        "source_sha256": "",
+        "endpoint": "/api/vibe/rules"
+      },
+      "event_source": {
+        "bank": "GalaxyVibeEvents",
+        "bank_path": "",
+        "event_session": "",
+        "cursor": 0,
+        "pump": false,
+        "endpoint": "/api/vibe/event-log"
+      }
+    },
+    "/api/maps": {
+      "ok": true,
+      "http_status": 200,
+      "maps_count": 16,
+      "reborn_count": 20,
+      "revolution_count": 31,
+      "first_map": {
+        "id": "亡者之夜.SC2Map",
+        "name": "亡者之夜",
+        "preview": "CMRE/亡者之夜.SC2Map/bnet_don.png",
+        "packageId": "cmre",
+        "mapCategory": "cmre"
+      }
+    },
+    "/api/factors": {
+      "ok": true,
+      "http_status": 200,
+      "commanders_count": 45,
+      "revolution_commanders_count": 5,
+      "modes_count": 3
+    },
+    "/api/vibe/call-log?limit=5": {
+      "ok": true,
+      "http_status": 200,
+      "count": 5,
+      "total_count": 474,
+      "path": "artifacts\\projects\\cmre-porting\\stage27-dou-ququ-behavior-plugin\\runtime\\douququ-runtime-vm-call-log.jsonl"
+    }
+  },
+  "ports": {
+    "8777": {
+      "open": true
+    },
+    "8767": {
+      "open": true
+    },
+    "5896": {
+      "open": false,
+      "error": "TimeoutError: timed out"
+    },
+    "5897": {
+      "open": false,
+      "error": "TimeoutError: timed out"
+    }
+  },
+  "process_check": {
+    "command": "Get-CimInstance Win32_Process filtered for WebUI/SC2/runtime ports",
+    "returncode": 0,
+    "records": [
+      {
+        "ProcessId": 12732,
+        "Name": "python.exe",
+        "CommandLine": "C:\\Users\\22448\\AppData\\Local\\Programs\\Python\\Python313\\python.exe E:\\Code\\MyMod\\SC2VibeTools\\sc2-porting-workspace\\tools\\cmre-webui\\server.py --host 127.0.0.1 --port 8767"
+      },
+      {
+        "ProcessId": 27496,
+        "Name": "python.exe",
+        "CommandLine": "C:\\Users\\22448\\AppData\\Local\\Programs\\Python\\Python313\\python.exe tools/cmre-webui/server.py --host 127.0.0.1 --port 8777 --dou-ququ-map src/projects/test-arena/packages/Maps/鍦板浘璋冭瘯鍜屾枟铔愯洂宸ュ叿锛堝畬鏁村姛鑳界増).SC2Map"
+      }
+    ],
+    "stderr": ""
+  },
+  "scope_boundary": "This recovers the WebUI control-plane process only; no SC2 launcher, VM RPC listener, or native gameplay event chain is claimed.",
+  "next_action": "If VM runtime evidence is required, launch SC2 through the approved launcher and wait for runtime session binding before issuing VM RPC calls."
+}

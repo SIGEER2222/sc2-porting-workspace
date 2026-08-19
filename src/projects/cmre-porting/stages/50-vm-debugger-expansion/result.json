@@ -72,6 +72,18 @@
       "/api/vibe/event-log returned count=0 and /api/vibe/rules returned rule_count=0, so no current automatic event-to-VM evidence is present."
     ]
   },
+  "webui_recovery": {
+    "status": "WEBUI_RECOVERED_RUNTIME_VM_DISCONNECTED",
+    "evidence_type": "runtime",
+    "artifact": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/dq-webui-recovery-20260819.json",
+    "checked_utc": "2026-08-19T10:37:44Z",
+    "observations": [
+      "Supervisor-restarted dq-webui on 127.0.0.1:8777 after exit code 1073807364.",
+      "/api/status, /api/vibe/status, /api/maps, /api/factors, and /api/vibe/call-log?limit=5 returned HTTP 200.",
+      "Recovered WebUI reports launcherRunning=false and vibe_status=disconnected; 5896/5897 remain closed."
+    ],
+    "scope_boundary": "WebUI control-plane recovery only; no SC2 launcher, VM RPC listener, or native gameplay event chain is claimed."
+  },
   "checks": {
     "schema_identity_present": true,
     "seed_batch_present": true,

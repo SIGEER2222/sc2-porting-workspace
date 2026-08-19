@@ -36,3 +36,11 @@
 - `runtime`: `/api/vibe/status` reports `status=error` with no active current Vibe session; last candidate `repl_c9dc144c3fa8` ended as `INTERNAL_ERROR timeout` for request `33e8a4809297`.
 - `runtime`: Bank signals show prior runtime init/bridge readiness (`runtime_listener_ready=1`, `bridge_heartbeat=12`) and a stale pending request, but `/api/vibe/event-log` count is `0` and `/api/vibe/rules` count is `0`.
 - `static`: This spot-check does not change the Stage50 tactical simulator PASS or native/runtime claim boundary; it records that fresh VM RPC/gameplay-event claims are currently blocked by inactive session binding.
+
+## dq-webui Recovery - 2026-08-19
+
+- `runtime`: `dq-webui` supervisor reported exit code `1073807364`; pre-restart TCP probe showed `127.0.0.1:8777` closed while the separate `8767` WebUI process remained open.
+- `runtime`: Restarted `dq-webui` through the supervisor with `py -3.13 tools/cmre-webui/server.py --host 127.0.0.1 --port 8777 --dou-ququ-map src/projects/test-arena/packages/Maps/地图调试和斗蛐蛐工具（完整功能版).SC2Map`; supervisor reported port `8777` ready.
+- `runtime`: Smoke endpoints passed: `/api/status`, `/api/vibe/status`, `/api/maps`, `/api/factors`, and `/api/vibe/call-log?limit=5` all returned HTTP 200.
+- `runtime`: Recovery artifact `artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/dq-webui-recovery-20260819.json` records WebUI recovered, `launcherRunning=false`, `vibe_status=disconnected`, and VM ports `5896/5897` still closed.
+- `static`: This recovery only restores the WebUI control plane; it does not claim SC2 launcher readiness, VM RPC availability, or automatic gameplay event evidence.
