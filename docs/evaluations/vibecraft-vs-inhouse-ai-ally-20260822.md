@@ -78,3 +78,16 @@
 - `static`:两代码库只读探查(文件引用见上文),未修改 vibecraft 任何文件。
 - `runtime`:引用的实机主张均来自既有 stage result.json/log.md,本次未新产生 runtime 证据。
 - `inference`:§6 路径 A 的工期判断(事件 lane 与策略接入的主阻塞为环境性)基于 issue 记录推断,需在下一阶段验证。
+
+## 9. 决策更新(2026-08-22,用户裁决)
+
+**用户决策:vibecraft 不是只读参考,作为后续开发的基座(fork 在其上开发)。** 本节覆盖 §6/§7 中"只读借鉴、不 fork 不 vendored"的边界;§3 的三个硬性不匹配仍是事实,但性质从"替换障碍"改为"基座上的适配工作项":
+
+1. **attach 层**:在 vibecraft 上新增"连接 launcher 启动的既有对局"的连接模式(python-sc2 `Client` 直连 `ws://127.0.0.1:<port>/sc2api`;本工作区 `galaxy_repl.py` 已验证该模式可行),替代/并存于其 `SC2Process` 自建局路径。
+2. **P2 控制缝**:vibecraft 的指令执行最终落到操作"自己玩家"的单位;适配方向是把 Director 的指令下发接到工作区已验证的 P2 通道(`WriteModelP2Snapshot`/`ApplyModelP2Intent` 或 function.invoke 面),使其驱动地图原生 P2。
+3. **自定义单位知识**:把 `UnitTypeId` 硬绑的单位解析替换为工作区 function registry/catalog 数据源,使 CMRE 自定义指挥官单位可被指令引用。
+
+**基座拉起证据(runtime,2026-08-22)**:本机 Python 3.11.9 + uv 0.12.1 满足硬锁;`uv sync --extra dev` 成功;burnysc2 因 uv git 拉取遇 GitHub 连接重置,改用 git 克隆 `august-k/python-sc2@develop` 后 `uv pip install` 装入;`pytest -m "not e2e"` **3704 passed / 64 skipped / 2 deselected**。详见 `artifacts/projects/cmre-porting/stage51-p2-ally-usability-closure/vibecraft-baseline-bringup-20260822.md`。
+
+**仓库策略**:`reference/vibecraft` 的 `master` 保持跟踪上游原样;我们的修改在 fork 分支上进行(建议分支名 `workspace-ally`),上游同步经 git remote 完成,符合 AGENTS.md"外部工具源保持独立 Git 仓库、经文档化接口消费"的边界。适配工作建议立为独立阶段(Stage 52 候选),Stage 51 的 WP-A(事件通道)与 WP-C(P2 桥)正是该阶段的两个对接缝,先后关系不变。
+

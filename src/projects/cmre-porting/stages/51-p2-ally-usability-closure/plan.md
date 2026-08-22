@@ -30,7 +30,8 @@ loop on the existing launcher + Galaxy kernel spine.
 - `tools/galaxy-vibe/kernel/LibVibeKernel.galaxy` (WriteModelP2Snapshot / ApplyModelP2Intent)
 - `tools/cmre-webui/server.py`, `tools/cmre-webui/runtime_script.py`, `tools/galaxy-vibe/galaxy_repl.py`
 - `tools/launchers/launch-cmre-alenger.ps1` (dou-ququ overlay flags are dou-ququ-map-restricted)
-- `reference/vibecraft/scripts/build_acceptance.py` (majority-vote acceptance methodology reference; read-only)
+- `reference/vibecraft` (development base per user decision 2026-08-22, see evaluation doc §9; baseline bring-up verified: `pytest -m "not e2e"` 3704 passed — `artifacts/projects/cmre-porting/stage51-p2-ally-usability-closure/vibecraft-baseline-bringup-20260822.md`)
+- `reference/vibecraft/scripts/build_acceptance.py` (majority-vote acceptance methodology reference)
 
 ## Work packages
 
@@ -98,7 +99,11 @@ PYTHONPATH=src/projects/cmre-porting py -3.13 -m pytest -q src/projects/cmre-por
 
 ## Boundaries
 
-- vibecraft stays a read-only reference; borrow methodology only, no code vendoring.
+- vibecraft is a development base (user decision 2026-08-22, evaluation doc §9), not
+  a read-only reference. Stage 51 itself does not modify vibecraft source; adaptation
+  work (attach layer, P2 control seam, custom-unit knowledge) is the next stage's
+  scope and happens on a fork branch (`workspace-ally`), with `reference/vibecraft`
+  master kept upstream-pristine.
 - No new directive/DSL design in this stage (deferred per evaluation §6 path A step 4).
 - No ML training or parameter tuning (stays in Stage 6x per Stage 50 next_actions).
 - Native differential remains BLOCKED; simulator evidence is never reported as native.
