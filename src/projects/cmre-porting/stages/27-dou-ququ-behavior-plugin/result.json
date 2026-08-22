@@ -26,7 +26,10 @@
     "tools/cmre-webui/test_launch_async_contract.py",
     "tools/launchers/launch-cmre-alenger.ps1",
     "tools/launchers/lib/cmre-on-demand-overlay.ps1",
-    "src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin"
+    "src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin",
+    "tools/cmre-webui/runtime_script.py",
+    "src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin/log.md",
+    "src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin/result.json"
   ],
   "validation": [
     {
@@ -272,6 +275,86 @@
       "command": "python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py; powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1",
       "exitCode": 0,
       "summary": "136 targeted tests passed; Galaxy static validation passed 52/52 with zero warnings; Python/JavaScript compilation and git diff check passed."
+    },
+    {
+      "command": "python -m pytest -q tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_galaxy_script_lab.py",
+      "status": "PASS",
+      "evidence_type": "static",
+      "summary": "14 passed; covers runtime script compiler, /api/vibe/run-script route, call/event log routes, and Galaxy Script Lab validation."
+    },
+    {
+      "command": "python -m py_compile tools/cmre-webui/runtime_script.py tools/cmre-webui/server.py",
+      "status": "PASS",
+      "evidence_type": "static",
+      "summary": "Runtime script compiler and WebUI backend compile."
+    },
+    {
+      "command": "node --check tools/cmre-webui/webui/app.js",
+      "status": "PASS",
+      "evidence_type": "static",
+      "summary": "WebUI runtime script panel JavaScript parses."
+    },
+    {
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_galaxy_script_lab.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py",
+      "status": "PASS",
+      "evidence_type": "static",
+      "summary": "147 passed; covers Stage 27 behavior tests, runtime script compiler, WebUI route, staging, launch contract, and launcher static contract."
+    },
+    {
+      "command": "python -m pytest -q tools/cmre-webui/test_runtime_call_log.py",
+      "status": "PASS",
+      "evidence_type": "static",
+      "summary": "14 passed; covers dynamic rule compilation, HTTP register/clear, synthetic bank-event dispatch through rule-vm, runtime scripts, and call/event log contracts."
+    },
+    {
+      "command": "python -m py_compile tools/cmre-webui/runtime_script.py tools/cmre-webui/server.py; node --check tools/cmre-webui/webui/app.js",
+      "status": "PASS",
+      "evidence_type": "static",
+      "summary": "Runtime rule compiler/backend and WebUI JavaScript parse."
+    },
+    {
+      "command": "headless browser DOM check on tools/cmre-webui/webui/index.html runtime tab",
+      "status": "PASS",
+      "evidence_type": "static",
+      "summary": "Runtime tab exposes 动态规则（事件驱动）; register button is visible and has an onclick handler."
+    },
+    {
+      "command": "python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_galaxy_script_lab.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py",
+      "status": "PASS",
+      "evidence_type": "static",
+      "summary": "150 passed; covers Stage 27 behavior tests, dynamic rules, runtime script compiler, WebUI routes, staging, launch contract, and launcher static contract."
+    },
+    {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1",
+      "status": "PASS",
+      "evidence_type": "static",
+      "summary": "52/52 static checks passed with zero failures and zero warnings.",
+      "evidence": "artifacts/galaxy-vibe/static-validation-report.json"
+    },
+    {
+      "command": "python -m pytest -q tools/cmre-webui/test_runtime_call_log.py",
+      "status": "PASS",
+      "evidence_type": "static",
+      "summary": "17 passed; covers direct script registry discovery, /api/vibe/scripts HTTP registry, dynamic rule HTTP route, runtime script HTTP route, event-pump rule VM dispatch, and ReplaceScarabProjectile compilation."
+    },
+    {
+      "command": "python -m pytest -q tools/cmre-webui/test_debug_map_runtime.py tools/cmre-webui/test_runtime_call_log.py",
+      "status": "PASS",
+      "evidence_type": "static",
+      "summary": "20 passed; covers runtime route contracts plus registry, rule, script, and VM paths."
+    },
+    {
+      "command": "python -m py_compile tools/cmre-webui/runtime_script.py tools/cmre-webui/server.py; node --check tools/cmre-webui/webui/app.js",
+      "status": "PASS",
+      "evidence_type": "static",
+      "summary": "Runtime script compiler/backend and WebUI JavaScript parse after registry and Scarab alias changes."
+    },
+    {
+      "command": "offline DebugVm run: ReplaceScarabProjectile(\"ScarabWeapon\");",
+      "status": "PASS",
+      "evidence_type": "static",
+      "summary": "Compiled program executed through DebugVm and called vibe.catalog.set for effect ScarabLM field AmmoUnit with value ScarabWeapon; no live SC2 mutation is claimed.",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/runtime-vm-progress-20260817.json"
     }
   ],
   "runtime": {
@@ -298,9 +381,52 @@
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/galaxy-user-script-live-fixed-20260816/script-error-verdict-after-probe.json",
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-20260816-post-vm.json",
       "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/auto-event-launch-20260816-secondary.out.log",
-      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/auto-event-launch-20260816-secondary2.out.log"
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/auto-event-launch-20260816-secondary2.out.log",
+      "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/runtime-vm-progress-20260817.json"
     ],
-    "blockedBy": "The live Galaxy event bridge and auto-vm dispatcher are statically present, but this turn could not acquire a target-map SC2 window: an unrelated 大撤离 session was already in_game on 127.0.0.1:5927, and the approved isolated secondary launcher failed to open ports 5931/5932. Automatic behavior therefore remains unobserved; the unrelated zzerus03 CreateGame block also remains open."
+    "blockedBy": "The live Galaxy event bridge and auto-vm dispatcher are statically present, but this turn could not acquire a target-map SC2 window: an unrelated 大撤离 session was already in_game on 127.0.0.1:5927, and the approved isolated secondary launcher failed to open ports 5931/5932. Automatic behavior therefore remains unobserved; the unrelated zzerus03 CreateGame block also remains open.",
+    "dynamicRuntimeScript": {
+      "status": "STATIC_PASS_RUNTIME_PENDING",
+      "endpoint": "/api/vibe/run-script",
+      "evidence_type": "static",
+      "summary": "Text script compiles to vibe-debug/1 and executes through the current connected Vibe session; no Galaxy source hot-compilation is claimed.",
+      "compile_boundary": "current_vibe_session",
+      "galaxy_compile_boundary": "next_sc2_map_load"
+    },
+    "dynamicScriptRegistry": {
+      "status": "STATIC_PASS",
+      "endpoint": "/api/vibe/scripts",
+      "evidence_type": "static",
+      "summary": "Selected map and resolved dependency .galaxy files are registered with package ownership, source paths, sha256, include lists, and dependency status for VM audit context only.",
+      "compile_boundary": "next_sc2_map_load",
+      "runtime_claim": "none"
+    },
+    "projectileCatalogMutation": {
+      "status": "STATIC_PASS_RUNTIME_PENDING",
+      "scriptAlias": "ReplaceScarabProjectile(ammo_unit)",
+      "function_id": "vibe.catalog.set",
+      "catalog": "effect",
+      "entry": "ScarabLM",
+      "field": "AmmoUnit",
+      "evidence_type": "static",
+      "summary": "Offline DebugVm reached vibe.catalog.set for the Reaver Scarab launch-missile AmmoUnit field; live SC2/WebUI mutation is pending because 127.0.0.1:8777 was not listening.",
+      "evidence": "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/runtime-vm-progress-20260817.json"
+    },
+
+    "dynamicRuntimeRules": {
+      "status": "STATIC_PASS_RUNTIME_PENDING",
+      "endpoint": "/api/vibe/rules",
+      "clearEndpoint": "/api/vibe/rules/clear",
+      "evidence_type": "static",
+      "summary": "Rule DSL compiles to event filters plus vibe-debug/1 VM programs; matched GalaxyVibeEvents payloads are materialized into Debug VM args and executed with origin=rule-vm. Live target-map automatic effect evidence is still pending.",
+      "compile_boundary": "current_vibe_session",
+      "galaxy_compile_boundary": "next_sc2_map_load"
+    }
   },
-  "next_actions": ["Implement and verify a runtime event source that feeds actual attack, death, kill, and periodic events into the VM without treating explicit RPC calls as combat evidence.", "Diagnose and rerun zzerus03 Reborn native-opening initialization before closing the unrelated map-commander blocker."]
+  "next_actions": [
+    "Run /api/vibe/rules against a live target-map session, trigger a real GalaxyVibeEvents event, and capture event-log plus raw observation evidence for rule-vm side effects.",
+    "Run /api/vibe/run-script against a live target-map session after reconnecting SC2 to record runtime evidence for the no-restart dynamic script path.",
+    "Implement and verify a runtime event source that feeds actual attack, death, kill, and periodic events into the VM without treating explicit RPC calls as combat evidence.",
+    "Diagnose and rerun zzerus03 Reborn native-opening initialization before closing the unrelated map-commander blocker."
+  ]
 }

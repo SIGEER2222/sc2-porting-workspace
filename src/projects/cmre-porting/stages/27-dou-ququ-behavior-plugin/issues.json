@@ -35,7 +35,7 @@
       "severity": "high",
       "status": "open",
       "title": "Normal combat does not yet drive the runtime VM behavior rules",
-      "detail": "The live Galaxy module now statically registers attack, death, creation, effect, and periodic event triggers and writes GalaxyVibeEvents records; RuntimeConsole dispatches those records through auto-vm with correlation ids. However, this retest could not obtain a target-map SC2 window because an unrelated 大撤离 session occupied the single-instance runtime and the approved isolated secondary launcher failed to open a second API. No runtime evidence yet proves that ordinary attacks, deaths, kills, or elapsed time invoke the requested rules. The earlier explicit RPC results remain API-only evidence.",
+      "detail": "The live Galaxy module now statically registers attack, death, creation, effect, and periodic event triggers and writes GalaxyVibeEvents records; RuntimeConsole dispatches those records through auto-vm with correlation ids. However, this retest could not obtain a target-map SC2 window because an unrelated 大撤离 session occupied the single-instance runtime and the approved isolated secondary launcher failed to open a second API. No runtime evidence yet proves that ordinary attacks, deaths, kills, or elapsed time invoke the requested rules. The earlier explicit RPC results remain API-only evidence. A dynamic rule registry is now statically verified on top of the event bridge, but it still needs live target-map evidence before any normal-combat behavior can be claimed.",
       "evidence_type": "blocked",
       "owner": "stage27",
       "evidence": [
@@ -48,11 +48,14 @@
         "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/galaxy-user-script-live-fixed-20260816/dou-ququ-runtime-evidence.json",
         "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/galaxy-user-script-live-fixed-20260816/script-error-verdict-after-probe.json",
         "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-runtime-vm-call-log.jsonl",
-        "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-20260816-post-vm.json"
-        ,"artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/auto-event-launch-20260816-secondary.out.log"
-        ,"artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/auto-event-launch-20260816-secondary2.out.log"
+        "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/douququ-script-error-20260816-post-vm.json",
+        "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/auto-event-launch-20260816-secondary.out.log",
+        "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/auto-event-launch-20260816-secondary2.out.log",
+        "artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/runtime-vm-progress-20260817.json",
+        "tools/cmre-webui/DOUQUQU_RUNTIME.md",
+        "src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin/log.md"
       ],
-      "nextAction": "When the unrelated SC2 session is naturally closed, launch the target map through the approved launcher, require in_game/game_loop>0, then verify each effect from ordinary combat with GalaxyVibeEvents -> auto-vm -> raw observation evidence. Keep explicit VM calls only as API tests."
+      "nextAction": "When the unrelated SC2 session is naturally closed, launch the target map through the approved launcher, register /api/vibe/rules, require in_game/game_loop>0, then verify each effect from ordinary combat with GalaxyVibeEvents -> rule-vm/auto-vm -> raw observation evidence. Keep explicit VM calls only as API tests."
     },
     {
       "id": "MAP-COMMANDER-REborn-RUNTIME-BLOCKED",

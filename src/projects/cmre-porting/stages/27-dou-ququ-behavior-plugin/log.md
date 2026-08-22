@@ -362,3 +362,42 @@ zzerus03/Reborn map-commander initialization issue is still open; the runtime-fi
   available in this runtime window.
 - `validation`: `python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py` -> `136 passed`.
 - `validation`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` -> `52/52 passed`, zero warnings; Python/JavaScript compilation and `git diff --check` passed.
+
+## 2026-08-17 Dynamic runtime script entry
+
+- `static`: Added `tools/cmre-webui/runtime_script.py` and `POST /api/vibe/run-script`. The endpoint compiles a small text script into the existing `vibe-debug/1` VM and runs it in the current connected Vibe session, without CreateGame, LeaveGame, pause, launcher restart, or Galaxy source hot-compilation.
+- `static`: WebUI now exposes a “动态脚本（无需重启）” panel beside Debug VM. It explicitly says the path is not arbitrary Galaxy hot compilation; every game-side effect still goes through already compiled, registered `function.invoke` handlers.
+- `static`: The true Galaxy source editor remains bounded by `galaxy_compile_boundary=next_sc2_map_load`; editing `LibDouQuquUser.galaxy` still requires staging, packing, and reloading the map before the new handler body can execute.
+- `validation`: `python -m pytest -q tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_galaxy_script_lab.py` -> `14 passed`.
+- `validation`: `python -m py_compile tools/cmre-webui/runtime_script.py tools/cmre-webui/server.py` -> passed; `node --check tools/cmre-webui/webui/app.js` -> passed.
+- `validation`: `python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_galaxy_script_lab.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py` -> `147 passed`.
+- `validation`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` -> `52/52 passed`, zero failures, zero warnings; report at `artifacts/galaxy-vibe/static-validation-report.json`.
+
+## 2026-08-17 Dynamic runtime rule registry
+
+- `static`: Added dynamic event rules on top of the already compiled runtime base library. `POST /api/vibe/rules` compiles `rule "id" on <event> where <conditions> { ... }` DSL into event filters plus `vibe-debug/1` VM programs; `/api/vibe/rules/clear` clears the in-process registry.
+- `static`: RuntimeConsole now evaluates dynamic rules from `GalaxyVibeEvents` before the built-in automatic dispatcher. Matched rules materialize `$payload.*`, `$event.*`, and `$correlation_id` into JSON args and execute with `origin=rule-vm`; unmatched events still use the existing built-in auto-vm fallback.
+- `static`: WebUI now exposes a “动态规则（事件驱动）” panel with register/clear controls and an example Vulture death adapter rule. Browser DOM verification opened the WebUI, selected `运行时调试`, and observed the rule heading, visible register button, and registered onclick handler.
+- `validation`: `python -m pytest -q tools/cmre-webui/test_runtime_call_log.py` -> `14 passed`; covers rule compilation, rule HTTP register/clear, dynamic event-pump dispatch, and existing runtime script/call-log contracts.
+- `validation`: `python -m py_compile tools/cmre-webui/runtime_script.py tools/cmre-webui/server.py` -> passed; `node --check tools/cmre-webui/webui/app.js` -> passed.
+- `validation`: `python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_galaxy_script_lab.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py` -> `150 passed`.
+- `validation`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` -> `52/52 passed`, zero failures, zero warnings; report at `artifacts/galaxy-vibe/static-validation-report.json`.
+- `blocked`: No live SC2 automatic-combat effect is newly claimed here. This change proves the script-to-rule-to-VM plumbing with synthetic bank events and browser UI verification; target-map runtime proof still needs a live session event chain.
+
+## 2026-08-17 Runtime script registry and Scarab projectile VM alias
+
+- `static`: Added `/api/vibe/scripts` to build a static script registry for the selected map plus resolved `DocumentInfo` dependencies. Records include package ownership, source path, script path, sha256, include list, and dependency status; the registry is audit context only and does not hot-compile Galaxy into the current SC2 session.
+- `static`: Added `ReplaceScarabProjectile("UnitId")` to the dynamic runtime script DSL. It compiles to `vibe.catalog.set` with `catalog=effect`, `entry=ScarabLM`, `field=AmmoUnit`, `player=1`, and the requested ammo-unit value.
+- `static`: Void campaign data confirms the Reaver chain uses `ScarabLM` as the launch-missile effect and `ScarabLM.AmmoUnit` points at the launched projectile unit; `ScarabAttackMissile` is the actor visual and is not the gameplay catalog mutation target.
+- `validation`: `python -m pytest -q tools/cmre-webui/test_runtime_call_log.py` -> `17 passed`; covers direct registry discovery, `/api/vibe/scripts` HTTP route, dynamic rule HTTP route, runtime script HTTP route, event-pump rule VM dispatch, and `ReplaceScarabProjectile` compilation.
+- `validation`: `python -m pytest -q tools/cmre-webui/test_debug_map_runtime.py tools/cmre-webui/test_runtime_call_log.py` -> `20 passed`; covers runtime route contracts plus registry/rule/script VM paths.
+- `validation`: `python -m py_compile tools/cmre-webui/runtime_script.py tools/cmre-webui/server.py` -> passed; `node --check tools/cmre-webui/webui/app.js` -> passed.
+- `validation`: offline Debug VM execution of `ReplaceScarabProjectile("ScarabWeapon");` reached `DebugVm -> vibe.catalog.set` and returned `status=passed`, with `old_value=Scarab` and `value=ScarabWeapon`; evidence recorded at `artifacts/projects/cmre-porting/stage27-dou-ququ-behavior-plugin/runtime/runtime-vm-progress-20260817.json`.
+- `blocked`: Live WebUI runtime was not listening on `127.0.0.1:8777`; one `SC2_x64` process exists, but no live VM mutation is claimed. Explicit Catalog API validation remains separate from automatic gameplay behavior evidence.
+
+## 2026-08-22 Pre-commit re-verification and kernel copy realignment
+
+- `static`: Aligned the kernel master `tools/galaxy-vibe/kernel/LibVibeKernel.galaxy` local naming (`lv_actor` -> `actor`) with the two deployed copies so all three copies are content-identical again (`diff --strip-trailing-cr` empty for kernel vs galaxy-debug-mod and kernel vs 亡者之夜 map copy). The rename is compile-equivalent; no behavior change.
+- `validation`: `python -m pytest -q src/projects/cmre-porting/stages/27-dou-ququ-behavior-plugin tools/cmre-webui/test_runtime_call_log.py tools/cmre-webui/test_stage_map_vm_runtime.py tools/cmre-webui/test_galaxy_script_lab.py tools/cmre-webui/test_launch_async_contract.py tools/launchers/tests/test_launch_cmre_alenger_static.py` -> `157 passed` (7 more than the 2026-08-17 count; test_runtime_call_log.py gained registry/route cases since).
+- `validation`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/galaxy-vibe/run-all-validation.ps1` -> `52/52 passed`, zero failures, zero warnings; report at `artifacts/galaxy-vibe/static-validation-report.json`.
+- `blocked`: unchanged — DOUQUQU-RUNTIME-PENDING still needs a live target-map event chain; this session only re-verified the tree before committing.
