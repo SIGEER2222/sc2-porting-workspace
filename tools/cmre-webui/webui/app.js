@@ -25,6 +25,9 @@ const API = {
   vibeDisconnect: "/api/vibe/disconnect",
   vibeInvoke: "/api/vibe/invoke",
   vibeRunVm: "/api/vibe/run-vm",
+  vibeRunScript: "/api/vibe/run-script",
+  vibeRules: "/api/vibe/rules",
+  vibeRulesClear: "/api/vibe/rules/clear",
   vibeObserve: "/api/vibe/observe",
   vibeCallLog: "/api/vibe/call-log",
   vibeGalaxyScript: "/api/vibe/galaxy-script",
@@ -671,9 +674,13 @@ function syncRuntimeStatus(status) {
   $("runtime-disconnect").disabled = !connected || busy;
   $("runtime-invoke").disabled = !connected || busy || !runtimeState.selectedFunction;
   $("runtime-run-vm").disabled = !connected || busy;
+  $("runtime-run-script").disabled = !connected || busy;
+  $("runtime-register-rules").disabled = busy;
+  $("runtime-clear-rules").disabled = busy;
   $("runtime-galaxy-run").disabled = !connected || busy;
   const session = data.session_id ? `session=${data.session_id}` : "session=未建立";
-  $("runtime-session-meta").textContent = `${data.port ? `port=${data.port} · ` : ""}${session}${data.error ? ` · ${data.error}` : ""}`;
+  const rules = data.runtime_rules?.count ?? 0;
+  $("runtime-session-meta").textContent = `${data.port ? `port=${data.port} · ` : ""}${session} · rules=${rules}${data.error ? ` · ${data.error}` : ""}`;
   if (Array.isArray(data.trace)) {
     runtimeState.trace = data.trace;
     renderRuntimeTrace();
@@ -832,6 +839,56 @@ async function runRuntimeVm() {
   } catch (e) { await pollRuntimeStatus(); showStatus(`VM 请求失败: ${e.message}`, "error"); }
 }
 
+async function runRuntimeScript() {
+  const source = $("runtime-script-source").value || "";
+  try {
+    const data = await runtimeRequest(API.vibeRunScript, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source }),
+    });
+    syncRuntimeStatus(data.status);
+    await loadRuntimeCallLog(false);
+    $("runtime-script-result").textContent = runtimeJson({ compiled: data.compiled, result: data.result });
+    const passed = data.result?.status === "passed";
+    showStatus(passed ? "动态脚本执行成功" : `动态脚本执行失败: ${data.result?.error || data.error || "未知错误"}`, passed ? "success" : "error");
+  } catch (e) {
+    await pollRuntimeStatus();
+    $("runtime-script-result").textContent = String(e.message || e);
+    showStatus(`动态脚本请求失败: ${e.message}`, "error");
+  }
+}
+
+async function registerRuntimeRules() {
+  const source = $("runtime-rules-source").value || "";
+  try {
+    const data = await runtimeRequest(API.vibeRules, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source }),
+    });
+    syncRuntimeStatus(data.status);
+    $("runtime-rules-result").textContent = runtimeJson({ compiled: data.compiled, rules: data.rules });
+    showStatus(`动态规则已注册: ${data.rules?.rule_count ?? 0} 条`, "success");
+  } catch (e) {
+    await pollRuntimeStatus();
+    $("runtime-rules-result").textContent = String(e.message || e);
+    showStatus(`动态规则注册失败: ${e.message}`, "error");
+  }
+}
+
+async function clearRuntimeRules() {
+  try {
+    const data = await runtimeRequest(API.vibeRulesClear, { method: "POST" });
+    syncRuntimeStatus(data.status);
+    $("runtime-rules-result").textContent = runtimeJson(data.rules);
+    showStatus("动态规则已清空", "success");
+  } catch (e) {
+    await pollRuntimeStatus();
+    showStatus(`动态规则清空失败: ${e.message}`, "error");
+  }
+}
+
 function galaxyScriptSource() {
   return $("runtime-galaxy-source").value || "";
 }
@@ -925,6 +982,9 @@ function initRuntimeConsole() {
   $("runtime-disconnect").onclick = disconnectRuntime;
   $("runtime-invoke").onclick = invokeRuntimeFunction;
   $("runtime-run-vm").onclick = runRuntimeVm;
+  $("runtime-run-script").onclick = runRuntimeScript;
+  $("runtime-register-rules").onclick = registerRuntimeRules;
+  $("runtime-clear-rules").onclick = clearRuntimeRules;
   $("runtime-load-call-log").onclick = () => loadRuntimeCallLog(true);
   $("runtime-galaxy-reload").onclick = loadGalaxyScript;
   $("runtime-galaxy-validate").onclick = validateGalaxyScript;

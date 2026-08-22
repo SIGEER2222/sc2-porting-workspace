@@ -276,6 +276,38 @@
     {"op": "call", "fn": "douququ.snapshot", "args": {}, "save": "snapshot"}
   ]
 }</textarea></label>
+
+            <div class="runtime-divider"></div>
+            <div class="runtime-panel-head runtime-vm-head">
+              <div>
+                <h2>动态脚本（无需重启）</h2>
+                <div class="runtime-hint">不是热编译 Galaxy；它会即时编译成已注册 function.invoke / Debug VM 调用并在当前 session 执行。</div>
+              </div>
+              <button type="button" class="btn-primary btn-compact" id="runtime-run-script" disabled>执行动态脚本</button>
+            </div>
+            <label class="runtime-label">script<textarea id="runtime-script-source" class="runtime-code runtime-script-code" spellcheck="false">let status = RuntimeStatus();
+assert status.active == true;
+let marine = UnitCreate(1, "Marine", 90.0, 90.0);
+step 8;
+let snapshot = Snapshot();
+assert snapshot.marineCount >= 1;</textarea></label>
+            <pre class="runtime-detail runtime-script-result" id="runtime-script-result">等待动态脚本结果</pre>
+
+            <div class="runtime-divider"></div>
+            <div class="runtime-panel-head runtime-vm-head">
+              <div>
+                <h2>动态规则（事件驱动）</h2>
+                <div class="runtime-hint">注册到当前 WebUI runtime；事件泵命中后把 $payload.* 物化成 Debug VM 调用。</div>
+              </div>
+              <div class="runtime-panel-actions">
+                <button type="button" class="btn-secondary btn-compact" id="runtime-clear-rules">清空规则</button>
+                <button type="button" class="btn-primary btn-compact" id="runtime-register-rules">注册规则</button>
+              </div>
+            </div>
+            <label class="runtime-label">rules<textarea id="runtime-rules-source" class="runtime-code runtime-script-code" spellcheck="false">rule "vulture death adapter" on unit_died where payload.victimType == "Vulture" {
+  call douququ.auto.death {"correlation_id":"$correlation_id","killer_tag":"$payload.killerTag","victim_owner":"$payload.victimOwner","victim_tag":"$payload.victimTag","victim_type":"$payload.victimType","victim_x":"$payload.victimX","victim_y":"$payload.victimY"};
+}</textarea></label>
+            <pre class="runtime-detail runtime-script-result" id="runtime-rules-result">等待动态规则注册</pre>
           </section>
         </div>
 

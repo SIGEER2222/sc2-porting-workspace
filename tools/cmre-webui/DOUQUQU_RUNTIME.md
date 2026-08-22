@@ -59,6 +59,71 @@ curl.exe -X POST http://127.0.0.1:8777/api/vibe/run-vm `
 
 `steps` 支持 `call`、`repeat`、`assert`；`call` 的 `save` 和 `{"$ref":"vars.name.tag"}` 可用于串联单位 tag。WebUI 的 VM 编辑器提交的也是同一个接口和 schema。
 
+## 动态脚本（无需重启）
+
+`POST /api/vibe/run-script` 接收一个小型文本脚本，并即时编译成同一个
+`vibe-debug/1` VM program，在当前已连接的 SC2 session 执行。它不热编译任意
+Galaxy 源码；它只调用已经随地图加载的、白名单注册过的 `function.invoke`。
+
+示例：
+
+```text
+let status = RuntimeStatus();
+assert status.active == true;
+let marine = UnitCreate(1, "Marine", 90.0, 90.0);
+step 8;
+let snapshot = Snapshot();
+assert snapshot.marineCount >= 1;
+```
+
+支持的语句：
+
+- `let name = UnitCreate(owner, "UnitId", x, y);`
+- `PlayerSetMinerals(owner, minerals);`
+- `let s = Snapshot();` / `let status = RuntimeStatus();`
+- `ReplaceScarabProjectile("UnitId");`：编译为 `vibe.catalog.set`，设置 `EffectData.ScarabLM.AmmoUnit`，只证明显式 Catalog API 路径；真实攻击换弹仍需 live 事件/观察证据。
+- `call douququ.some.function {"json":"args"} as saved;`
+- `step 16;`
+- `assert saved.field == true;`，比较符支持 `==`、`!=`、`>=`、`<=`、`contains`。
+
+执行边界：脚本源码本身在 WebUI/Python 侧编译为 VM 指令；每个实际游戏副作用仍由
+SC2 内已编译的 Galaxy handler 完成，因此改 handler 源码仍必须重载地图。
+
+## 动态规则（事件驱动）
+
+`POST /api/vibe/rules` 接收规则 DSL，编译成一组事件过滤器和 `vibe-debug/1`
+程序。规则保存在当前 WebUI runtime 进程内；事件泵读到新的
+`GalaxyVibeEvents` 事件后，先按 `eventType` 和 `where` 条件匹配规则，再把
+`$payload.*`、`$event.*`、`$correlation_id` 模板值物化为真实 JSON 参数并执行 VM。
+命中动态规则的事件不会再走内置自动分发兜底。
+
+示例：
+
+```text
+rule "vulture death adapter" on unit_died where payload.victimType == "Vulture" {
+  call douququ.auto.death {"correlation_id":"$correlation_id","killer_tag":"$payload.killerTag","victim_owner":"$payload.victimOwner","victim_tag":"$payload.victimTag","victim_type":"$payload.victimType","victim_x":"$payload.victimX","victim_y":"$payload.victimY"};
+}
+```
+
+规则边界：这是基于已编译基础库的事件脚本，不是 Galaxy 热编译。它能组合现有
+`function.invoke` primitive、条件、变量模板和 VM steps；新增 Galaxy handler、Catalog
+对象或 trigger 函数仍必须随下一次地图加载编译进地图。
+
+管理接口：
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8777/api/vibe/rules `
+  -H "Content-Type: application/json" `
+  --data-binary (@{ source = $rules } | ConvertTo-Json)
+curl.exe -X POST http://127.0.0.1:8777/api/vibe/rules/clear -d "{}"
+curl.exe http://127.0.0.1:8777/api/vibe/rules
+curl.exe "http://127.0.0.1:8777/api/vibe/scripts?mapName=亡者之夜.SC2Map&mapPackage=cmre&commander=TerranAlenger3"
+```
+
+`/api/vibe/scripts` 返回当前地图、DocumentInfo 依赖包和其中 `.galaxy` 源文件的静态 registry，包含 package、path、sha256、include 列表和 dependency 状态。该 registry 用于 VM 可审计上下文；它不把源码热编译进已经运行的 SC2。
+
+
+
 ## 函数执行日志
 
 每次真实 runtime function call 都追加到：

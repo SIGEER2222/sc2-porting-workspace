@@ -38,6 +38,7 @@ if str(VIBE_PROJECT_ROOT) not in sys.path:
 from map_commander_adapter import load_adapter_config, resolve_adapter  # noqa: E402
 from map_event_extractor import MapEventExtractor  # noqa: E402
 from galaxy_script_lab import USER_FUNCTION_ID, USER_SCRIPT_NAME, read_source, source_sha256, validate_source  # noqa: E402
+from runtime_script import RuntimeScriptError, compile_runtime_rules, compile_runtime_script  # noqa: E402
 MUTATORS_JSON = DATA_DIR / "mutators.json"
 # DDS → PNG 转换缓存目录。首次请求某 DDS 时转 PNG 存这里，后续直接返回。
 ASSETS_CACHE_DIR = WEBUI_DIR / "assets_cache"
@@ -165,6 +166,168 @@ REVOLUTION_MAP_ADAPTER_CONFIG = (
     / "map_commander_adapters.json"
 )
 _MAP_DETAIL_CACHE: dict[tuple[str, str], tuple[tuple[int, int], dict]] = {}
+_SCRIPT_REGISTRY_CACHE: dict[str, dict] = {}
+
+
+def _script_registry_key(root: Path) -> str:
+    try:
+        stat = root.stat()
+        return f"{root.resolve()}:{stat.st_mtime_ns}:{stat.st_size}"
+    except OSError:
+        return str(root.resolve())
+
+
+def _read_document_dependencies(package_root: Path) -> list[dict[str, str]]:
+    document_info = package_root / "DocumentInfo"
+    if not document_info.is_file():
+        return []
+    try:
+        root = ET.fromstring(document_info.read_text(encoding="utf-8-sig"))
+    except (OSError, ET.ParseError):
+        return []
+    dependencies = []
+    for value in root.findall("./Dependencies/Value"):
+        raw = (value.text or "").strip()
+        if not raw:
+            continue
+        descriptor, separator, target = raw.partition(",")
+        if not separator:
+            target = descriptor
+            descriptor = ""
+        dependencies.append({"raw": raw, "descriptor": descriptor, "path": target})
+    return dependencies
+
+
+def _package_kind(path: Path) -> str:
+    suffix = path.name.casefold()
+    if suffix.endswith(".sc2map"):
+        return "map"
+    if suffix.endswith(".sc2mod"):
+        return "mod"
+    if suffix.endswith(".sc2campaign"):
+        return "campaign"
+    return "package"
+
+
+def _safe_package_id(root: Path, path: Path) -> str:
+    try:
+        return path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return path.name
+
+
+def _dependency_candidate_roots(map_root: Path, source_root: Path) -> list[Path]:
+    candidates = [source_root, source_root.parent, SC2VIBE_ROOT, REPO_ROOT / "reference" / "sc2mapster" / "SC2GameData"]
+    if map_root.name.casefold().endswith(".sc2map"):
+        candidates.append(map_root.parent.parent)
+    bound = _load_local_source_binding("cmre-dev-package")
+    if bound:
+        candidates.append(bound)
+    unique = []
+    seen = set()
+    for candidate in candidates:
+        try:
+            key = str(candidate.resolve()).casefold()
+        except OSError:
+            continue
+        if key not in seen and candidate.is_dir():
+            seen.add(key)
+            unique.append(candidate)
+    return unique
+
+
+def _resolve_dependency_package(raw_path: str, roots: list[Path]) -> Path | None:
+    value = raw_path.strip().replace("\\", "/")
+    if value.startswith("file:"):
+        value = value[5:]
+    value = value.lstrip("/")
+    if not value:
+        return None
+    for root in roots:
+        candidate = root / Path(*value.split("/"))
+        if candidate.is_dir() and (candidate / "DocumentInfo").is_file():
+            return candidate.resolve()
+        lower = root / Path(*[part.lower() for part in value.split("/")])
+        if lower.is_dir() and (lower / "DocumentInfo").is_file():
+            return lower.resolve()
+    return None
+
+
+def _script_includes(text: str) -> list[str]:
+    includes = []
+    for match in re.finditer(r'^\s*include\s+"([^"]+)"', text, re.MULTILINE):
+        includes.append(match.group(1))
+    return includes
+
+
+def _script_record(package: Path, script: Path, repo_root: Path) -> dict:
+    try:
+        source = script.read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError:
+        source = script.read_text(encoding="gb18030", errors="replace")
+    rel = script.relative_to(package).as_posix()
+    return {
+        "id": f"{_safe_package_id(repo_root, package)}::{rel}",
+        "package": _safe_package_id(repo_root, package),
+        "packageKind": _package_kind(package),
+        "path": rel,
+        "repoPath": _repo_relative(script),
+        "sha256": source_sha256(source),
+        "includeCount": len(_script_includes(source)),
+        "includes": _script_includes(source),
+        "lineCount": len(source.splitlines()),
+    }
+
+
+def build_runtime_script_registry(map_name: str, package_id: str = "cmre", commander_id: str = "TerranAlenger3") -> dict:
+    map_name = _canonical_map_detail_name(map_name, package_id)
+    map_root, source_root = _resolve_map_detail_source(map_name, package_id)
+
+    roots = _dependency_candidate_roots(map_root, source_root)
+    packages: list[Path] = []
+    seen = set()
+    pending = [map_root]
+    while pending:
+        package = pending.pop(0).resolve()
+        key = str(package).casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        packages.append(package)
+        for dependency in _read_document_dependencies(package):
+            resolved = _resolve_dependency_package(dependency.get("path", ""), roots)
+            if resolved is not None and str(resolved).casefold() not in seen:
+                pending.append(resolved)
+    scripts = []
+    dependency_edges = []
+    for package in packages:
+        for dependency in _read_document_dependencies(package):
+            resolved = _resolve_dependency_package(dependency.get("path", ""), roots)
+            dependency_edges.append({
+                "from": _safe_package_id(source_root, package),
+                "raw": dependency.get("raw", ""),
+                "to": _safe_package_id(source_root, resolved) if resolved else "",
+                "status": "resolved" if resolved else "unresolved",
+            })
+        for script in sorted(package.rglob("*.galaxy")):
+            if script.is_file():
+                scripts.append(_script_record(package, script, source_root))
+    result = {
+        "schema_version": "douququ-runtime-script-registry.v1",
+        "evidence_type": "static",
+        "runtime_claim": "none; registers source scripts for VM context and audit only",
+        "map": {"id": map_name, "packageId": package_id, "commander": commander_id, "sourcePath": _repo_relative(map_root)},
+        "package_count": len(packages),
+        "script_count": len(scripts),
+        "dependency_count": len(dependency_edges),
+        "packages": [{"id": _safe_package_id(source_root, item), "kind": _package_kind(item), "path": _repo_relative(item)} for item in packages],
+        "dependencies": dependency_edges,
+        "scripts": scripts,
+        "compile_boundary": "next_sc2_map_load",
+        "vm_boundary": "vibe-debug/1 may invoke only registered function.invoke handlers; source scripts are not hot-compiled",
+    }
+    return result
+
 
 
 def parse_runtime_event_bank(path: Path) -> dict:
@@ -1651,6 +1814,8 @@ class RuntimeConsole:
         self._event_pump_task = None
         self._event_bank_path = ""
         self._readiness = {}
+        self._runtime_rules = []
+        self._runtime_rules_source_sha256 = ""
 
     def _ensure_loop(self):
         with self._lock:
@@ -1790,6 +1955,89 @@ class RuntimeConsole:
         )
 
     @staticmethod
+    def _event_path_value(event: dict, path: str):
+        if path == "correlation_id":
+            return None
+        if path.startswith("event."):
+            current = event
+            parts = path.removeprefix("event.").split(".")
+        elif path.startswith("payload."):
+            payload = event.get("payload")
+            current = payload if isinstance(payload, dict) else {}
+            parts = path.removeprefix("payload.").split(".")
+        else:
+            return None
+        for part in parts:
+            if not isinstance(current, dict) or part not in current:
+                return None
+            current = current[part]
+        return current
+
+    @classmethod
+    def _condition_matches(cls, event: dict, condition: dict) -> bool:
+        value = cls._event_path_value(event, str(condition.get("path", "")))
+        op = condition.get("op")
+        if op == "exists":
+            return value is not None
+        expected = condition.get("value")
+        if op == "==":
+            return value == expected
+        if op == "!=":
+            return value != expected
+        if op == "contains":
+            return value is not None and str(expected) in str(value)
+        if op in {">", ">=", "<", "<="}:
+            try:
+                left = float(value)
+                right = float(expected)
+            except (TypeError, ValueError):
+                return False
+            return {
+                ">": left > right,
+                ">=": left >= right,
+                "<": left < right,
+                "<=": left <= right,
+            }[op]
+        return False
+
+    def _matching_runtime_rules(self, event: dict) -> list[dict]:
+        event_type = str(event.get("eventType", "") or "")
+        with self._lock:
+            rules = [dict(rule) for rule in self._runtime_rules]
+        matched = []
+        for rule in rules:
+            if rule.get("event_type") != event_type:
+                continue
+            if all(self._condition_matches(event, condition) for condition in rule.get("conditions", [])):
+                matched.append(rule)
+        return matched
+
+    @classmethod
+    def _render_rule_value(cls, value, event: dict, correlation_id: str):
+        if isinstance(value, str):
+            if value == "$correlation_id":
+                return correlation_id
+            if value.startswith("$event."):
+                return cls._event_path_value(event, value[1:])
+            if value.startswith("$payload."):
+                return cls._event_path_value(event, value[1:])
+            return value
+        if isinstance(value, list):
+            return [cls._render_rule_value(item, event, correlation_id) for item in value]
+        if isinstance(value, dict):
+            return {key: cls._render_rule_value(item, event, correlation_id) for key, item in value.items()}
+        return value
+
+    def _materialize_rule_program(self, rule: dict, event: dict, correlation_id: str) -> dict:
+        program = rule.get("program", {})
+        if not isinstance(program, dict):
+            raise RuntimeError(f"runtime rule {rule.get('id', '<unknown>')!r} has invalid program")
+        rendered = self._render_rule_value(program, event, correlation_id)
+        if not isinstance(rendered, dict):
+            raise RuntimeError(f"runtime rule {rule.get('id', '<unknown>')!r} rendered invalid program")
+        return rendered
+
+    @staticmethod
     def _event_dispatch(event: dict, correlation_id: str):
         event_type = str(event.get("eventType", "") or "")
         payload = event.get("payload")
@@ -1893,17 +2141,45 @@ class RuntimeConsole:
             correlation_id = (
                 f"auto-vm:{self._session_id}:{event_session}:{event_id}"
             )
-            dispatch = self._event_dispatch(event, correlation_id)
-            # Advance before executing the VM. A malformed or failed event is
-            # still consumed exactly once and remains visible in the event log.
+            # Advance before executing VMs. A malformed or failed event is still
+            # consumed exactly once and remains visible in the event log.
             with self._lock:
                 self._event_cursor = event_id
+            rule_results = []
+            for rule in self._matching_runtime_rules(event):
+                rule_result = {
+                    "rule_id": rule.get("id", ""),
+                    "vm_result": None,
+                    "error": None,
+                    "status": "ignored",
+                }
+                try:
+                    vm_result = await self._run_vm_unlocked(
+                        self._materialize_rule_program(rule, event, correlation_id),
+                        origin="rule-vm",
+                    )
+                    rule_result["vm_result"] = vm_result
+                    rule_result["status"] = (
+                        "passed"
+                        if isinstance(vm_result, dict)
+                        and vm_result.get("status") == "passed"
+                        else "failed"
+                    )
+                except Exception as exc:
+                    rule_result["error"] = {"type": type(exc).__name__, "message": str(exc)}
+                    rule_result["status"] = "failed"
+                rule_results.append(rule_result)
+            dispatch = None if rule_results else self._event_dispatch(event, correlation_id)
             function_id = dispatch[0] if dispatch else ""
             args = dispatch[1] if dispatch else {}
             vm_result = None
             error = None
             status = "ignored"
-            if dispatch:
+            if rule_results:
+                function_id = "dynamic-rules"
+                args = {"rule_ids": [item["rule_id"] for item in rule_results]}
+                status = "passed" if all(item["status"] == "passed" for item in rule_results) else "failed"
+            elif dispatch:
                 try:
                     vm_result = await self._run_vm_unlocked(
                         self._automatic_program(function_id, args),
@@ -1930,6 +2206,7 @@ class RuntimeConsole:
                 "correlation_id": correlation_id,
                 "dispatch_function_id": function_id,
                 "dispatch_args": args,
+                "rule_results": rule_results,
                 "vm_result": vm_result,
                 "error": error,
                 "status": status,
@@ -2016,8 +2293,14 @@ class RuntimeConsole:
         port = int(payload.get("port", 5000))
         map_path = str(payload.get("map_path", "") or "")
         join_wait = float(payload.get("join_wait", 0) or 0)
-        rpc_session_id = str(payload.get("rpc_session_id", "") or "")
-        available_sessions = self.sessions()
+        requested_rpc_session_id = str(payload.get("rpc_session_id", "") or "")
+        # Supplying map_path means this request owns CreateGame for a fresh map.
+        # A browser-selected old rpcSessionId is only stale UI state in that
+        # path; passing it into VibeREPL marks the connection as a resume and
+        # suppresses stale Bank cleanup before the new map initializes.
+        starting_game = bool(map_path)
+        repl_rpc_session_id = "" if starting_game else requested_rpc_session_id
+        available_sessions = [] if starting_game else self.sessions()
         await self._stop_event_pump_unlocked()
         if self._repl is not None:
             await self._repl.close()
@@ -2032,7 +2315,7 @@ class RuntimeConsole:
             name_lookup(),
             map_path=map_path,
             join_wait=join_wait,
-            rpc_session_id=rpc_session_id,
+            rpc_session_id=repl_rpc_session_id,
             prefer_ai_opponent=bool(payload.get("prefer_ai_opponent", False)),
         )
         with self._lock:
@@ -2045,15 +2328,17 @@ class RuntimeConsole:
             # Reuse this already joined socket for every candidate so a failed
             # stale-session probe never recreates the map or resets the game.
             candidates = []
-            if rpc_session_id:
-                candidates.append(rpc_session_id)
+            if starting_game:
+                candidates.append(repl.rpc_session_id)
+            elif requested_rpc_session_id:
+                candidates.append(requested_rpc_session_id)
             else:
                 candidates.append(repl.rpc_session_id)
             for item in available_sessions:
                 candidate = str(item.get("session_id", "") or "")
                 if candidate and candidate not in candidates:
                     candidates.append(candidate)
-            if rpc_session_id:
+            if requested_rpc_session_id and not starting_game:
                 fresh_id = f"repl_{uuid.uuid4().hex[:12]}"
                 if fresh_id not in candidates:
                     candidates.append(fresh_id)
@@ -2447,6 +2732,30 @@ class RuntimeConsole:
             "records": records,
         }
 
+    def rules(self):
+        with self._lock:
+            return {
+                "schema_version": "douququ-runtime-rules.v1",
+                "source_sha256": self._runtime_rules_source_sha256,
+                "rule_count": len(self._runtime_rules),
+                "rules": [dict(rule) for rule in self._runtime_rules],
+            }
+
+    def set_rules(self, compiled):
+        rules = compiled.get("rules") if isinstance(compiled, dict) else None
+        if not isinstance(rules, list):
+            raise ValueError("compiled rules must contain a rules array")
+        with self._lock:
+            self._runtime_rules = [dict(rule) for rule in rules]
+            self._runtime_rules_source_sha256 = str(compiled.get("source_sha256", ""))
+        return self.rules()
+
+    def clear_rules(self):
+        with self._lock:
+            self._runtime_rules = []
+            self._runtime_rules_source_sha256 = ""
+        return self.rules()
+
     def event_log(self, limit=200):
         limit = max(1, min(int(limit), 2000))
         if not self._event_log_path.is_file():
@@ -2510,6 +2819,11 @@ class RuntimeConsole:
                     "cursor": self._event_cursor,
                     "pump": bool(self._event_pump_task and not self._event_pump_task.done()),
                     "endpoint": "/api/vibe/event-log",
+                },
+                "runtime_rules": {
+                    "count": len(self._runtime_rules),
+                    "source_sha256": self._runtime_rules_source_sha256,
+                    "endpoint": "/api/vibe/rules",
                 },
             }
 
@@ -3133,6 +3447,19 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             except Exception as exc:
                 self._send_json({"error": str(exc)}, 500)
             return
+        if self.path.startswith("/api/vibe/scripts"):
+            from urllib.parse import parse_qs, urlparse
+            query = parse_qs(urlparse(self.path).query)
+            try:
+                self._send_json(build_runtime_script_registry(
+                    query.get("mapName", ["亡者之夜.SC2Map"])[0],
+                    query.get("mapPackage", ["cmre"])[0] or "cmre",
+                    query.get("commander", ["TerranAlenger3"])[0] or "TerranAlenger3",
+                ))
+            except (FileNotFoundError, RuntimeError, ValueError, OSError) as exc:
+                self._send_json({"success": False, "error": str(exc)}, 404)
+            return
+
         if self.path == "/api/vibe/galaxy-script":
             try:
                 self._send_json(_galaxy_user_script_payload())
@@ -3162,6 +3489,9 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
                 self._send_json(_runtime_console.event_log(limit))
             except (TypeError, ValueError) as exc:
                 self._send_json({"error": f"limit 无效: {exc}"}, 400)
+            return
+        if self.path == "/api/vibe/rules":
+            self._send_json(_runtime_console.rules())
             return
         if self.path == "/api/vibe/trace":
             current = _runtime_console.status()
@@ -3328,6 +3658,15 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/vibe/galaxy-script/stage":
             self._handle_vibe_galaxy_script_stage()
             return
+        if self.path == "/api/vibe/run-script":
+            self._handle_vibe_run_script()
+            return
+        if self.path == "/api/vibe/rules":
+            self._handle_vibe_rules()
+            return
+        if self.path == "/api/vibe/rules/clear":
+            self._handle_vibe_rules_clear()
+            return
         if self.path == "/api/vibe/run-vm":
             self._handle_vibe_run_vm()
             return
@@ -3411,6 +3750,56 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             self._send_json({"success": result.get("status") == "passed", "result": result, "status": _runtime_console.status()})
         except Exception as exc:
             self._send_json({"success": False, "error": str(exc), "status": _runtime_console.status()}, 502)
+
+    def _handle_vibe_run_script(self):
+        body = self._read_body()
+        source = body.get("source", "")
+        if not isinstance(source, str):
+            self._send_json({"success": False, "error": "source 必须是字符串"}, 400)
+            return
+        try:
+            compiled = compile_runtime_script(source)
+            result = _runtime_console.run_vm(compiled["program"])
+            self._send_json({
+                "success": result.get("status") == "passed",
+                "compiled": compiled,
+                "result": result,
+                "status": _runtime_console.status(),
+            })
+        except RuntimeScriptError as exc:
+            self._send_json({"success": False, "error": str(exc)}, 400)
+        except Exception as exc:
+            self._send_json({"success": False, "error": str(exc), "status": _runtime_console.status()}, 502)
+
+    def _handle_vibe_rules(self):
+        body = self._read_body()
+        source = body.get("source", "")
+        if not isinstance(source, str):
+            self._send_json({"success": False, "error": "source 必须是字符串"}, 400)
+            return
+        try:
+            compiled = compile_runtime_rules(source)
+            rules = _runtime_console.set_rules(compiled)
+            self._send_json({
+                "success": True,
+                "compiled": compiled,
+                "rules": rules,
+                "status": _runtime_console.status(),
+            })
+        except RuntimeScriptError as exc:
+            self._send_json({"success": False, "error": str(exc)}, 400)
+        except Exception as exc:
+            self._send_json({"success": False, "error": str(exc), "status": _runtime_console.status()}, 500)
+
+    def _handle_vibe_rules_clear(self):
+        try:
+            self._send_json({
+                "success": True,
+                "rules": _runtime_console.clear_rules(),
+                "status": _runtime_console.status(),
+            })
+        except Exception as exc:
+            self._send_json({"success": False, "error": str(exc), "status": _runtime_console.status()}, 500)
 
     def _handle_vibe_step(self):
         body = self._read_body()
@@ -3572,6 +3961,18 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
         api_minimal = bool(body.get("apiMinimal", False))
         enable_douququ = bool(body.get("enableDouQuquBehavior", False))
         enable_douququ_runtime = bool(body.get("enableDouQuquRuntime", False))
+        try:
+            invoke_tier = int(body.get("invokeTier", 0) or 0)
+        except (TypeError, ValueError):
+            self._send_json({"success": False, "error": "invokeTier 必须是整数"}, 400)
+            return None
+        invoke_full = bool(body.get("invokeFull", False))
+        if invoke_tier not in {0, 100, 1000}:
+            self._send_json({"success": False, "error": "invokeTier 只支持 0、100、1000"}, 400)
+            return None
+        if invoke_full and invoke_tier > 0:
+            self._send_json({"success": False, "error": "invokeFull 不能与 invokeTier 同时启用"}, 400)
+            return None
         if map_package == "dou-ququ":
             # The map package is a runtime development surface. Keep the
             # source map read-only and stage only the live VM by default;
@@ -3725,6 +4126,10 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             args.append("-EnableDouQuquBehavior")
         if enable_douququ_runtime:
             args.append("-EnableDouQuquRuntime")
+        if invoke_tier > 0:
+            args.extend(["-InvokeTier", str(invoke_tier)])
+        if invoke_full:
+            args.append("-InvokeFull")
         # 重生虫心参数透传：launcher 据此加载 5 个 Reborn mod 包并应用 K5Kerrigan 替换逻辑。
         # reborn_commander 必须是 reborn-commanders.json 中的 id（如 "Abathur"）。
         if enable_reborn:
@@ -3764,6 +4169,8 @@ class CmreWebUIHandler(SimpleHTTPRequestHandler):
             "map_source_override": map_source_override,
             "enable_douququ": enable_douququ,
             "enable_douququ_runtime": enable_douququ_runtime,
+            "invoke_tier": invoke_tier,
+            "invoke_full": invoke_full,
             "commander": commander,
             "map_name": map_name,
             "map_package": map_package,

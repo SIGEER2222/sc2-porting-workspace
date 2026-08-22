@@ -333,6 +333,68 @@ def test_runtime_connect_probes_expired_session_before_accepting_current_one(mon
     ]
     assert result["readiness"] == {"status": 3, "status_name": "in_game", "game_loop": 8}
 
+def test_runtime_connect_starting_map_ignores_browser_stale_session(monkeypatch):
+    attempts = []
+    init_kwargs = []
+    sessions_called = False
+
+    class FakeRepl:
+        def __init__(self, port, resolve, name_lookup, **kwargs):
+            init_kwargs.append(kwargs)
+            self.rpc_session_id = kwargs.get("rpc_session_id") or "repl_fresh"
+            self.rpc_sequence = 0
+            self.ws = object()
+
+        async def connect(self):
+            return True
+
+        async def close(self):
+            return None
+
+        async def invoke_function_request(self, function_id, args):
+            attempts.append(self.rpc_session_id)
+            return {"error_code": "OK", "payload": {"active": True}}
+
+    console = server.RuntimeConsole()
+    monkeypatch.setattr(
+        console,
+        "_imports",
+        lambda: (FakeRepl, lambda: object(), lambda: object(), None, None, None),
+    )
+
+    def stale_sessions():
+        nonlocal sessions_called
+        sessions_called = True
+        return [{"session_id": "dou-ququ-runtime-stale", "sequence": 99}]
+
+    monkeypatch.setattr(console, "sessions", stale_sessions)
+
+    async def fake_readiness(repl):
+        return {"status": 3, "status_name": "in_game", "game_loop": 16}
+
+    monkeypatch.setattr(console, "_probe_live_readiness", fake_readiness)
+
+    result = asyncio.run(console._connect({
+        "port": 5896,
+        "map_path": "artifacts/current-map.SC2Map",
+        "rpc_session_id": "dou-ququ-runtime-stale",
+    }))
+
+    assert init_kwargs[0]["rpc_session_id"] == ""
+    assert init_kwargs[0]["map_path"] == "artifacts/current-map.SC2Map"
+    assert sessions_called is False
+    assert attempts == ["repl_fresh"]
+    assert result["status"] == "connected"
+    assert result["session_id"] == "repl_fresh"
+    assert result["session_recovery"] == [{
+        "session_id": "repl_fresh",
+        "error_code": "OK",
+        "status": 3,
+        "status_name": "in_game",
+        "game_loop": 16,
+        "accepted": True,
+    }]
+
 
 def test_runtime_connect_rejects_non_ok_probe_even_when_game_is_in_game(monkeypatch):
     class FakeRepl:
@@ -387,6 +449,55 @@ def test_dou_ququ_launch_mounts_live_runtime_module(monkeypatch, tmp_path):
     assert "-EnableDouQuquRuntime" in context["args"]
     assert context["enable_douququ_runtime"] is True
     assert context["api_minimal"] is True
+
+
+def test_dou_ququ_launch_passes_invoke_rollout_flags(monkeypatch, tmp_path):
+    monkeypatch.setattr(server, "_resolve_powershell_executable", lambda: "powershell.exe")
+    source = tmp_path / "dou-ququ.SC2Map"
+    source.mkdir()
+    monkeypatch.setattr(server, "DOU_QUQU_MAP_SOURCE", source)
+    monkeypatch.setattr(server, "_dou_ququ_map_root", lambda: source)
+    handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)
+
+    tier = handler._build_launch_args({
+        "mapPackage": "dou-ququ",
+        "mapName": "dou-ququ.SC2Map",
+        "listenPort": 5896,
+        "invokeTier": 100,
+    })
+    assert tier["invoke_tier"] == 100
+    assert tier["invoke_full"] is False
+    assert tier["args"][tier["args"].index("-InvokeTier") + 1] == "100"
+    assert "-InvokeFull" not in tier["args"]
+
+    full = handler._build_launch_args({
+        "mapPackage": "dou-ququ",
+        "mapName": "dou-ququ.SC2Map",
+        "listenPort": 5896,
+        "invokeFull": True,
+    })
+    assert full["invoke_tier"] == 0
+    assert full["invoke_full"] is True
+    assert "-InvokeFull" in full["args"]
+
+
+def test_dou_ququ_launch_rejects_conflicting_invoke_rollout_flags(monkeypatch, tmp_path):
+    monkeypatch.setattr(server, "_resolve_powershell_executable", lambda: "powershell.exe")
+    source = tmp_path / "dou-ququ.SC2Map"
+    source.mkdir()
+    monkeypatch.setattr(server, "DOU_QUQU_MAP_SOURCE", source)
+    monkeypatch.setattr(server, "_dou_ququ_map_root", lambda: source)
+    handler = server.CmreWebUIHandler.__new__(server.CmreWebUIHandler)
+    sent = {}
+    handler._send_json = lambda payload, status=200: sent.update(payload=payload, status=status)
+
+    assert handler._build_launch_args({
+        "mapPackage": "dou-ququ",
+        "mapName": "dou-ququ.SC2Map",
+        "invokeTier": 100,
+        "invokeFull": True,
+    }) is None
+    assert sent["status"] == 400
 
 
 def test_dou_ququ_map_name_recovers_runtime_package_when_payload_omits_package(monkeypatch, tmp_path):
