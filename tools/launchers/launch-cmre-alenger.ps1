@@ -304,71 +304,103 @@ if (-not (Test-Path -LiteralPath (Join-Path $mapSource "MapScript.galaxy"))) {
 }
 Write-Host "Map source: $mapSource"
 
-# Stage 26 startup contract: the original map's Objects and MapScript are the
+# Stage 26 startup contract: the original CMRE map's Objects and MapScript are the
 # source of truth for player-owned preplaced units and startup dependencies.
-# Fail closed before copying if the selected source is not one of the scanned
-# maps, any required source hash changed, or TriggerData analysis is incomplete.
-$startupContractPath = Join-Path $WorkspaceRoot "artifacts\projects\cmre-porting\stage26-full-function-invoke\map-startup-contract.json"
-if (-not [string]::IsNullOrWhiteSpace($StartupContractOverride)) {
-    $resolvedStartupContract = Resolve-Path -LiteralPath $StartupContractOverride -ErrorAction Stop
-    if (-not (Test-Path -LiteralPath $resolvedStartupContract.Path -PathType Leaf)) {
-        throw "Startup contract override is not a file: $($resolvedStartupContract.Path)"
-    }
-    $startupContractPath = $resolvedStartupContract.Path
-    Write-Host "Startup contract override: $startupContractPath"
-}
-$startupContract = $null
-if (Test-Path -LiteralPath $startupContractPath -PathType Leaf) {
-    $startupContract = Get-Content -LiteralPath $startupContractPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $startupRecord = @($startupContract.maps | Where-Object { $_.map -eq $MapName }) | Select-Object -First 1
-    if ($null -eq $startupRecord) {
-        throw "Startup contract has no record for ${MapName}: $startupContractPath"
-    }
-    $sha256 = [System.Security.Cryptography.SHA256]::Create()
-    try {
-        foreach ($entry in @(
-            @{ Name = "Objects"; Path = (Join-Path $mapSource "Objects") },
-            @{ Name = "MapScript.galaxy"; Path = (Join-Path $mapSource "MapScript.galaxy") },
-            @{ Name = "Triggers"; Path = (Join-Path $mapSource "Triggers") }
-        )) {
-            $sourceContract = $startupRecord.sourceFiles.($entry.Name)
-            $optionalSource = $null -ne $sourceContract -and $null -ne $sourceContract.optional -and [bool]$sourceContract.optional
-            if (-not (Test-Path -LiteralPath $entry.Path -PathType Leaf)) {
-                if ($optionalSource) {
-                    Write-Host "Startup contract optional source is absent: $($entry.Path)"
-                    continue
-                }
-                throw "Startup contract source file missing: $($entry.Path)"
-            }
-            $actualHash = ([System.BitConverter]::ToString($sha256.ComputeHash([System.IO.File]::ReadAllBytes($entry.Path)))).Replace('-', '').ToLowerInvariant()
-            $expectedHash = [string]$sourceContract.sha256
-            if ([string]::IsNullOrWhiteSpace($expectedHash)) {
-                if ($optionalSource) { continue }
-                throw "Startup contract has no source hash for $MapName/$($entry.Name)"
-            }
-            if ($actualHash -ne $expectedHash) {
-                throw "Startup contract hash mismatch for $MapName/$($entry.Name): expected $expectedHash actual $actualHash"
-            }
+# Fail closed for CMRE maps before copying if the selected source is not scanned,
+# any required source hash changed, or TriggerData analysis is incomplete.
+$skipStartupContract = $EnableDouQuquRuntime -and
+    -not [string]::IsNullOrWhiteSpace($MapSourceOverride) -and
+    $MapName -match '(?i)斗蛐蛐|dou[-_ ]?ququ'
+if ($skipStartupContract) {
+    # 斗蛐蛐 runtime validation uses a user/test-map source override, not the
+    # CMRE Maps/CMRE corpus scanned by Stage 26. Keep the CMRE contract gate for
+    # normal mission maps, but do not invent a startup contract for this runtime
+    # development surface.
+    $startupRecord = $null
+    $protectedMapUnitTypes = @()
+    $rebornReplacementContract = $null
+    $rebornReplacementTargetTypes = @()
+    Write-Host "Startup contract skipped: explicit 斗蛐蛐 runtime map override; protected P1/P2 object types=none"
+} else {
+    $startupContractPath = Join-Path $WorkspaceRoot "artifacts\projects\cmre-porting\stage26-full-function-invoke\map-startup-contract.json"
+    if (-not [string]::IsNullOrWhiteSpace($StartupContractOverride)) {
+        $resolvedStartupContract = Resolve-Path -LiteralPath $StartupContractOverride -ErrorAction Stop
+        if (-not (Test-Path -LiteralPath $resolvedStartupContract.Path -PathType Leaf)) {
+            throw "Startup contract override is not a file: $($resolvedStartupContract.Path)"
         }
-    } finally {
-        $sha256.Dispose()
+        $startupContractPath = $resolvedStartupContract.Path
+        Write-Host "Startup contract override: $startupContractPath"
     }
-    $requireAnalysisReady = $true
-    if ($null -ne $startupRecord.launcherPolicy -and $null -ne $startupRecord.launcherPolicy.requireAnalysisReady) {
-        $requireAnalysisReady = [bool]$startupRecord.launcherPolicy.requireAnalysisReady
-    }
-    if ($null -eq $startupRecord.analysis -or
-        ($requireAnalysisReady -and [string]$startupRecord.analysis.contractStatus -ne "ready") -or
-        [string]$startupRecord.analysis.triggerStatus -ne "complete") {
-        throw "Startup contract TriggerData analysis is incomplete for $MapName; refusing to stage"
-    }
-    $requireStartingGameQ = $true
-    if ($null -ne $startupRecord.launcherPolicy -and $null -ne $startupRecord.launcherPolicy.requireStartingGameQ) {
-        $requireStartingGameQ = [bool]$startupRecord.launcherPolicy.requireStartingGameQ
-    }
-    if ($requireStartingGameQ -and ($null -eq $startupRecord.analysis.startingGameQ -or
-        [string]::IsNullOrWhiteSpace([string]$startupRecord.analysis.startingGameQ.id))) {
-        throw "Startup contract has no Starting Game Q trigger for $MapName"
+    $startupContract = $null
+    if (Test-Path -LiteralPath $startupContractPath -PathType Leaf) {
+        $startupContract = Get-Content -LiteralPath $startupContractPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $startupRecord = @($startupContract.maps | Where-Object { $_.map -eq $MapName }) | Select-Object -First 1
+        if ($null -eq $startupRecord) {
+            throw "Startup contract has no record for ${MapName}: $startupContractPath"
+        }
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            foreach ($entry in @(
+                @{ Name = "Objects"; Path = (Join-Path $mapSource "Objects") },
+                @{ Name = "MapScript.galaxy"; Path = (Join-Path $mapSource "MapScript.galaxy") },
+                @{ Name = "Triggers"; Path = (Join-Path $mapSource "Triggers") }
+            )) {
+                $sourceContract = $startupRecord.sourceFiles.($entry.Name)
+                $optionalSource = $null -ne $sourceContract -and $null -ne $sourceContract.optional -and [bool]$sourceContract.optional
+                if (-not (Test-Path -LiteralPath $entry.Path -PathType Leaf)) {
+                    if ($optionalSource) {
+                        Write-Host "Startup contract optional source is absent: $($entry.Path)"
+                        continue
+                    }
+                    throw "Startup contract source file missing: $($entry.Path)"
+                }
+                $actualHash = ([System.BitConverter]::ToString($sha256.ComputeHash([System.IO.File]::ReadAllBytes($entry.Path)))).Replace('-', '').ToLowerInvariant()
+                $expectedHash = [string]$sourceContract.sha256
+                if ([string]::IsNullOrWhiteSpace($expectedHash)) {
+                    if ($optionalSource) { continue }
+                    throw "Startup contract has no source hash for $MapName/$($entry.Name)"
+                }
+                if ($actualHash -ne $expectedHash) {
+                    throw "Startup contract hash mismatch for $MapName/$($entry.Name): expected $expectedHash actual $actualHash"
+                }
+            }
+        } finally {
+            $sha256.Dispose()
+        }
+        $requireAnalysisReady = $true
+        if ($null -ne $startupRecord.launcherPolicy -and $null -ne $startupRecord.launcherPolicy.requireAnalysisReady) {
+            $requireAnalysisReady = [bool]$startupRecord.launcherPolicy.requireAnalysisReady
+        }
+        if ($null -eq $startupRecord.analysis -or
+            ($requireAnalysisReady -and [string]$startupRecord.analysis.contractStatus -ne "ready") -or
+            [string]$startupRecord.analysis.triggerStatus -ne "complete") {
+            throw "Startup contract TriggerData analysis is incomplete for $MapName; refusing to stage"
+        }
+        $requireStartingGameQ = $true
+        if ($null -ne $startupRecord.launcherPolicy -and $null -ne $startupRecord.launcherPolicy.requireStartingGameQ) {
+            $requireStartingGameQ = [bool]$startupRecord.launcherPolicy.requireStartingGameQ
+        }
+        if ($requireStartingGameQ -and ($null -eq $startupRecord.analysis.startingGameQ -or
+            [string]::IsNullOrWhiteSpace([string]$startupRecord.analysis.startingGameQ.id))) {
+            throw "Startup contract has no Starting Game Q trigger for $MapName"
+        }
+    } else {
+        $scanner = Join-Path $WorkspaceRoot "src\projects\cmre-porting\stages\26-full-function-invoke\scan_map_startup_contract.py"
+        $sourceRoot = Join-Path $LegacyRoot "Maps\CMRE"
+        if (-not (Test-Path -LiteralPath $scanner -PathType Leaf)) { throw "Startup contract scanner missing: $scanner" }
+        if (-not (Test-Path -LiteralPath $sourceRoot -PathType Container)) { throw "Startup contract source root missing: $sourceRoot" }
+        $scannerArgs = @($scanner, "--source-root", $sourceRoot, "--out", (Join-Path $WorkspaceRoot "artifacts\projects\cmre-porting\stage26-full-function-invoke\map-startup-contract.full.json"), "--launcher-out", $startupContractPath)
+        $rebornDependency = Join-Path $LegacyRoot "Mods\reborn\crys_the_swarm_reborn.SC2Mod\Base.SC2Data\Lib48DF4533.galaxy"
+        if (Test-Path -LiteralPath $rebornDependency -PathType Leaf) { $scannerArgs += @("--dependency-file", $rebornDependency) }
+        $python = (Get-Command python -ErrorAction Stop).Source
+        Write-Host "Startup contract missing; generating from original CMRE maps before staging"
+        & $python @scannerArgs
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $startupContractPath -PathType Leaf)) {
+            throw "Startup contract generation failed: $startupContractPath"
+        }
+        $startupContract = Get-Content -LiteralPath $startupContractPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $startupRecord = @($startupContract.maps | Where-Object { $_.map -eq $MapName }) | Select-Object -First 1
+        if ($null -eq $startupRecord) { throw "Generated startup contract has no record for $MapName" }
     }
     $protectedMapUnitTypes = @($startupRecord.adaptation.protectedPlayerUnitTypes)
     $rebornReplacementContract = $startupRecord.adaptation.rebornReplacementSource
@@ -384,41 +416,9 @@ if (Test-Path -LiteralPath $startupContractPath -PathType Leaf) {
     } else {
         $rebornReplacementTargetTypes = @()
     }
+    $vanillaRemovals = @($vanillaRemovals | Where-Object { $protectedMapUnitTypes -notcontains [string]$_ })
     Write-Host "Startup contract verified: $MapName; protected P1/P2 object types=$($protectedMapUnitTypes -join ',')"
-} else {
-    $scanner = Join-Path $WorkspaceRoot "src\projects\cmre-porting\stages\26-full-function-invoke\scan_map_startup_contract.py"
-    $sourceRoot = Join-Path $LegacyRoot "Maps\CMRE"
-    if (-not (Test-Path -LiteralPath $scanner -PathType Leaf)) { throw "Startup contract scanner missing: $scanner" }
-    if (-not (Test-Path -LiteralPath $sourceRoot -PathType Container)) { throw "Startup contract source root missing: $sourceRoot" }
-    $scannerArgs = @($scanner, "--source-root", $sourceRoot, "--out", (Join-Path $WorkspaceRoot "artifacts\projects\cmre-porting\stage26-full-function-invoke\map-startup-contract.full.json"), "--launcher-out", $startupContractPath)
-    $rebornDependency = Join-Path $LegacyRoot "Mods\reborn\crys_the_swarm_reborn.SC2Mod\Base.SC2Data\Lib48DF4533.galaxy"
-    if (Test-Path -LiteralPath $rebornDependency -PathType Leaf) { $scannerArgs += @("--dependency-file", $rebornDependency) }
-    $python = (Get-Command python -ErrorAction Stop).Source
-    Write-Host "Startup contract missing; generating from original CMRE maps before staging"
-    & $python @scannerArgs
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $startupContractPath -PathType Leaf)) {
-        throw "Startup contract generation failed: $startupContractPath"
-    }
-    $startupContract = Get-Content -LiteralPath $startupContractPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $startupRecord = @($startupContract.maps | Where-Object { $_.map -eq $MapName }) | Select-Object -First 1
-    if ($null -eq $startupRecord) { throw "Generated startup contract has no record for $MapName" }
 }
-$protectedMapUnitTypes = @($startupRecord.adaptation.protectedPlayerUnitTypes)
-$rebornReplacementContract = $startupRecord.adaptation.rebornReplacementSource
-if ($EnableReborn -and $RebornCommander -ne "") {
-    if ($null -eq $rebornReplacementContract -or -not $rebornReplacementContract.enabled) {
-        throw "Startup contract has no Reborn CommanderStart replacement contract for $MapName"
-    }
-    $rebornReplacementTargetTypes = @($rebornReplacementContract.targetUnitTypes)
-    if ($rebornReplacementTargetTypes.Count -eq 0) {
-        throw "Startup contract has no Reborn CommanderStart target unit types for $MapName"
-    }
-    Write-Host "Startup contract verified: Reborn CommanderStart targets=$($rebornReplacementTargetTypes -join ',')"
-} else {
-    $rebornReplacementTargetTypes = @()
-}
-$vanillaRemovals = @($vanillaRemovals | Where-Object { $protectedMapUnitTypes -notcontains [string]$_ })
-Write-Host "Startup contract verified: $MapName; protected P1/P2 object types=$($protectedMapUnitTypes -join ',')"
 
 if ($MapDependencyRootOverride -ne "") {
     $MapDependencyRootOverride = (Resolve-Path -LiteralPath $MapDependencyRootOverride).Path

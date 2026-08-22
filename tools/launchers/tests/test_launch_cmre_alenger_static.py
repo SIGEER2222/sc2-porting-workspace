@@ -168,6 +168,37 @@ def test_keepalive_without_reuse_lock_does_not_fail_during_cleanup():
     assert "if ($null -ne $LockContext)" in wait_body
 
 
+def test_douququ_standalone_defers_vibe_registration_until_map_init_returns():
+    overlay = OVERLAY.read_text(encoding="utf-8-sig")
+    start = overlay.index("function Install-CmreDouQuquStandaloneMapOverlay")
+    end = overlay.index("function Replace-CmreBlockBetweenMarkers", start)
+    body = overlay[start:end]
+    glue = (ASSETS / "map-glue.dou-ququ-standalone.galaxy").read_text(encoding="utf-8-sig")
+
+    # The standalone map needs an explicit asynchronous handoff after InitMap.
+    # A synchronous RegisterEntryPoints call inside InitMap can start PollLoop
+    # while the standalone map is still initializing and strand every Bank RPC.
+    assert "libVibeKernel_InitLib();" in body
+    assert "'    libVibeKernel_gf_RegisterEntryPoints();'" not in body
+    assert "libMapModBridge_gf_WriteDebugBank(\"map_init_entered\", 1);" in body
+    assert "gt_CmreDouQuquStandaloneVibeRegistration_Init();" in body
+    assert "TriggerAddEventTimeElapsed(gt_CmreDouQuquStandaloneVibeRegistration, 0.1, c_timeGame);" in glue
+    assert "TriggerExecute(gt_CmreDouQuquStandaloneVibeRegistration, false, false);" in glue
+    assert "libVibeKernel_gf_RegisterEntryPoints();" in glue
+    assert "libDouQuquRuntime_InitLib();" in glue
+    assert "libDouQuquRuntime_InitLib();" not in body
+
+    registration = glue[glue.index("bool gt_CmreDouQuquStandaloneVibeRegistration_Func"):]
+    assert "Wait(0.1, c_timeReal);" in registration
+    assert registration.index("Wait(0.1, c_timeReal);") < registration.index("libVibeKernel_gf_RegisterEntryPoints();")
+    assert registration.index("Wait(0.1, c_timeReal);") < registration.index("libDouQuquRuntime_InitLib();")
+    assert "gv_CmreDouQuquStandaloneVibeRegistrationStarted" in registration
+    assert "vibe_registration_handoff_started" in registration
+    assert "vibe_registration_handoff_after_wait" in registration
+    assert "vibe_registration_kernel_done" in registration
+    assert "vibe_registration_event_bridge_done" in registration
+
+
 def test_on_demand_mod_dependencies_are_repaired_in_staged_install_copy():
     source = LAUNCHER.read_text(encoding="utf-8-sig")
 

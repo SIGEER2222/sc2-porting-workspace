@@ -1,5 +1,10 @@
 include "LibVibeKernel_h"
 
+// Keep the standalone bootstrap identical for enabled and disabled builds.
+// The disabled module remains fail-closed at the RPC surface, while its
+// lifecycle hook is intentionally a no-op.
+void libDouQuquRuntime_InitLib() { }
+
 // Fail-closed implementation used when the live VM module was not requested.
 string libDouQuquRuntimeDisabled_gf_Reject(string functionId) {
     return libVibeKernel_gf_MakeResponse("error", libVibeKernel_gv_currentSession, libVibeKernel_gv_lastRequestId, libVibeKernel_gv_lastSequence, "function.invoke", "PLUGIN_DISABLED", "{\"function_id\":\"" + functionId + "\",\"reason\":\"use -EnableDouQuquRuntime\"}");

@@ -265,11 +265,10 @@ function Install-CmreDouQuquStandaloneMapOverlay {
         throw "斗蛐蛐 standalone InitMap body anchor not found: $mapScriptPath"
     }
     $initLines = @(
-        '    libVibeKernel_gf_RegisterEntryPoints();',
         '    libMapModBridge_gf_WriteDebugBank("map_init_entered", 1);',
-        '    gt_CmreDouQuquStandaloneRuntimeListener_Init();'
+        '    gt_CmreDouQuquStandaloneRuntimeListener_Init();',
+        '    gt_CmreDouQuquStandaloneVibeRegistration_Init();'
     )
-    if ($EnableDouQuquRuntime) { $initLines += '    libDouQuquRuntime_InitLib();' }
     if ($EnableDouQuquBehavior) { $initLines += '    libDouQuquBehavior_InitLib();' }
     if (-not $mapScript.Contains('gt_CmreDouQuquStandaloneRuntimeListener_Init();')) {
         $initBlock = ($initLines -join [Environment]::NewLine) + [Environment]::NewLine
@@ -319,6 +318,47 @@ function Copy-CmreOverlayFiles {
     foreach ($file in $Files) {
         if (-not (Test-Path -LiteralPath $file.Source)) { throw "Overlay source not found: $($file.Source)" }
         [System.IO.File]::Copy($file.Source, (Join-Path $DestinationRoot $file.Name), $true)
+    }
+}
+
+# Catalog overlays carry only the overlay-owned entries (e.g. the Dou Ququ VM's
+# CRV_* abilities). Copying them over a staged map's GameData file replaces the
+# map-owned catalog (fangzhidanwei on the Dou Ququ map) and UnitAbilityAdd then
+# aborts the session under -debug. Merge each top-level <C*> entry by id into
+# the destination catalog instead of replacing the whole file.
+function Merge-CmreOverlayCatalog {
+    param(
+        [Parameter(Mandatory = $true)][object[]]$Files,
+        [Parameter(Mandatory = $true)][string]$DestinationRoot
+    )
+    [System.IO.Directory]::CreateDirectory($DestinationRoot) | Out-Null
+    foreach ($file in $Files) {
+        if (-not (Test-Path -LiteralPath $file.Source)) { throw "Overlay source not found: $($file.Source)" }
+        $destPath = Join-Path $DestinationRoot $file.Name
+        if (-not (Test-Path -LiteralPath $destPath -PathType Leaf)) {
+            [System.IO.File]::Copy($file.Source, $destPath, $true)
+            continue
+        }
+        $srcText = [System.IO.File]::ReadAllText($file.Source)
+        $dstText = [System.IO.File]::ReadAllText($destPath)
+        if ($srcText -notmatch '(?s)<Catalog\s*>(.*?)</Catalog>') {
+            throw "Overlay catalog has no <Catalog> root: $($file.Source)"
+        }
+        $overlayEntries = $Matches[1]
+        $entryPattern = '<C[A-Za-z]+\s+id="(?<id>[^"]+)"[^>]*/>|<C[A-Za-z]+\s+id="(?<id>[^"]+)"[^>]*>.*?</C[A-Za-z]+>'
+        $appended = 0
+        $pending = New-Object System.Text.StringBuilder
+        foreach ($m in [regex]::Matches($overlayEntries, $entryPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
+            $entryId = $m.Groups['id'].Value
+            if ($dstText -match ('id="' + [regex]::Escape($entryId) + '"')) { continue }
+            [void]$pending.AppendLine($m.Value)
+            $appended++
+        }
+        if ($appended -gt 0) {
+            if ($dstText -notmatch '</Catalog>') { throw "Destination catalog has no </Catalog>: $destPath" }
+            $merged = $dstText.Replace('</Catalog>', $pending.ToString() + '</Catalog>')
+            [System.IO.File]::WriteAllText($destPath, $merged, [System.Text.UTF8Encoding]::new($false))
+        }
     }
 }
 
@@ -552,8 +592,24 @@ function Install-CmreNativeComputerMapCatalogOverlay {
     [System.IO.Directory]::CreateDirectory($gameData) | Out-Null
 
     $document = [System.Xml.XmlDocument]::new()
-    $catalog = $document.CreateElement("Catalog")
-    [void]$document.AppendChild($catalog)
+    $document.PreserveWhitespace = $true
+    if (Test-Path -LiteralPath $abilPath -PathType Leaf) {
+        # The staged map's AbilData is map-owned (e.g. the Dou Ququ map's
+        # fangzhidanwei). Writing a fresh catalog here replaces it and kills
+        # the session at UnitAbilityAdd. Load the existing catalog and swap in
+        # only the P2MarineTrain entry.
+        $document.LoadXml((Read-CmreUtf8 -Path $abilPath))
+        $catalog = $document.SelectSingleNode("/Catalog")
+        if ($null -eq $catalog) {
+            $catalog = $document.CreateElement("Catalog")
+            [void]$document.AppendChild($catalog)
+        }
+        $stale = $catalog.SelectSingleNode("./CAbilTrain[@id='P2MarineTrain']")
+        if ($null -ne $stale) { [void]$catalog.RemoveChild($stale) }
+    } else {
+        $catalog = $document.CreateElement("Catalog")
+        [void]$document.AppendChild($catalog)
+    }
     # CMRE's BarracksTrain is a partial override used by the commander
     # production cards. Do not inherit it here: its parent only retains a
     # Tech Lab command, and that partial catalog entry makes an otherwise
@@ -1265,7 +1321,7 @@ function Install-CmreObserverOverlay {
             @{ Source = Join-Path $douQuquRoot "LibDouQuquBehavior_h.galaxy"; Name = "LibDouQuquBehavior_h.galaxy" },
             @{ Source = Join-Path $douQuquRoot "LibDouQuquBehavior.galaxy"; Name = "LibDouQuquBehavior.galaxy" }
         ) -DestinationRoot $baseData
-        Copy-CmreOverlayFiles -Files @(
+        Merge-CmreOverlayCatalog -Files @(
             @{ Source = Join-Path $douQuquRoot "AttachMethodData.xml"; Name = "AttachMethodData.xml" },
             @{ Source = Join-Path $douQuquRoot "EffectData.xml"; Name = "EffectData.xml" },
             @{ Source = Join-Path $douQuquRoot "AbilData.xml"; Name = "AbilData.xml" },
@@ -1277,23 +1333,39 @@ function Install-CmreObserverOverlay {
     } elseif (-not $EnableDouQuquRuntime) {
         Get-ChildItem -LiteralPath $baseData -Filter "LibDouQuquBehavior*.galaxy" -File -ErrorAction SilentlyContinue |
             Remove-Item -Force -ErrorAction Stop
+        # The staged GameData files are map-owned after catalog merging; only
+        # strip the overlay's own entries instead of deleting whole files.
         $douQuquGameData = Join-Path $baseData "GameData"
         foreach ($douQuquDataName in @("AttachMethodData.xml", "EffectData.xml", "AbilData.xml", "UnitData.xml", "ActorData.xml", "ButtonData.xml")) {
+            $overlaySource = Join-Path $douQuquRoot $douQuquDataName
             $douQuquDataPath = Join-Path $douQuquGameData $douQuquDataName
-            if (Test-Path -LiteralPath $douQuquDataPath -PathType Leaf) {
-                Remove-Item -LiteralPath $douQuquDataPath -Force -ErrorAction Stop
+            if (-not (Test-Path -LiteralPath $douQuquDataPath -PathType Leaf) -or
+                -not (Test-Path -LiteralPath $overlaySource -PathType Leaf)) { continue }
+            $srcText = [System.IO.File]::ReadAllText($overlaySource)
+            if ($srcText -notmatch '(?s)<Catalog\s*>(.*?)</Catalog>') { continue }
+            $dstText = [System.IO.File]::ReadAllText($douQuquDataPath)
+            $entryPattern = '<C[A-Za-z]+\s+id="(?<id>[^"]+)"[^>]*/>|<C[A-Za-z]+\s+id="(?<id>[^"]+)"[^>]*>.*?</C[A-Za-z]+>'
+            $entryIds = @([regex]::Matches($Matches[1], $entryPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline) | ForEach-Object { $_.Groups['id'].Value })
+            $removedAny = $false
+            foreach ($entryId in $entryIds) {
+                $entryRegex = '<C[A-Za-z]+\s+id="' + [regex]::Escape($entryId) + '"[^>]*/>|<C[A-Za-z]+\s+id="' + [regex]::Escape($entryId) + '"[^>]*>.*?</C[A-Za-z]+>'
+                $newText = [regex]::Replace($dstText, $entryRegex, '', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+                if ($newText -ne $dstText) { $dstText = $newText; $removedAny = $true }
+            }
+            if ($removedAny) {
+                [System.IO.File]::WriteAllText($douQuquDataPath, $dstText, [System.Text.UTF8Encoding]::new($false))
             }
         }
-        Write-Host "斗蛐蛐 behavior plugin: disabled and stale files removed"
+        Write-Host "斗蛐蛐 behavior plugin: disabled and overlay catalog entries removed"
     }
     if ($EnableDouQuquRuntime -and -not $EnableDouQuquBehavior) {
         $douQuquGameData = Join-Path $baseData "GameData"
         New-Item -ItemType Directory -Force -Path $douQuquGameData | Out-Null
-        Copy-CmreOverlayFiles -Files @(
+        Merge-CmreOverlayCatalog -Files @(
             @{ Source = Join-Path $douQuquRoot "AbilData.xml"; Name = "AbilData.xml" },
             @{ Source = Join-Path $douQuquRoot "ButtonData.xml"; Name = "ButtonData.xml" }
         ) -DestinationRoot $douQuquGameData
-        Write-Host "斗蛐蛐 live VM module: copied runtime AbilData/ButtonData"
+        Write-Host "斗蛐蛐 live VM module: merged runtime AbilData/ButtonData entries"
     }
 
     $douQuquRuntimeInclude = if ($EnableDouQuquRuntime) { "LibDouQuquRuntime" } else { "LibDouQuquRuntimeDisabled" }

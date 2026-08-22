@@ -41,6 +41,10 @@ def test_overlay_has_a_signature_scoped_standalone_map_path():
     assert "CMRE_DOUQUQU_STANDALONE_RUNTIME_GLUE" in glue
     assert "runtime_listener_ready" in glue
     assert "initialization_complete" in glue
+    assert "TriggerAddEventTimeElapsed(gt_CmreDouQuquStandaloneVibeRegistration, 0.1, c_timeGame);" in glue
+    assert "TriggerExecute(gt_CmreDouQuquStandaloneVibeRegistration, false, false);" in glue
+    assert "TriggerExecute(gt_CmreDouQuquStandaloneVibeRegistration, false, true);" not in glue
+    assert "libDouQuquRuntime_InitLib();" in glue
 
 
 def test_galaxy_plugin_has_all_six_rules_and_real_event_hooks():

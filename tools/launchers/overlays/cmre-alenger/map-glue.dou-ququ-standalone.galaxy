@@ -1,5 +1,44 @@
 // CMRE_DOUQUQU_STANDALONE_RUNTIME_GLUE
 trigger gt_CmreDouQuquStandaloneRuntimeListener;
+trigger gt_CmreDouQuquStandaloneVibeRegistration;
+bool gv_CmreDouQuquStandaloneVibeRegistrationStarted = false;
+
+bool gt_CmreDouQuquStandaloneVibeRegistration_Func(bool testConds, bool runActions) {
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+    if (gv_CmreDouQuquStandaloneVibeRegistrationStarted) { return true; }
+    gv_CmreDouQuquStandaloneVibeRegistrationStarted = true;
+    libMapModBridge_gf_WriteDebugBank("vibe_registration_handoff_started", 1);
+    // TriggerExecute starts this handoff while InitMap is still unwinding on
+    // some standalone maps. Let the map bootstrap flush before touching Banks
+    // or creating the gameplay event triggers.
+    // Real time is required here: a non-realtime SC2 API session does not
+    // advance c_timeGame until the host sends RequestStep, while this handoff
+    // must be able to complete before the first VM request arrives.
+    Wait(0.1, c_timeReal);
+    libMapModBridge_gf_WriteDebugBank("vibe_registration_handoff_after_wait", 1);
+    libVibeKernel_gf_RegisterEntryPoints();
+    libMapModBridge_gf_WriteDebugBank("vibe_registration_kernel_done", 1);
+    // The event bridge must be created after InitMap has returned as well.
+    // Creating unit/time triggers during the generated map bootstrap produces
+    // handles that never receive ordinary gameplay events on this map.
+    libDouQuquRuntime_InitLib();
+    libMapModBridge_gf_WriteDebugBank("vibe_registration_event_bridge_done", 1);
+    return true;
+}
+
+void gt_CmreDouQuquStandaloneVibeRegistration_Init() {
+    gt_CmreDouQuquStandaloneVibeRegistration = TriggerCreate("gt_CmreDouQuquStandaloneVibeRegistration_Func");
+    // The standalone API map does not reliably dispatch time-elapsed events
+    // after JoinGame. Start the handoff in its own trigger thread now that
+    // generated InitTriggers() has completed; retain the timer as a fallback
+    // for normal map launches. The handler itself still waits for the
+    // post-bootstrap Bank/trigger boundary.
+    // The handler starts with Wait; fire it asynchronously or InitMap blocks
+    // before the game clock has started and JoinGame never reaches in_game.
+    TriggerExecute(gt_CmreDouQuquStandaloneVibeRegistration, false, false);
+    TriggerAddEventTimeElapsed(gt_CmreDouQuquStandaloneVibeRegistration, 0.1, c_timeGame);
+}
 
 bool gt_CmreDouQuquStandaloneRuntimeListener_Func(bool testConds, bool runActions) {
     if (testConds) { return true; }
@@ -14,6 +53,6 @@ bool gt_CmreDouQuquStandaloneRuntimeListener_Func(bool testConds, bool runAction
 
 void gt_CmreDouQuquStandaloneRuntimeListener_Init() {
     gt_CmreDouQuquStandaloneRuntimeListener = TriggerCreate("gt_CmreDouQuquStandaloneRuntimeListener_Func");
-    TriggerExecute(gt_CmreDouQuquStandaloneRuntimeListener, false, true);
+    TriggerExecute(gt_CmreDouQuquStandaloneRuntimeListener, false, false);
 }
 // CMRE_DOUQUQU_STANDALONE_RUNTIME_GLUE_END
