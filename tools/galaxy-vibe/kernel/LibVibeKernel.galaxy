@@ -142,11 +142,15 @@ unit libVibeKernel_gf_FindUnitByTag(int unitTag) {
 // 所以「早期拿不到就永远拿不到」的担心不成立（真机 L1 已证）。
 // 真正强制重读磁盘的是 BankReload，只放在下行读取路径 ReloadBank 里。
 void libVibeKernel_gf_ReloadBank() {
-    if (libVibeKernel_gv_bankHandle == null) {
-        libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
-    } else {
-        BankReload(libVibeKernel_gv_bankHandle);
+    // BankReload can remain pending forever on an externally replaced bank in
+    // this runtime. Remove the old handle and start a fresh async load instead.
+    if (libVibeKernel_gv_bankHandle != null) {
+        BankRemove(libVibeKernel_gv_bankHandle);
+        libVibeKernel_gv_bankHandle = null;
+        libVibeKernel_gf_WriteModelBankInt("poll_diag", "stage", 51);
     }
+    libVibeKernel_gv_bankHandle = BankLoad(libVibeKernel_gv_BankName, libVibeKernel_gv_BankPlayer);
+    libVibeKernel_gf_WriteModelBankInt("poll_diag", "stage", 52);
     if (libVibeKernel_gv_bankHandle != null) {
         BankWait(libVibeKernel_gv_bankHandle);
     }
@@ -196,7 +200,9 @@ void libVibeKernel_gf_WriteBankKey(string section, string key, string value) {
 }
 
 string libVibeKernel_gf_ReadBankKey(string section, string key) {
-    libVibeKernel_gf_ReloadBank();
+    // Refresh once at the external-input boundary; repeated reloads per field
+    // can race SC2's asynchronous BankSave/BankLoad pipeline.
+    libVibeKernel_gf_EnsureBankLoaded();
     if (libVibeKernel_gv_bankHandle == null) { return ""; }
     return BankValueGetAsString(libVibeKernel_gv_bankHandle, section, key);
 }
@@ -209,7 +215,7 @@ void libVibeKernel_gf_WriteBankInt(string section, string key, int value) {
 }
 
 int libVibeKernel_gf_ReadBankInt(string section, string key) {
-    libVibeKernel_gf_ReloadBank();
+    libVibeKernel_gf_EnsureBankLoaded();
     if (libVibeKernel_gv_bankHandle == null) { return 0; }
     return BankValueGetAsInt(libVibeKernel_gv_bankHandle, section, key);
 }
@@ -1613,6 +1619,7 @@ bool libVibeKernel_gt_ChatCommand_Func(bool testConds, bool runActions) {
     if (testConds) { return true; }
     if (!runActions) { return true; }
 
+    libVibeKernel_gf_ReloadBank();
     chat = EventChatMessage(false);
     // 期望格式："!vibe <args_string>"
     if (StringFind(chat, "!vibe ", false) != 1) { return true; }
@@ -1983,6 +1990,117 @@ bool libVibeKernel_gt_UnitWake_Func(bool testConds, bool runActions) {
     return true;
 }
 
+// ---- SC2 API raw-action transport ----
+// A Move order carries two base-256 symbols in its target coordinates.  Code
+// 254 is a one-symbol pad and 255/255 commits the buffered request.  Only the
+// runtime-created controller is accepted, so normal map orders cannot enter
+// the VM transport.
+string libVibeKernel_gf_ApiActionDecodeChar(int code) {
+    if (code < 0 || code >= StringLength(libVibeKernel_gv_ApiActionAlphabet)) {
+        return "";
+    }
+    return StringSub(libVibeKernel_gv_ApiActionAlphabet, code + 1, code + 1);
+}
+
+void libVibeKernel_gf_ApiActionPublish() {
+    if (libVibeKernel_gv_apiActionController != null) {
+        libVibeKernel_gf_WriteModelBankInt("api_action", "controller_tag",
+            UnitGetTag(libVibeKernel_gv_apiActionController));
+    }
+    libVibeKernel_gf_WriteModelBankInt("api_action", "sequence",
+        libVibeKernel_gv_apiActionSequence);
+    libVibeKernel_gf_WriteModelBankInt("api_action", "buffer_len",
+        StringLength(libVibeKernel_gv_apiActionBuffer));
+}
+
+void libVibeKernel_gf_ApiActionInit() {
+    point controllerPoint;
+    if (libVibeKernel_gt_ApiAction != null) { return; }
+
+    libVibeKernel_gf_WriteBankInt("diag", "api_action_init_entered", 1);
+
+    controllerPoint = Point(libVibeKernel_gv_ApiActionCoordinateBase,
+        libVibeKernel_gv_ApiActionCoordinateBase);
+    UnitCreate(1, "Marine", c_unitCreateIgnorePlacement, 1, controllerPoint, 0.0);
+    libVibeKernel_gv_apiActionController = UnitLastCreated();
+    if (libVibeKernel_gv_apiActionController != null) {
+        libVibeKernel_gf_WriteBankInt("diag", "api_action_controller_created", 1);
+        UnitSetCustomValue(libVibeKernel_gv_apiActionController, 3,
+            IntToFixed(libVibeKernel_gv_ApiActionControllerValue));
+        UnitSetPropertyFixed(libVibeKernel_gv_apiActionController,
+            c_unitPropLife, UnitGetPropertyFixed(
+                libVibeKernel_gv_apiActionController, c_unitPropLifeMax, true));
+        UnitSetScale(libVibeKernel_gv_apiActionController, 0.1, 0.1, 0.1);
+    } else {
+        libVibeKernel_gf_WriteBankInt("diag", "api_action_controller_created", 0);
+    }
+    libVibeKernel_gt_ApiAction = TriggerCreate("libVibeKernel_gt_ApiAction_Func");
+    TriggerAddEventUnitOrder(libVibeKernel_gt_ApiAction, null,
+        AbilityCommand("move", 0));
+    libVibeKernel_gf_WriteBankInt("diag", "api_action_trigger_created", 1);
+    libVibeKernel_gf_ApiActionPublish();
+}
+
+bool libVibeKernel_gt_ApiAction_Func(bool testConds, bool runActions) {
+    unit actor;
+    order issuedOrder;
+    point targetPoint;
+    int firstCode;
+    int secondCode;
+    string firstChar;
+    string secondChar;
+    string response;
+    if (testConds) { return true; }
+    if (!runActions) { return true; }
+
+    actor = EventUnit();
+    if (actor == null || UnitGetCustomValue(actor, 3)
+        != IntToFixed(libVibeKernel_gv_ApiActionControllerValue)) {
+        return true;
+    }
+    issuedOrder = EventUnitOrder();
+    targetPoint = OrderGetTargetPoint(issuedOrder);
+    if (targetPoint == null) { return true; }
+    firstCode = FixedToInt((PointGetX(targetPoint)
+        - libVibeKernel_gv_ApiActionCoordinateBase) * 256.0 + 0.5);
+    secondCode = FixedToInt((PointGetY(targetPoint)
+        - libVibeKernel_gv_ApiActionCoordinateBase) * 256.0 + 0.5);
+    if (firstCode < 0 || firstCode > 255 || secondCode < 0 || secondCode > 255) {
+        return true;
+    }
+    if (firstCode == 255 && secondCode == 255) {
+        if (libVibeKernel_gv_apiActionBuffer != "") {
+            libVibeKernel_gv_apiActionSequence += 1;
+            response = libVibeKernel_gf_Dispatch(libVibeKernel_gv_apiActionBuffer);
+            libVibeKernel_gf_WriteModelBankInt("api_action", "last_response_len",
+                StringLength(response));
+            libVibeKernel_gv_apiActionBuffer = "";
+        }
+        libVibeKernel_gf_ApiActionPublish();
+        return true;
+    }
+    firstChar = libVibeKernel_gf_ApiActionDecodeChar(firstCode);
+    secondChar = libVibeKernel_gf_ApiActionDecodeChar(secondCode);
+    if ((firstCode != 254 && firstChar == "")
+        || (secondCode != 254 && secondChar == "")) {
+        libVibeKernel_gv_apiActionBuffer = "";
+        libVibeKernel_gf_WriteModelBankInt("api_action", "decode_error", 1);
+        libVibeKernel_gf_ApiActionPublish();
+        return true;
+    }
+    if (StringLength(libVibeKernel_gv_apiActionBuffer) + StringLength(firstChar)
+        + StringLength(secondChar) > 1024) {
+        libVibeKernel_gv_apiActionBuffer = "";
+        libVibeKernel_gf_WriteModelBankInt("api_action", "overflow", 1);
+        libVibeKernel_gf_ApiActionPublish();
+        return true;
+    }
+    libVibeKernel_gv_apiActionBuffer = libVibeKernel_gv_apiActionBuffer
+        + firstChar + secondChar;
+    libVibeKernel_gf_ApiActionPublish();
+    return true;
+}
+
 // ---- PollLoop 入口（Wait-based 轮询，API 模式主传输路径）----
 // SC2 API 模式下 TimePeriodic/ChatMessage/UnitCreated 事件触发器不触发，
 // 但 Wait 在触发器函数中可以正常工作（每次 Wait 让出控制权给游戏循环）。
@@ -2003,12 +2121,19 @@ bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
     if (libVibeKernel_gv_pollLoopRunning) { return true; }
     libVibeKernel_gv_pollLoopRunning = true;
 
+    // STAGE27_POLL_DIAG: keep the first-pass failure observable without touching
+    // the RPC bank that the host may be writing concurrently.
+    libVibeKernel_gf_WriteModelBankInt("poll_diag", "stage", 1);
+
     // 写入标记：证明 PollLoop 被启动
+    libVibeKernel_gf_WriteModelBankInt("poll_diag", "stage", 2);
     libVibeKernel_gf_WriteBankInt("diag", "pollloop_started", 1);
+    libVibeKernel_gf_WriteModelBankInt("poll_diag", "stage", 3);
     // 构建指纹：确认真机跑的确实是合并过 3 处修复的这一版。
     libVibeKernel_gf_WriteBankInt("diag", "pollorder_fix", 2);
     libVibeKernel_gf_WriteBankInt("diag", "bankhandle_fix", 3);
     libVibeKernel_gf_WriteBankInt("diag", "merged_fix", 5);
+    libVibeKernel_gf_WriteModelBankInt("poll_diag", "stage", 4);
 
     while (true) {
 // ==== BEGIN VIBE_KERNEL_002_POLL_ORDER HEAD ====
@@ -2018,9 +2143,12 @@ bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
         // CMRE-RUNTIME-003），紧随其后的写入会用内核内存态 BankSave 覆盖磁盘，
         // 把 Host 的 request/<id> 与 index/pending_request_id 永久抹掉 ——
         // 一次偶发漏读就此变成永久失败，且现场证据同时被销毁。
+        libVibeKernel_gf_WriteModelBankInt("poll_diag", "stage", 5);
         libVibeKernel_gf_ReloadBank();
+        libVibeKernel_gf_WriteModelBankInt("poll_diag", "stage", 6);
         // 诊断计数（纯内存自增，不落盘）
         libVibeKernel_gv_bankPollCount += 1;
+        libVibeKernel_gf_WriteModelBankInt("poll_diag", "stage", 7);
 // ==== BEGIN VIBE_KERNEL_005_FIRST_PASS_FLUSH ====
         // ！！！铁律 VIBE_KERNEL_005（2026-08-09 真机 L3/L4/L5/L6 四点二分取证）！！！
         //
@@ -2051,10 +2179,13 @@ bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
 // ==== END VIBE_KERNEL_005_FIRST_PASS_FLUSH ====
         // 先把 pending 请求抢读进局部变量，之后任何写入都伤不到它。
         pendingId = libVibeKernel_gf_ReadBankKey("index", "pending_request_id");
+        libVibeKernel_gf_WriteModelBankInt("poll_diag", "stage", 8);
+        libVibeKernel_gf_WriteModelBankInt("poll_diag", "pending_len", StringLength(pendingId));
         requestJson = "";
         if (pendingId != "" && pendingId != libVibeKernel_gv_lastPolledRequestId) {
             requestJson = libVibeKernel_gf_ReadBankKey("request", pendingId);
         }
+        libVibeKernel_gf_WriteModelBankInt("poll_diag", "request_len", StringLength(requestJson));
 // ==== END VIBE_KERNEL_002_POLL_ORDER HEAD ====
 
         // ChatMessage is not delivered reliably while a game is driven by
@@ -2088,13 +2219,17 @@ bool libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions) {
         if (requestJson != "") {
             // VIBE-KERNEL-001: consume before dispatch (poison-request guard).
             libVibeKernel_gv_lastPolledRequestId = pendingId;
+            libVibeKernel_gf_WriteModelBankInt("poll_diag", "dispatch_entered", 1);
             response = libVibeKernel_gf_Dispatch(requestJson);
+            libVibeKernel_gf_WriteModelBankInt("poll_diag", "dispatch_completed", 1);
+            libVibeKernel_gf_WriteModelBankInt("poll_diag", "response_len", StringLength(response));
             opName = libVibeKernel_gf_ArgsGet(requestJson, "operation");
             libVibeKernel_gf_EchoChat("[Vibe] " + opName + " done (id=" + pendingId + ")");
         }
 
         // P2 经济快照：必须排在请求分发之后（见循环开头的读写顺序铁律）。
         libVibeKernel_gf_WriteModelP2Snapshot();
+        libVibeKernel_gf_ApiActionPublish();
 // ==== END VIBE_KERNEL_002_POLL_ORDER TAIL ====
 
         // 等待 0.5 秒游戏时间（让出控制权给游戏循环）
@@ -2128,6 +2263,7 @@ void libVibeKernel_gf_RegisterEntryPoints() {
     // UnitWake 入口（API 模式备用传输路径，通过单位创建事件唤醒）
     libVibeKernel_gt_UnitWake = TriggerCreate("libVibeKernel_gt_UnitWake_Func");
     TriggerAddEventUnitCreated(libVibeKernel_gt_UnitWake, null, "", "");
+    libVibeKernel_gf_ApiActionInit();
 
     // ！！！死代码铁律补充（2026-08-08 真机二次取证）！！！
     // TriggerAddEventTimeElapsed(t, 0.0, c_timeGame) 在 SC2 中会**同步触发**
@@ -2135,7 +2271,8 @@ void libVibeKernel_gf_RegisterEntryPoints() {
     // （PollLoop / Watchdog 这种），就会永久卡在 TriggerAddEventTimeElapsed
     // 本行，之后所有语句变死代码——表现为 "watchdog_done / done 永远不写
     // 但 chat_done 存在"。因此所有循环体 trigger 一律**不绑定 0.0 立即事件**，
-    // 全部通过 TriggerExecute(t, false, false) 异步派发（显式 fire-and-forget）。
+    // 在锁定的 5.0.16.97563 实机上，第三参数是 waitUntilDone：
+    // false 才是独立的 fire-and-forget；true 会把 while(true) 线程吞掉调用者。
 
     // PollLoop 入口（API 模式主传输路径，Wait-based 持续轮询）
     // 仅创建 trigger；启动通过文末 TriggerExecute 显式异步 fire，
@@ -2145,10 +2282,10 @@ void libVibeKernel_gf_RegisterEntryPoints() {
     libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_pollloop_trigger_created", 1);
 // ==== BEGIN VIBE_KERNEL_001_WATCHDOG_REGISTER ====
     // 传输层自愈兜底。先于 PollLoop 派发注册，保证任何情况下 watchdog 都已就位。
-    // watchdog 体内是 while(true)+Wait，waitUntilDone 必须为 false，
+    // watchdog 体内是 while(true)+Wait，必须以不等待方式启动（第三个布尔参数为 false），
     // 否则本行之后全是死代码（历史事故：watchdog_done / register_entrypoints_done 从未写入）。
     libVibeKernel_gt_Watchdog = TriggerCreate("libVibeKernel_gt_Watchdog_Func");
-    TriggerExecute(libVibeKernel_gt_Watchdog, false, false);   // 异步——见死代码铁律
+    TriggerExecute(libVibeKernel_gt_Watchdog, false, false);   // false：实机 fire-and-forget
     libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_watchdog_done", 1);
 // ==== END VIBE_KERNEL_001_WATCHDOG_REGISTER ====
 
@@ -2157,7 +2294,7 @@ void libVibeKernel_gf_RegisterEntryPoints() {
 
     // 以显式异步 TriggerExecute 启动 PollLoop while(true) 循环；
     // 不依赖游戏时钟推进，也避免 TriggerAddEventTimeElapsed(0.0) 同步触发死代码。
-    TriggerExecute(libVibeKernel_gt_PollLoop, false, false);   // 异步——见死代码铁律
+    TriggerExecute(libVibeKernel_gt_PollLoop, false, false);   // false：实机 fire-and-forget
     libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_pollloop_fired", 1);
 
 }

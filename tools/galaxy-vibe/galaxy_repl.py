@@ -66,6 +66,7 @@ try:
     from s2clientprotocol import sc2api_pb2 as sc_pb
     from s2clientprotocol import debug_pb2 as debug_pb
     from s2clientprotocol import common_pb2 as common_pb
+    from s2clientprotocol import raw_pb2
 
     HAS_PROTO = True
 except Exception as e:  # pragma: no cover
@@ -73,12 +74,42 @@ except Exception as e:  # pragma: no cover
 
 import aiohttp  # 同 sc2-observer
 
-from host.vibe_host import RpcRequest, write_bank_request  # noqa: E402
+from host.vibe_host import RpcRequest, read_bank, write_bank_request  # noqa: E402
 from vibe.debug_vm import DebugVm, load_function_catalog, load_function_metadata  # noqa: E402
 from vibe.function_registry import FunctionRegistryError, coerce_cli_args  # noqa: E402
 
 DEFAULT_BANK = Path.home() / "Documents" / "StarCraft II" / "Banks" / "GalaxyVibeDebug.SC2Bank"
 DEFAULT_RPC_BANK = Path.home() / "Documents" / "StarCraft II" / "Banks" / "GalaxyVibe.SC2Bank"
+
+# Raw actions are the Host -> game path for live maps. The controller and
+# decoder live in LibVibeKernel; every pair below is carried by one Move order.
+API_ACTION_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._-/=;,"
+API_ACTION_PADDING = 254
+API_ACTION_COMMIT = 255
+API_ACTION_MOVE_ABILITY_ID = 16
+API_ACTION_GALAXY_TAG_MASK = (1 << 22) - 1
+
+
+def encode_api_action_packets(payload: str) -> list[tuple[int, int]]:
+    """Encode one Galaxy request as raw Move target-coordinate packets."""
+    codes: list[int] = []
+    for char in payload:
+        code = API_ACTION_ALPHABET.find(char)
+        if code < 0:
+            raise ValueError(f"raw-action payload contains unsupported character {char!r}")
+        codes.append(code)
+    packets: list[tuple[int, int]] = []
+    for index in range(0, len(codes), 2):
+        first = codes[index]
+        second = codes[index + 1] if index + 1 < len(codes) else API_ACTION_PADDING
+        packets.append((first, second))
+    packets.append((API_ACTION_COMMIT, API_ACTION_COMMIT))
+    return packets
+
+
+def galaxy_tag_from_raw_tag(raw_tag: int) -> int:
+    """Map SC2's raw 64-bit tag to the 22-bit tag emitted by Galaxy."""
+    return int(raw_tag) & API_ACTION_GALAXY_TAG_MASK
 
 
 def _local_map_for_create(map_path: str):
@@ -344,6 +375,7 @@ class VibeREPL:
         self.assert_results: list[dict] = []
         self.rpc_session_id = rpc_session_id or ("repl_" + uuid.uuid4().hex[:12])
         self.rpc_sequence = 0
+        self.last_rpc_transport: dict[str, object] = {"kind": "uninitialized"}
 
     async def connect(self):
         url = f"ws://127.0.0.1:{self.port}/sc2api"
@@ -376,7 +408,10 @@ class VibeREPL:
         except Exception:
             pass
 
-        if not self._resume_requested:
+        # A realtime client can coexist with another SC2 API session. Do not
+        # archive that session's shared Bank merely because this client creates
+        # a separate local game.
+        if not self._resume_requested and not self.realtime:
             _archive_stale_rpc_bank()
 
         solo_player = [sc_pb.PlayerSetup(type=1, race=1, player_name="P1")]
@@ -452,6 +487,29 @@ class VibeREPL:
         """Advance frames for non-realtime CreateGame sessions while preserving wall-clock waits."""
         deadline = time.time() + max(0.0, seconds)
         advanced = False
+        if self.realtime:
+            # SC2 rejects RequestStep in a realtime session. Waiting by issuing
+            # Step is therefore neither a wait nor a valid readiness signal;
+            # observe real frame advancement instead and never pause the game.
+            initial_loop = -1
+            while True:
+                try:
+                    observation = await send_request(
+                        self.ws,
+                        sc_pb.Request(observation=sc_pb.RequestObservation()),
+                        timeout=5.0,
+                    )
+                    if observation.HasField("observation"):
+                        current_loop = int(observation.observation.observation.game_loop)
+                        if initial_loop < 0:
+                            initial_loop = current_loop
+                        elif current_loop > initial_loop:
+                            advanced = True
+                except Exception:
+                    pass
+                if time.time() >= deadline:
+                    return advanced
+                await asyncio.sleep(max(0.02, sleep_seconds))
         while True:
             try:
                 resp = await send_request(
@@ -519,6 +577,137 @@ class VibeREPL:
             print(f"[ping] 未确认闭环（Mod 未挂？或 Bank 未回写）run_id={run_id}")
         return True
 
+    async def _raw_tag_for_api_action_controller(self, galaxy_tag: int) -> int | None:
+        """Resolve the kernel's Galaxy tag to the raw tag required by SC2 API."""
+        observation = await send_request(
+            self.ws,
+            sc_pb.Request(observation=sc_pb.RequestObservation()),
+            timeout=10.0,
+        )
+        if observation.error or not observation.HasField("observation"):
+            return None
+        raw_units = observation.observation.observation.raw_data.units
+        for unit in raw_units:
+            raw_tag = int(unit.tag)
+            if galaxy_tag_from_raw_tag(raw_tag) == galaxy_tag:
+                return raw_tag
+        return None
+
+    async def _wait_for_api_action_controller(self, timeout: float = 5.0) -> tuple[int, int] | None:
+        """Read the live kernel publication and resolve its controller unit."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            value = read_bank("GalaxyVibeModel").get("api_action", {}).get("controller_tag")
+            try:
+                galaxy_tag = int(value)
+            except (TypeError, ValueError):
+                galaxy_tag = 0
+            if galaxy_tag > 0:
+                raw_tag = await self._raw_tag_for_api_action_controller(galaxy_tag)
+                if raw_tag is not None:
+                    return galaxy_tag, raw_tag
+            await asyncio.sleep(0.05)
+        return None
+
+    async def _send_api_action_packet(self, raw_tag: int, first: int, second: int) -> list[int]:
+        """Send one two-character transport packet as a Move raw action."""
+        response = await send_request(
+            self.ws,
+            sc_pb.Request(
+                action=sc_pb.RequestAction(
+                    actions=[
+                        sc_pb.Action(
+                            action_raw=raw_pb2.ActionRaw(
+                                unit_command=raw_pb2.ActionRawUnitCommand(
+                                    ability_id=API_ACTION_MOVE_ABILITY_ID,
+                                    unit_tags=[raw_tag],
+                                    target_world_space_pos=common_pb.Point2D(
+                                        x=8.0 + first / 256.0,
+                                        y=8.0 + second / 256.0,
+                                    ),
+                                )
+                            )
+                        )
+                    ]
+                )
+            ),
+            timeout=10.0,
+        )
+        if response.error:
+            raise RuntimeError(f"raw action request error: {list(response.error)!r}")
+        return [int(result) for result in response.action.result]
+
+    async def _invoke_function_request_via_api_action(self, request: RpcRequest) -> dict:
+        """Dispatch an RPC through a game-observed raw action, never Bank reload."""
+        controller = await self._wait_for_api_action_controller()
+        if controller is None:
+            return {
+                "kind": "error",
+                "error_code": "TRANSPORT_UNAVAILABLE",
+                "request_id": request.request_id,
+                "payload": {"reason": "api_action_controller_unavailable"},
+            }
+        galaxy_tag, raw_tag = controller
+        try:
+            packets = encode_api_action_packets(request.to_args_string())
+        except ValueError as exc:
+            return {
+                "kind": "error",
+                "error_code": "INVALID_ARGUMENT",
+                "request_id": request.request_id,
+                "payload": {"reason": str(exc)},
+            }
+        action_results: list[list[int]] = []
+        try:
+            for first, second in packets:
+                result = await self._send_api_action_packet(raw_tag, first, second)
+                action_results.append(result)
+                if any(code != 1 for code in result):
+                    raise RuntimeError(f"raw action rejected: {result!r}")
+                # Orders must reach distinct game ticks. This keeps the transport
+                # deterministic in realtime games without pausing or stepping.
+                await asyncio.sleep(0.025)
+        except Exception as exc:
+            return {
+                "kind": "error",
+                "error_code": "TRANSPORT_ERROR",
+                "request_id": request.request_id,
+                "payload": {"reason": str(exc), "packet_count": len(action_results)},
+            }
+
+        deadline = time.time() + 8.0
+        raw = ""
+        while time.time() < deadline:
+            raw = read_bank("GalaxyVibe").get("response", {}).get(request.request_id, "")
+            if raw:
+                break
+            await asyncio.sleep(0.05)
+        self.last_rpc_transport = {
+            "kind": "raw-action",
+            "request_id": request.request_id,
+            "controller_galaxy_tag": galaxy_tag,
+            "controller_raw_tag": raw_tag,
+            "packet_count": len(packets),
+            "action_results": action_results,
+            "response_received": bool(raw),
+        }
+        if not raw:
+            return {
+                "kind": "error",
+                "error_code": "INTERNAL_ERROR",
+                "request_id": request.request_id,
+                "payload": {"reason": "raw_action_response_timeout", **self.last_rpc_transport},
+            }
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            return {
+                "kind": "error",
+                "error_code": "INTERNAL_ERROR",
+                "request_id": request.request_id,
+                "payload": {"reason": "malformed_response", "raw": raw},
+            }
+
     async def invoke_function_request(self, function_id: str, call_args: dict):
         """Send one validated function.invoke and return its structured result."""
         try:
@@ -533,6 +722,14 @@ class VibeREPL:
             operation="function.invoke",
             args={"function_id": function_id, "args": call_args},
         )
+        raw_action_response = await self._invoke_function_request_via_api_action(request)
+        if raw_action_response.get("error_code") != "TRANSPORT_UNAVAILABLE":
+            return raw_action_response
+        self.last_rpc_transport = {
+            "kind": "bank-fallback",
+            "request_id": request.request_id,
+            "reason": raw_action_response.get("payload", {}).get("reason", "unknown"),
+        }
         try:
             if not write_bank_request("GalaxyVibe", request.request_id, request):
                 return {"kind": "error", "error_code": "INTERNAL_ERROR", "payload": {"reason": "bank_write_failed"}}
@@ -597,6 +794,7 @@ class VibeREPL:
             print(f"[invoke] {exc.code}: {exc.detail}")
             return True
         parsed = await self.invoke_function_request(function_id, call_args)
+        print(f"[invoke] transport={json.dumps(self.last_rpc_transport, ensure_ascii=False, sort_keys=True)}")
         print(f"[invoke] {parsed.get('error_code')} payload={parsed.get('payload', {})}")
         return True
 

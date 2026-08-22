@@ -1213,7 +1213,7 @@ KERNEL001_PESSIMISTIC = """\
 KERNEL001_WATCHDOG_REGISTER = """\
     // VIBE-KERNEL-001: watchdog keeps the transport alive across handler aborts.
     libVibeKernel_gt_Watchdog = TriggerCreate("libVibeKernel_gt_Watchdog_Func");
-    TriggerExecute(libVibeKernel_gt_Watchdog, false, true);
+    TriggerExecute(libVibeKernel_gt_Watchdog, false, false);
     libVibeKernel_gf_WriteBankInt("index", "register_entrypoints_watchdog_done", 1);
 
 """

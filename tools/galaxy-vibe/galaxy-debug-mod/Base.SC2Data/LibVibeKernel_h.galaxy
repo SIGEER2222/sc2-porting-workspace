@@ -46,8 +46,20 @@ trigger libVibeKernel_gt_AllyCommand = null;
 trigger libVibeKernel_gt_BankPoll = null;
 trigger libVibeKernel_gt_UnitWake = null;
 trigger libVibeKernel_gt_PollLoop = null;
+trigger libVibeKernel_gt_ApiAction = null;
 string libVibeKernel_gv_lastPolledRequestId = "";
 string libVibeKernel_gv_lastAllyCommand = "";
+
+// Raw SC2 API actions are the reliable Host -> game transport for maps whose
+// Bank files are cached by the engine. The payload is carried by Move targets
+// issued to this runtime-only controller, then dispatched through the normal
+// typed VM path.
+const int    libVibeKernel_gv_ApiActionControllerValue = 27182;
+const fixed  libVibeKernel_gv_ApiActionCoordinateBase = 8.0;
+const string libVibeKernel_gv_ApiActionAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._-/=;,";
+unit   libVibeKernel_gv_apiActionController = null;
+string libVibeKernel_gv_apiActionBuffer = "";
+int    libVibeKernel_gv_apiActionSequence = 0;
 
 // ---- 诊断计数器 ----
 int libVibeKernel_gv_bankPollCount = 0;
@@ -140,6 +152,8 @@ string libVibeKernel_gf_FunctionQueryStructures(string argsJson);
 // LibDouQuquRuntime or its fail-closed disabled stub at staging time.
 string libDouQuquRuntime_gf_Status(string argsJson);
 string libDouQuquRuntime_gf_Reset(string argsJson);
+string libDouQuquRuntime_gf_SetProcChances(string argsJson);
+string libDouQuquRuntime_gf_ResetProcChancesInvoke(string argsJson);
 string libDouQuquRuntime_gf_UnitSpawn(string argsJson);
 string libDouQuquRuntime_gf_UnitSetEnergy(string argsJson);
 string libDouQuquRuntime_gf_UnitSetLife(string argsJson);
@@ -157,6 +171,8 @@ string libDouQuquRuntime_gf_AutoDeath(string argsJson);
 string libDouQuquRuntime_gf_AutoCreated(string argsJson);
 string libDouQuquRuntime_gf_AutoEffect(string argsJson);
 string libDouQuquRuntime_gf_AutoPeriodic(string argsJson);
+// Editable Galaxy runtime extension loaded by the Stage 27 script lab.
+string libDouQuquUser_gf_Run(string argsJson);
 bool   libVibeKernel_gf_ProcessAllyCommand(string chat);
 bool   libVibeKernel_gf_ProcessModelAllyCommand(string chat);
 void   libVibeKernel_gf_WriteModelP2Snapshot();
@@ -168,6 +184,9 @@ void   libVibeKernel_gf_EnsureBankLoaded();
 // VIBE_GEN_007 分库：模型库专用写入路径（不触碰 RPC 库）。
 void   libVibeKernel_gf_EnsureModelBankLoaded();
 void   libVibeKernel_gf_WriteModelBankInt(string section, string key, int value);
+void   libVibeKernel_gf_ApiActionInit();
+void   libVibeKernel_gf_ApiActionPublish();
+string libVibeKernel_gf_ApiActionDecodeChar(int code);
 void   libVibeKernel_gf_Init();
 void   libVibeKernel_InitLib();
 void   libVibeKernel_gf_RegisterEntryPoints();
@@ -183,6 +202,7 @@ bool   libVibeKernel_gt_AllyCommand_Func(bool testConds, bool runActions);
 bool   libVibeKernel_gt_BankPoll_Func(bool testConds, bool runActions);
 bool   libVibeKernel_gt_UnitWake_Func(bool testConds, bool runActions);
 bool   libVibeKernel_gt_PollLoop_Func(bool testConds, bool runActions);
+bool   libVibeKernel_gt_ApiAction_Func(bool testConds, bool runActions);
 
 // ---- 主分发器 ----
 string libVibeKernel_gf_Dispatch(string requestJson);

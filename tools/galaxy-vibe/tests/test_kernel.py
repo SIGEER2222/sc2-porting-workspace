@@ -43,12 +43,35 @@ from galaxy_repl import (  # noqa: E402
     _archive_stale_rpc_bank,
     _local_map_for_create,
     _resume_sequence_from_bank,
+    API_ACTION_COMMIT,
+    API_ACTION_PADDING,
+    encode_api_action_packets,
+    galaxy_tag_from_raw_tag,
 )
 
 
 # ---- RPC 协议单元测试 ----
 
 class TestReplSessionResume(unittest.TestCase):
+    def test_api_action_packets_encode_and_commit(self):
+        packets = encode_api_action_packets("A1_")
+        self.assertEqual(packets, [(10, 1), (63, API_ACTION_PADDING), (API_ACTION_COMMIT, API_ACTION_COMMIT)])
+
+    def test_api_action_packets_reject_unsupported_characters(self):
+        with self.assertRaisesRegex(ValueError, "unsupported character"):
+            encode_api_action_packets("contains space")
+
+    def test_raw_tag_maps_to_galaxy_tag_low_22_bits(self):
+        self.assertEqual(galaxy_tag_from_raw_tag(4296540162), 1572866)
+
+    def test_api_action_init_emits_runtime_diagnostic_markers(self):
+        kernel = (REPO_ROOT / "tools" / "galaxy-vibe" / "kernel" / "LibVibeKernel.galaxy").read_text(
+            encoding="utf-8-sig"
+        )
+        self.assertIn('"api_action_init_entered"', kernel)
+        self.assertIn('"api_action_controller_created"', kernel)
+        self.assertIn('"api_action_trigger_created"', kernel)
+
     def test_resume_reads_highest_sequence_for_selected_session(self):
         with tempfile.TemporaryDirectory() as tmp:
             bank = Path(tmp) / "GalaxyVibe.SC2Bank"
