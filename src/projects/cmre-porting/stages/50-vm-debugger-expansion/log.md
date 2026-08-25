@@ -51,3 +51,9 @@
 - `static`: Blender 4.5.5 GLB import produced an Armature and actions including Stand, Walk, Attack, Burrow, and Unburrow. The clean working preview `zergling-scbw-reference-clean.blend` removes converter helper meshes and assigns Walk.
 - `static`: A Blender frame-sampling check of Walk at frames 0, 24, and 48 found 111 F-Curves and maximum mesh-vertex deltas of `0.0520525` for both intervals. The visible clean action frame is `artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/zergling-scbw-walk-frame-clean.png`.
 - `static`: This is offline converter/Blender evidence only; it does not claim SC2 engine, Previewer, Data Editor, or in-game compatibility. The input is the locally available SCBW Zergling variant, not an asserted standard modern SC2 Zergling asset.
+
+## Offline SC2 AI Asset Workflow Documentation - 2026-08-25
+
+- `static`: Added `src/projects/cmre-porting/stages/50-vm-debugger-expansion/offline-sc2-ai-asset-authoring-workflow.md`, which records the workflow purpose, M3/M3A/DDS source-of-truth rule, distinct authoring and preview branches, AI mesh/texture contract, quality gates, current gaps, and the Zergling Round-Trip PoC acceptance criteria.
+- `static`: Verified the document is nonempty, has no Git patch whitespace errors, and references existing local Zergling M3 and DDS source assets.
+- `static`: The document explicitly keeps Blender/GLB/M3Studio outcomes separate from future SC2 Previewer, Actor, and in-game runtime evidence.
