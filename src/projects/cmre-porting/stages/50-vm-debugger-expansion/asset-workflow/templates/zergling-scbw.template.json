@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "templateId": "zergling-scbw",
+  "rigFamily": "zerg-quadruped-melee",
+  "evidenceType": "static",
+  "purpose": "Offline template baseline for AI-generated mesh and texture integration; the template's SC2 rig, existing animations, materials, and attachment data remain canonical.",
+  "source": {
+    "model": "reference/SC2plusSCBW/SC Evo Complete/SCEvo_Assets.SC2Mod/Base.SC2Assets/Assets/Units/Zerg/ZerglingSCBW/ZerglingSCBW.m3",
+    "textures": [
+      "reference/SC2plusSCBW/SC Evo Complete/SCEvo_Assets.SC2Mod/Base.SC2Assets/Assets/Textures/ZerglingSCBW@Dif.dds",
+      "reference/SC2plusSCBW/SC Evo Complete/SCEvo_Assets.SC2Mod/Base.SC2Assets/Assets/Textures/ZerglingSCBW@Norm.dds",
+      "reference/SC2plusSCBW/SC Evo Complete/SCEvo_Assets.SC2Mod/Base.SC2Assets/Assets/Textures/ZerglingSCBW@Spec.dds",
+      "reference/SC2plusSCBW/SC Evo Complete/SCEvo_Assets.SC2Mod/Base.SC2Assets/Assets/Textures/ZerglingSCBW@Emiss.dds",
+      "reference/SC2plusSCBW/SC Evo Complete/SCEvo_Assets.SC2Mod/Base.SC2Assets/Assets/Textures/ZerglingSCBW@Reflection.dds",
+      "reference/SC2plusSCBW/SC Evo Complete/SCEvo_Assets.SC2Mod/Base.SC2Assets/Assets/Textures/btn-unit-zerg-ZerglingSCBW.dds"
+    ]
+  },
+  "preview": {
+    "converter": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/tool-cache/star-tools-three-m3-loader/convert-m3.js",
+    "output": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-reference.glb",
+    "requiredActions": ["Stand", "Walk", "Attack"]
+  },
+  "manualGates": [
+    {
+      "id": "m3studio_authoring_baseline",
+      "purpose": "Import the source M3 in Blender's graphical UI with M3Studio and save a separately versioned authoring Blend.",
+      "status": "PENDING"
+    },
+    {
+      "id": "dds_preview_mapping",
+      "purpose": "Map the declared DDS source textures into the Blender preview material and render Stand, Walk, and Attack reference outputs.",
+      "status": "PENDING"
+    },
+    {
+      "id": "m3_export_round_trip",
+      "purpose": "Make one isolated authoring change, export candidate M3, re-import it in a new Blender scene, and compare required structural data plus poses.",
+      "status": "PENDING"
+    },
+    {
+      "id": "sc2_runtime_validation",
+      "purpose": "When SC2 is available, validate Previewer, Data Editor, Actor, in-game behavior, and new GameLogs errors.",
+      "status": "BLOCKED_NO_SC2"
+    }
+  ]
+}

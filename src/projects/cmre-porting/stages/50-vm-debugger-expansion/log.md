@@ -57,3 +57,13 @@
 - `static`: Added `src/projects/cmre-porting/stages/50-vm-debugger-expansion/offline-sc2-ai-asset-authoring-workflow.md`, which records the workflow purpose, M3/M3A/DDS source-of-truth rule, distinct authoring and preview branches, AI mesh/texture contract, quality gates, current gaps, and the Zergling Round-Trip PoC acceptance criteria.
 - `static`: Verified the document is nonempty, has no Git patch whitespace errors, and references existing local Zergling M3 and DDS source assets.
 - `static`: The document explicitly keeps Blender/GLB/M3Studio outcomes separate from future SC2 Previewer, Actor, and in-game runtime evidence.
+
+## Executable Offline SC2 Asset Workflow - 2026-08-25
+
+- `static`: Reframed `offline-sc2-ai-asset-authoring-workflow.md` as the authoritative execution workflow: W0 template registration, W1 static baseline, W2 M3Studio authoring baseline, W3 texture preview, W4 AI mesh integration, W5 export/re-import, and W6 future SC2 runtime validation. A PASS only releases the current gate.
+- `static`: Added the machine-readable template `asset-workflow/templates/zergling-scbw.template.json` and reusable `asset-workflow/run_static_template_baseline.py` runner. The runner records source/DDS SHA-256 values, runs M3-to-GLB conversion, and probes Stand/Walk/Attack in Blender.
+- `static`: Executed W0/W1 for `zergling-scbw`; `artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-static-baseline.json` reports `status=PASS`, 44 bones, and mesh deformation across three samples for Stand, Walk, and Attack.
+- `static`: W2 M3Studio authoring, W3 DDS preview mapping, and W5 M3 export/re-import remain `PENDING`; W6 remains `BLOCKED_NO_SC2`. These gates must not be inferred from the W0/W1 result.
+
+- `static`: Repeated the W0/W1 runner. Source hashes and Stand/Walk/Attack semantic probes matched exactly; the binary GLB SHA-256 changed between runs, so the workflow records it as per-run provenance rather than treating GLB byte identity as determinism evidence.
+- `static`: The runner scope and document W1 gate now use semantic action-probe repeatability as the deterministic contract.

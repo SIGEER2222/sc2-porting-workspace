@@ -85,10 +85,16 @@
     "scope_boundary": "WebUI control-plane recovery only; no SC2 launcher, VM RPC listener, or native gameplay event chain is claimed."
   },
   "offline_asset_workflow": {
-    "status": "DOCUMENTED_STATIC_BASELINE",
+    "status": "W0_W1_PASS_MANUAL_GATES_PENDING",
     "evidence_type": "static",
     "document": "src/projects/cmre-porting/stages/50-vm-debugger-expansion/offline-sc2-ai-asset-authoring-workflow.md",
-    "scope_boundary": "User-directed offline asset-workflow reference. It does not change the Stage50 tactical simulator status or create an SC2 native/runtime claim."
+    "template_manifest": "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/templates/zergling-scbw.template.json",
+    "runner": "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/run_static_template_baseline.py",
+    "baseline_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-static-baseline.json",
+    "completed_gates": ["W0 template registration", "W1 source-to-GLB action baseline"],
+    "pending_manual_gates": ["W2 M3Studio authoring", "W3 DDS preview", "W4 AI mesh integration", "W5 M3 export/re-import"],
+    "blocked_gate": "W6 SC2 runtime validation: no local SC2 installation",
+    "scope_boundary": "W0/W1 PASS establishes only the repeatable semantic static baseline: source hashes and action probes are stable, while the binary GLB hash is recorded per run but not used as a determinism assertion. It does not change the Stage50 tactical simulator status or create an SC2 native/runtime claim."
   },
 
   "checks": {

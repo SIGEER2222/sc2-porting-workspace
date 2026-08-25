@@ -1,10 +1,13 @@
-# 离线 SC2 M3 资产制作工作流与 AI 参考规范
+# 离线 SC2 M3 资产制作执行工作流
 
-> **状态：** 制作路线与验收合同。本文记录当前可复用的离线工作流、每一阶段的目的、已验证能力、未完成缺口和下一里程碑。
+> **状态：** 可执行的资产生产工作流。它不是“给 AI 看的参考说明”或单次转换教程：每个模板都必须经过相同的输入、自动 gate、图形界面 gate、导出回导 gate 与未来 runtime gate，并输出可追溯证据。
 >
 > **核心目的：** 不让 AI 从零“猜出”一套 SC2 骨骼、动作和引擎资产，而是让 AI 专注生成可控的**网格与贴图**，再把它接入已经验证的 SC2 单位模板骨架、动作、挂点和材质结构。最终目标是形成可以重复生产、回导检查、并在具备 SC2 后完成运行时验收的资产流水线。
 >
+> **本工作流的完成定义：** 不是生成了一个 GLB，也不是写完了文档；而是某个模板或 AI 资产按本文 Gate 顺序走完，并保留 manifest、自动报告、authoring 版本、导出物、回导比较和相应证据。
+>
 > **证据边界：** 当前工作站没有 SC2。本文中 Blender、GLB 与 M3Studio 的结果仅代表 `static` / 离线证据；它们不能替代 SC2 Previewer、Data Editor、Actor 或游戏内运行时验证。
+
 
 ## 1. 为什么需要这条工作流
 
@@ -84,6 +87,53 @@ Stand / Walk / Attack -> 导出 M3 -> M3Studio 回导
 [6. 将来 SC2 运行时质量门]
 Previewer -> Actor -> 游戏内验证
 ```
+
+### 3.1 每个资产必须实际执行的 Workflow
+
+每个资产只允许按下面顺序推进；某个 Gate 未通过时，修复后重新从该 Gate 执行，不跳到导出或运行时阶段。
+
+| 顺序 | 输入 | 执行者与动作 | 强制输出 | 放行条件 |
+|---|---|---|---|---|
+| W1 静态基线 | W0 manifest | 运行 `run_static_template_baseline.py` | source hash、GLB、动作 probe JSON | M3 转 GLB 成功，Stand/Walk/Attack 有 F-Curve 且网格姿势变化；重复运行时源摘要和语义动作 probe 一致 |
+| W2 制作基线 | W1 PASS | 在 Blender 图形界面用 M3Studio 导入 M3/M3A | `authoring/<template>-source.blend`、UI 截图/记录 | 骨骼、网格、动作、材质层、挂点均存在 |
+| W3 视觉模板 | W2 PASS、DDS | 映射 DDS，并输出三组关键动作预览 | Stand/Walk/Attack 图像或视频 | 贴图来源可追溯，动作可视觉审查 |
+| W4 AI 网格整合 | W3 预览、AI 静态 Mesh/PBR 贴图 | 对齐比例/轴向/原点，绑定既有 Rig，局部修权重 | 新 authoring 版本与变更说明 | 三组动作无明显飞散、断裂或不可接受拉伸 |
+| W5 M3 回导 | W4 candidate | M3Studio 导出 M3/M3A，在新场景回导并比较 | candidate M3/M3A、round-trip 报告 | 结构合同、动作和关键挂点未丢失 |
+| W6 SC2 runtime | W5 PASS、SC2 可用 | Previewer、Data、Actor、游戏内及 GameLogs 验收 | runtime evidence bundle | 取得真实引擎证据 |
+
+当前已实现自动化的只有 **W0/W1**。W2–W5 是必须保留证据的图形界面制作 gate；W6 因本机无 SC2 处于 `BLOCKED_NO_SC2`。自动化 PASS 只意味着当前 Gate 放行，绝不代表整个流程完成。
+
+### 3.2 W1 的可执行入口
+
+模板和 Runner 由仓库管理，不依赖聊天上下文：
+
+```text
+src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/
+  templates/zergling-scbw.template.json
+  run_static_template_baseline.py
+```
+
+在 PowerShell 中为当前机器指定 Blender，再运行模板：
+
+```powershell
+$env:SC2_ASSET_BLENDER = '<Blender executable>'
+py -3.13 src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/run_static_template_baseline.py `
+  src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/templates/zergling-scbw.template.json `
+  --out artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-static-baseline.json
+```
+
+Runner 会实际执行：
+
+```text
+M3/DDS 文件存在与 SHA-256 基线
+-> node convert-m3.js: M3 -> GLB
+-> Blender background: 导入 GLB
+-> 检查 Armature、网格、骨骼、Stand/Walk/Attack 的 F-Curve 与三帧网格姿势哈希
+-> 重复运行时比较源摘要和语义动作 probe；GLB 二进制哈希只记录，不作为确定性断言
+-> 写出 static-baseline.json
+```
+
+它还会把尚未完成的 W2–W6 作为 `manualGates` 写入报告，因此后续人员不会把“预览成功”误作“资产完成”。
 
 ## 4. 阶段、目标与验收
 
@@ -318,6 +368,7 @@ GameLogs：本次新增 ScriptError 检查
 - 当前 SCBW 跳虫预览副本包含 Armature 与 16 个 Actions；`Walk` 已通过帧采样确认会驱动网格变形。
 - 本地存在 SCBW 跳虫主模型以及 Diffuse、Normal、Specular、Emissive、Reflection DDS 贴图。
 - 本地已安装 M3Studio v0.3.0，其文档声明支持 M3/M3A 导入、M3/M3A 导出、Animation Groups、Material Layers、Attachment Points 和 Hit Test Volumes。
+- W0/W1 已从说明落地为仓库中的 Zergling 模板 manifest 与可执行 static baseline runner；该 runner 已完成一次实际跳虫基线运行。
 
 ### 尚未完成
 
@@ -326,7 +377,6 @@ M3Studio 图形界面导入跳虫主 M3
 M3Studio 不修改数据的 M3 -> export -> re-import round-trip
 跳虫 DDS 到 Blender preview 材质映射
 跳虫 authoring .blend
-模板 manifest.json 与文件哈希基线
 AI 静态 Mesh 输入/输出合同的可执行样例
 AI Mesh -> 模板骨架 -> 权重 -> M3 导出的完整 PoC
 SC2 Previewer / Actor / 游戏内运行时验收
@@ -343,6 +393,7 @@ SC2 Previewer / Actor / 游戏内运行时验收
 不要先建设整套资产平台。先交付一个可复核的跳虫闭环：
 
 ```text
+0. 执行 W0/W1：运行 `zergling-scbw.template.json` 的 static baseline runner，确认源哈希和三项关键动作通过。
 1. 在 M3Studio 图形界面导入 ZerglingSCBW.m3。
 2. 保存未修改的 authoring 基线 Blend。
 3. 关联跳虫 DDS，输出带贴图的 Stand / Walk / Attack 预览。
@@ -350,7 +401,7 @@ SC2 Previewer / Actor / 游戏内运行时验收
 5. 导出 candidate M3。
 6. 新场景回导 candidate M3。
 7. 对比骨骼、网格、动作、材质层、关键挂点和三组姿势。
-8. 输出 manifest、比较报告、截图/视频与结论。
+8. 输出 manifest、W1 static report、W2–W5 比较报告、截图/视频与结论。
 ```
 
 此 PoC 的成功标准：
