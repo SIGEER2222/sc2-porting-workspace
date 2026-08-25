@@ -44,3 +44,10 @@
 - `runtime`: Smoke endpoints passed: `/api/status`, `/api/vibe/status`, `/api/maps`, `/api/factors`, and `/api/vibe/call-log?limit=5` all returned HTTP 200.
 - `runtime`: Recovery artifact `artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/dq-webui-recovery-20260819.json` records WebUI recovered, `launcherRunning=false`, `vibe_status=disconnected`, and VM ports `5896/5897` still closed.
 - `static`: This recovery only restores the WebUI control plane; it does not claim SC2 launcher readiness, VM RPC availability, or automatic gameplay event evidence.
+
+## Offline SC2 Asset Reference Check - 2026-08-25
+
+- `static`: Converted the read-only `reference/SC2plusSCBW/SC Evo Complete/SCEvo_Assets.SC2Mod/Base.SC2Assets/Assets/Units/Zerg/ZerglingSCBW/ZerglingSCBW.m3` with `node convert-m3.js <input.m3> <output.glb>` into `artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/zergling-scbw-reference.glb`; conversion reported 16 animation clips.
+- `static`: Blender 4.5.5 GLB import produced an Armature and actions including Stand, Walk, Attack, Burrow, and Unburrow. The clean working preview `zergling-scbw-reference-clean.blend` removes converter helper meshes and assigns Walk.
+- `static`: A Blender frame-sampling check of Walk at frames 0, 24, and 48 found 111 F-Curves and maximum mesh-vertex deltas of `0.0520525` for both intervals. The visible clean action frame is `artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/zergling-scbw-walk-frame-clean.png`.
+- `static`: This is offline converter/Blender evidence only; it does not claim SC2 engine, Previewer, Data Editor, or in-game compatibility. The input is the locally available SCBW Zergling variant, not an asserted standard modern SC2 Zergling asset.
