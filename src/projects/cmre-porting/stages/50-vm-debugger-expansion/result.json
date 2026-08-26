@@ -85,7 +85,7 @@
     "scope_boundary": "WebUI control-plane recovery only; no SC2 launcher, VM RPC listener, or native gameplay event chain is claimed."
   },
   "offline_asset_workflow": {
-    "status": "W0_W1_W2_W3_PASS_MANUAL_W4_W5_PENDING",
+    "status": "W0_W1_W2_PASS_W3_MATERIAL_REVIEW_MANUAL_W4_W5_PENDING",
     "evidence_type": "static",
     "document": "src/projects/cmre-porting/stages/50-vm-debugger-expansion/offline-sc2-ai-asset-authoring-workflow.md",
     "template_manifest": "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/templates/zergling-scbw.template.json",
@@ -93,9 +93,18 @@
     "gui_runner": "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/run_gui_authoring.py",
     "baseline_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-static-baseline.json",
     "gui_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/gui-authoring-report.json",
+    "batch_material_map": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/batch-material-map.json",
+    "preview_blend_verification": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/preview-blend-verify.json",
     "completed_gates": ["W0 template registration", "W1 source-to-GLB action baseline", "W2 M3Studio GUI authoring baseline", "W3 DDS GUI preview and action frames"],
     "pending_manual_gates": ["W4 AI mesh integration", "W5 M3 export/re-import"],
     "blocked_gate": "W6 SC2 runtime validation: no local SC2 installation",
+    "material_fidelity": {
+      "m3_material_layers": 4,
+      "mesh_batch_assignments": 6,
+      "exact_local_m3_channels": 3,
+      "missing_declared_m3_texture_channels": 11,
+      "preview_policy": "Per-mesh M3 batch material assignment; exact local channel when available; legacy diffuse/normal fallback only for offline readability"
+    },
     "scope_boundary": "W0/W1 semantic probes and W2/W3 Blender/M3Studio GUI evidence are offline static evidence only. The GUI runner records blenderBackground=false and sc2Integration=false; it does not launch SC2, modify a map or mod, or create Previewer, Actor, or in-game evidence."
   },
 

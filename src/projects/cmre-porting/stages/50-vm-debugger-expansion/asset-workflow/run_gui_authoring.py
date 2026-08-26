@@ -180,33 +180,40 @@ def setup_camera_and_lights(scene: bpy.types.Scene, meshes: list[bpy.types.Objec
     camera_data = bpy.data.cameras.new("OfflineAssetCamera")
     camera = bpy.data.objects.new("OfflineAssetCamera", camera_data)
     scene.collection.objects.link(camera)
-    camera.location = center + Vector((1.6, -2.2, 1.2)).normalized() * extent * 2.8
-    camera_data.lens = 55
+    camera.location = center + Vector((1.6, -2.2, 1.2)).normalized() * extent * 2.25
+    camera_data.lens = 58
     point_camera(camera, center)
     scene.camera = camera
 
-    for name, offset, power, size, color in (
-        ("OfflineKey", (1.5, -1.4, 2.0), 900.0, 3.0, (1.0, 0.82, 0.72)),
-        ("OfflineFill", (-1.6, -0.8, 0.7), 500.0, 2.5, (0.35, 0.55, 1.0)),
-        ("OfflineRim", (0.5, 1.6, 1.6), 700.0, 2.2, (0.9, 0.25, 0.45)),
+    # Keep the preview readable and color-neutral. SC2's final presentation is
+    # engine/shader dependent; colored studio lights and AgX made the DDS look
+    # pink and overexposed, so this offline reference uses a controlled white rig.
+    for name, offset, power, size in (
+        ("OfflineKey", (1.5, -1.4, 2.0), 140.0, 2.6),
+        ("OfflineFill", (-1.6, -0.8, 0.7), 35.0, 2.8),
+        ("OfflineRim", (0.5, 1.6, 1.6), 70.0, 2.4),
     ):
         light_data = bpy.data.lights.new(name, "AREA")
         light_data.energy = power
         light_data.shape = "DISK"
         light_data.size = extent * size
-        light_data.color = color
+        light_data.color = (1.0, 1.0, 1.0)
         light = bpy.data.objects.new(name, light_data)
         scene.collection.objects.link(light)
-        light.location = center + Vector(offset).normalized() * extent * 2.0
+        light.location = center + Vector(offset).normalized() * extent * 1.8
         point_camera(light, center)
 
     scene.render.engine = "BLENDER_EEVEE_NEXT"
-    scene.render.resolution_x = 720
-    scene.render.resolution_y = 720
+    scene.render.resolution_x = 1024
+    scene.render.resolution_y = 1024
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
     scene.render.film_transparent = False
-    scene.world.color = (0.008, 0.010, 0.018)
+    scene.world.color = (0.012, 0.012, 0.012)
+    scene.view_settings.view_transform = "Standard"
+    scene.view_settings.look = "None"
+    scene.view_settings.exposure = 0.0
+    scene.view_settings.gamma = 1.0
 
 
 def texture_by_role(texture_paths: list[Path], role: str) -> Path | None:
@@ -220,6 +227,111 @@ def texture_by_role(texture_paths: list[Path], role: str) -> Path | None:
         lowered = path.name.lower()
         if any(token in lowered for token in role_tokens):
             return path
+    return None
+
+
+def resolve_texture_filename(declared: str, texture_paths: list[Path]) -> Path | None:
+    declared_name = Path(declared.replace("\\", "/")).name.lower()
+    if not declared_name:
+        return None
+    for path in texture_paths:
+        if path.name.lower() == declared_name and path.is_file():
+            return path
+    return None
+
+
+def audit_m3_material_layers(
+    armature: bpy.types.Object,
+    texture_paths: list[Path],
+) -> tuple[list[dict[str, Any]], dict[str, Path | None], list[str]]:
+    """Read M3 material-layer declarations without changing authoring data."""
+    try:
+        from m3studio import shared  # type: ignore[import-not-found]
+    except ImportError:
+        return [], {}, ["M3Studio shared material helpers are unavailable"]
+
+    channels = ("diff", "norm", "spec", "emis1", "emis2")
+    inventory: list[dict[str, Any]] = []
+    exact_by_channel: dict[str, Path] = {}
+    errors: list[str] = []
+    for matref in armature.m3_materialrefs:
+        collection = getattr(armature, matref.mat_type, None)
+        material = shared.m3_pointer_get(collection, matref.mat_handle) if collection else None
+        if material is None:
+            continue
+        material_entry: dict[str, Any] = {"material": matref.name, "channels": {}}
+        for channel in channels:
+            layer_ref = getattr(material, f"layer_{channel}", None)
+            layer = shared.m3_pointer_get(armature.m3_materiallayers, layer_ref) if layer_ref else None
+            declared = str(getattr(layer, "color_bitmap", "") or "") if layer else ""
+            resolved = resolve_texture_filename(declared, texture_paths)
+            material_entry["channels"][channel] = {
+                "declared": declared,
+                "resolved": str(resolved.relative_to(WORKSPACE_ROOT)).replace("\\", "/") if resolved else None,
+                "exactLocalMatch": resolved is not None,
+            }
+            if declared and resolved and channel not in exact_by_channel:
+                exact_by_channel[channel] = resolved
+            elif declared and resolved is None:
+                errors.append(f"M3 material texture is unavailable locally: {declared}")
+        inventory.append(material_entry)
+
+    # Prefer the primary body material when a local exact channel exists. A
+    # region-only texture such as the arms diffuse must not recolor the whole
+    # model just because it is the first exact match in the collection.
+    primary = next(
+        (
+            entry
+            for entry in inventory
+            if entry["material"] in {"Standard_4", "01 - Default"}
+        ),
+        inventory[0] if inventory else {"channels": {}},
+    )
+    primary_channels = primary.get("channels", {})
+    primary_exact = {
+        channel: WORKSPACE_ROOT / value["resolved"]
+        for channel, value in primary_channels.items()
+        if value.get("resolved")
+    }
+    # The local package lacks several remastered files named by this M3. Use a
+    # manifest texture as an explicit offline fallback: diffuse and the legacy
+    # Zergling normal are allowed for readability, but neither is an exact M3
+    # layer match unless the audit above found the declared filename.
+    selected: dict[str, Path | None] = {
+        "diffuse": primary_exact.get("diff") or texture_by_role(texture_paths, "diffuse"),
+        "normal": primary_exact.get("norm") or texture_by_role(texture_paths, "normal"),
+        "specular": primary_exact.get("spec"),
+        "emissive": primary_exact.get("emis1") or primary_exact.get("emis2"),
+    }
+    return inventory, selected, sorted(set(errors))
+
+def selection_for_material_entry(
+    entry: dict[str, Any],
+    texture_paths: list[Path],
+) -> dict[str, Path | None]:
+    channels = entry.get("channels", {})
+
+    def resolved(channel: str) -> Path | None:
+        value = channels.get(channel, {}).get("resolved")
+        return WORKSPACE_ROOT / value if value else None
+
+    return {
+        "diffuse": resolved("diff") or texture_by_role(texture_paths, "diffuse"),
+        "normal": resolved("norm") or texture_by_role(texture_paths, "normal"),
+        "specular": resolved("spec"),
+        "emissive": resolved("emis1") or resolved("emis2"),
+    }
+
+
+def m3_batch_material_name(armature: bpy.types.Object, mesh: bpy.types.Object) -> str | None:
+    try:
+        from m3studio import shared  # type: ignore[import-not-found]
+    except ImportError:
+        return None
+    for batch in mesh.m3_mesh_batches:
+        ref = shared.m3_pointer_get(armature.m3_materialrefs, batch.material)
+        if ref is not None:
+            return ref.name
     return None
 
 
@@ -238,9 +350,10 @@ def load_image(path: Path, loaded: dict[str, Any], errors: list[str]) -> bpy.typ
 
 def build_preview_material(
     template_id: str,
-    texture_paths: list[Path],
+    selected_textures: dict[str, Path | None],
     loaded: dict[str, Any],
     errors: list[str],
+    use_emissive: bool = False,
 ) -> tuple[bpy.types.Material, bool]:
     material = bpy.data.materials.new(f"{template_id}_OfflinePreview")
     material.use_nodes = True
@@ -249,42 +362,48 @@ def build_preview_material(
     nodes.clear()
     output = nodes.new("ShaderNodeOutputMaterial")
     shader = nodes.new("ShaderNodeBsdfPrincipled")
-    shader.inputs["Roughness"].default_value = 0.55
+    shader.inputs["Metallic"].default_value = 0.0
+    shader.inputs["Roughness"].default_value = 0.72
+    if shader.inputs.get("Specular IOR Level"):
+        shader.inputs["Specular IOR Level"].default_value = 0.25
     links.new(shader.outputs["BSDF"], output.inputs["Surface"])
 
-    diffuse = texture_by_role(texture_paths, "diffuse")
+    diffuse = selected_textures.get("diffuse")
     diffuse_image = load_image(diffuse, loaded, errors) if diffuse else None
     if diffuse_image:
+        diffuse_image.colorspace_settings.name = "sRGB"
         node = nodes.new("ShaderNodeTexImage")
         node.name = "Diffuse DDS"
-        node.label = "Diffuse DDS"
+        node.label = "Diffuse DDS (sRGB; exact M3 or explicit fallback)"
         node.image = diffuse_image
         links.new(node.outputs["Color"], shader.inputs["Base Color"])
 
-    normal = texture_by_role(texture_paths, "normal")
+    normal = selected_textures.get("normal")
     normal_image = load_image(normal, loaded, errors) if normal else None
     if normal_image:
+        normal_image.colorspace_settings.name = "Non-Color"
         texture = nodes.new("ShaderNodeTexImage")
         texture.name = "Normal DDS"
-        texture.label = "Normal DDS"
+        texture.label = "Normal DDS (Non-Color; exact M3 or explicit legacy fallback)"
         texture.image = normal_image
-        texture.image.colorspace_settings.name = "Non-Color"
         normal_map = nodes.new("ShaderNodeNormalMap")
+        normal_map.inputs["Strength"].default_value = 0.35
         links.new(texture.outputs["Color"], normal_map.inputs["Color"])
         links.new(normal_map.outputs["Normal"], shader.inputs["Normal"])
 
-    emissive = texture_by_role(texture_paths, "emissive")
+    emissive = selected_textures.get("emissive")
     emissive_image = load_image(emissive, loaded, errors) if emissive else None
-    if emissive_image:
+    if emissive_image and use_emissive:
+        emissive_image.colorspace_settings.name = "Non-Color"
         texture = nodes.new("ShaderNodeTexImage")
         texture.name = "Emissive DDS"
-        texture.label = "Emissive DDS"
+        texture.label = "Emissive DDS (optional; exact M3 only)"
         texture.image = emissive_image
         emission_input = shader.inputs.get("Emission Color") or shader.inputs.get("Emission")
         if emission_input:
             links.new(texture.outputs["Color"], emission_input)
             if shader.inputs.get("Emission Strength"):
-                shader.inputs["Emission Strength"].default_value = 0.35
+                shader.inputs["Emission Strength"].default_value = 0.05
 
     return material, diffuse_image is not None
 
@@ -460,23 +579,47 @@ def main() -> None:
         raise RuntimeError(f"M3Studio import is missing required actions: {missing}")
     select_asset(armature, meshes)
 
+    material_layers, selected_textures, material_layer_errors = audit_m3_material_layers(
+        armature,
+        texture_paths,
+    )
     scene = bpy.context.scene
     scene.frame_start = 0
     scene.frame_end = max(int(math.ceil(action.frame_range[1])) for action in resolved_actions.values())
     scene.frame_set(int(math.floor(resolved_actions["Stand"].frame_range[0])))
+    scene["offline_asset_m3_material_layers_preserved"] = True
+    scene["offline_asset_m3_material_layer_count"] = len(material_layers)
     bpy.ops.wm.save_as_mainfile(filepath=str(authoring_blend))
 
     loaded_textures: dict[str, Any] = {}
     texture_errors: list[str] = []
-    preview_material, diffuse_loaded = build_preview_material(
-        template_id,
-        texture_paths,
-        loaded_textures,
-        texture_errors,
-    )
+    material_selections = {
+        entry["material"]: selection_for_material_entry(entry, texture_paths)
+        for entry in material_layers
+    }
+    preview_materials: dict[str, bpy.types.Material] = {}
+    diffuse_loaded = False
+    for material_name, material_selection in material_selections.items():
+        safe_name = material_name.replace(" ", "_")
+        preview_materials[material_name], material_diffuse_loaded = build_preview_material(
+            f"{template_id}_{safe_name}",
+            material_selection,
+            loaded_textures,
+            texture_errors,
+        )
+        diffuse_loaded = diffuse_loaded or material_diffuse_loaded
+    fallback_material = next(iter(preview_materials.values()), None)
+    if fallback_material is None:
+        fallback_material, diffuse_loaded = build_preview_material(
+            template_id,
+            selected_textures,
+            loaded_textures,
+            texture_errors,
+        )
     for mesh in meshes:
         mesh.data.materials.clear()
-        mesh.data.materials.append(preview_material)
+        material_name = m3_batch_material_name(armature, mesh)
+        mesh.data.materials.append(preview_materials.get(material_name, fallback_material))
 
     render_frames = [
         int(math.floor(action.frame_range[0]))
@@ -495,16 +638,33 @@ def main() -> None:
     register_gui_panel(template_id, resolved_actions, preview_blend)
     frame_viewport()
     bpy.ops.wm.save_as_mainfile(filepath=str(preview_blend))
-
+    geometry = [
+        {
+            "mesh": mesh.name,
+            "m3Material": m3_batch_material_name(armature, mesh),
+            "vertices": len(mesh.data.vertices),
+            "polygons": len(mesh.data.polygons),
+            "materials": len(mesh.data.materials),
+        }
+        for mesh in meshes
+    ]
     report = {
         "schemaVersion": 1,
         "workflow": "offline-sc2-m3-template-gui-authoring.v1",
-        "status": "PASS" if diffuse_loaded and not texture_errors else "W2_PASS_W3_TEXTURE_REVIEW",
+        "status": (
+            "PASS"
+            if diffuse_loaded and not texture_errors and not material_layer_errors
+            else "W2_PASS_W3_MATERIAL_REVIEW"
+        ),
         "evidenceType": "static",
         "uiEvidence": {
             "blenderBackground": bool(bpy.app.background),
             "m3studioAddon": str(workspace_path(addon_dir).resolve()).replace("\\", "/"),
             "panel": "Offline SC2 Asset Workflow",
+            "renderEngine": scene.render.engine,
+            "resolution": [scene.render.resolution_x, scene.render.resolution_y],
+            "viewTransform": scene.view_settings.view_transform,
+            "look": scene.view_settings.look,
         },
         "sc2Integration": False,
         "template": {
@@ -517,13 +677,45 @@ def main() -> None:
             "armature": armature.name,
             "boneCount": len(armature.data.bones),
             "meshCount": len(meshes),
+            "geometry": geometry,
+            "geometryPolicy": "Direct M3Studio import; no decimation or GLB round-trip in authoring source",
             "actions": action_report,
+        },
+        "materials": {
+            "m3LayerCount": len(material_layers),
+            "m3Layers": material_layers,
+            "m3LayerErrors": material_layer_errors,
+            "perMaterialTextureSelection": {
+                material_name: {
+                    role: (
+                        str(path.relative_to(WORKSPACE_ROOT)).replace("\\", "/")
+                        if path
+                        else None
+                    )
+                    for role, path in selection.items()
+                }
+                for material_name, selection in material_selections.items()
+            },
+            "authoringDataPreserved": bool(scene.get("offline_asset_m3_material_layers_preserved")),
         },
         "preview": {
             "blend": str(preview_blend.relative_to(WORKSPACE_ROOT)).replace("\\", "/"),
             "textures": loaded_textures,
+            "textureSelection": {
+                role: (
+                    str(path.relative_to(WORKSPACE_ROOT)).replace("\\", "/")
+                    if path
+                    else None
+                )
+                for role, path in selected_textures.items()
+            },
+            "texturePolicy": "Exact M3 layer filename when locally available; legacy diffuse/normal fallback only for offline readability",
             "textureErrors": texture_errors,
             "renders": preview_outputs,
+        },
+        "fidelity": {
+            "geometry": "preserved from direct M3Studio import",
+            "materials": "M3 material declarations are evidence-backed; missing local DDS remain unresolved",
         },
         "scopeBoundary": (
             "This is offline Blender/M3Studio graphical evidence only. It does not "
