@@ -67,3 +67,10 @@
 
 - `static`: Repeated the W0/W1 runner. Source hashes and Stand/Walk/Attack semantic probes matched exactly; the binary GLB SHA-256 changed between runs, so the workflow records it as per-run provenance rather than treating GLB byte identity as determinism evidence.
 - `static`: The runner scope and document W1 gate now use semantic action-probe repeatability as the deterministic contract.
+
+## Offline Blender GUI Authoring and Preview - 2026-08-26
+
+- `static`: Added `asset-workflow/run_gui_authoring.py` and the manifest `gui` output contract. The runner requires a non-background Blender process, registers M3Studio, imports the source M3, saves an untouched authoring Blend, maps declared DDS files to a separate preview material, renders action frames, and leaves an `Asset Workflow` sidebar for manual review.
+- `static`: Started Blender 4.5.5 in graphical mode with the approved local M3Studio addon. The process emitted `GUI_ASSET_WORKFLOW_READY`; the report records `blenderBackground=false`, `windowCount=1`, and `sc2Integration=false`.
+- `static`: `gui-authoring-report.json` reports `status=PASS`, Armature `boneCount=44`, `meshCount=6`, three required actions, three loaded DDS roles (Diffuse/Normal/Emissive), and nine rendered PNG frames for Stand/Walk/Attack.
+- `static`: Manually reviewed Stand, Walk, and Attack midpoint renders. The model is visible, DDS coloration is present, and poses differ. This is offline Blender/M3Studio evidence only; no SC2, map, Mod, Previewer, Actor, or in-game process was launched.

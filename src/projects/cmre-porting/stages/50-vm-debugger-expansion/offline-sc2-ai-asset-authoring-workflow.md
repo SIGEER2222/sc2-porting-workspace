@@ -101,7 +101,8 @@ Previewer -> Actor -> 游戏内验证
 | W5 M3 回导 | W4 candidate | M3Studio 导出 M3/M3A，在新场景回导并比较 | candidate M3/M3A、round-trip 报告 | 结构合同、动作和关键挂点未丢失 |
 | W6 SC2 runtime | W5 PASS、SC2 可用 | Previewer、Data、Actor、游戏内及 GameLogs 验收 | runtime evidence bundle | 取得真实引擎证据 |
 
-当前已实现自动化的只有 **W0/W1**。W2–W5 是必须保留证据的图形界面制作 gate；W6 因本机无 SC2 处于 `BLOCKED_NO_SC2`。自动化 PASS 只意味着当前 Gate 放行，绝不代表整个流程完成。
+当前已实现自动化的是 **W0/W1**，并已提供可实际启动 Blender 图形界面的 W2/W3 执行入口。GUI runner 会在非 `--background` 的 Blender 进程中调用 M3Studio 导入、先保存未修改 authoring 基线，再映射 DDS、渲染关键动作帧并保存 preview Blend；仍必须由人员在界面中检查结果。W4/W5 仍需人工执行；W6 因本机无 SC2 处于 `BLOCKED_NO_SC2`。任何自动化 PASS 只意味着当前 Gate 放行，绝不代表整个流程完成。
+
 
 ### 3.2 W1 的可执行入口
 
@@ -111,6 +112,7 @@ Previewer -> Actor -> 游戏内验证
 src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/
   templates/zergling-scbw.template.json
   run_static_template_baseline.py
+  run_gui_authoring.py
 ```
 
 在 PowerShell 中为当前机器指定 Blender，再运行模板：
@@ -134,6 +136,28 @@ M3/DDS 文件存在与 SHA-256 基线
 ```
 
 它还会把尚未完成的 W2–W6 作为 `manualGates` 写入报告，因此后续人员不会把“预览成功”误作“资产完成”。
+
+### 3.3 W2/W3 的 Blender 图形界面入口
+
+仓库提供 `asset-workflow/run_gui_authoring.py`。它只处理 Blender/M3Studio 离线制作，不启动 SC2，不修改地图或 Mod，也不调用 Previewer、Actor 或游戏内接口。
+
+```powershell
+$env:SC2_M3STUDIO_ADDON_DIR = '<M3Studio addon directory>'
+& '<Blender executable>' --factory-startup `
+  --python src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/run_gui_authoring.py -- `
+  --manifest src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/templates/zergling-scbw.template.json
+```
+
+GUI runner 的强制输出为：
+
+```text
+<template>-source.blend       W2：未修改的 M3Studio authoring 基线
+<template>-preview.blend      W3：DDS 预览与动作检查副本
+previews/{stand,walk,attack}-{start,mid,end}.png
+gui-authoring-report.json     导入、骨骼、动作、贴图、GUI 会话和边界证据
+```
+
+启动成功后 Blender 会保持打开，并在 3D View 的 `Asset Workflow` 侧栏提供 Stand、Walk、Attack 切换和交互快照按钮。侧栏不是 SC2 工具；它只操作当前离线 Blender 场景。
 
 ## 4. 阶段、目标与验收
 
@@ -369,39 +393,39 @@ GameLogs：本次新增 ScriptError 检查
 - 本地存在 SCBW 跳虫主模型以及 Diffuse、Normal、Specular、Emissive、Reflection DDS 贴图。
 - 本地已安装 M3Studio v0.3.0，其文档声明支持 M3/M3A 导入、M3/M3A 导出、Animation Groups、Material Layers、Attachment Points 和 Hit Test Volumes。
 - W0/W1 已从说明落地为仓库中的 Zergling 模板 manifest 与可执行 static baseline runner；该 runner 已完成一次实际跳虫基线运行。
+- W2/W3 已通过 `asset-workflow/run_gui_authoring.py` 在非后台 Blender 4.5.5 进程中实际执行：M3Studio 导入得到 44 根骨骼、6 个网格和 Stand/Walk/Attack，随后保存 authoring 基线。
+- GUI runner 已加载跳虫 Diffuse、Normal、Emissive DDS，生成独立 preview Blend 以及 Stand/Walk/Attack 各首帧、中帧、末帧共 9 张 PNG；报告记录 `blenderBackground=false`、`sc2Integration=false`。
+- 已人工查看 Stand、Walk、Attack 中帧图像；模型可见、贴图已显示、动作姿势有差异。证据仍属于离线 `static`，不是 SC2 runtime。
 
 ### 尚未完成
 
 ```text
-M3Studio 图形界面导入跳虫主 M3
-M3Studio 不修改数据的 M3 -> export -> re-import round-trip
-跳虫 DDS 到 Blender preview 材质映射
-跳虫 authoring .blend
-AI 静态 Mesh 输入/输出合同的可执行样例
-AI Mesh -> 模板骨架 -> 权重 -> M3 导出的完整 PoC
-SC2 Previewer / Actor / 游戏内运行时验收
+AI 静态 Mesh 输入/输出合同的可执行样例           待完成
+AI Mesh -> 模板骨架 -> 权重 -> M3 导出的完整 PoC  待完成：W4/W5
+M3Studio 不修改数据的 M3 -> export -> re-import  待完成：W5
+SC2 Previewer / Actor / 游戏内运行时验收         阻塞：无本地 SC2，W6
 ```
 
 ### 已知工具限制
 
-- M3Studio 导入时会初始化 GPU 绘制模块，因此 Blender 后台模式不能替代图形界面验证。
+- M3Studio 导入时会初始化 GPU 绘制模块，因此 Blender 后台模式不能替代可靠导入/导出验证；GUI runner 必须使用不带 `--background` 的 Blender。
 - 本地 `star-tools-three-m3-loader` 的实际 M3-to-GLB 转换可用，但 `npm test` 目前因 Node 24 环境缺少原生 `canvas.node` 而失败。未修复该依赖前，不可声称该工具的自动测试通过。
-- 当前跳虫 GLB/Blend 预览具有动作和材质槽，但没有已载入的 DDS 图像；必须完成阶段 3 才是贴图完整的参考资产。
+- GUI W3 预览目前使用 Diffuse、Normal、Emissive DDS；Specular、Reflection 的精确 M3 材质层语义仍由 M3Studio authoring 副本维护，不能把 Blender PBR 预览当作 SC2 材质保真。
 
 ## 8. 最小可行里程碑：跳虫 Round-Trip PoC
 
 不要先建设整套资产平台。先交付一个可复核的跳虫闭环：
 
-```text
 0. 执行 W0/W1：运行 `zergling-scbw.template.json` 的 static baseline runner，确认源哈希和三项关键动作通过。
-1. 在 M3Studio 图形界面导入 ZerglingSCBW.m3。
-2. 保存未修改的 authoring 基线 Blend。
-3. 关联跳虫 DDS，输出带贴图的 Stand / Walk / Attack 预览。
-4. 做一处小而可见、容易回退的修改：例如尾尖局部网格或颜色微调。
-5. 导出 candidate M3。
-6. 新场景回导 candidate M3。
-7. 对比骨骼、网格、动作、材质层、关键挂点和三组姿势。
-8. 输出 manifest、W1 static report、W2–W5 比较报告、截图/视频与结论。
+1. 在非后台 Blender 中运行 `run_gui_authoring.py`，由 M3Studio 图形界面导入 `ZerglingSCBW.m3`。
+2. 检查 `zergling-scbw-source.blend`，确认 44 根骨骼、网格、Stand/Walk/Attack、材质层和挂点存在；确认原始 M3 未被改写。
+3. 在 `Asset Workflow` 侧栏切换动作，检查 GUI runner 输出的 Stand/Walk/Attack 九张关键帧图像。
+4. 确认 DDS 来源和 preview Blend 后，再接收一个静态 AI Mesh，按模板比例、轴向和原点导入。
+5. 做一处小而可见、容易回退的修改：例如尾尖局部网格或颜色微调，并记录 W4 版本。
+6. 导出 candidate M3。
+7. 新场景回导 candidate M3。
+8. 对比骨骼、网格、动作、材质层、关键挂点和三组姿势，输出 W4/W5 比较报告。
+9. 输出 manifest、W1 static report、GUI W2/W3 report、W4/W5 比较报告、截图/视频与结论。
 ```
 
 此 PoC 的成功标准：
