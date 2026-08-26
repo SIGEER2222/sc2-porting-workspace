@@ -21,9 +21,20 @@
       "id": "STAGE50-ASSET-WORKFLOW-001",
       "severity": "medium",
       "evidence_type": "static",
-      "summary": "The executable Zergling asset workflow has passed W0 template registration, W1 source-to-GLB action baseline, W2 M3Studio GUI authoring, and W3 action-frame preview with per-M3 batch material assignment. The preview still lacks eleven declared body/remaster DDS channels. Two unrigged AI static-GLB preparation candidates now exist: a 11,999-triangle W4-only decimated candidate and a texture-only compressed 50,000-triangle lower-polygon candidate with 2048x2048 PBR maps. Neither has been matched to the template rig or exported to M3/M3A.",
-      "source": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-input/852191c4dad0ecc0b984c28fb848e7fa/compression-2k/reimport-validation.json",
-      "next_action": "Select the static AI source for W4, import it into the saved authoring Blend, normalize its scale/orientation to the Zergling template, make one isolated reversible weighting or visual change, then test Stand/Walk/Attack. After visual acceptance, export candidate M3/M3A, re-import it in a fresh Blender GUI session, and compare structure plus poses. Provide missing M3-referenced DDS assets or keep an explicitly non-runtime fallback palette; SC2 runtime validation remains separately blocked by the missing local SC2 installation."
+      "summary": "The executable Zergling asset workflow has passed W0 template registration, W1 source-to-GLB action baseline, W2 M3Studio GUI authoring, W3 per-M3 batch material preview, and W5 candidate-M3 export/re-import structure checks. The selected 50,000-triangle AI mesh is bound to the 44-bone template with 28 transferred skin groups and Stand/Walk/Attack previews, but W4 visual fit remains review-required because the deform-bone overlay shows body/tail alignment gaps. Offline rest-bone retarget, skin-group affine fit, BVH/landmark surface-fit, and nearest-deform-bone-segment weighting probes were tested and rejected after producing bone detachment, long-bar stretching, local mesh collapse, or worse rigid-looking bars.",
+      "source": [
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w4-w5-export-report.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/rig-alignment-audit.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w5-reimport-report.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/rest-retargeted-bones-overlay.png",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/stand-groupfit-test.png",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v6/w4-w5-export-report.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v7/segment-weight-report.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v7/segment-weight-previews/stand-mid.png",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v7/segment-weight-previews/walk-mid.png",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v7/segment-weight-previews/attack-mid.png"
+      ],
+      "next_action": "Do not promote another automatic correction. Perform manual retopology/Weight Paint against the template, or regenerate the AI mesh under the template's proportions and limb/tail landmarks; then rerun W4 action review and regenerate W5. Provide the missing M3-referenced DDS assets or retain an explicitly non-runtime fallback palette; SC2 Previewer/Actor/in-game validation remains blocked by the missing local SC2 installation."
     }
   ],
   "resolved": [

@@ -85,7 +85,7 @@
     "scope_boundary": "WebUI control-plane recovery only; no SC2 launcher, VM RPC listener, or native gameplay event chain is claimed."
   },
   "offline_asset_workflow": {
-    "status": "W0_W1_W2_PASS_W3_MATERIAL_REVIEW_MANUAL_W4_W5_PENDING",
+    "status": "W0_W1_W2_PASS_W3_MATERIAL_REVIEW_MANUAL_W4_VISUAL_REVIEW_REQUIRED_W5_PASS",
     "evidence_type": "static",
     "document": "src/projects/cmre-porting/stages/50-vm-debugger-expansion/offline-sc2-ai-asset-authoring-workflow.md",
     "template_manifest": "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/templates/zergling-scbw.template.json",
@@ -95,8 +95,8 @@
     "gui_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/gui-authoring-report.json",
     "batch_material_map": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/batch-material-map.json",
     "preview_blend_verification": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/preview-blend-verify.json",
-    "completed_gates": ["W0 template registration", "W1 source-to-GLB action baseline", "W2 M3Studio GUI authoring baseline", "W3 DDS GUI preview and action frames"],
-    "pending_manual_gates": ["W4 AI mesh integration", "W5 M3 export/re-import"],
+    "completed_gates": ["W0 template registration", "W1 source-to-GLB action baseline", "W2 M3Studio GUI authoring baseline", "W3 DDS GUI preview and action frames (manual review)", "W4 AI mesh static binding/export evidence", "W5 M3 export/re-import structural check"],
+    "pending_manual_gates": ["W4 visual fit review: actions deform the mesh, but the deform-bone overlay remains anatomically misaligned; automatic correction probes were rejected and manual retopology/Weight Paint or a template-proportioned remesh is required"],
     "blocked_gate": "W6 SC2 runtime validation: no local SC2 installation",
     "material_fidelity": {
       "m3_material_layers": 4,
@@ -105,9 +105,9 @@
       "missing_declared_m3_texture_channels": 11,
       "preview_policy": "Per-mesh M3 batch material assignment; exact local channel when available; legacy diffuse/normal fallback only for offline readability"
     },
-    "scope_boundary": "W0/W1 semantic probes and W2/W3 Blender/M3Studio GUI evidence are offline static evidence only. The GUI runner records blenderBackground=false and sc2Integration=false; it does not launch SC2, modify a map or mod, or create Previewer, Actor, or in-game evidence.",
+    "scope_boundary": "W0/W1 semantic probes, W2/W3 Blender/M3Studio GUI evidence, W4 AI-mesh binding previews, and W5 fresh M3Studio re-import are offline static evidence only. The GUI/M3Studio runners record blenderBackground=false where applicable and sc2Integration=false; they do not launch SC2, modify a map or mod, or create Previewer, Actor, or in-game evidence.",
     "ai_mesh_preparation": {
-      "status": "STATIC_GLB_CANDIDATES_PREPARED_W4_PENDING",
+      "status": "SELECTED_50K_TEXTURE_CANDIDATE_INTEGRATED_W4_STATIC_BINDING_PASS_W5_PASS_W4_VISUAL_REVIEW_REQUIRED",
       "evidence_type": "static",
       "high_poly_w4_candidate": {
         "path": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-input/7445a6f209213b48bbcab9bf22c8c094/w4-candidate/zergling-ai-w4-12k-2k.glb",
@@ -126,7 +126,57 @@
         "compression_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-input/852191c4dad0ecc0b984c28fb848e7fa/compression-2k/compression-report.json",
         "reimport_validation": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-input/852191c4dad0ecc0b984c28fb848e7fa/compression-2k/reimport-validation.json"
       },
-      "scope_boundary": "Both candidates are static offline GLBs with no skin or animation. They have not passed W4 weighting, W5 M3/M3A round-trip, or W6 SC2 runtime validation."
+      "selected_w4_integration": {
+        "source_glb": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-input/852191c4dad0ecc0b984c28fb848e7fa/compression-2k/zergling-ai-lowpoly-50k-2k.glb",
+        "authoring_blend": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/zergling-ai-w4-rigged.blend",
+        "source_authoring_blend": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/zergling-ai-w4-source.blend",
+        "w4_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w4-w5-export-report.json",
+        "candidate_mesh": "node_0",
+        "candidate_vertices": 36578,
+        "candidate_triangles": 50000,
+        "template_bones": 44,
+        "skin_vertex_groups": 28,
+        "weighting": "template-nearest-vertex-transfer",
+        "actions": ["Stand", "Walk", "Attack"],
+        "visual_review_artifacts": [
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/rig-alignment-audit.json",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/deform-bones-overlay.png",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w4-ai-textured-previews/stand-mid.png",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w4-ai-textured-previews/walk-mid.png",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w4-ai-textured-previews/attack-mid.png"
+        ],
+        "status": "STATIC_BINDING_PASS_VISUAL_REVIEW_REQUIRED"
+      },
+      "rejected_corrections": {
+        "status": "NOT_PROMOTED",
+        "reason": "Rest-bone retarget, skin-group affine fit, BVH/landmark surface fit, and nearest-deform-bone-segment weighting introduced bone detachment, long-bar stretching, local mesh collapse, or worse rigid-looking bars in offline previews.",
+        "evidence": [
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/rest-retargeted-bones-overlay.png",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/stand-groupfit-test.png",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v6/w4-w5-export-report.json",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v7/segment-weight-report.json",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v7/segment-weight-previews/stand-mid.png",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v7/segment-weight-previews/walk-mid.png",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v7/segment-weight-previews/attack-mid.png"
+        ],
+        "next_action": "Manual retopology/Weight Paint or a regenerated AI mesh constrained to the template proportions; do not treat automatic binding as visual W4 clearance."
+      },
+      "w5_round_trip": {
+        "candidate_m3": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/zergling-ai-sc2-candidate.m3",
+        "candidate_m3_sha256": "088b118cd6ad1b88a8fc9f28576d2ecdddc92a81a23394938601a7f6f30220e3",
+        "candidate_m3_bytes": 2019426,
+        "reimport_blend": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/zergling-ai-sc2-reimport.blend",
+        "reimport_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w5-reimport-report.json",
+        "reimport_contract": {
+          "bone_count": 44,
+          "mesh_count": 1,
+          "triangles": 50000,
+          "uv_layers": 1,
+          "actions": ["Stand", "Walk", "Attack"]
+        },
+        "status": "PASS"
+      },
+      "scope_boundary": "The selected AI mesh now has offline W4 binding/export evidence and a fresh W5 M3Studio re-import PASS. W4 visual fit remains review-required because the deform-bone overlay shows template/mesh body and tail misalignment. W6 SC2 Previewer, Actor, map/mod, and in-game runtime validation remain blocked and unverified."
     }
   },
 
@@ -141,6 +191,7 @@
   "next_actions": [
     "Refactor residual per-run statistics in tactical.py behind SimulatorSession query helpers if Stage50 continues beyond report/runner contract.",
     "Promote the timing-push setback scenario from focused test fixture into a named scenario artifact if later stages require reusable fixture identity.",
-    "Keep training/parameter-tuning loop deferred to Stage6x while preserving the Observation/Action boundary."
+    "Keep training/parameter-tuning loop deferred to Stage6x while preserving the Observation/Action boundary.",
+    "Resolve W4 visual fit through manual retopology/Weight Paint or a template-proportioned AI mesh before treating the candidate as runtime-ready."
   ]
 }

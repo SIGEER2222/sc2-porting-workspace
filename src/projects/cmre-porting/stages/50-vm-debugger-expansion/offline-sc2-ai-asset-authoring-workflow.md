@@ -101,7 +101,7 @@ Previewer -> Actor -> 游戏内验证
 | W5 M3 回导 | W4 candidate | M3Studio 导出 M3/M3A，在新场景回导并比较 | candidate M3/M3A、round-trip 报告 | 结构合同、动作和关键挂点未丢失 |
 | W6 SC2 runtime | W5 PASS、SC2 可用 | Previewer、Data、Actor、游戏内及 GameLogs 验收 | runtime evidence bundle | 取得真实引擎证据 |
 
-当前已实现自动化的是 **W0/W1**，并已提供可实际启动 Blender 图形界面的 W2/W3 执行入口。GUI runner 会在非 `--background` 的 Blender 进程中调用 M3Studio 导入、先保存未修改 authoring 基线，再映射 DDS、渲染关键动作帧并保存 preview Blend；仍必须由人员在界面中检查结果。W4/W5 仍需人工执行；W6 因本机无 SC2 处于 `BLOCKED_NO_SC2`。任何自动化 PASS 只意味着当前 Gate 放行，绝不代表整个流程完成。
+当前已实现自动化的是 **W0/W1**，并已提供可实际启动 Blender 图形界面的 W2/W3 执行入口；W4/W5 现在有可重复的 Blender/M3Studio runner，但 W4 仍必须通过人工视觉审查。当前 PoC 已完成：44 根模板骨骼、28 个可传递皮肤骨骼组、50,000 三角形 AI 网格、Stand/Walk/Attack、candidate M3 导出和新场景回导结构检查；不过 deform-bone overlay 显示模板骨骼与该 AI 网格的体型/尾部并未充分贴合。随后对有界 rest-bone retarget、skin-group 仿射拟合和 BVH/地标表面拟合进行了离线探针：它们分别产生骨骼脱离网格、长条拉伸或局部几何塌缩，因此均未提升为候选版本，W4 runner 已恢复为保守的 v5 绑定结果。下一步必须是人工重拓扑/Weight Paint，或重新生成更接近模板比例的 AI 网格；不能把自动权重迁移或结构回导 PASS 当作体型兼容。W4 视觉 gate 仍为 **REVIEW_REQUIRED**，不能把当前结果称为 W4_PASS。W5 的 `status=PASS` 只表示 candidate M3 能被 M3Studio 新场景回导并保留 44 根骨骼、单网格、UV 和三项动作；W6 因本机无 SC2 处于 `BLOCKED_NO_SC2`。任何自动化 PASS 只意味着当前 Gate 放行，绝不代表整个流程完成。
 
 
 ### 3.2 W1 的可执行入口
@@ -397,13 +397,17 @@ GameLogs：本次新增 ScriptError 检查
 - GUI runner 已加载跳虫 Diffuse、Normal、Emissive DDS，生成独立 preview Blend 以及 Stand/Walk/Attack 各首帧、中帧、末帧共 9 张 PNG；报告记录 `blenderBackground=false`、`sc2Integration=false`。
 - 已人工查看 Stand、Walk、Attack 中帧图像；模型可见、贴图已显示、动作姿势有差异。证据仍属于离线 `static`，不是 SC2 runtime。
 
-### 尚未完成
+### 当前验收状态
 
 ```text
-AI 静态 Mesh 输入/输出合同的可执行样例           待完成
-AI Mesh -> 模板骨架 -> 权重 -> M3 导出的完整 PoC  待完成：W4/W5
-M3Studio 不修改数据的 M3 -> export -> re-import  待完成：W5
+AI 静态 Mesh 输入/输出合同的可执行样例           已完成：50,000 三角形 GLB + 2048 PBR 贴图
+AI Mesh -> 模板骨架 -> 权重 -> M3 导出的结构 PoC  已完成：44 骨骼、28 皮肤组、candidate M3
+W4 动作视觉贴合                                  REVIEW_REQUIRED：deform-bone overlay 仍有明显偏离
+M3Studio 不修改数据的 M3 -> export -> re-import  已完成结构检查：44 骨骼、1 网格、50,000 三角形、UV、Stand/Walk/Attack
 SC2 Previewer / Actor / 游戏内运行时验收         阻塞：无本地 SC2，W6
+```
+
+W4/W5 当前证据目录：`artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/`。其中 `w4-w5-export-report.json`、`w5-reimport-report.json`、`rig-alignment-audit.json`、`deform-bones-overlay.png` 和三组动作预览必须一起阅读；结构回导 PASS 不覆盖 W4 的视觉贴合缺陷。
 ```
 
 ### 已知工具限制
