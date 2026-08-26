@@ -393,6 +393,7 @@ def main() -> None:
     report = {
         "schemaVersion": 1,
         "workflow": "offline-sc2-ai-binding-reference-audit.v1",
+        "status": "COMPLETED_WITH_REJECTED_CANDIDATES",
         "evidenceType": "static",
         "inputs": {
             "sourceBlend": str(source_blend.relative_to(ROOT)).replace("\\", "/"),
