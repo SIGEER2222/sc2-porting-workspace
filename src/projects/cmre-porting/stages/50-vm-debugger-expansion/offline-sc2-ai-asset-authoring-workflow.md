@@ -113,7 +113,27 @@ src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/
   templates/zergling-scbw.template.json
   run_static_template_baseline.py
   run_gui_authoring.py
+  run_binding_reference_audit.py
+  references/zergling-scbw-ai-reference.json
 ```
+
+`references/zergling-scbw-ai-reference.json` is the machine-readable AI input/output and rig/action contract. It keeps the 44-bone template, canonical Stand/Walk/Attack actions, non-skin groups, weight completeness rule, negative binding examples, and the offline evidence boundary together.
+
+`run_binding_reference_audit.py` is a separate diagnostic runner. It builds isolated rigid, automatic, envelope, and template-weight-transfer candidates, samples action start/mid/end frames, and writes a report. Its `COMPLETED_WITH_REJECTED_CANDIDATES` status means the audit completed; it does not mean every candidate passed.
+
+### 3.2.1 AI binding reference audit
+
+Run it against a saved M3Studio source Blend and a static AI GLB:
+
+```powershell
+& '<Blender executable>' --background `
+  --python src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/run_binding_reference_audit.py -- `
+  --source-blend artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/zergling-ai-w4-source.blend `
+  --candidate-glb artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-input/852191c4dad0ecc0b984c28fb848e7fa/compression-2k/zergling-ai-lowpoly-50k-2k.glb `
+  --out-report artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/binding-reference-audit.json
+```
+
+The audit is static Blender evidence. The current selected example has 36,578 vertices, 50,000 triangles, 28 transferred deform groups, and zero unassigned vertices. It remains `retain-for-review`: the canonical actions drive the mesh, but body/tail visual fit still requires manual Weight Paint or a template-proportioned regeneration. Automatic and envelope candidates are retained as negative comparisons when they leave unweighted vertices or produce unstable deformation.
 
 在 PowerShell 中为当前机器指定 Blender，再运行模板：
 
@@ -408,7 +428,6 @@ SC2 Previewer / Actor / 游戏内运行时验收         阻塞：无本地 SC2�
 ```
 
 W4/W5 当前证据目录：`artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/`。其中 `w4-w5-export-report.json`、`w5-reimport-report.json`、`rig-alignment-audit.json`、`deform-bones-overlay.png` 和三组动作预览必须一起阅读；结构回导 PASS 不覆盖 W4 的视觉贴合缺陷。
-```
 
 ### 已知工具限制
 
@@ -430,7 +449,6 @@ W4/W5 当前证据目录：`artifacts/projects/cmre-porting/stage50-vm-debugger-
 7. 新场景回导 candidate M3。
 8. 对比骨骼、网格、动作、材质层、关键挂点和三组姿势，输出 W4/W5 比较报告。
 9. 输出 manifest、W1 static report、GUI W2/W3 report、W4/W5 比较报告、截图/视频与结论。
-```
 
 此 PoC 的成功标准：
 

@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "referenceId": "zergling-scbw-ai-reference",
+  "evidenceType": "static",
+  "purpose": "Provide an AI-readable example for generating a static mesh and PBR textures that can be integrated into an existing SC2 Zergling rig without inventing a new skeleton or animation contract.",
+  "template": {
+    "templateId": "zergling-scbw",
+    "rigFamily": "zerg-quadruped-melee",
+    "sourceModel": "reference/SC2plusSCBW/SC Evo Complete/SCEvo_Assets.SC2Mod/Base.SC2Assets/Assets/Units/Zerg/ZerglingSCBW/ZerglingSCBW.m3",
+    "sourceAuthoringBlend": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/zergling-scbw-source.blend",
+    "previewGlb": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-reference.glb",
+    "previewBlend": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/zergling-scbw-preview.blend",
+    "actionPreviewDirectory": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/previews",
+    "baselineReport": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-static-baseline.json",
+    "guiReport": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/gui-authoring-report.json"
+  },
+  "rigContract": {
+    "boneCount": 44,
+    "boneHierarchyEvidence": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/binding-reference-audit.json",
+    "preserveBoneNamesAndHierarchy": true,
+    "deformGroups": [
+      "Bone01",
+      "BoneStockL01",
+      "BoneStockL02",
+      "BoneStockL03",
+      "BoneStockR01",
+      "BoneStockR02",
+      "BoneStockR03",
+      "Bone_Chest",
+      "Bone_Foot Left Rear",
+      "Bone_Foot Left Rear 01",
+      "Bone_Foot Right Rear",
+      "Bone_Foot Right Rear 01",
+      "Bone_Head",
+      "Bone_Leg Left Front",
+      "Bone_Leg Left Front 01",
+      "Bone_Leg Left Rear",
+      "Bone_Leg Left Rear 01",
+      "Bone_Leg Left Rear 02",
+      "Bone_Leg Right Front",
+      "Bone_Leg Right Front 01",
+      "Bone_Leg Right Rear",
+      "Bone_Leg Right Rear 01",
+      "Bone_Leg Right Rear 02",
+      "Bone_Pelvis",
+      "Bone_Tail",
+      "Bone_Tail 01",
+      "Bone_Tail 02",
+      "Bone_Tail 03"
+    ],
+    "nonSkinGroups": [
+      "Dummy01",
+      "Ref_Head",
+      "Ref_Weapon Left",
+      "Ref_Weapon Right",
+      "HitTestFuzzy01",
+      "HitTestFuzzy02",
+      "HitTestTight",
+      "HitTestFuzzy",
+      "Ref_Center",
+      "Vol_Target",
+      "Unit_Zerg_Zergling_Konker_02",
+      "Ref_Hardpoint",
+      "Ref_Origin",
+      "Ref_Overhead"
+    ],
+    "attachmentAndCollisionPolicy": "Preserve template attachment points and hit-test data; do not generate replacement groups for these entries.",
+    "weightPolicy": {
+      "startingMethod": "template-nearest-vertex-transfer",
+      "requiredBeforeExport": "Every mesh vertex has at least one positive deform-group weight.",
+      "maximumInfluences": "Use the local authoring convention and inspect joints, forelegs, rear legs, feet, and tail manually.",
+      "manualReviewRequired": true
+    }
+  },
+  "actionContract": {
+    "requiredActions": [
+      "Stand",
+      "Walk",
+      "Attack"
+    ],
+    "referenceEvidence": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-static-baseline.json",
+    "referenceFrames": {
+      "Stand": [
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/previews/stand-start.png",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/previews/stand-mid.png",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/previews/stand-end.png"
+      ],
+      "Walk": [
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/previews/walk-start.png",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/previews/walk-mid.png",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/previews/walk-end.png"
+      ],
+      "Attack": [
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/previews/attack-start.png",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/previews/attack-mid.png",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/previews/attack-end.png"
+      ]
+    },
+    "samplingPolicy": "Review start, middle, and end frames for every required action after each mesh or weight change.",
+    "acceptance": "No visible mesh flight, joint separation, tail collapse, or unacceptable stretching in the three required actions.",
+    "priority": "Reuse template actions first; do not redesign Animation Groups or M3A data during mesh generation."
+  },
+  "aiInputContract": {
+    "provide": [
+      "Template preview GLB or Blend",
+      "Stand/Walk/Attack start-middle-end frames",
+      "Rig and silhouette reference",
+      "Template dimensions, axis, and origin",
+      "Allowed replacement regions"
+    ],
+    "output": {
+      "mesh": "One static GLB with one mesh and preserved UVs; no final SC2 skeleton or animation required.",
+      "textures": [
+        "BaseColor",
+        "Normal",
+        "Roughness",
+        "Metallic",
+        "Optional Emissive"
+      ],
+      "provenance": "Record generator, source prompt or image set, version, triangle count, texture sizes, and output hashes."
+    },
+    "doNotGenerate": [
+      "A replacement skeleton hierarchy",
+      "Unverified custom animation clips",
+      "Final M3 or M3A data",
+      "Replacement attachment points or hit-test volumes"
+    ],
+    "geometryGuidance": {
+      "axisAndOrigin": "Match the template after the declared GLB import axis correction and place the mesh at Ref_Origin.",
+      "proportions": "Match body, pelvis, head, four limb chains, feet, and tail landmarks before weight transfer.",
+      "topology": "Keep enough edge flow around joints and tail segments for local Weight Paint; avoid a single rigid shell across moving limbs."
+    }
+  },
+  "bindingAudit": {
+    "report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/binding-reference-audit.json",
+    "auditRunner": "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/run_binding_reference_audit.py",
+    "selectedExample": {
+      "candidateGlb": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-input/852191c4dad0ecc0b984c28fb848e7fa/compression-2k/zergling-ai-lowpoly-50k-2k.glb",
+      "triangles": 50000,
+      "vertices": 36578,
+      "templateTransferGroups": 28,
+      "decision": "retain-for-review",
+      "reason": "All vertices receive transferred template deform weights and the canonical actions drive the mesh, but the body and tail alignment still require manual W4 visual correction."
+    },
+    "negativeExamples": [
+      {
+        "mode": "chest-rigid or pelvis-rigid",
+        "decision": "reject-as-production-binding",
+        "reason": "The whole mesh follows one bone and cannot preserve local limb or tail motion."
+      },
+      {
+        "mode": "automatic or envelope",
+        "decision": "do-not-promote-without-visual-review",
+        "reason": "Unreviewed automatic methods can leave vertices unweighted or create long-bar deformation; numeric motion alone is not anatomical validation."
+      },
+      {
+        "mode": "rest-bone-retarget, affine group fit, landmark surface fit, segment weighting",
+        "decision": "not-promoted",
+        "reason": "Existing offline probes produced bone detachment, long-bar stretching, local collapse, or worse rigid-looking sections."
+      }
+    ]
+  },
+  "qualityGates": [
+    "Static mesh and PBR maps load without changing the template source asset.",
+    "Mesh aligns to template axis, origin, and major body/limb/tail landmarks.",
+    "Every vertex is weighted to canonical deform groups and non-skin groups remain excluded.",
+    "Stand, Walk, and Attack pass start-middle-end visual review.",
+    "Candidate M3 exports and re-imports with the expected rig, mesh, UV, and action structure.",
+    "SC2 Previewer, Actor, and in-game behavior are a separate future runtime gate."
+  ],
+  "scopeBoundary": "This reference package contains offline Blender/M3Studio evidence only. It does not prove SC2 Previewer, Actor, map, mod, or in-game runtime compatibility."
+}
