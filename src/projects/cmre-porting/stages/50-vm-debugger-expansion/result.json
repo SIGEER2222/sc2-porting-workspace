@@ -96,15 +96,57 @@
     "batch_material_map": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/batch-material-map.json",
     "preview_blend_verification": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/sc2-model-reference/workflow-runs/zergling-scbw-gui/preview-blend-verify.json",
     "completed_gates": ["W0 template registration", "W1 source-to-GLB action baseline", "W2 M3Studio GUI authoring baseline", "W3 DDS GUI preview and action frames (manual review)", "W4 AI mesh static binding/export evidence", "W5 M3 export/re-import structural check"],
-    "pending_manual_gates": ["W4 visual fit review: actions deform the mesh, but the deform-bone overlay remains anatomically misaligned; automatic correction probes were rejected and manual retopology/Weight Paint or a template-proportioned remesh is required"],
+    "pending_manual_gates": ["W4 visual fit review: the body-only weight transfer now produces action deformation and a capped four-influence skin, but the AI mesh proportions still differ from the template in the rest pose; manual retopology/Weight Paint or a template-proportioned remesh remains required"],
     "blocked_gate": "W6 SC2 runtime validation: no local SC2 installation",
     "ai_reference_manifest": "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/references/zergling-scbw-ai-reference.json",
     "binding_audit_runner": "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/run_binding_reference_audit.py",
     "binding_audit_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/binding-reference-audit.json",
+    "binding_overlay_runner": "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/render_binding_overlay.py",
+    "latest_experimental_binding_probe": {
+      "output_dir": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks",
+      "authoring_blend": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/zergling-ai-w4-rigged.blend",
+      "fit_strategy": "source-chain-landmarks: preserve the transferred template-group order and terminal surface point; do not refine a fitted skeleton against its generated segment weights",
+      "xray_overlays": [
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/xray-overlays/binding-overlay-rest-0.png",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/xray-overlays/binding-overlay-stand-50.png",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/xray-overlays/binding-overlay-walk-30.png",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/xray-overlays/binding-overlay-attack-8.png"
+      ],
+      "coupling_certificates": [
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/xray-overlays/binding-overlay-rest-0.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/xray-overlays/binding-overlay-stand-50.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/xray-overlays/binding-overlay-walk-30.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/xray-overlays/binding-overlay-attack-8.json"
+      ],
+      "w5_reimport_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/reimport/w5-reimport-report.json",
+      "reimport_coupling_certificates": [
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/reimport/xray-overlays/binding-overlay-stand-50.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/reimport/xray-overlays/binding-overlay-walk-30.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/reimport/xray-overlays/binding-overlay-attack-8.json"
+      ],
+      "candidate_m3_sha256": "65435158711e9a83c199db0bccf2f470ac4ea6b95b3902799899098960548dd2",
+      "candidate_m3_bytes": 2148546,
+      "certificate_summary": "Authoring Blend: 44 bones, 24 deform groups, 36,578/36,578 weighted vertices, maximum two influences, rest-pose invariant PASS, and Stand/Walk/Attack each move 36,578/36,578 evaluated vertices. The source-chain rest overlay reaches the tail and both long claw tips that v38 left short. Fresh W5 re-import is structurally PASS with 44 bones, one mesh, 50,000 triangles, one UV layer, 24 raw groups, and nonzero motion for all required actions. Re-import evaluates 36,595 split vertices from 24,998 raw vertices, so raw rest-invariance is explicitly unverified there while action motion is measured against the full evaluated topology.",
+      "status": "EXPERIMENTAL_COUPLING_AND_PLACEMENT_EVIDENCE_NOT_PRODUCTION_PROMOTION",
+      "reason": "The source-chain strategy visibly improves terminal skeletal coverage, but the generated scorpion-like anatomy, tail curvature, and Zergling action fit still require manual W4 review; v5 remains the production reference.",
+      "continuous_w5_action_reel": {
+        "path": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/video-previews/v39-w5-m3-reimport-actions-continuous-tight.mp4",
+        "source": "Fresh W5 M3Studio re-import; all inclusive action frames: Stand 0-100, Walk 0-60, Attack 0-16.",
+        "status": "PASS_OFFLINE_STATIC",
+        "encoding": "H.264/yuv420p, 1024x1024, 30 fps, 179 frames, 5.967 seconds, 404908 bytes",
+        "sha256": "2fe2bddbe7c45e8639ebcf3db92096bb1b66b7adcbdb3c2f75a3905859d6429f",
+        "review_frames": [
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/video-previews/tight-w5-reimport-review-frames/review-1.6.jpg",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/video-previews/tight-w5-reimport-review-frames/review-4.3.jpg",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/video-previews/tight-w5-reimport-review-frames/review-5.8.jpg"
+        ],
+        "scope_boundary": "Offline Blender render of a fresh M3Studio re-import only; it does not prove SC2 Previewer, Actor, map/mod, or game runtime compatibility."
+      }
+    },
     "binding_audit_status": "COMPLETED_WITH_REJECTED_CANDIDATES",
     "binding_audit_bone_hierarchy": "Report contains all 44 template bones with names, parent links, and local head/tail coordinates.",
     "binding_audit_action_frames": "Report samples Stand 0/50/100, Walk 0/30/60, and Attack 0/8/16; template reference PNGs provide the corresponding nine start/middle/end frames.",
-    "binding_audit_summary": "Multi-frame offline Blender audit isolated rigid, automatic, envelope, and template-transfer candidates. Template transfer assigned all 36,578 vertices to 28 canonical deform groups; automatic assigned 0 vertices and envelope left 3,387 vertices unassigned. All candidates remain static diagnostic evidence, and the selected template-transfer example remains visual-review-required.",
+    "binding_audit_summary": "Multi-frame offline Blender audit isolated rigid, automatic, envelope, and template-transfer candidates. Template transfer assigned all 36,578 vertices to 28 canonical deform groups; automatic assigned 0 vertices and envelope left 3,387 vertices unassigned. The selected v5 body-only transfer is retained for visual review; rigid, automatic, envelope, and later all-surface experiments are not production bindings.",
     "material_fidelity": {
       "m3_material_layers": 4,
       "mesh_batch_assignments": 6,
@@ -143,37 +185,41 @@
         "candidate_triangles": 50000,
         "template_bones": 44,
         "skin_vertex_groups": 28,
-        "weighting": "template-nearest-vertex-transfer",
+        "weighting": "template-body-nearest-vertex-transfer-top4",
         "actions": ["Stand", "Walk", "Attack"],
         "visual_review_artifacts": [
-          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/rig-alignment-audit.json",
-          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/deform-bones-overlay.png",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w4-body-only-fit-audit.json",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/corrected-stand-mid-skeleton-overlay.png",
           "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w4-ai-textured-previews/stand-mid.png",
           "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w4-ai-textured-previews/walk-mid.png",
           "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w4-ai-textured-previews/attack-mid.png"
         ],
         "status": "STATIC_BINDING_PASS_VISUAL_REVIEW_REQUIRED"
       },
+      "experimental_v20_fitted_segments": {
+        "output_dir": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v20",
+        "w4_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v20/w4-w5-export-report.json",
+        "w5_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v20/reimport/w5-reimport-report.json",
+        "overlay_artifacts": [
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v20/v20-overlay-rest.png",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v20/v20-overlay-stand.png",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v20/v20-overlay-walk.png",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v20/v20-overlay-attack.png"
+        ],
+        "status": "REJECTED_DETACHED_SKELETON_ALIGNMENT"
+      },
       "rejected_corrections": {
         "status": "NOT_PROMOTED",
-        "reason": "Rest-bone retarget, skin-group affine fit, BVH/landmark surface fit, and nearest-deform-bone-segment weighting introduced bone detachment, long-bar stretching, local mesh collapse, or worse rigid-looking bars in offline previews.",
-        "evidence": [
-          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/rest-retargeted-bones-overlay.png",
-          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/stand-groupfit-test.png",
-          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v6/w4-w5-export-report.json",
-          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v7/segment-weight-report.json",
-          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v7/segment-weight-previews/stand-mid.png",
-          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v7/segment-weight-previews/walk-mid.png",
-          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v7/segment-weight-previews/attack-mid.png"
-        ],
+        "reason": "Rest-bone retarget, skin-group affine fit, BVH/landmark surface fit, nearest-deform-bone-segment weighting, and fitted-segment production experiment introduced bone detachment, long-bar stretching, local mesh collapse, or worse rigid-looking bars in offline previews.",
         "next_action": "Manual retopology/Weight Paint or a regenerated AI mesh constrained to the template proportions; do not treat automatic binding as visual W4 clearance."
       },
       "w5_round_trip": {
         "candidate_m3": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/zergling-ai-sc2-candidate.m3",
-        "candidate_m3_sha256": "088b118cd6ad1b88a8fc9f28576d2ecdddc92a81a23394938601a7f6f30220e3",
-        "candidate_m3_bytes": 2019426,
+        "candidate_m3_sha256": "5998b1d27888311607d4058bc5979803f025487d7a7411e860a28a484a0ee1cd",
+        "candidate_m3_bytes": 2019410,
         "reimport_blend": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/zergling-ai-sc2-reimport.blend",
         "reimport_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w5-reimport-report.json",
+        "fit_audit": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w4-body-only-fit-audit.json",
         "reimport_contract": {
           "bone_count": 44,
           "mesh_count": 1,
@@ -183,7 +229,7 @@
         },
         "status": "PASS"
       },
-      "scope_boundary": "The selected AI mesh now has offline W4 binding/export evidence and a fresh W5 M3Studio re-import PASS. W4 visual fit remains review-required because the deform-bone overlay shows template/mesh body and tail misalignment. W6 SC2 Previewer, Actor, map/mod, and in-game runtime validation remain blocked and unverified."
+      "scope_boundary": "The selected AI mesh has offline W4 binding/export evidence and a fresh W5 M3Studio re-import PASS. W4 visual fit remains review-required because the AI body/tail proportions differ from the template rest pose. W6 SC2 Previewer, Actor, map/mod, and in-game runtime validation remain blocked and unverified."
     }
   },
 
