@@ -102,7 +102,7 @@
     "binding_audit_runner": "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/run_binding_reference_audit.py",
     "binding_audit_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/binding-reference-audit.json",
     "binding_overlay_runner": "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/render_binding_overlay.py",
-    "latest_experimental_binding_probe": {
+    "source_chain_placement_reference": {
       "output_dir": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks",
       "authoring_blend": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/zergling-ai-w4-rigged.blend",
       "fit_strategy": "source-chain-landmarks: preserve the transferred template-group order and terminal surface point; do not refine a fitted skeleton against its generated segment weights",
@@ -207,6 +207,27 @@
           "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v20/v20-overlay-attack.png"
         ],
         "status": "REJECTED_DETACHED_SKELETON_ALIGNMENT"
+      },
+      "experimental_v40_template_surface_transfer": {
+        "output_dir": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v40-template-surface-transfer",
+        "weighting": "template-all-weighted-surfaces-nearest-face-barycentric-transfer-top4",
+        "skeleton_policy": "original template rest skeleton and actions preserved; no bone retargeting",
+        "w4_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v40-template-surface-transfer/w4-w5-export-report.json",
+        "w4_coupling_certificates": [
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v40-template-surface-transfer/xray-overlays/binding-overlay-rest-0.json",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v40-template-surface-transfer/xray-overlays/binding-overlay-walk-30.json",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v40-template-surface-transfer/xray-overlays/binding-overlay-attack-8.json"
+        ],
+        "w5_report": "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v40-template-surface-transfer/reimport/w5-reimport-report.json",
+        "w5_coupling_certificates": [
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v40-template-surface-transfer/reimport/xray-overlays/binding-overlay-stand-50.json",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v40-template-surface-transfer/reimport/xray-overlays/binding-overlay-walk-30.json",
+          "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v40-template-surface-transfer/reimport/xray-overlays/binding-overlay-attack-8.json"
+        ],
+        "candidate_m3_sha256": "7cbe6587f25d249aacd6b35177d54c79024e687cf8e5f458cef0ae9e4899d143",
+        "candidate_m3_bytes": 2019418,
+        "status": "STRUCTURALLY_VERIFIED_NOT_PROMOTED_W4_VISUAL_MISMATCH",
+        "reason": "Nearest-face interpolation prevents nearest-vertex blending across source mesh pieces, but it cannot change the scorpion-like AI mesh into Zergling proportions. Offline x-ray and action previews retain mismatched limb and tail semantics, so v5 remains the production reference."
       },
       "rejected_corrections": {
         "status": "NOT_PROMOTED",

@@ -17,7 +17,7 @@ from typing import Any
 import bpy
 from mathutils import Matrix, Quaternion, Vector
 from mathutils.kdtree import KDTree
-
+from mathutils.bvhtree import BVHTree
 
 ROOT_MARKER = Path("src/config/workspace.json")
 REQUIRED_ACTIONS = ("Stand", "Walk", "Attack")
@@ -77,7 +77,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--diffuse", required=False, type=Path)
     parser.add_argument("--normal", required=False, type=Path)
     parser.add_argument("--bone-fit-mode", choices=("skin-groups", "template", "surface-fitted"), default="template")
-    parser.add_argument("--weight-mode", choices=("body-transfer", "all-surface", "fitted-segments"), default="body-transfer")
+    parser.add_argument("--weight-mode", choices=("body-transfer", "all-surface", "surface-transfer", "fitted-segments"), default="body-transfer")
     parser.add_argument("--segment-sigma", type=float, default=SEGMENT_WEIGHT_SIGMA)
     parser.add_argument("--segment-influences", type=int, default=4)
     parser.add_argument("--animation-scale", type=float, default=1.0)
@@ -339,17 +339,101 @@ def transfer_template_weights(mesh: bpy.types.Object, source_meshes: list[bpy.ty
             groups[name].add([vertex.index], weight / total, "REPLACE")
 
 
-def bind_candidate(candidate: bpy.types.Object, armature: bpy.types.Object, source_meshes: list[bpy.types.Object]) -> str:
+def transfer_template_surface_weights(mesh: bpy.types.Object, source_meshes: list[bpy.types.Object]) -> None:
+    """Interpolate canonical skin weights from nearest template faces.
+
+    The established body-transfer mode samples source vertices, which can blend
+    across a nearby but anatomically separate limb. This isolated option uses
+    barycentric interpolation at the closest face on all weighted source mesh
+    pieces. It preserves the unmodified template skeleton and action data.
+    """
+    for group in list(mesh.vertex_groups):
+        mesh.vertex_groups.remove(group)
+    points: list[Vector] = []
+    assignments_by_index: list[dict[str, float]] = []
+    triangles: list[tuple[int, int, int]] = []
+    group_names: set[str] = set()
+    for source in source_meshes:
+        offset = len(points)
+        source_assignments: list[dict[str, float]] = []
+        for vertex in source.data.vertices:
+            assignments: dict[str, float] = {}
+            for assignment in vertex.groups:
+                if assignment.group >= len(source.vertex_groups):
+                    continue
+                name = source.vertex_groups[assignment.group].name
+                if name not in NON_SKIN_GROUPS and assignment.weight > 0.0:
+                    assignments[name] = assignment.weight
+            points.append(source.matrix_world @ vertex.co)
+            assignments_by_index.append(assignments)
+            source_assignments.append(assignments)
+            group_names.update(assignments)
+        for polygon in source.data.polygons:
+            indexes = list(polygon.vertices)
+            for index in range(1, len(indexes) - 1):
+                triangle = (indexes[0], indexes[index], indexes[index + 1])
+                if any(source_assignments[vertex_index] for vertex_index in triangle):
+                    triangles.append(tuple(offset + vertex_index for vertex_index in triangle))
+    if not triangles or not group_names:
+        raise RuntimeError("source M3 has no weighted faces for template surface transfer")
+    tree = BVHTree.FromPolygons(points, triangles, all_triangles=True)
+    groups = {name: mesh.vertex_groups.new(name=name) for name in sorted(group_names)}
+    for vertex in mesh.data.vertices:
+        closest, _normal, face_index, _distance = tree.find_nearest(mesh.matrix_world @ vertex.co)
+        if closest is None or face_index is None:
+            raise RuntimeError(f"surface weight transfer found no source face for vertex {vertex.index}")
+        indices = triangles[face_index]
+        first, second, third = (points[index] for index in indices)
+        edge_first = second - first
+        edge_second = third - first
+        relative = closest - first
+        dot_00 = edge_first.dot(edge_first)
+        dot_01 = edge_first.dot(edge_second)
+        dot_11 = edge_second.dot(edge_second)
+        denominator = dot_00 * dot_11 - dot_01 * dot_01
+        if abs(denominator) <= 1e-12:
+            factors = (1.0, 0.0, 0.0)
+        else:
+            factor_second = (dot_11 * relative.dot(edge_first) - dot_01 * relative.dot(edge_second)) / denominator
+            factor_third = (dot_00 * relative.dot(edge_second) - dot_01 * relative.dot(edge_first)) / denominator
+            factors = (1.0 - factor_second - factor_third, factor_second, factor_third)
+        blended: dict[str, float] = {}
+        for source_index, factor in zip(indices, factors):
+            for name, weight in assignments_by_index[source_index].items():
+                blended[name] = blended.get(name, 0.0) + factor * weight
+        strongest = sorted(
+            ((name, weight) for name, weight in blended.items() if weight > 0.0),
+            key=lambda item: item[1],
+            reverse=True,
+        )[:4]
+        total = sum(weight for _name, weight in strongest)
+        if total <= 0.0:
+            raise RuntimeError(f"surface weight transfer produced no assignment for vertex {vertex.index}")
+        for name, weight in strongest:
+            groups[name].add([vertex.index], weight / total, "REPLACE")
+
+
+def bind_candidate(
+    candidate: bpy.types.Object,
+    armature: bpy.types.Object,
+    source_meshes: list[bpy.types.Object],
+    surface_transfer: bool = False,
+) -> str:
     remove_armature_modifiers(candidate)
     candidate.parent = armature
     candidate.matrix_parent_inverse = armature.matrix_world.inverted()
-    transfer_template_weights(candidate, source_meshes)
+    if surface_transfer:
+        transfer_template_surface_weights(candidate, source_meshes)
+        method = "template-all-weighted-surfaces-nearest-face-barycentric-transfer-top4"
+    else:
+        transfer_template_weights(candidate, source_meshes)
+        method = "template-body-nearest-vertex-transfer-top4"
     modifier = candidate.modifiers.new("AI_Zergling_Armature", "ARMATURE")
     modifier.object = armature
     weighted = sum(1 for vertex in candidate.data.vertices if vertex.groups)
     if weighted != len(candidate.data.vertices):
         raise RuntimeError(f"template weight transfer left {len(candidate.data.vertices) - weighted} unweighted vertices")
-    return "template-body-nearest-vertex-transfer-top4"
+    return method
 
 
 def transfer_fitted_segment_weights(mesh: bpy.types.Object, armature: bpy.types.Object, sigma: float, max_influences: int) -> str:
@@ -1049,8 +1133,8 @@ def integrate(args: argparse.Namespace) -> None:
         pass
     alignment_body = select_alignment_body(source_meshes)
     alignment = align_candidate(candidate, [alignment_body])
-    binding_meshes = source_meshes if args.weight_mode == "all-surface" or args.bone_fit_mode == "surface-fitted" else [alignment_body]
-    weighting_method = bind_candidate(candidate, armature, binding_meshes)
+    binding_meshes = source_meshes if args.weight_mode in {"all-surface", "surface-transfer"} or args.bone_fit_mode == "surface-fitted" else [alignment_body]
+    weighting_method = bind_candidate(candidate, armature, binding_meshes, surface_transfer=args.weight_mode == "surface-transfer")
     template_rest = capture_template_rest(armature)
     if args.bone_fit_mode == "surface-fitted":
         animation_deltas = capture_action_world_deltas(armature, actions, template_rest)
