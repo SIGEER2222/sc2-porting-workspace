@@ -21,11 +21,12 @@
       "id": "STAGE50-ASSET-WORKFLOW-001",
       "severity": "medium",
       "evidence_type": "static",
-      "summary": "The executable Zergling asset workflow has passed W0 template registration, W1 source-to-GLB action baseline, W2 M3Studio GUI authoring, W3 per-M3 batch material preview, and W5 candidate-M3 export/re-import structure checks. The selected 50,000-triangle AI mesh remains the v5 body-only top-four transfer on the 44-bone template. The isolated v39 source-chain-landmark experiment corrects the previously short terminal chains: its rest overlay reaches the tail and both long claw tips, all 36,578 authoring vertices have positive weights across 24 deform groups with a two-influence cap, and Stand/Walk/Attack move all evaluated authoring vertices. It remains an experimental W4 reference because the generated scorpion-like anatomy, curved tail, and Zergling action fit have not passed manual visual clearance.",
+      "summary": "The executable Zergling asset workflow passes W0/W1 template and action baselines, W2 M3Studio authoring, W3 per-M3 batch material preview, and W5 candidate-M3 export/re-import structure checks. The selected v5 body-only transfer remains the production reference. Experimental v39/v40/v41 branches provide source-chain placement, nearest-face transfer, and fitted-segment coupling/playback evidence, but none clears W4 visual fit because the generated AI mesh has scorpion-like anatomy and mismatched Zergling proportions/action semantics.",
       "source": [
         "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/references/zergling-scbw-ai-reference.json",
         "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/run_binding_reference_audit.py",
         "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/run_ai_mesh_m3_roundtrip.py",
+        "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/render_binding_overlay.py",
         "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/binding-reference-audit.json",
         "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w4-w5-export-report.json",
         "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v5/w4-body-only-fit-audit.json",
@@ -36,7 +37,6 @@
         "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v20/v20-overlay-stand.png",
         "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v20/v20-overlay-walk.png",
         "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v20/v20-overlay-attack.png",
-        "src/projects/cmre-porting/stages/50-vm-debugger-expansion/asset-workflow/render_binding_overlay.py",
         "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v38/xray-overlays/binding-overlay-rest-0.json",
         "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v38/xray-overlays/binding-overlay-stand-50.json",
         "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v38/xray-overlays/binding-overlay-attack-8.json",
@@ -53,9 +53,16 @@
         "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v39-source-chain-landmarks/video-previews/v39-w5-m3-reimport-actions-continuous-tight.mp4",
         "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v40-template-surface-transfer/w4-w5-export-report.json",
         "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v40-template-surface-transfer/xray-overlays/binding-overlay-rest-0.json",
-        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v40-template-surface-transfer/reimport/w5-reimport-report.json"
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v40-template-surface-transfer/reimport/w5-reimport-report.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v41-fitted-coupling/w4-w5-export-report.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v41-fitted-coupling/reimport/w5-reimport-report.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v41-fitted-coupling/xray-overlays/binding-overlay-stand-50.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v41-fitted-coupling/xray-overlays/binding-overlay-walk-30.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v41-fitted-coupling/xray-overlays/binding-overlay-attack-8.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v41-fitted-coupling/reimport/continuous-action-frames/continuous-action-frame-render-report.json",
+        "artifacts/projects/cmre-porting/stage50-vm-debugger-expansion/ai-mesh-output/zergling-ai-50k-v41-fitted-coupling/reimport/continuous-action-frames/zergling-ai-v41-actions.mp4"
       ],
-      "next_action": "Keep v5 as the production reference. The isolated v40 all-template-surface nearest-face transfer structurally passes W5 but still does not clear the W4 visual mismatch: provide an AI regeneration constrained to the Zergling template proportions, limb count, limb anchors, tail path, and rest-pose frame, then use the template-rest face transfer followed by focused manual Weight Paint. Treat v39 as source-chain terminal placement evidence—not an automatic production promotion. Provide missing M3-referenced DDS assets or retain an explicitly non-runtime fallback palette; SC2 Previewer/Actor/in-game validation remains blocked by the missing local SC2 installation."
+      "next_action": "Keep v5 as the production reference and use v41 only as the current coupling/playback learning example. To clear W4, provide an AI regeneration constrained to the Zergling template body proportions, limb count and anchors, tail path, and rest-pose frame, then perform focused manual Weight Paint. SC2 Previewer/Actor/in-game validation remains blocked by the missing local SC2 installation."
     }
   ],
   "resolved": [
