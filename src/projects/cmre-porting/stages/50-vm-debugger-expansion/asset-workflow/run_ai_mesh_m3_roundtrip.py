@@ -155,6 +155,14 @@ def reset_pose(armature: bpy.types.Object, frame: int = 0) -> None:
     bpy.context.view_layer.update()
 
 
+def prepare_review_action(armature: bpy.types.Object, action: bpy.types.Action) -> None:
+    """Save a clean rest frame with a real action selected for Blender review."""
+    reset_pose(armature)
+    armature.animation_data.action = action
+    bpy.context.scene.frame_set(int(action.frame_range[0]))
+    bpy.context.view_layer.update()
+
+
 def bounds(objects: list[bpy.types.Object]) -> tuple[Vector, Vector]:
     points: list[Vector] = []
     depsgraph = bpy.context.evaluated_depsgraph_get()
@@ -1177,8 +1185,7 @@ def integrate(args: argparse.Namespace) -> None:
     scene.frame_set(int((actions["Stand"].frame_range[0] + actions["Stand"].frame_range[1]) / 2))
     preview_dir = out_dir / "w4-ai-textured-previews"
     preview_outputs = render_midpoints(scene, armature, actions, candidate, preview_dir)
-    reset_pose(armature)
-    scene.frame_set(int((actions["Stand"].frame_range[0] + actions["Stand"].frame_range[1]) / 2))
+    prepare_review_action(armature, actions["Stand"])
     blend_path = out_dir / "zergling-ai-w4-rigged.blend"
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_path))
 
@@ -1211,7 +1218,7 @@ def integrate(args: argparse.Namespace) -> None:
             "weighting": {"method": weighting_method, "sourceMeshes": [mesh.name for mesh in binding_meshes], "vertexGroups": len(candidate.vertex_groups), "maxPositiveInfluences": max(sum(1 for assignment in vertex.groups if assignment.weight > 0.0) for vertex in candidate.data.vertices), "armatureModifier": any(mod.type == "ARMATURE" and mod.object == armature for mod in candidate.modifiers)},
             "weightMode": args.weight_mode,
             "surfaceFitStrategy": args.surface_fit_strategy if args.bone_fit_mode == "surface-fitted" else None,
-            "alignmentBodyMesh": alignment_body.name,
+            "reviewAction": {"action": armature.animation_data.action.name if armature.animation_data and armature.animation_data.action else None, "frame": scene.frame_current},
             "animationRetargeting": animation_retargeting,
             "alignmentBodyVertices": len(alignment_body.data.vertices),
             "alignment": alignment,
@@ -1247,7 +1254,7 @@ def verify(args: argparse.Namespace) -> None:
         mesh.hide_render = False
     preview_dir = out_dir / "w5-reimport-previews"
     preview_outputs = render_midpoints(bpy.context.scene, armature, actions, meshes[0], preview_dir)
-    reset_pose(armature)
+    prepare_review_action(armature, actions["Stand"])
     blend_path = out_dir / "zergling-ai-sc2-reimport.blend"
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_path))
     report = {
@@ -1264,6 +1271,7 @@ def verify(args: argparse.Namespace) -> None:
             "meshes": [{"name": mesh.name, "vertices": len(mesh.data.vertices), "triangles": sum(len(poly.vertices) - 2 for poly in mesh.data.polygons), "uvLayers": len(mesh.data.uv_layers), "vertexGroups": len(mesh.vertex_groups)} for mesh in meshes],
             "actions": {name: {"action": action.name, "frames": [int(action.frame_range[0]), int(action.frame_range[1])]} for name, action in actions.items()},
             "previewRenders": preview_outputs,
+            "reviewAction": {"action": armature.animation_data.action.name if armature.animation_data and armature.animation_data.action else None, "frame": bpy.context.scene.frame_current},
             "previewTextures": {"diffuse": str(path(args.diffuse).relative_to(ROOT)).replace("\\", "/") if args.diffuse else None, "normal": str(path(args.normal).relative_to(ROOT)).replace("\\", "/") if args.normal else None},
         },
         "scopeBoundary": "Fresh Blender/M3Studio re-import and render evidence only. SC2 Previewer, Actor, and in-game runtime remain unverified.",
